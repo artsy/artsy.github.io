@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "Post With a Very, Very Long Title That Wraps"
+title: "Post With a Fairly Long Title"
 date: 2012-01-12 12:04
 comments: true
 categories: 
@@ -42,6 +42,14 @@ Here's how you code:
     end
 
 Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia Curae; Morbi arcu augue, imperdiet nec consectetur id, laoreet vitae metus. Aliquam vitae ipsum quis turpis congue malesuada vitae quis ipsum. Maecenas lobortis mollis vestibulum. Phasellus sagittis rhoncus justo, vel commodo lorem lacinia eget. Integer id vulputate sapien. Curabitur odio nisl, rutrum a condimentum in, vulputate eget ipsum. Curabitur interdum eros at nunc dignissim commodo.
+
+Here is a list:
+
+ * The first item
+ * The second item
+    * Don't forget the subitems #1
+    * And subitem #2
+ * And finally the third item
 
 Curabitur viverra tincidunt sem, nec rhoncus tellus ultrices eu. Cras convallis, tellus non auctor tempor, leo justo euismod enim, at blandit dui quam eget libero. Vivamus pulvinar elit nec nisi varius adipiscing. Cum sociis natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus. Sed accumsan tempus mauris, at lacinia dolor condimentum vel. Nullam lorem odio, vulputate in iaculis id, blandit eu tellus. Vestibulum a risus non elit tincidunt hendrerit. Ut ut semper quam. Morbi at egestas augue. Nullam aliquam faucibus blandit. Aliquam accumsan fermentum porttitor. Suspendisse sit amet porta sem. Donec at neque et justo sollicitudin elementum id quis velit. Ut eget metus at lorem convallis luctus a non ligula.
 
