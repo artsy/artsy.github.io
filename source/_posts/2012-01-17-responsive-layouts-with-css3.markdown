@@ -3,6 +3,7 @@ layout: post
 title: "Responsive Layouts with CSS3"
 date: 2012-01-17 11:03
 comments: true
+author: Matt McNierney
 categories: [Design, CSS, HTML5]
 ---
 All of the [SCSS](http://sass-lang.com/) stylesheets used to design this blog compile down to one file (view the source of this page and check out screen.css), and there isn't any JavaScript affecting the layout. But there are really three versions of this page. If you're reading this on a smartphone, what you see is almost entirely different from what you would see if you were reading this in a full screen browser. If you're on a computer, try making this page full screen and slowly resize it to make it smaller. You'll first notice that the Art.sy logo disappears just before it would cover the text in the main column. Keep reducing the viewport and eventually the page will snap into a mobile format with the Art.sy logo centered at the top, followed by the centered header text and mobile search box all above the index of recent posts.
