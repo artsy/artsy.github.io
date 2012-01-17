@@ -4,7 +4,6 @@ title: "Responsive Layouts with CSS3"
 date: 2012-01-17 11:03
 comments: true
 author: Matt McNierney
-author-links: true
 github-url: https://www.github.com/mmcnierney14
 twitter-url: http://twitter.com/mmcnierney
 blog-url: http://mattmcnierney.wordpress.com
