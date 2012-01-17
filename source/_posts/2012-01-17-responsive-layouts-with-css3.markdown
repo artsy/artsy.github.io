@@ -47,7 +47,7 @@ But how do you apply different styles to the same elements depending on the size
 
 The styles that are common to all viewports are written outside of `@media` declarations at the top of the styles for `#lrg-mark` — regardless of the screen size, we want the logo to be the same image and the same size, and we don't want to display the span inside of the div that contains fallback text. The rest of the styles are given in media queries: for a large viewport, we want the logo fixed in the upper right corner, for slightly smaller viewports, we want it to disappear, and for mobile viewports, we want it centered on the screen. Note that 481px is a magic number: it's the width of an iPhone in landscape mode.
 
-The media features `max-width` and `min-width` are a little misleading: they don't mean the maximum or minimum possible width of the user's screen. It's best to think of max as "less-than-or-equal-to" and min as "greater-than-or-equal-to." See [the W3C's website](http://www.w3.org/TR/css3-mediaqueries/) for a complete reference on CSS media queries.
+The media features `max-width` and `min-width` are a little misleading: they don't mean the maximum or minimum possible width of the user's screen. It's best to think of `max-` as "less-than-or-equal-to" and `min-` as "greater-than-or-equal-to." See [the W3C's website](http://www.w3.org/TR/css3-mediaqueries/) for a complete reference on CSS media queries.
 
 ## Making It Cross-Browser
 
