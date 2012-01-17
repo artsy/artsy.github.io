@@ -49,6 +49,6 @@ The styles that are common to all viewports are written outside of `@media` decl
 
 The media features `max-width` and `min-width` are a little misleading: they don't mean the maximum or minimum possible width of the user's screen. `(max-width: 481px)` will behave like `(width <= 481px)` and `(min-width: 482px)` will behave like `(width >= 482px)`. See [the W3C's website](http://www.w3.org/TR/css3-mediaqueries/) for a complete reference on CSS media queries.
 
-## Making this Cross-Browser
+## Making It Cross-Browser
 
 CSS3 media queries are awesome, and while all the latest versions of the major browsers support them, it's very likely that a portion of your site's visitors will be using browsers that don't support these new CSS features. Luckily, this problem has already been solved by great people who like to give away things for free. Just include [modernizr.js](https://github.com/Modernizr/Modernizr) on your page, and it will provide a JavaScript fallback for media queries, as well as for many other potentially unsupported CSS3 features.
