@@ -1,7 +1,7 @@
 ---
 layout: page
 title: "Art.sy Open Source"
-comments: true
+comments: false
 sharing: true
 footer: true
 ---
