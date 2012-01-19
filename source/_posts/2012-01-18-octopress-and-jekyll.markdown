@@ -3,7 +3,7 @@ layout: post
 title: "Octopress and Jekyll"
 date: 2012-01-18 23:03
 comments: true
-categories: [Blog]
+categories: [Blog, Open-Source]
 author: Daniel Doubrovkine
 github-url: https://www.github.com/dblock
 twitter-url: http://twitter.com/dblockdotorg
@@ -11,7 +11,7 @@ blog-url: http://code.dblock.org
 ---
 This blog is powered by static pages. 
 
-I think it's quite ironic that, while we spend a lot of time building complex large scale dynamic websites, our new favorite publishing platform is a system that compiles static content. But, in many ways, [Octopress](http://octopress.org/) and [Jekyll](https://github.com/mojombo/jekyll) fit our philosphy and developer workflow perfectly. Writing an article for this blog means using the same tools and processes as contributing to a project on Github. And everyone is welcome to browse and learn from [the source](https://github.com/artsy/artsy.github.com/tree/source) of this blog, and even fork it and contribute fixes to the layout or even blog features.
+I think it's quite ironic that, while we spend a lot of time building complex large scale dynamic websites, our new favorite publishing platform is a system that compiles static content. But, in many ways, [Octopress](http://octopress.org/) and [Jekyll](https://github.com/mojombo/jekyll) fit our philosophy and developer workflow perfectly. Writing an article for this blog means using the same tools and processes as contributing to a project on Github. And everyone is welcome to browse and learn from [the source](https://github.com/artsy/artsy.github.com/tree/source) of this blog, and even fork it and contribute fixes to the layout or even blog features.
 
 Here's what Art.sy engineers do to publish a new post.
 
@@ -43,6 +43,8 @@ Here's what Art.sy engineers do to publish a new post.
      Creating new post: source/_posts/2012-01-18-octopress-and-jekyll.md
 
     artsy.github.com$ git commit -am "Octopress and Jekyll"
+     1 files changed, 52 insertions(+), 0 deletions(-)
+     create mode 100644 source/_posts/2012-01-18-octopress-and-jekyll.md
 
     artsy.github.com$ rake deploy
 
