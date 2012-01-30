@@ -23,7 +23,7 @@ The good news is that these responsive layouts aren't difficult to implement. Wh
 
 But how do you apply different styles to the same elements depending on the size of the browser's viewport? There are a couple of ways, but by far the cleanest way is to use CSS3 media queries. Media queries allow developers to apply different styles to elements on a page depending on the media on which they are displayed, whether that medium is a screen, a projection, print, braille, etc. The most common use of media queries, however, is to create responsive layouts. Media queries come after an `@media` declaration. Directly after comes the definition of the media type: we're concerned with creating responsive layouts for screens, and as a result, we'll declare our styles under `@media screen`. To apply custom styles based on the size of the screen, we'll use media features, which come after the keyword `and` and are enclosed in parentheses. Here's the SCSS code used to style the Art.sy logo on this blog:
 
-``` css
+``` scss
     #lrg-mark {
         background-image: url("../images/Logo.png");
         background-repeat: no-repeat;
