@@ -9,12 +9,13 @@ github-url: https://www.github.com/dblock
 twitter-url: http://twitter.com/dblockdotorg
 blog-url: http://code.dblock.org
 ---
-This blog is powered by static pages. 
+This blog is powered by static pages.
 
 I think it's quite ironic that, while we spend a lot of time building complex large scale dynamic websites, our new favorite publishing platform is a system that compiles static content. But, in many ways, [Octopress](http://octopress.org/) and [Jekyll](https://github.com/mojombo/jekyll) fit our philosophy and developer workflow perfectly. Writing an article for this blog means using the same tools and processes as contributing to a project on Github. And everyone is welcome to browse and learn from [the source](https://github.com/artsy/artsy.github.com/tree/source) of this blog, and even fork it and contribute fixes to the layout or even blog features.
 
 Here's what Art.sy engineers do to get setup (once) and publish a new post.
 
+``` bash
     $ git clone git@github.com:artsy/artsy.github.com.git
      Cloning into artsy.github.com...
 
@@ -47,6 +48,7 @@ Here's what Art.sy engineers do to get setup (once) and publish a new post.
      create mode 100644 source/_posts/2012-01-18-octopress-and-jekyll.md
 
     artsy.github.com$ rake deploy
+```
 
 (If you're confused by the setup, check out [this post](http://code.dblock.org/octopress-setting-up-a-blog-and-contributing-to-an-existing-one)).
 

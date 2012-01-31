@@ -11,7 +11,9 @@ blog-url: http://code.dblock.org
 ---
 We do a lot of image processing at Art.sy. We have tens of thousands of beautiful original high resolution images from our partners and treat them with care. The files mostly come from professional art photographers, include embedded color profiles and other complicated features that make image processing a big deal.
 
-Once uploaded, these images are converted to JPG, resized into many versions and often resampled. We are using [CarrierWave](https://github.com/jnicklas/carrierwave) for this process - our typical image uploader starts like a usual CarrierWave implementation with a few additional features:
+Once uploaded, these images are converted to JPG, resized into many versions and often resampled. We are using [CarrierWave](https://github.com/jnicklas/carrierwave) for this process - our typical image uploader starts like a usual CarrierWave implementation with a few additional features.
+
+<!-- more -->
 
 * Fallback to a well-known image when an image is missing
 * Support for a local development environment, S3 and CloudFront
@@ -19,6 +21,7 @@ Once uploaded, these images are converted to JPG, resized into many versions and
 
 Here's the complete source.
 
+``` ruby
     class ImageUploader < CarrierWave::Uploader::Base
 
       include CarrierWave::RMagick
@@ -48,7 +51,7 @@ Here's the complete source.
         "#{Rails.root.to_s}/tmp/uploads"
       end
 
-      # relative path for saving a file 
+      # relative path for saving a file
       def store_path(for_file = filename)
         "#{local_path}#{self.class.store_path_base(self.model)}#{(version_name || :original).to_s}.jpg"
       end
@@ -58,7 +61,7 @@ Here's the complete source.
         super != nil ? super.split('.').first + '.jpg' : super
       end
 
-      # a location that includes a version number 
+      # a location that includes a version number
       def self.store_path_base(model)
         class_name = model.class.name.underscore.pluralize
         image_version = (model.image_version || 0) > 0 ? "#{model.image_version}/" : ""
@@ -79,9 +82,11 @@ Here's the complete source.
       end
 
     end
+```
 
 We derive actual uploaders from the `ImageUploader` class.
 
+``` ruby
     class WidgetUploader < ImageUploader
 
       process :increment_version
@@ -104,14 +109,21 @@ We derive actual uploaders from the `ImageUploader` class.
         process :quality => 90
       end
     end
+```
 
 And the uploader is mounted via `mount_uploader`.
 
+``` ruby
     mount_uploader :image,  WidgetUploader, delayed: true
+```
 
-You'll notice a few unusual things here. The versions have an `:if` condition and there're mentions of `is_processing_delayed?`. This comes from a small module [@jaghion](https://github.com/jaghion/) wrote called `DelayedImageProcessing`. It's a much more evolved version designed on top of [my earlier idea](http://code.dblock.org/carrierwave-delayjob-processing-of-selected-versions) of delaying some image processing for background jobs. 
+You'll notice a few unusual things here. The versions have an `:if` condition and there're mentions of `is_processing_delayed?`. This comes from a small module [@jaghion](https://github.com/jaghion/) wrote called `DelayedImageProcessing`. It's a much more evolved version designed on top of [my earlier idea](http://code.dblock.org/carrierwave-delayjob-processing-of-selected-versions) of delaying some image processing for background jobs.
 
 The reason we want to delay image processing is because it takes a long time. The Heroku HTTP request limit is only 30 seconds, so image upload would regularly timeout. And some of the large images can take up to ten minutes to process - we don't want the user to wait that long.
 
-To use, you will add some code in `config/initializers/carrierwave.rb` - the complete source for the module and the configuration is available in [this gist](https://gist.github.com/1710609) under the MIT License. You might need to do some work to make this work with other storages than Mongoid.
+To use, you will add some code in `config/initializers/carrierwave.rb` and add `DelayedImageProcessing` into `lib`.
 
+* [lib/delayed_image_processing.rb](https://gist.github.com/1710609#file_delayed_image_processing.rb)
+* [config/initializers/carrierwave.rb](https://gist.github.com/1710609#file_carrierwave.rb)
+
+The code above works with Mongoid. You will have to do some work to make this work with other storage.
