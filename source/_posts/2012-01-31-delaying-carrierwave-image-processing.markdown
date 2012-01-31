@@ -21,7 +21,7 @@ Once uploaded, these images are converted to JPG, resized into many versions and
 
 Here's the complete source.
 
-``` ruby
+``` ruby app/models/image_uploader.rb
     class ImageUploader < CarrierWave::Uploader::Base
 
       include CarrierWave::RMagick
@@ -86,7 +86,7 @@ Here's the complete source.
 
 We derive actual uploaders from the `ImageUploader` class.
 
-``` ruby
+``` ruby app/models/widget_uploader.rb
     class WidgetUploader < ImageUploader
 
       process :increment_version
