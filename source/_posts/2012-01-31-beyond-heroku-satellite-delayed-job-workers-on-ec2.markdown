@@ -5,18 +5,18 @@ date: 2012-01-31 11:45
 comments: true
 categories: [Heroku, EC2, Fog, Chef]
 author: Joey Aghion
-github-url: http://github.com/jaghion
+github-url: http://github.com/joeyAghion
 twitter-url: http://twitter.com/joeyAghion
 blog-url: http://halfamind.aghion.com
 ---
 
-[TL;DR: To supplement Heroku-managed app servers, we launched custom EC2 instances to host Delayed Job worker processes. See the [satellite_setup github repo](https://github.com/jaghion/satellite_setup) for rake tasks and Chef recipes that make it easy.]
+[TL;DR: To supplement Heroku-managed app servers, we launched custom EC2 instances to host Delayed Job worker processes. See the [satellite_setup github repo](https://github.com/joeyAghion/satellite_setup) for rake tasks and Chef recipes that make it easy.]
 
 [Art.sy](http://art.sy) engineers are big users and abusers of [Heroku](http://heroku.com). It's a neat abstraction of server resources, so we were conflicted when parts of our application started to bump into Heroku's limitations. While we weren't eager to start managing additional infrastructure, we found that--with a few good tools--we could migrate some components away from Heroku without fragmenting the codebase or over-complicating our development environments.
 
 There are a number of reasons your app might need to go beyond Heroku. It might rely on a locally installed tool (not possible on Heroku's locked-down servers), or require heavy file-system usage (limited to `tmp/` and `log/`, and not permanent or shared). In our case, the culprit was Heroku's 512 MB RAM limit--reasonable for most web processes, but quickly exceeded by the image-processing tasks of our [delayed_job](https://github.com/collectiveidea/delayed_job) workers. We considered building a specialized image-processing service, but decided instead to supplement our web apps with a custom [EC2](http://aws.amazon.com/ec2/) instance dedicated to processing background tasks. We call these servers "satellites."
 
-We'll walk through the pertinent sections here, but you can find Rake tasks that correspond with these scripts, plus all of the necessary cookbooks, in the [satellite_setup github repo](https://github.com/jaghion/satellite_setup). Now, on to the code!
+We'll walk through the pertinent sections here, but you can find Rake tasks that correspond with these scripts, plus all of the necessary cookbooks, in the [satellite_setup github repo](https://github.com/joeyAghion/satellite_setup). Now, on to the code!
 
 First, generate a key-pair from [Amazon's AWS Management Console](https://console.aws.amazon.com/ec2/home?#s=KeyPairs). Then we'll use [Fog](http://fog.io) to spawn the EC2 instance.
 
@@ -176,7 +176,7 @@ cookbook_file "/app/example_app/shared/config/newrelic.yml" do
 end
 ```
 
-[Monit](http://mmonit.com/monit/) is a great tool for starting, managing, and monitoring long-running processes. It can be configured with all sorts of thresholds and alerting. (We've included only a simple configuration in the [github repo](https://github.com/jaghion/satellite_setup) for now.) Let's include the `monit` recipe, to ensure that monit is installed and running, and then add the necessary configuration for monit to start and monitor our delayed_job worker process.
+[Monit](http://mmonit.com/monit/) is a great tool for starting, managing, and monitoring long-running processes. It can be configured with all sorts of thresholds and alerting. (We've included only a simple configuration in the [github repo](https://github.com/joeyAghion/satellite_setup) for now.) Let's include the `monit` recipe, to ensure that monit is installed and running, and then add the necessary configuration for monit to start and monitor our delayed_job worker process.
 
 ``` ruby config/satellite/cookbooks/example_app/recipes/configure.rb (cont'd)
 include_recipe 'monit'
@@ -273,7 +273,7 @@ end
 
 Our satellite requires access to some of the same environment variables as our Heroku web apps (such as a database host or mail server credentials). To keep these synchronized, we rely on a `config/heroku.yml` file. (This duplication is an obvious hazard and deserves improvement, but we've actually found it convenient to have these locally for easy access from Rake tasks, etc.)
 
-In the [satellite_setup](https://github.com/jaghion/satellite_setup) github repo, we've simplified this set-up into a few tasks that we use on an ongoing basis:
+In the [satellite_setup](https://github.com/joeyAghion/satellite_setup) github repo, we've simplified this set-up into a few tasks that we use on an ongoing basis:
 ``` bash
 $ rake satellite:spawn RAILS_ENV=staging
 $ rake satellite:configure RAILS_ENV=staging

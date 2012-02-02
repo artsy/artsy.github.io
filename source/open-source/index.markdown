@@ -53,13 +53,12 @@ Easy maintenance of collections of processed data in MongoDB with the Mongoid OD
 
 [https://github.com/aaw/mongoid_collection_snapshot](https://github.com/aaw/mongoid_collection_snapshot)
 
-[delayed_job_shallow_mongoid](https://github.com/jaghion/delayed_job_shallow_mongoid)
+[delayed_job_shallow_mongoid](https://github.com/joeyAghion/delayed_job_shallow_mongoid)
 -------------------------------------------------------------------------------------
 
-Short-circuit serialization of Mongoid model instances when a delayed job is called on them, or when they're passed as arguments
-to a delayed jobs.
+Short-circuit serialization of Mongoid model instances when a delayed job is called on them, or when they're passed as arguments to delayed jobs.
 
-[https://github.com/jaghion/delayed_job_shallow_mongoid](https://github.com/jaghion/delayed_job_shallow_mongoid)
+[https://github.com/joeyAghion/delayed_job_shallow_mongoid](https://github.com/joeyAghion/delayed_job_shallow_mongoid)
 
 [heroku-bartender](https://github.com/sarcilav/heroku-bartender)
 ----------------------------------------------------------------

@@ -117,7 +117,7 @@ And the uploader is mounted via `mount_uploader`.
     mount_uploader :image,  WidgetUploader, delayed: true
 ```
 
-You'll notice a few unusual things here. The versions have an `:if` condition and there're mentions of `is_processing_delayed?`. This comes from a small module [@jaghion](https://github.com/jaghion/) wrote called `DelayedImageProcessing`. It's a much more evolved version designed on top of [my earlier idea](http://code.dblock.org/carrierwave-delayjob-processing-of-selected-versions) of delaying some image processing for background jobs.
+You'll notice a few unusual things here. The versions have an `:if` condition and there're mentions of `is_processing_delayed?`. This comes from a small module [@joeyAghion](https://github.com/joeyAghion/) wrote called `DelayedImageProcessing`. It's a much more evolved version designed on top of [my earlier idea](http://code.dblock.org/carrierwave-delayjob-processing-of-selected-versions) of delaying some image processing for background jobs.
 
 The reason we want to delay image processing is because it takes a long time. The Heroku HTTP request limit is only 30 seconds, so image upload would regularly timeout. And some of the large images can take up to ten minutes to process - we don't want the user to wait that long.
 
