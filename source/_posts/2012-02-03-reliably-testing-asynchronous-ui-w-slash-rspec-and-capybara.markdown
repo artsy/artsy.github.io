@@ -1,6 +1,6 @@
 ---
 layout: post
-title: Reliably Testing Asynchrnous UI w/ RSpec and Capybara
+title: Reliably Testing Asynchronous UI w/ RSpec and Capybara
 date: 2012-02-03 11:45
 comments: true
 categories: [RSpec, Capybara, Selenium, UI, Testing]
@@ -155,4 +155,4 @@ Combining Techniques
 
 With enough attention we were able to explain and fix most spec failures. When implementing Capybara tests we favor explicit waits and use the combination of the two wait functions above when we just want to generically make sure that everything on the page has loaded and is ready for more action.
 
-Finally, integration tests are essential for contuneuous deployment. They are very much worth the extra development effort.
+Finally, integration tests are essential for contineous deployment. They are very much worth the extra development effort.
