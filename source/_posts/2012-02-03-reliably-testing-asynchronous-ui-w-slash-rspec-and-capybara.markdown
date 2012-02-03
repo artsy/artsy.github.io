@@ -86,7 +86,7 @@ This test works well with Capybara, because it tries to wait for elements to app
 Waiting for Explicit Events
 ---------------------------
 
-The above test is "reliable" within some limits. It works as long as all the necessary asyncronous events run within a timeout period. But what if they don't? What if the test hardware is taking a break from flushing to disk? Or waiting on Google Analytics when the network cable is unplugged, which shouldn't affect the outcome of the test? These external issues make this code very brittle, so everyone keeps increasing the default timeout values.
+The above test is "reliable" within some limits. It works as long as all the necessary asynchronous events run within a timeout period. But what if they don't? What if the test hardware is taking a break from flushing to disk? Or waiting on Google Analytics when the network cable is unplugged, which shouldn't affect the outcome of the test? These external issues make this code very brittle, so everyone keeps increasing the default timeout values.
 
 A winning strategy to avoid this is to introduce explicit wait controls inside the tests. These wait `Capybara.default_wait_time` for a truthy result and no longer force you to know which method in Capybara waits for a timeout and which doesn't. It effectively breaks up a single wait into multiple waits.
 
@@ -155,4 +155,4 @@ Combining Techniques
 
 With enough attention we were able to explain and fix most spec failures. When implementing Capybara tests we favor explicit waits and use the combination of the two wait functions above when we just want to generically make sure that everything on the page has loaded and is ready for more action.
 
-Finally, integration tests are essential for contineous deployment. They are very much worth the extra development effort.
+Finally, integration tests are essential for continuos deployment. They are very much worth the extra development effort.
