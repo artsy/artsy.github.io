@@ -13,7 +13,7 @@ tl;dr - You can write 632 rock solid UI tests with Capybara and RSpec, too.
 
 {% img /images/2012-02-03-reliably-testing-asynchronous-ui-w-slash-rspec-and-capybara/jenkins-ci.png [Miami Weather in NYC] %}
 
-We have exactly 231 integration tests and 401 view tests out of a total of 3086 in our core application today. This adds up to 632 tests that excercize UI. The vast majority use [RSpec](http://rspec.info/) with [Capybara](https://github.com/jnicklas/capybara) and [Selenium](http://seleniumhq.org/). This means that every time the suite runs we setup real data in a local MongoDB and use a real browser to hit a fully running local application, 632 times. The suite currently takes 45 minutes to run headless on a slow Linode, UI tests taking more than half the time.
+We have exactly 231 integration tests and 401 view tests out of a total of 3086 in our core application today. This adds up to 632 tests that excercize UI. The vast majority use [RSpec](http://rspec.info/) with [Capybara](https://github.com/jnicklas/capybara) and [Selenium](http://seleniumhq.org/). This means that every time the suite runs we set up real data in a local MongoDB and use a real browser to hit a fully running local application, 632 times. The suite currently takes 45 minutes to run headless on a slow Linode, UI tests taking more than half the time.
 
 While the site is in private beta (request your invite [here](http://art.sy/request_invite)), you can get a glimpse of the complexity of the UI from the [splash page](http://art.sy). It's a rich client-side Javascript application that talks to an API. You can open your browser's developer tools and watch a combination of API calls and many asynchronous events.
 
@@ -88,7 +88,7 @@ Waiting for Explicit Events
 
 The above test is "reliable" within some limits. It works as long as all the necessary asynchronous events run within a timeout period. But what if they don't? What if the test hardware is taking a break from flushing to disk? Or waiting on Google Analytics when the network cable is unplugged, which shouldn't affect the outcome of the test? These external issues make this code very brittle, so everyone keeps increasing the default timeout values.
 
-A winning strategy to avoid this is to introduce explicit wait controls inside the tests. These wait `Capybara.default_wait_time` for a truthy result and no longer force you to know which method in Capybara waits for a timeout and which doesn't. It effectively breaks up a single wait into multiple waits.
+A winning strategy to avoid this is to introduce explicit wait controls inside the tests. These wait `Capybara.default_wait_time` for a true result and no longer force you to know which method in Capybara waits for a timeout and which doesn't. It effectively breaks up a single wait into multiple waits.
 
 Consider a widget that needs to be saved by making a postback.
 
@@ -121,10 +121,10 @@ Sometimes, waiting on explicit events is just not practical. You may have many A
 Remaining AJAX Requests
 -----------------------
 
-If you're using jQuery, you can test the number of active connections to a server. The number is zero when all pending AJAX requests have finished.
+If you're using jQuery, you can test the number of active connections to a server. The number is zero when all pending AJAX requests have finished. This was an original idea from [Pivotal](http://pivotallabs.com/users/mgehard/blog/articles/1671-waiting-for-jquery-ajax-calls-to-finish-in-cucumber).
 
 ``` ruby spec/support/wait_for_ajax_helper.rb
-def wait_for_ajax(timeout = 5)
+def wait_for_ajax(timeout = Capybara.default_wait_time)
   page.wait_until(timeout) do
     page.evaluate_script 'jQuery.active == 0'
   end
@@ -137,22 +137,23 @@ Remaining DOM Events
 This one is a bit tricker. We can leverage the fact that JavaScript engines are updating the UI on a single thread. If you defer an action it will execute after everything else that has been deferred before it. Therefore we can queue an addition of an empty DIV with a new id and finally wait for it. By using a unique ID we allow the waits to stack up nicely in a single spec.
 
 ``` ruby spec/support/wait_for_dom_helper_.rb
-def wait_for_dom(timeout = 5)
+def wait_for_dom(timeout = Capybara.default_wait_time)
   uuid = SecureRandom.uuid
+  page.find("body")
   page.evaluate_script <<-EOS
     _.defer(function() {
-      $('body').prepend("<div id='#{uuid}'></div>")
+      $('body').append("<div id='#{uuid}'></div>");
     });
   EOS
-  page.wait_until(timeout) do
-    page.find("##{uuid}")
-  end
+  page.find("##{uuid}")
 end
 ```
+
+We do have to make sure that the body element is loaded, first. This allows a `wait_for_dom` right after we navigate to a page that executes AJAX queries on load.
 
 Combining Techniques
 --------------------
 
 With enough attention we were able to explain and fix most spec failures. When implementing Capybara tests we favor explicit waits and use the combination of the two wait functions above when we just want to generically make sure that everything on the page has loaded and is ready for more action.
 
-Finally, integration tests are essential for continuos deployment. They are very much worth the extra development effort.
+Finally, integration tests are essential for continuous deployment. They are very much worth the extra development effort.
