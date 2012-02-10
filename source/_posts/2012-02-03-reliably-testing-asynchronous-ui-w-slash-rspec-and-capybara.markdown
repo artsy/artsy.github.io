@@ -13,7 +13,7 @@ tl;dr - You can write 632 rock solid UI tests with Capybara and RSpec, too.
 
 {% img /images/2012-02-03-reliably-testing-asynchronous-ui-w-slash-rspec-and-capybara/jenkins-ci.png [Miami Weather in NYC] %}
 
-We have exactly 231 integration tests and 401 view tests out of a total of 3086 in our core application today. This adds up to 632 tests that excercize UI. The vast majority use [RSpec](http://rspec.info/) with [Capybara](https://github.com/jnicklas/capybara) and [Selenium](http://seleniumhq.org/). This means that every time the suite runs we set up real data in a local MongoDB and use a real browser to hit a fully running local application, 632 times. The suite currently takes 45 minutes to run headless on a slow Linode, UI tests taking more than half the time.
+We have exactly 231 integration tests and 401 view tests out of a total of 3086 in our core application today. This adds up to 632 tests that exercise UI. The vast majority use [RSpec](http://rspec.info/) with [Capybara](https://github.com/jnicklas/capybara) and [Selenium](http://seleniumhq.org/). This means that every time the suite runs we set up real data in a local MongoDB and use a real browser to hit a fully running local application, 632 times. The suite currently takes 45 minutes to run headless on a slow Linode, UI tests taking more than half the time.
 
 While the site is in private beta (request your invite [here](http://art.sy/request_invite)), you can get a glimpse of the complexity of the UI from the [splash page](http://art.sy). It's a rich client-side Javascript application that talks to an API. You can open your browser's developer tools and watch a combination of API calls and many asynchronous events.
 
