@@ -10,6 +10,11 @@ We love open-source at Art.sy. We use a ton of it. We've also contributed back t
 [Analytical](https://github.com/jkrall/analytical), [Fog](https://github.com/fog/fog), [Kaminari](https://github.com/amatsuda/kaminari)
 and [Barista](https://github.com/Sutto/barista). And we have built a few open-source projects from scratch since beginning of 2011.
 
+[guard-rack](https://github.com/dblock/guard-rack)
+--------------------------------------------------
+
+Want to restart your Rack development with rackup whilst you work? Now you can!
+
 [mongoid-cached-json](https://github.com/dblock/mongoid-cached-json)
 --------------------------------------------------------------------
 
