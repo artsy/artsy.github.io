@@ -15,6 +15,8 @@ and [Barista](https://github.com/Sutto/barista). And we have built a few open-so
 
 Want to restart your Rack development with rackup whilst you work? Now you can!
 
+[https://github.com/dblock/guard-rack](https://github.com/dblock/guard-rack)
+
 [mongoid-cached-json](https://github.com/dblock/mongoid-cached-json)
 --------------------------------------------------------------------
 
@@ -23,6 +25,8 @@ Typical as_json definitions may involve lots of database point queries and metho
 CachedJson enables returning multiple JSON formats from a single class and provides some rules for returning embedded or referenced data. It then uses a scheme where fragments of JSON are cached for a particular (class, id) pair containing only the data that doesn't involve references/embedded documents. To get the full JSON for an instance, CachedJson will combine fragments of JSON from the instance with fragments representing the JSON for its references. In the best case, when all of these fragments are cached, this falls through to a few cache lookups followed by a couple Ruby hash merges to create the JSON.
 
 Using Mongoid::CachedJson we were able to cut our JSON API average response time by about a factor of 10.
+
+[https://github.com/dblock/mongoid-cached-json](https://github.com/dblock/mongoid-cached-json)
 
 [mongoid_fulltext](https://github.com/aaw/mongoid_fulltext)
 -----------------------------------------------------------
