@@ -1,6 +1,6 @@
 ---
 layout: post
-title: Super Simple Model-Level JSON Versionning
+title: Simplifying Model-Level JSON Versionning w/ Mongoid-Cached-Json
 date: 2012-03-23 09:14
 comments: true
 categories: [Mongoid, Caching, API, Versionning]
@@ -9,7 +9,7 @@ github-url: https://www.github.com/dblock
 twitter-url: http://twitter.com/dblockdotorg
 blog-url: http://code.dblock.org
 ---
-Did you know that Netflix has hundreds of API versions, one for each device? Daniel Jacobson's [Techniques for Scaling the Netflix API](http://www.slideshare.net/danieljacobson/techniques-for-scaling-the-netflix-api-qcon-sf) at QConSF 2011 gave some depth to the reasons why they chose this model. And while we don't all build distributed services that supply custom-taylored data to thousands of heterogeneous TVs and set-top boxes, we do have to pay close attention to API versionning from day one. 
+Did you know that Netflix has hundreds of API versions, one for each device? Daniel Jacobson's [Techniques for Scaling the Netflix API](http://www.slideshare.net/danieljacobson/techniques-for-scaling-the-netflix-api-qcon-sf) at QConSF 2011 explained why they chose this model. And while we don't all build distributed services that supply custom-taylored data to thousands of heterogeneous TVs and set-top boxes, we do have to pay close attention to API versionning from day one.
 
 At Art.sy we use [Grape](http://github.com/intridea/grape) and implement the "path" versionning strategy from the [frontier](http://github.com/intridea/grape/tree/frontier) branch. Our initial v1 API is consumed by our own website and services and lives at [https://artsyapi.com/api/v1](https://artsyapi.com/api/v1). We've also prototyped v2 and by the time v1 is frozen, it should already be in production.
 
@@ -89,3 +89,6 @@ end
 
 With the [mongoid-cached-json](http://github.com/dblock/mongoid-cached-json) gem you also get caching that respects JSON versionning, for free. Read about it [here](http://artsy.github.com/blog/2012/02/20/caching-model-json-with-mongoid-cached-json/).
 
+<!-- more -->
+
+<a href="http://github.com/dblock/mongoid-cached-json"><img style="position: absolute; top: 0; right: 0; border: 0;" src="https://a248.e.akamai.net/assets.github.com/img/30f550e0d38ceb6ef5b81500c64d970b7fb0f028/687474703a2f2f73332e616d617a6f6e6177732e636f6d2f6769746875622f726962626f6e732f666f726b6d655f72696768745f6f72616e67655f6666373630302e706e67" alt="Fork me on GitHub"></a>
