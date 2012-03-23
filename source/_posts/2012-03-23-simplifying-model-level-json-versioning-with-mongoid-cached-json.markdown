@@ -9,7 +9,7 @@ github-url: https://www.github.com/dblock
 twitter-url: http://twitter.com/dblockdotorg
 blog-url: http://code.dblock.org
 ---
-Did you know that Netflix has hundreds of API versions, one for each device? Daniel Jacobson's [Techniques for Scaling the Netflix API](http://www.slideshare.net/danieljacobson/techniques-for-scaling-the-netflix-api-qcon-sf) at QConSF 2011 explained why they chose this model. And while we don't all build distributed services that supply custom-taylored data to thousands of heterogeneous TVs and set-top boxes, we do have to pay close attention to API versioning from day one.
+Did you know that Netflix has hundreds of API versions, one for each device? Daniel Jacobson's [Techniques for Scaling the Netflix API](http://www.slideshare.net/danieljacobson/techniques-for-scaling-the-netflix-api-qcon-sf) at QConSF 2011 explained why they chose this model. And while we don't all build distributed services that supply custom-tailored data to thousands of heterogeneous TVs and set-top boxes, we do have to pay close attention to API versioning from day one.
 
 Versioning is hard. Your data models evolve, but you must maintain backward-compatibility for your public interfaces. While many strategies exist to deal with this problem, we'd like to propose one that requires very little programming effort and that is more declarative in nature.
 
