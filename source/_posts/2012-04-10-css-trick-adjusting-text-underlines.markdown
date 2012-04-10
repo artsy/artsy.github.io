@@ -25,7 +25,7 @@ a::after {
   height: 1em;
   width: 100%;
   border-bottom: 1px solid;
-  margin-top: 0.3em;
+  margin-top: 5px;
 }
 ```
 
