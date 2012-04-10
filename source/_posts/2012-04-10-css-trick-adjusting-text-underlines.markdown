@@ -31,6 +31,6 @@ a::after {
 
 This overlays a CSS pseudo element with a border-bottom that can be adjusted by changing margin-top.
 
-For handling browsers that don't support pseudo elements I recommend targeting them with the [Paul Irish](http://paulirish.com/2008/conditional-stylesheets-vs-css-hacks-answer-neither/) class-on-html-trick.
+For handling browsers that don't support pseudo elements I recommend targeting them with the [Paul Irish class-on-html-trick](http://paulirish.com/2008/conditional-stylesheets-vs-css-hacks-answer-neither/).
 
 Let your links breathe!
