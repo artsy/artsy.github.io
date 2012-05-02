@@ -4,7 +4,7 @@
   <title><![CDATA[Art.sy Engineering]]></title>
   <link href="http://artsy.github.com/atom.xml" rel="self"/>
   <link href="http://artsy.github.com/"/>
-  <updated>2012-03-23T13:49:08-04:00</updated>
+  <updated>2012-05-02T14:30:11-04:00</updated>
   <id>http://artsy.github.com/</id>
   <author>
     <name><![CDATA[Art.sy]]></name>
@@ -12,6 +12,249 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[How to Start Small with Big Data and Google Analytics]]></title>
+    <link href="http://artsy.github.com/blog/2012/05/01/how-to-start-small-with-big-data-and-google-analytics/"/>
+    <updated>2012-05-01T20:52:00-04:00</updated>
+    <id>http://artsy.github.com/blog/2012/05/01/how-to-start-small-with-big-data-and-google-analytics</id>
+    <content type="html"><![CDATA[<p>Why do so many companies write a homegrown pageviews tracking system? Between Google Analytics, Kissmetrics and many others, isn&#8217;t that a completely solved problem?</p>
+
+<p>These popular solutions lack domain knowledge. They are easily capable of segmenting users by region or browser, but they fail to recognize rules core to your business. Tracking pageviews with a homegrown system becomes your next sprint&#8217;s goal.</p>
+
+<p>Implementing a hit counter service is quite tricky. This is a write-heavy, asynchronous problem that must minimize impact on page rendering time, while dealing with rapidly growing amounts of data. Is there a middle ground between using Google Analytics and rolling out our own homegrown implementation? How can we use Google Analytics for data collection and inject domain knowledge into gathered data, incrementally, without writing our own service?</p>
+
+<!--more-->
+
+
+<p>Let&#8217;s write a Rake task that pulls data from Google Analytics. We can run it daily. Start with a Ruby gem called <a href="https://github.com/vigetlabs/garb">Garb</a>.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">gem</span> <span class="s2">&quot;garb&quot;</span><span class="p">,</span> <span class="s2">&quot;0.9.1&quot;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Garb requires Google Analytics credentials. Those can go into a YAML configuration file, which will use environment settings in production (it&#8217;s an ERB template, too). We can hardcode the test account values.</p>
+
+<figure class='code'><figcaption><span>config/google_analytics.yml</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+</pre></td><td class='code'><pre><code class='yaml'><span class='line'><span class="l-Scalar-Plain">defaults</span><span class="p-Indicator">:</span> <span class="nl">&amp;defaults</span>
+</span><span class='line'>
+</span><span class='line'><span class="l-Scalar-Plain">development, test</span><span class="p-Indicator">:</span>
+</span><span class='line'>  <span class="l-Scalar-Plain">&lt;&lt;</span><span class="p-Indicator">:</span> <span class="nv">*defaults</span>
+</span><span class='line'>  <span class="l-Scalar-Plain">email</span><span class="p-Indicator">:</span> <span class="s">&quot;ga@example.com&quot;</span>
+</span><span class='line'>  <span class="l-Scalar-Plain">password</span><span class="p-Indicator">:</span> <span class="s">&quot;password&quot;</span>
+</span><span class='line'>  <span class="l-Scalar-Plain">ua</span><span class="p-Indicator">:</span> <span class="s">&quot;UA-12345678-1&quot;</span>
+</span><span class='line'>
+</span><span class='line'><span class="l-Scalar-Plain">production</span><span class="p-Indicator">:</span>
+</span><span class='line'>  <span class="l-Scalar-Plain">&lt;&lt;</span><span class="p-Indicator">:</span> <span class="nv">*defaults</span>
+</span><span class='line'>  <span class="l-Scalar-Plain">email</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">&lt;%= ENV[&#39;GOOGLE_ANALYTICS_EMAIL&#39;] %&gt;</span>
+</span><span class='line'>  <span class="l-Scalar-Plain">password</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">&lt;%= ENV[&#39;GOOGLE_ANALYTICS_PASSWORD&#39;] %&gt;</span>
+</span><span class='line'>  <span class="l-Scalar-Plain">ua</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">&lt;%= ENV[&#39;GOOGLE_ANALYICS_UA&#39;] %&gt;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Establish a Google Analytics session and fetch the profile corresponding to the Google user account with Garb.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">config</span> <span class="o">=</span> <span class="no">YAML</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="no">ERB</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="no">File</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="no">Rails</span><span class="o">.</span><span class="n">root</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s2">&quot;config/google_analytics.yml&quot;</span><span class="p">))</span><span class="o">.</span><span class="n">read</span><span class="p">)</span><span class="o">.</span><span class="n">result</span><span class="p">)</span><span class="o">[</span><span class="no">Rails</span><span class="o">.</span><span class="n">env</span><span class="o">].</span><span class="n">symbolize_keys</span>
+</span><span class='line'><span class="no">Garb</span><span class="o">::</span><span class="no">Session</span><span class="o">.</span><span class="n">login</span><span class="p">(</span><span class="n">config</span><span class="o">[</span><span class="ss">:email</span><span class="o">]</span><span class="p">,</span> <span class="n">config</span><span class="o">[</span><span class="ss">:password</span><span class="o">]</span><span class="p">)</span>
+</span><span class='line'><span class="n">profile</span> <span class="o">=</span> <span class="no">Garb</span><span class="o">::</span><span class="no">Management</span><span class="o">::</span><span class="no">Profile</span><span class="o">.</span><span class="n">all</span><span class="o">.</span><span class="n">detect</span> <span class="p">{</span> <span class="o">|</span><span class="nb">p</span><span class="o">|</span> <span class="nb">p</span><span class="o">.</span><span class="n">web_property_id</span> <span class="o">==</span> <span class="n">config</span><span class="o">[</span><span class="ss">:ua</span><span class="o">]</span> <span class="p">}</span>
+</span><span class='line'><span class="k">raise</span> <span class="s2">&quot;missing profile </span><span class="si">#{</span><span class="n">config</span><span class="o">[</span><span class="ss">:ua</span><span class="o">]</span><span class="si">}</span><span class="s2"> in </span><span class="si">#{</span><span class="no">Garb</span><span class="o">::</span><span class="no">Management</span><span class="o">::</span><span class="no">Profile</span><span class="o">.</span><span class="n">all</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="o">&amp;</span><span class="ss">:web_property_id</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">unless</span> <span class="n">profile</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Garbs needs a data model to collect pageviews. It extends <code>Garb::Model</code> and defines a set of &#8220;metrics&#8221; and &#8220;dimensions&#8221;.</p>
+
+<figure class='code'><figcaption><span>app/models/google_analytics_pageviews.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">GoogleAnalyticsPageviews</span>
+</span><span class='line'>  <span class="kp">extend</span> <span class="no">Garb</span><span class="o">::</span><span class="no">Model</span>
+</span><span class='line'>  <span class="n">metrics</span> <span class="ss">:pageviews</span>
+</span><span class='line'>  <span class="n">dimensions</span> <span class="ss">:page_path</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>You can play with the <a href="http://ga-dev-tools.appspot.com/explorer/">Google Analytics Query Explorer</a> to see the many possible metrics (such as pageviews) and dimensions (such as requested page path).</p>
+
+<p>By default, Google Analytics lets clients retrieve 1000 records in a single request. To get all records we can add an iterator, called <code>all</code>, that will keep making requests until the server runs out of data. The code for <em>config/initializers/garb_model.rb</em> is <a href="https://gist.github.com/2265877">in this gist</a> and I made a <a href="https://github.com/vigetlabs/garb/pull/116">pull request</a> into Garb if you&#8217;d rather merge that onto your fork.</p>
+
+<p>The majority of our pages are in the form of &#8220;/model/id&#8221;, for example &#8220;/artwork/leonardo-mona-lisa&#8221;. We&#8217;re interested in all pageviews for a given artwork and in pageviews for a given artist, at a given date. We&#8217;ll store selected Google Analytics data in a <code>GoogleAnalyticsPageviewsRecord</code> model described further.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">t</span> <span class="o">=</span> <span class="no">Date</span><span class="o">.</span><span class="n">today</span> <span class="o">-</span> <span class="mi">1</span>
+</span><span class='line'><span class="no">GoogleAnalyticsPageviews</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">profile</span><span class="p">,</span> <span class="p">{</span> <span class="ss">:start_date</span> <span class="o">=&gt;</span> <span class="n">t</span><span class="p">,</span> <span class="ss">:end_date</span> <span class="o">=&gt;</span> <span class="n">t</span> <span class="p">})</span> <span class="k">do</span> <span class="o">|</span><span class="n">row</span><span class="o">|</span>
+</span><span class='line'>  <span class="n">model</span> <span class="o">=</span> <span class="sr">/^\/#\!\/(?&lt;type&gt;[a-z-]+)\/(?&lt;id&gt;[a-z-]+)$/</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">row</span><span class="o">.</span><span class="n">page_path</span><span class="p">)</span>
+</span><span class='line'>  <span class="k">next</span> <span class="k">unless</span> <span class="p">(</span><span class="n">model</span><span class="o">[</span><span class="ss">:type</span><span class="o">]</span> <span class="o">==</span> <span class="s2">&quot;artwork&quot;</span> <span class="o">||</span> <span class="n">model</span><span class="o">[</span><span class="ss">:type</span><span class="o">]</span> <span class="o">==</span> <span class="s2">&quot;artist&quot;</span><span class="p">)</span>
+</span><span class='line'>  <span class="no">GoogleAnalyticsPageviewsRecord</span><span class="o">.</span><span class="n">create!</span><span class="p">({</span>
+</span><span class='line'>    <span class="ss">:model_type</span> <span class="o">=&gt;</span> <span class="n">model</span><span class="o">[</span><span class="ss">:type</span><span class="o">]</span><span class="p">,</span>
+</span><span class='line'>    <span class="ss">:model_id</span> <span class="o">=&gt;</span> <span class="n">model</span><span class="o">[</span><span class="ss">:id</span><span class="o">]</span><span class="p">,</span>
+</span><span class='line'>    <span class="ss">:pageviews</span> <span class="o">=&gt;</span> <span class="n">row</span><span class="o">.</span><span class="n">pageviews</span><span class="p">,</span>
+</span><span class='line'>    <span class="ss">:dt</span> <span class="o">=&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y-%m-%d&quot;</span><span class="p">)</span>
+</span><span class='line'>  <span class="p">})</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Each <code>GoogleAnalyticsPageviewsRecord</code> contains the total pageviews for a given model ID at a given date. We now have a record for each artwork and artist. We can rollup existing data into a set of collections, incrementally. For example, <code>google_analytics_artworks_monthly</code> will contain the monthly hits for each artwork.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">GoogleAnalyticsPageviewsRecord</span>
+</span><span class='line'>  <span class="kp">include</span> <span class="no">Mongoid</span><span class="o">::</span><span class="no">Document</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="n">field</span> <span class="ss">:model_type</span><span class="p">,</span> <span class="n">type</span><span class="p">:</span> <span class="nb">String</span>
+</span><span class='line'>  <span class="n">field</span> <span class="ss">:model_id</span><span class="p">,</span> <span class="n">type</span><span class="p">:</span> <span class="nb">String</span>
+</span><span class='line'>  <span class="n">field</span> <span class="ss">:pageviews</span><span class="p">,</span> <span class="n">type</span><span class="p">:</span> <span class="nb">Integer</span>
+</span><span class='line'>  <span class="n">field</span> <span class="ss">:dt</span><span class="p">,</span> <span class="n">type</span><span class="p">:</span> <span class="no">Date</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="n">index</span> <span class="o">[</span>
+</span><span class='line'>    <span class="o">[</span><span class="ss">:model_type</span><span class="p">,</span> <span class="no">Mongo</span><span class="o">::</span><span class="no">ASCENDING</span><span class="o">]</span><span class="p">,</span>
+</span><span class='line'>    <span class="o">[</span><span class="ss">:model_id</span><span class="p">,</span> <span class="no">Mongo</span><span class="o">::</span><span class="no">ASCENDING</span><span class="o">]</span><span class="p">,</span>
+</span><span class='line'>    <span class="o">[</span><span class="ss">:dt</span><span class="p">,</span> <span class="no">Mongo</span><span class="o">::</span><span class="no">DESCENDING</span><span class="o">]</span>
+</span><span class='line'>  <span class="o">]</span><span class="p">,</span> <span class="ss">:unique</span> <span class="o">=&gt;</span> <span class="kp">true</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="n">after_create</span> <span class="ss">:rollup</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">rollup</span>
+</span><span class='line'>    <span class="no">Mongoid</span><span class="o">.</span><span class="n">master</span><span class="o">.</span><span class="n">collection</span><span class="p">(</span><span class="s2">&quot;google_analytics_</span><span class="si">#{</span><span class="nb">self</span><span class="o">.</span><span class="n">model_type</span><span class="si">}</span><span class="s2">s_total&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+</span><span class='line'>      <span class="p">{</span> <span class="ss">:model_id</span> <span class="o">=&gt;</span> <span class="nb">self</span><span class="o">.</span><span class="n">model_id</span> <span class="p">},</span>
+</span><span class='line'>      <span class="p">{</span> <span class="s2">&quot;$inc&quot;</span> <span class="o">=&gt;</span> <span class="p">{</span> <span class="s2">&quot;count&quot;</span> <span class="o">=&gt;</span> <span class="nb">self</span><span class="o">.</span><span class="n">pageviews</span> <span class="p">}},</span> <span class="p">{</span> <span class="ss">:upsert</span> <span class="o">=&gt;</span> <span class="kp">true</span> <span class="p">})</span>
+</span><span class='line'>    <span class="p">{</span>
+</span><span class='line'>      <span class="ss">:daily</span> <span class="o">=&gt;</span> <span class="nb">self</span><span class="o">.</span><span class="n">dt</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y-%m-%d&quot;</span><span class="p">),</span>
+</span><span class='line'>      <span class="ss">:weekly</span> <span class="o">=&gt;</span> <span class="nb">self</span><span class="o">.</span><span class="n">dt</span><span class="o">.</span><span class="n">beginning_of_week</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y-%W&quot;</span><span class="p">),</span>
+</span><span class='line'>      <span class="ss">:monthly</span> <span class="o">=&gt;</span> <span class="nb">self</span><span class="o">.</span><span class="n">dt</span><span class="o">.</span><span class="n">beginning_of_month</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y-%m&quot;</span><span class="p">),</span>
+</span><span class='line'>      <span class="ss">:yearly</span> <span class="o">=&gt;</span> <span class="nb">self</span><span class="o">.</span><span class="n">dt</span><span class="o">.</span><span class="n">beginning_of_year</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y&quot;</span><span class="p">)</span>
+</span><span class='line'>    <span class="p">}</span><span class="o">.</span><span class="n">each_pair</span> <span class="k">do</span> <span class="o">|</span><span class="n">t</span><span class="p">,</span> <span class="n">dt</span><span class="o">|</span>
+</span><span class='line'>      <span class="no">Mongoid</span><span class="o">.</span><span class="n">master</span><span class="o">.</span><span class="n">collection</span><span class="p">(</span><span class="s2">&quot;google_analytics_</span><span class="si">#{</span><span class="nb">self</span><span class="o">.</span><span class="n">model_type</span><span class="si">}</span><span class="s2">s_</span><span class="si">#{</span><span class="n">t</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+</span><span class='line'>        <span class="p">{</span> <span class="ss">:model_id</span> <span class="o">=&gt;</span> <span class="nb">self</span><span class="o">.</span><span class="n">model_id</span><span class="p">,</span> <span class="ss">:dt</span> <span class="o">=&gt;</span> <span class="n">dt</span> <span class="p">},</span>
+</span><span class='line'>        <span class="p">{</span> <span class="s2">&quot;$inc&quot;</span> <span class="o">=&gt;</span> <span class="p">{</span> <span class="s2">&quot;count&quot;</span> <span class="o">=&gt;</span> <span class="nb">self</span><span class="o">.</span><span class="n">pageviews</span> <span class="p">}},</span> <span class="p">{</span> <span class="ss">:upsert</span> <span class="o">=&gt;</span> <span class="kp">true</span> <span class="p">})</span>
+</span><span class='line'>    <span class="k">end</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>The rollup lets us query these tables directly. For example, the following query returns a record with the pageviews for the Leonardo&#8217;s &#8220;Mona Lisa&#8221; in January 2012.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="no">Mongoid</span><span class="o">.</span><span class="n">master</span><span class="o">.</span><span class="n">collection</span><span class="p">(</span><span class="s2">&quot;google_analytics_artworks_monthly&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">find_one</span><span class="p">({</span>
+</span><span class='line'>  <span class="ss">:model_type</span> <span class="o">=&gt;</span> <span class="s2">&quot;artwork&quot;</span><span class="p">,</span> <span class="ss">:model_id</span> <span class="o">=&gt;</span> <span class="s2">&quot;leonardo-mona-lisa&quot;</span><span class="p">,</span> <span class="ss">:dt</span> <span class="o">=&gt;</span> <span class="s2">&quot;2012/01&quot;</span>
+</span><span class='line'><span class="p">})</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>One of the obvious advantages of pulling Google Analytics data is the low volume of requests and offline processing. We&#8217;re letting Google Analytics do the hard work of collecting data for us in real time and are consuming its API without the performance or time pressures.</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[CSS Trick: Adjusting Text Underlines]]></title>
+    <link href="http://artsy.github.com/blog/2012/04/10/css-trick-adjusting-text-underlines/"/>
+    <updated>2012-04-10T16:32:00-04:00</updated>
+    <id>http://artsy.github.com/blog/2012/04/10/css-trick-adjusting-text-underlines</id>
+    <content type="html"><![CDATA[<p>Often times people will use <em>border-bottom: 1px solid</em> in favor of <em>text-decoration: underline</em> to give their links some breathing room. But what if you&#8217;re giving it <em>too</em> much breathing room and want to adjust the height of that underline. With Adobe Garamond that happened to be the case, so we&#8217;ve come up with this little css trick:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+</pre></td><td class='code'><pre><code class='css'><span class='line'><span class="nt">a</span> <span class="p">{</span>
+</span><span class='line'>  <span class="k">display</span><span class="o">:</span> <span class="k">inline</span><span class="o">-</span><span class="k">block</span><span class="p">;</span>
+</span><span class='line'>  <span class="k">position</span><span class="o">:</span> <span class="k">relative</span><span class="p">;</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'><span class="nt">a</span><span class="o">:</span><span class="nd">:after</span> <span class="p">{</span>
+</span><span class='line'>  <span class="k">content</span><span class="o">:</span> <span class="s1">&#39;&#39;</span><span class="p">;</span>
+</span><span class='line'>  <span class="k">position</span><span class="o">:</span> <span class="k">absolute</span><span class="p">;</span>
+</span><span class='line'>  <span class="k">left</span><span class="o">:</span> <span class="m">0</span><span class="p">;</span>
+</span><span class='line'>  <span class="k">display</span><span class="o">:</span> <span class="k">inline</span><span class="o">-</span><span class="k">block</span><span class="p">;</span>
+</span><span class='line'>  <span class="k">height</span><span class="o">:</span> <span class="m">1em</span><span class="p">;</span>
+</span><span class='line'>  <span class="k">width</span><span class="o">:</span> <span class="m">100</span><span class="o">%</span><span class="p">;</span>
+</span><span class='line'>  <span class="k">border-bottom</span><span class="o">:</span> <span class="m">1px</span> <span class="k">solid</span><span class="p">;</span>
+</span><span class='line'>  <span class="k">margin-top</span><span class="o">:</span> <span class="m">5px</span><span class="p">;</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>This overlays a CSS pseudo element with a border-bottom that can be adjusted by changing margin-top.</p>
+
+<p>For handling browsers that don&#8217;t support pseudo elements I recommend targeting them with the <a href="http://paulirish.com/2008/conditional-stylesheets-vs-css-hacks-answer-neither/">Paul Irish class-on-html-trick</a>.</p>
+
+<p>Let your links breathe!</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Simplifying Model-Level JSON Versioning with Mongoid-Cached-Json]]></title>
@@ -153,11 +396,6 @@
 
 
 <p>With the <a href="http://github.com/dblock/mongoid-cached-json">mongoid-cached-json</a> gem you also get caching that respects JSON versioning, for free. Read about it <a href="http://artsy.github.com/blog/2012/02/20/caching-model-json-with-mongoid-cached-json/">here</a>.</p>
-
-<!-- more -->
-
-
-<p><a href="http://github.com/dblock/mongoid-cached-json"><img style="position: absolute; top: 0; right: 0; border: 0;" src="https://a248.e.akamai.net/assets.github.com/img/30f550e0d38ceb6ef5b81500c64d970b7fb0f028/687474703a2f2f73332e616d617a6f6e6177732e636f6d2f6769746875622f726962626f6e732f666f726b6d655f72696768745f6f72616e67655f6666373630302e706e67" alt="Fork me on GitHub"></a></p>
 ]]></content>
   </entry>
   
@@ -389,11 +627,6 @@
 
 
 <p>Using <em>Mongoid::CachedJson</em> we were able to cut our JSON API average response time by about a factor of 10. Find it <a href="https://github.com/dblock/mongoid-cached-json">on Github</a>.</p>
-
-<!-- more -->
-
-
-<p><a href="http://github.com/dblock/mongoid-cached-json"><img style="position: absolute; top: 0; right: 0; border: 0;" src="https://a248.e.akamai.net/assets.github.com/img/30f550e0d38ceb6ef5b81500c64d970b7fb0f028/687474703a2f2f73332e616d617a6f6e6177732e636f6d2f6769746875622f726962626f6e732f666f726b6d655f72696768745f6f72616e67655f6666373630302e706e67" alt="Fork me on GitHub"></a></p>
 ]]></content>
   </entry>
   
@@ -1496,8 +1729,6 @@
 <h2>Making It Cross-Browser</h2>
 
 <p>CSS3 media queries are awesome, but even though all the latest versions of the major browsers support them, it&#8217;s very likely that a portion of your site&#8217;s visitors will be using browsers that don&#8217;t support these new CSS features. Luckily, this problem has already been solved by great people who like to give away things for free. Just include <a href="https://github.com/Modernizr/Modernizr">modernizr.js</a> on your page, and it will provide a JavaScript fallback for media queries, as well as for many other potentially unsupported CSS3 features.</p>
-
-<p><a href="http://github.com/artsy/artsy.github.com/tree/source"><img style="position: absolute; top: 0; right: 0; border: 0;" src="https://a248.e.akamai.net/assets.github.com/img/30f550e0d38ceb6ef5b81500c64d970b7fb0f028/687474703a2f2f73332e616d617a6f6e6177732e636f6d2f6769746875622f726962626f6e732f666f726b6d655f72696768745f6f72616e67655f6666373630302e706e67" alt="Fork me on GitHub"></a></p>
 ]]></content>
   </entry>
   
