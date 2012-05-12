@@ -38,7 +38,7 @@ and inside the implementation file we declare some private instance variables fo
 }
 ```
 
-So, to look at setting the size we've found it easiest to deal with setting the height of the SearchBar in our subclass on setFrame and setting the height of the new frame before it goes to the subclass. As the search bar doesn't change its height inbetween state changes like text insertion it's not posed a problem.
+So, to look at setting the size we've found it easiest to deal with setting the height of the SearchBar in our subclass on setFrame and setting the height of the new frame before it goes to the subclass. As the search bar doesn't change its height between state changes like text insertion it doesn't pose a problem.
 
 ``` objc
 - (void)setFrame:(CGRect)frame {
