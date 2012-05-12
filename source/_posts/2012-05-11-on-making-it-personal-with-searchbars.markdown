@@ -1,6 +1,6 @@
 ---
 layout: post
-title: How to Start Small with Big Data and Google Analytics
+title: On Making It Personal With Searchbars
 date: 2012-05-11 20:52
 comments: true
 categories: [iOS, UIKIT, Customisation]
@@ -10,7 +10,7 @@ twitter-url: http://twitter.com/orta
 blog-url: http://orta.github.com
 ---
 
-We make a pretty kick-ass iPad app. Whilst making it we tried to ensure that all of the application feels completely custom-made, and recently the last natively styled control fell to our mighty code hammers. That was the UISearchBar.
+We make a pretty kick-ass iPad app. Whilst making it we tried to ensure that all of the application fits in with the [art.sy](http://art.sy) website aesthetic, and recently the last natively styled control fell to our mighty code hammers. That was the UISearchBar.
 
 When displaying only search results in a table it makes a lot of sense to use Apple's [UISearchDisplayController](http://developer.apple.com/library/ios/#documentation/uikit/reference/UISearchDisplayController_Class/Reference/Reference.html#//apple_ref/occ/cl/UISearchDisplayController) as it handles a lot of edge cases for you. However the downside is that you lose some control over how the views interact.
 
