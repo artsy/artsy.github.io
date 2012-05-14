@@ -14,7 +14,7 @@ We make Folio, a pretty kick-ass iPad app that we give away to our partners to s
 
 ![Screenshot of Artsy Folio](http://ortastuff.s3.amazonaws.com/images/custom_searchbar_example.jpg)
 
-When displaying only search results in a table it makes a lot of sense to use Apple's [UISearchDisplayController](http://developer.apple.com/library/ios/#documentation/uikit/reference/UISearchDisplayController_Class/Reference/Reference.html#//apple_ref/occ/cl/UISearchDisplayController) as it handles a lot of edge cases for you. However the downside is that you lose some control over how the views interact.
+When displaying only search results in a table it makes a lot of sense to use Apple's `[UISearchDisplayController](http://developer.apple.com/library/ios/#documentation/uikit/reference/UISearchDisplayController_Class/Reference/Reference.html#//apple_ref/occ/cl/UISearchDisplayController)` as it handles a lot of edge cases for you. However the downside is that you lose some control over how the views interact.
 
 The search bar was the only native control that actually made it into the version 1 release. This was mainly due to it requiring a bit of black magic in order to get it to work the way we wanted. So lets go through the code and rip it to pieces.
 
@@ -65,7 +65,7 @@ What does pose a problem though is making sure that the subviews inside the sear
 }
 ```
 
-Next up is that we can't access our `foundSearchField` because it's not been found yet! Personally I'm a big fan of using nibs for everything ( and pretty pumped about Storyboards too ) so we do our searching in `awakeFromNib` .
+Next up is that we can't access our `foundSearchField` because it's not been found yet! Personally,  I'm a big fan of using nibs for everything ( and pretty pumped about Storyboards too ) so we do our searching in `awakeFromNib` .
 
 ``` objc
 - (void)awakeFromNib {
