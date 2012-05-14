@@ -14,7 +14,7 @@ We make Folio, a pretty kick-ass iPad app that we give away to our partners to s
 
 ![Screenshot of Artsy Folio](http://ortastuff.s3.amazonaws.com/images/custom_searchbar_example.jpg)
 
-When displaying only search results in a table it makes a lot of sense to use Apple's `[UISearchDisplayController](http://developer.apple.com/library/ios/#documentation/uikit/reference/UISearchDisplayController_Class/Reference/Reference.html#//apple_ref/occ/cl/UISearchDisplayController)` as it handles a lot of edge cases for you. However the downside is that you lose some control over how the views interact.
+When displaying only search results in a table it makes a lot of sense to use Apple's `UISearchDisplayController` as it handles a lot of edge cases for you. However the downside is that you lose some control over how the views interact.
 
 The search bar was the only native control that actually made it into the version 1 release. This was mainly due to it requiring a bit of black magic in order to get it to work the way we wanted. So lets go through the code and rip it to pieces.
 
@@ -40,7 +40,7 @@ Inside the implementation file we declare private instance variables for keeping
 }
 ```
 
-So, to look at setting the size we've found it easiest to deal with setting the height of the SearchBar in our subclass on `setFrame` and setting the height of the new frame before it goes to the subclass. As the search bar doesn't change its height between state changes like text insertion it shouldn't pose a problem to have it hardcoded.
+So, to look at setting the size we've found it easiest to deal with that in an overrode `setFrame` and setting the height of the new frame before it goes to the super class. As the search bar doesn't change its height between state changes like text insertion it shouldn't pose a problem to have it hardcoded.
 
 ``` objc
 - (void)setFrame:(CGRect)frame {
@@ -107,7 +107,7 @@ This gives us a textfield, next up we want to stylize it. The perfect place for 
 }
 ```
 
-You might be wondering why we removed the placeholder text, we needed more control over the style and positioning of the placeholders that is easily controlled by the UISearchDisplayController subclass rather than the custom search bar. This is also the place that we can deal with having our custom cancel button.
+You might be wondering why we removed the placeholder text? We needed more control over the style and positioning of the placeholder text and the search icon. These are easily controlled by the UISearchDisplayController subclass rather than inside the custom search bar. This is also the place that we can deal with having our custom "cancel" button.
 
 ``` objc
 - (void) searchDisplayControllerWillBeginSearch:(UISearchDisplayController *)controller {
@@ -125,7 +125,7 @@ You might be wondering why we removed the placeholder text, we needed more contr
 }
 ```
 
-The corresponding code for showing and hiding the cancel button is here
+The corresponding code for showing and hiding the cancel button is here. We just animate it in and out by a distance of 80.
 
 ``` objc
 - (void)showCancelButton:(BOOL)show {
@@ -136,10 +136,10 @@ The corresponding code for showing and hiding the cancel button is here
 }
 ```
 
-The original cancel button is something that we choose to keep around, rather than removing it form the view hierarchy, that's so we can have our overlay cancel button call its method instead of  trying to replicate the cancel functionality ourselves.
+The original cancel button is something that we choose to keep around, rather than removing it form the view hierarchy, that's so we can have our overlay cancel button call its method instead of trying to replicate the cancel functionality ourselves.
 
 To keep track of the cancel button we need to know when its meant to appear, and when its meant to disappear. Because the cancel button is created at runtime every time a search is started we need to 
-know when thats happening so we can hide it, we can do that by registering for `UITextFieldTextDidBeginEditingNotification` on the textfield once it's been found. 
+know when thats happening so we can hide it, we can do that by registering for `UITextFieldTextDidBeginEditingNotification` on the textfield once it's been found. We do this in `awakeFromNib`.
 
 ``` objc
 [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(removeOriginalCancel) name:UITextFieldTextDidBeginEditingNotification object:foundSearchTextField];
@@ -160,10 +160,9 @@ know when thats happening so we can hide it, we can do that by registering for `
 }
 ```
 
-Finally we have the styling of the button, I've summed it up here as a lot of it is very application specific.
+Finally we have the styling of the button. I've summed it up here as a lot of it is very application specific.
 
 ```objc 
-
 - (void)createButton {
     ARFlatButton *cancelButton = [ARFlatButton buttonWithType:UIButtonTypeCustom];
     [[cancelButton titleLabel] setFont:[UIFont sansSerifFontWithSize:ARFontSansSmall]];
@@ -197,7 +196,6 @@ Finally we have the styling of the button, I've summed it up here as a lot of it
         }
     }    
 }
-
 ```
 
 The complete code is available [as a gist](https://gist.github.com/2667766) under the MIT license.
