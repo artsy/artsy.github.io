@@ -1,6 +1,6 @@
 ---
 layout: post
-title: On Making It Personal With Searchbars
+title: On Making It Personal in iOS With Searchbars
 date: 2012-05-11 20:52
 comments: true
 categories: [iOS, UIKIT, Customisation]
@@ -31,7 +31,7 @@ First up, you're going to want to make yourself a subclass of the `UISearchBar`,
 @end
 ```
 
-Inside the implementation file we declare private instance variables for keeping track of the textfield and the cancel button. This is so we can avoid finding them in the view hierarchy when we want to change the frame it during resizing.
+Inside the implementation file we declare private instance variables for keeping track of the textfield and the Cancel button. This is so we can avoid finding them in the view hierarchy when we want to change the frame it during resizing.
 
 ``` objc
 @interface ARSearchBar (){
@@ -107,7 +107,7 @@ This gives us a textfield, next up we want to stylize it. The perfect place for 
 }
 ```
 
-You might be wondering why we removed the placeholder text? We needed more control over the style and positioning of the placeholder text and the search icon. These are easily controlled by the UISearchDisplayController subclass rather than inside the custom search bar. This is also the place that we can deal with having our custom "cancel" button.
+You might be wondering why we removed the placeholder text? We needed more control over the style and positioning of the placeholder text and the search icon. These are easily controlled by the UISearchDisplayController subclass rather than inside the custom search bar. This is also the place that we can deal with having our custom Cancel button.
 
 ``` objc
 - (void) searchDisplayControllerWillBeginSearch:(UISearchDisplayController *)controller {
@@ -125,7 +125,7 @@ You might be wondering why we removed the placeholder text? We needed more contr
 }
 ```
 
-The corresponding code for showing and hiding the cancel button is here. We just animate it in and out by a distance of 80.
+The corresponding code for showing and hiding the Cancel button is here. We just animate it in and out by a distance of 80.
 
 ``` objc
 - (void)showCancelButton:(BOOL)show {
@@ -136,9 +136,9 @@ The corresponding code for showing and hiding the cancel button is here. We just
 }
 ```
 
-The original cancel button is something that we choose to keep around, rather than removing it form the view hierarchy, that's so we can have our overlay cancel button call its method instead of trying to replicate the cancel functionality ourselves.
+The original Cancel button is something that we choose to keep around, rather than removing it form the view hierarchy, that's so we can have our overlay Cancel button call its method instead of trying to replicate the cancel functionality ourselves.
 
-To keep track of the cancel button we need to know when its meant to appear, and when its meant to disappear. Because the cancel button is created at runtime every time a search is started we need to 
+To keep track of the Cancel button we need to know when its meant to appear, and when its meant to disappear. Because the Cancel button is created at runtime every time a search is started we need to 
 know when thats happening so we can hide it, we can do that by registering for `UITextFieldTextDidBeginEditingNotification` on the textfield once it's been found. We do this in `awakeFromNib`.
 
 ``` objc
