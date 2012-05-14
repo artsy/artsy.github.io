@@ -10,15 +10,17 @@ twitter-url: http://twitter.com/orta
 blog-url: http://orta.github.com
 ---
 
-We make a pretty kick-ass iPad app. Whilst making it we tried to ensure that all of the application fits in with the [art.sy](http://art.sy) website aesthetic, and recently the last natively styled control fell to our mighty code hammers. That was the UISearchBar.
+We make Folio, a pretty kick-ass iPad app that we give away to our partners to showcase their inventory at art fairs. Whilst making it we tried to ensure that all of the application fits in with the [art.sy](http://art.sy) website aesthetic, and recently the last natively styled control fell to our mighty code hammers. That was the `UISearchBar`.
+
+![Screenshot of Artsy Folio](http://ortastuff.s3.amazonaws.com/images/custom_searchbar_example.jpg)
 
 When displaying only search results in a table it makes a lot of sense to use Apple's [UISearchDisplayController](http://developer.apple.com/library/ios/#documentation/uikit/reference/UISearchDisplayController_Class/Reference/Reference.html#//apple_ref/occ/cl/UISearchDisplayController) as it handles a lot of edge cases for you. However the downside is that you lose some control over how the views interact.
 
-The Search Bar was the only native control that actually made it into the version 1 release. This was mainly due to it requiring a bit of black magic in order to get it to work how you like. So lets go through the code and rip it to pieces.
+The search bar was the only native control that actually made it into the version 1 release. This was mainly due to it requiring a bit of black magic in order to get it to work how you like. So lets go through the code and rip it to pieces.
 
 <!--more-->
 
-First up, you're going to want to make yourself a subclass of the UISearchBar, I'm going to be calling ours ARSearchBar. Here's our public header.
+First up, you're going to want to make yourself a subclass of the `UISearchBar`, I'm going to be calling ours `ARSearchBar`. Here's our public header.
 
 ``` objc
 @interface ARSearchBar : UISearchBar
@@ -29,7 +31,7 @@ First up, you're going to want to make yourself a subclass of the UISearchBar, I
 @end
 ```
 
-and inside the implementation file we declare some private instance variables for things we will be needing later.
+and inside the implementation file we declare private instance variables for keeping track of the textfield and the cancel button. This is so we can avoid finding them in the view heirarchy when we want to change the frame it during resizing.
 
 ``` objc
 @interface ARSearchBar (){
@@ -38,7 +40,7 @@ and inside the implementation file we declare some private instance variables fo
 }
 ```
 
-So, to look at setting the size we've found it easiest to deal with setting the height of the SearchBar in our subclass on setFrame and setting the height of the new frame before it goes to the subclass. As the search bar doesn't change its height between state changes like text insertion it doesn't pose a problem.
+So, to look at setting the size we've found it easiest to deal with setting the height of the SearchBar in our subclass on `setFrame` and setting the height of the new frame before it goes to the subclass. As the search bar doesn't change its height between state changes like text insertion it should't pose a problem to have it hardcoded.
 
 ``` objc
 - (void)setFrame:(CGRect)frame {
@@ -47,7 +49,7 @@ So, to look at setting the size we've found it easiest to deal with setting the 
 }
 ``` 
 
-What does pose a problem though is making sure that the subviews inside the Search Bar are positioned correctly with respect to the new height, this is amended in layoutSubviews. In our case the textfield should take up almost all of the search bar.
+What does pose a problem though is making sure that the subviews inside the search bar are positioned correctly with respect to the new height, this is amended in `layoutSubviews`. In our case the textfield should take up almost all of the search bar.
 
 ``` objc
 - (void)layoutSubviews {
@@ -61,8 +63,9 @@ What does pose a problem though is making sure that the subviews inside the Sear
     frame.size.width -= ViewMargin / 2;
     foundSearchTextField.frame = frame;
 }
+```
 
-Next up is that we can't access our foundSearchField because it's not been found yet! Personally I'm a big fan of using nibs for everything ( and pretty pumped about Storyboards too ) so we do our searching in awakeFromNib 
+Next up is that we can't access our `foundSearchField` because it's not been found yet! Personally I'm a big fan of using nibs for everything ( and pretty pumped about Storyboards too ) so we do our searching in `awakeFromNib` 
 
 ``` objc
 - (void)awakeFromNib {
@@ -75,13 +78,10 @@ Next up is that we can't access our foundSearchField because it's not been found
             foundSearchTextField = (UITextField *)subview;
         }
     }
-
-        [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(removeOriginalCancel) name:UITextFieldTextDidBeginEditingNotification object:foundSearchTextField];
 }
 ```
 
-So this gives us a resized space, next up we want to stylize it. The perfect place for this is just after finding the textfield that you use to search in. 
-
+This gives us a textfield, next up we want to stylize it. The perfect place for this is just after finding the textfield that you use to search in. 
 
 ``` objc
 - (void)stylizeSearchTextField {
@@ -107,7 +107,7 @@ So this gives us a resized space, next up we want to stylize it. The perfect pla
 }
 ```
 
-You might be wondering why we removed the placeholder text, we needed more control over the style and positioning of the placeholder that is easily controlled by the UISearchDisplayController subclass rather than the custom search bar. This is also the place that we can deal with having our custom cancel button.
+You might be wondering why we removed the placeholder text, we needed more control over the style and positioning of the placeholders that is easily controlled by the UISearchDisplayController subclass rather than the custom search bar. This is also the place that we can deal with having our custom cancel button.
 
 ``` objc
 - (void) searchDisplayControllerWillBeginSearch:(UISearchDisplayController *)controller {
@@ -200,6 +200,4 @@ Finally we have the styling of the button, I've summed it up here as a lot of it
 
 ```
 
-I've included a copy of the full files [in a gist here](https://gist.github.com/2667766) so people can see it all together
-
-<script src="https://gist.github.com/2667766.js"> </script>
+The complete code is available [as a gist](https://gist.github.com/2667766) under the MIT license
