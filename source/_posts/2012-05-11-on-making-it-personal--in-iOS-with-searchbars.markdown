@@ -1,6 +1,6 @@
 ---
 layout: post
-title: On Making It Personal in iOS With Searchbars
+title: On Making It Personal in iOS with Searchbars
 date: 2012-05-11 20:52
 comments: true
 categories: [iOS, UIKIT, Customisation]
