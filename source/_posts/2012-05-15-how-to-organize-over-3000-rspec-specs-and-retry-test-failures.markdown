@@ -9,7 +9,7 @@ github-url: https://www.github.com/dblock
 twitter-url: http://twitter.com/dblockdotorg
 blog-url: http://code.dblock.org
 ---
-Having over three thousand RSpec tests in a single project has become difficult to manage. We chose to organize these into suites, somewhat mimicking our directory structure. And while we succeeded at making our Capybara integration tests more reliable (see [Reliably Testing Asynchronous UI with RSpec and Capybara](/blog/2012/02/03/reliably-testing-asynchronous-ui-w-slash-rspec-and-capybara/)), they continue relying on finnicky timeouts. To avoid too many false positives we've put together a system to retry failed tests. We know that a spec that fails twice in a row is definitely not a fluke!
+Having over three thousand RSpec tests in a single project has become difficult to manage. We chose to organize these into suites, somewhat mimicking our directory structure. And while we succeeded at making our Capybara integration tests more reliable (see [Reliably Testing Asynchronous UI with RSpec and Capybara](/blog/2012/02/03/reliably-testing-asynchronous-ui-w-slash-rspec-and-capybara/)), they continue relying on finicky timeouts. To avoid too many false positives we've put together a system to retry failed tests. We know that a spec that fails twice in a row is definitely not a fluke!
 
 Create a new Rake file in `lib/tasks/test_suites.rake` and declare an array of test suites.
 
