@@ -4,7 +4,7 @@
   <title><![CDATA[Category: Testing | Art.sy Engineering]]></title>
   <link href="http://artsy.github.com/blog/categories/testing/atom.xml" rel="self"/>
   <link href="http://artsy.github.com/"/>
-  <updated>2012-05-14T14:23:31-04:00</updated>
+  <updated>2012-05-16T08:26:52-04:00</updated>
   <id>http://artsy.github.com/</id>
   <author>
     <name><![CDATA[Art.sy]]></name>
@@ -12,6 +12,164 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[How to Organize Over 3000 RSpec Specs and Retry Test Failures]]></title>
+    <link href="http://artsy.github.com/blog/2012/05/15/how-to-organize-over-3000-rspec-specs-and-retry-test-failures/"/>
+    <updated>2012-05-15T12:00:00-04:00</updated>
+    <id>http://artsy.github.com/blog/2012/05/15/how-to-organize-over-3000-rspec-specs-and-retry-test-failures</id>
+    <content type="html"><![CDATA[<p>Having over three thousand RSpec tests in a single project has become difficult to manage. We chose to organize these into suites, somewhat mimicking our directory structure. And while we succeeded at making our Capybara integration tests more reliable (see <a href="/blog/2012/02/03/reliably-testing-asynchronous-ui-w-slash-rspec-and-capybara/">Reliably Testing Asynchronous UI with RSpec and Capybara</a>), they continue relying on finicky timeouts. To avoid too many false positives we've put together a system to retry failed tests. We know that a spec that fails twice in a row is definitely not a fluke!</p>
+
+<p>Create a new Rake file in <code>lib/tasks/test_suites.rake</code> and declare an array of test suites.</p>
+
+<p>``` ruby lib/tasks/test_suites.rake
+  SPEC_SUITES = [</p>
+
+<pre><code>{ :id =&gt; :models, :pattern =&gt; "spec/models/**/*_spec.rb" },
+{ :id =&gt; :controllers, :pattern =&gt; "spec/controllers/**/*_spec.rb" },
+{ :id =&gt; :views, :pattern =&gt; "spec/views/**/*_spec.rb" }
+</code></pre>
+
+<p>  ]
+```</p>
+
+<!-- more -->
+
+
+<p><code>RSpec::Core</code> contains a module called <code>RakeTask</code> that will programmatically create Rake tasks for you.</p>
+
+<p>``` ruby lib/tasks/test_suites.rake
+require 'rspec/core/rake_task'</p>
+
+<p>namespace :test
+  namespace :suite</p>
+
+<pre><code>RSpec::Core::RakeTask.new("#{suite[:id]}:run") do |t|
+  t.pattern = suite[:pattern]
+  t.verbose = false
+  t.fail_on_error = false
+end
+</code></pre>
+
+<p>  end
+end
+```</p>
+
+<p>Run <code>rake -T</code> to ensure that the suites have been generated. To execute a suite, run <code>rake test:suite:models:run</code>. Having a test suite will help you separate spec failures and enables other organizations than by directory, potentially allowing you to tag tests across multiple suites.</p>
+
+<p><code>bash
+rake spec:suite:models:run
+rake spec:suite:controllers:run
+rake spec:suite:views:run
+</code></p>
+
+<p>Retrying failed specs has been a long requested feature in RSpec (see <a href="https://github.com/rspec/rspec-core/issues/456">#456</a>). A viable approach has been finally implemented by <a href="https://github.com/antifun">Matt Mitchell</a> in <a href="https://github.com/rspec/rspec-core/pull/596">#596</a>. There're a few issues with that pull request, but two pieces have already been merged that make retrying specs feasible outside of RSpec.</p>
+
+<ul>
+<li><a href="https://github.com/rspec/rspec-core/pull/610">#610</a>:
+A fix for incorrect parsing input files specified via <code>-O</code>.</li>
+<li><a href="https://github.com/rspec/rspec-core/pull/614">#614</a>:
+A fix for making the <code>-e</code> option cumulative, so that one can pass multiple example names to run.</li>
+</ul>
+
+
+<p>Both will appear in the 2.11.0 version of RSpec, in the meantime you have to point your <code>rspec-core</code> dependency to the latest version on Github.</p>
+
+<p><code>ruby Gemfile
+"rspec-core", :git =&gt; "https://github.com/rspec/rspec-core.git"
+</code></p>
+
+<p>Don't forget to run <code>bundle update rspec-core</code>.</p>
+
+<p>The strategy to retry failed specs is to output a file that contains a list of failed ones and to feed that file back to RSpec. The former can be accomplished with a custom logger. Create <code>spec/support/formatters/failures_formatter.rb</code>.</p>
+
+<p>``` ruby spec/support/formatters/failures_formatter.rb
+require 'rspec/core/formatters/base_formatter'</p>
+
+<p>module RSpec
+  module Core</p>
+
+<pre><code>module Formatters
+  class FailuresFormatter &lt; BaseFormatter
+
+    # create a file called rspec.failures with a list of failed examples
+    def dump_failures
+      return if failed_examples.empty?
+      f = File.new("rspec.failures", "w+")
+      failed_examples.each do |example|
+        f.puts retry_command(example)
+      end
+      f.close
+    end
+
+    def retry_command(example)
+      example_name = example.full_description.gsub("\"", "\\\"")
+      "-e \"#{example_name}\""
+    end
+
+  end
+end
+</code></pre>
+
+<p>  end
+end
+```</p>
+
+<p>In order to use the formatter, we must tell RSpec to <code>require</code> it with <code>--require</code> and to use it with <code>--format</code>. We don't want to lose our settings in <code>.rspec</code> either - all these options can be combined in the Rake task.</p>
+
+<p>``` ruby lib/tasks/test_suites.rake
+RSpec::Core::RakeTask.new("#{suite[:id]}:run") do |t|
+  t.pattern = suite[:pattern]
+  t.verbose = false
+  t.fail_on_error = false
+  t.spec_opts = [</p>
+
+<pre><code>"--require", "#{Rails.root}/spec/support/formatters/failures_formatter.rb",
+"--format", "RSpec::Core::Formatters::FailuresFormatter",
+File.read(File.join(Rails.root, ".rspec")).split(/\n+/).map { |l| l.shellsplit }
+</code></pre>
+
+<p>  ].flatten
+end
+```</p>
+
+<p>Once a file is generated, we can feed it back to RSpec in another task, called <code>suite:suite[:id]:retry</code>.</p>
+
+<p>``` ruby lib/tasks/test_suites.rake
+RSpec::Core::RakeTask.new("#{suite[:id]}:retry") do |t|
+  t.pattern = suite[:pattern]
+  t.verbose = false
+  t.fail_on_error = false
+  t.spec_opts = [</p>
+
+<pre><code>"-O", File.join(Rails.root, 'rspec.failures'),
+File.read(File.join(Rails.root, '.rspec')).split(/\n+/).map { |l| l.shellsplit }
+</code></pre>
+
+<p>  ].flatten
+end
+```</p>
+
+<p>Finally, lets combine the two tasks and invoke <code>retry</code> when the <code>run</code> task fails.</p>
+
+<p>``` ruby lib/tasks/test_suites.rake
+task "#{suite[:id]}" do
+  rspec_failures = File.join(Rails.root, 'rspec.failures')
+  FileUtils.rm_f rspec_failures
+  Rake::Task["spec:suite:#{suite[:id]}:run"].execute
+  unless $?.success?</p>
+
+<pre><code>puts "[#{Time.now}] Failed, retrying #{File.read(rspec_failures).split(/\n+/).count} failure(s) in spec:suite:#{suite[:id]} ..."
+Rake::Task["spec:suite:#{suite[:id]}:retry"].execute
+</code></pre>
+
+<p>  end
+end
+```</p>
+
+<p>A complete version of our <code>test_suites.rake</code>, including a <code>spec:suite:all</code> task that executes all specs can be found <a href="https://gist.github.com/2597305">in this gist</a>. Our Jenkins CI runs <code>rake spec:suite:all</code>, with a much improved weather report since we started using this system.</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Reliably Testing Asynchronous UI w/ RSpec and Capybara]]></title>
