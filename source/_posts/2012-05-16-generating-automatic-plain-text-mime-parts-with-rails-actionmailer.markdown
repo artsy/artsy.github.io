@@ -9,9 +9,7 @@ github-url: https://www.github.com/dblock
 twitter-url: http://twitter.com/dblockdotorg
 blog-url: http://code.dblock.org
 ---
-E-mail is core to engaging with our users. Each newsletter that lands in a user's inbox can be a direct channel that grabs a moment of their attention.
-
-We developed a love-hate relationship with HTML e-mail. We love it for the creative freedom. We hate it for the complexities introduced by the thousands of web-based, desktop and mobile mail clients. Email formatting is like the "Hunger Games" where the major players include online services such as GMail, Yahoo, Hotmail or AOL, desktop clients such as Outlook and a myriad mobile devices ranging from iPhone and Android to Blackberry.
+E-mail is one of the most important ways to engage your users. And every time you touch a user's inbox, it reflects on your brand. But getting email right has become increasing difficult due to the complexities introduced by the thousands of web-based, desktop and mobile mail clients. Email formatting is like the "Hunger Games" where the major players include online services such as GMail, Yahoo, Hotmail or AOL, desktop clients such as Outlook and a myriad mobile devices ranging from iPhone and Android to Blackberry.
 
 To deal with this landscape, the MIME standard allows systems to send e-mail with multiple parts: `plain/text` for business-efficient devices such as the Blackberry, and `text/html` for web-based e-mail readers, such as GMail. Furthermore, `ActionMailer` supports multiple template formats: create an `.html.haml` template along with a `.txt.haml` template to generate both. We also know that `text/plain` email helps deliverability, but we believe a disproportionately small amount of text e-mails are actually read - the vast majority of devices are capable of parsing some HTML. 
 
