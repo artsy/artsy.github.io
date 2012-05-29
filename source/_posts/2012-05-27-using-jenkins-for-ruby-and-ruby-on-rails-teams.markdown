@@ -108,6 +108,6 @@ end
 
 We don't want any downtime on our production environment, so we don't turn Heroku maintance on. Our staging deployment task also includes copying production data to staging, so we chose to enable maintenance to avoid people hitting the test environment while it's being built and may be in a half-baked state.
 
-Finally, we also run production daily CRON-like tasks via Jenkins. It gives us email notifications, console output and the ability to manually trigger them. Centralizing operations in the same environment as CI creates truly continuous integration, deployment and operations.
+Finally, we also run production daily cron-like tasks via Jenkins. It gives us email notifications, console output and the ability to manually trigger them. Centralizing operations in the same environment as CI creates truly continuous integration, deployment and operations.
 
 
