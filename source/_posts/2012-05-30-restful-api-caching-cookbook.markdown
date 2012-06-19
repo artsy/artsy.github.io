@@ -13,6 +13,8 @@ Implementing solid server-side RESTful API caching is hard. It requires good und
 
 Examples below will use [Grape](http://github.com/intridea/grape), but these concepts apply as well to any Sinatra-style framework based on Rack or Rails.
 
+### Enabling Caching of Static Data
+
 Caching static data is fairly easy. Set `Cache-Control` and `Expires` headers.
 
 ``` ruby
@@ -20,6 +22,8 @@ Caching static data is fairly easy. Set `Cache-Control` and `Expires` headers.
   header "Cache-Control", "private, max-age=#{expire_in}"
   header "Expires", CGI.rfc1123_date(Time.now.utc + expire_in)
 ```
+
+### Disabling Caching of Dynamic Data
 
 Caching dynamic data is more involved. Let's begin with a simple Ruby API that returns a counter.
 
@@ -44,6 +48,8 @@ end
 ```
 
 The `private` option of the `Cache-Control` header instructs the client that it is allowed to store data in a private cache (unnecessary, but is known to work around overzealous cache implementations), `max-age` that it must check with the server every time it needs this data and `must-revalidate` prevents gateways from returning a response if your API server is unreachable. An additional `Expires` header will make double-sure the entire request expires immediately.
+
+### If-Modified-Since, ETags and If-None-Match
 
 A client may want to retrieve the value of the counter and runs a job every time the value changes. As it stands, the current API requires an effort on the client's part to remember the previous value and compare it every time it makes an API call. This can be avoided by asking the server for a new counter if the value has changed. 
 
@@ -74,7 +80,11 @@ def if_modified_since
 end
 ```
 
-A typical Ruby cache supports a block syntax. The following example returns a cached copy when available or executes the supplied block and stores the result in the cache. In this context `cache` could be `Rails.cache` or an instance of `ActiveSupport::Cache::FileStore`. The parameter is the cache key that uniquely identifies the cache entry.
+### Using Memcached via Dalli and Rails.Cache
+
+A typical Ruby cache supports a block syntax. The following example returns a cached copy when available or executes the supplied block and stores the result in the cache. In this context `cache` could be `Rails.cache` or an instance of `ActiveSupport::Cache::FileStore`. We use `Rails.cache` with MemCached via the [dalli gem](https://github.com/mperham/dalli) in production.
+
+### Constructing Cache Keys
 
 ``` ruby
 cache("count") do
@@ -82,7 +92,7 @@ cache("count") do
 end
 ```
 
-Hard-coding cache keys can be tedious. We chose to generate a key from the API version, route and request parameters.
+The parameter of the `cache` call is the cache key that uniquely identifies the cache entry. Hard-coding cache keys is tedious, so we generate a key from the API version, route and request parameters.
 
 ``` ruby
 def cache_key
@@ -91,6 +101,47 @@ def cache_key
   options[:path] = request.path
   options[:params] = request.GET
   Digest::MD5.hexdigest(options.to_json)
+end
+```
+
+A more complicated problem with this approach is that two cache_key calls within the same API produce identical keys. To solve that we examine the call stack, find the caller that's not within the helper module and inject it in the key options.
+
+``` ruby
+api_caller = caller.detect { |line| !(line =~ /\/#{File.basename(__FILE__)}/) }
+md = api_caller.match(/(.*\.rb:[0-9]*):/) if api_caller
+options[:caller] = md[1] if md
+```
+
+### Production-Grade Cache Keys
+
+A generic approach to key generation is good enough to get one started. Larger applications frequently choose a more involved scheme that binds cache data with the domain model in order to solve the following issues:
+
+* Partition cache in sync with object ownership and permissions. For example, a Widget may have different representations depending on whether `current_user` owns it or not.
+* Retrieve objects from cache nomatter where the calling code appears.
+* Invalidate entire cached collections when one of the objects in a collection has changed.
+
+A cache is a collection of flat name/value pairs. Object relationships can be specified within each key by chaining model names, field values and by using wildcards where appropriate. For example, `User/id=12,Widget/id=45,Gadget/*` binds the cache value to changes in `User` with id=12, `Widget` with id=45 and any instance of `Gadget`.
+
+``` ruby
+cache(bind: [[User, { id: current_user.id }], [Widget, { id: params[:widget_id] }], [Gadget] ])
+  Widget.where({ id: params[:widget_id], user_id: current_user.id }).as_json
+end
+```
+
+Another way of thinking about binding to multiple objects or classes as a way to partition the cache. The implementation of key generation can be found in [this gist](https://gist.github.com/2954175).
+
+### Cache Invalidation
+
+Since we're not going to be able to scan the entire cache during invalidation, we'll have to keep a key index in the cache as well. The key for each index entry is derived from the individual elements in the binding. 
+
+``` ruby
+def self.index_string_for(klass, object = nil)
+  "INDEX:" +
+  if object && object[:id]
+    "#{klass}/id=#{object[:id]}"
+  else
+    "#{klass}/*"
+  end
 end
 ```
 
