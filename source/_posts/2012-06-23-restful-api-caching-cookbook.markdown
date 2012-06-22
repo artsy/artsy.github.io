@@ -9,9 +9,13 @@ github-url: https://www.github.com/dblock
 twitter-url: http://twitter.com/dblockdotorg
 blog-url: http://code.dblock.org
 ---
-Implementing solid server-side RESTful API caching is hard. It requires good understanding of both your data domain and of HTTP. This post is the Art.sy API caching cookbook that has been tried by fire in production. 
+Implementing solid server-side RESTful API caching is hard. Sample RESTful APIs often demonstrate caching based on routes, but most real-world web applications don't have that luxury: requirements around object relationships or user permissions make caching particularly challenging.
 
-Examples below will use [Grape](http://github.com/intridea/grape), but these concepts apply as well to any Sinatra-style framework based on Rack or Rails.
+Today we're open-sourcing [Garner](http://github.com/dblock/garner), a cache implementation of the concepts described in this post. Garner works today with the [Grape API](http://github.com/intridea/grape) framework and [Mongoid ODM](http://github.com/mongoid/mongoid). If you find this useful, we encourage you to fork the project, extend our library to other systems and contribute your code back.
+
+Garner's approach to caching is detailed in this post. It's the Art.sy API caching cookbook that has been tried by fire in production.
+
+<!-- more -->
 
 ### Enabling Caching of Static Data
 
@@ -22,6 +26,8 @@ Caching static data is fairly easy. Set `Cache-Control` and `Expires` headers.
   header "Cache-Control", "private, max-age=#{expire_in}"
   header "Expires", CGI.rfc1123_date(Time.now.utc + expire_in)
 ```
+
+When caching static data, also consider a `public` cache. Varnish, for example, will serve the same content to different users even if the server always serves different content. This is a very effective way of leveraging a CDN.
 
 ### Disabling Caching of Dynamic Data
 
@@ -35,7 +41,9 @@ class API < Grape::API
 end
 ```
 
-This kind of dynamic data cannot have a well-defined expiration time. The counter may be incremented at any time via another API call or process. therefore, we must tell the client not to cache it. This is accomplished using the following Rack Middleware, executed after any API call.
+This kind of dynamic data cannot have a well-defined expiration time. The counter may be incremented at any time via another API call or process. therefore, we must tell the client not to cache it. 
+
+TODO: replace with garner - In pure Grape, this is accomplished using the following Rack middleware, executed after any API call.
 
 ``` ruby
 class ApiCacheBuster < Grape::Middleware::Base
