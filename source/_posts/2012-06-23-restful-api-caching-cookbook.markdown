@@ -9,7 +9,7 @@ github-url: https://www.github.com/dblock
 twitter-url: http://twitter.com/dblockdotorg
 blog-url: http://code.dblock.org
 ---
-Implementing server-side RESTful API caching is hard. In a straightforward API all the expiry decisions can be made automatically based on the URL, but most real world APIs that add requirements around object relationships or user authorization make caching particularly challenging.
+Implementing server-side RESTful API caching is hard. In a straightforward API all the expiry decisions can be made automatically based on the URL, but most real world APIs that add requirements around object relationships or user authorisation make caching particularly challenging.
 
 At last week-end's amazing [GoRuCo](http://goruco.com/), we've open-sourced [Garner](http://github.com/dblock/garner), a cache implementation of the concepts described in this post. To "garner" means to gather data from various sources and to make it readily available in one place, kind-of like a cache! Garner works today with the [Grape API framework](http://github.com/intridea/grape) and the [Mongoid ODM](http://github.com/mongoid/mongoid). We encourage you to fork the project, extend our library to other systems and contribute your code back, if you find it useful.
 
@@ -84,8 +84,8 @@ This generic approach to key generation is fine to get one started, but is large
 Most large scale web properties operate on data with the following requirements.
 
 * Partition cache in sync with object ownership and permissions. For example, a `Widget` may have different representations depending on whether `current_user` owns it or not or may choose to return a `401 Access Denied` in some of the cases.
-* Retrieve objects from cache nomatter where the calling code appears. The above strategy would generate identical keys from two different locations within the same function.
-* Invalidate entire cached collections when one of the objects in a collection has changed. For example, invalidate all cached instances of `Widget` when a new `WidgetCategory` is created and forces a reorganization of those widgets.
+* Retrieve objects from cache no matter where the calling code appears. The above strategy would generate identical keys from two different locations within the same function.
+* Invalidate entire cached collections when one of the objects in a collection has changed. For example, invalidate all cached instances of `Widget` when a new `WidgetCategory` is created and forces a reorganisation of those widgets.
 
 Garner will help you introduce such aspects of your domain model into the cache and solve all these.
 
@@ -156,7 +156,7 @@ Since we're not able to scan the entire cache during invalidation, we keep a key
 
 Garner currently ships with [Garner::Mixins::Grape::Cache](https://github.com/dblock/garner/blob/master/lib/garner/mixins/grape_cache.rb). There're two ways to use it: `cache` and `cache_or_304`.
 
-The `cache` implementation will generate a key from the binding by applying all registered cache key strategies within the current context, lookup the entry by that key and either cache hit or miss. In summary, it's an extension to a standard cache, introducing a much more fully featured binding system.
+The `cache` implementation will generate a key from the binding by applying all registered cache key strategies within the current context, look up the entry by that key and either cache hit or miss. In summary, it's an extension to a standard cache, introducing a much more fully featured binding system.
 
 ``` ruby
 # caches, but always returns the widget
