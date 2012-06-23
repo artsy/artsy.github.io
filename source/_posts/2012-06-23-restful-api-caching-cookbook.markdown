@@ -1,6 +1,6 @@
 ---
 layout: post
-title: RESTful API Caching Cookbook
+title: RESTful API Caching w/ Garner
 date: 2012-05-30 21:21
 comments: true
 categories: [API, REST, Caching, Performance]
@@ -11,7 +11,7 @@ blog-url: http://code.dblock.org
 ---
 Implementing server-side RESTful API caching is hard. In a straightforward API all the expiry decisions can be made automatically based on the URL, but most real world APIs that add requirements around object relationships or user authorisation make caching particularly challenging.
 
-At last week-end's amazing [GoRuCo](http://goruco.com/), we've open-sourced [Garner](http://github.com/dblock/garner), a cache implementation of the concepts described in this post. To "garner" means to gather data from various sources and to make it readily available in one place, kind-of like a cache! Garner works today with the [Grape API framework](http://github.com/intridea/grape) and the [Mongoid ODM](http://github.com/mongoid/mongoid). We encourage you to fork the project, extend our library to other systems and contribute your code back, if you find it useful.
+At last week-end's amazing [GoRuCo](http://goruco.com/), we've open-sourced [Garner](http://github.com/artsy/garner), a cache implementation of the concepts described in this post. To "garner" means to gather data from various sources and to make it readily available in one place, kind-of like a cache! Garner works today with the [Grape API framework](http://github.com/intridea/grape) and the [Mongoid ODM](http://github.com/mongoid/mongoid). We encourage you to fork the project, extend our library to other systems and contribute your code back, if you find it useful.
 
 Garner implements the Art.sy API caching cookbook that has been tried by fire in production.
 
@@ -101,7 +101,7 @@ Another way of thinking about binding to multiple objects or classes as a way to
 
 ### Role-Based Caching
 
-Role-Based caching is a subset of the generic problem of binding data to groups of other objects. For example, a `Widget` may have a different representation for an `admin` vs. a `user`. In Garner you can inject something called a "key strategy" into the current key generation pipeline. A strategy is a plain module that must implement two methods: `apply` and `field`. The former applies a strategy to a key within a context and the latter is a unique name that is produced by the strategy.
+Role-Based caching is a subset of the generic problem of binding data to groups of other objects. For example, a `Widget` may have a different representation for an `admin` vs. a `user`. In Garner you can inject something called a "key strategy" into the current key generation pipeline. A strategy is a plain module that must implement two methods: `field` and `apply`. The former should define a unique key name and the latter applies the strategy within a context.
 
 The following example introduces the role of the current user into the cache key.
 
@@ -114,9 +114,7 @@ module MyApp
           :role
         end
         def apply(key, context = {})
-          key = key ? key.dup : {}
-          key[:role] = current_user.role
-          key
+          key.merge { :role => current_user.role }
         end
       end
     end
@@ -124,9 +122,9 @@ module MyApp
 end
 ```
 
-Garner key strategies are applied in order and can be currently set at application startup time.
+Garner key strategies can be currently set at application startup time.
 
-``` ruby config/initializers/garner.rb
+``` ruby
 Garner::Cache::ObjectIdentity::KEY_STRATEGIES = [
   Garner::Strategies::Keys::Caller, # support multiple calls from the same function
   MyApp::Garner::RoleStrategy, # custom strategy for role-based access
@@ -180,4 +178,5 @@ end
 
 ### Links
 
-* [Garner](https://github.com/dblock/garner)
+* [Garner](https://github.com/artsy/garner)
+
