@@ -4,7 +4,7 @@
   <title><![CDATA[Art.sy Engineering]]></title>
   <link href="http://artsy.github.com/atom.xml" rel="self"/>
   <link href="http://artsy.github.com/"/>
-  <updated>2012-05-29T06:58:33-04:00</updated>
+  <updated>2012-06-25T08:28:18-04:00</updated>
   <id>http://artsy.github.com/</id>
   <author>
     <name><![CDATA[Art.sy]]></name>
@@ -12,6 +12,250 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[RESTful API Caching w/ Garner]]></title>
+    <link href="http://artsy.github.com/blog/2012/05/30/restful-api-caching-with-garner/"/>
+    <updated>2012-05-30T21:21:00-04:00</updated>
+    <id>http://artsy.github.com/blog/2012/05/30/restful-api-caching-with-garner</id>
+    <content type="html"><![CDATA[<p>Implementing server-side RESTful API caching is hard. In a straightforward API all the expiry decisions can be made automatically based on the URL, but most real world APIs that add requirements around object relationships or user authorization make caching particularly challenging.</p>
+
+<p>At <a href="http://goruco.com/">GoRuCo</a> we open-sourced <a href="http://github.com/artsy/garner">Garner</a>, a cache implementation of the concepts described in this post. To &#8220;garner&#8221; means to gather data from various sources and to make it readily available in one place, kind-of like a cache! Garner works today with the <a href="http://github.com/intridea/grape">Grape API framework</a> and the <a href="http://github.com/mongoid/mongoid">Mongoid ODM</a>. We encourage you to fork the project, extend our library to other systems and contribute your code back, if you find it useful.</p>
+
+<p>Garner implements the Art.sy API caching cookbook that has been tried by fire in production.</p>
+
+<!-- more -->
+
+
+<h3>Enabling Caching of Static Data</h3>
+
+<p>Caching static data is fairly easy: set <code>Cache-Control</code> and <code>Expires</code> headers in the HTTP response.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">expire_in</span> <span class="o">=</span> <span class="mi">60</span> <span class="o">*</span> <span class="mi">60</span> <span class="o">*</span> <span class="mi">24</span> <span class="o">*</span> <span class="mi">365</span>
+</span><span class='line'><span class="n">header</span> <span class="s2">&quot;Cache-Control&quot;</span><span class="p">,</span> <span class="s2">&quot;private, max-age=</span><span class="si">#{</span><span class="n">expire_in</span><span class="si">}</span><span class="s2">&quot;</span>
+</span><span class='line'><span class="n">header</span> <span class="s2">&quot;Expires&quot;</span><span class="p">,</span> <span class="no">CGI</span><span class="o">.</span><span class="n">rfc1123_date</span><span class="p">(</span><span class="no">Time</span><span class="o">.</span><span class="n">now</span><span class="o">.</span><span class="n">utc</span> <span class="o">+</span> <span class="n">expire_in</span><span class="p">)</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>This example indicates to a cache in front of your service (CDN, proxy or user&#8217;s browser) that the data expires in a year and that it&#8217;s private for this user. When caching truly static data, such as images, use <code>public</code>. Your CDN or proxy, such as <a href="https://www.varnish-cache.org/">Varnish</a> that sits in front of Art.sy on <a href="http://www.heroku.com/">Heroku</a>, will cache the data and subsequent requests won&#8217;t even need to hit your server, even though it could potentially serve different content every time.</p>
+
+<h3>Disabling Caching of Dynamic Data</h3>
+
+<p>Caching dynamic data is slightly more involved. Let&#8217;s begin with a simple Ruby API that returns a counter.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">API</span> <span class="o">&lt;</span> <span class="no">Grape</span><span class="o">::</span><span class="no">API</span>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">count</span>
+</span><span class='line'>    <span class="p">{</span> <span class="n">count</span> <span class="p">:</span> <span class="mi">0</span> <span class="p">}</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>This kind of dynamic data cannot have a well-defined expiration time. The counter may be incremented at any time via another API call or process, so we must tell the client not to cache it. This is accomplished by setting the value of <code>Cache-Control</code> to <code>private, max-age=0, must-revalidate</code>. The <code>private</code> option instructs the client that it&#8217;s allowed to store data in a private cache (unnecessary, but is known to work around overzealous cache implementations), <code>max-age</code> that it must check with the server every time it needs this data and <code>must-revalidate</code> prevents gateways from returning a response if your API server is unreachable. An additional <code>Expires</code> header set to a past date (usually January 1st 1990), will make double-sure the entire request expires immediately with old browsers.</p>
+
+<p>Garner provides <a href="https://github.com/dblock/garner/blob/master/lib/garner/middleware/cache/bust.rb">Garner::Middleware::Cache::Bust</a> a Rack middleware that accomplishes just that.</p>
+
+<h3>If-Modified-Since, ETags and If-None-Match</h3>
+
+<p>Given our API example, a client may want to retrieve the value of the counter and, for example, run a job every time the value changes. As it stands, the current API requires an effort on the client&#8217;s part to remember the previous value and compare it every time it makes an API call. This can be avoided by asking the server for a new counter if the value has changed since last time it was retrieved.</p>
+
+<p>One option for the client is to include an <code>If-Modified-Since</code> header with a timestamp. The server could then choose to respond with <code>304 Not Modified</code> if the counter hasn&#8217;t changed since the timestamp in <code>If-Modified-Since</code>. While this may be acceptable for certain data, timestamps have a granularity of seconds. A counter may be modified multiple times during the same second, therefore preventing it from retrieving the result of the second modification.</p>
+
+<p>A more robust solution is to generate a unique signature, called ETag, for this data and to use it to find out whether the counter has changed. There exists a generic <a href="https://github.com/rack/rack/blob/master/lib/rack/etag.rb">Rack::ETag</a> middleware that sets ETags on all text bodies. Adding the middleware would produce an ETag for every response from the API. You can now combine <code>Rack::ETag</code> and <code>Rack::Cache</code> - a client makes a request with an <code>If-None-Match: Etag</code> header and the server returns a <code>304 Not Modified</code> if the data hasn&#8217;t changed, without sending the data.</p>
+
+<h3>Memcached via Dalli and Rails.Cache</h3>
+
+<p>There&#8217;s an obvious problem with <code>Rack::Cache</code>. In order for it to serve a <code>304 Not Modified</code> response it must compare the ETag from the request with the ETag generated from the body of the current response. So it saves bandwidth, but doesn&#8217;t save execution time on the server. We&#8217;d also like the server to cache the entire response and therefore avoid any heavy processing, such as querying a database.</p>
+
+<p>A typical Ruby cache supports a block syntax. The following example returns a cached copy when available or executes the supplied block and stores the result in the cache. In this context <code>cache</code> could be <code>Rails.cache</code> or an instance of <code>ActiveSupport::Cache::FileStore</code>. We use <code>Rails.cache</code> with <a href="http://memcached.org/">Memcached</a> via the <a href="https://github.com/mperham/dalli">dalli gem</a> in production.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">cache</span><span class="p">(</span><span class="s2">&quot;count&quot;</span><span class="p">)</span> <span class="k">do</span>
+</span><span class='line'>  <span class="p">{</span> <span class="n">count</span> <span class="p">:</span> <span class="mi">0</span> <span class="p">}</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>The parameter of the <code>cache</code> call is the cache key that uniquely identifies the cache entry. Hard-coding cache keys is tedious, so we can generate a key from the API version, route and request parameters.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">def</span> <span class="nf">cache_key</span>
+</span><span class='line'>  <span class="n">options</span> <span class="o">=</span> <span class="p">{</span> <span class="p">}</span>
+</span><span class='line'>  <span class="n">options</span><span class="o">[</span><span class="ss">:version</span><span class="o">]</span> <span class="o">=</span> <span class="n">version</span>
+</span><span class='line'>  <span class="n">options</span><span class="o">[</span><span class="ss">:path</span><span class="o">]</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">path</span>
+</span><span class='line'>  <span class="n">options</span><span class="o">[</span><span class="ss">:params</span><span class="o">]</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">GET</span>
+</span><span class='line'>  <span class="no">Digest</span><span class="o">::</span><span class="no">MD5</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">(</span><span class="n">options</span><span class="o">.</span><span class="n">to_json</span><span class="p">)</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>This generic approach to key generation is fine to get one started, but is largely insufficient for real-world applications.</p>
+
+<h3>Production-Grade Cache Keys and Model Binding</h3>
+
+<p>Most large scale web properties operate on data with the following requirements.</p>
+
+<ul>
+<li>Partition cache in sync with object ownership and permissions. For example, a <code>Widget</code> may have different representations depending on whether <code>current_user</code> owns it or not or may choose to return a <code>401 Access Denied</code> in some of the cases.</li>
+<li>Retrieve objects from cache no matter where the calling code appears. The above strategy would generate identical keys from two different locations within the same function.</li>
+<li>Invalidate entire cached collections when one of the objects in a collection has changed. For example, invalidate all cached instances of <code>Widget</code> when a new <code>WidgetCategory</code> is created and forces a reorganization of those widgets.</li>
+</ul>
+
+
+<p>Garner will help you introduce such aspects of your domain model into the cache and solve all these.</p>
+
+<p>A cache is a collection of flat name/value pairs. We&#8217;ll specify object relationships within each key by chaining model names, field values and by using wildcards where appropriate. For example, <code>User/id=12,Widget/id=45,Gadget/*</code> binds the cache value to changes in <code>User</code> with id=12, <code>Widget</code> with id=45 and any instance of <code>Gadget</code>.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">cache</span><span class="p">(</span><span class="n">bind</span><span class="p">:</span> <span class="o">[[</span><span class="no">User</span><span class="p">,</span> <span class="p">{</span> <span class="nb">id</span><span class="p">:</span> <span class="n">current_user</span><span class="o">.</span><span class="n">id</span> <span class="p">}</span><span class="o">]</span><span class="p">,</span> <span class="o">[</span><span class="no">Widget</span><span class="p">,</span> <span class="p">{</span> <span class="nb">id</span><span class="p">:</span> <span class="n">params</span><span class="o">[</span><span class="ss">:widget_id</span><span class="o">]</span> <span class="p">}</span><span class="o">]</span><span class="p">,</span> <span class="o">[</span><span class="no">Gadget</span><span class="o">]</span> <span class="o">]</span><span class="p">)</span>
+</span><span class='line'>  <span class="no">Widget</span><span class="o">.</span><span class="n">where</span><span class="p">({</span> <span class="nb">id</span><span class="p">:</span> <span class="n">params</span><span class="o">[</span><span class="ss">:widget_id</span><span class="o">]</span><span class="p">,</span> <span class="n">user_id</span><span class="p">:</span> <span class="n">current_user</span><span class="o">.</span><span class="n">id</span> <span class="p">})</span><span class="o">.</span><span class="n">first</span><span class="o">.</span><span class="n">as_json</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Binding to multiple objects or classes can also be reasoned about as a way to partition the cache. Adding structure into the fields lets us reason about the relationships between various instances of data in the cache.</p>
+
+<h3>Role-Based Caching</h3>
+
+<p>Role-Based caching is a subset of the generic problem of binding data to groups of other objects. For example, a <code>Widget</code> may have a different representation for an <code>admin</code> vs. a <code>user</code>. In Garner you can inject something called a &#8220;key strategy&#8221; into the current key generation pipeline. A strategy is a plain module that must implement two methods: <code>field</code> and <code>apply</code>. The former should define a unique key name and the latter applies the strategy within a context.</p>
+
+<p>The following example introduces the role of the current user into the cache key.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">module</span> <span class="nn">MyApp</span>
+</span><span class='line'>  <span class="k">module</span> <span class="nn">Garner</span>
+</span><span class='line'>    <span class="k">module</span> <span class="nn">RoleStrategy</span>
+</span><span class='line'>      <span class="k">class</span> <span class="o">&lt;&lt;</span> <span class="nb">self</span>
+</span><span class='line'>        <span class="k">def</span> <span class="nf">field</span>
+</span><span class='line'>          <span class="ss">:role</span>
+</span><span class='line'>        <span class="k">end</span>
+</span><span class='line'>        <span class="k">def</span> <span class="nf">apply</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">context</span> <span class="o">=</span> <span class="p">{})</span>
+</span><span class='line'>          <span class="n">key</span><span class="o">.</span><span class="n">merge</span> <span class="p">{</span> <span class="ss">:role</span> <span class="o">=&gt;</span> <span class="n">current_user</span><span class="o">.</span><span class="n">role</span> <span class="p">}</span>
+</span><span class='line'>        <span class="k">end</span>
+</span><span class='line'>      <span class="k">end</span>
+</span><span class='line'>    <span class="k">end</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Garner key strategies can be currently set at application startup time.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="no">Garner</span><span class="o">::</span><span class="no">Cache</span><span class="o">::</span><span class="no">ObjectIdentity</span><span class="o">::</span><span class="no">KEY_STRATEGIES</span> <span class="o">=</span> <span class="o">[</span>
+</span><span class='line'>  <span class="no">Garner</span><span class="o">::</span><span class="no">Strategies</span><span class="o">::</span><span class="no">Keys</span><span class="o">::</span><span class="no">Caller</span><span class="p">,</span> <span class="c1"># support multiple calls from the same function</span>
+</span><span class='line'>  <span class="no">MyApp</span><span class="o">::</span><span class="no">Garner</span><span class="o">::</span><span class="no">RoleStrategy</span><span class="p">,</span> <span class="c1"># custom strategy for role-based access</span>
+</span><span class='line'>  <span class="no">Garner</span><span class="o">::</span><span class="no">Strategies</span><span class="o">::</span><span class="no">Keys</span><span class="o">::</span><span class="no">RequestPath</span> <span class="c1"># injects the HTTP request&#39;s URL</span>
+</span><span class='line'><span class="o">]</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>Multiple Calls from the Same Function</h3>
+
+<p>Binding to the same set of objects within the same function call will produce the same key. To solve this in a generic way we can examine the call stack, find the caller that&#8217;s not within the helper module and inject it in the key options.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">api_caller</span> <span class="o">=</span> <span class="nb">caller</span><span class="o">.</span><span class="n">detect</span> <span class="p">{</span> <span class="o">|</span><span class="n">line</span><span class="o">|</span> <span class="o">!</span><span class="p">(</span><span class="n">line</span> <span class="o">=~</span> <span class="sr">/\/</span><span class="si">#{</span><span class="no">File</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="bp">__FILE__</span><span class="p">)</span><span class="si">}</span><span class="sr">/</span><span class="p">)</span> <span class="p">}</span>
+</span><span class='line'><span class="n">api_caller_line</span> <span class="o">=</span> <span class="n">api_caller</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="sr">/(.*\.rb:[0-9]*):/</span><span class="p">)</span> <span class="k">if</span> <span class="n">api_caller</span>
+</span><span class='line'><span class="n">options</span><span class="o">[</span><span class="ss">:caller</span><span class="o">]</span> <span class="o">=</span> <span class="n">api_caller_line</span><span class="o">[</span><span class="mi">1</span><span class="o">]</span> <span class="k">if</span> <span class="n">api_caller_line</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Garner implements this as <a href="https://github.com/dblock/garner/blob/master/lib/garner/strategies/keys/caller_strategy.rb">Garner::Strategies::Keys::Caller</a>.</p>
+
+<h3>Cache Invalidation</h3>
+
+<p>Invalidating a cache entry bound to multiple objects requires keeping an additional index along with the actual cache data. In the example above we&#8217;ve bound the resulting Widget to a specific <code>User</code>, the <code>Widget</code> instance itself and all instances of <code>Gadget</code>. Every time a Gadget changes, we&#8217;ll want to invalidate this cache entry. Garner will handle this either automatically via a mixin (we&#8217;ve provided <a href="https://github.com/dblock/garner/blob/master/lib/garner/mixins/mongoid_document.rb">Garner::Mixins::Mongoid::Document</a> for the Mongoid ODM) or via an explicit <code>invalidate(Gadget)</code> call.</p>
+
+<p>Since we&#8217;re not able to scan the entire cache during invalidation, we keep a key index in the cache as well. The key for each index entry is derived from the individual elements in the binding.</p>
+
+<h3>Using with Grape</h3>
+
+<p>Garner currently ships with <a href="https://github.com/dblock/garner/blob/master/lib/garner/mixins/grape_cache.rb">Garner::Mixins::Grape::Cache</a>. There&#8217;re two ways to use it: <code>cache</code> and <code>cache_or_304</code>.</p>
+
+<p>The <code>cache</code> implementation will generate a key from the binding by applying all registered cache key strategies within the current context, look up the entry by that key and either cache hit or miss. In summary, it&#8217;s an extension to a standard cache, introducing a much more fully featured binding system.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="c1"># caches, but always returns the widget</span>
+</span><span class='line'><span class="n">get</span> <span class="s2">&quot;widget/:id&quot;</span> <span class="k">do</span>
+</span><span class='line'>  <span class="n">cache</span><span class="p">(</span><span class="n">bind</span><span class="p">:</span> <span class="o">[</span><span class="no">Widget</span><span class="p">,</span> <span class="n">params</span><span class="o">[</span><span class="ss">:id</span><span class="o">]]</span><span class="p">)</span> <span class="k">do</span>
+</span><span class='line'>    <span class="no">Widget</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="n">params</span><span class="o">[</span><span class="ss">:id</span><span class="o">]</span><span class="p">)</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>The <code>cache_or_304({ bind: [ ] })</code> will generate a meta key from the binding by applying all registered cache key strategies within the current context and search the cache index by the meta key. If a value is found, it will be compared to the ETag or the timestamp supplied in the request&#8217;s <code>If-None-Match</code> or <code>If-Modified-Since</code> and issue a <code>304 Not Modified</code> where appropriate.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="c1"># caches, returns the widget and supports If-Modified-Since or If-None-Match</span>
+</span><span class='line'><span class="n">get</span> <span class="s2">&quot;widget/:id&quot;</span> <span class="k">do</span>
+</span><span class='line'>  <span class="n">cache_or_304</span><span class="p">(</span><span class="n">bind</span><span class="p">:</span> <span class="o">[</span><span class="no">Widget</span><span class="p">,</span> <span class="n">params</span><span class="o">[</span><span class="ss">:id</span><span class="o">]]</span><span class="p">)</span> <span class="k">do</span>
+</span><span class='line'>    <span class="no">Widget</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="n">params</span><span class="o">[</span><span class="ss">:id</span><span class="o">]</span><span class="p">)</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>Conclusion</h3>
+
+<p>An effective cache implementation for a web service combines server-side caching with client-side expiration. The latter broadly includes proxies, CDNs and browsers, all active actors in the process of exchanging information. The web is, in a way, an eventually consistent data storage and distribution system.</p>
+
+<h3>Links</h3>
+
+<ul>
+<li><a href="https://github.com/artsy/garner">Garner</a></li>
+</ul>
+
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Using Jenkins for Ruby and Ruby-on-Rails Teams]]></title>
