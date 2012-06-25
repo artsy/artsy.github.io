@@ -9,9 +9,9 @@ github-url: https://www.github.com/dblock
 twitter-url: http://twitter.com/dblockdotorg
 blog-url: http://code.dblock.org
 ---
-Implementing server-side RESTful API caching is hard. In a straightforward API all the expiry decisions can be made automatically based on the URL, but most real world APIs that add requirements around object relationships or user authorisation make caching particularly challenging.
+Implementing server-side RESTful API caching is hard. In a straightforward API all the expiry decisions can be made automatically based on the URL, but most real world APIs that add requirements around object relationships or user authorization make caching particularly challenging.
 
-At last week-end's amazing [GoRuCo](http://goruco.com/), we've open-sourced [Garner](http://github.com/artsy/garner), a cache implementation of the concepts described in this post. To "garner" means to gather data from various sources and to make it readily available in one place, kind-of like a cache! Garner works today with the [Grape API framework](http://github.com/intridea/grape) and the [Mongoid ODM](http://github.com/mongoid/mongoid). We encourage you to fork the project, extend our library to other systems and contribute your code back, if you find it useful.
+At [GoRuCo](http://goruco.com/) we open-sourced [Garner](http://github.com/artsy/garner), a cache implementation of the concepts described in this post. To "garner" means to gather data from various sources and to make it readily available in one place, kind-of like a cache! Garner works today with the [Grape API framework](http://github.com/intridea/grape) and the [Mongoid ODM](http://github.com/mongoid/mongoid). We encourage you to fork the project, extend our library to other systems and contribute your code back, if you find it useful.
 
 Garner implements the Art.sy API caching cookbook that has been tried by fire in production.
 
@@ -27,7 +27,7 @@ header "Cache-Control", "private, max-age=#{expire_in}"
 header "Expires", CGI.rfc1123_date(Time.now.utc + expire_in)
 ```
 
-This example indicates to a cache in front of your service (CDN, proxy or user's browser) that the data expires in a year and that it's private for this user. When caching truly static data, such as images, use `public`. Your CDN or proxy, such as [Varnish](https://www.varnish-cache.org/) that sits in front of Art.sy on [Heroku](http://www.heroku.com/), will cache the data and subsequent requests won't even need to hit your server, even through it could potentially serve different content every time.
+This example indicates to a cache in front of your service (CDN, proxy or user's browser) that the data expires in a year and that it's private for this user. When caching truly static data, such as images, use `public`. Your CDN or proxy, such as [Varnish](https://www.varnish-cache.org/) that sits in front of Art.sy on [Heroku](http://www.heroku.com/), will cache the data and subsequent requests won't even need to hit your server, even though it could potentially serve different content every time.
 
 ### Disabling Caching of Dynamic Data
 
@@ -85,7 +85,7 @@ Most large scale web properties operate on data with the following requirements.
 
 * Partition cache in sync with object ownership and permissions. For example, a `Widget` may have different representations depending on whether `current_user` owns it or not or may choose to return a `401 Access Denied` in some of the cases.
 * Retrieve objects from cache no matter where the calling code appears. The above strategy would generate identical keys from two different locations within the same function.
-* Invalidate entire cached collections when one of the objects in a collection has changed. For example, invalidate all cached instances of `Widget` when a new `WidgetCategory` is created and forces a reorganisation of those widgets.
+* Invalidate entire cached collections when one of the objects in a collection has changed. For example, invalidate all cached instances of `Widget` when a new `WidgetCategory` is created and forces a reorganization of those widgets.
 
 Garner will help you introduce such aspects of your domain model into the cache and solve all these.
 
@@ -97,7 +97,7 @@ cache(bind: [[User, { id: current_user.id }], [Widget, { id: params[:widget_id] 
 end
 ```
 
-Another way of thinking about binding to multiple objects or classes as a way to partition the cache. Adding structure into the fields lets us reason about the relationships between various pieces of data in the cache.
+Binding to multiple objects or classes can also be reasoned about as a way to partition the cache. Adding structure into the fields lets us reason about the relationships between various instances of data in the cache.
 
 ### Role-Based Caching
 
@@ -175,6 +175,10 @@ get "widget/:id" do
   end
 end
 ```
+
+### Conclusion
+
+An effective cache implementation for a web service combines server-side caching with client-side expiration. The latter broadly includes proxies, CDNs and browsers, all active actors in the process of exchanging information. The web is, in a way, an eventually consistent data storage and distribution system.
 
 ### Links
 
