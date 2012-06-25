@@ -1,6 +1,6 @@
 ---
 layout: post
-title: RESTful API Caching w/ Garner
+title: RESTful API Caching with Garner
 date: 2012-05-30 21:21
 comments: true
 categories: [API, REST, Caching, Performance]
