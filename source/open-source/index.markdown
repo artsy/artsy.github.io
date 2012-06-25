@@ -17,6 +17,8 @@ Garner is a practical Rack-based cache implementation for RESTful APIs with supp
 
 To "garner" means to gather data from various sources and to make it readily available in one place, kind-of like a cache!
 
+[https://github.com/artsy/garner](https://github.com/artsy/garner)
+
 [guard-rack](https://github.com/dblock/guard-rack)
 --------------------------------------------------
 
