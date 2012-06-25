@@ -10,6 +10,13 @@ We love open-source at Art.sy. We use a ton of it. We've also contributed back t
 [Analytical](https://github.com/jkrall/analytical), [Fog](https://github.com/fog/fog), [Kaminari](https://github.com/amatsuda/kaminari)
 and [Barista](https://github.com/Sutto/barista). And we have built a few open-source projects from scratch since beginning of 2011.
 
+[garner](http://github.com/artsy/garner)
+----------------------------------------
+
+Garner is a practical Rack-based cache implementation for RESTful APIs with support for HTTP 304 Not Modified based on time and ETags, model and instance binding and hierarchical invalidation.
+
+To "garner" means to gather data from various sources and to make it readily available in one place, kind-of like a cache!
+
 [guard-rack](https://github.com/dblock/guard-rack)
 --------------------------------------------------
 
