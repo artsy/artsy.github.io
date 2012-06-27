@@ -10,38 +10,6 @@ twitter-url: http://twitter.com/greims
 blog-url: http://shortforgilbert.com
 ---
 
- I think the main problem here is that you're addressing different levels of audience through the post. You need to pick the level. 
-IMO it should be someone quite familiar with Backbone.js and knows what #! is. 
-
-You want to make a point right away. Instead you start with history, which is boring. I think history could be a fine conclusion with 
-pointers and references or as additional information. The RIP #! is a great point. So you should start with that with minor changes.
-
-Now you have a great article title: Replacing #! routes with browser pushState with Backbone.js.
-
-* The whole continuous deployment thing so early dilutes this message. It's kinda beyond the point. 
-The point is really HOW to do this. So I'd just delete it. 
-
-* "After reworking some of our custom routing events we were able to press forward with the update by using Backbone's 
-supplied router and swapping any references to our hashbang URLs." If you're not going to be developing the how on 
-reworking the custom routing events, it doesn't say anything, delete.
-
-* Global capture clicks is great. Maybe the whole section of Client should be about Providing Backward Compatibility?
-
-* We learned a lot about Backbone.js in this process and will offer more of those insights in future posts. Huh? Is the post over already? :)
-
-* After the first phrase, the first paragraph of server is totally confusing. Public pages? What's that? 
-The readers have no idea about our app. Rather than explaining this I'd drop it. I would transform this section into a 
-generic explanation of what a routing table should look like for an app.
-
-* The Isaac Asimov reference is great.
-
-* I would split a short section to conclude that says basically that if you're doing a backbone.js app today, 
-you don't need hash bangs and you should do X.
-
-
-FOCUS: How to work do push state
-
-
 > The only constant is change, continuing change, inevitable change, that is the dominant factor in society 
 > [and web apps!] today. No sensible decision can be made any longer without taking into account not only 
 > the world as it is, but the world as it will be.
