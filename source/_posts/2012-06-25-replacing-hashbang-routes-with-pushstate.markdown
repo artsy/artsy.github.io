@@ -55,7 +55,7 @@ Be sure to leave out your domain (~~http://art.sy~~).
 We now needed a global link handler that will leverage Backbone's navigate method which takes
 care of updating the URL and avoiding a page refresh or alternatively wiring up the hash tag fallback.
 Since we follow the convention of starting all href attributes with our application's root, we
-can match on that in our selector to get all anchors who's link begins with our root, `a[href^='/']`.
+can match on that in our selector to get all anchors whose link begins with our root, `a[href^='/']`.
 This link handler is a great place to ensure backward compatability while #!s are removed from
 internal links.
 
@@ -137,7 +137,7 @@ Application.routes.draw do
 end
 ```
 
-An added bonus here is a near one to one mapping between with the Rails routes on the client.
+An added bonus here is a near one to one mapping with the Rails and client routes.
 
 ```coffeescript
 # Backbone.js - Client
@@ -157,7 +157,7 @@ but so is Isaac Asimov's statement on change. You can't predict the future.
 You make decisions based on the best data you have at the time. We started our app with hash tag routing
 in early 2011 and added the ! around five months later (about the same time Dan Webb wrote his post). 
 Had we started Art.sy today, even six months ago, I'm confident we would have enabled Backbone's pushState routing.
-There's no need to look back. The future is here and it's URLs are #! free!
+There's no need to look back. The future is here and its URLs are #! free!
 
 
 ### Footnotes
