@@ -153,7 +153,7 @@ class App.Routers.Client extends Backbone.Router
 
 ## URLs R 4 Ever
 
-Dan Webb's assertion that [URLs are forever is correct](http://danwebb.net/2011/5/28/it-is-about-the-hashbangs), 
+Dan Webb's assertion that [URLs are forever](http://danwebb.net/2011/5/28/it-is-about-the-hashbangs) is correct, 
 but so is Isaac Asimov's statement on change. You can't predict the future. 
 You make decisions based on the best data you have at the time. We started our app with hashtag routing
 in early 2011 and added the ! around five months later (about the same time Dan Webb wrote his post). 
