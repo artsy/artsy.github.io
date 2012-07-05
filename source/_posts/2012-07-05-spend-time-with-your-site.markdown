@@ -20,7 +20,7 @@ In practice, though, this can be difficult:
 
 * As a developer, you're just not representative of the intended audience.
 * You're [appropriately] focused on the product's next iteration, while your audience is occupied with the current state.
-* You spend countless hours focused on product details--of course it's a challenge to empathize with a casual visitor's first impression.
+* You spend countless hours focused on product details&mdash;of course it's a challenge to empathize with a casual visitor's first impression.
 
 Keeping it Real
 ---------------
