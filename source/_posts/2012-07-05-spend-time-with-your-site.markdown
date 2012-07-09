@@ -45,3 +45,5 @@ Implementation Notes
 Using [knife-solo](https://github.com/matschaffer/knife-solo) and [chef](http://www.opscode.com/chef/), we spawned an [EC2](http://aws.amazon.com/ec2/) instance and configured it to [drain our main site's logs from heroku](https://devcenter.heroku.com/articles/logging#syslog_drains). A single, static web page contains a full-screen iframe and a bit of javascript that periodically requests the most recent URL from a tiny [sinatra](http://www.sinatrarb.com/) app, loading the resulting URL into the iframe. The sinatra app performs an ugly bash command to grep the last appropriate GET request from the drained log, filtering out requests from Art.sy HQ and other uninteresting cases. Via a special flag, our site suppresses the usual tracking and analytics when loaded in this context (you didn't want to juice your stats, right?).
 
 Have other tricks for keeping it real? Let us know in the comments.
+
+_Update:_ See a gist with [sample code for the slideshow app](https://gist.github.com/3073907).
