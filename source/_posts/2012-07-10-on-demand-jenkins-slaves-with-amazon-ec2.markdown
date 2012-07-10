@@ -14,6 +14,8 @@ The [Art.sy](http://art.sy) team faithfully uses [Jenkins](http://jenkins-ci.org
 
 The [Amazon EC2 Plugin](https://wiki.jenkins-ci.org/display/JENKINS/Amazon+EC2+Plugin) allowed us to replace those slaves with a totally scripted environment. Now, slaves are spun up in the cloud whenever build jobs need them.
 
+<!-- more -->
+
 To set up the build slave's Amazon Machine Image (AMI), we started from an [official Ubuntu 11.10](http://cloud-images.ubuntu.com/releases/oneiric/release/) (Oneiric Ocelot) AMI, ran initialization scripts to set up our build dependencies (MongoDB, Redis, ImageMagick, Firefox, RVM, NVM, etc.), packaged our modified instance into its own AMI, and then set up the EC2 Plugin to launch instances from this custom AMI.
 
 Our AMI setup steps are captured entirely in a [GitHub gist](https://gist.github.com/3085368), but because our build requirements are specific to our applications and frameworks, most organizations will need to modify these scripts to their own use cases. Given that caveat, here's how we went from base Ubuntu AMI to custom build slave AMI:
