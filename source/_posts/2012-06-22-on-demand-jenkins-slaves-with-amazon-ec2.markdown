@@ -14,15 +14,29 @@ The [Art.sy](http://art.sy) team faithfully uses [Jenkins](http://jenkins-ci.org
 
 The [Amazon EC2 Plugin](https://wiki.jenkins-ci.org/display/JENKINS/Amazon+EC2+Plugin) allowed us to replace those slaves with a totally scripted environment. Now, slaves are spun up in the cloud whenever build jobs need them.
 
-<!-- more -->
+To set up the build slave's Amazon Machine Image (AMI), we started from an [official Ubuntu 11.10](http://cloud-images.ubuntu.com/releases/oneiric/release/) (Oneiric Ocelot) AMI, ran initialization scripts to set up our build dependencies (MongoDB, Redis, ImageMagick, Firefox, RVM, NVM, etc.), packaged our modified instance into its own AMI, and then set up the EC2 Plugin to launch instances from this custom AMI.
 
-<!-- TODO steps for spawning instance -->
+Our AMI setup steps are captured entirely in a [GitHub gist](https://gist.github.com/2897653), but because our build requirements are specific to our applications and frameworks, most organizations will need to modify these scripts to their own use cases. Given that caveat, here's how we went from base Ubuntu AMI to custom build slave AMI:
 
-<!-- TODO AMI steps -->
+1. We [launched](https://console.aws.amazon.com/ec2/home?region=us-east-1#launchAmi=ami-4dad7424) an Ubuntu 11.10 AMI `4dad7424` via the AWS console.
+2. Once the instance was launched, we logged in with the SSH key we generated during setup.
+3. We ran the following commands to configure the instance:
 
-<!-- TODO Jenkins configuration -->
+        curl -L https://raw.github.com/gist/2897653/_base-setup.sh | sudo bash -s
+        sudo su -l jenkins
+        curl -L https://raw.github.com/gist/2897653/_jenkins-user-setup.sh | bash -s
 
-<!-- TODO approach to labels (?) -->
+4. From the "Instances" tab of the AWS Console, we chose the now-configured instance, and from the "Instance Actions" dropdown, selected "Stop", followed by "Create Image (EBS AMI)".
+
+Next we installed the Amazon EC2 Plugin on our Jenkins master, and entered the following configuration arguments for the plugin. (Replace the AMI ID with your own, the result of Step 4 above.)
+
+![Jenkins EC2 Plugin configuration](http://f.cl.ly/items/08280H2Y2C1H3v3K1D2Q/Image%202012.07.10%2012:12:30%20PM.png)
+
+New build slaves began spawning immediately in response to job demand! Our new "Computers" page on Jenkins looks like this:
+
+![Jenkins computer list](http://f.cl.ly/items/1t2s3w2y0o1Q0s3Z2d0K/Image%202012.07.10%2011:45:26%20AM.png)
+
+We have the option of provisioning a new build slave via a single click, but so far, this hasn't been necessary, since slaves have automatically scaled up and down with demand. We average around 4-8 build slaves during the day, and 0-1 overnight and on weekends.
 
 ## Outcome and Next Steps
 
