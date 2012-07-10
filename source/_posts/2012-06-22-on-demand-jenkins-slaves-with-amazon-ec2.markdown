@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "On-Demand Jenkins Slaves with Amazon EC2"
-date: 2012-06-22 15:28
+date: 2012-07-10 13:30
 comments: true
 categories: [Jenkins, Testing, Continuous Integration, EC2]
 author: Joey Aghion and Frank Macreery
