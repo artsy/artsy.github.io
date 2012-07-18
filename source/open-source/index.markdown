@@ -10,6 +10,13 @@ We love open-source at Art.sy. We use a ton of it. We've also contributed back t
 [Analytical](https://github.com/jkrall/analytical), [Fog](https://github.com/fog/fog), [Kaminari](https://github.com/amatsuda/kaminari)
 and [Barista](https://github.com/Sutto/barista). And we have built a few open-source projects from scratch since beginning of 2011.
 
+[resque-heroku-scaling-canary](https://github.com/aaw/resque-heroku-scaling-canary)
+-----------------------------------------------------------------------------------
+
+Defines a Resque plugin that allows you to automatically scale up the number of workers running on Heroku and then automatically scale them down once no work is left to do.
+
+[https://github.com/aaw/resque-heroku-scaling-canary](https://github.com/aaw/resque-heroku-scaling-canary)
+
 [garner](http://github.com/artsy/garner)
 ----------------------------------------
 
