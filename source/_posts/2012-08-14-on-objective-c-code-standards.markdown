@@ -38,7 +38,7 @@ External, or vendored code should be kept out of the main body of your code. You
 
 ### Use umbrella imports.
 
-To try and keep the amount of noise we have at the top of our implementation files we have started to reduce the number of `#import "ARModel.h"` lines we use. By creating a `Models.h` file and having that include all the models it means we can still have a look through the `#imports` at the top to get an idea of the connections between the objects as that will only show the important imports. These can potentially also be moved into your precompiled header files.
+To try and keep the amount of noise we have at the top of our implementation files we have started to reduce the number of `#import "ARModel.h"` lines we use. By creating a `Models.h` file and having that include all the models it means we can still have a look through the `#imports` at the top to get an idea of the connections between the objects as that will only show the important imports. These can optionally be moved into your precompiled header files.
 
 ### Keep your code clean.
 
