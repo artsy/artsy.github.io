@@ -20,7 +20,7 @@ First to get chopped by the deletion button are private method declarations. Aft
 
 Occasionally it's necessary for subclass to know about private methods defined by its superclass, so we use a shared category to let them know what they respond to. Like Apple, we also quit using `@private` in header files. 
 
-Ivars now should go in class extensions, and be prefixed by an underscore. Apple advises that you don't use method names with underscores but encourage underscored variable names. This also can free up method parameters from having ugly names such as anArtwork or aString, something I personally am not a fan of.
+Ivars now should go in class extensions, and be prefixed by an underscore. Apple advises that you don't use method names with underscores but encourage underscored variable names. This also can free up method parameters from having ugly names such as anArtwork or aString.
 
 ### Use object literals when possible.
 
