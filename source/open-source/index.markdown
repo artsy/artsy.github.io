@@ -10,6 +10,13 @@ We love open-source at Art.sy. We use a ton of it. We've also contributed back t
 [Analytical](https://github.com/jkrall/analytical), [Fog](https://github.com/fog/fog), [Kaminari](https://github.com/amatsuda/kaminari)
 and [Barista](https://github.com/Sutto/barista). And we have built a few open-source projects from scratch since beginning of 2011.
 
+[rspec-rerun](https://github.com/dblock/rspec-rerun)
+----------------------------------------------------
+
+The rspec-rerun gem is a drop-in solution to retry (rerun) failed RSpec examples. It may be useful, for example, with finicky Capybara tests. The strategy to rerun failed specs is to output a file called `rspec.failures` that contains a list of failed examples and to feed that file back to RSpec via `-e`.
+
+[https://github.com/dblock/rspec-rerun](https://github.com/dblock/rspec-rerun)
+
 [resque-heroku-scaling-canary](https://github.com/aaw/resque-heroku-scaling-canary)
 -----------------------------------------------------------------------------------
 
