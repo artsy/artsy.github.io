@@ -35,7 +35,7 @@ end
 ```
 We are overriding a black box `notify!` method and updating an attribute with a timestamp of the last notification.
 
-Lets write a test.
+Let's write a test.
 
 ``` ruby spec/models/user_spec.rb
 describe User do
@@ -61,7 +61,7 @@ describe User do
 end
 ```
 
-All green. But once this code hit production, it became an infinite loop. How is that possible?
+All green. But once this code hit production, `notify!` was called in an infinite loop. How is that possible?
 
 The call to `notify!` is delayed using DelayedJob in production and is not delayed in test. It does not work under DelayedJob and will create as many delayed notifications as it possibly can until it runs out of stack space.
 
@@ -86,7 +86,7 @@ end
 DelayedJobObserver.runs = 0
 ```
 
-The complete code that handles a few more cases, including enabling and disabling the observer, and counting successful runs and errors can be found in [this gist](https://gist.github.com/3370052). Please help us improve it.
+The complete code, which handles a few more cases, including enabling and disabling the observer, and counting successful runs and errors can be found in [this gist](https://gist.github.com/3370052). Please help us improve it.
 
 We can now test our notification without compromising on the delayed nature of the job and add a test making sure we create a single delayed job from a call to `notify!`.
 
