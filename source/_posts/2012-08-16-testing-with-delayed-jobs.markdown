@@ -33,13 +33,43 @@ class User
 end
 
 ```
-We are overriding a black box `notify!` method and updating an attribute with a timestamp of the last notification. All tests green. Once this code hit production, it became an infinite loop. How is that possible?
+We are overriding a black box `notify!` method and updating an attribute with a timestamp of the last notification.
 
-The implementation of `notify?` is in the Devise gem and relies on an instance variable to signal that a notification has been sent. Setting the instance variable avoids sending the notification twice for multiple calls to `save!`. Our `after_save` callback invokes `update_attributes!`, which causes another `notify!` call unless `notify?` returns `false`. In a test, the call to `super` will execute the notification (setting the instance variable), but it's handled asynchronously in production with `Delayed::Worker.delayed_jobs` set to `true`. The notification will be delayed, without setting the instance variable. This is effectively code that works in a test, but loops indefinitely in production, creating as many delayed notifications as possible before being killed by Heroku after 30 seconds.
+Lets write a test.
 
-We'll start by bringing our tests closer to a real production environment by leaving `Delayed::Worker.delay_jobs = true` in all cases and making sure this problem is reproduced with a spec. We could call `Delayed::Worker.new.work_off` for every test that needs to execute a delayed job, but that would be rather tedious. A better approach may be to register an observer that will execute a delayed job every time one is created. This is similar to a production environment where having enough delayed workers almost guarantees a job is picked up immediately after being created.
+``` ruby spec/models/user_spec.rb
+describe User do
 
-``` ruby config/initilizers/delayed_job_observer.rb
+  subject { User.new }
+
+  context "notification" do
+    
+    it "sends one email" do
+      expect {
+        subject.notify!
+      }.to change(ActionMailer::Base.deliveries, :count).by(1)
+    end
+
+    it "updates notified_at" do
+      expect { 
+        subject.notify!
+      }.to change(subject, :notified_at)
+    end
+
+  end
+
+end
+```
+
+All green. But once this code hit production, it became an infinite loop. How is that possible?
+
+The call to `notify!` is delayed using DelayedJob in production and is not delayed in test. It does not work under DelayedJob and will create as many delayed notifications as it possibly can until it runs out of stack space.
+
+As a common pattern in Devise, the implementation of `notify!` relies on an instance variable to signal that a notification has been sent. Setting the instance variable avoids sending the notification twice for multiple calls to `save!`. Our `after_save` callback invokes `update_attributes!`, which causes another `notify!` call unless `notify?` returns `false`. In a test, the call to `super` inside `notify!` will execute the notification (setting the instance variable), but will create a delayed job in production (without setting it).
+
+We'll start by bringing our tests closer to a real production environment by leaving `Delayed::Worker.delay_jobs = true` and making sure our problem is reproduced with a spec. We could call `Delayed::Worker.new.work_off` for every test that needs to execute a delayed job, but that would be rather tedious. A better approach may be to register an observer that will execute a delayed job every time one is created. This is similar to a production environment where having enough delayed workers almost guarantees a job is picked up immediately after being scheduled.
+
+``` ruby config/initializers/delayed_job_observer.rb
 class DelayedJobObserver < Mongoid::Observer
   observe Delayed::Job
 
@@ -58,7 +88,7 @@ DelayedJobObserver.runs = 0
 
 The complete code that handles a few more cases, including enabling and disabling the observer, and counting successful runs and errors can be found in [this gist](https://gist.github.com/3370052). Please help us improve it.
 
-We can now test our notification without compromising on the delayed nature of the job.
+We can now test our notification without compromising on the delayed nature of the job and add a test making sure we create a single delayed job from a call to `notify!`.
 
 ``` ruby spec/models/user_spec.rb
 describe User do
@@ -73,23 +103,11 @@ describe User do
       }.to change(DelayedJobObserver, :runs).by(1)
     end
 
-    it "sends one email" do
-      expect {
-        subject.notify!
-      }.to change(ActionMailer::Base.deliveries, :count).by(1)
-    end
-
-    it "updates notified_at" do
-      expect { 
-        subject.notify!
-      }.to change(subject, :notified_at)
-    end
-
   end
 
 end
 ```
 
-Without our current broken implementation this test will run for a while before failing with a stack overflow error. Our fix was not to call `notify!` from an `after_save` callback.
+This test will also run for a long time before failing with a stack overflow error. Our fix was not to call `notify!` from an `after_save` callback.
 
 We've suggested that immediate execution using an observer becomes a feature in DelayedJob in [#423](https://github.com/collectiveidea/delayed_job/issues/423). Please add your comments.
