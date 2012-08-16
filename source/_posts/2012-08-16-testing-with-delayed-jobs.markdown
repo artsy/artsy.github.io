@@ -92,4 +92,4 @@ end
 
 Without our current broken implementation this test will run for a while before failing with a stack overflow error. Our fix was not to call `notify!` from an `after_save` callback.
 
-We've suggested that immediate execution using an observer becomes a feature in DelayedJob in [#](). Please add your comments.
+We've suggested that immediate execution using an observer becomes a feature in DelayedJob in [#423](https://github.com/collectiveidea/delayed_job/issues/423). Please add your comments.
