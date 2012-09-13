@@ -12,21 +12,21 @@ blog-url: http://orta.github.com
 
 <img src="/images/2012-09-13-on-grid-thumbnails/grid.jpg">
 
-Artsy Folio, our free iPad app for Gallery Partners, version 1.1 had been in the App Store for a couple of weeks before the iPad with a Retina display was announced, this had been something we expected internally and we felt the application would be ready. We had all our image assets like buttons available in with a _@2x_ version taken and we had an image pipe-lining system that would take scaling into account. With that in mind we changed our artwork grid view to show double resolution image and once we were happy that it worked fine on the simulator we send the build off to Apple for review. 
+Artsy Folio, our free iPad app for Gallery Partners, had been in the App Store for a couple of weeks before the iPad with a Retina display was announced. This had been something we expected internally and felt the application would be ready. We had all our image assets available in _@2x_ versions and an image pipeline that would take scaling into account. With that in mind, we changed our artwork grid view to show a double resolution image. Finally, once we were happy that it worked fine on the simulator, we sent the build off to Apple for review.
 
-The app passed review, and we had the app ready for Retina before the hardware release, and we pulled the app within a few minutes of testing it on a real Retina iPad. This post will explain why, and what we did to make it smooth.
+The app passed review, and was Retina-ready before the actual release. But within hours of getting our hands on a real Retina iPad, we had to pull the app. This post will explain why, and what we did to work it out.
 
 <!--more-->
 
-In our simple naivety Folio was originally using `UIImage`'s `initWithContentsOfFile:` to load (without caching) a JPG from the file system into memory where we can then pass it through to the screen via `UIImageView` this was fast enough to deal with our small thumbnails of _240x240_ but the moment that you start asking it to pull 3 or 4 _480x480_ jpg files off the filesystem and decompress them and then put them on the screen, you're not going to have a smooth scroll. Even the extra boost in processor speed wouldn't get you close with the simplest implementation.
+Scrolling the grid view was slow. Extremely slow. The reason why wasn't obvious initially, but thanks to digging around using [Instruments](http://developer.apple.com/library/mac/#documentation/DeveloperTools/Conceptual/InstrumentsUserGuide/Introduction/Introduction.html), we saw that a great deal of time was spent in Apple's image processing libraries. This was a strong hint that the problem involved taking the file and getting it to the screen.
+
+In our naiveté, Folio was originally using `UIImage`'s `initWithContentsOfFile:` to load (without caching) a jpg from the file system. Once the file was loaded into memory, we displayed it onscreen in an `UIImageView.` This was fast enough to deal with our small thumbnails of _240x240_ but the moment that you start asking it to pull 3 or 4 _480x480_ jpg files off the filesystem, decompress them and then put them on the screen, you're not going to have a smooth scroll.
 
 <img src="/images/2012-09-13-on-grid-thumbnails/thumbnails.jpg">
 
-The problem of why it was slow initially wasn't obvious, it was only thanks to digging around using [Instruments](http://developer.apple.com/library/mac/#documentation/DeveloperTools/Conceptual/InstrumentsUserGuide/Introduction/Introduction.html) that we saw a whole lot of time was being spent in jpeg decoding that we knew the direction to look in. Though from a users perspective the biggest problem here was that this work was all being done on the main thread.
+As we knew that we were looking at an issue with getting images from a file, it made sense to start looking at ways to move image processing off the main thread. This Stack Overflow thread on [UIImage lazy loading](http://stackoverflow.com/questions/1815476/cgimage-uiimage-lazily-loading-on-ui-thread-causes-stutter) proved to be an essential start to dealing with our issue. We needed a thread-safe way to get the contents of a file and to pass them through once the images had been decoded. What we needed was [initImmediateLoadWithContentsOfFile](https://gist.github.com/3715588), a thread-safe way to go from a filepath to a `UIImage`.
 
-As we knew that we were looking at an issue with threading and images, this Stack Overflow thread on [UIImage lazy loading](http://stackoverflow.com/questions/1815476/cgimage-uiimage-lazily-loading-on-ui-thread-causes-stutter) proved to be an essential start to dealing with our issue. We needed a thread-safe way to get the contents of a file and to pass them through once the images had been decoded. What we needed was [initImmediateLoadWithContentsOfFile](https://gist.github.com/259357). This function is a thread-safe way to go from a filepath to a `UIImage`, we made some [minor adjustments](https://gist.github.com/3715588) related to dealing with gray-scale images.
-
-So we now had a way to get an image that was safe to go on a background thread, so we opted for giving our grid an `NSOperationQueue` so we can create operations to load the thumbnail, and so we created a method to create an `NSInvocationOperation` with our the cell we're looking at and the address it needs. 
+Now that we had a way to get an image that was safe to go on a background thread, we gave our grid an `NSOperationQueue` and created a method to kick off a `NSInvocationOperation` with our the cell we're looking at and the address it needs to load the thumbnail.
 
 ``` objc
 - (void)setImageAsyncAtPath:(NSString *)imageAddress forGridCell:(ARImageGridViewCell *)cell {
