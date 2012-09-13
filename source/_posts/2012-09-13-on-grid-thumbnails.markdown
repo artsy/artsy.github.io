@@ -13,9 +13,9 @@ blog-url: http://orta.github.com
 <img src="/images/folio-thumbnails/grid.jpg">
 
 
-Artsy Folio version 1.1 had been in the app store for a couple of weeks before the iPad with a retina display was announced, this had been something we expected internally and we felt the application would be ready. We had all our image assets like buttons available in with a _@2x_ version taken and we had an image pipe-lining system that would take scaling into account. With that in mind we changed our artwork grid view to show double resolution image and once we were happy that it worked fine on the simulator we send the build off to Apple for review. 
+Artsy Folio version 1.1 had been in the App Store for a couple of weeks before the iPad with a Retina display was announced, this had been something we expected internally and we felt the application would be ready. We had all our image assets like buttons available in with a _@2x_ version taken and we had an image pipe-lining system that would take scaling into account. With that in mind we changed our artwork grid view to show double resolution image and once we were happy that it worked fine on the simulator we send the build off to Apple for review. 
 
-The app passed review, and we had the app retina ready before the hardware release, and we pulled the app within a few minutes of testing it on a real retina iPad. This post will explain why, and what we did to make it smooth.
+The app passed review, and we had the app ready for Retina before the hardware release, and we pulled the app within a few minutes of testing it on a real Retina iPad. This post will explain why, and what we did to make it smooth.
 
 <!--more-->
 
@@ -63,4 +63,4 @@ This meant we could have our UI thread dealing with scrolling, whilst [Grand Cen
   
 <img src="/images/folio-thumbnails/hover-thumbnails.jpg">
 
-The rest of the story is pretty obvious, we wrapped all this up within a few days and got out a version of Folio for the retina iPad and I ended up doing a talk about the issues involved in doing this in [Leeds LSxCafé](http://lsx.co/lsxcafe/), and you got a blog post out of it.
+The rest of the story is pretty obvious, we wrapped all this up within a few days and got out a version of Folio for the Retina iPad and I ended up doing a talk about the issues involved in doing this in [Leeds LSxCafé](http://lsx.co/lsxcafe/), and you got a blog post out of it.
