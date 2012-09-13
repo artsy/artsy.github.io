@@ -37,7 +37,7 @@ Now that we had a way to get an image that was safe to go on a background thread
 }
 ```
 
-When we had the simplest implementation of `asyncLoadImage` we found that scrolling would sometimes result in grid cells getting the wrong image, this was because in the time it took to decode the jpg the cell could already have been reused for a completely other artwork. This one totally caught me off guard! Anyway, this is what we did in order to make sure all our artworks images were actually their images.
+When we had the simplest implementation of `asyncLoadImage` we found that scrolling would sometimes result in grid cells displaying the wrong image. It turned out that in the time it took to decode the jpg,  the cell had already been reused for a different artwork. This one totally caught us off guard!
 
 ``` objc
 - (void)asyncLoadImage:(NSDictionary *)options {
@@ -58,8 +58,8 @@ When we had the simplest implementation of `asyncLoadImage` we found that scroll
 }
 ```
 
-This meant we could have our UI thread dealing with scrolling, whilst [Grand Central Dispatch](https://developer.apple.com/technologies/mac/core.html) would deal with ensuring the image processing was done as fast and asyncronously as possible. In Folio however this wasn't enough, we were finding if you scrolled fast enough you could still see the images pop in after the grid cell was visible. For this we actually went back to the beginning, we made our image pipeline create a _120x120_ thumbnail for each artwork that we use `initImmediateLoadWithContentsOfFile` to load on the UI thread. This is fast enough to smoothly scroll, and should be replaced by the higher resolution image practically instantly.
+This meant we could have our UI thread dealing with scrolling, whilst [Grand Central Dispatch](https://developer.apple.com/technologies/mac/core.html) would deal with ensuring the image processing was done asynchronously and as fast as possible.However, this still wasn't enough. We were finding if you scrolled fast enough, you could still see images pop in after the grid cell was visible. For this, we actually went back to the beginning, and made our image pipeline create a _120x120_ thumbnail for each artwork that we use `initImmediateLoadWithContentsOfFile` to load on the UI thread. This is fast enough to smoothly scroll, and is replaced by the higher resolution image practically instantly.
   
 <img src="/images/2012-09-13-on-grid-thumbnails/hover-thumbnails.jpg">
 
-The rest of the story is pretty obvious, we wrapped all this up within a few days and got out a version of Folio for the Retina iPad and I ended up doing a talk about the issues involved in doing this in [Leeds LSxCafé](http://lsx.co/lsxcafe/), and you got a blog post out of it.
+The rest of the story is pretty straightforward. We wrapped all this up within a few days and got out a version of Folio for the Retina iPad, I ended up doing a talk about the issues involved in doing this in [Leeds LSxCafé](http://lsx.co/lsxcafe/), and you got a blog post out of it.
