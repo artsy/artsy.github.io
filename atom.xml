@@ -4,7 +4,7 @@
   <title><![CDATA[Art.sy Engineering]]></title>
   <link href="http://artsy.github.com/atom.xml" rel="self"/>
   <link href="http://artsy.github.com/"/>
-  <updated>2012-08-15T19:01:04+01:00</updated>
+  <updated>2012-09-13T23:40:12+01:00</updated>
   <id>http://artsy.github.com/</id>
   <author>
     <name><![CDATA[Art.sy]]></name>
@@ -12,6 +12,376 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[On Grid Thumbnails]]></title>
+    <link href="http://artsy.github.com/blog/2012/09/13/on-grid-thumbnails/"/>
+    <updated>2012-09-13T16:40:00+01:00</updated>
+    <id>http://artsy.github.com/blog/2012/09/13/on-grid-thumbnails</id>
+    <content type="html"><![CDATA[<p><img src="http://artsy.github.com/images/2012-09-13-on-grid-thumbnails/grid.jpg"></p>
+
+<p>Artsy Folio, our free iPad app for Gallery Partners, had been in the App Store for a couple of weeks before the iPad with a Retina display was announced. This had been something we expected internally and felt the application would be ready. We had all our image assets available in <em>@2x</em> versions and an image pipeline that would take scaling into account. With that in mind, we changed our artwork grid view to show a double resolution image. Finally, once we were happy that it worked fine on the simulator, we sent the build off to Apple for review.</p>
+
+<p>The app passed review, and was Retina-ready before the actual release. But within hours of getting our hands on a real Retina iPad, we had to pull the app. This post will explain why, and what we did to work it out.</p>
+
+<!--more-->
+
+
+<p>Scrolling the grid view was slow. Extremely slow. The reason why wasn&#8217;t obvious initially, but thanks to digging around using <a href="http://developer.apple.com/library/mac/#documentation/DeveloperTools/Conceptual/InstrumentsUserGuide/Introduction/Introduction.html">Instruments</a>, we saw that a great deal of time was spent in Apple&#8217;s image processing libraries. This was a strong hint that the problem involved taking the file and getting it to the screen.</p>
+
+<p>In our naiveté, Folio was originally using <code>UIImage</code>&#8217;s <code>initWithContentsOfFile:</code> to load (without caching) a jpg from the file system. Once the file was loaded into memory, we displayed it onscreen in an <code>UIImageView.</code> This was fast enough to deal with our small thumbnails of <em>240x240</em> but the moment that you start asking it to pull 3 or 4 <em>480x480</em> jpg files off the filesystem, decompress them and then put them on the screen, you&#8217;re not going to have a smooth scroll.</p>
+
+<p><img src="http://artsy.github.com/images/2012-09-13-on-grid-thumbnails/thumbnails.jpg"></p>
+
+<p>As we knew that we were looking at an issue with getting images from a file, it made sense to start looking at ways to move image processing off the main thread. This Stack Overflow thread on <a href="http://stackoverflow.com/questions/1815476/cgimage-uiimage-lazily-loading-on-ui-thread-causes-stutter">UIImage lazy loading</a> proved to be an essential start to dealing with our issue. We needed a thread-safe way to get the contents of a file and to pass them through once the images had been decoded. What we needed was <a href="https://gist.github.com/3715588">initImmediateLoadWithContentsOfFile</a>, a thread-safe way to go from a filepath to a <code>UIImage</code>.</p>
+
+<p>Now that we had a way to get an image that was safe to go on a background thread, we gave our grid an <code>NSOperationQueue</code> and created a method to kick off a <code>NSInvocationOperation</code> with our the cell we&#8217;re looking at and the address it needs to load the thumbnail.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+</pre></td><td class='code'><pre><code class='objc'><span class='line'><span class="o">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="nl">setImageAsyncAtPath:</span><span class="p">(</span><span class="n">NSString</span> <span class="o">*</span><span class="p">)</span><span class="n">imageAddress</span> <span class="nl">forGridCell:</span><span class="p">(</span><span class="n">ARImageGridViewCell</span> <span class="o">*</span><span class="p">)</span><span class="n">cell</span> <span class="p">{</span>
+</span><span class='line'>    <span class="n">NSDictionary</span> <span class="o">*</span><span class="n">operationOptions</span> <span class="o">=</span> <span class="err">@</span><span class="p">{</span><span class="s">@&quot;address&quot;</span><span class="o">:</span> <span class="n">imageAddress</span><span class="p">,</span> <span class="s">@&quot;cell&quot;</span><span class="o">:</span> <span class="n">cell</span><span class="p">};</span>
+</span><span class='line'>    <span class="n">NSInvocationOperation</span> <span class="o">*</span><span class="n">operation</span> <span class="o">=</span> <span class="p">[[</span><span class="n">NSInvocationOperation</span> <span class="n">alloc</span><span class="p">]</span> <span class="nl">initWithTarget:</span><span class="n">self</span> <span class="nl">selector:</span><span class="k">@selector</span><span class="p">(</span><span class="nl">asyncLoadImage:</span><span class="p">)</span> <span class="nl">object:</span><span class="n">operationOptions</span><span class="p">];</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="p">[</span><span class="n">_operationQueue</span> <span class="nl">addOperation:</span><span class="n">operation</span><span class="p">];</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>When we had the simplest implementation of <code>asyncLoadImage</code> we found that scrolling would sometimes result in grid cells displaying the wrong image. It turned out that in the time it took to decode the jpg,  the cell had already been reused for a different artwork. This one totally caught us off guard!</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+</pre></td><td class='code'><pre><code class='objc'><span class='line'><span class="o">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="nl">asyncLoadImage:</span><span class="p">(</span><span class="n">NSDictionary</span> <span class="o">*</span><span class="p">)</span><span class="n">options</span> <span class="p">{</span>
+</span><span class='line'>    <span class="err">@</span><span class="n">autoreleasepool</span> <span class="p">{</span>
+</span><span class='line'>        <span class="n">NSString</span> <span class="o">*</span><span class="n">address</span> <span class="o">=</span> <span class="n">options</span><span class="p">[</span><span class="s">@&quot;address&quot;</span><span class="p">];</span>
+</span><span class='line'>        <span class="n">ARImageGridViewCell</span> <span class="o">*</span><span class="n">cell</span> <span class="o">=</span> <span class="n">options</span><span class="p">[</span><span class="s">@&quot;cell&quot;</span><span class="p">];</span>
+</span><span class='line'>
+</span><span class='line'>        <span class="c1">// don&#39;t load if it&#39;s on a different cell</span>
+</span><span class='line'>        <span class="k">if</span> <span class="p">([</span><span class="n">cell</span><span class="p">.</span><span class="n">imagePath</span> <span class="nl">isEqualToString:</span><span class="n">address</span><span class="p">])</span> <span class="p">{</span>
+</span><span class='line'>            <span class="n">UIImage</span> <span class="o">*</span><span class="n">thumbnail</span> <span class="o">=</span> <span class="p">[[</span><span class="n">UIImage</span> <span class="n">alloc</span><span class="p">]</span> <span class="nl">initImmediateLoadWithContentsOfFile:</span><span class="n">address</span><span class="p">];</span>
+</span><span class='line'>
+</span><span class='line'>            <span class="c1">// double check that during the decoding the cell&#39;s not been re-used</span>
+</span><span class='line'>            <span class="k">if</span> <span class="p">([</span><span class="n">cell</span><span class="p">.</span><span class="n">imagePath</span> <span class="nl">isEqualToString:</span><span class="n">address</span><span class="p">]</span> <span class="o">&amp;&amp;</span> <span class="n">thumbnail</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>                <span class="p">[</span><span class="n">cell</span> <span class="nl">performSelectorOnMainThread:</span><span class="k">@selector</span><span class="p">(</span><span class="nl">setImage:</span><span class="p">)</span> <span class="nl">withObject:</span><span class="n">thumbnail</span> <span class="nl">waitUntilDone:</span><span class="n">NO</span><span class="p">];</span>
+</span><span class='line'>            <span class="p">}</span>
+</span><span class='line'>        <span class="p">}</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>This meant we could have our UI thread dealing with scrolling, whilst <a href="https://developer.apple.com/technologies/mac/core.html">Grand Central Dispatch</a> would deal with ensuring the image processing was done asynchronously and as fast as possible.However, this still wasn&#8217;t enough. We were finding if you scrolled fast enough, you could still see images pop in after the grid cell was visible. For this, we actually went back to the beginning, and made our image pipeline create a <em>120x120</em> thumbnail for each artwork that we use <code>initImmediateLoadWithContentsOfFile</code> to load on the UI thread. This is fast enough to smoothly scroll, and is replaced by the higher resolution image practically instantly.</p>
+
+<p><img src="http://artsy.github.com/images/2012-09-13-on-grid-thumbnails/hover-thumbnails.jpg"></p>
+
+<p>The rest of the story is pretty straightforward. We wrapped all this up within a few days and got out a version of Folio for the Retina iPad, I ended up doing a talk about the issues involved in doing this in <a href="http://lsx.co/lsxcafe/">Leeds LSxCafé</a>, and you got a blog post out of it.</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[How Art.sy Builds Labs, Experiments and Easter Eggs]]></title>
+    <link href="http://artsy.github.com/blog/2012/09/12/how-artsy-builds-experiments-labs-and-easter-eggs/"/>
+    <updated>2012-09-12T21:21:00+01:00</updated>
+    <id>http://artsy.github.com/blog/2012/09/12/how-artsy-builds-experiments-labs-and-easter-eggs</id>
+    <content type="html"><![CDATA[<p>At Art.sy Engineering we encourage a culture of experimentation with something called <em>labs</em>.</p>
+
+<p>A new feature released into production is usually only turned on for a handful of users. We get feedback from our own team and a tiny group of early adopters, iterate, fix bugs, toss failed experiments and work on promoting complete, well behaved features to all users. The labs infrastructure gives us a chance to sleep on an idea and polish details. It also allows us to make progress continuously and flip a switch on the very last day.</p>
+
+<p>My favorite labs features push our collective imagination and give birth to productive brainstorms around coffee at a popular startup hangout around the corner from our Manhattan office. But the team&#8217;s favorite labs are, by far, those that ship as easter eggs. These are fun and sometimes useful features that don&#8217;t make much business sense. So, before I explain our rudimentary labs system, I want to invite you to our easter egg hunt. Check out <a href="http://art.sy/humans.txt">http://art.sy/humans.txt</a> for instructions.</p>
+
+<!-- more -->
+
+
+<p>Our labs infrastructure is rather straightforward. A lab feature data model is pretty boring, with the exception of a <code>created_by</code> field. Each such lab feature belongs to an engineer and you have to nurture your feature and fight for it to meet the production bar!</p>
+
+<figure class='code'><figcaption><span>app/models/lab_feature.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">LabFeature</span>
+</span><span class='line'>  <span class="kp">include</span> <span class="no">Mongoid</span><span class="o">::</span><span class="no">Document</span>
+</span><span class='line'>  <span class="kp">include</span> <span class="no">Mongoid</span><span class="o">::</span><span class="no">Timestamps</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="n">field</span> <span class="ss">:name</span>
+</span><span class='line'>  <span class="n">field</span> <span class="ss">:created_by</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>You can enable and disable a lab feature for a given user.</p>
+
+<figure class='code'><figcaption><span>app/models/user.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">User</span>
+</span><span class='line'>  <span class="n">references_and_referenced_in_many</span> <span class="ss">:lab_features</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">enable_lab_feature!</span><span class="p">(</span><span class="n">feature</span><span class="p">)</span>
+</span><span class='line'>    <span class="n">lab_features</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="n">feature</span><span class="p">)</span> <span class="k">unless</span> <span class="n">lab_features</span><span class="o">.</span><span class="n">member?</span><span class="p">(</span><span class="n">feature</span><span class="p">)</span>
+</span><span class='line'>    <span class="n">save!</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">disable_lab_feature!</span><span class="p">(</span><span class="n">feature</span><span class="p">)</span>
+</span><span class='line'>    <span class="n">lab_features</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="n">feature</span><span class="p">)</span>
+</span><span class='line'>    <span class="n">save!</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">lab_feature_enabled?</span><span class="p">(</span><span class="n">feature</span><span class="p">)</span>
+</span><span class='line'>    <span class="n">lab_features</span><span class="o">.</span><span class="n">member?</span><span class="p">(</span><span class="n">feature</span><span class="p">)</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>In Ruby, we check whether the user has a lab with <code>lab_feature_enabled?</code>. In JavaScript, we return the lab features in a Backbone.js collection and check for the same.</p>
+
+<figure class='code'><figcaption><span>app/coffeescripts/models/user.coffee</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+</pre></td><td class='code'><pre><code class='coffeescript'><span class='line'><span class="k">class</span> <span class="nx">App</span><span class="p">.</span><span class="nx">Models</span><span class="p">.</span><span class="nx">CurrentUser</span> <span class="k">extends</span> <span class="nx">Backbone</span><span class="p">.</span><span class="nx">Model</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="nv">hasLabFeature: </span><span class="nf">(feature_name) -&gt;</span>
+</span><span class='line'>    <span class="nx">$</span><span class="p">.</span><span class="nx">inArray</span><span class="p">(</span><span class="nx">feature_name</span><span class="p">,</span> <span class="nx">@get</span><span class="p">(</span><span class="s1">&#39;lab_features&#39;</span><span class="p">))</span> <span class="o">&gt;=</span> <span class="mi">0</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>We also have a bit of UI and an API to let you turn a lab feature on and off when you&#8217;re part of our labs program. The program itself is also a lab feature!</p>
+
+<p>Lab features can be retired after the code is promoted to all users or deleted.</p>
+
+<figure class='code'><figcaption><span>app/models/lab_feature.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">LabFeature</span>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">retire!</span>
+</span><span class='line'>    <span class="no">User</span><span class="o">.</span><span class="n">all</span><span class="o">.</span><span class="n">each</span> <span class="k">do</span> <span class="o">|</span><span class="n">u</span><span class="o">|</span>
+</span><span class='line'>      <span class="n">u</span><span class="o">.</span><span class="n">disable_lab_feature!</span><span class="p">(</span><span class="nb">self</span><span class="p">)</span>
+</span><span class='line'>    <span class="k">end</span>
+</span><span class='line'>    <span class="n">destroy</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>This &#8220;system&#8221; is super simple. I encourage you to think more in terms of experiments or labs - it helped us foster a culture of innovation, tremendously reduced risk of catastrophic failures, and, because anyone can push anything into labs at any time, removed the unnecessary discussions around whether an idea is worthy of an implementation at all.</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Testing with Delayed Jobs]]></title>
+    <link href="http://artsy.github.com/blog/2012/08/16/testing-with-delayed-jobs/"/>
+    <updated>2012-08-16T21:21:00+01:00</updated>
+    <id>http://artsy.github.com/blog/2012/08/16/testing-with-delayed-jobs</id>
+    <content type="html"><![CDATA[<p>A mean bug made it into our production environment. It wasn&#8217;t caught by our extensive test suite and caused thousands of emails to be sent to a handful of people. The root cause was an unfortunate combination of <a href="https://github.com/plataformatec/devise">Devise</a>, <a href="https://github.com/collectiveidea/delayed_job">DelayedJob</a> and, of course, our own code. It was an easy fix, but nobody ever wants this to happen again.</p>
+
+<p>tl;dr DelayedJob says it&#8217;s possible to set <code>Delayed::Worker.delay_jobs = false</code> for your tests. Don&#8217;t do it.</p>
+
+<!-- more -->
+
+
+<p>Consider the following <code>User</code> model that implements various Devise strategies which support some kind of notification.</p>
+
+<figure class='code'><figcaption><span>app/models/user.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">User</span>
+</span><span class='line'>  <span class="kp">include</span> <span class="no">Mongoid</span><span class="o">::</span><span class="no">Document</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="n">devise</span> <span class="ss">:database_authenticatable</span><span class="p">,</span> <span class="ss">:registerable</span><span class="p">,</span> <span class="o">.</span><span class="n">.</span><span class="o">.</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="n">field</span> <span class="ss">:notified_at</span><span class="p">,</span> <span class="n">type</span><span class="p">:</span> <span class="no">DateTime</span>
+</span><span class='line'>  <span class="n">after_save</span> <span class="ss">:notify!</span><span class="p">,</span> <span class="ss">:if</span> <span class="o">=&gt;</span> <span class="ss">:notify?</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">notify!</span>
+</span><span class='line'>    <span class="k">super</span>
+</span><span class='line'>    <span class="n">update_attributes!</span><span class="p">({</span> <span class="n">notified_at</span><span class="p">:</span> <span class="no">Time</span><span class="o">.</span><span class="n">now</span><span class="o">.</span><span class="n">utc</span> <span class="p">})</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>We are overriding a black box <code>notify!</code> method and updating an attribute with a timestamp of the last notification.</p>
+
+<p>Let&#8217;s write a test.</p>
+
+<figure class='code'><figcaption><span>spec/models/user_spec.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">describe</span> <span class="no">User</span> <span class="k">do</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="n">subject</span> <span class="p">{</span> <span class="no">User</span><span class="o">.</span><span class="n">new</span> <span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="n">context</span> <span class="s2">&quot;notification&quot;</span> <span class="k">do</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="n">it</span> <span class="s2">&quot;sends one email&quot;</span> <span class="k">do</span>
+</span><span class='line'>      <span class="n">expect</span> <span class="p">{</span>
+</span><span class='line'>        <span class="n">subject</span><span class="o">.</span><span class="n">notify!</span>
+</span><span class='line'>      <span class="p">}</span><span class="o">.</span><span class="n">to</span> <span class="n">change</span><span class="p">(</span><span class="no">ActionMailer</span><span class="o">::</span><span class="no">Base</span><span class="o">.</span><span class="n">deliveries</span><span class="p">,</span> <span class="ss">:count</span><span class="p">)</span><span class="o">.</span><span class="n">by</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+</span><span class='line'>    <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="n">it</span> <span class="s2">&quot;updates notified_at&quot;</span> <span class="k">do</span>
+</span><span class='line'>      <span class="n">expect</span> <span class="p">{</span>
+</span><span class='line'>        <span class="n">subject</span><span class="o">.</span><span class="n">notify!</span>
+</span><span class='line'>      <span class="p">}</span><span class="o">.</span><span class="n">to</span> <span class="n">change</span><span class="p">(</span><span class="n">subject</span><span class="p">,</span> <span class="ss">:notified_at</span><span class="p">)</span>
+</span><span class='line'>    <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>All green. But once this code hit production, <code>notify!</code> was called in an infinite loop. How is that possible?</p>
+
+<p>The call to <code>notify!</code> is delayed using DelayedJob in production and is not delayed in test. It does not work under DelayedJob and will create as many delayed notifications as it possibly can until it runs out of stack space.</p>
+
+<p>As a common pattern in Devise, the implementation of <code>notify!</code> relies on an instance variable to signal that a notification has been sent. Setting the instance variable avoids sending the notification twice for multiple calls to <code>save!</code>. Our <code>after_save</code> callback invokes <code>update_attributes!</code>, which causes another <code>notify!</code> call unless <code>notify?</code> returns <code>false</code>. In a test, the call to <code>super</code> inside <code>notify!</code> will execute the notification (setting the instance variable), but will create a delayed job in production (without setting it).</p>
+
+<p>We&#8217;ll start by bringing our tests closer to a real production environment by leaving <code>Delayed::Worker.delay_jobs = true</code> and making sure our problem is reproduced with a spec. We could call <code>Delayed::Worker.new.work_off</code> for every test that needs to execute a delayed job, but that would be rather tedious. A better approach may be to register an observer that will execute a delayed job every time one is created. This is similar to a production environment where having enough delayed workers almost guarantees a job is picked up immediately after being scheduled.</p>
+
+<figure class='code'><figcaption><span>config/initializers/delayed_job_observer.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">DelayedJobObserver</span> <span class="o">&lt;</span> <span class="no">Mongoid</span><span class="o">::</span><span class="no">Observer</span>
+</span><span class='line'>  <span class="n">observe</span> <span class="no">Delayed</span><span class="o">::</span><span class="no">Job</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">class</span> <span class="o">&lt;&lt;</span> <span class="nb">self</span>
+</span><span class='line'>    <span class="kp">attr_accessor</span> <span class="ss">:runs</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">after_create</span><span class="p">(</span><span class="n">delayed_job</span><span class="p">)</span>
+</span><span class='line'>    <span class="n">delayed_job</span><span class="o">.</span><span class="n">invoke_job</span>
+</span><span class='line'>    <span class="no">DelayedJobObserver</span><span class="o">.</span><span class="n">runs</span> <span class="o">+=</span> <span class="mi">1</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'><span class="no">DelayedJobObserver</span><span class="o">.</span><span class="n">runs</span> <span class="o">=</span> <span class="mi">0</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>The complete code, which handles a few more cases, including enabling and disabling the observer, and counting successful runs and errors can be found in <a href="https://gist.github.com/3370052">this gist</a>. Please help us improve it.</p>
+
+<p>We can now test our notification without compromising on the delayed nature of the job and add a test making sure we create a single delayed job from a call to <code>notify!</code>.</p>
+
+<figure class='code'><figcaption><span>spec/models/user_spec.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">describe</span> <span class="no">User</span> <span class="k">do</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="n">subject</span> <span class="p">{</span> <span class="no">User</span><span class="o">.</span><span class="n">new</span> <span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="n">context</span> <span class="s2">&quot;notification&quot;</span> <span class="k">do</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="n">it</span> <span class="s2">&quot;creates one delayed job&quot;</span> <span class="k">do</span>
+</span><span class='line'>      <span class="n">expect</span> <span class="p">{</span>
+</span><span class='line'>        <span class="n">subject</span><span class="o">.</span><span class="n">notify!</span>
+</span><span class='line'>      <span class="p">}</span><span class="o">.</span><span class="n">to</span> <span class="n">change</span><span class="p">(</span><span class="no">DelayedJobObserver</span><span class="p">,</span> <span class="ss">:runs</span><span class="p">)</span><span class="o">.</span><span class="n">by</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+</span><span class='line'>    <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>This test will also run for a long time before failing with a stack overflow error. Our fix was not to call <code>notify!</code> from an <code>after_save</code> callback.</p>
+
+<p>We&#8217;ve suggested that immediate execution using an observer becomes a feature in DelayedJob in <a href="https://github.com/collectiveidea/delayed_job/issues/423">#423</a>. Please add your comments.</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[On Our Objective-C Code Standards]]></title>
@@ -2756,334 +3126,6 @@ know when thats happening so we can hide it, we can do that by registering for <
 <li>Cleaning up the duplication of Heroku configuration values in <code>heroku.yml</code></li>
 </ul>
 
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Delaying CarrierWave Image Processing]]></title>
-    <link href="http://artsy.github.com/blog/2012/01/31/delaying-carrierwave-image-processing/"/>
-    <updated>2012-01-31T08:31:00+00:00</updated>
-    <id>http://artsy.github.com/blog/2012/01/31/delaying-carrierwave-image-processing</id>
-    <content type="html"><![CDATA[<p>We do a lot of image processing at Art.sy. We have tens of thousands of beautiful original high resolution images from our partners and treat them with care. The files mostly come from professional art photographers, include embedded color profiles and other complicated features that make image processing a big deal.</p>
-
-<p>Once uploaded, these images are converted to JPG, resized into many versions and often resampled. We are using <a href="https://github.com/jnicklas/carrierwave">CarrierWave</a> for this process - our typical image uploader starts like a usual CarrierWave implementation with a few additional features.</p>
-
-<!-- more -->
-
-
-<ul>
-<li>Fallback to a well-known image when an image is missing</li>
-<li>Support for a local development environment, S3 and CloudFront</li>
-<li>Image versioning: replaced images get a new path to bust CloudFront caching</li>
-</ul>
-
-
-<p>Here&#8217;s the complete source.</p>
-
-<figure class='code'><figcaption><span>app/models/image_uploader.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-<span class='line-number'>19</span>
-<span class='line-number'>20</span>
-<span class='line-number'>21</span>
-<span class='line-number'>22</span>
-<span class='line-number'>23</span>
-<span class='line-number'>24</span>
-<span class='line-number'>25</span>
-<span class='line-number'>26</span>
-<span class='line-number'>27</span>
-<span class='line-number'>28</span>
-<span class='line-number'>29</span>
-<span class='line-number'>30</span>
-<span class='line-number'>31</span>
-<span class='line-number'>32</span>
-<span class='line-number'>33</span>
-<span class='line-number'>34</span>
-<span class='line-number'>35</span>
-<span class='line-number'>36</span>
-<span class='line-number'>37</span>
-<span class='line-number'>38</span>
-<span class='line-number'>39</span>
-<span class='line-number'>40</span>
-<span class='line-number'>41</span>
-<span class='line-number'>42</span>
-<span class='line-number'>43</span>
-<span class='line-number'>44</span>
-<span class='line-number'>45</span>
-<span class='line-number'>46</span>
-<span class='line-number'>47</span>
-<span class='line-number'>48</span>
-<span class='line-number'>49</span>
-<span class='line-number'>50</span>
-<span class='line-number'>51</span>
-<span class='line-number'>52</span>
-<span class='line-number'>53</span>
-<span class='line-number'>54</span>
-<span class='line-number'>55</span>
-<span class='line-number'>56</span>
-<span class='line-number'>57</span>
-<span class='line-number'>58</span>
-<span class='line-number'>59</span>
-<span class='line-number'>60</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">ImageUploader</span> <span class="o">&lt;</span> <span class="no">CarrierWave</span><span class="o">::</span><span class="no">Uploader</span><span class="o">::</span><span class="no">Base</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="kp">include</span> <span class="no">CarrierWave</span><span class="o">::</span><span class="no">RMagick</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="c1"># default url for a missing image</span>
-</span><span class='line'>  <span class="k">def</span> <span class="nf">default_url</span>
-</span><span class='line'>    <span class="s2">&quot;/assets/images/shared/missing_image.png&quot;</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="c1"># a local path for development environments w/o S3 or CloudFront</span>
-</span><span class='line'>  <span class="k">def</span> <span class="nf">local_path</span>
-</span><span class='line'>    <span class="p">(</span><span class="no">ENV</span><span class="o">[</span><span class="s1">&#39;CLOUDFRONT_URL&#39;</span><span class="o">]</span> <span class="o">||</span> <span class="no">ENV</span><span class="o">[</span><span class="s1">&#39;S3_BUCKET&#39;</span><span class="o">]</span><span class="p">)</span> <span class="p">?</span> <span class="s2">&quot;&quot;</span> <span class="p">:</span> <span class="s2">&quot;local/&quot;</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="c1"># complete url to an image version</span>
-</span><span class='line'>  <span class="k">def</span> <span class="nf">image_url_format_string</span>
-</span><span class='line'>    <span class="s2">&quot;</span><span class="si">#{</span><span class="nb">self</span><span class="o">.</span><span class="n">class</span><span class="o">.</span><span class="n">image_url_prefix</span><span class="si">}</span><span class="s2">/</span><span class="si">#{</span><span class="nb">self</span><span class="o">.</span><span class="n">class</span><span class="o">.</span><span class="n">store_path_base</span><span class="p">(</span><span class="nb">self</span><span class="o">.</span><span class="n">model</span><span class="p">)</span><span class="si">}</span><span class="s2">:version.jpg&quot;</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="c1"># a whitelist for uploading</span>
-</span><span class='line'>  <span class="k">def</span> <span class="nf">extension_white_list</span>
-</span><span class='line'>    <span class="sx">%w(jpg jpeg png gif tif tiff bmp)</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="c1"># alternate temporary location for Heroku</span>
-</span><span class='line'>  <span class="k">def</span> <span class="nf">cache_dir</span>
-</span><span class='line'>    <span class="s2">&quot;</span><span class="si">#{</span><span class="no">Rails</span><span class="o">.</span><span class="n">root</span><span class="o">.</span><span class="n">to_s</span><span class="si">}</span><span class="s2">/tmp/uploads&quot;</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="c1"># relative path for saving a file</span>
-</span><span class='line'>  <span class="k">def</span> <span class="nf">store_path</span><span class="p">(</span><span class="n">for_file</span> <span class="o">=</span> <span class="n">filename</span><span class="p">)</span>
-</span><span class='line'>    <span class="s2">&quot;</span><span class="si">#{</span><span class="n">local_path</span><span class="si">}#{</span><span class="nb">self</span><span class="o">.</span><span class="n">class</span><span class="o">.</span><span class="n">store_path_base</span><span class="p">(</span><span class="nb">self</span><span class="o">.</span><span class="n">model</span><span class="p">)</span><span class="si">}#{</span><span class="p">(</span><span class="n">version_name</span> <span class="o">||</span> <span class="ss">:original</span><span class="p">)</span><span class="o">.</span><span class="n">to_s</span><span class="si">}</span><span class="s2">.jpg&quot;</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="c1"># normalized file name for an image converted to JPG</span>
-</span><span class='line'>  <span class="k">def</span> <span class="nf">filename</span>
-</span><span class='line'>    <span class="k">super</span> <span class="o">!=</span> <span class="kp">nil</span> <span class="p">?</span> <span class="k">super</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">first</span> <span class="o">+</span> <span class="s1">&#39;.jpg&#39;</span> <span class="p">:</span> <span class="k">super</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="c1"># a location that includes a version number</span>
-</span><span class='line'>  <span class="k">def</span> <span class="nc">self</span><span class="o">.</span><span class="nf">store_path_base</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
-</span><span class='line'>    <span class="n">class_name</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">class</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">underscore</span><span class="o">.</span><span class="n">pluralize</span>
-</span><span class='line'>    <span class="n">image_version</span> <span class="o">=</span> <span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">image_version</span> <span class="o">||</span> <span class="mi">0</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="o">?</span> <span class="s2">&quot;</span><span class="si">#{</span><span class="n">model</span><span class="o">.</span><span class="n">image_version</span><span class="si">}</span><span class="s2">/&quot;</span> <span class="p">:</span> <span class="s2">&quot;&quot;</span>
-</span><span class='line'>    <span class="s2">&quot;</span><span class="si">#{</span><span class="n">class_name</span><span class="si">}</span><span class="s2">/</span><span class="si">#{</span><span class="n">model</span><span class="o">.</span><span class="n">id</span><span class="o">.</span><span class="n">to_s</span><span class="si">}</span><span class="s2">/</span><span class="si">#{</span><span class="n">image_version</span><span class="si">}</span><span class="s2">&quot;</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="c1"># a url prefix depending on environment settings</span>
-</span><span class='line'>  <span class="k">def</span> <span class="nc">self</span><span class="o">.</span><span class="nf">image_url_prefix</span>
-</span><span class='line'>    <span class="k">if</span> <span class="no">ENV</span><span class="o">[</span><span class="s1">&#39;IMAGES_URL&#39;</span><span class="o">]</span>
-</span><span class='line'>      <span class="no">ENV</span><span class="o">[</span><span class="s1">&#39;IMAGES_URL&#39;</span><span class="o">]</span>
-</span><span class='line'>    <span class="k">elsif</span> <span class="no">ENV</span><span class="o">[</span><span class="s1">&#39;CLOUDFRONT_URL&#39;</span><span class="o">]</span>
-</span><span class='line'>      <span class="no">ENV</span><span class="o">[</span><span class="s1">&#39;CLOUDFRONT_URL&#39;</span><span class="o">]</span>
-</span><span class='line'>    <span class="k">elsif</span> <span class="no">ENV</span><span class="o">[</span><span class="s1">&#39;S3_BUCKET&#39;</span><span class="o">]</span>
-</span><span class='line'>      <span class="s2">&quot;http://</span><span class="si">#{</span><span class="no">ENV</span><span class="o">[</span><span class="s1">&#39;S3_BUCKET&#39;</span><span class="o">]</span><span class="si">}</span><span class="s2">.s3.amazonaws.com&quot;</span>
-</span><span class='line'>    <span class="k">else</span>
-</span><span class='line'>      <span class="s2">&quot;/local&quot;</span>
-</span><span class='line'>    <span class="k">end</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>We derive actual uploaders from the <code>ImageUploader</code> class.</p>
-
-<figure class='code'><figcaption><span>app/models/widget_uploader.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-<span class='line-number'>19</span>
-<span class='line-number'>20</span>
-<span class='line-number'>21</span>
-<span class='line-number'>22</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">WidgetUploader</span> <span class="o">&lt;</span> <span class="no">ImageUploader</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="n">process</span> <span class="ss">:increment_version</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="k">def</span> <span class="nf">increment_version</span>
-</span><span class='line'>    <span class="k">return</span> <span class="k">if</span> <span class="nb">self</span><span class="o">.</span><span class="n">is_processing_delayed?</span>
-</span><span class='line'>    <span class="nb">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">image_version</span> <span class="o">=</span> <span class="p">(</span><span class="nb">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">image_version</span><span class="o">.</span><span class="n">to_i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
-</span><span class='line'>    <span class="nb">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">image_versions</span> <span class="o">=</span> <span class="o">[]</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="n">version</span> <span class="ss">:small</span><span class="p">,</span> <span class="k">if</span><span class="p">:</span> <span class="ss">:is_processing_delayed?</span> <span class="k">do</span>
-</span><span class='line'>    <span class="n">process</span> <span class="ss">:convert</span> <span class="o">=&gt;</span> <span class="s1">&#39;jpg&#39;</span>
-</span><span class='line'>    <span class="n">process</span> <span class="ss">:resize_to_limit</span> <span class="o">=&gt;</span> <span class="o">[</span><span class="mi">200</span><span class="p">,</span> <span class="mi">200</span><span class="o">]</span>
-</span><span class='line'>    <span class="n">process</span> <span class="ss">:quality</span> <span class="o">=&gt;</span> <span class="mi">70</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="n">version</span> <span class="ss">:square</span><span class="p">,</span> <span class="k">if</span><span class="p">:</span> <span class="ss">:is_processing_delayed?</span> <span class="k">do</span>
-</span><span class='line'>    <span class="n">process</span> <span class="ss">:convert</span> <span class="o">=&gt;</span> <span class="s1">&#39;jpg&#39;</span>
-</span><span class='line'>    <span class="n">process</span> <span class="ss">:resize_to_fill</span> <span class="o">=&gt;</span> <span class="o">[</span><span class="mi">230</span><span class="p">,</span> <span class="mi">230</span><span class="o">]</span>
-</span><span class='line'>    <span class="n">process</span> <span class="ss">:quality</span> <span class="o">=&gt;</span> <span class="mi">90</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>And the uploader is mounted via <code>mount_uploader</code>.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">mount_uploader</span> <span class="ss">:image</span><span class="p">,</span>  <span class="no">WidgetUploader</span><span class="p">,</span> <span class="n">delayed</span><span class="p">:</span> <span class="kp">true</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>You&#8217;ll notice a few unusual things here. The versions have an <code>:if</code> condition and there&#8217;re mentions of <code>is_processing_delayed?</code>. This comes from a small module <a href="https://github.com/joeyAghion/">@joeyAghion</a> wrote called <code>DelayedImageProcessing</code>. It&#8217;s a much more evolved version designed on top of <a href="http://code.dblock.org/carrierwave-delayjob-processing-of-selected-versions">my earlier idea</a> of delaying some image processing for background jobs.</p>
-
-<p>The reason we want to delay image processing is because it takes a long time. The Heroku HTTP request limit is only 30 seconds, so image upload would regularly timeout. And some of the large images can take up to ten minutes to process - we don&#8217;t want the user to wait that long.</p>
-
-<p>To use, you will add some code in <code>config/initializers/carrierwave.rb</code> and add <code>DelayedImageProcessing</code> into <code>lib</code>.</p>
-
-<ul>
-<li><a href="https://gist.github.com/1710609#file_delayed_image_processing.rb">lib/delayed_image_processing.rb</a></li>
-<li><a href="https://gist.github.com/1710609#file_carrierwave.rb">config/initializers/carrierwave.rb</a></li>
-</ul>
-
-
-<p>The code above works with Mongoid. You will have to do some work to make this work with other storage.</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[How Art.sy Uses Github to Build Art.sy]]></title>
-    <link href="http://artsy.github.com/blog/2012/01/29/how-art-dot-sy-uses-github-to-build-art-dot-sy/"/>
-    <updated>2012-01-29T14:26:00+00:00</updated>
-    <id>http://artsy.github.com/blog/2012/01/29/how-art-dot-sy-uses-github-to-build-art-dot-sy</id>
-    <content type="html"><![CDATA[<p><a href="http://zachholman.com/">Zach Holman</a> gave a good talk on <a href="http://zachholman.com/talk/how-github-uses-github-to-build-github">How Github uses Github to build Github</a> at Rubyconf. It was great to hear how similar our own processes are at Art.sy, with a few notable differences.</p>
-
-<p>Art.sy engineers store almost everything on Github. We use Github Wikis, but don&#8217;t use Github Issues much. We work in 3-week sprints with <a href="http://pivotaltracker.com/">Pivotal Tracker</a> instead. This blog is on Github. And, of course, we have our own Hubot which feeds funny animated GIFs after each successful deploy to our IRC channel.</p>
-
-<p>The most interesting part for me was around these two slides.</p>
-
-<p><img src="http://artsy.github.com/images/2012-01-29-how-art-dot-sy-uses-github-to-build-art-dot-sy/github-pull.png" title="[Github Pull]" >
-<img src="http://artsy.github.com/images/2012-01-29-how-art-dot-sy-uses-github-to-build-art-dot-sy/github-fork.png" title="[Github Fork]" ></p>
-
-<p>Zach emphasized that you don&#8217;t need forks to make pull requests. While technically true, I find forks particularly useful to keep things clean.</p>
-
-<p>At Art.sy we use personal forks to work on features, create topical branches and make pull requests into the master from there. This is the workflow of the vast majority of open-source projects too. Now, Zach is right, you don&#8217;t want to create any second class developers - our entire team has write access to the master. We use pull requests from forks to do peer code reviews, even for trivial things. I would typically make a pull request including the person I&#8217;d like to code review my changes in the title. Here&#8217;s an example.</p>
-
-<p><img src="http://artsy.github.com/images/2012-01-29-how-art-dot-sy-uses-github-to-build-art-dot-sy/github-pull-request.png" title="[Targeted Pull Request]" ></p>
-
-<p>(Notice the use of hash rocket. Zach, Ruby has transcended our lives too.)</p>
-
-<p>Working on forks keeps developer branches away from &#8220;master&#8221;. The main repository only has three branches: &#8220;master&#8221;, &#8220;staging&#8221; and &#8220;production&#8221; and each developer can make up whatever branching strategy they like in individual forks.</p>
-
-<p>Code reviews have nothing to do with hierarchy or organization, any developer will code review any other developer&#8217;s work. We tend to avoid using the same person for two subsequent code reviews to prevent excessive buddying. Zach called his pull requests &#8220;collective experiments&#8221; - a place for active discussions, rejections and praise. I really like that. Each of my rejected pull requests has been a great learning experience.</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Octopress and Jekyll]]></title>
-    <link href="http://artsy.github.com/blog/2012/01/18/octopress-and-jekyll/"/>
-    <updated>2012-01-18T23:03:00+00:00</updated>
-    <id>http://artsy.github.com/blog/2012/01/18/octopress-and-jekyll</id>
-    <content type="html"><![CDATA[<p>This blog is powered by static pages.</p>
-
-<p>I think it&#8217;s quite ironic that, while we spend a lot of time building complex large scale dynamic websites, our new favorite publishing platform is a system that compiles static content. But, in many ways, <a href="http://octopress.org/">Octopress</a> and <a href="https://github.com/mojombo/jekyll">Jekyll</a> fit our philosophy and developer workflow perfectly. Writing an article for this blog means using the same tools and processes as contributing to a project on Github. And everyone is welcome to browse and learn from <a href="https://github.com/artsy/artsy.github.com/tree/source">the source</a> of this blog, and even fork it and contribute fixes to the layout or even blog features.</p>
-
-<p>Here&#8217;s what Art.sy engineers do to get setup (once) and publish a new post.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-<span class='line-number'>19</span>
-<span class='line-number'>20</span>
-<span class='line-number'>21</span>
-<span class='line-number'>22</span>
-<span class='line-number'>23</span>
-<span class='line-number'>24</span>
-<span class='line-number'>25</span>
-<span class='line-number'>26</span>
-<span class='line-number'>27</span>
-<span class='line-number'>28</span>
-<span class='line-number'>29</span>
-<span class='line-number'>30</span>
-<span class='line-number'>31</span>
-<span class='line-number'>32</span>
-</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nv">$ </span>git clone git@github.com:artsy/artsy.github.com.git
-</span><span class='line'> Cloning into artsy.github.com...
-</span><span class='line'>
-</span><span class='line'><span class="nv">$ </span><span class="nb">cd </span>artsy.github.com
-</span><span class='line'>
-</span><span class='line'>artsy.github.com<span class="nv">$ </span>git checkout <span class="nb">source</span>
-</span><span class='line'><span class="nb"> </span>Branch <span class="nb">source set </span>up to track remote branch <span class="nb">source </span>from origin.
-</span><span class='line'> Switched to a new branch <span class="s1">&#39;source&#39;</span>
-</span><span class='line'>
-</span><span class='line'>artsy.github.com<span class="nv">$ </span>mkdir _deploy
-</span><span class='line'>
-</span><span class='line'>artsy.github.com<span class="nv">$ </span><span class="nb">cd </span>_deploy
-</span><span class='line'>
-</span><span class='line'>artsy.github.com/_deploy<span class="nv">$ </span>git init
-</span><span class='line'> Initialized empty Git repository in artsy.github.com/_deploy/.git/
-</span><span class='line'>
-</span><span class='line'>artsy.github.com/_deploy<span class="nv">$ </span>git remote add origin git@github.com:artsy/artsy.github.com.git
-</span><span class='line'>
-</span><span class='line'>artsy.github.com/_deploy<span class="nv">$ </span>git pull origin master
-</span><span class='line'> From github.com:artsy/artsy.github.com
-</span><span class='line'>  * branch            master     -&gt; FETCH_HEAD
-</span><span class='line'>
-</span><span class='line'>artsy.github.com/_deploy<span class="nv">$ </span><span class="nb">cd</span> ..
-</span><span class='line'>
-</span><span class='line'>artsy.github.com<span class="nv">$ </span>rake create_post<span class="o">[</span><span class="s2">&quot;Octopress and Jekyll&quot;</span><span class="o">]</span>
-</span><span class='line'> Creating new post: <span class="nb">source</span>/_posts/2012-01-18-octopress-and-jekyll.md
-</span><span class='line'>
-</span><span class='line'>artsy.github.com<span class="nv">$ </span>git commit -am <span class="s2">&quot;Octopress and Jekyll&quot;</span>
-</span><span class='line'> 1 files changed, 52 insertions<span class="o">(</span>+<span class="o">)</span>, 0 deletions<span class="o">(</span>-<span class="o">)</span>
-</span><span class='line'> create mode 100644 <span class="nb">source</span>/_posts/2012-01-18-octopress-and-jekyll.md
-</span><span class='line'>
-</span><span class='line'>artsy.github.com<span class="nv">$ </span>rake deploy
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>(If you&#8217;re confused by the setup, check out <a href="http://code.dblock.org/octopress-setting-up-a-blog-and-contributing-to-an-existing-one">this post</a>).</p>
-
-<p>We believe in simple systems and love the opportunity to understand technology in-depth. Everything you see, short of the blog content and styles, is written in Ruby by very smart people. The source is open and free, which helps us learn and make progress, together.</p>
 ]]></content>
   </entry>
   
