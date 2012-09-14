@@ -50,7 +50,7 @@ With modern versions of Xcode, it doesn't matter that your IBOutlets are defined
 
 These decisions have come from internal discussions and from watching many WWDC sessions on the topic. We highly recommend watching the following [WWDC sessions](https://developer.apple.com/wwdc/).
 
-  [WWDC 2011](https://developer.apple.com/videos/wwdc/2011/): 105 Polishing Your App, 112 Writing Easy To Change Code and 332 - Objective-C Advancements in Depth. 
+  [WWDC 2011](https://developer.apple.com/videos/wwdc/2011/): 105 Polishing Your App, 112 Writing Easy To Change Code and 322 - Objective-C Advancements in Depth. 
 
 
   [WWDC 2012](https://developer.apple.com/videos/wwdc/2012/): 405 Modern Objective-C and 413 Migrating to Modern Objective-C
