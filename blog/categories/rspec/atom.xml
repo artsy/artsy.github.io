@@ -4,7 +4,7 @@
   <title><![CDATA[Category: RSpec | Art.sy Engineering]]></title>
   <link href="http://artsy.github.com/blog/categories/rspec/atom.xml" rel="self"/>
   <link href="http://artsy.github.com/"/>
-  <updated>2012-09-13T10:05:42-04:00</updated>
+  <updated>2012-10-09T15:24:45-04:00</updated>
   <id>http://artsy.github.com/</id>
   <author>
     <name><![CDATA[Art.sy]]></name>
@@ -12,6 +12,116 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[How to Run RSpec Test Suites in Parallel with JenkinsCI Build Flow]]></title>
+    <link href="http://artsy.github.com/blog/2012/10/09/how-to-run-rspec-test-suites-in-parallel-with-jenkins-ci-build-flow/"/>
+    <updated>2012-10-09T21:21:00-04:00</updated>
+    <id>http://artsy.github.com/blog/2012/10/09/how-to-run-rspec-test-suites-in-parallel-with-jenkins-ci-build-flow</id>
+    <content type="html"><![CDATA[<p>We now have over 4700 RSpec examples in one of our projects. They are stable, using the techniques described in an <a href="/blog/2012/02/03/reliably-testing-asynchronous-ui-w-slash-rspec-and-capybara/">earlier post</a> and organized in <a href="/blog/2012/05/15/how-to-organize-over-3000-rspec-specs-and-retry-test-failures/">suites</a>. But they now take almost 3 hours to run, which is clearly unacceptable.</p>
+
+<p>To solve this, we have parallelized parts of the process with existing tools, and can turn a build around in just under an hour. This post will dive into our <a href="http://jenkins-ci.org/">Jenkins</a> build flow setup.</p>
+
+<p>To keep things simple, we're going to only build the <code>master</code> branch. When a change is committed on <code>master</code> we're going to push <code>master</code> to a <code>master-ci</code> branch and trigger a distributed build on <code>master-ci</code>. Once all the parts have finished, we'll complete the build by pushing <code>master-ci</code> to <code>master-succeeded</code> and notify the dev team of success or failure.</p>
+
+<p>Here's a diagram of what's going on.</p>
+
+<p><img src="http://artsy.github.com/images/2012-10-09-how-to-run-rspec-test-suites-in-parallel-with-jenkins-ci-build-flow/master-ci.png"></p>
+
+<!-- more -->
+
+
+<h2>Plugins</h2>
+
+<p>Install the <a href="https://wiki.jenkins-ci.org/display/JENKINS/Build+Flow+Plugin">Build Flow</a> and the <a href="https://wiki.jenkins-ci.org/display/JENKINS/Parameterized+Trigger+Plugin">Parameterized Trigger</a> plugin. Grant <code>Anonymous</code> job read permissions in Jenkins system configuration (see <a href="https://issues.jenkins-ci.org/browse/JENKINS-14027">JENKINS-14027</a>).</p>
+
+<p>Create the following Jenkins jobs.</p>
+
+<h2>master-prequel</h2>
+
+<p>A free-style job that connects to the SCM, in our case Git.</p>
+
+<ul>
+<li>Set SCM repository URL to your Git repo, eg. <code>git@github.com:spline/reticulator.git</code></li>
+<li>Change the default branch specifier from <code>**</code> to <code>master</code>. We'll be pushing a <code>master-ci</code> branch, which could, in turn, cause more builds if you don't do this.</li>
+<li>Add a post-build action to build another project. Trigger the <code>master</code> project if the build succeeds.</li>
+</ul>
+
+
+<h2>master</h2>
+
+<p>This is a build-flow job. We'll describe the individual tasks that the flow invokes further. The flow DSL looks as follows.</p>
+
+<p><code>ruby
+build("master-ci-init")
+parallel (
+ { build("master-ci-task", tasks: "spec:suite:models:ci") },
+ { build("master-ci-task", tasks: "spec:suite:api:ci") },
+ { build("master-ci-task", tasks: "spec:suite:integration:ci") }
+)
+build("master-ci-succeeded")
+</code></p>
+
+<p>This is a good place to add an e-mail notification post-build action for every unstable build.</p>
+
+<h2>master-ci-init</h2>
+
+<p>A free-style job that creates the <code>master-ci</code> branch from master. It needs to be connected to your SCM and executes the following shell script.</p>
+
+<p>``` bash</p>
+
+<h1>!/bin/bash</h1>
+
+<p>git checkout $GIT_BRANCH
+git push origin -f $GIT_BRANCH:$GIT_BRANCH-ci
+```</p>
+
+<p>Note that we cannot combine this task with <code>master-prequel</code>, because we have to make sure the branch creation runs once under the entire flow, while <code>master-prequel</code> can be run multiple times, once per check-in. Otherwise the <code>master-ci</code> branch could get updated before a <code>master-ci-task</code> runs from a previous flow execution.</p>
+
+<h2>master-ci-task</h2>
+
+<p>A parameterized build that accepts a <code>tasks</code> parameter that the flow will pass in.</p>
+
+<p>Change the default branch specifier to <code>master-ci</code> and execute the following shell script.</p>
+
+<p>``` bash</p>
+
+<h1>!/bin/bash</h1>
+
+<p>bundle install
+bundle exec rake $tasks
+```</p>
+
+<p>This example runs <code>rake $tasks</code>, which we define to be various test suites in our flow DSL. Our test suite setup is described in <a href="/blog/2012/05/15/how-to-organize-over-3000-rspec-specs-and-retry-test-failures/">this post</a>. Your mileage may vary.</p>
+
+<h2>master-ci-succeeded</h2>
+
+<p>This is an optional step. We use this free-style job to tag <code>master-ci</code> as <code>master-succeeded</code> with the following shell script.</p>
+
+<p>``` bash</p>
+
+<h1>!/bin/bash</h1>
+
+<p>git checkout $GIT_BRANCH
+git push origin -f $GIT_BRANCH:${GIT_BRANCH/%-ci/}-succeeded
+```</p>
+
+<p>Our deployment to production will pickup the <code>master-succeeded</code> branch when it's time.</p>
+
+<h2>Improvements?</h2>
+
+<p>I see a few possible improvements here that might require a bit of work.</p>
+
+<ul>
+<li>The ability to split an RSpec suite up across an arbitrary number N sub-jobs and M executors would create an optimal parallel split based on the resources available.</li>
+<li>Passing the value of <code>GIT_BRANCH</code> and <code>GIT_COMMIT</code> across these jobs would enable building any branch and eliminate the need for <code>master-ci-init</code>.</li>
+<li>Build flow could support SCM polling the same way as free-style jobs, avoiding the need for <code>master-prequel</code>. We weren't able to get a stable notification of changes from Github with the Jenkins Github plugin.</li>
+</ul>
+
+
+<p>Please suggest further improvements in the comments below!</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Testing with Delayed Jobs]]></title>
