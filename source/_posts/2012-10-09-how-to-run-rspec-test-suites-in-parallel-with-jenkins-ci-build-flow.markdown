@@ -9,7 +9,7 @@ github-url: https://www.github.com/dblock
 twitter-url: http://twitter.com/dblockdotorg
 blog-url: http://code.dblock.org
 ---
-We now have over 4700 RSpec examples in one of our projects. They are stable, using for the techniques described in an [earlier post](/blog/2012/02/03/reliably-testing-asynchronous-ui-w-slash-rspec-and-capybara/) and organized in [suites](/blog/2012/05/15/how-to-organize-over-3000-rspec-specs-and-retry-test-failures/). But they now take almost 3 hours to run, which is clearly unacceptable.
+We now have over 4700 RSpec examples in one of our projects. They are stable, using the techniques described in an [earlier post](/blog/2012/02/03/reliably-testing-asynchronous-ui-w-slash-rspec-and-capybara/) and organized in [suites](/blog/2012/05/15/how-to-organize-over-3000-rspec-specs-and-retry-test-failures/). But they now take almost 3 hours to run, which is clearly unacceptable.
 
 To solve this, we have parallelized parts of the process with existing tools, and can turn a build around in just under an hour. This post will dive into our [Jenkins](http://jenkins-ci.org/) build flow setup.
 
@@ -65,12 +65,12 @@ git checkout $GIT_BRANCH
 git push origin -f $GIT_BRANCH:$GIT_BRANCH\-ci
 ```
 
-Note that we cannot combine this task with `master-prequel` because we have to make sure the branch creation runs once under the entire flow, while `master-prequel` can be run multiple times, once per check-in.
+Note that we cannot combine this task with `master-prequel`, because we have to make sure the branch creation runs once under the entire flow, while `master-prequel` can be run multiple times, once per check-in. Otherwise the `master-ci` branch could get updated before a `master-ci-task` runs from a previous flow execution.
 
 master-ci-task
 --------------
 
-A parametarized build that accepts a `tasks` parameter that the flow will pass in.
+A parameterized build that accepts a `tasks` parameter that the flow will pass in.
 
 Change the default branch specifier to `master-ci` and execute the following shell script.
 
@@ -100,6 +100,7 @@ Improvements?
 
 I see a few possible improvements here that might require a bit of work.
 
+* The ability to split an RSpec suite up across an arbitrary number N sub-jobs and M executors would create an optimal parallel split based on the resources available.
 * Passing the value of `GIT_BRANCH` and `GIT_COMMIT` across these jobs would enable building any branch and eliminate the need for `master-ci-init`.
 * Build flow could support SCM polling the same way as free-style jobs, avoiding the need for `master-prequel`. We weren't able to get a stable notification of changes from Github with the Jenkins Github plugin.
 
