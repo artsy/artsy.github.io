@@ -4,7 +4,7 @@
   <title><![CDATA[Art.sy Engineering]]></title>
   <link href="http://artsy.github.com/atom.xml" rel="self"/>
   <link href="http://artsy.github.com/"/>
-  <updated>2012-10-09T15:24:45-04:00</updated>
+  <updated>2012-10-11T12:18:37-04:00</updated>
   <id>http://artsy.github.com/</id>
   <author>
     <name><![CDATA[Art.sy]]></name>
@@ -12,6 +12,68 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Art.sy's Technology Stack]]></title>
+    <link href="http://artsy.github.com/blog/2012/10/10/artsy-technology-stack/"/>
+    <updated>2012-10-10T21:21:00-04:00</updated>
+    <id>http://artsy.github.com/blog/2012/10/10/artsy-technology-stack</id>
+    <content type="html"><![CDATA[<p>The public launch of Art.sy via the <a href="http://www.nytimes.com/2012/10/09/arts/design/artsy-is-mapping-the-world-of-art-on-the-web.html">New York Times</a> is a good opportunity to describe our current technology stack.</p>
+
+<p>What you see when you go to <a href="http://art.sy">art.sy</a> is a website built with <a href="http://backbonejs.org/">Backbone.js</a> and written in <a href="http://coffeescript.org/">CoffeeScript</a>. It renders JSON data from <a href="http://rubyonrails.org/">Ruby on Rails</a>, <a href="https://github.com/intridea/grape">Ruby Grape</a> and <a href="http://nodejs.org/">Node.js</a> services. Text search is powered by <a href="http://lucene.apache.org/solr/">Apache Solr</a>. We also have an <a href="https://developer.apple.com/devcenter/ios/index.action">iOS</a> application that talks to the same back-end Ruby API. We run all our web processes on <a href="http://www.heroku.com/">Heroku</a> and all job queues on <a href="http://aws.amazon.com/">Amazon EC2</a>. Our data store is <a href="http://www.mongodb.org/">MongoDB</a>, operated by <a href="https://mongohq.com/">MongoHQ</a> and we have some <a href="http://redis.io/">Redis</a> instances. Our assets, including images, are served from <a href="http://aws.amazon.com/s3/">Amazon S3</a> via the <a href="http://aws.amazon.com/cloudfront/">CloudFront CDN</a>. We heavily rely on <a href="http://memcached.org/">Memcached</a> Heroku addon and we use <a href="http://sendgrid.com/">SendGrid</a> and <a href="http://mailchimp.com/">MailChimp</a> to send e-mail. Systems are monitored by a combination of <a href="http://newrelic.com/">New Relic</a> and <a href="https://www.pingdom.com/">Pingdom</a>. All of this is built, tested and deployed with <a href="http://jenkins-ci.org/">Jenkins</a>.</p>
+
+<p><img src="http://artsy.github.com/images/2012-10-10-artsy-technology-stack/artsy-infrastructure.png"></p>
+
+<p>In this post I&#8217;ll go in depth in our current system architecture and tell you the story about how these parts all came together.</p>
+
+<!-- more -->
+
+
+<h2>Early Prototypes</h2>
+
+<p>Art.sy early prototypes in 2010 consisted of a combination of PHP and Java web services running on JBoss and backed by a MySQL database. The system had more similarities with a large transactional banking application than a consumer website.</p>
+
+<p>In early 2011 we rebooted the project on Ruby on Rails. RDBMS storage was replaced with NoSQL MongoDB. A <a href="http://www.10gen.com/presentations/MongoNYC-2012/Using-MongoDB-to-Build-Artsy">video</a> was recorded at MongoNYC 2012 that goes in depth into this specific choice.</p>
+
+<h2>Art.sy Architecture Today</h2>
+
+<p>Having only a handful of engineers, our goal has always been to keep the number of moving parts to an absolute minimum. With a few new engineers we were able to expand things a bit.</p>
+
+<h2>Art.sy Website Front-End</h2>
+
+<p>The Art.sy website is a responsive <a href="http://backbonejs.org/">Backbone.js</a> application written in <a href="http://coffeescript.org/">CoffeeScript</a> and <a href="http://sass-lang.com/">SASS</a> and served from a Rails back-end. The generated JavaScript and CSS files are packaged and compressed with <a href="http://documentcloud.github.com/jammit/">Jammit</a> and deployed to Amazon S3. The Rails app itself is a traditional MVC system that bootstraps application data and mostly serves SEO needs, such as meta tags, escaped fragments and page titles. Once the basic data has been rendered though, Backbone routing takes over and you&#8217;re now navigating a client-side browser app with pushState support as available, swapping frames and rendering views using JST templates and JSON data returned from the API.</p>
+
+<h2>Core API</h2>
+
+<p>The website talks to the nervous system of Art.sy, a RESTful API built in Ruby and <a href="https://github.com/intridea/grape">Grape</a>. While it&#8217;s not currently available for 3rd party applications for various image rights-related reasons, you can play with it <a href="http://art.sy/api/v1/explorer">here</a>.</p>
+
+<p>In the early days we did a ton of domain-driven design and spent a lot of time modeling concepts such as <em>artist</em> or <em>artwork</em>. The API has read and write behavior for all our domain concepts. Probably 70% of it is pure CRUD doing <a href="http://mongoid.org/">Mongoid</a> queries with a layer of access control in <a href="https://github.com/ryanb/cancan">CanCan</a> and cache partitioning and binding using <a href="http://confreaks.com/videos/986-goruco2012-from-zero-to-api-cache-w-grape-mongodb-in-10-minutes">Garner</a>.</p>
+
+<h2>Search Autocomplete</h2>
+
+<p>The first iteration of the website&#8217;s text search was powered by <a href="https://github.com/artsy/mongoid_fulltext">mongoid_fulltext</a>. Today we run an <a href="http://lucene.apache.org/solr/">Apache Solr</a> master-slave environment hosted on EC2.</p>
+
+<h2>Offline Indexes</h2>
+
+<p>The indexes that serve complex queries like related artists/artworks and filtered searches of artworks are all built offline. Our index-building system runs continuously, repeatedly pulling data from our production system to build the most out-of-date index. All of the most current indexes are imported back into production by a daily batch process and we swap the old indexes out atomically using <a href="https://github.com/aaw/mongoid_collection_snapshot">mongoid_collection_snapshot</a>.</p>
+
+<p>One of such indexes a <em>similarity graph</em> that we query to produce most similar results on the website, other indexes serve filtering needs, etc. We run these processes nightly.</p>
+
+<h2>Admin Back-End and Partner CMS</h2>
+
+<p>The Art.sy CMS and the Admin system are two newer projects and serve the needs of our partners and our internal back-end needs, respectively. These are built on a thin <a href="http://nodejs.org">Node.js</a> server that proxies requests to our API using <a href="https://github.com/nodejitsu/node-http-proxy">node-http-proxy</a>. They consist of a client-side Backbone.js application with assets packaged with <a href="https://github.com/craigspaeth/nap">nap</a>. This is a lot like our website, but completely decoupled from the main Rails application and sharing the same technology for both client and server with CoffeeScript and <a href="http://jade-lang.com/">Jade</a>.</p>
+
+<h2>Folio Partner App</h2>
+
+<p>Art.sy makes a free iOS application, called <a href="http://artsy.github.com/blog/categories/ios/">Folio</a>, which lets our partners display their inventory at art fairs.</p>
+
+<p>Folio is a native iOS implementation. The interface is heavily skinned UIKit with CoreData for storage. Our network code was originally a thin layer on top of NSURLConnection, but for our forthcoming update, we’ve rewritten it to use <a href="https://github.com/AFNetworking/AFNetworking/">AFNetworking</a>. We manage external dependencies with <a href="https://github.com/CocoaPods/CocoaPods">CocoaPods</a>.</p>
+
+<h2>Want More Specifics? Have Questions?</h2>
+
+<p>We hope you find this useful and are happy to describe any aspect of our system on this blog. Please ask questions below, we’ll be happy to answer them.</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[How to Run RSpec Test Suites in Parallel with JenkinsCI Build Flow]]></title>
@@ -2552,213 +2614,6 @@ know when thats happening so we can hide it, we can do that by registering for <
 
 
 <p>Using <em>Mongoid::CachedJson</em> we were able to cut our JSON API average response time by about a factor of 10. Find it <a href="https://github.com/dblock/mongoid-cached-json">on Github</a>.</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Reliably Testing Asynchronous UI w/ RSpec and Capybara]]></title>
-    <link href="http://artsy.github.com/blog/2012/02/03/reliably-testing-asynchronous-ui-w-slash-rspec-and-capybara/"/>
-    <updated>2012-02-03T11:45:00-05:00</updated>
-    <id>http://artsy.github.com/blog/2012/02/03/reliably-testing-asynchronous-ui-w-slash-rspec-and-capybara</id>
-    <content type="html"><![CDATA[<p>tl;dr - You can write 632 rock solid UI tests with Capybara and RSpec, too.</p>
-
-<p><img src="http://artsy.github.com/images/2012-02-03-reliably-testing-asynchronous-ui-w-slash-rspec-and-capybara/jenkins-ci.png" title="[Miami Weather in NYC]" ></p>
-
-<p>We have exactly 231 integration tests and 401 view tests out of a total of 3086 in our core application today. This adds up to 632 tests that exercise UI. The vast majority use <a href="http://rspec.info/">RSpec</a> with <a href="https://github.com/jnicklas/capybara">Capybara</a> and <a href="http://seleniumhq.org/">Selenium</a>. This means that every time the suite runs we set up real data in a local MongoDB and use a real browser to hit a fully running local application, 632 times. The suite currently takes 45 minutes to run headless on a slow Linode, UI tests taking more than half the time.</p>
-
-<p>While the site is in private beta (request your invite <a href="http://art.sy/request_invite">here</a>), you can get a glimpse of the complexity of the UI from the <a href="http://art.sy">splash page</a>. It&#8217;s a rich client-side Javascript application that talks to an API. You can open your browser&#8217;s developer tools and watch a combination of API calls and many asynchronous events.</p>
-
-<p>Keeping the UI tests reliable is notoriously difficult. For the longest time we felt depressed under the Pacific Northwest -like weather of our Jenkins CI and blamed every possible combination of code and infrastructure for the many intermittent failures. We&#8217;ve gone on sprees of marking many such tests &#8220;pending&#8221; too.</p>
-
-<p>We&#8217;ve learned a lot and stabilized our test suite. This is how we do UI testing.</p>
-
-<!-- more -->
-
-
-<h2>An Asynchronous Application</h2>
-
-<p>The splash page on <a href="http://art.sy">art.sy</a> is a <a href="http://documentcloud.github.com/backbone/">Backbone.js</a> application where views fade in and out depending on user actions. It also implements a responsive layout because some elements cannot render on mobile devices or shouldn&#8217;t depending on the size of your browser.</p>
-
-<p>The application is initialized in a usual Backbone way.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-</pre></td><td class='code'><pre><code class='coffeescript'><span class='line'><span class="nb">window</span><span class="p">.</span><span class="nv">Splash =</span>
-</span><span class='line'>  <span class="nv">Views: </span><span class="p">{}</span>
-</span><span class='line'>  <span class="nv">Routers: </span><span class="p">{}</span>
-</span><span class='line'>  <span class="nv">Models: </span><span class="p">{}</span>
-</span><span class='line'>  <span class="nv">initialize: </span><span class="o">-&gt;</span>
-</span><span class='line'>    <span class="nv">contentWindow = </span><span class="k">new</span> <span class="nx">@Models</span><span class="p">.</span><span class="nx">ContentWindow</span><span class="p">()</span>
-</span><span class='line'>    <span class="vi">@router = </span><span class="k">new</span> <span class="nx">@Routers</span><span class="p">.</span><span class="nx">Client</span> <span class="nx">contentWindow</span>
-</span><span class='line'>    <span class="k">new</span> <span class="nx">@Views</span><span class="p">.</span><span class="nx">Responsive</span> <span class="nx">contentWindow</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>From here, everything is asynchronous. The router will wire up the events and the different views that make up the page will render themselves.</p>
-
-<h2>Testing a Login Form</h2>
-
-<p>When a user clicks on a &#8220;Log In&#8221; link, he sees the <code>Splash.Views.Login</code> Backbone view. There&#8217;s no page reload or server roundtrip: the current view is swapped out by the Backbone view coming in. Some CSS animates the transition.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-</pre></td><td class='code'><pre><code class='coffeescript'><span class='line'><span class="k">class</span> <span class="nx">Splash</span><span class="p">.</span><span class="nx">Routers</span><span class="p">.</span><span class="nx">Client</span> <span class="k">extends</span> <span class="nx">Backbone</span><span class="p">.</span><span class="nx">Router</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="nv">routes:</span>
-</span><span class='line'>    <span class="s1">&#39;log_in&#39;</span> <span class="o">:</span> <span class="s1">&#39;log_in&#39;</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="nv">log_in: </span><span class="o">-&gt;</span>
-</span><span class='line'>    <span class="nv">Splash.login = </span><span class="k">new</span> <span class="nx">Splash</span><span class="p">.</span><span class="nx">Views</span><span class="p">.</span><span class="nx">Login</span><span class="p">()</span>
-</span><span class='line'>    <span class="nx">@navigate</span> <span class="s1">&#39;log_in&#39;</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>The log-in view has two input fields: an e-mail address and password. We can write a Capybara test that enters valid values and ensures that the user logged in by checking for a specific header.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="nb">require</span> <span class="s1">&#39;spec_helper&#39;</span>
-</span><span class='line'>
-</span><span class='line'><span class="n">feature</span> <span class="s2">&quot;Log In&quot;</span> <span class="k">do</span>
-</span><span class='line'>  <span class="n">context</span> <span class="s2">&quot;using a browser&quot;</span><span class="p">,</span> <span class="ss">:js</span> <span class="o">=&gt;</span> <span class="kp">true</span> <span class="k">do</span>
-</span><span class='line'>    <span class="n">scenario</span> <span class="s2">&quot;allows a user to login&quot;</span> <span class="k">do</span>
-</span><span class='line'>      <span class="n">user</span> <span class="o">=</span> <span class="no">Fabricate</span><span class="p">(</span><span class="ss">:user</span><span class="p">)</span>
-</span><span class='line'>      <span class="n">visit</span> <span class="s2">&quot;/&quot;</span>
-</span><span class='line'>      <span class="n">click_link</span> <span class="s2">&quot;log_in&quot;</span>
-</span><span class='line'>      <span class="n">fill_in</span> <span class="s2">&quot;user[email]&quot;</span><span class="p">,</span> <span class="ss">:with</span> <span class="o">=&gt;</span> <span class="n">user</span><span class="o">.</span><span class="n">email</span>
-</span><span class='line'>      <span class="n">fill_in</span> <span class="s2">&quot;user[password]&quot;</span><span class="p">,</span> <span class="ss">:with</span> <span class="o">=&gt;</span> <span class="n">user</span><span class="o">.</span><span class="n">password</span>
-</span><span class='line'>      <span class="n">click_button</span> <span class="s2">&quot;sign in&quot;</span>
-</span><span class='line'>      <span class="n">find</span><span class="p">(</span><span class="s2">&quot;h1&quot;</span><span class="p">,</span> <span class="ss">:visible</span> <span class="o">=&gt;</span> <span class="kp">true</span><span class="p">)</span><span class="o">.</span><span class="n">text</span><span class="o">.</span><span class="n">should</span> <span class="o">==</span> <span class="s2">&quot;Login Successful&quot;</span>
-</span><span class='line'>    <span class="k">end</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>This test works well with Capybara, because it tries to wait for elements to appear on the page. For example, when you use <code>fill_in</code> it attempts to locate an element with the <code>user[email]</code> id, several times, until it times out or until the element is on the page.</p>
-
-<h2>Waiting for Explicit Events</h2>
-
-<p>The above test is &#8220;reliable&#8221; within some limits. It works as long as all the necessary asynchronous events run within a timeout period. But what if they don&#8217;t? What if the test hardware is taking a break from flushing to disk? Or waiting on Google Analytics when the network cable is unplugged, which shouldn&#8217;t affect the outcome of the test? These external issues make this code very brittle, so everyone keeps increasing the default timeout values.</p>
-
-<p>A winning strategy to avoid this is to introduce explicit wait controls inside the tests. These wait <code>Capybara.default_wait_time</code> for a true result and no longer force you to know which method in Capybara waits for a timeout and which doesn&#8217;t. It effectively breaks up a single wait into multiple waits.</p>
-
-<p>Consider a widget that needs to be saved by making a postback.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-</pre></td><td class='code'><pre><code class='coffeescript'><span class='line'><span class="nx">@$el</span><span class="p">.</span><span class="nx">removeClass</span><span class="p">(</span><span class="s2">&quot;saved&quot;</span><span class="p">).</span><span class="nx">addClass</span><span class="p">(</span><span class="s1">&#39;saving&#39;</span><span class="p">)</span>
-</span><span class='line'><span class="nx">@widget</span><span class="p">.</span><span class="nx">save</span>
-</span><span class='line'>  <span class="nv">success: </span><span class="o">=&gt;</span>
-</span><span class='line'>    <span class="nx">@$el</span><span class="p">.</span><span class="nx">removeClass</span><span class="p">(</span><span class="s2">&quot;saving&quot;</span><span class="p">).</span><span class="nx">addClass</span><span class="p">(</span><span class="s2">&quot;saved&quot;</span><span class="p">)</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>When the widget is saved, its element will get a <code>.saved</code> CSS class. The test can wait for it.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">it</span> <span class="s2">&quot;saves the widget&quot;</span> <span class="k">do</span>
-</span><span class='line'>  <span class="n">widget_count</span> <span class="o">=</span> <span class="no">Widget</span><span class="o">.</span><span class="n">count</span>
-</span><span class='line'>  <span class="n">find</span><span class="p">(</span><span class="s2">&quot;save&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">click</span>
-</span><span class='line'>  <span class="n">wait_until</span> <span class="p">{</span> <span class="n">find</span><span class="p">(</span><span class="s2">&quot;.saved&quot;</span><span class="p">,</span> <span class="n">visible</span><span class="p">:</span> <span class="kp">true</span><span class="p">)</span> <span class="p">}</span>
-</span><span class='line'>  <span class="no">Widget</span><span class="o">.</span><span class="n">count</span><span class="o">.</span><span class="n">should</span> <span class="o">==</span> <span class="n">widget_count</span> <span class="o">+</span> <span class="mi">1</span>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<h2>There&#8217;s Just Too Much Going On</h2>
-
-<p>Sometimes, waiting on explicit events is just not practical. You may have many AJAX requests going on at the same time and after those are done, you may still be executing JavaScript that modifies the DOM in meaningful ways. Lets attempt to answer the following two questions:</p>
-
-<ul>
-<li>How can we wait on all remaining AJAX requests to finish?</li>
-<li>How can we wait on all remaining DOM events to finish?</li>
-</ul>
-
-
-<h2>Remaining AJAX Requests</h2>
-
-<p>If you&#8217;re using jQuery, you can test the number of active connections to a server. The number is zero when all pending AJAX requests have finished. This was an original idea from <a href="http://pivotallabs.com/users/mgehard/blog/articles/1671-waiting-for-jquery-ajax-calls-to-finish-in-cucumber">Pivotal</a>.</p>
-
-<figure class='code'><figcaption><span>spec/support/wait_for_ajax_helper.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">def</span> <span class="nf">wait_for_ajax</span><span class="p">(</span><span class="n">timeout</span> <span class="o">=</span> <span class="no">Capybara</span><span class="o">.</span><span class="n">default_wait_time</span><span class="p">)</span>
-</span><span class='line'>  <span class="n">page</span><span class="o">.</span><span class="n">wait_until</span><span class="p">(</span><span class="n">timeout</span><span class="p">)</span> <span class="k">do</span>
-</span><span class='line'>    <span class="n">page</span><span class="o">.</span><span class="n">evaluate_script</span> <span class="s1">&#39;jQuery.active == 0&#39;</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<h2>Remaining DOM Events</h2>
-
-<p>This one is a bit tricker. We can leverage the fact that JavaScript engines are updating the UI on a single thread. If you defer an action it will execute after everything else that has been deferred before it. Therefore we can queue an addition of an empty DIV with a new id and finally wait for it. By using a unique ID we allow the waits to stack up nicely in a single spec.</p>
-
-<figure class='code'><figcaption><span>spec/support/wait_for_dom_helper_.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">def</span> <span class="nf">wait_for_dom</span><span class="p">(</span><span class="n">timeout</span> <span class="o">=</span> <span class="no">Capybara</span><span class="o">.</span><span class="n">default_wait_time</span><span class="p">)</span>
-</span><span class='line'>  <span class="n">uuid</span> <span class="o">=</span> <span class="no">SecureRandom</span><span class="o">.</span><span class="n">uuid</span>
-</span><span class='line'>  <span class="n">page</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s2">&quot;body&quot;</span><span class="p">)</span>
-</span><span class='line'>  <span class="n">page</span><span class="o">.</span><span class="n">evaluate_script</span> <span class="o">&lt;&lt;-</span><span class="no">EOS</span>
-</span><span class='line'><span class="sh">    _.defer(function() {</span>
-</span><span class='line'><span class="sh">      $(&#39;body&#39;).append(&quot;&lt;div id=&#39;#{uuid}&#39;&gt;&lt;/div&gt;&quot;);</span>
-</span><span class='line'><span class="sh">    });</span>
-</span><span class='line'><span class="no">  EOS</span>
-</span><span class='line'>  <span class="n">page</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s2">&quot;#</span><span class="si">#{</span><span class="n">uuid</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>We do have to make sure that the body element is loaded, first. This allows a <code>wait_for_dom</code> right after we navigate to a page that executes AJAX queries on load.</p>
-
-<h2>Combining Techniques</h2>
-
-<p>With enough attention we were able to explain and fix most spec failures. When implementing Capybara tests we favor explicit waits and use the combination of the two wait functions above when we just want to generically make sure that everything on the page has loaded and is ready for more action.</p>
-
-<p>Finally, integration tests are essential for continuous deployment. They are very much worth the extra development effort.</p>
 ]]></content>
   </entry>
   
