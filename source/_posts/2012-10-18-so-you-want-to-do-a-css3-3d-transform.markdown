@@ -33,12 +33,12 @@ CSS3 3D transforms involve interaction between the browser and the
 graphics card. The browser may be able to parse the 3D declarations
 but may not be able to properly instruct the graphics card in how to
 render your page. There are many possible outcomes from rendering with
-the graphics card. The page may render with lines across it or the
-page may render but then crash the browser after a couple seconds. Any
-'feature detection' approach would flag these as 'supports CSS3 3d
-transforms' but that is not acceptable. This is one case where
-'feature detection' fails and user agent sniffing (and lots of
-testing) wins.
+the graphics card: The page may render with lines across it (Safari 4)
+or the page may render but then crash the browser after a couple
+seconds (Safari on iOS4). Any 'feature detection' approach would
+unacceptably flag these as 'supports CSS3 3d transforms'. This is one
+case where 'feature detection' fails and user agent sniffing (and lots
+of testing) wins.
 
 Most feature detection assumes a 'supports' or 'does not support'
 binary. This is not the case with css 3d transforms - there is a
@@ -46,38 +46,49 @@ binary. This is not the case with css 3d transforms - there is a
 page to be re-rendered in an entirely different rendering engine which
 causes other problems (more on this in a later blogpost).
 
-CSS 3D transform support can be separated into 4 levels:
-- reliably supports 3d transforms across most machines
-  For example: Safari 6 & Firefox 16+
-- can parse and apply 3d transform declarations but ignores the 3d parts
-  For example: Chrome on retina Macbook pros (more on this later)
-- can parse and apply 3d transform declarations but renders in unacceptable ways
-  For example: Safari 4 and Safari 4/5 on Windows show lines across the page. iOS4 Safari renders but crashs Safari shortly after.
-- cannot apply css 3d transform declarations in any way (IE, Opera, Firefox < 10…)
+CSS3 3D transform support can be separated into 4 levels:
 
-Here are a few popular ways of detecting 3d transform support and why they don't work for us:
+1. Reliably supports 3D transforms across most machines. For example:
+Safari 6
+2. Can parse and apply 3D transform declarations but ignores the 3d
+parts. For example: Chrome on retina Macbook pros
+3. Can parse and apply 3D transform declarations but renders in
+unacceptable ways. For example: Safari 4 and Safari 4/5 on Windows
+show lines across the page.
+4. Cannot apply 3D transform declarations in any way. For example:
+IE, Firefox < v10
+
+Here are a few popular ways of detecting 3d transform support and why
+they don't work for us:
+
+*Meny / Hakim's method*
 ```coffeescript
-# meny's method
+# apply these styles to the body in css then see if they are applied in JS
 supports3DTransforms =  'WebkitPerspective' in document.body.style ||
-   						'MozPerspective' in document.body.style ||
-						'msPerspective' in document.body.style ||
-						'OPerspective' in document.body.style ||
-						'perspective' in document.body.style
+                        'MozPerspective' in document.body.style ||
+                        'msPerspective' in document.body.style ||
+                        'OPerspective' in document.body.style ||
+                        'perspective' in document.body.style
 ```
 
-This works the best and is really straight forward. It will crash
-Safari on iOS4 and shows lines across the page in old versions of
-Safari on Windows and OSX but otherwise is great.
+This works the best and is really straight forward. The only issue is
+that crash Safari on iOS4 and shows lines across the page in Safari on
+Windows and Safari 4 OSX.
 
 
+*iScroll4  method*
 ```coffeescript
-# Based on iScroll4's tests to determine if a browser supports CSS3 3D transforms.
 has3d = -> 'WebKitCSSMatrix' in window && 'm11' in new WebKitCSSMatrix()
 ```
-Only works reliably Safari and is rumored to sometimes not work in Chrome on some Version / OS combinations http://code.google.com/p/chromium/issues/detail?id=129004
+Only works reliably Safari and is rumored to [sometimes not work in
+Chrome on some Version / OS combinations](http://code.google.com/p/chromium/issues/detail?id=129004).
 
-# Modernizer method - create a div and transform it then see if it's position has changed as expected. This only works in Chrome and Safari but throws a false 'true' in the case of Chrome on Retina macbook pros.
+*Modernizer method*
 ```coffeescript
+# This creates a div and transform it then see if
+# it's position has changed as expected. This only works in Chrome and
+# Safari but throws a false positive in the case of Chrome on Retina as
+# the element does move -- just not in 3d space.
 ret = !!testPropsAll('perspective')
 if ( ret and 'webkitPerspective' in docElement.style )
     # create a dib and see if it moves
@@ -85,26 +96,21 @@ if ( ret and 'webkitPerspective' in docElement.style )
             ret = node.offsetLeft === 9 && node.offsetHeight === 3;
 ```
 
+The sacrifices in each of these three methods is unacceptable. Our
 
 
-Fuck it. Here is the code:
 ```coffeescript
 (->
-  # detect 3d transforms. This loads before jQuery or underscore so we cannot use their util methods
-  # currently, sept 30 12, there is no reliable way to detect css3dtransforms so we use useragent sniffing
-  # for example, prior solition succeeds for chrome 22 but fails for chrome 22 on retina display
-
   docElement = document.documentElement
 
-  # defined as array of arrays to avoid defining object.keys
   browsers = [
-    ['webkit',  530]    # not well supported in Safari 4, Safari 5 webkit version is 530.17
+    ['webkit',  530]        # not well supported in Safari 4, Safari 5 webkit version is 530.17
     ['chrome',  12]
     ['mozilla', 10]
     ['opera',   Infinity]   # not supported
     ['msie',    Infinity] ] # not supported
 
-  # More details: http://api.jquery.com/jQuery.browser
+  # From: http://api.jquery.com/jQuery.browser
   uaMatch = (ua) ->
     ua = ua.toLowerCase()
     match =
@@ -125,7 +131,7 @@ Fuck it. Here is the code:
     docElement.className = docElement.className.replace 'no-csstransforms3d', ''
     docElement.className += ' csstransforms3d'
 
-  # default to no 3d transform support
+  # default to no CSS3 3d transform support
   addNo3dTransform()
 
   match = uaMatch navigator.userAgent
@@ -136,6 +142,24 @@ Fuck it. Here is the code:
       else
         addNo3dTransform()
       break
+
+  uagent = navigator.userAgent.toLowerCase()
+
+  IS_IPHONE = uagent.search('iphone') > -1 or uagent.search('ipod') > -1
+  IS_IPAD = uagent.search('ipad') > -1
+  IS_IOS = IS_IPHONE or IS_IPAD
+
+  # ios 6 has positioning differences from earlier versions + is much faster
+  # we only need to know if we are in an older safari -- not the specific version
+  # used in 3d popover and view in room
+  match = /\os ([0-9]+)/.exec uagent
+  IS_LT_IOS6 = match and match[1] and Number(match[1]) < 6
+
+  if IS_IPAD
+    # Facebook's iPad app's uiwebview's useragent includes both iPhone and iPad
+    IS_IPHONE = false
+    viewport = document.querySelector "meta[name=viewport]"
+    viewport.setAttribute 'content', 'width=1024, user-scalable=0'
 
   # 3d transfors are supported but do not work well on iPhone
   if IS_IPHONE
@@ -152,6 +176,7 @@ Fuck it. Here is the code:
 ```
 
 Later posts will go into:
+
 - Coping with flickering when enabling and disabling 3d transforms in Safari
 - iPad useragent(s)
 - Perspective transforming long pages
