@@ -10,10 +10,10 @@ categories: [iOS, JavaScript, User Agent]
 comments: true
 ---
 
-There is a great deal misinformation on the web about detecting an
+There is a great deal of misinformation on the web about detecting an
 iPad or an iPhone in JavaScript. The
 [top answer on stackoverflow](http://stackoverflow.com/a/4617648) -
-and many blogposts using it's technique - are all incorrect.
+and many blogposts using its technique - are all incorrect.
 
 The conventional wisdom is that iOS devices have a user agent for
 Safari and a user agent for the uiWebview. This assumption is
