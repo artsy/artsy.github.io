@@ -60,7 +60,7 @@ if (IS_IPAD) {
 }
 ```
 
-We simply add ```coffeescript IS_IPHONE = false if IS_IPAD``` to cover
-for the bizarre Facebook UIWebView iPad user agent. This is one
-example of how *user agent sniffing is unreliable*. If there is
-any way you can avoid this behavior (hint: CSS Media Queries), DO IT.
+We simply declare IS_IPHONE to be false on iPads to cover for the
+bizarre Facebook UIWebView iPad user agent. This is one example of how
+*user agent sniffing is unreliable*. If there is any way you can avoid
+this behavior (hint: CSS Media Queries), DO IT.
