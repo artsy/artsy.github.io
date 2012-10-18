@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "So you want to do a CSS3 3d transform?"
+title: "So you want to do a CSS3 3D transform?"
 comments: true
 author: Brennan Moore
 github-url: https://www.github.com/zamiang
@@ -41,8 +41,8 @@ case where 'feature detection' fails and user agent sniffing (and lots
 of testing) wins.
 
 Most feature detection assumes a 'supports' or 'does not support'
-binary. This is not the case with css 3d transforms - there is a
-'gradient of support'. Additionally, enabling 3d transforms causes the
+binary. This is not the case with CSS3 3D Transforms - there is a
+'gradient of support'. Additionally, enabling 3D transforms causes the
 page to be re-rendered in an entirely different rendering engine which
 causes other problems (more on this in a later blogpost).
 
@@ -51,7 +51,7 @@ CSS3 3D transform support can be separated into 4 levels:
 1. Reliably supports 3D transforms across most machines. For example:
 Safari 6
 2. Can parse and apply 3D transform declarations but ignores the 3d
-parts. For example: Chrome on retina Macbook pros
+parts. For example: Chrome on Retina MacbookPro.
 3. Can parse and apply 3D transform declarations but renders in
 unacceptable ways. For example: Safari 4 and Safari 4/5 on Windows
 show lines across the page.
@@ -96,10 +96,15 @@ if ( ret and 'webkitPerspective' in docElement.style )
             ret = node.offsetLeft === 9 && node.offsetHeight === 3;
 ```
 
-The sacrifices in each of these three methods is unacceptable. Our
+These three methods make unacceptable sacrifices. We want to maintain
+wide support of new tech while ensuring all users have a great
+experience. To accomplish this, we wrote some code *cough* a hack
+*cough* to accurately differentiate between browsers that support CSS3
+3D Transforms **well** and those that do not.
 
 
 ```coffeescript
+# todo clean this up before posting... it combines a few files
 (->
   docElement = document.documentElement
 
@@ -177,6 +182,6 @@ The sacrifices in each of these three methods is unacceptable. Our
 
 Later posts will go into:
 
-- Coping with flickering when enabling and disabling 3d transforms in Safari
+- Coping with flickering when enabling and disabling CSS3 3D Transforms in Safari
 - iPad useragent(s)
 - Perspective transforming long pages
