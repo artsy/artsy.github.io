@@ -48,7 +48,7 @@ you would end up for IS_IPHONE *and* IS_IPAD both being true if a user
 comes from Facebook on an iPad. That could create some odd behavior!
 
 Given that I have no other examples of people customizing user agents
-to such a gross degree, the correct way to identify iPhone / iPad in
+to such a gross degree, here is the correct way to identify iPhone / iPad in
 JavaScript
 
 ```javascript
