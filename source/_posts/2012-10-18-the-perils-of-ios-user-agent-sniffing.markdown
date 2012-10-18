@@ -44,7 +44,7 @@ IS_IPHONE = navigator.userAgent.match(/iPhone/i) != null) || (navigator.userAgen
 ```
 
 If you were to go with this approach for detecting iPhone and iPad,
-you will end up for IS_IPHONE *and* IS_IPAD both being true if a user
+you would end up for IS_IPHONE *and* IS_IPAD both being true if a user
 comes from Facebook on an iPad. That could create some odd behavior!
 
 Given that I have no other examples of people customizing user agents
