@@ -48,10 +48,9 @@ you will end up for IS_IPHONE *and* IS_IPAD both being true if a user
 comes from Facebook on an iPad. That could create some odd behavior!
 
 Given that I have no other examples of people customizing user agents
-to such a gross degree, here is some code that will cope with
-Facebook's user agent:
+to such a gross degree, the correct way to identify iPhone / iPad in
+JavaScript
 
-The correct way to identify iPhone / iPad in JavaScript
 ```javascript
 IS_IPAD = navigator.userAgent.match(/iPad/i) != null;
 IS_IPHONE = (navigator.userAgent.match(/iPhone/i) != null) || (navigator.userAgent.match(/iPod/i) != null);
