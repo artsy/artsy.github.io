@@ -38,9 +38,9 @@ iPhone: Mozilla/5.0 (iPhone; U; CPU iPhone OS 5_1_1 like Mac OS X; ru_RU) AppleW
 ``` 
 
 The old way to identify iPhone / iPad in JavaScript
-```coffeescript
-IS_IPAD = navigator.userAgent.match(/iPad/i)?
-IS_IPHONE = navigator.userAgent.match(/iPhone/i)? or navigator.userAgent.match(/iPod/i)?
+```javascript
+IS_IPAD = navigator.userAgent.match(/iPad/i) != null;
+IS_IPHONE = navigator.userAgent.match(/iPhone/i) != null) || (navigator.userAgent.match(/iPod/i) != null);
 ```
 
 If you were to go with this approach for detecting iPhone and iPad,
@@ -52,10 +52,12 @@ to such a gross degree, here is some code that will cope with
 Facebook's user agent:
 
 The correct way to identify iPhone / iPad in JavaScript
-```coffeescript
-IS_IPAD = navigator.userAgent.match(/iPad/i)?
-IS_IPHONE = navigator.userAgent.match(/iPhone/i)? or navigator.userAgent.match(/iPod/i)?
-IS_IPHONE = false if IS_IPAD
+```javascript
+IS_IPAD = navigator.userAgent.match(/iPad/i) != null;
+IS_IPHONE = (navigator.userAgent.match(/iPhone/i) != null) || (navigator.userAgent.match(/iPod/i) != null);
+if (IS_IPAD) {
+  IS_IPHONE = false;
+}
 ```
 
 We simply add ```coffeescript IS_IPHONE = false if IS_IPAD``` to cover
