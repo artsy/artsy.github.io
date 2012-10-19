@@ -160,7 +160,7 @@ Transforms well:
   match = /\os ([0-9]+)/.exec uagent
   IS_LT_IOS6 = match and match[1] and Number(match[1]) < 6
 
-  # 3d transfors are supported but do not work well on iPhone
+  # 3d transforms are supported but do not work well on iPhone
   if IS_IPHONE
     addNo3dTransform()
 
@@ -173,3 +173,6 @@ Transforms well:
     addNo3dTransform()
 )()
 ```
+
+If you would like to take issue with or improve this code please check
+it out [on Github](https://github.com/zamiang/detect-css3-3d-transform)
