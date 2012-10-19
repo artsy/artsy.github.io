@@ -11,8 +11,8 @@ comments: true
 
 This post details the first of many challenges we faced in 3d
 Transforming the homepage of Art.sy (inspired by
-(Meny)[https://github.com/hakimel/meny]): Detecting CSS 3d transform
-support
+[Meny](https://github.com/hakimel/meny)): Detecting CSS 3d transform
+support.
 
 Front-end development is messy in today's fragmented world. At Art.sy,
 our goal is to do what it takes to provide an incredible experience
@@ -52,7 +52,7 @@ CSS3 3D transform support can be separated into 4 levels:
 
 1. Reliably supports 3D transforms across most machines. For example:
 Safari 6
-2. Can parse and apply 3D transform declarations but ignores the 3d
+2. Can parse and apply 3D transform declarations but ignores the 3D
 parts. For example: Chrome on a Retina MacBook Pro.
 3. Can parse and apply 3D transform declarations but renders in
 unacceptable ways. For example: Safari 4 and Safari 4/5 on Windows
