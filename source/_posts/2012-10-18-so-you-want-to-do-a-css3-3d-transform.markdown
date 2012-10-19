@@ -103,15 +103,17 @@ Pro as the element does move -- just not in 3D space.
 We want to maintain wide support of new tech while ensuring all users
 have a great experience. Modernizr and the feature detection group
 have their heart in the right place and do a great job most of the
-time. We believe user agent sniffing is the only way to handle the
+time. That said, user agent sniffing is the only way to handle the
 complex support scenarios inherent in bleeding edge CSS3 tech such as
 3D Transforms.
 
-Here is our method / hack:
+Here is our method /hack for identifying browsers that support CSS3 3D
+Transforms well:
 
 ```coffeescript
 (->
   docElement = document.documentElement
+  uagent = navigator.userAgent.toLowerCase()
 
   browsers = [
     ['webkit',  530]        # not well supported in Safari 4, Safari 5 webkit version is 530.17
@@ -122,7 +124,6 @@ Here is our method / hack:
 
   # From: http://api.jquery.com/jQuery.browser
   uaMatch = (ua) ->
-    ua = ua.toLowerCase()
     match =
       /(chrome)[ \/]([\w.]+)/.exec(ua) or
       /(webkit)[ \/]([\w.]+)/.exec(ua) or
@@ -130,7 +131,6 @@ Here is our method / hack:
       /(msie) ([\w.]+)/.exec(ua) or
       ua.indexOf("compatible") < 0 and /(mozilla)(?:.*? rv:([\w.]+)|)/.exec( ua ) or
       []
-
     { browser: (match[ 1 ] or ""), version: (match[2]?.split('.')[0] or 0) }
 
   addNo3dTransform = ->
@@ -144,7 +144,7 @@ Here is our method / hack:
   # default to no CSS3 3d transform support
   addNo3dTransform()
 
-  match = uaMatch navigator.userAgent
+  match = uaMatch uagent
   for browser in browsers
     if browser[0] == match.browser
       if match.version >= browser[1]
@@ -153,23 +153,13 @@ Here is our method / hack:
         addNo3dTransform()
       break
 
-  uagent = navigator.userAgent.toLowerCase()
-
   IS_IPHONE = uagent.search('iphone') > -1 or uagent.search('ipod') > -1
   IS_IPAD = uagent.search('ipad') > -1
   IS_IOS = IS_IPHONE or IS_IPAD
 
-  # ios 6 has positioning differences from earlier versions + is much faster
-  # we only need to know if we are in an older safari -- not the specific version
-  # used in 3d popover and view in room
+  # iOS 6 is our support cut off for iPad
   match = /\os ([0-9]+)/.exec uagent
   IS_LT_IOS6 = match and match[1] and Number(match[1]) < 6
-
-  if IS_IPAD
-    # Facebook's iPad app's uiwebview's useragent includes both iPhone and iPad
-    IS_IPHONE = false
-    viewport = document.querySelector "meta[name=viewport]"
-    viewport.setAttribute 'content', 'width=1024, user-scalable=0'
 
   # 3d transfors are supported but do not work well on iPhone
   if IS_IPHONE
@@ -184,9 +174,3 @@ Here is our method / hack:
     addNo3dTransform()
 )()
 ```
-
-Later posts will go into:
-
-- Coping with flickering when enabling and disabling CSS3 3D Transforms in Safari
-- iPad useragent(s)
-- Perspective transforming long pages
