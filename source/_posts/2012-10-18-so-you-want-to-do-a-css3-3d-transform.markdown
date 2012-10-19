@@ -16,47 +16,49 @@ support
 
 Front-end development is messy in today's fragmented world. At Art.sy,
 our goal is to do what it takes to provide an incredible experience
-for ALL of our users (IE8+, iOS and the usual suspects). Deploying
+for *all* of our users (IE8+, iOS and the usual suspects). Deploying
 bleeding edge tech, like CSS 3d transforms, is an exercise in
 compromising principals for practicality -- and managing these
 'compromises' in well documented code.
 
-We looked to Modernizr to provide us with a reliable way to detect
-CSS3 3D transforms. They have some well documented struggles and a
-plethora of github tickets around the issue. After flipping most of
-the tables in the office ┻━┻ ︵ヽ(`Д´)ﾉ︵﻿ ┻━┻ , we settled on
-useragent sniffing as the most robust method for detecting 3d
-transform support. Sad times. But why did none of the available
-methods work for us?
+We looked to Modernizr's feature detection approach to provide us with
+a reliable way to detect CSS3 3D transform support across browsers. They have some
+[well](https://github.com/Modernizr/Modernizr/issues/590)
+[documented](https://github.com/Modernizr/Modernizr/issues/465)
+[struggles](https://github.com/Modernizr/Modernizr/issues/240) around
+the issue. After flipping most of the tables in the office ┻━┻ ︵ヽ
+(`Д´)ﾉ︵﻿ ┻━┻ , we settled on useragent sniffing as the most robust
+method for detecting CSS3 3D transform support. But why did none
+of the available methods work for us?
 
 CSS3 3D transforms involve interaction between the browser and the
 graphics card. The browser may be able to parse the 3D declarations
 but may not be able to properly instruct the graphics card in how to
-render your page. There are many possible outcomes from rendering with
-the graphics card: The page may render with lines across it (Safari 4)
-or the page may render but then crash the browser after a couple
-seconds (Safari on iOS4). Any 'feature detection' approach would
-unacceptably flag these as 'supports CSS3 3d transforms'. This is one
-case where 'feature detection' fails and user agent sniffing (and lots
-of testing) wins.
+render your page. There are many possible outcomes ranging from the
+page rendering with lines across it (Safari 4) to the page rendering
+beautifully then crashing the browser seconds later (Safari on
+iOS4). Any 'feature detection' approach would unacceptably flag these
+as 'supports CSS3 3D transforms'. This is one case where 'feature
+detection' fails and user agent sniffing (and lots of testing) wins
+hands down.
 
 Most feature detection assumes a 'supports' or 'does not support'
 binary. This is not the case with CSS3 3D Transforms - there is a
 'gradient of support'. Additionally, enabling 3D transforms causes the
 page to be re-rendered in an entirely different rendering engine which
-causes other problems (more on this in a later blogpost).
+then causes other problems (more on this in a later post).
 
 CSS3 3D transform support can be separated into 4 levels:
 
 1. Reliably supports 3D transforms across most machines. For example:
 Safari 6
 2. Can parse and apply 3D transform declarations but ignores the 3d
-parts. For example: Chrome on Retina MacbookPro.
+parts. For example: Chrome on a Retina MacBook Pro.
 3. Can parse and apply 3D transform declarations but renders in
 unacceptable ways. For example: Safari 4 and Safari 4/5 on Windows
 show lines across the page.
 4. Cannot apply 3D transform declarations in any way. For example:
-IE, Firefox < v10
+IE or Firefox < v10
 
 Here are a few popular ways of detecting 3d transform support and why
 they don't work for us:
@@ -64,47 +66,50 @@ they don't work for us:
 *Meny / Hakim's method*
 ```coffeescript
 # apply these styles to the body in css then see if they are applied in JS
-supports3DTransforms =  'WebkitPerspective' in document.body.style ||
-                        'MozPerspective' in document.body.style ||
-                        'msPerspective' in document.body.style ||
-                        'OPerspective' in document.body.style ||
-                        'perspective' in document.body.style
+docStyle = document.body.style
+supports3DTransforms =  'WebkitPerspective' in docStyle or
+                        'MozPerspective' in docStyle or
+                        'msPerspective' in docStyle or
+                        'OPerspective' in docStyle or
+                        'perspective' in docStyle
 ```
-
-This works the best and is really straight forward. The only issue is
-that crash Safari on iOS4 and shows lines across the page in Safari on
-Windows and Safari 4 OSX.
-
+This works the best and is really straight forward code. The only
+issue is that it throws a positive for iOS4 causing the browser to
+crash and a positive for Safari on Windows and Safari 4 OSX which both
+display a grid over the page when using the 3D renderer.
 
 *iScroll4  method*
 ```coffeescript
 has3d = -> 'WebKitCSSMatrix' in window && 'm11' in new WebKitCSSMatrix()
 ```
-Only works reliably Safari and is rumored to [sometimes not work in
-Chrome on some Version / OS combinations](http://code.google.com/p/chromium/issues/detail?id=129004).
+This only works reliably Safari and is rumored to
+[sometimes not work in Chrome](http://code.google.com/p/chromium/issues/detail?id=129004).
 
 *Modernizer method*
 ```coffeescript
-# This creates a div and transform it then see if
-# it's position has changed as expected. This only works in Chrome and
-# Safari but throws a false positive in the case of Chrome on Retina as
-# the element does move -- just not in 3d space.
 ret = !!testPropsAll('perspective')
 if ( ret and 'webkitPerspective' in docElement.style )
-    # create a dib and see if it moves
-    injectElementWithStyles('@media (transform-3d), (-webkit-transform-3d){#modernizr{left:9px;position:absolute;height:3px;}}', (node, rule) ->
-            ret = node.offsetLeft === 9 && node.offsetHeight === 3;
+  # create a dib and see if it moves
+  injectElementWithStyles('@media (transform-3d), (-webkit-transform-3d){#modernizr{left:9px;position:absolute;height:3px;}}', (node, rule) ->
+    ret = node.offsetLeft === 9 && node.offsetHeight === 3;
 ```
+This creates a div, transforms it, and then checks if it's position
+has changed as expected. It only works in reliably in Safari. It [sometimes works in Chrome](https://github.com/Modernizr/Modernizr/issues/590)
+but throws a false positive in the case of Chrome on Retina MacBook
+Pro as the element does move -- just not in 3D space.
 
-These three methods make unacceptable sacrifices. We want to maintain
-wide support of new tech while ensuring all users have a great
-experience. To accomplish this, we wrote some code *cough* a hack
-*cough* to accurately differentiate between browsers that support CSS3
-3D Transforms **well** and those that do not.
+*User Agent method*
 
+We want to maintain wide support of new tech while ensuring all users
+have a great experience. Modernizr and the feature detection group
+have their heart in the right place and do a great job most of the
+time. We believe user agent sniffing is the only way to handle the
+complex support scenarios inherent in bleeding edge CSS3 tech such as
+3D Transforms.
+
+Here is our method / hack:
 
 ```coffeescript
-# todo clean this up before posting... it combines a few files
 (->
   docElement = document.documentElement
 
