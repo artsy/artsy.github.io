@@ -60,7 +60,7 @@ show lines across the page.
 4. Cannot apply 3D transform declarations in any way. For example:
 IE or Firefox < v10
 
-Here are a few popular ways of detecting 3d transform support and why
+Here are a few popular ways of detecting CSS3 3D transform support and why
 they don't work for us:
 
 *Meny / Hakim's method*
