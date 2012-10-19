@@ -73,7 +73,7 @@ supports3DTransforms =  'WebkitPerspective' in docStyle or
                         'OPerspective' in docStyle or
                         'perspective' in docStyle
 ```
-This works the best and is really straight forward code. The only
+This works best and is straightforward code. The only
 issue is that it throws a positive for iOS4 causing the browser to
 crash and a positive for Safari on Windows and Safari 4 OSX which both
 display a grid over the page when using the 3D renderer.
@@ -82,8 +82,7 @@ display a grid over the page when using the 3D renderer.
 ```coffeescript
 has3d = -> 'WebKitCSSMatrix' in window && 'm11' in new WebKitCSSMatrix()
 ```
-This only works reliably Safari and is rumored to
-[sometimes not work in Chrome](http://code.google.com/p/chromium/issues/detail?id=129004).
+This only works reliably Safari in our testing.
 
 *Modernizer method*
 ```coffeescript
