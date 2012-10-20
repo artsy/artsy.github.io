@@ -11,7 +11,7 @@ comments: true
 
 This post details the first of many challenges we faced in 3D
 transforming the [homepage of Art.sy](http://art.sy) (inspired by
-[Meny](https://github.com/hakimel/meny)): Detecting CSS 3D transform
+[Meny](https://github.com/hakimel/meny)): detecting CSS 3D transform
 support.
 
 Front-end development is messy in today's fragmented world. At Art.sy,
