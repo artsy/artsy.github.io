@@ -31,6 +31,8 @@ the issue. After flipping most of the tables in the office ┻━┻ ︵ヽ
 method for detecting CSS3 3D transform support. But why did none
 of the available methods work for us?
 
+<!-- more -->
+
 CSS3 3D transforms involve interaction between the browser and the
 graphics card. The browser may be able to parse the 3D declarations
 but may not be able to properly instruct the graphics card in how to

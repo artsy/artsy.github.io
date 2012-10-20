@@ -13,7 +13,7 @@ comments: true
 There is a great deal of misinformation on the web about detecting an
 iPad or an iPhone in JavaScript. The
 [top answer on stackoverflow](http://stackoverflow.com/a/4617648) -
-and many blog posts using this technique - are all incorrect.
+and many [blog posts](http://www.sitepoint.com/identify-apple-iphone-ipod-ipad-visitors/) using [this technique](http://www.askdavetaylor.com/detect_apple_iphone_user_web_site_server.html) - are all incorrect.
 
 The conventional wisdom is that iOS devices have a user agent for
 Safari and a user agent for the UIWebView. This assumption is
@@ -37,7 +37,9 @@ iPad: Mozilla/5.0 (iPad; U; CPU iPhone OS 5_1_1 like Mac OS X; en_US) AppleWebKi
 iPhone: Mozilla/5.0 (iPhone; U; CPU iPhone OS 5_1_1 like Mac OS X; ru_RU) AppleWebKit (KHTML, like Gecko) Mobile [FBAN/FBForIPhone;FBAV/4.1;FBBV/4100.0;FBDV/iPhone3,1;FBMD/iPhone;FBSN/iPhone OS;FBSV/5.1.1;FBSS/2; tablet;FBLC/en_US]
 ``` 
 
-The old way to identify iPhone / iPad in JavaScript
+<!-- more -->
+
+The old way to identify iPhone / iPad in JavaScript:
 ```javascript
 IS_IPAD = navigator.userAgent.match(/iPad/i) != null;
 IS_IPHONE = navigator.userAgent.match(/iPhone/i) != null) || (navigator.userAgent.match(/iPod/i) != null);
@@ -47,10 +49,7 @@ If you were to go with this approach for detecting iPhone and iPad,
 you would end up with IS_IPHONE *and* IS_IPAD both being true if a user
 comes from Facebook on an iPad. That could create some odd behavior!
 
-Given that I have no other examples of people customizing user agents
-to such a gross degree, here is the correct way to identify iPhone / iPad in
-JavaScript.
-
+The correct way to identify iPhone / iPad in JavaScript:
 ```javascript
 IS_IPAD = navigator.userAgent.match(/iPad/i) != null;
 IS_IPHONE = (navigator.userAgent.match(/iPhone/i) != null) || (navigator.userAgent.match(/iPod/i) != null);
@@ -61,5 +60,7 @@ if (IS_IPAD) {
 
 We simply declare `IS_IPHONE` to be `false` on iPads to cover for the
 bizarre Facebook UIWebView iPad user agent. This is one example of how
-*user agent sniffing is unreliable*. If there is any way you can avoid
-this behavior (hint: CSS Media Queries), DO IT.
+*user agent sniffing is unreliable*. The more iOS apps that customize
+their user agent, the more issues user agent sniffing will have. If
+you can avoid user agent sniffing (hint: CSS Media Queries), DO
+IT.
