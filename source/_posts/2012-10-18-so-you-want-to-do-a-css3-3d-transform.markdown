@@ -19,11 +19,11 @@ our goal is to do what it takes to provide an incredible experience
 for *all* of our users (IE8+, iOS and the usual suspects). Deploying
 bleeding edge tech, like CSS 3D transforms, is an exercise in
 compromising principals for practicality -- and managing these
-"compromises" in well documented code.
+"compromises" in well-documented code.
 
-We looked to Modernizr's feature detection approach to provide us with
+We looked to [Modernizr's](http://modernizr.com/) feature detection approach to provide us with
 a reliable way to detect CSS3 3D transform support across browsers. They have some
-[well](https://github.com/Modernizr/Modernizr/issues/590)
+[well](https://github.com/Modernizr/Modernizr/issues/590)-
 [documented](https://github.com/Modernizr/Modernizr/issues/465)
 [struggles](https://github.com/Modernizr/Modernizr/issues/240) around
 the issue. After flipping most of the tables in the office ┻━┻ ︵ヽ
@@ -90,13 +90,12 @@ This only works reliably Safari in our testing.
 
 *Modernizer method*
 
-```coffeescript
-ret = !!testPropsAll('perspective')
-if ( ret and 'webkitPerspective' in docElement.style )
-  # create a dib and see if it moves
-  injectElementWithStyles('@media (transform-3D), (-webkit-transform-3D){#modernizr{left:9px;position:absolute;height:3px;}}', (node, rule) ->
-    ret = node.offsetLeft === 9 && node.offsetHeight === 3;
-```
+```coffeescript ret = !!testPropsAll('perspective') if ( ret and
+'webkitPerspective' in docElement.style ) # create a dib and see if it
+moves injectElementWithStyles('@media (transform-3D),
+(-webkit-transform-3D){#modernizr{left:9px;position:absolute;height:3px;}}',
+(node, rule) -> ret = node.offsetLeft === 9 && node.offsetHeight ===
+3; ```
 
 This creates a div, transforms it, and then checks if it's position
 has changed as expected. It only works in reliably in Safari. 
