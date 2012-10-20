@@ -10,6 +10,29 @@ We love open-source at Art.sy. We use a ton of it. We've also contributed back t
 [Analytical](https://github.com/jkrall/analytical), [Fog](https://github.com/fog/fog), [Kaminari](https://github.com/amatsuda/kaminari)
 and [Barista](https://github.com/Sutto/barista). And we have built a few open-source projects from scratch since beginning of 2011.
 
+[rspec-rerun](https://github.com/dblock/rspec-rerun)
+----------------------------------------------------
+
+The rspec-rerun gem is a drop-in solution to retry (rerun) failed RSpec examples. It may be useful, for example, with finicky Capybara tests. The strategy to rerun failed specs is to output a file called `rspec.failures` that contains a list of failed examples and to feed that file back to RSpec via `-e`.
+
+[https://github.com/dblock/rspec-rerun](https://github.com/dblock/rspec-rerun)
+
+[resque-heroku-scaling-canary](https://github.com/aaw/resque-heroku-scaling-canary)
+-----------------------------------------------------------------------------------
+
+Defines a Resque plugin that allows you to automatically scale up the number of workers running on Heroku and then automatically scale them down once no work is left to do.
+
+[https://github.com/aaw/resque-heroku-scaling-canary](https://github.com/aaw/resque-heroku-scaling-canary)
+
+[garner](http://github.com/artsy/garner)
+----------------------------------------
+
+Garner is a practical Rack-based cache implementation for RESTful APIs with support for HTTP 304 Not Modified based on time and ETags, model and instance binding and hierarchical invalidation.
+
+To "garner" means to gather data from various sources and to make it readily available in one place, kind-of like a cache!
+
+[https://github.com/artsy/garner](https://github.com/artsy/garner)
+
 [guard-rack](https://github.com/dblock/guard-rack)
 --------------------------------------------------
 
