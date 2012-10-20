@@ -1,0 +1,352 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>On Grid Thumbnails - Art.sy Engineering</title>
+  <meta name="author" content="Art.sy">
+
+  
+  <meta name="description" content="Artsy Folio, our free iPad app for Gallery Partners, had been in the App Store for a couple of weeks before the iPad with a Retina display was &hellip;">
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://artsy.github.com/blog/2012/09/13/on-grid-thumbnails">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <script src="/javascripts/modernizr-2.0.js"></script>
+  <script src="/javascripts/ender.js"></script>
+  <script src="/javascripts/octopress.js" type="text/javascript"></script>
+  <link href="/atom.xml" rel="alternate" title="Art.sy Engineering" type="application/atom+xml">
+  <!--[if IE 8]>
+<link href="/stylesheets/custom/ie_font.css" type="text/css">
+<![endif]-->
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-12450662-3']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+
+<body>
+  
+  <a href="/">
+    <h1 id="lrg-mark">
+      <span>Art.sy</span>
+    </h1>
+  </a>
+  
+  <header id="banner"><hgroup>
+  <div id="header">
+    <h2>Inspiration from the engineering team at <a href="http://art.sy">Art.sy</a> — A new way to discover fine art.</h2>
+  </div>
+</hgroup>
+
+</header>
+  
+  <div id="main">
+    <div id="mobile_search">
+      <form action="http://google.com/search" method="get">
+        <input type="hidden" name="q" value="site:artsy.github.com" />
+        <input class="search" type="text" name="q" results="0" placeholder="Search" />
+      </form>
+    </div>
+    <div id="content">
+      <div>
+<article class="hentry" role="article">
+  
+  <header>
+    
+    <a href="">
+      <div class="date">
+
+
+
+
+  
+<time datetime="2012-09-13T16:40:00-04:00" pubdate>09/13/12</time></div>
+    
+    
+      <h1 class="entry-title">On Grid Thumbnails</h1>
+    
+    </a>
+    
+      <p class="meta">
+        
+      </p>
+    
+  </header>
+
+
+<div class="entry-content"><p><img src="/images/2012-09-13-on-grid-thumbnails/grid.jpg"></p>
+
+<p>Artsy Folio, our free iPad app for Gallery Partners, had been in the App Store for a couple of weeks before the iPad with a Retina display was announced. This had been something we expected internally and felt the application would be ready. We had all our image assets available in <em>@2x</em> versions and an image pipeline that would take scaling into account. With that in mind, we changed our artwork grid view to show a double resolution image. Finally, once we were happy that it worked fine on the simulator, we sent the build off to Apple for review.</p>
+
+<p>The app passed review, and was Retina-ready before the actual release. But within hours of getting our hands on a real Retina iPad, we had to pull the app. This post will explain why, and what we did to work it out.</p>
+
+<!--more-->
+
+
+<p>Scrolling the grid view was slow. Extremely slow. The reason why wasn&#8217;t obvious initially, but thanks to digging around using <a href="http://developer.apple.com/library/mac/#documentation/DeveloperTools/Conceptual/InstrumentsUserGuide/Introduction/Introduction.html">Instruments</a>, we saw that a great deal of time was spent in Apple&#8217;s image processing libraries. This was a strong hint that the problem involved taking the file and getting it to the screen.</p>
+
+<p>In our naiveté, Folio was originally using <code>UIImage</code>&#8217;s <code>initWithContentsOfFile:</code> to load (without caching) a jpg from the file system. Once the file was loaded into memory, we displayed it onscreen in an <code>UIImageView.</code> This was fast enough to deal with our small thumbnails of <em>240x240</em> but the moment that you start asking it to pull 3 or 4 <em>480x480</em> jpg files off the filesystem, decompress them and then put them on the screen, you&#8217;re not going to have a smooth scroll.</p>
+
+<p><img src="/images/2012-09-13-on-grid-thumbnails/thumbnails.jpg"></p>
+
+<p>As we knew that we were looking at an issue with getting images from a file, it made sense to start looking at ways to move image processing off the main thread. This Stack Overflow thread on <a href="http://stackoverflow.com/questions/1815476/cgimage-uiimage-lazily-loading-on-ui-thread-causes-stutter">UIImage lazy loading</a> proved to be an essential start to dealing with our issue. We needed a thread-safe way to get the contents of a file and to pass them through once the images had been decoded. What we needed was <a href="https://gist.github.com/3715588">initImmediateLoadWithContentsOfFile</a>, a thread-safe way to go from a filepath to a <code>UIImage</code>.</p>
+
+<p>Now that we had a way to get an image that was safe to go on a background thread, we gave our grid an <code>NSOperationQueue</code> and created a method to kick off a <code>NSInvocationOperation</code> with our the cell we&#8217;re looking at and the address it needs to load the thumbnail.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+</pre></td><td class='code'><pre><code class='objc'><span class='line'><span class="o">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="nl">setImageAsyncAtPath:</span><span class="p">(</span><span class="n">NSString</span> <span class="o">*</span><span class="p">)</span><span class="n">imageAddress</span> <span class="nl">forGridCell:</span><span class="p">(</span><span class="n">ARImageGridViewCell</span> <span class="o">*</span><span class="p">)</span><span class="n">cell</span> <span class="p">{</span>
+</span><span class='line'>    <span class="n">NSDictionary</span> <span class="o">*</span><span class="n">operationOptions</span> <span class="o">=</span> <span class="err">@</span><span class="p">{</span><span class="s">@&quot;address&quot;</span><span class="o">:</span> <span class="n">imageAddress</span><span class="p">,</span> <span class="s">@&quot;cell&quot;</span><span class="o">:</span> <span class="n">cell</span><span class="p">};</span>
+</span><span class='line'>    <span class="n">NSInvocationOperation</span> <span class="o">*</span><span class="n">operation</span> <span class="o">=</span> <span class="p">[[</span><span class="n">NSInvocationOperation</span> <span class="n">alloc</span><span class="p">]</span> <span class="nl">initWithTarget:</span><span class="n">self</span> <span class="nl">selector:</span><span class="k">@selector</span><span class="p">(</span><span class="nl">asyncLoadImage:</span><span class="p">)</span> <span class="nl">object:</span><span class="n">operationOptions</span><span class="p">];</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="p">[</span><span class="n">_operationQueue</span> <span class="nl">addOperation:</span><span class="n">operation</span><span class="p">];</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>When we had the simplest implementation of <code>asyncLoadImage</code> we found that scrolling would sometimes result in grid cells displaying the wrong image. It turned out that in the time it took to decode the jpg,  the cell had already been reused for a different artwork. This one totally caught us off guard!</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+</pre></td><td class='code'><pre><code class='objc'><span class='line'><span class="o">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="nl">asyncLoadImage:</span><span class="p">(</span><span class="n">NSDictionary</span> <span class="o">*</span><span class="p">)</span><span class="n">options</span> <span class="p">{</span>
+</span><span class='line'>    <span class="err">@</span><span class="n">autoreleasepool</span> <span class="p">{</span>
+</span><span class='line'>        <span class="n">NSString</span> <span class="o">*</span><span class="n">address</span> <span class="o">=</span> <span class="n">options</span><span class="p">[</span><span class="s">@&quot;address&quot;</span><span class="p">];</span>
+</span><span class='line'>        <span class="n">ARImageGridViewCell</span> <span class="o">*</span><span class="n">cell</span> <span class="o">=</span> <span class="n">options</span><span class="p">[</span><span class="s">@&quot;cell&quot;</span><span class="p">];</span>
+</span><span class='line'>
+</span><span class='line'>        <span class="c1">// don&#39;t load if it&#39;s on a different cell</span>
+</span><span class='line'>        <span class="k">if</span> <span class="p">([</span><span class="n">cell</span><span class="p">.</span><span class="n">imagePath</span> <span class="nl">isEqualToString:</span><span class="n">address</span><span class="p">])</span> <span class="p">{</span>
+</span><span class='line'>            <span class="n">UIImage</span> <span class="o">*</span><span class="n">thumbnail</span> <span class="o">=</span> <span class="p">[[</span><span class="n">UIImage</span> <span class="n">alloc</span><span class="p">]</span> <span class="nl">initImmediateLoadWithContentsOfFile:</span><span class="n">address</span><span class="p">];</span>
+</span><span class='line'>
+</span><span class='line'>            <span class="c1">// double check that during the decoding the cell&#39;s not been re-used</span>
+</span><span class='line'>            <span class="k">if</span> <span class="p">([</span><span class="n">cell</span><span class="p">.</span><span class="n">imagePath</span> <span class="nl">isEqualToString:</span><span class="n">address</span><span class="p">]</span> <span class="o">&amp;&amp;</span> <span class="n">thumbnail</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>                <span class="p">[</span><span class="n">cell</span> <span class="nl">performSelectorOnMainThread:</span><span class="k">@selector</span><span class="p">(</span><span class="nl">setImage:</span><span class="p">)</span> <span class="nl">withObject:</span><span class="n">thumbnail</span> <span class="nl">waitUntilDone:</span><span class="n">NO</span><span class="p">];</span>
+</span><span class='line'>            <span class="p">}</span>
+</span><span class='line'>        <span class="p">}</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>This meant we could have our UI thread dealing with scrolling, whilst <a href="https://developer.apple.com/technologies/mac/core.html">Grand Central Dispatch</a> would deal with ensuring the image processing was done asynchronously and as fast as possible.However, this still wasn&#8217;t enough. We were finding if you scrolled fast enough, you could still see images pop in after the grid cell was visible. For this, we actually went back to the beginning, and made our image pipeline create a <em>120x120</em> thumbnail for each artwork that we use <code>initImmediateLoadWithContentsOfFile</code> to load on the UI thread. This is fast enough to smoothly scroll, and is replaced by the higher resolution image practically instantly.</p>
+
+<p><img src="/images/2012-09-13-on-grid-thumbnails/hover-thumbnails.jpg"></p>
+
+<p>The rest of the story is pretty straightforward. We wrapped all this up within a few days and got out a version of Folio for the Retina iPad, I ended up doing a talk about the issues involved in doing this in <a href="http://lsx.co/lsxcafe/">Leeds LSxCafé</a>, and you got a blog post out of it.</p>
+</div>
+
+
+  <footer>
+    <div class="meta">
+      
+  
+
+
+
+  <span class="byline author vcard">
+    Posted by 
+    <span class="fn">
+      orta therox
+    </span>
+    
+    
+    
+    
+      (
+      
+      <span class="fn">
+        <a href="https://www.github.com/orta">github</a>
+      </span>
+      
+      
+      <span class="fn">
+        <a href="http://orta.github.com">blog</a>
+      </span>
+      
+      
+      <span class="fn">
+        <a href="http://twitter.com/orta">twitter</a>
+      </span>
+      
+      )
+    
+    
+  </span>
+
+
+    </div>
+    <div class="meta">
+      Categories: 
+
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/objective-c/'>Objective C</a>, <a class='category' href='/blog/categories/retina/'>Retina</a>, <a class='category' href='/blog/categories/speed/'>Speed</a>, <a class='category' href='/blog/categories/ios/'>iOS</a>
+  
+</span>
+
+
+    </div>
+
+    
+      <div class="sharing">
+  
+  <a href="http://twitter.com/share" class="twitter-share-button" data-url="http://artsy.github.com/blog/2012/09/13/on-grid-thumbnails/" data-via="artsy" data-counturl="http://artsy.github.com/blog/2012/09/13/on-grid-thumbnails/" >Tweet</a>
+  
+  
+  
+</div>
+
+    
+    <p class="meta">
+      
+        <a class="basic-alignment left" href="/blog/2012/09/12/how-artsy-builds-experiments-labs-and-easter-eggs/" title="Previous Post: How Art.sy Builds Labs, Experiments and Easter Eggs">&laquo; How Art.sy Builds Labs, Experiments and Easter Eggs</a>
+      
+      
+        <a class="basic-alignment right" href="/blog/2012/10/09/how-to-run-rspec-test-suites-in-parallel-with-jenkins-ci-build-flow/" title="next Post: How to Run RSpec Test Suites in Parallel with JenkinsCI Build Flow">How to Run RSpec Test Suites in Parallel with JenkinsCI Build Flow &raquo;</a>
+      
+    </p>
+  </footer>
+</article>
+
+  <section>
+    <h1>Comments</h1>
+    <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</div>
+  </section>
+
+</div>
+    </div>
+    <div id="sidebar">
+      
+  
+    <section>
+  <h1>Info</h1>
+  <ul>
+    <li> <a href="/about">About Us</a></li>
+    <li> <a href="/open-source">Art.sy Open-Source</a></li>
+    <li> <a href="http://art.sy/job/developer">Join the Art.sy Engineering Team</a></li>
+  </ul>
+</section>
+<section id="recent_posts_section">
+  <h1>Recent Posts</h1>
+  <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/2012/10/18/the-perils-of-ios-user-agent-sniffing/">The perils of iOS user agent strings</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2012/10/18/so-you-want-to-do-a-css3-3d-transform/">So you want to do a CSS3 3D transform?</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2012/10/10/artsy-technology-stack/">Art.sy's Technology Stack</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2012/10/09/how-to-run-rspec-test-suites-in-parallel-with-jenkins-ci-build-flow/">How to Run RSpec Test Suites in Parallel with JenkinsCI Build Flow</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2012/09/13/on-grid-thumbnails/">On Grid Thumbnails</a>
+      </li>
+    
+  </ul>
+  <a class="archive_link" href="/blog/archives">Blog Archive</a>
+</section>
+<section>
+  <h1>Search</h1>
+  <form action="http://google.com/search" method="get">
+    <input type="hidden" name="q" value="site:artsy.github.com" />
+    <input class="search" type="text" name="q" results="0" />
+  </form>
+</section>
+  
+
+
+    </div>
+  </div>
+  <footer id="main_footer"><p>
+  Copyright &copy; 2012 - Art.sy -
+  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+  
+
+<script type="text/javascript">
+      var disqus_shortname = 'artsy';
+      
+        
+        // var disqus_developer = 1;
+        var disqus_identifier = 'http://artsy.github.com/blog/2012/09/13/on-grid-thumbnails/';
+        var disqus_url = 'http://artsy.github.com/blog/2012/09/13/on-grid-thumbnails/';
+        var disqus_script = 'embed.js';
+      
+    (function () {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = 'http://' + disqus_shortname + '.disqus.com/' + disqus_script;
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    }());
+</script>
+
+
+
+
+
+
+
+  <script type="text/javascript">
+    (function(){
+      var twitterWidgets = document.createElement('script');
+      twitterWidgets.type = 'text/javascript';
+      twitterWidgets.async = true;
+      twitterWidgets.src = 'http://platform.twitter.com/widgets.js';
+      document.getElementsByTagName('head')[0].appendChild(twitterWidgets);
+    })();
+  </script>
+
+
+
+
+
+</body>
+</html>

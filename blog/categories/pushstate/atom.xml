@@ -1,0 +1,211 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: PushState | Art.sy Engineering]]></title>
+  <link href="http://artsy.github.com/blog/categories/pushstate/atom.xml" rel="self"/>
+  <link href="http://artsy.github.com/"/>
+  <updated>2012-10-20T17:05:01-04:00</updated>
+  <id>http://artsy.github.com/</id>
+  <author>
+    <name><![CDATA[Art.sy]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Replacing #! Routes with PushState Using Backbone.js]]></title>
+    <link href="http://artsy.github.com/blog/2012/06/25/replacing-hashbang-routes-with-pushstate/"/>
+    <updated>2012-06-25T11:35:00-04:00</updated>
+    <id>http://artsy.github.com/blog/2012/06/25/replacing-hashbang-routes-with-pushstate</id>
+    <content type="html"><![CDATA[<blockquote><p>The only constant is change, continuing change, inevitable change, that is the dominant factor in society
+[and web apps!] today. No sensible decision can be made any longer without taking into account not only
+the world as it is, but the world as it will be.</p>
+
+<p>&ndash; Isaac Asimov</p></blockquote>
+
+<h2>R.I.P #!</h2>
+
+<p>It did not take us long to discover we shared the concerns of Twitter's
+<a href="http://danwebb.net/2011/5/28/it-is-about-the-hashbangs">Dan Webb on hashbang routes</a>,
+but it was almost a year before we were able to remove them from art.sy. Here's how it went down.</p>
+
+<p>Art.sy relies on the <a href="http://documentcloud.github.com/backbone/">Backbone.js</a> framework for our client application
+which offers a solid pushState routing scheme. This includes a seamless hashtag fallback for
+<a href="http://caniuse.com/#feat=history">browsers that don't support the HTML5 History API</a> (looking at you IE 9).</p>
+
+<p>The pushState routing is optional, but <em>"the world as it should be"</em> suggests we say "Yes!" (or true) to pushState.
+<code>coffeescript
+Backbone.history.start({ pushState: true })
+</code></p>
+
+<!-- more -->
+
+
+<h3>The Client</h3>
+
+<p>At Art.sy, we had left Backbone out of the loop for most of our internal linking. Our markup href attributes all
+began with '/#!' and expected the browser's default hash behavior to keep the page from refreshing. For a proper
+pushState scheme, the app's internal linking should begin with an absolute route. Backbone.js defaults to '/', but
+this is configurable.
+```coffeescript</p>
+
+<h1>Optional root attribute defaults to '/'</h1>
+
+<p>Backbone.history.start
+  pushState: true
+  root: "/specialized/client/"
+```</p>
+
+<h4>Internal Links</h4>
+
+<p>All internal links need to begin with your configured root ('/' for art.sy).
+Be sure to leave out your domain (<del>http://art.sy</del>).
+```html
+<a href="http://artsy.github.com/">Home</a></p>
+
+<p><a href="http://artsy.github.com/artwork/matthew-abbott-lobby-and-supercomputer">My Favorite Work</a>
+```</p>
+
+<p>We now needed a global link handler that will leverage Backbone's <code>navigate</code> method which takes
+care of updating the URL and avoiding a page refresh or alternatively wiring up the hashtag fallback.
+Since we follow the convention of starting all <code>href</code> attributes with our application's root, we
+can match on that in our selector to get all anchors whose link begins with our root, <code>a[href^='/']</code>.
+This link handler is a great place to ensure backward compatibility while #!s are removed from
+internal links.</p>
+
+<p>```coffeescript</p>
+
+<h1>Globally capture clicks. If they are internal and not in the pass</h1>
+
+<h1>through list, route them through Backbone's navigate method.</h1>
+
+<p>$(document).on "click", "a[href<sup>='/']",</sup> (event) -></p>
+
+<p>  href = $(event.currentTarget).attr('href')</p>
+
+<p>  # chain 'or's for other black list routes
+  passThrough = href.indexOf('sign_out') >= 0</p>
+
+<p>  # Allow shift+click for new tabs, etc.
+  if !passThrough &amp;&amp; !event.altKey &amp;&amp; !event.ctrlKey &amp;&amp; !event.metaKey &amp;&amp; !event.shiftKey</p>
+
+<pre><code>event.preventDefault()
+
+# Remove leading slashes and hash bangs (backward compatablility)
+url = href.replace(/^\//,'').replace('\#\!\/','')
+
+# Instruct Backbone to trigger routing events
+App.router.navigate url, { trigger: true }
+
+return false
+</code></pre>
+
+<p>```
+Thank you TenFarms for the excellent write up on <a href="http://dev.tenfarms.com/posts/proper-link-handling">proper link handling for pushState enabled browsers</a>.</p>
+
+<h4>External Links</h4>
+
+<p>The application will need a small check early in the initialization process to redirect external
+links still expecting the #! routing scheme.
+```coffeescript</p>
+
+<h1>Our Backbone App namespace</h1>
+
+<p>window.App =
+  # Namespace Backbone components
+  Models: {}
+  Collections: {}
+  Views: {}
+  redirectHashBang: -></p>
+
+<pre><code>window.location = window.location.hash.substring(2)
+</code></pre>
+
+<h1>DOM is ready, are we routing a #!?</h1>
+
+<p>$ ->
+  if window.location.hash.indexOf('!') > -1</p>
+
+<pre><code>return App.redirectHashBang()
+</code></pre>
+
+<p>  # else... continue on with initialization
+```</p>
+
+<h3>The Server</h3>
+
+<p>Now that our app will receive requests to full URLs
+'http://art.sy/artwork/mattew-abbott-lobby-and-supercomputer'
+instead of 'http://art.sy/#!/artwork/mattew-abbott-lobby-and-supercomputer',
+we need to update our Rails setup.</p>
+
+<p>Below is an excerpt from our Rails application's router.
+Note references to our home and artworks controllers. Both use a <code>before</code> filter
+to determine a user's authentication state and serve a different layout, with
+unique assets or Backbone applications.</p>
+
+<p>Controllers related to specific models now have the opportunity to
+bootstrap associated JSON or mark up and we now get expected 404 (file not found)
+error behavior without extra work required by a hash routing scheme.</p>
+
+<p>```ruby</p>
+
+<h1>Server - Rails</h1>
+
+<p>Application.routes.draw do</p>
+
+<p>  root :to => "home#index"</p>
+
+<p>  # Controller logic determines the layout and could bootstrap data
+  resources :artworks, path: "artwork", only: :show</p>
+
+<p>  # Plural to singular redirect - mistakes happen!
+  get "/artworks/:id" => redirect('/artwork/%{id}')</p>
+
+<p>  # No match? Rails handles routing the 404 error.</p>
+
+<p>end
+```</p>
+
+<p>An added bonus here is a near one to one mapping with the Rails and client routes.</p>
+
+<p>```coffeescript</p>
+
+<h1>Backbone.js - Client</h1>
+
+<p>class App.Routers.Client extends Backbone.Router</p>
+
+<p>  routes:</p>
+
+<pre><code>''            : 'home'
+'artwork/:id' : 'artwork'
+'artworks/:id': 'redirectToArtwork'
+</code></pre>
+
+<p>```</p>
+
+<h2>URLs R 4 Ever</h2>
+
+<p>Dan Webb's assertion that <a href="http://danwebb.net/2011/5/28/it-is-about-the-hashbangs">URLs are forever</a> is correct,
+but so is Isaac Asimov's statement on change. You can't predict the future.
+You make decisions based on the best data you have at the time. We started our app with hashtag routing
+in early 2011 and added the ! around five months later (about the same time Dan Webb wrote his post).
+Had we started Art.sy today, even six months ago, I'm confident we would have enabled Backbone's pushState routing.
+There's no need to look back. The future is here and its URLs are #! free!</p>
+
+<h3>Footnotes</h3>
+
+<ul>
+<li><a href="http://documentcloud.github.com/backbone">Backbone.js</a></li>
+<li><a href="https://developers.google.com/webmasters/ajax-crawling/docs/getting-started">Google offers #! to aid the crawlability of AJAX hash routed applications</a></li>
+<li><a href="http://caniuse.com/#feat=history">Browser support for the HTML5 History API (aka pushState)</a></li>
+<li><a href="http://www.adequatelygood.com/2011/2/Thoughts-on-the-Hashbang">Twitter advocates #!</a></li>
+<li><a href="http://danwebb.net/2011/5/28/it-is-about-the-hashbangs">Dan Webb's critique <em>It's About the Hashbangs</em></a></li>
+<li><a href="http://engineering.twitter.com/2012/05/improving-performance-on-twittercom.html">Twitter ditches #!</a></li>
+</ul>
+
+]]></content>
+  </entry>
+  
+</feed>

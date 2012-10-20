@@ -4,7 +4,7 @@
   <title><![CDATA[Category: RSpec | Art.sy Engineering]]></title>
   <link href="http://artsy.github.com/blog/categories/rspec/atom.xml" rel="self"/>
   <link href="http://artsy.github.com/"/>
-  <updated>2012-06-25T08:28:18-04:00</updated>
+  <updated>2012-10-20T17:05:01-04:00</updated>
   <id>http://artsy.github.com/</id>
   <author>
     <name><![CDATA[Art.sy]]></name>
@@ -12,6 +12,238 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[How to Run RSpec Test Suites in Parallel with JenkinsCI Build Flow]]></title>
+    <link href="http://artsy.github.com/blog/2012/10/09/how-to-run-rspec-test-suites-in-parallel-with-jenkins-ci-build-flow/"/>
+    <updated>2012-10-09T21:21:00-04:00</updated>
+    <id>http://artsy.github.com/blog/2012/10/09/how-to-run-rspec-test-suites-in-parallel-with-jenkins-ci-build-flow</id>
+    <content type="html"><![CDATA[<p>We now have over 4700 RSpec examples in one of our projects. They are stable, using the techniques described in an <a href="/blog/2012/02/03/reliably-testing-asynchronous-ui-w-slash-rspec-and-capybara/">earlier post</a> and organized in <a href="/blog/2012/05/15/how-to-organize-over-3000-rspec-specs-and-retry-test-failures/">suites</a>. But they now take almost 3 hours to run, which is clearly unacceptable.</p>
+
+<p>To solve this, we have parallelized parts of the process with existing tools, and can turn a build around in just under an hour. This post will dive into our <a href="http://jenkins-ci.org/">Jenkins</a> build flow setup.</p>
+
+<p>To keep things simple, we're going to only build the <code>master</code> branch. When a change is committed on <code>master</code> we're going to push <code>master</code> to a <code>master-ci</code> branch and trigger a distributed build on <code>master-ci</code>. Once all the parts have finished, we'll complete the build by pushing <code>master-ci</code> to <code>master-succeeded</code> and notify the dev team of success or failure.</p>
+
+<p>Here's a diagram of what's going on.</p>
+
+<p><img src="http://artsy.github.com/images/2012-10-09-how-to-run-rspec-test-suites-in-parallel-with-jenkins-ci-build-flow/master-ci.png"></p>
+
+<!-- more -->
+
+
+<h2>Plugins</h2>
+
+<p>Install the <a href="https://wiki.jenkins-ci.org/display/JENKINS/Build+Flow+Plugin">Build Flow</a> and the <a href="https://wiki.jenkins-ci.org/display/JENKINS/Parameterized+Trigger+Plugin">Parameterized Trigger</a> plugin. Grant <code>Anonymous</code> job read permissions in Jenkins system configuration (see <a href="https://issues.jenkins-ci.org/browse/JENKINS-14027">JENKINS-14027</a>).</p>
+
+<p>Create the following Jenkins jobs.</p>
+
+<h2>master-prequel</h2>
+
+<p>A free-style job that connects to the SCM, in our case Git.</p>
+
+<ul>
+<li>Set SCM repository URL to your Git repo, eg. <code>git@github.com:spline/reticulator.git</code></li>
+<li>Change the default branch specifier from <code>**</code> to <code>master</code>. We'll be pushing a <code>master-ci</code> branch, which could, in turn, cause more builds if you don't do this.</li>
+<li>Add a post-build action to build another project. Trigger the <code>master</code> project if the build succeeds.</li>
+</ul>
+
+
+<h2>master</h2>
+
+<p>This is a build-flow job. We'll describe the individual tasks that the flow invokes further. The flow DSL looks as follows.</p>
+
+<p><code>ruby
+build("master-ci-init")
+parallel (
+ { build("master-ci-task", tasks: "spec:suite:models:ci") },
+ { build("master-ci-task", tasks: "spec:suite:api:ci") },
+ { build("master-ci-task", tasks: "spec:suite:integration:ci") }
+)
+build("master-ci-succeeded")
+</code></p>
+
+<p>This is a good place to add an e-mail notification post-build action for every unstable build.</p>
+
+<h2>master-ci-init</h2>
+
+<p>A free-style job that creates the <code>master-ci</code> branch from master. It needs to be connected to your SCM and executes the following shell script.</p>
+
+<p>``` bash</p>
+
+<h1>!/bin/bash</h1>
+
+<p>git checkout $GIT_BRANCH
+git push origin -f $GIT_BRANCH:$GIT_BRANCH-ci
+```</p>
+
+<p>Note that we cannot combine this task with <code>master-prequel</code>, because we have to make sure the branch creation runs once under the entire flow, while <code>master-prequel</code> can be run multiple times, once per check-in. Otherwise the <code>master-ci</code> branch could get updated before a <code>master-ci-task</code> runs from a previous flow execution.</p>
+
+<h2>master-ci-task</h2>
+
+<p>A parameterized build that accepts a <code>tasks</code> parameter that the flow will pass in.</p>
+
+<p>Change the default branch specifier to <code>master-ci</code> and execute the following shell script.</p>
+
+<p>``` bash</p>
+
+<h1>!/bin/bash</h1>
+
+<p>bundle install
+bundle exec rake $tasks
+```</p>
+
+<p>This example runs <code>rake $tasks</code>, which we define to be various test suites in our flow DSL. Our test suite setup is described in <a href="/blog/2012/05/15/how-to-organize-over-3000-rspec-specs-and-retry-test-failures/">this post</a>. Your mileage may vary.</p>
+
+<h2>master-ci-succeeded</h2>
+
+<p>This is an optional step. We use this free-style job to tag <code>master-ci</code> as <code>master-succeeded</code> with the following shell script.</p>
+
+<p>``` bash</p>
+
+<h1>!/bin/bash</h1>
+
+<p>git checkout $GIT_BRANCH
+git push origin -f $GIT_BRANCH:${GIT_BRANCH/%-ci/}-succeeded
+```</p>
+
+<p>Our deployment to production will pickup the <code>master-succeeded</code> branch when it's time.</p>
+
+<h2>Improvements?</h2>
+
+<p>I see a few possible improvements here that might require a bit of work.</p>
+
+<ul>
+<li>The ability to split an RSpec suite up across an arbitrary number N sub-jobs and M executors would create an optimal parallel split based on the resources available.</li>
+<li>Passing the value of <code>GIT_BRANCH</code> and <code>GIT_COMMIT</code> across these jobs would enable building any branch and eliminate the need for <code>master-ci-init</code>.</li>
+<li>Build flow could support SCM polling the same way as free-style jobs, avoiding the need for <code>master-prequel</code>. We weren't able to get a stable notification of changes from Github with the Jenkins Github plugin.</li>
+</ul>
+
+
+<p>Please suggest further improvements in the comments below!</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Testing with Delayed Jobs]]></title>
+    <link href="http://artsy.github.com/blog/2012/08/16/testing-with-delayed-jobs/"/>
+    <updated>2012-08-16T21:21:00-04:00</updated>
+    <id>http://artsy.github.com/blog/2012/08/16/testing-with-delayed-jobs</id>
+    <content type="html"><![CDATA[<p>A mean bug made it into our production environment. It wasn't caught by our extensive test suite and caused thousands of emails to be sent to a handful of people. The root cause was an unfortunate combination of <a href="https://github.com/plataformatec/devise">Devise</a>, <a href="https://github.com/collectiveidea/delayed_job">DelayedJob</a> and, of course, our own code. It was an easy fix, but nobody ever wants this to happen again.</p>
+
+<p>tl;dr DelayedJob says it's possible to set <code>Delayed::Worker.delay_jobs = false</code> for your tests. Don't do it.</p>
+
+<!-- more -->
+
+
+<p>Consider the following <code>User</code> model that implements various Devise strategies which support some kind of notification.</p>
+
+<p>``` ruby app/models/user.rb
+class User
+  include Mongoid::Document</p>
+
+<p>  devise :database_authenticatable, :registerable, ...</p>
+
+<p>  field :notified_at, type: DateTime
+  after_save :notify!, :if => :notify?</p>
+
+<p>  def notify!</p>
+
+<pre><code>super
+update_attributes!({ notified_at: Time.now.utc })
+</code></pre>
+
+<p>  end
+end</p>
+
+<p><code>``
+We are overriding a black box</code>notify!` method and updating an attribute with a timestamp of the last notification.</p>
+
+<p>Let's write a test.</p>
+
+<p>``` ruby spec/models/user_spec.rb
+describe User do</p>
+
+<p>  subject { User.new }</p>
+
+<p>  context "notification" do</p>
+
+<pre><code>it "sends one email" do
+  expect {
+    subject.notify!
+  }.to change(ActionMailer::Base.deliveries, :count).by(1)
+end
+
+it "updates notified_at" do
+  expect { 
+    subject.notify!
+  }.to change(subject, :notified_at)
+end
+</code></pre>
+
+<p>  end</p>
+
+<p>end
+```</p>
+
+<p>All green. But once this code hit production, <code>notify!</code> was called in an infinite loop. How is that possible?</p>
+
+<p>The call to <code>notify!</code> is delayed using DelayedJob in production and is not delayed in test. It does not work under DelayedJob and will create as many delayed notifications as it possibly can until it runs out of stack space.</p>
+
+<p>As a common pattern in Devise, the implementation of <code>notify!</code> relies on an instance variable to signal that a notification has been sent. Setting the instance variable avoids sending the notification twice for multiple calls to <code>save!</code>. Our <code>after_save</code> callback invokes <code>update_attributes!</code>, which causes another <code>notify!</code> call unless <code>notify?</code> returns <code>false</code>. In a test, the call to <code>super</code> inside <code>notify!</code> will execute the notification (setting the instance variable), but will create a delayed job in production (without setting it).</p>
+
+<p>We'll start by bringing our tests closer to a real production environment by leaving <code>Delayed::Worker.delay_jobs = true</code> and making sure our problem is reproduced with a spec. We could call <code>Delayed::Worker.new.work_off</code> for every test that needs to execute a delayed job, but that would be rather tedious. A better approach may be to register an observer that will execute a delayed job every time one is created. This is similar to a production environment where having enough delayed workers almost guarantees a job is picked up immediately after being scheduled.</p>
+
+<p>``` ruby config/initializers/delayed_job_observer.rb
+class DelayedJobObserver &lt; Mongoid::Observer
+  observe Delayed::Job</p>
+
+<p>  class &lt;&lt; self</p>
+
+<pre><code>attr_accessor :runs
+</code></pre>
+
+<p>  end</p>
+
+<p>  def after_create(delayed_job)</p>
+
+<pre><code>delayed_job.invoke_job
+DelayedJobObserver.runs += 1
+</code></pre>
+
+<p>  end
+end</p>
+
+<p>DelayedJobObserver.runs = 0
+```</p>
+
+<p>The complete code, which handles a few more cases, including enabling and disabling the observer, and counting successful runs and errors can be found in <a href="https://gist.github.com/3370052">this gist</a>. Please help us improve it.</p>
+
+<p>We can now test our notification without compromising on the delayed nature of the job and add a test making sure we create a single delayed job from a call to <code>notify!</code>.</p>
+
+<p>``` ruby spec/models/user_spec.rb
+describe User do</p>
+
+<p>  subject { User.new }</p>
+
+<p>  context "notification" do</p>
+
+<pre><code>it "creates one delayed job" do
+  expect {
+    subject.notify!
+  }.to change(DelayedJobObserver, :runs).by(1)
+end
+</code></pre>
+
+<p>  end</p>
+
+<p>end
+```</p>
+
+<p>This test will also run for a long time before failing with a stack overflow error. Our fix was not to call <code>notify!</code> from an <code>after_save</code> callback.</p>
+
+<p>We've suggested that immediate execution using an observer becomes a feature in DelayedJob in <a href="https://github.com/collectiveidea/delayed_job/issues/423">#423</a>. Please add your comments.</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[How to Organize Over 3000 RSpec Specs and Retry Test Failures]]></title>
