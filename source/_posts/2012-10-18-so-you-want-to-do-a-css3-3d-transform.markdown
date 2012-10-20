@@ -27,7 +27,7 @@ a reliable way to detect CSS3 3D transform support across browsers. They have so
 [documented](https://github.com/Modernizr/Modernizr/issues/465)
 [struggles](https://github.com/Modernizr/Modernizr/issues/240) around
 the issue. After flipping most of the tables in the office ┻━┻ ︵ヽ
-(`Д´)ﾉ︵﻿ ┻━┻ , we settled on useragent sniffing as the most robust
+(`Д´)ﾉ︵﻿ ┻━┻ , we settled on user agent sniffing as the most robust
 method for detecting CSS3 3D transform support. But why did none
 of the available methods work for us?
 
