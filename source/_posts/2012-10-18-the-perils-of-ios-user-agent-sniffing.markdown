@@ -13,7 +13,7 @@ comments: true
 There is a great deal of misinformation on the web about detecting an
 iPad or an iPhone in JavaScript. The
 [top answer on stackoverflow](http://stackoverflow.com/a/4617648) -
-and many blogposts using its technique - are all incorrect.
+and many blog posts using this technique - are all incorrect.
 
 The conventional wisdom is that iOS devices have a user agent for
 Safari and a user agent for the UIWebView. This assumption is
@@ -49,7 +49,7 @@ comes from Facebook on an iPad. That could create some odd behavior!
 
 Given that I have no other examples of people customizing user agents
 to such a gross degree, here is the correct way to identify iPhone / iPad in
-JavaScript
+JavaScript.
 
 ```javascript
 IS_IPAD = navigator.userAgent.match(/iPad/i) != null;
@@ -59,7 +59,7 @@ if (IS_IPAD) {
 }
 ```
 
-We simply declare IS_IPHONE to be false on iPads to cover for the
+We simply declare `IS_IPHONE` to be `false` on iPads to cover for the
 bizarre Facebook UIWebView iPad user agent. This is one example of how
 *user agent sniffing is unreliable*. If there is any way you can avoid
 this behavior (hint: CSS Media Queries), DO IT.
