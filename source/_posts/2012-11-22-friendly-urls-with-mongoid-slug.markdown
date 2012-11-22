@@ -1,6 +1,6 @@
 ---
 layout: post
-title: Friendly URLs with Mongoid-Slug
+title: Friendly URLs with Mongoid::Slug
 date: 2012-11-22 21:21
 comments: true
 categories: [Ruby,MongoDB,Mongoid,User Experience]
@@ -13,12 +13,18 @@ All Art.sy URLs shared publicly are humanly readable. For example, you'll find a
 
 <img src="/images/2012-11-22-friendly-urls-with-mongoid-slug/barbara-kruger.png">
 
-We construct these URLs with a gem called [mongoid-slug](https://github.com/digitalplaywright/mongoid-slug). Interesting implementation details under the cut.
+We construct these URLs with a gem called [mongoid_slug](https://github.com/digitalplaywright/mongoid-slug). Interesting implementation details under the cut.
 
 <!-- more -->
 
 Mongoid-Slug Basics
 -------------------
+
+Include the gem in Gemfile.
+
+``` ruby Gemfile
+gem "mongoid_slug", "~> 2.0.1"
+```
 
 The basic functionality of mongoid-slug is achieved by adding the `Mongoid::Slug` a mixin and declaring a slug.
 
@@ -48,7 +54,9 @@ user.posts.find("47cc67093475061e3d95369d")
 user.posts.find("superfluous-men-cant-get-no-satisfaction")
 ```
 
-Mongoid-slug is smart enough to figure out whether you're querying by a `Moped::BSON::ObjectId` or a slug. Performance-wise the lookup by slug is cheap, as MongoDB arrays are indexed. The `find` method will naturally respect Mongoid's `raise_not_found_error` option and either raise `Mongoid::Errors::DocumentNotFound` or return `nil` in the case the document cannot be found.
+Mongoid-slug is smart enough to figure out whether you're querying by a `Moped::BSON::ObjectId` or a slug. Performance-wise the lookup by slug is cheap: mongoid_slug ensures an index on `_slugs`. This all works, of course, because MongoDB builds a B-tree index atop all elements in each `_slugs` array. 
+
+The `find` method will naturally respect Mongoid's `raise_not_found_error` option and either raise `Mongoid::Errors::DocumentNotFound` or return `nil` in the case the document cannot be found.
 
 Avoiding Too Many Slugs
 -----------------------
