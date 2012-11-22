@@ -1,0 +1,387 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>How to Monitor 503s and Timeout Requests on Heroku - Art.sy Engineering</title>
+  <meta name="author" content="Art.sy">
+
+  
+  <meta name="description" content="We have recently started hitting an unusually high number of &#8220;503: Service Unavailable&#8221; errors with one of our applications on Heroku. &hellip;">
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://artsy.github.com/blog/2012/11/15/how-to-monitor-503s-and-timeout-on-heroku">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <script src="/javascripts/modernizr-2.0.js"></script>
+  <script src="/javascripts/ender.js"></script>
+  <script src="/javascripts/octopress.js" type="text/javascript"></script>
+  <link href="/atom.xml" rel="alternate" title="Art.sy Engineering" type="application/atom+xml">
+  <!--[if IE 8]>
+<link href="/stylesheets/custom/ie_font.css" type="text/css">
+<![endif]-->
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-12450662-3']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+
+<body>
+  
+  <a href="/">
+    <h1 id="lrg-mark">
+      <span>Art.sy</span>
+    </h1>
+  </a>
+  
+  <header id="banner"><hgroup>
+  <div id="header">
+    <h2>Inspiration from the engineering team at <a href="http://art.sy">Art.sy</a> — A new way to discover fine art.</h2>
+  </div>
+</hgroup>
+
+</header>
+  
+  <div id="main">
+    <div id="mobile_search">
+      <form action="http://google.com/search" method="get">
+        <input type="hidden" name="q" value="site:artsy.github.com" />
+        <input class="search" type="text" name="q" results="0" placeholder="Search" />
+      </form>
+    </div>
+    <div id="content">
+      <div>
+<article class="hentry" role="article">
+  
+  <header>
+    
+    <a href="">
+      <div class="date">
+
+
+
+
+  
+<time datetime="2012-11-15T21:21:00-05:00" pubdate>11/15/12</time></div>
+    
+    
+      <h1 class="entry-title">How to Monitor 503s and Timeout Requests on Heroku</h1>
+    
+    </a>
+    
+      <p class="meta">
+        
+      </p>
+    
+  </header>
+
+
+<div class="entry-content"><p>We have recently started hitting an unusually high number of &#8220;503: Service Unavailable&#8221; errors with one of our applications on Heroku. What are these? How can we monitor their quantity and frequency? What&#8217;s the fix?</p>
+
+<p><img src="/images/2012-11-15-how-to-monitor-503s-and-timeout-on-heroku/503-error.png"></p>
+
+<!-- more -->
+
+
+<h2>What does 503 mean?</h2>
+
+<p>A 503 error means &#8220;Service Unavailable&#8221;. Heroku returns a 503 error when an HTTP request times out between the Heroku routing mesh and your application, including when the application failed to boot. This timeout limit is set to 30 seconds, as <a href="https://devcenter.heroku.com/articles/request-timeout">documented by Heroku</a>, and shows up in the logs as follows.</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>Nov 14 12:10:50 production heroku/router:
+</span><span class='line'> Error H12 (Request timeout) -&gt; GET art.sy/api/spline
+</span><span class='line'> dyno=web.11 queue= wait= service=30000ms status=503 bytes=0</span></code></pre></td></tr></table></div></figure>
+
+
+<p>This usually means that the application could not process the request fast enough, and in very rare cases, that there&#8217;s an infrastructure problem with Heroku itself. A 504 error which means &#8220;Gateway Timeout&#8221; would have probably been a more appropriate choice. Either way, the root cause could be something as simple as trying to run a very long database query or do too much work that doesn&#8217;t fit in a 30 seconds window. It could also involve an external service that didn&#8217;t respond quickly enough. Your mileage may vary.</p>
+
+<h2>Monitoring 503s</h2>
+
+<p>503 errors don&#8217;t happen within your application, they are reported by the routing mesh. They will not appear in internal monitoring systems attached to your app, including <a href="http://newrelic.com/">NewRelic</a>.</p>
+
+<p>We get the frequency of 503s by sending our Heroku logs to <a href="https://papertrailapp.com/">Papertrail</a> and using their <a href="http://help.papertrailapp.com/kb/how-it-works/alerts">alerts feature</a> to push the number of 503s to <a href="http://www.geckoboard.com/">Geckoboard</a>. You can send these to <a href="http://graphite.wikidot.com/">Graphite</a> or any other monitoring system in the same manner.</p>
+
+<p>This is what it looks like:</p>
+
+<p><img src="/images/2012-11-15-how-to-monitor-503s-and-timeout-on-heroku/503-geckoboard.png"></p>
+
+<h2>Aborting Requests</h2>
+
+<p>When Heroku reports a 503 status code, it just gives up. Your application continues executing the request though, often to completion, which may take forever. In the meantime, Heroku will send a new request to the dyno that&#8217;s still busy, and get a new 503. This is known as a &#8220;stuck&#8221; dyno.</p>
+
+<p>To prevent dynos from being stuck you must abort the request within the 30 second period. This can be accomplished with the <a href="https://github.com/kch/rack-timeout">rack-timeout</a> gem and setting <code>Rack::Timeout.timeout = 29</code> in an initializer (or a smaller value within which you want to guarantee a response). The gem automatically inserts itself into a Rails application, but you will need to manually mount it in other Rack apps, such as those using <a href="https://github.com/intridea/grape">Grape</a>.</p>
+
+<figure class='code'><figcaption><span>api.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">Api</span> <span class="o">&lt;</span> <span class="no">Grape</span><span class="o">::</span><span class="no">API</span>
+</span><span class='line'>  <span class="n">use</span> <span class="no">Rack</span><span class="o">::</span><span class="no">Timeout</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="n">desc</span> <span class="s2">&quot;Returns a reticulated spline.&quot;</span>
+</span><span class='line'>  <span class="n">get</span> <span class="s2">&quot;spline/:id&quot;</span>
+</span><span class='line'>    <span class="no">Spline</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="n">params</span><span class="o">[</span><span class="ss">:id</span><span class="o">]</span><span class="p">)</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Because your application is now getting a timeout exception, you can also report it in NewRelic. The following works in Grape.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">rescue_from</span> <span class="no">Timeout</span><span class="o">::</span><span class="no">Error</span><span class="p">,</span> <span class="ss">:backtrace</span> <span class="o">=&gt;</span> <span class="kp">true</span> <span class="k">do</span> <span class="o">|</span><span class="n">e</span><span class="o">|</span>
+</span><span class='line'>  <span class="no">NewRelic</span><span class="o">::</span><span class="no">Agent</span><span class="o">.</span><span class="n">instance</span><span class="o">.</span><span class="n">error_collector</span><span class="o">.</span><span class="n">notice_error</span> <span class="n">e</span><span class="p">,</span>
+</span><span class='line'>    <span class="n">uri</span><span class="p">:</span> <span class="n">request</span><span class="o">.</span><span class="n">path</span><span class="p">,</span>
+</span><span class='line'>    <span class="n">referer</span><span class="p">:</span> <span class="n">request</span><span class="o">.</span><span class="n">referer</span><span class="p">,</span>
+</span><span class='line'>    <span class="n">request_params</span><span class="p">:</span> <span class="n">request</span><span class="o">.</span><span class="n">params</span>
+</span><span class='line'>  <span class="n">rack_response</span><span class="p">({</span>
+</span><span class='line'>    <span class="ss">:type</span> <span class="o">=&gt;</span> <span class="s2">&quot;timeout_error&quot;</span><span class="p">,</span>
+</span><span class='line'>    <span class="ss">:message</span> <span class="o">=&gt;</span> <span class="s2">&quot;The request timed out.&quot;</span>
+</span><span class='line'>  <span class="p">}</span><span class="o">.</span><span class="n">to_json</span><span class="p">,</span> <span class="mi">503</span><span class="p">)</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Don&#8217;t forget to write a test!</p>
+
+<figure class='code'><figcaption><span>api_spec.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="nb">require</span> <span class="s1">&#39;spec_helper&#39;</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">describe</span> <span class="no">Api</span> <span class="k">do</span>
+</span><span class='line'>  <span class="n">it</span> <span class="s2">&quot;times out after Rack::Timeout.timeout&quot;</span> <span class="k">do</span>
+</span><span class='line'>    <span class="no">Rack</span><span class="o">::</span><span class="no">Timeout</span><span class="o">.</span><span class="n">stub</span><span class="p">(</span><span class="ss">:timeout</span><span class="p">)</span><span class="o">.</span><span class="n">and_return</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+</span><span class='line'>    <span class="no">Spline</span><span class="o">.</span><span class="n">stub</span><span class="p">(</span><span class="ss">:find</span><span class="p">)</span> <span class="p">{</span> <span class="nb">sleep</span> <span class="mi">3</span> <span class="p">}</span>
+</span><span class='line'>    <span class="n">get</span> <span class="s2">&quot;/spline/1&quot;</span>
+</span><span class='line'>    <span class="n">response</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">should</span> <span class="o">==</span> <span class="mi">503</span>
+</span><span class='line'>    <span class="n">response</span><span class="o">.</span><span class="n">body</span><span class="o">.</span><span class="n">should</span> <span class="o">==</span> <span class="s1">&#39;{&quot;type&quot;:&quot;timeout_error&quot;,&quot;message&quot;:&quot;The request timed out.&quot;}&#39;</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>Fixing Timeouts</h2>
+
+<p>The root causes of timeouts are specific to your application. Our general approach for long running requests is to offload the request processing into a delayed job or background process and &#8220;cook&#8221; data in a way that makes it readily available to API endpoints. You can read more about this and related aspects of our system architecture in <a href="/blog/2012/10/10/artsy-technology-stack/">this earlier blog post</a>.</p>
+</div>
+
+
+  <footer>
+    <div class="meta">
+      
+  
+
+
+
+  <span class="byline author vcard">
+    Posted by 
+    <span class="fn">
+      Daniel Doubrovkine
+    </span>
+    
+    
+    
+    
+      (
+      
+      <span class="fn">
+        <a href="https://www.github.com/dblock">github</a>
+      </span>
+      
+      
+      <span class="fn">
+        <a href="http://code.dblock.org">blog</a>
+      </span>
+      
+      
+      <span class="fn">
+        <a href="http://twitter.com/dblockdotorg">twitter</a>
+      </span>
+      
+      )
+    
+    
+  </span>
+
+
+    </div>
+    <div class="meta">
+      Categories: 
+
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/grape/'>Grape</a>, <a class='category' href='/blog/categories/heroku/'>Heroku</a>, <a class='category' href='/blog/categories/rack/'>Rack</a>
+  
+</span>
+
+
+    </div>
+
+    
+      <div class="sharing">
+  
+  <a href="http://twitter.com/share" class="twitter-share-button" data-url="http://artsy.github.com/blog/2012/11/15/how-to-monitor-503s-and-timeout-on-heroku/" data-via="artsy" data-counturl="http://artsy.github.com/blog/2012/11/15/how-to-monitor-503s-and-timeout-on-heroku/" >Tweet</a>
+  
+  
+  
+</div>
+
+    
+    <p class="meta">
+      
+        <a class="basic-alignment left" href="/blog/2012/10/18/the-perils-of-ios-user-agent-sniffing/" title="Previous Post: The perils of iOS user agent strings">&laquo; The perils of iOS user agent strings</a>
+      
+      
+        <a class="basic-alignment right" href="/blog/2012/11/22/friendly-urls-with-mongoid-slug/" title="next Post: Friendly URLs with Mongoid::Slug">Friendly URLs with Mongoid::Slug &raquo;</a>
+      
+    </p>
+  </footer>
+</article>
+
+  <section>
+    <h1>Comments</h1>
+    <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</div>
+  </section>
+
+</div>
+    </div>
+    <div id="sidebar">
+      
+  
+    <section>
+  <h1>Info</h1>
+  <ul>
+    <li> <a href="/about">About Us</a></li>
+    <li> <a href="/open-source">Art.sy Open-Source</a></li>
+    <li> <a href="http://art.sy/job/developer">Join the Art.sy Engineering Team</a></li>
+  </ul>
+</section>
+<section id="recent_posts_section">
+  <h1>Recent Posts</h1>
+  <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/2012/11/22/friendly-urls-with-mongoid-slug/">Friendly URLs with Mongoid::Slug</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2012/11/15/how-to-monitor-503s-and-timeout-on-heroku/">How to Monitor 503s and Timeout Requests on Heroku</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2012/10/18/the-perils-of-ios-user-agent-sniffing/">The perils of iOS user agent strings</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2012/10/18/so-you-want-to-do-a-css3-3d-transform/">So you want to do a CSS3 3D transform?</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2012/10/10/artsy-technology-stack/">Art.sy's Technology Stack</a>
+      </li>
+    
+  </ul>
+  <a class="archive_link" href="/blog/archives">Blog Archive</a>
+</section>
+<section>
+  <h1>Search</h1>
+  <form action="http://google.com/search" method="get">
+    <input type="hidden" name="q" value="site:artsy.github.com" />
+    <input class="search" type="text" name="q" results="0" />
+  </form>
+</section>
+  
+
+
+    </div>
+  </div>
+  <footer id="main_footer"><p>
+  Copyright &copy; 2012 - Art.sy -
+  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+  
+
+<script type="text/javascript">
+      var disqus_shortname = 'artsy';
+      
+        
+        // var disqus_developer = 1;
+        var disqus_identifier = 'http://artsy.github.com/blog/2012/11/15/how-to-monitor-503s-and-timeout-on-heroku/';
+        var disqus_url = 'http://artsy.github.com/blog/2012/11/15/how-to-monitor-503s-and-timeout-on-heroku/';
+        var disqus_script = 'embed.js';
+      
+    (function () {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = 'http://' + disqus_shortname + '.disqus.com/' + disqus_script;
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    }());
+</script>
+
+
+
+
+
+
+
+  <script type="text/javascript">
+    (function(){
+      var twitterWidgets = document.createElement('script');
+      twitterWidgets.type = 'text/javascript';
+      twitterWidgets.async = true;
+      twitterWidgets.src = 'http://platform.twitter.com/widgets.js';
+      document.getElementsByTagName('head')[0].appendChild(twitterWidgets);
+    })();
+  </script>
+
+
+
+
+
+</body>
+</html>

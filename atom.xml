@@ -4,7 +4,7 @@
   <title><![CDATA[Art.sy Engineering]]></title>
   <link href="http://artsy.github.com/atom.xml" rel="self"/>
   <link href="http://artsy.github.com/"/>
-  <updated>2012-10-20T17:05:01-04:00</updated>
+  <updated>2012-11-22T11:51:55-05:00</updated>
   <id>http://artsy.github.com/</id>
   <author>
     <name><![CDATA[Art.sy]]></name>
@@ -14,6 +14,260 @@
 
   
   <entry>
+    <title type="html"><![CDATA[Friendly URLs with Mongoid::Slug]]></title>
+    <link href="http://artsy.github.com/blog/2012/11/22/friendly-urls-with-mongoid-slug/"/>
+    <updated>2012-11-22T21:21:00-05:00</updated>
+    <id>http://artsy.github.com/blog/2012/11/22/friendly-urls-with-mongoid-slug</id>
+    <content type="html"><![CDATA[<p>All Art.sy URLs shared publicly are humanly readable. For example, you&#8217;ll find all Barbara Kruger&#8217;s works at <a href="http://art.sy/artist/barbara-kruger">art.sy/artist/barbara-kruger</a> and a post by Hyperallergic entitled &#8220;Superfluous Men Can&#8217;t Get No Satisfaction&#8221; at <a href="http://art.sy/hyperallergic/post/superfluous-men-cant-get-no-satisfaction">art.sy/hyperallergic/post/superfluous-men-cant-get-no-satisfaction</a>. This is a lot prettier than having <code>id=42</code> in the browser&#8217;s address and is a big improvement for SEO.</p>
+
+<p><img src="http://artsy.github.com/images/2012-11-22-friendly-urls-with-mongoid-slug/barbara-kruger.png"></p>
+
+<p>We construct these URLs with a gem called <a href="https://github.com/digitalplaywright/mongoid-slug">mongoid_slug</a>. Interesting implementation details under the cut.</p>
+
+<!-- more -->
+
+
+<h2>Mongoid-Slug Basics</h2>
+
+<p>Include the gem in Gemfile.</p>
+
+<figure class='code'><figcaption><span>Gemfile</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">gem</span> <span class="s2">&quot;mongoid_slug&quot;</span><span class="p">,</span> <span class="s2">&quot;~&gt; 2.0.1&quot;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>The basic functionality of mongoid-slug is achieved by adding the <code>Mongoid::Slug</code> a mixin and declaring a slug.</p>
+
+<figure class='code'><figcaption><span>post.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">Post</span>
+</span><span class='line'>  <span class="kp">include</span> <span class="no">Mongoid</span><span class="o">::</span><span class="no">Document</span>
+</span><span class='line'>  <span class="kp">include</span> <span class="no">Mongoid</span><span class="o">::</span><span class="no">Slug</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="n">belongs_to</span> <span class="ss">:author</span><span class="p">,</span> <span class="n">class_name</span><span class="p">:</span> <span class="s2">&quot;User&quot;</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="n">field</span> <span class="ss">:title</span><span class="p">,</span> <span class="n">type</span><span class="p">:</span> <span class="nb">String</span>
+</span><span class='line'>  <span class="n">slug</span> <span class="ss">:title</span><span class="p">,</span> <span class="n">history</span><span class="p">:</span> <span class="kp">true</span><span class="p">,</span> <span class="n">scope</span><span class="p">:</span> <span class="ss">:author</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="n">field</span> <span class="ss">:published</span><span class="p">,</span> <span class="n">type</span><span class="p">:</span> <span class="no">Boolean</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>This adds a <code>_slugs</code> field of type <code>Array</code> into the <code>Post</code> model. Every time the title of the post changes, a new slug is generated and, depending on the value of the <code>history</code> option, either replaces the existing slug or appends the new slug to the array of slugs. A database index ensures that these are unique: two posts of the same title will have different slugs, such as &#8220;post-1&#8221; and &#8220;post-2&#8221;. Our example is also scoped to the author of the post.</p>
+
+<p>You can now find this post by <code>_id</code> or <code>slug</code> with the same <code>find</code> method. And with <code>history: true</code>, you can find a document by any of its older slugs!</p>
+
+<figure class='code'><figcaption><span>post.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="c1"># find by ID</span>
+</span><span class='line'><span class="n">user</span><span class="o">.</span><span class="n">posts</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s2">&quot;47cc67093475061e3d95369d&quot;</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1"># find by slug</span>
+</span><span class='line'><span class="n">user</span><span class="o">.</span><span class="n">posts</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s2">&quot;superfluous-men-cant-get-no-satisfaction&quot;</span><span class="p">)</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Mongoid-slug is smart enough to figure out whether you&#8217;re querying by a <code>Moped::BSON::ObjectId</code> or a slug. Performance-wise the lookup by slug is cheap: mongoid_slug ensures an index on <code>_slugs</code>. This all works, of course, because MongoDB builds a B-tree index atop all elements in each <code>_slugs</code> array.</p>
+
+<p>The <code>find</code> method will naturally respect Mongoid&#8217;s <code>raise_not_found_error</code> option and either raise <code>Mongoid::Errors::DocumentNotFound</code> or return <code>nil</code> in the case the document cannot be found.</p>
+
+<h2>Avoiding Too Many Slugs</h2>
+
+<p>Users writing posts may want to edit them many times before they are published. This can potentially create a large number of unnecessary slugs. We&#8217;ve used a simple trick to generate slugs only after a post has been published by defaulting the slug of an unpublished post to its <code>_id</code>. Mongoid-slug will append <code>-1</code> to such slugs, so we monkey-patch <code>Mongoid::Slug::UniqueSlug</code> with the code in <a href="https://gist.github.com/4131766">this gist</a>. Special care must be taken not to destroy a slug of a post that has been published earlier, then unpublished.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">slug</span> <span class="ss">:title</span><span class="p">,</span> <span class="ss">:published</span><span class="p">,</span> <span class="n">scope</span><span class="p">:</span> <span class="ss">:author</span><span class="p">,</span> <span class="n">history</span><span class="p">:</span> <span class="kp">true</span> <span class="k">do</span> <span class="o">|</span><span class="nb">p</span><span class="o">|</span>
+</span><span class='line'>  <span class="k">if</span> <span class="nb">p</span><span class="o">.</span><span class="n">published?</span> <span class="o">||</span> <span class="nb">p</span><span class="o">.</span><span class="n">has_slug?</span>
+</span><span class='line'>    <span class="nb">p</span><span class="o">.</span><span class="n">title</span><span class="o">.</span><span class="n">to_url</span>
+</span><span class='line'>  <span class="k">else</span>
+</span><span class='line'>    <span class="nb">p</span><span class="o">.</span><span class="n">id</span><span class="o">.</span><span class="n">to_s</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">def</span> <span class="nf">has_slug?</span>
+</span><span class='line'>  <span class="o">!</span> <span class="n">slug</span><span class="o">.</span><span class="n">blank?</span> <span class="o">&amp;&amp;</span> <span class="n">slug</span> <span class="o">!=</span> <span class="nb">id</span><span class="o">.</span><span class="n">to_s</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>The parameters to <code>slug</code> include all fields that may cause the slug to change. When a post is published by setting <code>published</code> to <code>true</code>, the slug will be re-generated with a call to <code>build_slug</code> as long as the <code>published</code> field is included in that list.</p>
+
+<p>Please note an interesting discussion about allowing model ids in the <code>_slugs</code> <a href="https://github.com/digitalplaywright/mongoid-slug/pull/91">here</a>.</p>
+
+<h2>Caching by Slug</h2>
+
+<p>Because slugs can now change, but lookups by old slugs should hit the cache, caching by slug makes cache invalidation difficult. A two-layered cache that maps slugs to ids and then caches objects by id can solve this at the expense of an additional cache lookup. We have yet to implement this in <a href="https://github.com/artsy/garner">Garner</a>, see <a href="https://github.com/artsy/garner/issues/13">#13</a>.</p>
+
+<h2>International Slugs</h2>
+
+<p>We have a large international audience with names and posts in all kinds of languages. An escaped UTF-8 URL would be much worse than a BSON ObjectId. Fortunately, mongoid-slug uses <a href="https://github.com/rsl/stringex">stringex</a> under the hood. This gem defines <code>to_url</code> and rewrites special symbols and transliterates strings from many languages into English. Here&#8217;re some examples of generated slugs.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="s2">&quot;ITCZ 1 (21°17ʼ51.78”N / 89°35ʼ28.18”O / 26-04-08 / 09:00 am)&quot;</span><span class="o">.</span><span class="n">to_url</span>
+</span><span class='line'><span class="c1"># =&gt; itcz-1-21-degrees-17-51-dot-78-n-slash-89-degrees-35-28-dot-18-o-slash-26-04-08-slash-09-00-am</span>
+</span><span class='line'>
+</span><span class='line'><span class="s2">&quot;“水／火”系列 No.8&quot;</span><span class="o">.</span><span class="n">to_url</span>
+</span><span class='line'><span class="c1"># =&gt; &quot;shui-slash-huo-xi-lie-no-dot-8&quot;</span>
+</span><span class='line'>
+</span><span class='line'><span class="s2">&quot;трактат по теории этики&quot;</span><span class="o">.</span><span class="n">to_url</span>
+</span><span class='line'><span class="c1"># =&gt; &quot;traktat-po-tieorii-etiki&quot;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Pretty amazing!</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[How to Monitor 503s and Timeout Requests on Heroku]]></title>
+    <link href="http://artsy.github.com/blog/2012/11/15/how-to-monitor-503s-and-timeout-on-heroku/"/>
+    <updated>2012-11-15T21:21:00-05:00</updated>
+    <id>http://artsy.github.com/blog/2012/11/15/how-to-monitor-503s-and-timeout-on-heroku</id>
+    <content type="html"><![CDATA[<p>We have recently started hitting an unusually high number of &#8220;503: Service Unavailable&#8221; errors with one of our applications on Heroku. What are these? How can we monitor their quantity and frequency? What&#8217;s the fix?</p>
+
+<p><img src="http://artsy.github.com/images/2012-11-15-how-to-monitor-503s-and-timeout-on-heroku/503-error.png"></p>
+
+<!-- more -->
+
+
+<h2>What does 503 mean?</h2>
+
+<p>A 503 error means &#8220;Service Unavailable&#8221;. Heroku returns a 503 error when an HTTP request times out between the Heroku routing mesh and your application, including when the application failed to boot. This timeout limit is set to 30 seconds, as <a href="https://devcenter.heroku.com/articles/request-timeout">documented by Heroku</a>, and shows up in the logs as follows.</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>Nov 14 12:10:50 production heroku/router:
+</span><span class='line'> Error H12 (Request timeout) -&gt; GET art.sy/api/spline
+</span><span class='line'> dyno=web.11 queue= wait= service=30000ms status=503 bytes=0</span></code></pre></td></tr></table></div></figure>
+
+
+<p>This usually means that the application could not process the request fast enough, and in very rare cases, that there&#8217;s an infrastructure problem with Heroku itself. A 504 error which means &#8220;Gateway Timeout&#8221; would have probably been a more appropriate choice. Either way, the root cause could be something as simple as trying to run a very long database query or do too much work that doesn&#8217;t fit in a 30 seconds window. It could also involve an external service that didn&#8217;t respond quickly enough. Your mileage may vary.</p>
+
+<h2>Monitoring 503s</h2>
+
+<p>503 errors don&#8217;t happen within your application, they are reported by the routing mesh. They will not appear in internal monitoring systems attached to your app, including <a href="http://newrelic.com/">NewRelic</a>.</p>
+
+<p>We get the frequency of 503s by sending our Heroku logs to <a href="https://papertrailapp.com/">Papertrail</a> and using their <a href="http://help.papertrailapp.com/kb/how-it-works/alerts">alerts feature</a> to push the number of 503s to <a href="http://www.geckoboard.com/">Geckoboard</a>. You can send these to <a href="http://graphite.wikidot.com/">Graphite</a> or any other monitoring system in the same manner.</p>
+
+<p>This is what it looks like:</p>
+
+<p><img src="http://artsy.github.com/images/2012-11-15-how-to-monitor-503s-and-timeout-on-heroku/503-geckoboard.png"></p>
+
+<h2>Aborting Requests</h2>
+
+<p>When Heroku reports a 503 status code, it just gives up. Your application continues executing the request though, often to completion, which may take forever. In the meantime, Heroku will send a new request to the dyno that&#8217;s still busy, and get a new 503. This is known as a &#8220;stuck&#8221; dyno.</p>
+
+<p>To prevent dynos from being stuck you must abort the request within the 30 second period. This can be accomplished with the <a href="https://github.com/kch/rack-timeout">rack-timeout</a> gem and setting <code>Rack::Timeout.timeout = 29</code> in an initializer (or a smaller value within which you want to guarantee a response). The gem automatically inserts itself into a Rails application, but you will need to manually mount it in other Rack apps, such as those using <a href="https://github.com/intridea/grape">Grape</a>.</p>
+
+<figure class='code'><figcaption><span>api.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">Api</span> <span class="o">&lt;</span> <span class="no">Grape</span><span class="o">::</span><span class="no">API</span>
+</span><span class='line'>  <span class="n">use</span> <span class="no">Rack</span><span class="o">::</span><span class="no">Timeout</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="n">desc</span> <span class="s2">&quot;Returns a reticulated spline.&quot;</span>
+</span><span class='line'>  <span class="n">get</span> <span class="s2">&quot;spline/:id&quot;</span>
+</span><span class='line'>    <span class="no">Spline</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="n">params</span><span class="o">[</span><span class="ss">:id</span><span class="o">]</span><span class="p">)</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Because your application is now getting a timeout exception, you can also report it in NewRelic. The following works in Grape.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">rescue_from</span> <span class="no">Timeout</span><span class="o">::</span><span class="no">Error</span><span class="p">,</span> <span class="ss">:backtrace</span> <span class="o">=&gt;</span> <span class="kp">true</span> <span class="k">do</span> <span class="o">|</span><span class="n">e</span><span class="o">|</span>
+</span><span class='line'>  <span class="no">NewRelic</span><span class="o">::</span><span class="no">Agent</span><span class="o">.</span><span class="n">instance</span><span class="o">.</span><span class="n">error_collector</span><span class="o">.</span><span class="n">notice_error</span> <span class="n">e</span><span class="p">,</span>
+</span><span class='line'>    <span class="n">uri</span><span class="p">:</span> <span class="n">request</span><span class="o">.</span><span class="n">path</span><span class="p">,</span>
+</span><span class='line'>    <span class="n">referer</span><span class="p">:</span> <span class="n">request</span><span class="o">.</span><span class="n">referer</span><span class="p">,</span>
+</span><span class='line'>    <span class="n">request_params</span><span class="p">:</span> <span class="n">request</span><span class="o">.</span><span class="n">params</span>
+</span><span class='line'>  <span class="n">rack_response</span><span class="p">({</span>
+</span><span class='line'>    <span class="ss">:type</span> <span class="o">=&gt;</span> <span class="s2">&quot;timeout_error&quot;</span><span class="p">,</span>
+</span><span class='line'>    <span class="ss">:message</span> <span class="o">=&gt;</span> <span class="s2">&quot;The request timed out.&quot;</span>
+</span><span class='line'>  <span class="p">}</span><span class="o">.</span><span class="n">to_json</span><span class="p">,</span> <span class="mi">503</span><span class="p">)</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Don&#8217;t forget to write a test!</p>
+
+<figure class='code'><figcaption><span>api_spec.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="nb">require</span> <span class="s1">&#39;spec_helper&#39;</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">describe</span> <span class="no">Api</span> <span class="k">do</span>
+</span><span class='line'>  <span class="n">it</span> <span class="s2">&quot;times out after Rack::Timeout.timeout&quot;</span> <span class="k">do</span>
+</span><span class='line'>    <span class="no">Rack</span><span class="o">::</span><span class="no">Timeout</span><span class="o">.</span><span class="n">stub</span><span class="p">(</span><span class="ss">:timeout</span><span class="p">)</span><span class="o">.</span><span class="n">and_return</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+</span><span class='line'>    <span class="no">Spline</span><span class="o">.</span><span class="n">stub</span><span class="p">(</span><span class="ss">:find</span><span class="p">)</span> <span class="p">{</span> <span class="nb">sleep</span> <span class="mi">3</span> <span class="p">}</span>
+</span><span class='line'>    <span class="n">get</span> <span class="s2">&quot;/spline/1&quot;</span>
+</span><span class='line'>    <span class="n">response</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">should</span> <span class="o">==</span> <span class="mi">503</span>
+</span><span class='line'>    <span class="n">response</span><span class="o">.</span><span class="n">body</span><span class="o">.</span><span class="n">should</span> <span class="o">==</span> <span class="s1">&#39;{&quot;type&quot;:&quot;timeout_error&quot;,&quot;message&quot;:&quot;The request timed out.&quot;}&#39;</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>Fixing Timeouts</h2>
+
+<p>The root causes of timeouts are specific to your application. Our general approach for long running requests is to offload the request processing into a delayed job or background process and &#8220;cook&#8221; data in a way that makes it readily available to API endpoints. You can read more about this and related aspects of our system architecture in <a href="http://artsy.github.com/blog/2012/10/10/artsy-technology-stack/">this earlier blog post</a>.</p>
+]]></content>
+  </entry>
+  
+  <entry>
     <title type="html"><![CDATA[The perils of iOS user agent strings]]></title>
     <link href="http://artsy.github.com/blog/2012/10/18/the-perils-of-ios-user-agent-sniffing/"/>
     <updated>2012-10-18T15:19:00-04:00</updated>
@@ -21,7 +275,7 @@
     <content type="html"><![CDATA[<p>There is a great deal of misinformation on the web about detecting an
 iPad or an iPhone in JavaScript. The
 <a href="http://stackoverflow.com/a/4617648">top answer on stackoverflow</a> -
-and many blog posts using this technique - are all incorrect.</p>
+and many <a href="http://www.sitepoint.com/identify-apple-iphone-ipod-ipad-visitors/">blog posts</a> using <a href="http://www.askdavetaylor.com/detect_apple_iphone_user_web_site_server.html">this technique</a> - are all incorrect.</p>
 
 <p>The conventional wisdom is that iOS devices have a user agent for
 Safari and a user agent for the UIWebView. This assumption is
@@ -58,7 +312,10 @@ main offender here is Facebook, whose iOS app alone accounts for about
 
 <p></p>
 
-<p>The old way to identify iPhone / iPad in JavaScript</p>
+<!-- more -->
+
+
+<p>The old way to identify iPhone / iPad in JavaScript:</p>
 
 <figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
 <span class='line-number'>2</span>
@@ -71,9 +328,7 @@ main offender here is Facebook, whose iOS app alone accounts for about
 you would end up with IS_IPHONE <em>and</em> IS_IPAD both being true if a user
 comes from Facebook on an iPad. That could create some odd behavior!</p>
 
-<p>Given that I have no other examples of people customizing user agents
-to such a gross degree, here is the correct way to identify iPhone / iPad in
-JavaScript.</p>
+<p>The correct way to identify iPhone / iPad in JavaScript:</p>
 
 <figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
 <span class='line-number'>2</span>
@@ -90,8 +345,10 @@ JavaScript.</p>
 
 <p>We simply declare <code>IS_IPHONE</code> to be <code>false</code> on iPads to cover for the
 bizarre Facebook UIWebView iPad user agent. This is one example of how
-<em>user agent sniffing is unreliable</em>. If there is any way you can avoid
-this behavior (hint: CSS Media Queries), DO IT.</p>
+<em>user agent sniffing is unreliable</em>. The more iOS apps that customize
+their user agent, the more issues user agent sniffing will have. If
+you can avoid user agent sniffing (hint: CSS Media Queries), DO
+IT.</p>
 ]]></content>
   </entry>
   
@@ -102,7 +359,7 @@ this behavior (hint: CSS Media Queries), DO IT.</p>
     <id>http://artsy.github.com/blog/2012/10/18/so-you-want-to-do-a-css3-3d-transform</id>
     <content type="html"><![CDATA[<p>This post details the first of many challenges we faced in 3D
 transforming the <a href="http://art.sy">homepage of Art.sy</a> (inspired by
-<a href="https://github.com/hakimel/meny">Meny</a>): Detecting CSS 3D transform
+<a href="https://github.com/hakimel/meny">Meny</a>): detecting CSS 3D transform
 support.</p>
 
 <p>Front-end development is messy in today&#8217;s fragmented world. At Art.sy,
@@ -110,17 +367,20 @@ our goal is to do what it takes to provide an incredible experience
 for <em>all</em> of our users (IE8+, iOS and the usual suspects). Deploying
 bleeding edge tech, like CSS 3D transforms, is an exercise in
 compromising principals for practicality &#8211; and managing these
-&#8220;compromises&#8221; in well documented code.</p>
+&#8220;compromises&#8221; in well-documented code.</p>
 
-<p>We looked to Modernizr&#8217;s feature detection approach to provide us with
+<p>We looked to <a href="http://modernizr.com/">Modernizr&#8217;s</a> feature detection approach to provide us with
 a reliable way to detect CSS3 3D transform support across browsers. They have some
-<a href="https://github.com/Modernizr/Modernizr/issues/590">well</a>
+<a href="https://github.com/Modernizr/Modernizr/issues/590">well</a>-
 <a href="https://github.com/Modernizr/Modernizr/issues/465">documented</a>
 <a href="https://github.com/Modernizr/Modernizr/issues/240">struggles</a> around
 the issue. After flipping most of the tables in the office ┻━┻ ︵ヽ
-(`Д´)ﾉ︵﻿ ┻━┻ , we settled on useragent sniffing as the most robust
+(`Д´)ﾉ︵﻿ ┻━┻ , we settled on user agent sniffing as the most robust
 method for detecting CSS3 3D transform support. But why did none
 of the available methods work for us?</p>
+
+<!-- more -->
+
 
 <p>CSS3 3D transforms involve interaction between the browser and the
 graphics card. The browser may be able to parse the 3D declarations
@@ -2582,225 +2842,6 @@ know when thats happening so we can hide it, we can do that by registering for <
 <p>For handling browsers that don&#8217;t support pseudo elements I recommend targeting them with the <a href="http://paulirish.com/2008/conditional-stylesheets-vs-css-hacks-answer-neither/">Paul Irish class-on-html-trick</a>.</p>
 
 <p>Let your links breathe!</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Simplifying Model-Level JSON Versioning with Mongoid-Cached-Json]]></title>
-    <link href="http://artsy.github.com/blog/2012/03/23/simplifying-model-level-json-versioning-with-mongoid-cached-json/"/>
-    <updated>2012-03-23T09:14:00-04:00</updated>
-    <id>http://artsy.github.com/blog/2012/03/23/simplifying-model-level-json-versioning-with-mongoid-cached-json</id>
-    <content type="html"><![CDATA[<p>Did you know that Netflix has hundreds of API versions, one for each device? Daniel Jacobson&#8217;s <a href="http://www.slideshare.net/danieljacobson/techniques-for-scaling-the-netflix-api-qcon-sf">Techniques for Scaling the Netflix API</a> at QConSF 2011 explained why they chose this model. And while we don&#8217;t all build distributed services that supply custom-tailored data to thousands of heterogeneous TVs and set-top boxes, we do have to pay close attention to API versioning from day one.</p>
-
-<p>Versioning is hard. Your data models evolve, but you must maintain backward-compatibility for your public interfaces. While many strategies exist to deal with this problem, we&#8217;d like to propose one that requires very little programming effort and that is more declarative in nature.</p>
-
-<p>At Art.sy we use <a href="http://github.com/intridea/grape">Grape</a> and implement the &#8220;path&#8221; versioning strategy from the <a href="http://github.com/intridea/grape/tree/frontier">frontier</a> branch. Our initial v1 API is consumed by our own website and services and lives at <a href="https://artsyapi.com/api/v1">https://artsyapi.com/api/v1</a>. We&#8217;ve also prototyped v2 and by the time v1 is frozen, it should already be in production.</p>
-
-<p>Grape takes care of version-based routing and has a system that lets you split version-based presentation of a model from the model implementation. I find that separation forcefully induced by unnecessary implementation complexity around wanting to return different JSON depending on the API version requested. What if implementing versioning in <code>as_json</code> were super simple?</p>
-
-<p>Consider a Person model returned from a v1 API.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">API</span> <span class="o">&lt;</span> <span class="no">Grape</span><span class="o">::</span><span class="no">API</span>
-</span><span class='line'>  <span class="n">prefix</span> <span class="ss">:api</span>
-</span><span class='line'>  <span class="n">version</span> <span class="ss">:v1</span>
-</span><span class='line'>  <span class="n">namespace</span> <span class="ss">:person</span>
-</span><span class='line'>    <span class="n">get</span> <span class="s2">&quot;:id&quot;</span>
-</span><span class='line'>      <span class="no">Person</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="n">params</span><span class="o">[</span><span class="ss">:id</span><span class="o">]</span><span class="p">)</span><span class="o">.</span><span class="n">as_json</span>
-</span><span class='line'>    <span class="k">end</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">Person</span>
-</span><span class='line'>  <span class="kp">include</span> <span class="no">Mongoid</span><span class="o">::</span><span class="no">Document</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="n">field</span> <span class="ss">:name</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="k">def</span> <span class="nf">as_json</span>
-</span><span class='line'>    <span class="p">{</span>
-</span><span class='line'>      <span class="nb">name</span><span class="p">:</span> <span class="nb">name</span>
-</span><span class='line'>    <span class="p">}</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>In v2 the model split <code>:name</code> into a <code>:first</code> and <code>:last</code> name and in v3 <code>:name</code> has finally been deprecated. A version v3 Person model would look as follows.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">Person</span>
-</span><span class='line'>  <span class="kp">include</span> <span class="no">Mongoid</span><span class="o">::</span><span class="no">Document</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="n">field</span> <span class="ss">:first</span>
-</span><span class='line'>  <span class="n">field</span> <span class="ss">:last</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="k">def</span> <span class="nf">as_json</span>
-</span><span class='line'>    <span class="p">{</span>
-</span><span class='line'>      <span class="n">first</span><span class="p">:</span> <span class="n">first</span><span class="p">,</span>
-</span><span class='line'>      <span class="n">last</span><span class="p">:</span> <span class="n">last</span>
-</span><span class='line'>    <span class="p">}</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>How can we combine these two implementations and write <code>Person.find(params[:id]).as_json({ :version =&gt; ? })</code>?</p>
-
-<p>In <a href="http://github.com/dblock/mongoid-cached-json">mongoid-cached-json</a> we&#8217;ve introduced a declarative way of versioning JSON. Here&#8217;s the code for Person v3.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">Person</span>
-</span><span class='line'>  <span class="kp">include</span> <span class="no">Mongoid</span><span class="o">::</span><span class="no">Document</span>
-</span><span class='line'>  <span class="kp">include</span> <span class="no">Mongoid</span><span class="o">::</span><span class="no">CachedJson</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="n">field</span> <span class="ss">:first</span>
-</span><span class='line'>  <span class="n">field</span> <span class="ss">:last</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="k">def</span> <span class="nf">name</span>
-</span><span class='line'>    <span class="o">[</span> <span class="n">first</span><span class="p">,</span> <span class="n">last</span> <span class="o">].</span><span class="n">join</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="p">)</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="n">json_fields</span> <span class="p">\</span>
-</span><span class='line'>    <span class="nb">name</span><span class="p">:</span> <span class="p">{</span> <span class="ss">:versions</span> <span class="o">=&gt;</span> <span class="o">[</span> <span class="ss">:v1</span><span class="p">,</span> <span class="ss">:v2</span> <span class="o">]</span> <span class="p">},</span>
-</span><span class='line'>    <span class="n">first</span><span class="p">:</span> <span class="p">{</span> <span class="ss">:versions</span> <span class="o">=&gt;</span> <span class="o">[</span> <span class="ss">:v2</span><span class="p">,</span> <span class="ss">:v3</span> <span class="o">]</span> <span class="p">},</span>
-</span><span class='line'>    <span class="n">last</span><span class="p">:</span> <span class="p">{</span> <span class="ss">:versions</span> <span class="o">=&gt;</span> <span class="o">[</span> <span class="ss">:v2</span><span class="p">,</span> <span class="ss">:v3</span> <span class="o">]</span> <span class="p">}</span>
-</span><span class='line'>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>With the <a href="http://github.com/dblock/mongoid-cached-json">mongoid-cached-json</a> gem you also get caching that respects JSON versioning, for free. Read about it <a href="http://artsy.github.com/blog/2012/02/20/caching-model-json-with-mongoid-cached-json/">here</a>.</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[How To Redirect Bang Hash Urls]]></title>
-    <link href="http://artsy.github.com/blog/2012/03/06/how-to-redirect-bang-hash-urls/"/>
-    <updated>2012-03-06T09:02:00-05:00</updated>
-    <id>http://artsy.github.com/blog/2012/03/06/how-to-redirect-bang-hash-urls</id>
-    <content type="html"><![CDATA[<p>Sometimes you type a hash-bang URL too fast, bang first.</p>
-
-<p>Consider <code>http://art.sy/!#/log_in</code>. Rails will receive <code>/!</code> as the file path, resulting in a 404, File Not Found error. The part of the URL after the hash is a position within the page and is never sent to the web server.</p>
-
-<p>It&#8217;s actually pretty easy to handle this scenario and redirect to the corresponding hash-bang URL.</p>
-
-<p>The most straightforward way is to create a file called <code>!.html</code> in your <code>public</code> folder and use JavaScript to rewrite the URL with the bang-hash.</p>
-
-<figure class='code'><figcaption><span>public/!.html</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-</pre></td><td class='code'><pre><code class='html'><span class='line'><span class="nt">&lt;html&gt;</span>
-</span><span class='line'> <span class="nt">&lt;head&gt;</span>
-</span><span class='line'> <span class="nt">&lt;/head&gt;</span>
-</span><span class='line'> <span class="nt">&lt;body&gt;</span>
-</span><span class='line'>  Click <span class="nt">&lt;a</span> <span class="na">href=</span><span class="s">&quot;#&quot;</span> <span class="na">onclick=</span><span class="s">&quot;return window.redirect();&quot;</span><span class="nt">&gt;</span>here<span class="nt">&lt;/a&gt;</span> if you&#39;re not redirected ...
-</span><span class='line'>  <span class="nt">&lt;script </span><span class="na">language=</span><span class="s">&quot;javascript&quot;</span><span class="nt">&gt;</span>
-</span><span class='line'>    <span class="nb">window</span><span class="p">.</span><span class="nx">redirect</span> <span class="o">=</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
-</span><span class='line'>      <span class="nb">window</span><span class="p">.</span><span class="nx">location</span> <span class="o">=</span> <span class="s1">&#39;/#!&#39;</span> <span class="o">+</span> <span class="nb">window</span><span class="p">.</span><span class="nx">location</span><span class="p">.</span><span class="nx">hash</span><span class="p">.</span><span class="nx">substring</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
-</span><span class='line'>      <span class="k">return</span> <span class="kc">false</span><span class="p">;</span>
-</span><span class='line'>    <span class="p">}</span>
-</span><span class='line'>    <span class="nb">window</span><span class="p">.</span><span class="nx">redirect</span><span class="p">();</span>
-</span><span class='line'>  <span class="nt">&lt;/script&gt;</span>
-</span><span class='line'> <span class="nt">&lt;/body&gt;</span>
-</span><span class='line'><span class="nt">&lt;/html&gt;</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>You can also do this inside a controller with a view or layout. Start by trapping the URL in your <code>ApplicationController</code>.</p>
-
-<figure class='code'><figcaption><span>app/controllers/application_controller.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">if</span> <span class="n">request</span><span class="o">.</span><span class="n">env</span><span class="o">[</span><span class="s1">&#39;PATH_INFO&#39;</span><span class="o">]</span> <span class="o">==</span> <span class="s1">&#39;/!&#39;</span>
-</span><span class='line'>  <span class="n">render</span> <span class="n">layout</span><span class="p">:</span> <span class="s2">&quot;bang_hash&quot;</span>
-</span><span class='line'>  <span class="k">return</span>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>The layout can have the piece of JavaScript that redirects to the corresponding hash-bang URL.</p>
-
-<figure class='code'><figcaption><span>app/views/layouts/bang_hash.html.haml</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="o">!!!</span>
-</span><span class='line'><span class="o">-</span> <span class="n">ie_tag</span><span class="p">(</span><span class="ss">:html</span><span class="p">)</span> <span class="k">do</span>
-</span><span class='line'>  <span class="o">%</span><span class="n">body</span>
-</span><span class='line'>    <span class="ss">:javascript</span>
-</span><span class='line'>      <span class="n">window</span><span class="o">.</span><span class="n">location</span> <span class="o">=</span> <span class="s1">&#39;/#!&#39;</span> <span class="o">+</span> <span class="n">window</span><span class="o">.</span><span class="n">location</span><span class="o">.</span><span class="n">hash</span><span class="o">.</span><span class="n">substring</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>You can try this on <a href="http://art.sy/!#/log_in" target="_blank">http://art.sy/!#/log_in</a>. Watch it flip the bang-hash into a hash-bang and redirect to our login page. The redirect page could also be a good place to put an easter egg ;)</p>
 ]]></content>
   </entry>
   
