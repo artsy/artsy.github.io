@@ -4,7 +4,7 @@
   <title><![CDATA[Art.sy Engineering]]></title>
   <link href="http://artsy.github.com/atom.xml" rel="self"/>
   <link href="http://artsy.github.com/"/>
-  <updated>2012-11-15T16:58:27-05:00</updated>
+  <updated>2012-11-29T13:42:17-05:00</updated>
   <id>http://artsy.github.com/</id>
   <author>
     <name><![CDATA[Art.sy]]></name>
@@ -12,6 +12,107 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Measuring Performance in Grape APIs with NewRelic RPM]]></title>
+    <link href="http://artsy.github.com/blog/2012/11/29/measuring-performance-in-grape-apis-with-new-relic/"/>
+    <updated>2012-11-29T21:21:00-05:00</updated>
+    <id>http://artsy.github.com/blog/2012/11/29/measuring-performance-in-grape-apis-with-new-relic</id>
+    <content type="html"><![CDATA[<p>Knowing how well your API performs in real time is essential to any successful project. That&#8217;s because you can&#8217;t fix what you can&#8217;t measure.</p>
+
+<p>We use and heavily contribute to <a href="http://github.com/intridea/grape">Grape</a>, a Ruby API DSL. Grape is a Rack middleware and we have been reporting API performance data to <a href="http://newrelic.com/">NewRelic</a> with code from <a href="http://code.dblock.org/new-relic-performance-instrumentation-with-grape-api">my older blog post</a>.</p>
+
+<p>It&#8217;s time to improve the reporting implementation and address performance monitoring in both development and production environments. Here&#8217;s what a single API request breakdown is going to look like.</p>
+
+<p><img src="http://artsy.github.com/images/2012-11-29-measuring-performance-in-grape-apis-with-new-relic/transaction-detail.png"></p>
+
+<!-- more -->
+
+
+<h2>NewRelic RPM</h2>
+
+<p>The first step is to add the <code>newrelic_rpm</code> gem to Gemfile, which implements the actual realtime performance reporting to NewRelic. We also use <a href="https://github.com/mongoid/mongoid">Mongoid</a> and the <a href="https://github.com/mongoid/moped">Moped</a> MongoDB Ruby driver, which can be instrumented with <code>newrelic_moped</code>.</p>
+
+<figure class='code'><figcaption><span>Gemfile</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">gem</span> <span class="s2">&quot;newrelic_moped&quot;</span><span class="p">,</span> <span class="s2">&quot;0.0.3&quot;</span>
+</span><span class='line'><span class="n">gem</span> <span class="s2">&quot;newrelic_rpm&quot;</span><span class="p">,</span> <span class="s2">&quot;3.3.3&quot;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>You will need <code>config/newrelic.yml</code> in your application. Ours can be found in <a href="https://gist.github.com/4170458">this gist</a> and works well both locally and on Heroku.</p>
+
+<h2>Instrumenting Grape</h2>
+
+<p>In the past we used <a href="https://gist.github.com/1233422">NewRelic::Agent::Instrumentation::API</a>, which works for any generic Rack middleware. This would report all API calls to NewRelic, but would treat requests to <em>/api/artist/andy-warhol</em> and <em>/api/artist/wassily-kandinsky</em> as unrelated. That is because the instrumenter is a Rack middleware that wraps Grape requests <em>before</em> they reach Grape. The only information available is the request URL, and not the actual API route that is going to be matched when the request is processed.</p>
+
+<p>We want both requests to <em>/api/artist/andy-warhol</em> and <em>/api/artist/wassily-kandinsky</em> to be treated as <em>/api/artist/:id</em>. Lets insert a middleware inside Grape itself, once the URL has been matched to a route.</p>
+
+<figure class='code'><figcaption><span>api.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">API</span> <span class="o">&lt;&lt;</span> <span class="no">Grape</span><span class="o">::</span><span class="no">API</span>
+</span><span class='line'>  <span class="n">use</span> <span class="no">ApiNewRelicInstrumenter</span>
+</span><span class='line'>  <span class="o">.</span><span class="n">.</span><span class="o">.</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>The new instrumenter has access to the current API endpoint via <code>env['api.endpoint']</code> and reports data via NewRelic&#8217;s <code>ControllerInstrumentation</code>.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">ApiNewRelicInstrumenter</span> <span class="o">&lt;</span> <span class="no">Grape</span><span class="o">::</span><span class="no">Middleware</span><span class="o">::</span><span class="no">Base</span>
+</span><span class='line'>  <span class="kp">include</span> <span class="no">NewRelic</span><span class="o">::</span><span class="no">Agent</span><span class="o">::</span><span class="no">Instrumentation</span><span class="o">::</span><span class="no">ControllerInstrumentation</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">call</span><span class="p">(</span><span class="n">env</span><span class="p">)</span>
+</span><span class='line'>    <span class="n">trace_options</span> <span class="o">=</span> <span class="p">{</span>
+</span><span class='line'>      <span class="n">category</span><span class="p">:</span> <span class="ss">:rack</span><span class="p">,</span>
+</span><span class='line'>      <span class="n">path</span><span class="p">:</span> <span class="n">env</span><span class="o">[</span><span class="s1">&#39;api.endpoint&#39;</span><span class="o">].</span><span class="n">routes</span><span class="o">.</span><span class="n">first</span><span class="o">.</span><span class="n">route_path</span><span class="p">,</span>
+</span><span class='line'>      <span class="n">request</span><span class="p">:</span> <span class="n">request</span><span class="p">,</span>
+</span><span class='line'>      <span class="o">.</span><span class="n">.</span><span class="o">.</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="n">perform_action_with_newrelic_trace</span><span class="p">(</span><span class="n">trace_options</span><span class="p">)</span> <span class="k">do</span>
+</span><span class='line'>      <span class="k">yield</span>
+</span><span class='line'>    <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>The complete code for <code>ApiNewRelicInstrumenter</code> can be found in <a href="https://gist.github.com/4170469">this gist</a>. It supports enabling and disabling performance reporting by setting <code>NEW_RELIC_ID</code> and works around NewRelic&#8217;s method name limitations (these cannot contain slashes).</p>
+
+<h2>Development Environment</h2>
+
+<p>You can now see NewRelic performance data in development mode, too. If you mount Grape inside Rails run <code>NEW_RELIC_ID=foo rails s</code>. Navigate to <em>http://localhost:3000/newrelic</em> to see your local traces.</p>
+
+<p><img src="http://artsy.github.com/images/2012-11-29-measuring-performance-in-grape-apis-with-new-relic/developer-mode.png"></p>
+
+<p>Drill into an individual request to find several detailed breakdowns of how time was spent, including specific MongoDB queries (under &#8220;SQL&#8221;, naturally).</p>
+
+<p><img src="http://artsy.github.com/images/2012-11-29-measuring-performance-in-grape-apis-with-new-relic/sql-detail.png"></p>
+
+<p>NewRelic is a commercial product, but you can run development mode for free! Note that enabling this will triple your local Rails boot time: we enable development mode by setting <code>development_mode: &lt;%= !!ENV['NEW_RELIC_ID'] %&gt;</code> in <a href="https://gist.github.com/4170458">newrelic.rpm</a>.</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[How to Monitor 503s and Timeout Requests on Heroku]]></title>
@@ -2707,149 +2808,6 @@ know when thats happening so we can hide it, we can do that by registering for <
 <p>For handling browsers that don&#8217;t support pseudo elements I recommend targeting them with the <a href="http://paulirish.com/2008/conditional-stylesheets-vs-css-hacks-answer-neither/">Paul Irish class-on-html-trick</a>.</p>
 
 <p>Let your links breathe!</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Simplifying Model-Level JSON Versioning with Mongoid-Cached-Json]]></title>
-    <link href="http://artsy.github.com/blog/2012/03/23/simplifying-model-level-json-versioning-with-mongoid-cached-json/"/>
-    <updated>2012-03-23T09:14:00-04:00</updated>
-    <id>http://artsy.github.com/blog/2012/03/23/simplifying-model-level-json-versioning-with-mongoid-cached-json</id>
-    <content type="html"><![CDATA[<p>Did you know that Netflix has hundreds of API versions, one for each device? Daniel Jacobson&#8217;s <a href="http://www.slideshare.net/danieljacobson/techniques-for-scaling-the-netflix-api-qcon-sf">Techniques for Scaling the Netflix API</a> at QConSF 2011 explained why they chose this model. And while we don&#8217;t all build distributed services that supply custom-tailored data to thousands of heterogeneous TVs and set-top boxes, we do have to pay close attention to API versioning from day one.</p>
-
-<p>Versioning is hard. Your data models evolve, but you must maintain backward-compatibility for your public interfaces. While many strategies exist to deal with this problem, we&#8217;d like to propose one that requires very little programming effort and that is more declarative in nature.</p>
-
-<p>At Art.sy we use <a href="http://github.com/intridea/grape">Grape</a> and implement the &#8220;path&#8221; versioning strategy from the <a href="http://github.com/intridea/grape/tree/frontier">frontier</a> branch. Our initial v1 API is consumed by our own website and services and lives at <a href="https://artsyapi.com/api/v1">https://artsyapi.com/api/v1</a>. We&#8217;ve also prototyped v2 and by the time v1 is frozen, it should already be in production.</p>
-
-<p>Grape takes care of version-based routing and has a system that lets you split version-based presentation of a model from the model implementation. I find that separation forcefully induced by unnecessary implementation complexity around wanting to return different JSON depending on the API version requested. What if implementing versioning in <code>as_json</code> were super simple?</p>
-
-<p>Consider a Person model returned from a v1 API.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">API</span> <span class="o">&lt;</span> <span class="no">Grape</span><span class="o">::</span><span class="no">API</span>
-</span><span class='line'>  <span class="n">prefix</span> <span class="ss">:api</span>
-</span><span class='line'>  <span class="n">version</span> <span class="ss">:v1</span>
-</span><span class='line'>  <span class="n">namespace</span> <span class="ss">:person</span>
-</span><span class='line'>    <span class="n">get</span> <span class="s2">&quot;:id&quot;</span>
-</span><span class='line'>      <span class="no">Person</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="n">params</span><span class="o">[</span><span class="ss">:id</span><span class="o">]</span><span class="p">)</span><span class="o">.</span><span class="n">as_json</span>
-</span><span class='line'>    <span class="k">end</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">Person</span>
-</span><span class='line'>  <span class="kp">include</span> <span class="no">Mongoid</span><span class="o">::</span><span class="no">Document</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="n">field</span> <span class="ss">:name</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="k">def</span> <span class="nf">as_json</span>
-</span><span class='line'>    <span class="p">{</span>
-</span><span class='line'>      <span class="nb">name</span><span class="p">:</span> <span class="nb">name</span>
-</span><span class='line'>    <span class="p">}</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>In v2 the model split <code>:name</code> into a <code>:first</code> and <code>:last</code> name and in v3 <code>:name</code> has finally been deprecated. A version v3 Person model would look as follows.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">Person</span>
-</span><span class='line'>  <span class="kp">include</span> <span class="no">Mongoid</span><span class="o">::</span><span class="no">Document</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="n">field</span> <span class="ss">:first</span>
-</span><span class='line'>  <span class="n">field</span> <span class="ss">:last</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="k">def</span> <span class="nf">as_json</span>
-</span><span class='line'>    <span class="p">{</span>
-</span><span class='line'>      <span class="n">first</span><span class="p">:</span> <span class="n">first</span><span class="p">,</span>
-</span><span class='line'>      <span class="n">last</span><span class="p">:</span> <span class="n">last</span>
-</span><span class='line'>    <span class="p">}</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>How can we combine these two implementations and write <code>Person.find(params[:id]).as_json({ :version =&gt; ? })</code>?</p>
-
-<p>In <a href="http://github.com/dblock/mongoid-cached-json">mongoid-cached-json</a> we&#8217;ve introduced a declarative way of versioning JSON. Here&#8217;s the code for Person v3.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">Person</span>
-</span><span class='line'>  <span class="kp">include</span> <span class="no">Mongoid</span><span class="o">::</span><span class="no">Document</span>
-</span><span class='line'>  <span class="kp">include</span> <span class="no">Mongoid</span><span class="o">::</span><span class="no">CachedJson</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="n">field</span> <span class="ss">:first</span>
-</span><span class='line'>  <span class="n">field</span> <span class="ss">:last</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="k">def</span> <span class="nf">name</span>
-</span><span class='line'>    <span class="o">[</span> <span class="n">first</span><span class="p">,</span> <span class="n">last</span> <span class="o">].</span><span class="n">join</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="p">)</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="n">json_fields</span> <span class="p">\</span>
-</span><span class='line'>    <span class="nb">name</span><span class="p">:</span> <span class="p">{</span> <span class="ss">:versions</span> <span class="o">=&gt;</span> <span class="o">[</span> <span class="ss">:v1</span><span class="p">,</span> <span class="ss">:v2</span> <span class="o">]</span> <span class="p">},</span>
-</span><span class='line'>    <span class="n">first</span><span class="p">:</span> <span class="p">{</span> <span class="ss">:versions</span> <span class="o">=&gt;</span> <span class="o">[</span> <span class="ss">:v2</span><span class="p">,</span> <span class="ss">:v3</span> <span class="o">]</span> <span class="p">},</span>
-</span><span class='line'>    <span class="n">last</span><span class="p">:</span> <span class="p">{</span> <span class="ss">:versions</span> <span class="o">=&gt;</span> <span class="o">[</span> <span class="ss">:v2</span><span class="p">,</span> <span class="ss">:v3</span> <span class="o">]</span> <span class="p">}</span>
-</span><span class='line'>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>With the <a href="http://github.com/dblock/mongoid-cached-json">mongoid-cached-json</a> gem you also get caching that respects JSON versioning, for free. Read about it <a href="http://artsy.github.com/blog/2012/02/20/caching-model-json-with-mongoid-cached-json/">here</a>.</p>
 ]]></content>
   </entry>
   
