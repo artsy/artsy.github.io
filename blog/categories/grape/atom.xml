@@ -4,7 +4,7 @@
   <title><![CDATA[Category: Grape | Art.sy Engineering]]></title>
   <link href="http://artsy.github.com/blog/categories/grape/atom.xml" rel="self"/>
   <link href="http://artsy.github.com/"/>
-  <updated>2012-11-22T11:51:55-05:00</updated>
+  <updated>2012-12-08T12:56:40-05:00</updated>
   <id>http://artsy.github.com/</id>
   <author>
     <name><![CDATA[Art.sy]]></name>
@@ -12,6 +12,86 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Measuring Performance in Grape APIs with NewRelic RPM]]></title>
+    <link href="http://artsy.github.com/blog/2012/11/29/measuring-performance-in-grape-apis-with-new-relic/"/>
+    <updated>2012-11-29T21:21:00-05:00</updated>
+    <id>http://artsy.github.com/blog/2012/11/29/measuring-performance-in-grape-apis-with-new-relic</id>
+    <content type="html"><![CDATA[<p>Knowing how well your API performs in real time is essential to any successful project. That's because you can't fix what you can't measure.</p>
+
+<p>We use and heavily contribute to <a href="http://github.com/intridea/grape">Grape</a>, a Ruby API DSL. Grape is a Rack middleware and we have been reporting API performance data to <a href="http://newrelic.com/">NewRelic</a> with code from <a href="http://code.dblock.org/new-relic-performance-instrumentation-with-grape-api">my older blog post</a>.</p>
+
+<p>It's time to improve the reporting implementation and address performance monitoring in both development and production environments. Here's what a single API request breakdown is going to look like.</p>
+
+<p><img src="http://artsy.github.com/images/2012-11-29-measuring-performance-in-grape-apis-with-new-relic/transaction-detail.png"></p>
+
+<!-- more -->
+
+
+<h2>NewRelic RPM</h2>
+
+<p>The first step is to add the <code>newrelic_rpm</code> gem to Gemfile, which implements the actual realtime performance reporting to NewRelic. We also use <a href="https://github.com/mongoid/mongoid">Mongoid</a> and the <a href="https://github.com/mongoid/moped">Moped</a> MongoDB Ruby driver, which can be instrumented with <code>newrelic_moped</code>.</p>
+
+<p><code>ruby Gemfile
+gem "newrelic_moped", "0.0.3"
+gem "newrelic_rpm", "3.3.3"
+</code></p>
+
+<p>You will need <code>config/newrelic.yml</code> in your application. Ours can be found in <a href="https://gist.github.com/4170458">this gist</a> and works well both locally and on Heroku.</p>
+
+<h2>Instrumenting Grape</h2>
+
+<p>In the past we used <a href="https://gist.github.com/1233422">NewRelic::Agent::Instrumentation::API</a>, which works for any generic Rack middleware. This would report all API calls to NewRelic, but would treat requests to <em>/api/artist/andy-warhol</em> and <em>/api/artist/wassily-kandinsky</em> as unrelated. That is because the instrumenter is a Rack middleware that wraps Grape requests <em>before</em> they reach Grape. The only information available is the request URL, and not the actual API route that is going to be matched when the request is processed.</p>
+
+<p>We want both requests to <em>/api/artist/andy-warhol</em> and <em>/api/artist/wassily-kandinsky</em> to be treated as <em>/api/artist/:id</em>. Lets insert a middleware inside Grape itself, once the URL has been matched to a route.</p>
+
+<p><code>ruby api.rb
+class API &lt;&lt; Grape::API
+  use ApiNewRelicInstrumenter
+  ...
+end
+</code></p>
+
+<p>The new instrumenter has access to the current API endpoint via <code>env['api.endpoint']</code> and reports data via NewRelic's <code>ControllerInstrumentation</code>.</p>
+
+<p>``` ruby
+class ApiNewRelicInstrumenter &lt; Grape::Middleware::Base
+  include NewRelic::Agent::Instrumentation::ControllerInstrumentation</p>
+
+<p>  def call(env)</p>
+
+<pre><code>trace_options = {
+  category: :rack,
+  path: env['api.endpoint'].routes.first.route_path,
+  request: request,
+  ...
+}
+
+perform_action_with_newrelic_trace(trace_options) do
+  yield
+end
+</code></pre>
+
+<p>  end
+end
+```</p>
+
+<p>The complete code for <code>ApiNewRelicInstrumenter</code> can be found in <a href="https://gist.github.com/4170469">this gist</a>. It supports enabling and disabling performance reporting by setting <code>NEW_RELIC_ID</code> and works around NewRelic's method name limitations (these cannot contain slashes).</p>
+
+<h2>Development Environment</h2>
+
+<p>You can now see NewRelic performance data in development mode, too. If you mount Grape inside Rails run <code>NEW_RELIC_ID=foo rails s</code>. Navigate to <em>http://localhost:3000/newrelic</em> to see your local traces.</p>
+
+<p><img src="http://artsy.github.com/images/2012-11-29-measuring-performance-in-grape-apis-with-new-relic/developer-mode.png"></p>
+
+<p>Drill into an individual request to find several detailed breakdowns of how time was spent, including specific MongoDB queries (under "SQL", naturally).</p>
+
+<p><img src="http://artsy.github.com/images/2012-11-29-measuring-performance-in-grape-apis-with-new-relic/sql-detail.png"></p>
+
+<p>NewRelic is a commercial product, but you can run development mode for free! Note that enabling this will triple your local Rails boot time: we enable development mode by setting <code>development_mode: &lt;%= !!ENV['NEW_RELIC_ID'] %&gt;</code> in <a href="https://gist.github.com/4170458">newrelic.rpm</a>.</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[How to Monitor 503s and Timeout Requests on Heroku]]></title>
