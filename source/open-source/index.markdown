@@ -7,8 +7,13 @@ footer: true
 ---
 
 We love open-source at Art.sy. We use a ton of it. We've also contributed back to numerous projects, including [Grape](https://github.com/intridea/grape),
-[Analytical](https://github.com/jkrall/analytical), [Fog](https://github.com/fog/fog), [Kaminari](https://github.com/amatsuda/kaminari)
-and [Barista](https://github.com/Sutto/barista). And we have built a few open-source projects from scratch since beginning of 2011.
+[Analytical](https://github.com/jkrall/analytical), [Fog](https://github.com/fog/fog), [Kaminari](https://github.com/amatsuda/kaminari), [Barista](https://github.com/Sutto/barista) or [TaxCloud](https://github.com/drewtempelmeyer/tax_cloud). And we have built a few open-source projects from scratch since beginning of 2011.
+
+[hyperloglog-redis](https://github.com/aaw/hyperloglog-redis)
+-------------------------------------------------------------
+This gem is a pure Ruby implementation of the HyperLogLog algorithm for estimating cardinalities of sets observed via a stream of events. A Redis instance is used for storing the counters.
+
+[https://github.com/aaw/hyperloglog-redis](https://github.com/aaw/hyperloglog-redis)
 
 [rspec-rerun](https://github.com/dblock/rspec-rerun)
 ----------------------------------------------------
