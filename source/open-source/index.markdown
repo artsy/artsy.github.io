@@ -9,6 +9,14 @@ footer: true
 We love open-source at Art.sy. We use a ton of it. We've also contributed back to numerous projects, including [Grape](https://github.com/intridea/grape),
 [Analytical](https://github.com/jkrall/analytical), [Fog](https://github.com/fog/fog), [Kaminari](https://github.com/amatsuda/kaminari), [Barista](https://github.com/Sutto/barista) or [TaxCloud](https://github.com/drewtempelmeyer/tax_cloud). And we have built a few open-source projects from scratch since beginning of 2011.
 
+[heroku-forward](https://github.com/dblock/heroku-forward)
+----------------------------------------------------------
+Beat Heroku's 60s boot timeout with a proxy.
+
+Heroku will report an application crashed and log an `R10 Boot Timeout` error when a web process took longer than 60 seconds to bind to its assigned port. Setup a proxy that will start immediately, report an `up` status to Heroku, and forward requests to your application that takes more than 60 seconds to boot.
+
+[https://github.com/dblock/heroku-forward](https://github.com/dblock/heroku-forward)
+
 [hyperloglog-redis](https://github.com/aaw/hyperloglog-redis)
 -------------------------------------------------------------
 This gem is a pure Ruby implementation of the HyperLogLog algorithm for estimating cardinalities of sets observed via a stream of events. A Redis instance is used for storing the counters.
