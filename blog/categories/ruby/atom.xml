@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: ruby | Art.sy Engineering]]></title>
+  <link href="http://artsy.github.com/blog/categories/ruby/atom.xml" rel="self"/>
+  <link href="http://artsy.github.com/"/>
+  <updated>2012-12-21T15:14:59-05:00</updated>
+  <id>http://artsy.github.com/</id>
+  <author>
+    <name><![CDATA[Art.sy]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Beat Heroku's 60 Seconds Application Boot Timeout with a Proxy]]></title>
+    <link href="http://artsy.github.com/blog/2012/12/13/beat-heroku-60-seconds-application-boot-timeout-with-a-proxy/"/>
+    <updated>2012-12-13T21:21:00-05:00</updated>
+    <id>http://artsy.github.com/blog/2012/12/13/beat-heroku-60-seconds-application-boot-timeout-with-a-proxy</id>
+    <content type="html"><![CDATA[<p><img src="http://artsy.github.com/images/2012-12-13-beat-heroku-60-seconds-application-boot-timeout-with-a-proxy/heroku-logo-light-234x60.png"></p>
+
+<p>Heroku will log an <a href="https://devcenter.heroku.com/articles/error-codes#r10-boot-timeout">R10 - Boot Timeout</a> error when a web process takes longer than 60 seconds to bind to its assigned port. This error is often caused by a process being unable to reach an external resource, such as a database or because you have a lot of gems in your <code>Gemfile</code> which take a long time to load.</p>
+
+<p><code>
+Dec 12 12:12:12 prod heroku/web.1:
+  Error R10 (Boot timeout)
+  Web process failed to bind to $PORT within 60 seconds of launch
+</code></p>
+
+<p>There's currently no way to increase this boot timeout, but we can beat it with a proxy implemented by our new <a href="https://github.com/dblock/heroku-forward">heroku-forward</a> gem.</p>
+
+<!-- more -->
+
+
+<p>The concepts for <code>heroku-forward</code> come from <a href="http://noverloop.be/beating-herokus-60s-boot-times-with-the-cedar-stack-and-a-reverse-proxy/">this article</a> by Nicolas Overloop. The basic idea is to have a proxy bind to the port immediately and then buffer requests until the backend came up. The proxy implementation is Ilya Grigorik's <a href="https://github.com/igrigorik/em-proxy">em-proxy</a>. Communication between the proxy and the backend happens over a unix domain socket (a file), which needed a bit of work (see <a href="https://github.com/igrigorik/em-proxy/pull/31">#31</a>), inspired by an excellent article, <a href="http://jgwmaxwell.com/fighting-the-unicorns-becoming-a-thin-wizard-on-heroku">Fighting the Unicorns: Becoming a Thin Wizard on Heroku</a> by JGW Maxwell. The <code>heroku-forward</code> gem connects all the dots.</p>
+
+<p>Check out the gem's <a href="https://github.com/dblock/heroku-forward/blob/master/README.md">README</a> for how to set it up.</p>
+
+<p>Here's the log output from an application that uses this gem. Notice that Heroku reports the state of <code>web.1</code> up after just 4 seconds, while the application takes 67 seconds to boot.</p>
+
+<p><code>
+2012-12-11T23:33:42+00:00 heroku[web.1]: Starting process with command `bundle exec ruby config.ru`
+2012-12-11T23:33:46+00:00 app[web.1]:  INFO -- : Launching Backend ...
+2012-12-11T23:33:46+00:00 app[web.1]:  INFO -- : Launching Proxy Server at 0.0.0.0:42017 ...
+2012-12-11T23:33:46+00:00 app[web.1]: DEBUG -- : Attempting to connect to /tmp/thin20121211-2-1bfazzx.
+2012-12-11T23:33:46+00:00 app[web.1]:  WARN -- : no connection, 10 retries left.
+2012-12-11T23:33:46+00:00 heroku[web.1]: State changed from starting to up
+2012-12-11T23:34:32+00:00 app[web.1]: &gt;&gt; Thin web server (v1.5.0 codename Knife)
+2012-12-11T23:34:32+00:00 app[web.1]: &gt;&gt; Maximum connections set to 1024
+2012-12-11T23:34:32+00:00 app[web.1]: &gt;&gt; Listening on /tmp/thin20121211-2-1bfazzx, CTRL+C to stop
+2012-12-11T23:34:53+00:00 app[web.1]: DEBUG -- : Attempting to connect to /tmp/thin20121211-2-1bfazzx.
+2012-12-11T23:34:53+00:00 app[web.1]: DEBUG -- : Proxy Server ready at 0.0.0.0:42017 (67s).
+</code></p>
+
+<p>You can read more about how we use Heroku at <a href="http://success.heroku.com/artsy">http://success.heroku.com/artsy</a>.</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Measuring Performance in Grape APIs with NewRelic RPM]]></title>
+    <link href="http://artsy.github.com/blog/2012/11/29/measuring-performance-in-grape-apis-with-new-relic/"/>
+    <updated>2012-11-29T21:21:00-05:00</updated>
+    <id>http://artsy.github.com/blog/2012/11/29/measuring-performance-in-grape-apis-with-new-relic</id>
+    <content type="html"><![CDATA[<p>Knowing how well your API performs in real time is essential to any successful project. That's because you can't fix what you can't measure.</p>
+
+<p>We use and heavily contribute to <a href="http://github.com/intridea/grape">Grape</a>, a Ruby API DSL. Grape is a Rack middleware and we have been reporting API performance data to <a href="http://newrelic.com/">NewRelic</a> with code from <a href="http://code.dblock.org/new-relic-performance-instrumentation-with-grape-api">my older blog post</a>.</p>
+
+<p>It's time to improve the reporting implementation and address performance monitoring in both development and production environments. Here's what a single API request breakdown is going to look like.</p>
+
+<p><img src="http://artsy.github.com/images/2012-11-29-measuring-performance-in-grape-apis-with-new-relic/transaction-detail.png"></p>
+
+<!-- more -->
+
+
+<h2>NewRelic RPM</h2>
+
+<p>The first step is to add the <code>newrelic_rpm</code> gem to Gemfile, which implements the actual realtime performance reporting to NewRelic. We also use <a href="https://github.com/mongoid/mongoid">Mongoid</a> and the <a href="https://github.com/mongoid/moped">Moped</a> MongoDB Ruby driver, which can be instrumented with <code>newrelic_moped</code>.</p>
+
+<p><code>ruby Gemfile
+gem "newrelic_moped", "0.0.3"
+gem "newrelic_rpm", "3.3.3"
+</code></p>
+
+<p>You will need <code>config/newrelic.yml</code> in your application. Ours can be found in <a href="https://gist.github.com/4170458">this gist</a> and works well both locally and on Heroku.</p>
+
+<h2>Instrumenting Grape</h2>
+
+<p>In the past we used <a href="https://gist.github.com/1233422">NewRelic::Agent::Instrumentation::API</a>, which works for any generic Rack middleware. This would report all API calls to NewRelic, but would treat requests to <em>/api/artist/andy-warhol</em> and <em>/api/artist/wassily-kandinsky</em> as unrelated. That is because the instrumenter is a Rack middleware that wraps Grape requests <em>before</em> they reach Grape. The only information available is the request URL, and not the actual API route that is going to be matched when the request is processed.</p>
+
+<p>We want both requests to <em>/api/artist/andy-warhol</em> and <em>/api/artist/wassily-kandinsky</em> to be treated as <em>/api/artist/:id</em>. Lets insert a middleware inside Grape itself, once the URL has been matched to a route.</p>
+
+<p><code>ruby api.rb
+class API &lt;&lt; Grape::API
+  use ApiNewRelicInstrumenter
+  ...
+end
+</code></p>
+
+<p>The new instrumenter has access to the current API endpoint via <code>env['api.endpoint']</code> and reports data via NewRelic's <code>ControllerInstrumentation</code>.</p>
+
+<p>``` ruby
+class ApiNewRelicInstrumenter &lt; Grape::Middleware::Base
+  include NewRelic::Agent::Instrumentation::ControllerInstrumentation</p>
+
+<p>  def call(env)</p>
+
+<pre><code>trace_options = {
+  category: :rack,
+  path: env['api.endpoint'].routes.first.route_path,
+  request: request,
+  ...
+}
+
+perform_action_with_newrelic_trace(trace_options) do
+  yield
+end
+</code></pre>
+
+<p>  end
+end
+```</p>
+
+<p>The complete code for <code>ApiNewRelicInstrumenter</code> can be found in <a href="https://gist.github.com/4170469">this gist</a>. It supports enabling and disabling performance reporting by setting <code>NEW_RELIC_ID</code> and works around NewRelic's method name limitations (these cannot contain slashes).</p>
+
+<h2>Development Environment</h2>
+
+<p>You can now see NewRelic performance data in development mode, too. If you mount Grape inside Rails run <code>NEW_RELIC_ID=foo rails s</code>. Navigate to <em>http://localhost:3000/newrelic</em> to see your local traces.</p>
+
+<p><img src="http://artsy.github.com/images/2012-11-29-measuring-performance-in-grape-apis-with-new-relic/developer-mode.png"></p>
+
+<p>Drill into an individual request to find several detailed breakdowns of how time was spent, including specific MongoDB queries (under "SQL", naturally).</p>
+
+<p><img src="http://artsy.github.com/images/2012-11-29-measuring-performance-in-grape-apis-with-new-relic/sql-detail.png"></p>
+
+<p>NewRelic is a commercial product, but you can run development mode for free! Note that enabling this will triple your local Rails boot time: we enable development mode by setting <code>development_mode: &lt;%= !!ENV['NEW_RELIC_ID'] %&gt;</code> in <a href="https://gist.github.com/4170458">newrelic.rpm</a>.</p>
+]]></content>
+  </entry>
+  
+</feed>

@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: DelayedJob | Art.sy Engineering]]></title>
+  <link href="http://artsy.github.com/blog/categories/delayedjob/atom.xml" rel="self"/>
+  <link href="http://artsy.github.com/"/>
+  <updated>2012-12-21T15:14:59-05:00</updated>
+  <id>http://artsy.github.com/</id>
+  <author>
+    <name><![CDATA[Art.sy]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Testing with Delayed Jobs]]></title>
+    <link href="http://artsy.github.com/blog/2012/08/16/testing-with-delayed-jobs/"/>
+    <updated>2012-08-16T21:21:00-04:00</updated>
+    <id>http://artsy.github.com/blog/2012/08/16/testing-with-delayed-jobs</id>
+    <content type="html"><![CDATA[<p>A mean bug made it into our production environment. It wasn't caught by our extensive test suite and caused thousands of emails to be sent to a handful of people. The root cause was an unfortunate combination of <a href="https://github.com/plataformatec/devise">Devise</a>, <a href="https://github.com/collectiveidea/delayed_job">DelayedJob</a> and, of course, our own code. It was an easy fix, but nobody ever wants this to happen again.</p>
+
+<p>tl;dr DelayedJob says it's possible to set <code>Delayed::Worker.delay_jobs = false</code> for your tests. Don't do it.</p>
+
+<!-- more -->
+
+
+<p>Consider the following <code>User</code> model that implements various Devise strategies which support some kind of notification.</p>
+
+<p>``` ruby app/models/user.rb
+class User
+  include Mongoid::Document</p>
+
+<p>  devise :database_authenticatable, :registerable, ...</p>
+
+<p>  field :notified_at, type: DateTime
+  after_save :notify!, :if => :notify?</p>
+
+<p>  def notify!</p>
+
+<pre><code>super
+update_attributes!({ notified_at: Time.now.utc })
+</code></pre>
+
+<p>  end
+end</p>
+
+<p><code>``
+We are overriding a black box</code>notify!` method and updating an attribute with a timestamp of the last notification.</p>
+
+<p>Let's write a test.</p>
+
+<p>``` ruby spec/models/user_spec.rb
+describe User do</p>
+
+<p>  subject { User.new }</p>
+
+<p>  context "notification" do</p>
+
+<pre><code>it "sends one email" do
+  expect {
+    subject.notify!
+  }.to change(ActionMailer::Base.deliveries, :count).by(1)
+end
+
+it "updates notified_at" do
+  expect { 
+    subject.notify!
+  }.to change(subject, :notified_at)
+end
+</code></pre>
+
+<p>  end</p>
+
+<p>end
+```</p>
+
+<p>All green. But once this code hit production, <code>notify!</code> was called in an infinite loop. How is that possible?</p>
+
+<p>The call to <code>notify!</code> is delayed using DelayedJob in production and is not delayed in test. It does not work under DelayedJob and will create as many delayed notifications as it possibly can until it runs out of stack space.</p>
+
+<p>As a common pattern in Devise, the implementation of <code>notify!</code> relies on an instance variable to signal that a notification has been sent. Setting the instance variable avoids sending the notification twice for multiple calls to <code>save!</code>. Our <code>after_save</code> callback invokes <code>update_attributes!</code>, which causes another <code>notify!</code> call unless <code>notify?</code> returns <code>false</code>. In a test, the call to <code>super</code> inside <code>notify!</code> will execute the notification (setting the instance variable), but will create a delayed job in production (without setting it).</p>
+
+<p>We'll start by bringing our tests closer to a real production environment by leaving <code>Delayed::Worker.delay_jobs = true</code> and making sure our problem is reproduced with a spec. We could call <code>Delayed::Worker.new.work_off</code> for every test that needs to execute a delayed job, but that would be rather tedious. A better approach may be to register an observer that will execute a delayed job every time one is created. This is similar to a production environment where having enough delayed workers almost guarantees a job is picked up immediately after being scheduled.</p>
+
+<p>``` ruby config/initializers/delayed_job_observer.rb
+class DelayedJobObserver &lt; Mongoid::Observer
+  observe Delayed::Job</p>
+
+<p>  class &lt;&lt; self</p>
+
+<pre><code>attr_accessor :runs
+</code></pre>
+
+<p>  end</p>
+
+<p>  def after_create(delayed_job)</p>
+
+<pre><code>delayed_job.invoke_job
+DelayedJobObserver.runs += 1
+</code></pre>
+
+<p>  end
+end</p>
+
+<p>DelayedJobObserver.runs = 0
+```</p>
+
+<p>The complete code, which handles a few more cases, including enabling and disabling the observer, and counting successful runs and errors can be found in <a href="https://gist.github.com/3370052">this gist</a>. Please help us improve it.</p>
+
+<p>We can now test our notification without compromising on the delayed nature of the job and add a test making sure we create a single delayed job from a call to <code>notify!</code>.</p>
+
+<p>``` ruby spec/models/user_spec.rb
+describe User do</p>
+
+<p>  subject { User.new }</p>
+
+<p>  context "notification" do</p>
+
+<pre><code>it "creates one delayed job" do
+  expect {
+    subject.notify!
+  }.to change(DelayedJobObserver, :runs).by(1)
+end
+</code></pre>
+
+<p>  end</p>
+
+<p>end
+```</p>
+
+<p>This test will also run for a long time before failing with a stack overflow error. Our fix was not to call <code>notify!</code> from an <code>after_save</code> callback.</p>
+
+<p>We've suggested that immediate execution using an observer becomes a feature in DelayedJob in <a href="https://github.com/collectiveidea/delayed_job/issues/423">#423</a>. Please add your comments.</p>
+]]></content>
+  </entry>
+  
+</feed>
