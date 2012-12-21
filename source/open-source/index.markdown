@@ -23,6 +23,14 @@ This gem is a pure Ruby implementation of the HyperLogLog algorithm for estimati
 
 [https://github.com/aaw/hyperloglog-redis](https://github.com/aaw/hyperloglog-redis)
 
+
+[spidey](https://github.com/joeyAghion/spidey)
+-------------------------------------------------------------
+Spidey provides a bare-bones framework for crawling and scraping web sites. Its goal is to keep boilerplate scraping logic out of your code. The companion [spidey-mongo](https://github.com/joeyAghion/spidey-mongo) gem adds MongoDB as a data store.
+
+[https://github.com/joeyAghion/spidey](https://github.com/joeyAghion/spidey), [https://github.com/joeyAghion/spidey-mongo](https://github.com/joeyAghion/spidey-mongo)
+
+
 [rspec-rerun](https://github.com/dblock/rspec-rerun)
 ----------------------------------------------------
 
