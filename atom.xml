@@ -4,7 +4,7 @@
   <title><![CDATA[Art.sy Engineering]]></title>
   <link href="http://artsy.github.com/atom.xml" rel="self"/>
   <link href="http://artsy.github.com/"/>
-  <updated>2012-12-08T12:56:40-05:00</updated>
+  <updated>2013-01-15T23:00:04-05:00</updated>
   <id>http://artsy.github.com/</id>
   <author>
     <name><![CDATA[Art.sy]]></name>
@@ -12,6 +12,228 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Debugging Bundler Issues on Heroku]]></title>
+    <link href="http://artsy.github.com/blog/2013/12/13/debugging-bundler-issues-with-heroku/"/>
+    <updated>2013-12-13T21:21:00-05:00</updated>
+    <id>http://artsy.github.com/blog/2013/12/13/debugging-bundler-issues-with-heroku</id>
+    <content type="html"><![CDATA[<p>A few days ago we have started seeing the Heroku deployments of one of our applications randomly hang during <code>bundle install</code>. The problem worsened with time and we were not able to do a deployment for days.</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>$ git push -f git@heroku.com:application.git FETCH_HEAD:master
+</span><span class='line'>-----&gt; Deleting 12 files matching .slugignore patterns.
+</span><span class='line'>-----&gt; Ruby/Rails app detected
+</span><span class='line'>-----&gt; Using Ruby version: ruby-1.9.3
+</span><span class='line'>-----&gt; Installing dependencies using Bundler version 1.3.0.pre.5
+</span><span class='line'>       Running: bundle install --without development:test --path vendor/bundle --binstubs vendor/bundle/bin
+</span><span class='line'>       Fetching gem metadata from http://rubygems.org/.......
+</span><span class='line'>       Fetching gem metadata from http://rubygems.org/..
+</span><span class='line'>/app/slug-compiler/lib/utils.rb:66:in `block (2 levels) in spawn': command='/app/slug-compiler/lib/../../tmp/buildpacks/ruby/bin/compile /tmp/build_1p6071sni4hh1 /app/tmp/repo.git/.cache' exit_status=0 out='' at=timeout elapsed=900.1056394577026 (Utils::TimeoutError)
+</span><span class='line'>  from /app/slug-compiler/lib/utils.rb:52:in `loop'
+</span><span class='line'>  from /app/slug-compiler/lib/utils.rb:52:in `block in spawn'
+</span><span class='line'>  from /app/slug-compiler/lib/utils.rb:47:in `popen'
+</span><span class='line'>  from /app/slug-compiler/lib/utils.rb:47:in `spawn'
+</span><span class='line'>  from /app/slug-compiler/lib/buildpack.rb:37:in `block in compile'
+</span><span class='line'>  from /app/slug-compiler/lib/buildpack.rb:35:in `fork'
+</span><span class='line'>  from /app/slug-compiler/lib/buildpack.rb:35:in `compile'
+</span><span class='line'>  from /app/slug-compiler/lib/slug.rb:497:in `block in run_buildpack'
+</span><span class='line'> !     Heroku push rejected, failed to compile Ruby/rails app</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Seeing bundler hang on &#8220;Fetching gem metadata from http://rubygems.org/&#8221;, my immediate reaction was to blame the RubyGems Dependency API for its poor performance and attempt the <a href="http://hone.herokuapp.com/bundler%20heroku/2012/10/22/rubygems-and-the-dependency-api.html">recommended workaround</a> of switching to <em>http://bundler-api.herokuapp.com</em>. That didn&#8217;t work.</p>
+
+<p>I also tried to reproduce the issue on a local environment, including a (what I thought was) a completely clean machine at no avail. My <code>bundle install</code> would always succeed.</p>
+
+<p>Finally, everything pointed at an infrastructure problem with Heroku itself, so I opened a ticket (#72648), <a href="https://twitter.com/dblockdotorg/status/290221530892365824">tweeted</a> endlessly to Heroku devs, pinged a  contact at Heroku on Skype and generally annoyed people for 5 straight days. It was a frustrating problem and I was getting no useful help.</p>
+
+<p>Fast forward, this turned out to be <a href="https://github.com/carlhuda/bundler/issues/2248">an issue in Bundler</a>. Narrowing it down would have been relatively easy if I had known where to look.</p>
+
+<p>I hope this post helps you with similar issues.</p>
+
+<!-- more -->
+
+
+<h2>Heroku Slug Compiler</h2>
+
+<p>Heroku provides small Ubuntu virtual machines on-demand, called &#8220;dynos&#8221;, that look very much like any other Linux box. You can <code>heroku run bash</code> and examine the file system of a running dyno. You can delete the bundler cache, rerun <code>bundle install</code>, etc. But deployment does not happen in a running dyno - every time you push to Heroku, deployment happens inside a compiler dyno. Heroku attaches the dyno to your slug filesystem (your code), which may include a cache from previous runs. It then executes the code inside <a href="https://github.com/heroku/heroku-buildpack-ruby">heroku-buildpack-ruby</a>, specifically <a href="https://github.com/heroku/heroku-buildpack-ruby/blob/5dbf4c06c765dc832c073fe5be9360533fd1846d/lib/language_pack/ruby.rb#L49">this method</a>.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">def</span> <span class="nf">compile</span>
+</span><span class='line'>  <span class="no">Dir</span><span class="o">.</span><span class="n">chdir</span><span class="p">(</span><span class="n">build_path</span><span class="p">)</span>
+</span><span class='line'>  <span class="n">remove_vendor_bundle</span>
+</span><span class='line'>  <span class="n">install_ruby</span>
+</span><span class='line'>  <span class="n">install_jvm</span>
+</span><span class='line'>  <span class="n">setup_language_pack_environment</span>
+</span><span class='line'>  <span class="n">setup_profiled</span>
+</span><span class='line'>  <span class="n">allow_git</span> <span class="k">do</span>
+</span><span class='line'>    <span class="n">install_language_pack_gems</span>
+</span><span class='line'>    <span class="n">build_bundler</span>
+</span><span class='line'>    <span class="n">create_database_yml</span>
+</span><span class='line'>    <span class="n">install_binaries</span>
+</span><span class='line'>    <span class="n">run_assets_precompile_rake_task</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>A lot of these functions invoke <code>IO.open</code> and transmit <code>$stdout</code> and <code>$stderr</code> back to you. You see everything Heroku sees and while you cannot get access to the compiler dyno, there&#8217;s really no mystery to this process. Heroku slug compiler will timeout after 15 minutes and produce a stack with <code>Utils::TimeoutError</code>. And everything Heroku does should be reproducible locally.</p>
+
+<h2>Troubleshooting Bundler</h2>
+
+<p>The key to getting a repro of my issue locally was to use the <a href="https://github.com/carlhuda/bundler/blob/master/ISSUES.md">Bundler Troubleshooting</a> section. I had previously missed one of the steps in cleaning the local Bundler cache.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="c1"># remove user-specific gems and git repos</span>
+</span><span class='line'><span class="n">rm</span> <span class="o">-</span><span class="n">rf</span> <span class="o">~</span><span class="sr">/.bundle/</span> <span class="o">~</span><span class="sr">/.gem/</span><span class="n">bundler</span><span class="o">/</span> <span class="o">~</span><span class="sr">/.gems/</span><span class="n">cache</span><span class="o">/</span><span class="n">bundler</span><span class="o">/</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1"># remove system-wide git repos and git checkouts</span>
+</span><span class='line'><span class="n">rm</span> <span class="o">-</span><span class="n">rf</span> <span class="vg">$GEM_HOME</span><span class="o">/</span><span class="n">bundler</span><span class="o">/</span> <span class="vg">$GEM_HOME</span><span class="o">/</span><span class="n">cache</span><span class="o">/</span><span class="n">bundler</span><span class="o">/</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1"># remove project-specific settings and git repos</span>
+</span><span class='line'><span class="n">rm</span> <span class="o">-</span><span class="n">rf</span> <span class="o">.</span><span class="n">bundle</span><span class="o">/</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1"># remove project-specific cached .gem files</span>
+</span><span class='line'><span class="n">rm</span> <span class="o">-</span><span class="n">rf</span> <span class="n">vendor</span><span class="o">/</span><span class="n">cache</span><span class="o">/</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1"># remove the saved resolve of the Gemfile</span>
+</span><span class='line'><span class="n">rm</span> <span class="o">-</span><span class="n">rf</span> <span class="no">Gemfile</span><span class="o">.</span><span class="n">lock</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1"># uninstall the rubygems-bundler and open_gem gems</span>
+</span><span class='line'><span class="n">rvm</span> <span class="n">gemset</span> <span class="n">use</span> <span class="n">global</span> <span class="c1"># if using rvm</span>
+</span><span class='line'><span class="n">gem</span> <span class="n">uninstall</span> <span class="n">rubygems</span><span class="o">-</span><span class="n">bundler</span> <span class="n">open_gem</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1"># try to install one more time</span>
+</span><span class='line'><span class="n">bundle</span> <span class="n">install</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>This hung with my Gemfile the same way as on Heroku.</p>
+
+<h2>Bundler Dependency Resolver</h2>
+
+<p>So what is bundler doing?</p>
+
+<p>Bundler runs the gem dependency resolver, which is described in detail in <a href="http://patshaughnessy.net/2011/9/24/how-does-bundler-bundle">Pat Shaughnessy&#8217;s blog post</a>. The post suggests running <code>DEBUG_RESOLVER=1 bundle install</code>, which produced a mountain of output that isn&#8217;t very helpful.</p>
+
+<p>I made a <a href="https://github.com/carlhuda/bundler/pull/2249">pull request</a> with a similar setting called <code>DEBUG_RESOLVER_TREE</code>, which reduces the output to the gems being resolved. This helped me narrow down a <a href="https://github.com/carlhuda/bundler/issues/2248">small repro</a>. I was also able to make some sense of what bundler was doing: backtracking in an attempt to find a combination of gems matching the versions declared in <code>Gemfile</code> for every combinations of <code>railties</code>, <code>actionmailer</code>, <code>activeresource</code>, <code>activerecord</code>, <code>actionpack</code> and <code>builder</code> above version 3.2, only to fail to find a compatible version of <code>builder</code> every single time. That&#8217;s a lot of versions to try.</p>
+
+<p>Adding an entry for <code>builder</code> to <code>Gemfile</code> fixed the issue.</p>
+
+<p>Similar issues to my <a href="https://github.com/carlhuda/bundler/issues/2248">#2248</a> in Bundler have been reported in <a href="https://github.com/carlhuda/bundler/issues/2030">#2030</a>, <a href="https://github.com/carlhuda/bundler/issues/2090">#2090</a> and <a href="https://github.com/carlhuda/bundler/issues/2125">#2125</a>.</p>
+
+<h2>Troubleshooting Tip</h2>
+
+<p>If you remember anything from this post, next time you have a hang inside <code>bundle install</code> on or off Heroku, start with <a href="https://github.com/carlhuda/bundler/blob/master/ISSUES.md">Bundler Troubleshooting</a>.</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Beat Heroku's 60 Seconds Application Boot Timeout with a Proxy]]></title>
+    <link href="http://artsy.github.com/blog/2012/12/13/beat-heroku-60-seconds-application-boot-timeout-with-a-proxy/"/>
+    <updated>2012-12-13T21:21:00-05:00</updated>
+    <id>http://artsy.github.com/blog/2012/12/13/beat-heroku-60-seconds-application-boot-timeout-with-a-proxy</id>
+    <content type="html"><![CDATA[<p><img src="http://artsy.github.com/images/2012-12-13-beat-heroku-60-seconds-application-boot-timeout-with-a-proxy/heroku-logo-light-234x60.png"></p>
+
+<p>Heroku will log an <a href="https://devcenter.heroku.com/articles/error-codes#r10-boot-timeout">R10 - Boot Timeout</a> error when a web process takes longer than 60 seconds to bind to its assigned port. This error is often caused by a process being unable to reach an external resource, such as a database or because you have a lot of gems in your <code>Gemfile</code> which take a long time to load.</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>Dec 12 12:12:12 prod heroku/web.1:
+</span><span class='line'>  Error R10 (Boot timeout)
+</span><span class='line'>  Web process failed to bind to $PORT within 60 seconds of launch</span></code></pre></td></tr></table></div></figure>
+
+
+<p>There&#8217;s currently no way to increase this boot timeout, but we can beat it with a proxy implemented by our new <a href="https://github.com/dblock/heroku-forward">heroku-forward</a> gem.</p>
+
+<!-- more -->
+
+
+<p>The concepts for <code>heroku-forward</code> come from <a href="http://noverloop.be/beating-herokus-60s-boot-times-with-the-cedar-stack-and-a-reverse-proxy/">this article</a> by Nicolas Overloop. The basic idea is to have a proxy bind to the port immediately and then buffer requests until the backend came up. The proxy implementation is Ilya Grigorik&#8217;s <a href="https://github.com/igrigorik/em-proxy">em-proxy</a>. Communication between the proxy and the backend happens over a unix domain socket (a file), which needed a bit of work (see <a href="https://github.com/igrigorik/em-proxy/pull/31">#31</a>), inspired by an excellent article, <a href="http://jgwmaxwell.com/fighting-the-unicorns-becoming-a-thin-wizard-on-heroku">Fighting the Unicorns: Becoming a Thin Wizard on Heroku</a> by JGW Maxwell. The <code>heroku-forward</code> gem connects all the dots.</p>
+
+<p>Check out the gem&#8217;s <a href="https://github.com/dblock/heroku-forward/blob/master/README.md">README</a> for how to set it up.</p>
+
+<p>Here&#8217;s the log output from an application that uses this gem. Notice that Heroku reports the state of <code>web.1</code> up after just 4 seconds, while the application takes 67 seconds to boot.</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>2012-12-11T23:33:42+00:00 heroku[web.1]: Starting process with command `bundle exec ruby config.ru`
+</span><span class='line'>2012-12-11T23:33:46+00:00 app[web.1]:  INFO -- : Launching Backend ...
+</span><span class='line'>2012-12-11T23:33:46+00:00 app[web.1]:  INFO -- : Launching Proxy Server at 0.0.0.0:42017 ...
+</span><span class='line'>2012-12-11T23:33:46+00:00 app[web.1]: DEBUG -- : Attempting to connect to /tmp/thin20121211-2-1bfazzx.
+</span><span class='line'>2012-12-11T23:33:46+00:00 app[web.1]:  WARN -- : no connection, 10 retries left.
+</span><span class='line'>2012-12-11T23:33:46+00:00 heroku[web.1]: State changed from starting to up
+</span><span class='line'>2012-12-11T23:34:32+00:00 app[web.1]: &gt;&gt; Thin web server (v1.5.0 codename Knife)
+</span><span class='line'>2012-12-11T23:34:32+00:00 app[web.1]: &gt;&gt; Maximum connections set to 1024
+</span><span class='line'>2012-12-11T23:34:32+00:00 app[web.1]: &gt;&gt; Listening on /tmp/thin20121211-2-1bfazzx, CTRL+C to stop
+</span><span class='line'>2012-12-11T23:34:53+00:00 app[web.1]: DEBUG -- : Attempting to connect to /tmp/thin20121211-2-1bfazzx.
+</span><span class='line'>2012-12-11T23:34:53+00:00 app[web.1]: DEBUG -- : Proxy Server ready at 0.0.0.0:42017 (67s).</span></code></pre></td></tr></table></div></figure>
+
+
+<p>You can read more about how we use Heroku at <a href="http://success.heroku.com/artsy">http://success.heroku.com/artsy</a>.</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Measuring Performance in Grape APIs with NewRelic RPM]]></title>
@@ -2375,528 +2597,6 @@ A fix for making the <code>-e</code> option cumulative, so that one can pass mul
 
 
 <p>A complete version of our <code>test_suites.rake</code>, including a <code>spec:suite:all</code> task that executes all specs can be found <a href="https://gist.github.com/2597305">in this gist</a>. Our Jenkins CI runs <code>rake spec:suite:all</code>, with a much improved weather report since we started using this system.</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[On Making It Personal in iOS with Searchbars]]></title>
-    <link href="http://artsy.github.com/blog/2012/05/11/on-making-it-personal--in-iOS-with-searchbars/"/>
-    <updated>2012-05-11T20:52:00-04:00</updated>
-    <id>http://artsy.github.com/blog/2012/05/11/on-making-it-personal&#8211;in-iOS-with-searchbars</id>
-    <content type="html"><![CDATA[<p>We make Folio, a pretty kick-ass iPad app that we give away to our partners to showcase their inventory at art fairs. Whilst making it we tried to ensure that all of the application fits in with the <a href="http://art.sy">art.sy</a> website aesthetic, and recently the last natively styled control fell to our mighty code hammers. That was the <code>UISearchBar</code>.</p>
-
-<p><img src="http://ortastuff.s3.amazonaws.com/images/custom_searchbar_example.jpg" alt="Screenshot of Artsy Folio" /></p>
-
-<p>When displaying only search results in a table it makes a lot of sense to use Apple&#8217;s <code>UISearchDisplayController</code> as it handles a lot of edge cases for you. However the downside is that you lose some control over how the views interact.</p>
-
-<p>The search bar was the only native control that actually made it into the version 1 release. This was mainly due to it requiring a bit of black magic in order to get it to work the way we wanted. So lets go through the code and rip it to pieces.</p>
-
-<!--more-->
-
-
-<p>First up, you&#8217;re going to want to make yourself a subclass of the <code>UISearchBar</code>, I&#8217;m going to be calling ours <code>ARSearchBar</code>. Here&#8217;s our public header.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-</pre></td><td class='code'><pre><code class='objc'><span class='line'><span class="k">@interface</span> <span class="nc">ARSearchBar</span> : <span class="nc">UISearchBar</span>
-</span><span class='line'>
-</span><span class='line'><span class="c1">// Called from The SearchDisplayController Delegate</span>
-</span><span class='line'><span class="o">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="nl">showCancelButton:</span><span class="p">(</span><span class="kt">BOOL</span><span class="p">)</span><span class="n">show</span><span class="p">;</span>
-</span><span class='line'><span class="o">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="n">cancelSearchField</span><span class="p">;</span>
-</span><span class='line'><span class="k">@end</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>Inside the implementation file we declare private instance variables for keeping track of the textfield and the Cancel button. This is so we can avoid finding them in the view hierarchy when we want to change the frame it during resizing.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-</pre></td><td class='code'><pre><code class='objc'><span class='line'><span class="k">@interface</span> <span class="nc">ARSearchBar</span> <span class="p">(){</span>
-</span><span class='line'>    <span class="n">UITextField</span> <span class="o">*</span><span class="n">foundSearchTextField</span><span class="p">;</span>
-</span><span class='line'>    <span class="n">UIButton</span> <span class="o">*</span><span class="n">overlayCancelButton</span><span class="p">;</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>So, to look at setting the size we&#8217;ve found it easiest to deal with that in an overrode <code>setFrame</code> and setting the height of the new frame before it goes to the super class. As the search bar doesn&#8217;t change its height between state changes like text insertion it shouldn&#8217;t pose a problem to have it hardcoded.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-</pre></td><td class='code'><pre><code class='objc'><span class='line'><span class="o">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="nl">setFrame:</span><span class="p">(</span><span class="n">CGRect</span><span class="p">)</span><span class="n">frame</span> <span class="p">{</span>
-</span><span class='line'>    <span class="n">frame</span><span class="p">.</span><span class="n">size</span><span class="p">.</span><span class="n">height</span> <span class="o">=</span> <span class="n">ARSearchBarHeight</span><span class="p">;</span>
-</span><span class='line'>    <span class="p">[</span><span class="n">super</span> <span class="nl">setFrame:</span><span class="n">frame</span><span class="p">];</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p></p>
-
-<p>What does pose a problem though is making sure that the subviews inside the search bar are positioned correctly with respect to the new height, this is amended in <code>layoutSubviews</code>. In our case the textfield should take up almost all of the search bar.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-</pre></td><td class='code'><pre><code class='objc'><span class='line'><span class="o">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="n">layoutSubviews</span> <span class="p">{</span>
-</span><span class='line'>    <span class="p">[</span><span class="n">super</span> <span class="n">layoutSubviews</span><span class="p">];</span>
-</span><span class='line'>
-</span><span class='line'>    <span class="c1">// resize textfield</span>
-</span><span class='line'>    <span class="n">CGRect</span> <span class="n">frame</span> <span class="o">=</span> <span class="n">foundSearchTextField</span><span class="p">.</span><span class="n">frame</span><span class="p">;</span>
-</span><span class='line'>    <span class="n">frame</span><span class="p">.</span><span class="n">size</span><span class="p">.</span><span class="n">height</span> <span class="o">=</span> <span class="n">ViewHeight</span><span class="p">;</span>
-</span><span class='line'>    <span class="n">frame</span><span class="p">.</span><span class="n">origin</span><span class="p">.</span><span class="n">y</span> <span class="o">=</span> <span class="n">ViewMargin</span><span class="p">;</span>
-</span><span class='line'>    <span class="n">frame</span><span class="p">.</span><span class="n">origin</span><span class="p">.</span><span class="n">x</span> <span class="o">=</span> <span class="n">ViewMargin</span><span class="p">;</span>
-</span><span class='line'>    <span class="n">frame</span><span class="p">.</span><span class="n">size</span><span class="p">.</span><span class="n">width</span> <span class="o">-=</span> <span class="n">ViewMargin</span> <span class="o">/</span> <span class="mi">2</span><span class="p">;</span>
-</span><span class='line'>    <span class="n">foundSearchTextField</span><span class="p">.</span><span class="n">frame</span> <span class="o">=</span> <span class="n">frame</span><span class="p">;</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>Next up is that we can&#8217;t access our <code>foundSearchField</code> because it&#8217;s not been found yet! Personally,  I&#8217;m a big fan of using nibs for everything ( and pretty pumped about Storyboards too ) so we do our searching in <code>awakeFromNib</code> .</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-</pre></td><td class='code'><pre><code class='objc'><span class='line'><span class="o">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="n">awakeFromNib</span> <span class="p">{</span>
-</span><span class='line'>    <span class="p">[</span><span class="n">super</span> <span class="n">awakeFromNib</span><span class="p">];</span>
-</span><span class='line'>
-</span><span class='line'>    <span class="c1">// find textfield in subviews</span>
-</span><span class='line'>    <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="p">[</span><span class="n">self</span><span class="p">.</span><span class="n">subviews</span> <span class="n">count</span><span class="p">]</span> <span class="o">-</span> <span class="mi">1</span><span class="p">;</span> <span class="n">i</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span><span class="o">--</span><span class="p">)</span> <span class="p">{</span>
-</span><span class='line'>        <span class="n">UIView</span> <span class="o">*</span><span class="n">subview</span> <span class="o">=</span> <span class="p">[</span><span class="n">self</span><span class="p">.</span><span class="n">subviews</span> <span class="nl">objectAtIndex:</span><span class="n">i</span><span class="p">];</span>
-</span><span class='line'>        <span class="k">if</span> <span class="p">([</span><span class="n">subview</span><span class="p">.</span><span class="n">class</span> <span class="nl">isSubclassOfClass:</span><span class="p">[</span><span class="n">UITextField</span> <span class="n">class</span><span class="p">]])</span> <span class="p">{</span>
-</span><span class='line'>            <span class="n">foundSearchTextField</span> <span class="o">=</span> <span class="p">(</span><span class="n">UITextField</span> <span class="o">*</span><span class="p">)</span><span class="n">subview</span><span class="p">;</span>
-</span><span class='line'>        <span class="p">}</span>
-</span><span class='line'>    <span class="p">}</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>This gives us a textfield, next up we want to stylize it. The perfect place for this is just after finding the textfield that you use to search in.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-<span class='line-number'>19</span>
-<span class='line-number'>20</span>
-<span class='line-number'>21</span>
-</pre></td><td class='code'><pre><code class='objc'><span class='line'><span class="o">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="n">stylizeSearchTextField</span> <span class="p">{</span>
-</span><span class='line'>    <span class="c1">// Sets the background to a static black by removing the gradient view</span>
-</span><span class='line'>    <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="p">[</span><span class="n">self</span><span class="p">.</span><span class="n">subviews</span> <span class="n">count</span><span class="p">]</span> <span class="o">-</span> <span class="mi">1</span><span class="p">;</span> <span class="n">i</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span><span class="o">--</span><span class="p">)</span> <span class="p">{</span>
-</span><span class='line'>        <span class="n">UIView</span> <span class="o">*</span><span class="n">subview</span> <span class="o">=</span> <span class="p">[</span><span class="n">self</span><span class="p">.</span><span class="n">subviews</span> <span class="nl">objectAtIndex:</span><span class="n">i</span><span class="p">];</span>
-</span><span class='line'>
-</span><span class='line'>        <span class="c1">// This is the gradient behind the textfield</span>
-</span><span class='line'>        <span class="k">if</span> <span class="p">([</span><span class="n">subview</span><span class="p">.</span><span class="n">description</span> <span class="nl">hasPrefix:</span><span class="s">@&quot;&lt;UISearchBarBackground&quot;</span><span class="p">])</span> <span class="p">{</span>
-</span><span class='line'>            <span class="p">[</span><span class="n">subview</span> <span class="n">removeFromSuperview</span><span class="p">];</span>
-</span><span class='line'>        <span class="p">}</span>
-</span><span class='line'>    <span class="p">}</span>
-</span><span class='line'>
-</span><span class='line'>    <span class="c1">// now change the search textfield itself</span>
-</span><span class='line'>    <span class="n">foundSearchTextField</span><span class="p">.</span><span class="n">borderStyle</span> <span class="o">=</span> <span class="n">UITextBorderStyleNone</span><span class="p">;</span>
-</span><span class='line'>    <span class="n">foundSearchTextField</span><span class="p">.</span><span class="n">backgroundColor</span> <span class="o">=</span> <span class="p">[</span><span class="n">UIColor</span> <span class="n">whiteColor</span><span class="p">];</span>
-</span><span class='line'>    <span class="n">foundSearchTextField</span><span class="p">.</span><span class="n">background</span> <span class="o">=</span> <span class="nb">nil</span><span class="p">;</span>
-</span><span class='line'>    <span class="n">foundSearchTextField</span><span class="p">.</span><span class="n">text</span> <span class="o">=</span> <span class="s">@&quot;&quot;</span><span class="p">;</span>
-</span><span class='line'>    <span class="n">foundSearchTextField</span><span class="p">.</span><span class="n">clearButtonMode</span> <span class="o">=</span> <span class="n">UITextFieldViewModeNever</span><span class="p">;</span>
-</span><span class='line'>    <span class="n">foundSearchTextField</span><span class="p">.</span><span class="n">leftView</span> <span class="o">=</span> <span class="p">[[</span><span class="n">UIView</span> <span class="n">alloc</span><span class="p">]</span> <span class="nl">initWithFrame:</span><span class="n">CGRectMake</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">TextfieldLeftMargin</span><span class="p">,</span> <span class="mi">0</span><span class="p">)];</span>
-</span><span class='line'>    <span class="n">foundSearchTextField</span><span class="p">.</span><span class="n">placeholder</span> <span class="o">=</span> <span class="s">@&quot;&quot;</span><span class="p">;</span>
-</span><span class='line'>    <span class="n">foundSearchTextField</span><span class="p">.</span><span class="n">font</span> <span class="o">=</span> <span class="p">[</span><span class="n">UIFont</span> <span class="nl">serifFontWithSize:</span><span class="n">ARFontSansLarge</span><span class="p">];</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>You might be wondering why we removed the placeholder text? We needed more control over the style and positioning of the placeholder text and the search icon. These are easily controlled by the UISearchDisplayController subclass rather than inside the custom search bar. This is also the place that we can deal with having our custom Cancel button.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-</pre></td><td class='code'><pre><code class='objc'><span class='line'><span class="o">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span> <span class="nl">searchDisplayControllerWillBeginSearch:</span><span class="p">(</span><span class="n">UISearchDisplayController</span> <span class="o">*</span><span class="p">)</span><span class="n">controller</span> <span class="p">{</span>
-</span><span class='line'>    <span class="p">[</span><span class="n">searchBar</span> <span class="nl">showCancelButton:</span><span class="n">YES</span><span class="p">];</span>
-</span><span class='line'>    <span class="p">[</span><span class="n">UIView</span> <span class="nl">animateWithDuration:</span><span class="mf">0.2</span> <span class="nl">animations:</span><span class="o">^</span><span class="p">{</span>
-</span><span class='line'>        <span class="n">searchPlaceholderLabel</span><span class="p">.</span><span class="n">alpha</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
-</span><span class='line'>    <span class="p">}];</span>
-</span><span class='line'><span class="p">}</span>
-</span><span class='line'>
-</span><span class='line'><span class="o">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span> <span class="nl">searchDisplayControllerWillEndSearch:</span><span class="p">(</span><span class="n">UISearchDisplayController</span> <span class="o">*</span><span class="p">)</span><span class="n">controller</span> <span class="p">{</span>
-</span><span class='line'>    <span class="p">[</span><span class="n">searchBar</span> <span class="nl">showCancelButton:</span><span class="n">NO</span><span class="p">];</span>
-</span><span class='line'>    <span class="p">[</span><span class="n">UIView</span> <span class="nl">animateWithDuration:</span><span class="mf">0.2</span> <span class="nl">animations:</span><span class="o">^</span><span class="p">{</span>
-</span><span class='line'>        <span class="n">searchPlaceholderLabel</span><span class="p">.</span><span class="n">alpha</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
-</span><span class='line'>    <span class="p">}];</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>The corresponding code for showing and hiding the Cancel button is here. We just animate it in and out by a distance of 80.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-</pre></td><td class='code'><pre><code class='objc'><span class='line'><span class="o">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="nl">showCancelButton:</span><span class="p">(</span><span class="kt">BOOL</span><span class="p">)</span><span class="n">show</span> <span class="p">{</span>
-</span><span class='line'>    <span class="n">CGFloat</span> <span class="n">distance</span> <span class="o">=</span> <span class="n">show</span><span class="o">?</span> <span class="o">-</span><span class="n">CancelAnimationDistance</span> <span class="o">:</span> <span class="n">CancelAnimationDistance</span><span class="p">;</span>
-</span><span class='line'>    <span class="p">[</span><span class="n">UIView</span> <span class="nl">animateWithDuration:</span><span class="mf">0.25</span> <span class="nl">animations:</span><span class="o">^</span><span class="p">{</span>
-</span><span class='line'>        <span class="n">overlayCancelButton</span><span class="p">.</span><span class="n">frame</span> <span class="o">=</span> <span class="n">CGRectOffset</span><span class="p">(</span><span class="n">overlayCancelButton</span><span class="p">.</span><span class="n">frame</span><span class="p">,</span> <span class="n">distance</span><span class="p">,</span> <span class="mi">0</span><span class="p">);</span>
-</span><span class='line'>    <span class="p">}];</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>The original Cancel button is something that we choose to keep around, rather than removing it form the view hierarchy, that&#8217;s so we can have our overlay Cancel button call its method instead of trying to replicate the cancel functionality ourselves.</p>
-
-<p>To keep track of the Cancel button we need to know when its meant to appear, and when its meant to disappear. Because the Cancel button is created at runtime every time a search is started we need to
-know when thats happening so we can hide it, we can do that by registering for <code>UITextFieldTextDidBeginEditingNotification</code> on the textfield once it&#8217;s been found. We do this in <code>awakeFromNib</code>.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-</pre></td><td class='code'><pre><code class='objc'><span class='line'><span class="p">[[</span><span class="n">NSNotificationCenter</span> <span class="n">defaultCenter</span><span class="p">]</span> <span class="nl">addObserver:</span><span class="n">self</span> <span class="nl">selector:</span><span class="k">@selector</span><span class="p">(</span><span class="n">removeOriginalCancel</span><span class="p">)</span> <span class="nl">name:</span><span class="n">UITextFieldTextDidBeginEditingNotification</span> <span class="nl">object:</span><span class="n">foundSearchTextField</span><span class="p">];</span>
-</span><span class='line'>
-</span><span class='line'>
-</span><span class='line'><span class="o">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="n">removeOriginalCancel</span> <span class="p">{</span>
-</span><span class='line'>    <span class="c1">// remove the original button</span>
-</span><span class='line'>    <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="p">[</span><span class="n">self</span><span class="p">.</span><span class="n">subviews</span> <span class="n">count</span><span class="p">]</span> <span class="o">-</span> <span class="mi">1</span><span class="p">;</span> <span class="n">i</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span><span class="o">--</span><span class="p">)</span> <span class="p">{</span>
-</span><span class='line'>        <span class="n">UIView</span> <span class="o">*</span><span class="n">subview</span> <span class="o">=</span> <span class="p">[</span><span class="n">self</span><span class="p">.</span><span class="n">subviews</span> <span class="nl">objectAtIndex:</span><span class="n">i</span><span class="p">];</span>
-</span><span class='line'>        <span class="k">if</span> <span class="p">([</span><span class="n">subview</span><span class="p">.</span><span class="n">class</span> <span class="nl">isSubclassOfClass:</span><span class="p">[</span><span class="n">UIButton</span> <span class="n">class</span><span class="p">]])</span> <span class="p">{</span>
-</span><span class='line'>          <span class="c1">// This is called every time a search is began, </span>
-</span><span class='line'>          <span class="c1">// so make sure to get the right button!</span>
-</span><span class='line'>            <span class="k">if</span> <span class="p">(</span><span class="n">subview</span><span class="p">.</span><span class="n">frame</span><span class="p">.</span><span class="n">size</span><span class="p">.</span><span class="n">height</span> <span class="o">!=</span> <span class="n">ViewHeight</span><span class="p">)</span> <span class="p">{</span>
-</span><span class='line'>                <span class="n">subview</span><span class="p">.</span><span class="n">hidden</span> <span class="o">=</span> <span class="n">YES</span><span class="p">;</span>
-</span><span class='line'>            <span class="p">}</span>
-</span><span class='line'>        <span class="p">}</span>
-</span><span class='line'>    <span class="p">}</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>Finally we have the styling of the button. I&#8217;ve summed it up here as a lot of it is very application specific.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-<span class='line-number'>19</span>
-<span class='line-number'>20</span>
-<span class='line-number'>21</span>
-<span class='line-number'>22</span>
-<span class='line-number'>23</span>
-<span class='line-number'>24</span>
-<span class='line-number'>25</span>
-<span class='line-number'>26</span>
-<span class='line-number'>27</span>
-<span class='line-number'>28</span>
-<span class='line-number'>29</span>
-<span class='line-number'>30</span>
-<span class='line-number'>31</span>
-<span class='line-number'>32</span>
-<span class='line-number'>33</span>
-</pre></td><td class='code'><pre><code class='objc'><span class='line'><span class="o">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="n">createButton</span> <span class="p">{</span>
-</span><span class='line'>    <span class="n">ARFlatButton</span> <span class="o">*</span><span class="n">cancelButton</span> <span class="o">=</span> <span class="p">[</span><span class="n">ARFlatButton</span> <span class="nl">buttonWithType:</span><span class="n">UIButtonTypeCustom</span><span class="p">];</span>
-</span><span class='line'>    <span class="p">[[</span><span class="n">cancelButton</span> <span class="n">titleLabel</span><span class="p">]</span> <span class="nl">setFont:</span><span class="p">[</span><span class="n">UIFont</span> <span class="nl">sansSerifFontWithSize:</span><span class="n">ARFontSansSmall</span><span class="p">]];</span>
-</span><span class='line'>
-</span><span class='line'>    <span class="n">NSString</span> <span class="o">*</span><span class="n">title</span> <span class="o">=</span> <span class="p">[</span><span class="s">@&quot;Cancel&quot;</span> <span class="n">uppercaseString</span><span class="p">];</span>
-</span><span class='line'>    <span class="p">[</span><span class="n">cancelButton</span> <span class="nl">setTitle:</span><span class="n">title</span> <span class="nl">forState:</span><span class="n">UIControlStateNormal</span><span class="p">];</span>
-</span><span class='line'>    <span class="p">[</span><span class="n">cancelButton</span> <span class="nl">setTitle:</span><span class="n">title</span> <span class="nl">forState:</span><span class="n">UIControlStateHighlighted</span><span class="p">];</span>
-</span><span class='line'>
-</span><span class='line'>    <span class="n">CGRect</span> <span class="n">buttonFrame</span> <span class="o">=</span> <span class="n">cancelButton</span><span class="p">.</span><span class="n">frame</span><span class="p">;</span>
-</span><span class='line'>    <span class="n">buttonFrame</span><span class="p">.</span><span class="n">origin</span><span class="p">.</span><span class="n">y</span> <span class="o">=</span> <span class="n">ViewMargin</span><span class="p">;</span>
-</span><span class='line'>    <span class="n">buttonFrame</span><span class="p">.</span><span class="n">size</span><span class="p">.</span><span class="n">height</span> <span class="o">=</span> <span class="n">ViewHeight</span><span class="p">;</span>
-</span><span class='line'>    <span class="n">buttonFrame</span><span class="p">.</span><span class="n">size</span><span class="p">.</span><span class="n">width</span> <span class="o">=</span> <span class="mi">66</span><span class="p">;</span>
-</span><span class='line'>    <span class="n">buttonFrame</span><span class="p">.</span><span class="n">origin</span><span class="p">.</span><span class="n">x</span> <span class="o">=</span> <span class="n">self</span><span class="p">.</span><span class="n">frame</span><span class="p">.</span><span class="n">size</span><span class="p">.</span><span class="n">width</span> <span class="o">-</span> <span class="n">buttonFrame</span><span class="p">.</span><span class="n">size</span><span class="p">.</span><span class="n">width</span> <span class="o">-</span> <span class="n">ViewMargin</span> <span class="o">+</span> <span class="n">CancelAnimationDistance</span><span class="p">;</span>
-</span><span class='line'>    <span class="n">cancelButton</span><span class="p">.</span><span class="n">frame</span> <span class="o">=</span> <span class="n">buttonFrame</span><span class="p">;</span>
-</span><span class='line'>    <span class="p">[</span><span class="n">cancelButton</span> <span class="nl">addTarget:</span><span class="n">self</span> <span class="nl">action:</span><span class="k">@selector</span><span class="p">(</span><span class="n">cancelSearchField</span><span class="p">)</span> <span class="nl">forControlEvents:</span><span class="n">UIControlEventTouchUpInside</span><span class="p">];</span>
-</span><span class='line'>
-</span><span class='line'>    <span class="n">overlayCancelButton</span> <span class="o">=</span> <span class="n">cancelButton</span><span class="p">;</span>
-</span><span class='line'>    <span class="p">[</span><span class="n">self</span> <span class="nl">addSubview:</span><span class="n">overlayCancelButton</span><span class="p">];</span>
-</span><span class='line'>    <span class="p">[</span><span class="n">self</span> <span class="nl">bringSubviewToFront:</span><span class="n">overlayCancelButton</span><span class="p">];</span>
-</span><span class='line'><span class="p">}</span>
-</span><span class='line'>
-</span><span class='line'><span class="o">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="n">cancelSearchField</span> <span class="p">{</span>
-</span><span class='line'>    <span class="c1">// tap the original button!</span>
-</span><span class='line'>    <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="p">[</span><span class="n">self</span><span class="p">.</span><span class="n">subviews</span> <span class="n">count</span><span class="p">]</span> <span class="o">-</span> <span class="mi">1</span><span class="p">;</span> <span class="n">i</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span><span class="o">--</span><span class="p">)</span> <span class="p">{</span>
-</span><span class='line'>        <span class="n">UIView</span> <span class="o">*</span><span class="n">subview</span> <span class="o">=</span> <span class="p">[</span><span class="n">self</span><span class="p">.</span><span class="n">subviews</span> <span class="nl">objectAtIndex:</span><span class="n">i</span><span class="p">];</span>
-</span><span class='line'>        <span class="k">if</span> <span class="p">([</span><span class="n">subview</span><span class="p">.</span><span class="n">class</span> <span class="nl">isSubclassOfClass:</span><span class="p">[</span><span class="n">UIButton</span> <span class="n">class</span><span class="p">]])</span> <span class="p">{</span>
-</span><span class='line'>            <span class="k">if</span> <span class="p">(</span><span class="n">subview</span><span class="p">.</span><span class="n">frame</span><span class="p">.</span><span class="n">size</span><span class="p">.</span><span class="n">height</span> <span class="o">!=</span> <span class="n">ViewHeight</span><span class="p">)</span> <span class="p">{</span>
-</span><span class='line'>                <span class="n">UIButton</span> <span class="o">*</span><span class="n">realCancel</span> <span class="o">=</span> <span class="p">(</span><span class="n">UIButton</span> <span class="o">*</span><span class="p">)</span><span class="n">subview</span><span class="p">;</span>
-</span><span class='line'>                <span class="p">[</span><span class="n">realCancel</span> <span class="nl">sendActionsForControlEvents:</span> <span class="n">UIControlEventTouchUpInside</span><span class="p">];</span>
-</span><span class='line'>            <span class="p">}</span>
-</span><span class='line'>        <span class="p">}</span>
-</span><span class='line'>    <span class="p">}</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>The complete code is available <a href="https://gist.github.com/2667766">as a gist</a> under the MIT license.</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[How to Start Small with Big Data and Google Analytics]]></title>
-    <link href="http://artsy.github.com/blog/2012/05/01/how-to-start-small-with-big-data-and-google-analytics/"/>
-    <updated>2012-05-01T20:52:00-04:00</updated>
-    <id>http://artsy.github.com/blog/2012/05/01/how-to-start-small-with-big-data-and-google-analytics</id>
-    <content type="html"><![CDATA[<p>Why do so many companies write a homegrown pageviews tracking system? Between Google Analytics, Kissmetrics and many others, isn&#8217;t that a completely solved problem?</p>
-
-<p>These popular solutions lack domain knowledge. They are easily capable of segmenting users by region or browser, but they fail to recognize rules core to your business. Tracking pageviews with a homegrown system becomes your next sprint&#8217;s goal.</p>
-
-<p>Implementing a hit counter service is quite tricky. This is a write-heavy, asynchronous problem that must minimize impact on page rendering time, while dealing with rapidly growing amounts of data. Is there a middle ground between using Google Analytics and rolling out our own homegrown implementation? How can we use Google Analytics for data collection and inject domain knowledge into gathered data, incrementally, without writing our own service?</p>
-
-<!--more-->
-
-
-<p>Let&#8217;s write a Rake task that pulls data from Google Analytics. We can run it daily. Start with a Ruby gem called <a href="https://github.com/vigetlabs/garb">Garb</a>.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">gem</span> <span class="s2">&quot;garb&quot;</span><span class="p">,</span> <span class="s2">&quot;0.9.1&quot;</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>Garb requires Google Analytics credentials. Those can go into a YAML configuration file, which will use environment settings in production (it&#8217;s an ERB template, too). We can hardcode the test account values.</p>
-
-<figure class='code'><figcaption><span>config/google_analytics.yml</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-</pre></td><td class='code'><pre><code class='yaml'><span class='line'><span class="l-Scalar-Plain">defaults</span><span class="p-Indicator">:</span> <span class="nl">&amp;defaults</span>
-</span><span class='line'>
-</span><span class='line'><span class="l-Scalar-Plain">development, test</span><span class="p-Indicator">:</span>
-</span><span class='line'>  <span class="l-Scalar-Plain">&lt;&lt;</span><span class="p-Indicator">:</span> <span class="nv">*defaults</span>
-</span><span class='line'>  <span class="l-Scalar-Plain">email</span><span class="p-Indicator">:</span> <span class="s">&quot;ga@example.com&quot;</span>
-</span><span class='line'>  <span class="l-Scalar-Plain">password</span><span class="p-Indicator">:</span> <span class="s">&quot;password&quot;</span>
-</span><span class='line'>  <span class="l-Scalar-Plain">ua</span><span class="p-Indicator">:</span> <span class="s">&quot;UA-12345678-1&quot;</span>
-</span><span class='line'>
-</span><span class='line'><span class="l-Scalar-Plain">production</span><span class="p-Indicator">:</span>
-</span><span class='line'>  <span class="l-Scalar-Plain">&lt;&lt;</span><span class="p-Indicator">:</span> <span class="nv">*defaults</span>
-</span><span class='line'>  <span class="l-Scalar-Plain">email</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">&lt;%= ENV[&#39;GOOGLE_ANALYTICS_EMAIL&#39;] %&gt;</span>
-</span><span class='line'>  <span class="l-Scalar-Plain">password</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">&lt;%= ENV[&#39;GOOGLE_ANALYTICS_PASSWORD&#39;] %&gt;</span>
-</span><span class='line'>  <span class="l-Scalar-Plain">ua</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">&lt;%= ENV[&#39;GOOGLE_ANALYICS_UA&#39;] %&gt;</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>Establish a Google Analytics session and fetch the profile corresponding to the Google user account with Garb.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">config</span> <span class="o">=</span> <span class="no">YAML</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="no">ERB</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="no">File</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="no">Rails</span><span class="o">.</span><span class="n">root</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s2">&quot;config/google_analytics.yml&quot;</span><span class="p">))</span><span class="o">.</span><span class="n">read</span><span class="p">)</span><span class="o">.</span><span class="n">result</span><span class="p">)</span><span class="o">[</span><span class="no">Rails</span><span class="o">.</span><span class="n">env</span><span class="o">].</span><span class="n">symbolize_keys</span>
-</span><span class='line'><span class="no">Garb</span><span class="o">::</span><span class="no">Session</span><span class="o">.</span><span class="n">login</span><span class="p">(</span><span class="n">config</span><span class="o">[</span><span class="ss">:email</span><span class="o">]</span><span class="p">,</span> <span class="n">config</span><span class="o">[</span><span class="ss">:password</span><span class="o">]</span><span class="p">)</span>
-</span><span class='line'><span class="n">profile</span> <span class="o">=</span> <span class="no">Garb</span><span class="o">::</span><span class="no">Management</span><span class="o">::</span><span class="no">Profile</span><span class="o">.</span><span class="n">all</span><span class="o">.</span><span class="n">detect</span> <span class="p">{</span> <span class="o">|</span><span class="nb">p</span><span class="o">|</span> <span class="nb">p</span><span class="o">.</span><span class="n">web_property_id</span> <span class="o">==</span> <span class="n">config</span><span class="o">[</span><span class="ss">:ua</span><span class="o">]</span> <span class="p">}</span>
-</span><span class='line'><span class="k">raise</span> <span class="s2">&quot;missing profile </span><span class="si">#{</span><span class="n">config</span><span class="o">[</span><span class="ss">:ua</span><span class="o">]</span><span class="si">}</span><span class="s2"> in </span><span class="si">#{</span><span class="no">Garb</span><span class="o">::</span><span class="no">Management</span><span class="o">::</span><span class="no">Profile</span><span class="o">.</span><span class="n">all</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="o">&amp;</span><span class="ss">:web_property_id</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">unless</span> <span class="n">profile</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>Garbs needs a data model to collect pageviews. It extends <code>Garb::Model</code> and defines a set of &#8220;metrics&#8221; and &#8220;dimensions&#8221;.</p>
-
-<figure class='code'><figcaption><span>app/models/google_analytics_pageviews.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">GoogleAnalyticsPageviews</span>
-</span><span class='line'>  <span class="kp">extend</span> <span class="no">Garb</span><span class="o">::</span><span class="no">Model</span>
-</span><span class='line'>  <span class="n">metrics</span> <span class="ss">:pageviews</span>
-</span><span class='line'>  <span class="n">dimensions</span> <span class="ss">:page_path</span>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>You can play with the <a href="http://ga-dev-tools.appspot.com/explorer/">Google Analytics Query Explorer</a> to see the many possible metrics (such as pageviews) and dimensions (such as requested page path).</p>
-
-<p>By default, Google Analytics lets clients retrieve 1000 records in a single request. To get all records we can add an iterator, called <code>all</code>, that will keep making requests until the server runs out of data. The code for <em>config/initializers/garb_model.rb</em> is <a href="https://gist.github.com/2265877">in this gist</a> and I made a <a href="https://github.com/vigetlabs/garb/pull/116">pull request</a> into Garb if you&#8217;d rather merge that onto your fork.</p>
-
-<p>The majority of our pages are in the form of &#8220;/model/id&#8221;, for example &#8220;/artwork/leonardo-mona-lisa&#8221;. We&#8217;re interested in all pageviews for a given artwork and in pageviews for a given artist, at a given date. We&#8217;ll store selected Google Analytics data in a <code>GoogleAnalyticsPageviewsRecord</code> model described further.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">t</span> <span class="o">=</span> <span class="no">Date</span><span class="o">.</span><span class="n">today</span> <span class="o">-</span> <span class="mi">1</span>
-</span><span class='line'><span class="no">GoogleAnalyticsPageviews</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">profile</span><span class="p">,</span> <span class="p">{</span> <span class="ss">:start_date</span> <span class="o">=&gt;</span> <span class="n">t</span><span class="p">,</span> <span class="ss">:end_date</span> <span class="o">=&gt;</span> <span class="n">t</span> <span class="p">})</span> <span class="k">do</span> <span class="o">|</span><span class="n">row</span><span class="o">|</span>
-</span><span class='line'>  <span class="n">model</span> <span class="o">=</span> <span class="sr">/^\/#\!\/(?&lt;type&gt;[a-z-]+)\/(?&lt;id&gt;[a-z-]+)$/</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">row</span><span class="o">.</span><span class="n">page_path</span><span class="p">)</span>
-</span><span class='line'>  <span class="k">next</span> <span class="k">unless</span> <span class="p">(</span><span class="n">model</span><span class="o">[</span><span class="ss">:type</span><span class="o">]</span> <span class="o">==</span> <span class="s2">&quot;artwork&quot;</span> <span class="o">||</span> <span class="n">model</span><span class="o">[</span><span class="ss">:type</span><span class="o">]</span> <span class="o">==</span> <span class="s2">&quot;artist&quot;</span><span class="p">)</span>
-</span><span class='line'>  <span class="no">GoogleAnalyticsPageviewsRecord</span><span class="o">.</span><span class="n">create!</span><span class="p">({</span>
-</span><span class='line'>    <span class="ss">:model_type</span> <span class="o">=&gt;</span> <span class="n">model</span><span class="o">[</span><span class="ss">:type</span><span class="o">]</span><span class="p">,</span>
-</span><span class='line'>    <span class="ss">:model_id</span> <span class="o">=&gt;</span> <span class="n">model</span><span class="o">[</span><span class="ss">:id</span><span class="o">]</span><span class="p">,</span>
-</span><span class='line'>    <span class="ss">:pageviews</span> <span class="o">=&gt;</span> <span class="n">row</span><span class="o">.</span><span class="n">pageviews</span><span class="p">,</span>
-</span><span class='line'>    <span class="ss">:dt</span> <span class="o">=&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y-%m-%d&quot;</span><span class="p">)</span>
-</span><span class='line'>  <span class="p">})</span>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>Each <code>GoogleAnalyticsPageviewsRecord</code> contains the total pageviews for a given model ID at a given date. We now have a record for each artwork and artist. We can rollup existing data into a set of collections, incrementally. For example, <code>google_analytics_artworks_monthly</code> will contain the monthly hits for each artwork.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-<span class='line-number'>19</span>
-<span class='line-number'>20</span>
-<span class='line-number'>21</span>
-<span class='line-number'>22</span>
-<span class='line-number'>23</span>
-<span class='line-number'>24</span>
-<span class='line-number'>25</span>
-<span class='line-number'>26</span>
-<span class='line-number'>27</span>
-<span class='line-number'>28</span>
-<span class='line-number'>29</span>
-<span class='line-number'>30</span>
-<span class='line-number'>31</span>
-<span class='line-number'>32</span>
-<span class='line-number'>33</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">GoogleAnalyticsPageviewsRecord</span>
-</span><span class='line'>  <span class="kp">include</span> <span class="no">Mongoid</span><span class="o">::</span><span class="no">Document</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="n">field</span> <span class="ss">:model_type</span><span class="p">,</span> <span class="n">type</span><span class="p">:</span> <span class="nb">String</span>
-</span><span class='line'>  <span class="n">field</span> <span class="ss">:model_id</span><span class="p">,</span> <span class="n">type</span><span class="p">:</span> <span class="nb">String</span>
-</span><span class='line'>  <span class="n">field</span> <span class="ss">:pageviews</span><span class="p">,</span> <span class="n">type</span><span class="p">:</span> <span class="nb">Integer</span>
-</span><span class='line'>  <span class="n">field</span> <span class="ss">:dt</span><span class="p">,</span> <span class="n">type</span><span class="p">:</span> <span class="no">Date</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="n">index</span> <span class="o">[</span>
-</span><span class='line'>    <span class="o">[</span><span class="ss">:model_type</span><span class="p">,</span> <span class="no">Mongo</span><span class="o">::</span><span class="no">ASCENDING</span><span class="o">]</span><span class="p">,</span>
-</span><span class='line'>    <span class="o">[</span><span class="ss">:model_id</span><span class="p">,</span> <span class="no">Mongo</span><span class="o">::</span><span class="no">ASCENDING</span><span class="o">]</span><span class="p">,</span>
-</span><span class='line'>    <span class="o">[</span><span class="ss">:dt</span><span class="p">,</span> <span class="no">Mongo</span><span class="o">::</span><span class="no">DESCENDING</span><span class="o">]</span>
-</span><span class='line'>  <span class="o">]</span><span class="p">,</span> <span class="ss">:unique</span> <span class="o">=&gt;</span> <span class="kp">true</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="n">after_create</span> <span class="ss">:rollup</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="k">def</span> <span class="nf">rollup</span>
-</span><span class='line'>    <span class="no">Mongoid</span><span class="o">.</span><span class="n">master</span><span class="o">.</span><span class="n">collection</span><span class="p">(</span><span class="s2">&quot;google_analytics_</span><span class="si">#{</span><span class="nb">self</span><span class="o">.</span><span class="n">model_type</span><span class="si">}</span><span class="s2">s_total&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
-</span><span class='line'>      <span class="p">{</span> <span class="ss">:model_id</span> <span class="o">=&gt;</span> <span class="nb">self</span><span class="o">.</span><span class="n">model_id</span> <span class="p">},</span>
-</span><span class='line'>      <span class="p">{</span> <span class="s2">&quot;$inc&quot;</span> <span class="o">=&gt;</span> <span class="p">{</span> <span class="s2">&quot;count&quot;</span> <span class="o">=&gt;</span> <span class="nb">self</span><span class="o">.</span><span class="n">pageviews</span> <span class="p">}},</span> <span class="p">{</span> <span class="ss">:upsert</span> <span class="o">=&gt;</span> <span class="kp">true</span> <span class="p">})</span>
-</span><span class='line'>    <span class="p">{</span>
-</span><span class='line'>      <span class="ss">:daily</span> <span class="o">=&gt;</span> <span class="nb">self</span><span class="o">.</span><span class="n">dt</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y-%m-%d&quot;</span><span class="p">),</span>
-</span><span class='line'>      <span class="ss">:weekly</span> <span class="o">=&gt;</span> <span class="nb">self</span><span class="o">.</span><span class="n">dt</span><span class="o">.</span><span class="n">beginning_of_week</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y-%W&quot;</span><span class="p">),</span>
-</span><span class='line'>      <span class="ss">:monthly</span> <span class="o">=&gt;</span> <span class="nb">self</span><span class="o">.</span><span class="n">dt</span><span class="o">.</span><span class="n">beginning_of_month</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y-%m&quot;</span><span class="p">),</span>
-</span><span class='line'>      <span class="ss">:yearly</span> <span class="o">=&gt;</span> <span class="nb">self</span><span class="o">.</span><span class="n">dt</span><span class="o">.</span><span class="n">beginning_of_year</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y&quot;</span><span class="p">)</span>
-</span><span class='line'>    <span class="p">}</span><span class="o">.</span><span class="n">each_pair</span> <span class="k">do</span> <span class="o">|</span><span class="n">t</span><span class="p">,</span> <span class="n">dt</span><span class="o">|</span>
-</span><span class='line'>      <span class="no">Mongoid</span><span class="o">.</span><span class="n">master</span><span class="o">.</span><span class="n">collection</span><span class="p">(</span><span class="s2">&quot;google_analytics_</span><span class="si">#{</span><span class="nb">self</span><span class="o">.</span><span class="n">model_type</span><span class="si">}</span><span class="s2">s_</span><span class="si">#{</span><span class="n">t</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
-</span><span class='line'>        <span class="p">{</span> <span class="ss">:model_id</span> <span class="o">=&gt;</span> <span class="nb">self</span><span class="o">.</span><span class="n">model_id</span><span class="p">,</span> <span class="ss">:dt</span> <span class="o">=&gt;</span> <span class="n">dt</span> <span class="p">},</span>
-</span><span class='line'>        <span class="p">{</span> <span class="s2">&quot;$inc&quot;</span> <span class="o">=&gt;</span> <span class="p">{</span> <span class="s2">&quot;count&quot;</span> <span class="o">=&gt;</span> <span class="nb">self</span><span class="o">.</span><span class="n">pageviews</span> <span class="p">}},</span> <span class="p">{</span> <span class="ss">:upsert</span> <span class="o">=&gt;</span> <span class="kp">true</span> <span class="p">})</span>
-</span><span class='line'>    <span class="k">end</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>The rollup lets us query these tables directly. For example, the following query returns a record with the pageviews for the Leonardo&#8217;s &#8220;Mona Lisa&#8221; in January 2012.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="no">Mongoid</span><span class="o">.</span><span class="n">master</span><span class="o">.</span><span class="n">collection</span><span class="p">(</span><span class="s2">&quot;google_analytics_artworks_monthly&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">find_one</span><span class="p">({</span>
-</span><span class='line'>  <span class="ss">:model_type</span> <span class="o">=&gt;</span> <span class="s2">&quot;artwork&quot;</span><span class="p">,</span> <span class="ss">:model_id</span> <span class="o">=&gt;</span> <span class="s2">&quot;leonardo-mona-lisa&quot;</span><span class="p">,</span> <span class="ss">:dt</span> <span class="o">=&gt;</span> <span class="s2">&quot;2012/01&quot;</span>
-</span><span class='line'><span class="p">})</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>One of the obvious advantages of pulling Google Analytics data is the low volume of requests and offline processing. We&#8217;re letting Google Analytics do the hard work of collecting data for us in real time and are consuming its API without the performance or time pressures.</p>
 ]]></content>
   </entry>
   
