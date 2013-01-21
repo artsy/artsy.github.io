@@ -5,11 +5,11 @@
 <!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  <title>Spend Time With Your Site - Art.sy Engineering</title>
+  <title>Improving Performance of Mongoid-Cached-Json - Art.sy Engineering</title>
   <meta name="author" content="Art.sy">
 
   
-  <meta name="description" content="Empathy with end users is critical when developing consumer-facing software. Many go even further and argue that you should be your own user to &hellip;">
+  <meta name="description" content="Last year, we have open-sourced and made extensive use of two Ruby libraries in our API: mongoid-cached-json and garner. Both transform the &hellip;">
   
 
   <!-- http://t.co/dKP3o1e -->
@@ -18,7 +18,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   
-  <link rel="canonical" href="http://artsy.github.com/blog/2012/07/05/spend-time-with-your-site">
+  <link rel="canonical" href="http://artsy.github.com/blog/2013/01/20/improving-performance-of-mongoid-cached-json">
   <link href="/favicon.png" rel="icon">
   <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
   <script src="/javascripts/modernizr-2.0.js"></script>
@@ -81,10 +81,10 @@
 
 
   
-<time datetime="2012-07-05T10:51:00-04:00" pubdate>07/05/12</time></div>
+<time datetime="2013-01-20T21:21:00-05:00" pubdate>01/20/13</time></div>
     
     
-      <h1 class="entry-title">Spend Time With Your Site</h1>
+      <h1 class="entry-title">Improving Performance of Mongoid-Cached-Json</h1>
     
     </a>
     
@@ -95,45 +95,42 @@
   </header>
 
 
-<div class="entry-content"><p>Empathy with end users is critical when developing consumer-facing software. Many go <a href="http://innonate.com/2011/03/09/hackers-the-canon-of-consumer-facing-products/">even</a> <a href="http://www.uie.com/articles/self_design/">further</a> and argue that you should <em>be</em> your own user to effectively deliver the best experience.</p>
+<div class="entry-content"><p>Last year, we have open-sourced and made extensive use of two Ruby libraries in our API: <a href="https://github.com/dblock/mongoid-cached-json">mongoid-cached-json</a> and <a href="https://github.com/artsy/garner">garner</a>. Both transform the procedural nightmare of caching and JSON generation into a declarative and easily manageable DSL. It was worth the investment, since our service spends half of its time generating JSON and reading from and writing to Memcached.</p>
 
-<blockquote><p><em>I&#8217;d encourage anyone starting a startup to become one of its users, however unnatural it seems.</em></p>
-
-<p>&mdash; Paul Graham <a href="http://paulgraham.com/organic.html">Organic Startup Ideas</a></p></blockquote>
-
-<p>In practice, though, this can be difficult:</p>
-
-<ul>
-<li>As a developer, you&#8217;re just not representative of the intended audience.</li>
-<li>You&#8217;re [appropriately] focused on the product&#8217;s next iteration, while your audience is occupied with the current state.</li>
-<li>You spend countless hours focused on product details&mdash;of course it&#8217;s a challenge to empathize with a casual visitor&#8217;s first impression.</li>
-</ul>
-
-
-<h2>Keeping it Real</h2>
-
-<p>We&#8217;ve tried some best practices to overcome these tendencies. User feedback is emailed to everyone in the company. Engineers share customer support responsibilities. But one simple tool has been surprisingly useful: we stole a page from the agile development handbook and built an <a href="http://alistair.cockburn.us/Information+radiator">information radiator</a>. Like a <a href="http://en.wikipedia.org/wiki/Kanban_board">kanban board</a>, news ticker, or <a href="https://demo.geckoboard.com/dashboard/B6782E562794C2F2/">analytics wall board</a>, our information radiator gives us an ambient awareness of end users&#8217; experiences. How?</p>
+<p>Today we&#8217;ve released mongoid-cached-json 1.4 with two interesting performance improvements.</p>
 
 <!-- more -->
 
 
-<p><strong>It&#8217;s our site, as a slideshow.</strong></p>
+<h2>Bulk Reference Resolving with a Local Cache</h2>
 
-<p><img class="screenshot" src="/images/2012-07-05-spend-time-with-your-site/slideshow_screenshot.jpg" title="[Artsy as a slideshow]" ></p>
+<p>Consider an array of database model instances, each with numerous references to other objects. It&#8217;s typical to see such instances reference the same object: for example we have an <code>Artwork</code> that references an <code>Artist</code>. It&#8217;s common to see multiple artworks reference the same artist in a collection. Retrieving the artist from cache every time it is referenced is clearly inefficient.</p>
 
-<p>That&#8217;s all. Our wall-mounted display shows the same web page that a visitor to our site recently requested. Every 20 seconds, it refreshes and shows a new, more recently requested page.</p>
+<p><code>Mongoid::CachedJson</code> will now collect all JSON references, then resolve them after suppressing duplicates, in-place within the JSON tree. This significantly reduces the number of cache queries.</p>
 
-<p>Without much effort, this gives us a sense of where users spend time on the site (<em>nudes seem popular today</em>). The impact of events such as email blasts or celebrity mentions is immediately apparent (<em>did <a href="https://twitter.com/aplusk">@aplusk</a> just tweet us?</em>). And when problems happen, we notice them as soon as errors pop up on the screen (<em><a href="http://gigaom.com/cloud/some-of-amazon-web-services-are-down-again/">AWS down again?</a></em>).</p>
+<p>Note, that while this optimization reduces load on the Memcached servers, there&#8217;s a cost of doing additional work after collecting the entire JSON in Ruby.</p>
 
-<p>Of course, this doesn&#8217;t replace proper user research, analytics, or monitoring. And the approach might need tweaking to work for your site. The lesson, though, is <em>find a way to spend time with your site</em>.</p>
+<h2>Fetching Cache Data in Bulk</h2>
 
-<h2>Implementation Notes</h2>
+<p>Various cache stores, including Memcached, support bulk read operations. The <a href="https://github.com/mperham/dalli">Dalli</a> gem, which we use in production, exposes this via the <code>read_multi</code> method. With the bulk reference optimization above we now have the entire list of keys to query from cache, at once. <code>Mongoid::CachedJson</code> will always invoke <code>read_multi</code> where available, which significantly reduces the number of network roundtrips to the cache servers.</p>
 
-<p>Using <a href="https://github.com/matschaffer/knife-solo">knife-solo</a> and <a href="http://www.opscode.com/chef/">chef</a>, we spawned an <a href="http://aws.amazon.com/ec2/">EC2</a> instance and configured it to <a href="https://devcenter.heroku.com/articles/logging#syslog_drains">drain our main site&#8217;s logs from heroku</a>. A single, static web page contains a full-screen iframe and a bit of javascript that periodically requests the most recent URL from a tiny <a href="http://www.sinatrarb.com/">sinatra</a> app, loading the resulting URL into the iframe. The sinatra app performs an ugly bash command to grep the last appropriate GET request from the drained log, filtering out requests from Artsy HQ and other uninteresting cases. Via a special flag, our site suppresses the usual tracking and analytics when loaded in this context (you didn&#8217;t want to juice your stats, right?).</p>
+<p>This is a good example of where declarative models and DSLs have tremendous advantages in enabling massive improvements across the board. Imagine making the <code>read_multi</code> optimization in hundreds of API endpoints!</p>
 
-<p>Have other tricks for keeping it real? Let us know in the comments.</p>
+<h2>Benchmarks</h2>
 
-<p><em>Update:</em> See a gist with <a href="https://gist.github.com/3073907">sample code for the slideshow app</a>.</p>
+<p>With the above optimizations the library does more work in order to make less roundtrips to Memcached over the network. Since the network is often the slowest part in any large scale system, the overall production performance should be better as long as we can obtain similar throughput in ideal network conditions on localhost. We&#8217;ve added some common case benchmarks in <a href="https://github.com/dblock/mongoid-cached-json/blob/master/spec/benchmark_spec.rb">spec/benchmark_spec.rb</a> and ran them against 1.2.3 and 1.4.0 to obtain <a href="https://gist.github.com/4583039">these results</a>. The overall performance gain averaged 14.6%, which is quite significant. With real world data in a production environment we&#8217;re seeing 15-50% less time spent in Memcached, depending on the API.</p>
+
+<h2>Links</h2>
+
+<p>The concepts behind these improvements should be attributed to <a href="https://github.com/aaw">@aaw</a> and <a href="https://github.com/macreery">@macreery</a>. If you want to learn more about the above-mentioned libraries, check out the following links:</p>
+
+<ul>
+<li><a href="http://confreaks.com/videos/986-goruco2012-from-zero-to-api-cache-w-grape-mongodb-in-10-minutes">From Zero to API-Cache w/ Grape and MongoDB</a>, video recorded at GoRuCo</li>
+<li><a href="/blog/2012/02/20/caching-model-json-with-mongoid-cached-json/">Caching Model JSON with Mongoid-Cached-Json</a></li>
+<li><a href="/blog/2012/03/23/simplifying-model-level-json-versioning-with-mongoid-cached-json/">Simplifying Model Level Versioning with Mongoid-Cched-Json</a></li>
+<li><a href="/blog/2012/05/30/restful-api-caching-with-garner/">RESTful API Caching with Garner</a></li>
+</ul>
+
 </div>
 
 
@@ -147,7 +144,7 @@
   <span class="byline author vcard">
     Posted by 
     <span class="fn">
-      Joey Aghion
+      Daniel Doubrovkine
     </span>
     
     
@@ -156,17 +153,17 @@
       (
       
       <span class="fn">
-        <a href="https://github.com/joeyAghion">github</a>
+        <a href="https://www.github.com/dblock">github</a>
       </span>
       
       
       <span class="fn">
-        <a href="http://halfamind.aghion.com">blog</a>
+        <a href="http://code.dblock.org">blog</a>
       </span>
       
       
       <span class="fn">
-        <a href="http://twitter.com/joeyAghion">twitter</a>
+        <a href="http://twitter.com/dblockdotorg">twitter</a>
       </span>
       
       )
@@ -181,7 +178,7 @@
 
 <span class="categories">
   
-    <a class='category' href='/blog/categories/ec2/'>EC2</a>, <a class='category' href='/blog/categories/heroku/'>Heroku</a>, <a class='category' href='/blog/categories/product-management/'>Product Management</a>
+    <a class='category' href='/blog/categories/api/'>API</a>, <a class='category' href='/blog/categories/caching/'>Caching</a>, <a class='category' href='/blog/categories/mongoid/'>Mongoid</a>
   
 </span>
 
@@ -191,7 +188,7 @@
     
       <div class="sharing">
   
-  <a href="http://twitter.com/share" class="twitter-share-button" data-url="http://artsy.github.com/blog/2012/07/05/spend-time-with-your-site/" data-via="artsy" data-counturl="http://artsy.github.com/blog/2012/07/05/spend-time-with-your-site/" >Tweet</a>
+  <a href="http://twitter.com/share" class="twitter-share-button" data-url="http://artsy.github.com/blog/2013/01/20/improving-performance-of-mongoid-cached-json/" data-via="artsy" data-counturl="http://artsy.github.com/blog/2013/01/20/improving-performance-of-mongoid-cached-json/" >Tweet</a>
   
   
   
@@ -200,10 +197,8 @@
     
     <p class="meta">
       
-        <a class="basic-alignment left" href="/blog/2012/06/25/replacing-hashbang-routes-with-pushstate/" title="Previous Post: Replacing #! Routes with PushState Using Backbone.js">&laquo; Replacing #! Routes with PushState Using Backbone.js</a>
+        <a class="basic-alignment left" href="/blog/2013/01/15/debugging-bundler-issues-with-heroku/" title="Previous Post: Debugging Bundler Issues on Heroku">&laquo; Debugging Bundler Issues on Heroku</a>
       
-      
-        <a class="basic-alignment right" href="/blog/2012/07/10/on-demand-jenkins-slaves-with-amazon-ec2/" title="next Post: On-Demand Jenkins Slaves with Amazon EC2">On-Demand Jenkins Slaves with Amazon EC2 &raquo;</a>
       
     </p>
   </footer>
@@ -280,8 +275,8 @@
       
         
         // var disqus_developer = 1;
-        var disqus_identifier = 'http://artsy.github.com/blog/2012/07/05/spend-time-with-your-site/';
-        var disqus_url = 'http://artsy.github.com/blog/2012/07/05/spend-time-with-your-site/';
+        var disqus_identifier = 'http://artsy.github.com/blog/2013/01/20/improving-performance-of-mongoid-cached-json/';
+        var disqus_url = 'http://artsy.github.com/blog/2013/01/20/improving-performance-of-mongoid-cached-json/';
         var disqus_script = 'embed.js';
       
     (function () {

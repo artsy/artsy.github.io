@@ -4,7 +4,7 @@
   <title><![CDATA[Category: Caching | Art.sy Engineering]]></title>
   <link href="http://artsy.github.com/blog/categories/caching/atom.xml" rel="self"/>
   <link href="http://artsy.github.com/"/>
-  <updated>2013-01-15T23:08:36-05:00</updated>
+  <updated>2013-01-20T21:11:24-05:00</updated>
   <id>http://artsy.github.com/</id>
   <author>
     <name><![CDATA[Art.sy]]></name>
@@ -12,6 +12,50 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Improving Performance of Mongoid-Cached-Json]]></title>
+    <link href="http://artsy.github.com/blog/2013/01/20/improving-performance-of-mongoid-cached-json/"/>
+    <updated>2013-01-20T21:21:00-05:00</updated>
+    <id>http://artsy.github.com/blog/2013/01/20/improving-performance-of-mongoid-cached-json</id>
+    <content type="html"><![CDATA[<p>Last year, we have open-sourced and made extensive use of two Ruby libraries in our API: <a href="https://github.com/dblock/mongoid-cached-json">mongoid-cached-json</a> and <a href="https://github.com/artsy/garner">garner</a>. Both transform the procedural nightmare of caching and JSON generation into a declarative and easily manageable DSL. It was worth the investment, since our service spends half of its time generating JSON and reading from and writing to Memcached.</p>
+
+<p>Today we've released mongoid-cached-json 1.4 with two interesting performance improvements.</p>
+
+<!-- more -->
+
+
+<h2>Bulk Reference Resolving with a Local Cache</h2>
+
+<p>Consider an array of database model instances, each with numerous references to other objects. It's typical to see such instances reference the same object: for example we have an <code>Artwork</code> that references an <code>Artist</code>. It's common to see multiple artworks reference the same artist in a collection. Retrieving the artist from cache every time it is referenced is clearly inefficient.</p>
+
+<p><code>Mongoid::CachedJson</code> will now collect all JSON references, then resolve them after suppressing duplicates, in-place within the JSON tree. This significantly reduces the number of cache queries.</p>
+
+<p>Note, that while this optimization reduces load on the Memcached servers, there's a cost of doing additional work after collecting the entire JSON in Ruby.</p>
+
+<h2>Fetching Cache Data in Bulk</h2>
+
+<p>Various cache stores, including Memcached, support bulk read operations. The <a href="https://github.com/mperham/dalli">Dalli</a> gem, which we use in production, exposes this via the <code>read_multi</code> method. With the bulk reference optimization above we now have the entire list of keys to query from cache, at once. <code>Mongoid::CachedJson</code> will always invoke <code>read_multi</code> where available, which significantly reduces the number of network roundtrips to the cache servers.</p>
+
+<p>This is a good example of where declarative models and DSLs have tremendous advantages in enabling massive improvements across the board. Imagine making the <code>read_multi</code> optimization in hundreds of API endpoints!</p>
+
+<h2>Benchmarks</h2>
+
+<p>With the above optimizations the library does more work in order to make less roundtrips to Memcached over the network. Since the network is often the slowest part in any large scale system, the overall production performance should be better as long as we can obtain similar throughput in ideal network conditions on localhost. We've added some common case benchmarks in <a href="https://github.com/dblock/mongoid-cached-json/blob/master/spec/benchmark_spec.rb">spec/benchmark_spec.rb</a> and ran them against 1.2.3 and 1.4.0 to obtain <a href="https://gist.github.com/4583039">these results</a>. The overall performance gain averaged 14.6%, which is quite significant. With real world data in a production environment we're seeing 15-50% less time spent in Memcached, depending on the API.</p>
+
+<h2>Links</h2>
+
+<p>The concepts behind these improvements should be attributed to <a href="https://github.com/aaw">@aaw</a> and <a href="https://github.com/macreery">@macreery</a>. If you want to learn more about the above-mentioned libraries, check out the following links:</p>
+
+<ul>
+<li><a href="http://confreaks.com/videos/986-goruco2012-from-zero-to-api-cache-w-grape-mongodb-in-10-minutes">From Zero to API-Cache w/ Grape and MongoDB</a>, video recorded at GoRuCo</li>
+<li><a href="/blog/2012/02/20/caching-model-json-with-mongoid-cached-json/">Caching Model JSON with Mongoid-Cached-Json</a></li>
+<li><a href="/blog/2012/03/23/simplifying-model-level-json-versioning-with-mongoid-cached-json/">Simplifying Model Level Versioning with Mongoid-Cched-Json</a></li>
+<li><a href="/blog/2012/05/30/restful-api-caching-with-garner/">RESTful API Caching with Garner</a></li>
+</ul>
+
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[RESTful API Caching with Garner]]></title>
@@ -22,7 +66,7 @@
 
 <p>At <a href="http://goruco.com/">GoRuCo</a> we open-sourced <a href="http://github.com/artsy/garner">Garner</a>, a cache implementation of the concepts described in this post. To "garner" means to gather data from various sources and to make it readily available in one place, kind-of like a cache! Garner works today with the <a href="http://github.com/intridea/grape">Grape API framework</a> and the <a href="http://github.com/mongoid/mongoid">Mongoid ODM</a>. We encourage you to fork the project, extend our library to other systems and contribute your code back, if you find it useful.</p>
 
-<p>Garner implements the Art.sy API caching cookbook that has been tried by fire in production.</p>
+<p>Garner implements the Artsy API caching cookbook that has been tried by fire in production.</p>
 
 <!-- more -->
 
@@ -37,7 +81,7 @@ header "Cache-Control", "private, max-age=#{expire_in}"
 header "Expires", CGI.rfc1123_date(Time.now.utc + expire_in)
 </code></p>
 
-<p>This example indicates to a cache in front of your service (CDN, proxy or user's browser) that the data expires in a year and that it's private for this user. When caching truly static data, such as images, use <code>public</code>. Your CDN or proxy, such as <a href="https://www.varnish-cache.org/">Varnish</a> that sits in front of Art.sy on <a href="http://www.heroku.com/">Heroku</a>, will cache the data and subsequent requests won't even need to hit your server, even though it could potentially serve different content every time.</p>
+<p>This example indicates to a cache in front of your service (CDN, proxy or user's browser) that the data expires in a year and that it's private for this user. When caching truly static data, such as images, use <code>public</code>. Your CDN or proxy, such as <a href="https://www.varnish-cache.org/">Varnish</a> that sits in front of Artsy on <a href="http://www.heroku.com/">Heroku</a>, will cache the data and subsequent requests won't even need to hit your server, even though it could potentially serve different content every time.</p>
 
 <h3>Disabling Caching of Dynamic Data</h3>
 
@@ -227,7 +271,7 @@ end
 
 <p>Versioning is hard. Your data models evolve, but you must maintain backward-compatibility for your public interfaces. While many strategies exist to deal with this problem, we'd like to propose one that requires very little programming effort and that is more declarative in nature.</p>
 
-<p>At Art.sy we use <a href="http://github.com/intridea/grape">Grape</a> and implement the "path" versioning strategy from the <a href="http://github.com/intridea/grape/tree/frontier">frontier</a> branch. Our initial v1 API is consumed by our own website and services and lives at <a href="https://artsyapi.com/api/v1">https://artsyapi.com/api/v1</a>. We've also prototyped v2 and by the time v1 is frozen, it should already be in production.</p>
+<p>At Artsy we use <a href="http://github.com/intridea/grape">Grape</a> and implement the "path" versioning strategy from the <a href="http://github.com/intridea/grape/tree/frontier">frontier</a> branch. Our initial v1 API is consumed by our own website and services and lives at <a href="https://artsyapi.com/api/v1">https://artsyapi.com/api/v1</a>. We've also prototyped v2 and by the time v1 is frozen, it should already be in production.</p>
 
 <p>Grape takes care of version-based routing and has a system that lets you split version-based presentation of a model from the model implementation. I find that separation forcefully induced by unnecessary implementation complexity around wanting to return different JSON depending on the API version requested. What if implementing versioning in <code>as_json</code> were super simple?</p>
 
