@@ -1,6 +1,6 @@
 ---
 layout: post
-title: How Art.sy Builds Labs, Experiments and Easter Eggs
+title: How Artsy Builds Labs, Experiments and Easter Eggs
 date: 2012-09-12 21:21
 comments: true
 categories: [Fun, Experiments, Programming]
@@ -9,11 +9,11 @@ github-url: https://www.github.com/dblock
 twitter-url: http://twitter.com/dblockdotorg
 blog-url: http://code.dblock.org
 ---
-At Art.sy Engineering we encourage a culture of experimentation with something called *labs*. 
+At Artsy Engineering we encourage a culture of experimentation with something called *labs*. 
 
 A new feature released into production is usually only turned on for a handful of users. We get feedback from our own team and a tiny group of early adopters, iterate, fix bugs, toss failed experiments and work on promoting complete, well behaved features to all users. The labs infrastructure gives us a chance to sleep on an idea and polish details. It also allows us to make progress continuously and flip a switch on the very last day.
 
-My favorite labs features push our collective imagination and give birth to productive brainstorms around coffee at a popular startup hangout around the corner from our Manhattan office. But the team's favorite labs are, by far, those that ship as easter eggs. These are fun and sometimes useful features that don't make much business sense. So, before I explain our rudimentary labs system, I want to invite you to our easter egg hunt. Check out [http://art.sy/humans.txt](http://art.sy/humans.txt) for instructions.
+My favorite labs features push our collective imagination and give birth to productive brainstorms around coffee at a popular startup hangout around the corner from our Manhattan office. But the team's favorite labs are, by far, those that ship as easter eggs. These are fun and sometimes useful features that don't make much business sense. So, before I explain our rudimentary labs system, I want to invite you to our easter egg hunt. Check out [http://artsy.net/humans.txt](http://artsy.net/humans.txt) for instructions.
 
 <!-- more -->
 

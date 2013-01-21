@@ -13,7 +13,7 @@ Implementing server-side RESTful API caching is hard. In a straightforward API a
 
 At [GoRuCo](http://goruco.com/) we open-sourced [Garner](http://github.com/artsy/garner), a cache implementation of the concepts described in this post. To "garner" means to gather data from various sources and to make it readily available in one place, kind-of like a cache! Garner works today with the [Grape API framework](http://github.com/intridea/grape) and the [Mongoid ODM](http://github.com/mongoid/mongoid). We encourage you to fork the project, extend our library to other systems and contribute your code back, if you find it useful.
 
-Garner implements the Art.sy API caching cookbook that has been tried by fire in production.
+Garner implements the Artsy API caching cookbook that has been tried by fire in production.
 
 <!-- more -->
 
@@ -27,7 +27,7 @@ header "Cache-Control", "private, max-age=#{expire_in}"
 header "Expires", CGI.rfc1123_date(Time.now.utc + expire_in)
 ```
 
-This example indicates to a cache in front of your service (CDN, proxy or user's browser) that the data expires in a year and that it's private for this user. When caching truly static data, such as images, use `public`. Your CDN or proxy, such as [Varnish](https://www.varnish-cache.org/) that sits in front of Art.sy on [Heroku](http://www.heroku.com/), will cache the data and subsequent requests won't even need to hit your server, even though it could potentially serve different content every time.
+This example indicates to a cache in front of your service (CDN, proxy or user's browser) that the data expires in a year and that it's private for this user. When caching truly static data, such as images, use `public`. Your CDN or proxy, such as [Varnish](https://www.varnish-cache.org/) that sits in front of Artsy on [Heroku](http://www.heroku.com/), will cache the data and subsequent requests won't even need to hit your server, even though it could potentially serve different content every time.
 
 ### Disabling Caching of Dynamic Data
 

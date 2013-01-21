@@ -15,7 +15,7 @@ tl;dr - You can write 632 rock solid UI tests with Capybara and RSpec, too.
 
 We have exactly 231 integration tests and 401 view tests out of a total of 3086 in our core application today. This adds up to 632 tests that exercise UI. The vast majority use [RSpec](http://rspec.info/) with [Capybara](https://github.com/jnicklas/capybara) and [Selenium](http://seleniumhq.org/). This means that every time the suite runs we set up real data in a local MongoDB and use a real browser to hit a fully running local application, 632 times. The suite currently takes 45 minutes to run headless on a slow Linode, UI tests taking more than half the time.
 
-While the site is in private beta (request your invite [here](http://art.sy/request_invite)), you can get a glimpse of the complexity of the UI from the [splash page](http://art.sy). It's a rich client-side Javascript application that talks to an API. You can open your browser's developer tools and watch a combination of API calls and many asynchronous events.
+While the site is in private beta (request your invite [here](http://artsy.net/request_invite)), you can get a glimpse of the complexity of the UI from the [splash page](http://artsy.net). It's a rich client-side Javascript application that talks to an API. You can open your browser's developer tools and watch a combination of API calls and many asynchronous events.
 
 Keeping the UI tests reliable is notoriously difficult. For the longest time we felt depressed under the Pacific Northwest -like weather of our Jenkins CI and blamed every possible combination of code and infrastructure for the many intermittent failures. We've gone on sprees of marking many such tests "pending" too.
 
@@ -26,7 +26,7 @@ We've learned a lot and stabilized our test suite. This is how we do UI testing.
 An Asynchronous Application
 ---------------------------
 
-The splash page on [art.sy](http://art.sy) is a [Backbone.js](http://documentcloud.github.com/backbone/) application where views fade in and out depending on user actions. It also implements a responsive layout because some elements cannot render on mobile devices or shouldn't depending on the size of your browser.
+The splash page on [Artsy](http://artsy.net) is a [Backbone.js](http://documentcloud.github.com/backbone/) application where views fade in and out depending on user actions. It also implements a responsive layout because some elements cannot render on mobile devices or shouldn't depending on the size of your browser.
 
 The application is initialized in a usual Backbone way.
 

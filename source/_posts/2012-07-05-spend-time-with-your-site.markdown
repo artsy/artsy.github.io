@@ -31,7 +31,7 @@ We've tried some best practices to overcome these tendencies. User feedback is e
 
 **It's our site, as a slideshow.**
 
-{% img screenshot /images/2012-07-05-spend-time-with-your-site/slideshow_screenshot.jpg [Art.sy as a slideshow] %}
+{% img screenshot /images/2012-07-05-spend-time-with-your-site/slideshow_screenshot.jpg [Artsy as a slideshow] %}
 
 That's all. Our wall-mounted display shows the same web page that a visitor to our site recently requested. Every 20 seconds, it refreshes and shows a new, more recently requested page.
 
@@ -42,7 +42,7 @@ Of course, this doesn't replace proper user research, analytics, or monitoring. 
 Implementation Notes
 --------------------
 
-Using [knife-solo](https://github.com/matschaffer/knife-solo) and [chef](http://www.opscode.com/chef/), we spawned an [EC2](http://aws.amazon.com/ec2/) instance and configured it to [drain our main site's logs from heroku](https://devcenter.heroku.com/articles/logging#syslog_drains). A single, static web page contains a full-screen iframe and a bit of javascript that periodically requests the most recent URL from a tiny [sinatra](http://www.sinatrarb.com/) app, loading the resulting URL into the iframe. The sinatra app performs an ugly bash command to grep the last appropriate GET request from the drained log, filtering out requests from Art.sy HQ and other uninteresting cases. Via a special flag, our site suppresses the usual tracking and analytics when loaded in this context (you didn't want to juice your stats, right?).
+Using [knife-solo](https://github.com/matschaffer/knife-solo) and [chef](http://www.opscode.com/chef/), we spawned an [EC2](http://aws.amazon.com/ec2/) instance and configured it to [drain our main site's logs from heroku](https://devcenter.heroku.com/articles/logging#syslog_drains). A single, static web page contains a full-screen iframe and a bit of javascript that periodically requests the most recent URL from a tiny [sinatra](http://www.sinatrarb.com/) app, loading the resulting URL into the iframe. The sinatra app performs an ugly bash command to grep the last appropriate GET request from the drained log, filtering out requests from Artsy HQ and other uninteresting cases. Via a special flag, our site suppresses the usual tracking and analytics when loaded in this context (you didn't want to juice your stats, right?).
 
 Have other tricks for keeping it real? Let us know in the comments.
 

@@ -9,15 +9,15 @@ github-url: https://www.github.com/dblock
 twitter-url: http://twitter.com/dblockdotorg
 blog-url: http://code.dblock.org
 ---
-The [Jenkins CI](http://jenkins-ci.org) project has grown tremendously in the past few months. There're now hundreds of plugins and an amazing engaged community. Art.sy is a happy user and proud contributor to this effort with the essential [jenkins-ansicolor plugin](https://wiki.jenkins-ci.org/display/JENKINS/AnsiColor+Plugin), eliminating boring console output since 2011.
+The [Jenkins CI](http://jenkins-ci.org) project has grown tremendously in the past few months. There're now hundreds of plugins and an amazing engaged community. Artsy is a happy user and proud contributor to this effort with the essential [jenkins-ansicolor plugin](https://wiki.jenkins-ci.org/display/JENKINS/AnsiColor+Plugin), eliminating boring console output since 2011.
 
 We are a continuous integration, deployment and devops shop and have been using Jenkins for over a year now. We've shared our experience at the [Jenkins User Conference 2012](http://www.cloudbees.com/juc2012.cb) in [a presentation](http://www.slideshare.net/dblockdotorg/graduating-to-jenkins-ci-for-rubyonrails-teams). This blog post is an overview of how to get started with Jenkins for Ruby(-on-Rails) teams.
 
-{% img /images/2012-05-27-using-jenkins-for-ruby-on-rails-teams/jenkins.png [Art.sy Jenkins CI] %}
+{% img /images/2012-05-27-using-jenkins-for-ruby-on-rails-teams/jenkins.png [Artsy Jenkins CI] %}
 
 <!-- more -->
 
-When Art.sy had only three engineers, we hesitated to deploy Jenkins. The CI server was written in Java (i.e. wasn't written in Ruby). We feared introducing excessive infrastructure too early. In retrospect, we were not in the business of building CI infrastructure, so not using Jenkins was a mistake. Since we adopted it, Jenkins has been operating painlessly and scaled nicely as our needs continued to grow.
+When Artsy had only three engineers, we hesitated to deploy Jenkins. The CI server was written in Java (i.e. wasn't written in Ruby). We feared introducing excessive infrastructure too early. In retrospect, we were not in the business of building CI infrastructure, so not using Jenkins was a mistake. Since we adopted it, Jenkins has been operating painlessly and scaled nicely as our needs continued to grow.
 
 Today, we run a single virtual server on [Linode](http://www.linode.com) as our master Jenkins and have 8 Linode slaves. These are all $19 per month plans. Our usage is variable: few builds in the middle of the night and a very high number of builds during the day, so we're planning on trying to build a Jenkins-slave on-demand system on AWS eventually.
 

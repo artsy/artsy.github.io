@@ -10,11 +10,11 @@ comments: true
 ---
 
 This post details the first of many challenges we faced in 3D
-transforming the [homepage of Art.sy](http://art.sy) (inspired by
+transforming the [homepage of Artsy](http://artsy.net) (inspired by
 [Meny](https://github.com/hakimel/meny)): detecting CSS 3D transform
 support.
 
-Front-end development is messy in today's fragmented world. At Art.sy,
+Front-end development is messy in today's fragmented world. At Artsy,
 our goal is to do what it takes to provide an incredible experience
 for *all* of our users (IE8+, iOS and the usual suspects). Deploying
 bleeding edge tech, like CSS 3D transforms, is an exercise in

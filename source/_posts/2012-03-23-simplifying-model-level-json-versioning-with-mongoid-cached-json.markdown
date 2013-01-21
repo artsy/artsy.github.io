@@ -13,7 +13,7 @@ Did you know that Netflix has hundreds of API versions, one for each device? Dan
 
 Versioning is hard. Your data models evolve, but you must maintain backward-compatibility for your public interfaces. While many strategies exist to deal with this problem, we'd like to propose one that requires very little programming effort and that is more declarative in nature.
 
-At Art.sy we use [Grape](http://github.com/intridea/grape) and implement the "path" versioning strategy from the [frontier](http://github.com/intridea/grape/tree/frontier) branch. Our initial v1 API is consumed by our own website and services and lives at [https://artsyapi.com/api/v1](https://artsyapi.com/api/v1). We've also prototyped v2 and by the time v1 is frozen, it should already be in production.
+At Artsy we use [Grape](http://github.com/intridea/grape) and implement the "path" versioning strategy from the [frontier](http://github.com/intridea/grape/tree/frontier) branch. Our initial v1 API is consumed by our own website and services and lives at [https://artsyapi.com/api/v1](https://artsyapi.com/api/v1). We've also prototyped v2 and by the time v1 is frozen, it should already be in production.
 
 Grape takes care of version-based routing and has a system that lets you split version-based presentation of a model from the model implementation. I find that separation forcefully induced by unnecessary implementation complexity around wanting to return different JSON depending on the API version requested. What if implementing versioning in `as_json` were super simple?
 

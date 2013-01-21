@@ -1,12 +1,12 @@
 ---
 layout: page
-title: "Art.sy Open Source"
+title: "Artsy Open Source"
 comments: false
 sharing: true
 footer: true
 ---
 
-We love open-source at Art.sy. We use a ton of it. We've also contributed back to numerous projects, including [Grape](https://github.com/intridea/grape),
+We love open-source at Artsy. We use a ton of it. We've also contributed back to numerous projects, including [Grape](https://github.com/intridea/grape),
 [Analytical](https://github.com/jkrall/analytical), [Fog](https://github.com/fog/fog), [Kaminari](https://github.com/amatsuda/kaminari), [Barista](https://github.com/Sutto/barista) or [TaxCloud](https://github.com/drewtempelmeyer/tax_cloud). And we have built a few open-source projects from scratch since beginning of 2011.
 
 [heroku-forward](https://github.com/dblock/heroku-forward)

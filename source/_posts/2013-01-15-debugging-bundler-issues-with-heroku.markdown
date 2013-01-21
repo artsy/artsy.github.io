@@ -1,7 +1,7 @@
 ---
 layout: post
 title: Debugging Bundler Issues on Heroku
-date: 2013-12-13 21:21
+date: 2013-01-15 21:21
 comments: true
 categories: [Heroku,ruby,bundler]
 author: Daniel Doubrovkine
