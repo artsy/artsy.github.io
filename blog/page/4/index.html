@@ -9,7 +9,7 @@
   <meta name="author" content="Art.sy">
 
   
-  <meta name="description" content="This blog is powered by static pages. I think it&#8217;s quite ironic that, while we spend a lot of time building complex large scale dynamic &hellip;">
+  <meta name="description" content="[TL;DR: To supplement Heroku-managed app servers, we launched custom EC2 instances to host Delayed Job worker processes. See the satellite_setup &hellip;">
   
 
   <!-- http://t.co/dKP3o1e -->
@@ -77,6 +77,191 @@
       
   <header>
     
+    <a href="/blog/2012/01/31/beyond-heroku-satellite-delayed-job-workers-on-ec2/">
+      <div class="date">
+
+
+
+
+  
+<time datetime="2012-01-31T11:45:00-05:00" pubdate>01/31/12</time></div>
+    
+    
+      <h1 class="entry-title">Beyond Heroku: &#8220;Satellite&#8221; Delayed Job Workers on EC2</h1>
+
+    
+    </a>
+    
+      <p class="meta">
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>[TL;DR: To supplement Heroku-managed app servers, we launched custom EC2 instances to host Delayed Job worker processes. See the <a href="https://github.com/joeyAghion/satellite_setup">satellite_setup github repo</a> for rake tasks and Chef recipes that make it easy.]</p>
+
+<p><a href="http://artsy.net">Artsy</a> engineers are big users and abusers of <a href="http://heroku.com">Heroku</a>. It&#8217;s a neat abstraction of server resources, so we were conflicted when parts of our application started to bump into Heroku&#8217;s limitations. While we weren&#8217;t eager to start managing additional infrastructure, we found that&#8211;with a few good tools&#8211;we could migrate some components away from Heroku without fragmenting the codebase or over-complicating our development environments.</p>
+
+<p>There are a number of reasons your app might need to go beyond Heroku. It might rely on a locally installed tool (not possible on Heroku&#8217;s locked-down servers), or require heavy file-system usage (limited to <code>tmp/</code> and <code>log/</code>, and not permanent or shared). In our case, the culprit was Heroku&#8217;s 512 MB RAM limit&#8211;reasonable for most web processes, but quickly exceeded by the image-processing tasks of our <a href="https://github.com/collectiveidea/delayed_job">delayed_job</a> workers. We considered building a specialized image-processing service, but decided instead to supplement our web apps with a custom <a href="http://aws.amazon.com/ec2/">EC2</a> instance dedicated to processing background tasks. We call these servers &#8220;satellites.&#8221;</p>
+
+<p>We&#8217;ll walk through the pertinent sections here, but you can find Rake tasks that correspond with these scripts, plus all of the necessary cookbooks, in the <a href="https://github.com/joeyAghion/satellite_setup">satellite_setup github repo</a>. Now, on to the code!</p>
+
+<p>First, generate a key-pair from <a href="https://console.aws.amazon.com/ec2/home?#s=KeyPairs">Amazon&#8217;s AWS Management Console</a>. Then we&#8217;ll use <a href="http://fog.io">Fog</a> to spawn the EC2 instance.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="nb">require</span> <span class="s1">&#39;fog&#39;</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1"># Update these values according to your environment...</span>
+</span><span class='line'><span class="no">S3_ACCESS_KEY_ID</span> <span class="o">=</span> <span class="s1">&#39;XXXXXXXXXXXXXXXXXXXX&#39;</span>
+</span><span class='line'><span class="no">S3_SECRET_ACCESS_KEY</span> <span class="o">=</span> <span class="s1">&#39;xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx&#39;</span>
+</span><span class='line'><span class="no">KEY_NAME</span> <span class="o">=</span> <span class="s1">&#39;satellite_keypair&#39;</span>
+</span><span class='line'><span class="no">KEY_PATH</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">#{</span><span class="no">ENV</span><span class="o">[</span><span class="s1">&#39;HOME&#39;</span><span class="o">]</span><span class="si">}</span><span class="s2">/.ssh/</span><span class="si">#{</span><span class="no">KEY_NAME</span><span class="si">}</span><span class="s2">.pem&quot;</span>
+</span><span class='line'><span class="no">IMAGE_ID</span> <span class="o">=</span> <span class="s1">&#39;ami-c162a9a8&#39;</span>  <span class="c1"># 64-bit Ubuntu 11.10</span>
+</span><span class='line'><span class="no">FLAVOR_ID</span> <span class="o">=</span> <span class="s1">&#39;m1.large&#39;</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">connection</span> <span class="o">=</span> <span class="no">Fog</span><span class="o">::</span><span class="no">Compute</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="n">provider</span><span class="p">:</span> <span class="s1">&#39;AWS&#39;</span><span class="p">,</span>
+</span><span class='line'>  <span class="n">aws_access_key_id</span><span class="p">:</span> <span class="no">S3_ACCESS_KEY_ID</span><span class="p">,</span>
+</span><span class='line'>  <span class="n">aws_secret_access_key</span><span class="p">:</span> <span class="no">S3_SECRET_ACCESS_KEY</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">server</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="n">servers</span><span class="o">.</span><span class="n">bootstrap</span><span class="p">(</span>
+</span><span class='line'>  <span class="n">key_name</span><span class="p">:</span> <span class="no">KEY_NAME</span><span class="p">,</span>
+</span><span class='line'>  <span class="n">private_key_path</span><span class="p">:</span> <span class="no">KEY_PATH</span><span class="p">,</span>
+</span><span class='line'>  <span class="n">image_id</span><span class="p">:</span> <span class="no">IMAGE_ID</span><span class="p">,</span>
+</span><span class='line'>  <span class="n">flavor_id</span><span class="p">:</span> <span class="no">FLAVOR_ID</span><span class="p">)</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Next, we&#8217;ll do some basic server prep and install our preferred Ruby version.</div>
+  
+  
+    <footer>
+      <a rel="full-article" href="/blog/2012/01/31/beyond-heroku-satellite-delayed-job-workers-on-ec2/">Read on &rarr;</a>
+    </footer>
+  
+
+
+    </article>
+  
+  
+    <article>
+      
+  <header>
+    
+    <a href="/blog/2012/01/31/delaying-carrierwave-image-processing/">
+      <div class="date">
+
+
+
+
+  
+<time datetime="2012-01-31T08:31:00-05:00" pubdate>01/31/12</time></div>
+    
+    
+      <h1 class="entry-title">Delaying CarrierWave Image Processing</h1>
+
+    
+    </a>
+    
+      <p class="meta">
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>We do a lot of image processing at Artsy. We have tens of thousands of beautiful original high resolution images from our partners and treat them with care. The files mostly come from professional art photographers, include embedded color profiles and other complicated features that make image processing a big deal.</p>
+
+<p>Once uploaded, these images are converted to JPG, resized into many versions and often resampled. We are using <a href="https://github.com/jnicklas/carrierwave">CarrierWave</a> for this process - our typical image uploader starts like a usual CarrierWave implementation with a few additional features.</p>
+
+</div>
+  
+  
+    <footer>
+      <a rel="full-article" href="/blog/2012/01/31/delaying-carrierwave-image-processing/">Read on &rarr;</a>
+    </footer>
+  
+
+
+    </article>
+  
+  
+    <article>
+      
+  <header>
+    
+    <a href="/blog/2012/01/29/how-art-dot-sy-uses-github-to-build-art-dot-sy/">
+      <div class="date">
+
+
+
+
+  
+<time datetime="2012-01-29T14:26:00-05:00" pubdate>01/29/12</time></div>
+    
+    
+      <h1 class="entry-title">How Artsy Uses Github to Build Artsy</h1>
+
+    
+    </a>
+    
+      <p class="meta">
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p><a href="http://zachholman.com/">Zach Holman</a> gave a good talk on <a href="http://zachholman.com/talk/how-github-uses-github-to-build-github">How Github uses Github to build Github</a> at Rubyconf. It was great to hear how similar our own processes are at Artsy, with a few notable differences.</p>
+
+<p>Artsy engineers store almost everything on Github. We use Github Wikis, but don&#8217;t use Github Issues much. We work in 3-week sprints with <a href="http://pivotaltracker.com/">Pivotal Tracker</a> instead. This blog is on Github. And, of course, we have our own Hubot which feeds funny animated GIFs after each successful deploy to our IRC channel.</p>
+
+<p>The most interesting part for me was around these two slides.</p>
+
+<p><img src="/images/2012-01-29-how-art-dot-sy-uses-github-to-build-art-dot-sy/github-pull.png" title="[Github Pull]" >
+<img src="/images/2012-01-29-how-art-dot-sy-uses-github-to-build-art-dot-sy/github-fork.png" title="[Github Fork]" ></p>
+
+<p>Zach emphasized that you don&#8217;t need forks to make pull requests. While technically true, I find forks particularly useful to keep things clean.</p>
+
+<p>At Artsy we use personal forks to work on features, create topical branches and make pull requests into the master from there. This is the workflow of the vast majority of open-source projects too. Now, Zach is right, you don&#8217;t want to create any second class developers - our entire team has write access to the master. We use pull requests from forks to do peer code reviews, even for trivial things. I would typically make a pull request including the person I&#8217;d like to code review my changes in the title. Here&#8217;s an example.</p>
+
+<p><img src="/images/2012-01-29-how-art-dot-sy-uses-github-to-build-art-dot-sy/github-pull-request.png" title="[Targeted Pull Request]" ></p>
+
+<p>(Notice the use of hash rocket. Zach, Ruby has transcended our lives too.)</p>
+
+<p>Working on forks keeps developer branches away from &#8220;master&#8221;. The main repository only has three branches: &#8220;master&#8221;, &#8220;staging&#8221; and &#8220;production&#8221; and each developer can make up whatever branching strategy they like in individual forks.</p>
+
+<p>Code reviews have nothing to do with hierarchy or organization, any developer will code review any other developer&#8217;s work. We tend to avoid using the same person for two subsequent code reviews to prevent excessive buddying. Zach called his pull requests &#8220;collective experiments&#8221; - a place for active discussions, rejections and praise. I really like that. Each of my rejected pull requests has been a great learning experience.</p>
+</div>
+  
+  
+
+
+    </article>
+  
+  
+    <article>
+      
+  <header>
+    
     <a href="/blog/2012/01/18/octopress-and-jekyll/">
       <div class="date">
 
@@ -103,7 +288,7 @@
 
 <p>I think it&#8217;s quite ironic that, while we spend a lot of time building complex large scale dynamic websites, our new favorite publishing platform is a system that compiles static content. But, in many ways, <a href="http://octopress.org/">Octopress</a> and <a href="https://github.com/mojombo/jekyll">Jekyll</a> fit our philosophy and developer workflow perfectly. Writing an article for this blog means using the same tools and processes as contributing to a project on Github. And everyone is welcome to browse and learn from <a href="https://github.com/artsy/artsy.github.com/tree/source">the source</a> of this blog, and even fork it and contribute fixes to the layout or even blog features.</p>
 
-<p>Here&#8217;s what Art.sy engineers do to get setup (once) and publish a new post.</p>
+<p>Here&#8217;s what Artsy engineers do to get setup (once) and publish a new post.</p>
 
 <figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
 <span class='line-number'>2</span>
@@ -209,7 +394,7 @@
   </header>
 
 
-  <div class="entry-content"><p>All of the <a href="http://sass-lang.com/">SCSS</a> stylesheets used to design this blog compile down to one file (view the source of this page and check out screen.css), and there isn&#8217;t any JavaScript affecting the layout. But there are really three versions of this page. If you&#8217;re reading this on a smartphone, what you see is almost entirely different from what you would see if you were reading this in a full screen browser. If you&#8217;re on a computer, try making this page full screen and slowly resize it to make it smaller. You&#8217;ll first notice that the Art.sy logo disappears just before it would cover the text in the main column. Keep reducing the viewport and eventually the page will snap into a mobile format with the Art.sy logo centered at the top, followed by the centered header text and mobile search box all above the index of recent posts.</p>
+  <div class="entry-content"><p>All of the <a href="http://sass-lang.com/">SCSS</a> stylesheets used to design this blog compile down to one file (view the source of this page and check out screen.css), and there isn&#8217;t any JavaScript affecting the layout. But there are really three versions of this page. If you&#8217;re reading this on a smartphone, what you see is almost entirely different from what you would see if you were reading this in a full screen browser. If you&#8217;re on a computer, try making this page full screen and slowly resize it to make it smaller. You&#8217;ll first notice that the Artsy logo disappears just before it would cover the text in the main column. Keep reducing the viewport and eventually the page will snap into a mobile format with the Artsy logo centered at the top, followed by the centered header text and mobile search box all above the index of recent posts.</p>
 
 <h2>The Philosophy</h2>
 
@@ -221,7 +406,7 @@
 
 <p>The good news is that these responsive layouts aren&#8217;t difficult to implement. When I set out to theme this <a href="http://octopress.org/">Octopress</a> blog, our designer gave me two comps, one for the full version of the site and the other for the mobile version. The first step towards a responsive layout is to notice common elements between the two designs. If you compare the two versions of the blog, you&#8217;ll notice that they contain essentially the same content. This means that we need only one template file for both designs, and definitely do not need to resort to creating a whole mobile subdomain to serve different content to small screens. For elements that aren&#8217;t the same in the two designs, we can simply hide them by setting <code>display: none</code> for devices where the elements shouldn&#8217;t be shown. I used this technique in a couple of places on the blog: the right sidebar is hidden on the mobile version, while the mobile search bar (which differs from the search bar on the side in that it has placeholder text and appears in the main content <code>div</code>) isn&#8217;t displayed on the full version of the site.</p>
 
-<p>But how do you apply different styles to the same elements depending on the size of the browser&#8217;s viewport? There are a couple of ways, but by far the cleanest way is to use CSS3 media queries. Media queries allow developers to apply different styles to elements on a page depending on the media on which they are displayed, whether that medium is a screen, a projection, print, braille, etc. The most common use of media queries, however, is to create responsive layouts. Media queries come after an <code>@media</code> declaration. Directly after comes the definition of the media type: we&#8217;re concerned with creating responsive layouts for screens, and as a result, we&#8217;ll declare our styles under <code>@media screen</code>. To apply custom styles based on the size of the screen, we&#8217;ll use media features, which come after the keyword <code>and</code> and are enclosed in parentheses. Here&#8217;s the SCSS code used to style the Art.sy logo on this blog:</p>
+<p>But how do you apply different styles to the same elements depending on the size of the browser&#8217;s viewport? There are a couple of ways, but by far the cleanest way is to use CSS3 media queries. Media queries allow developers to apply different styles to elements on a page depending on the media on which they are displayed, whether that medium is a screen, a projection, print, braille, etc. The most common use of media queries, however, is to create responsive layouts. Media queries come after an <code>@media</code> declaration. Directly after comes the definition of the media type: we&#8217;re concerned with creating responsive layouts for screens, and as a result, we&#8217;ll declare our styles under <code>@media screen</code>. To apply custom styles based on the size of the screen, we&#8217;ll use media features, which come after the keyword <code>and</code> and are enclosed in parentheses. Here&#8217;s the SCSS code used to style the Artsy logo on this blog:</p>
 
 <figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
 <span class='line-number'>2</span>
@@ -315,7 +500,7 @@
   </header>
 
 
-  <div class="entry-content"><p>We&#8217;ve been building cool stuff at <a href="http://art.sy">Art.sy</a> and are looking forward to sharing all things tech with you.</p>
+  <div class="entry-content"><p>We&#8217;ve been building cool stuff at <a href="http://artsy.net">Artsy</a> and are looking forward to sharing all things tech with you.</p>
 </div>
   
   
@@ -348,23 +533,23 @@
   <ul id="recent_posts">
     
       <li class="post">
+        <a href="/blog/2013/01/31/create-mongodb-command-lines-with-mongo/">Create MongoDB Command-Lines from Mongoid Configuration</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2013/01/20/improving-performance-of-mongoid-cached-json/">Improving Performance of Mongoid-Cached-Json</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2013/01/15/debugging-bundler-issues-with-heroku/">Debugging Bundler Issues on Heroku</a>
+      </li>
+    
+      <li class="post">
         <a href="/blog/2012/12/13/beat-heroku-60-seconds-application-boot-timeout-with-a-proxy/">Beat Heroku's 60 Seconds Application Boot Timeout with a Proxy</a>
       </li>
     
       <li class="post">
         <a href="/blog/2012/11/29/measuring-performance-in-grape-apis-with-new-relic/">Measuring Performance in Grape APIs with NewRelic RPM</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/2012/11/22/friendly-urls-with-mongoid-slug/">Friendly URLs with Mongoid::Slug</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/2012/11/15/how-to-monitor-503s-and-timeout-on-heroku/">How to Monitor 503s and Timeout Requests on Heroku</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/2012/10/18/the-perils-of-ios-user-agent-sniffing/">The perils of iOS user agent strings</a>
       </li>
     
   </ul>
@@ -383,7 +568,7 @@
     </div>
   </div>
   <footer id="main_footer"><p>
-  Copyright &copy; 2012 - Art.sy -
+  Copyright &copy; 2013 - Art.sy -
   <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
 </p>
 

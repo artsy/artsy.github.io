@@ -4,7 +4,7 @@
   <title><![CDATA[Category: Mongoid | Art.sy Engineering]]></title>
   <link href="http://artsy.github.com/blog/categories/mongoid/atom.xml" rel="self"/>
   <link href="http://artsy.github.com/"/>
-  <updated>2012-12-13T10:05:48-05:00</updated>
+  <updated>2013-01-31T10:54:02-05:00</updated>
   <id>http://artsy.github.com/</id>
   <author>
     <name><![CDATA[Art.sy]]></name>
@@ -14,11 +14,149 @@
 
   
   <entry>
+    <title type="html"><![CDATA[Create MongoDB Command-Lines from Mongoid Configuration]]></title>
+    <link href="http://artsy.github.com/blog/2013/01/31/create-mongodb-command-lines-with-mongo/"/>
+    <updated>2013-01-31T21:21:00-05:00</updated>
+    <id>http://artsy.github.com/blog/2013/01/31/create-mongodb-command-lines-with-mongo</id>
+    <content type="html"><![CDATA[<p>We use MongoDB as our primary store and have built a healthy amount of automation around various database instances and operational environments. For example, we backup databases to S3 using <code>mongodump</code>, mirror data between instances with <code>mongorestore</code> and often need to open a MongoDB shell with <code>mongo</code> to examine data at the lowest level.</p>
+
+<p>Generating MongoDB command-lines is tedious and error-prone. Introducing a new gem called <a href="https://github.com/dblock/mongoid-shell">mongoid-shell</a> to help with this. The library can generate command-lines for various MongoDB shell tools from your Mongoid configuration.</p>
+
+<p>For example, connect to your production MongoDB instance from a <code>db:production:shell</code> Rake task.</p>
+
+<p>```ruby
+namespace :db
+  namespace :production</p>
+
+<pre><code>task :shell
+  Mongoid.load! "mongoid.yml", :production
+  system Mongoid::Shell::Commands::Mongo.new.to_s
+end
+</code></pre>
+
+<p>  end
+end
+```</p>
+
+<!-- more -->
+
+
+<p>Commands can be created for the current default session or you can pass a session as an argument to a new command.</p>
+
+<p>```ruby</p>
+
+<h1>will use Mongoid.default_session</h1>
+
+<p>Mongoid::Shell::Commands::Mongodump.new</p>
+
+<h1>use a hand-crafted session</h1>
+
+<p>s = Moped::Session.new([ "127.0.0.1:27017" ])
+Mongoid::Shell::Commands::Mongodump.new(session: s)
+```</p>
+
+<p>Commands accept parameters. Here's how to backup <code>my_database</code> to <code>/tmp/db_backup</code>.</p>
+
+<p>```ruby
+out = File.join(Dir.tmpdir, 'db_backup')
+db = 'my_database'
+dump = Mongoid::Shell::Commands::Mongodump.new(db: db, out: out)</p>
+
+<h1>mongodump --db my_database --out /tmp/db_backup</h1>
+
+<p>system dump.to_s
+```</p>
+
+<p>The mongoid-shell gem currently supports <code>mongo</code>, <code>mongodump</code>, <code>mongorestore</code> and <code>mongostat</code> and various MongoDB configurations, including replica-sets.</p>
+
+<p>Please note that we don't recommend you store passwords for production environments in your <code>mongoid.yml</code>. At Artsy, we set all sensitive values directly on our Heroku instances with <code>heroku config:add</code> and use <a href="https://github.com/dblock/heroku-commander">heroku-commander</a> to retrieve these settings in rake. We also have a bit of convention in our application name, such as "app-staging" and "app-production".</p>
+
+<p>Here's a complete Rake task that dynamically fetches Heroku configuration and opens a MongoDB shell on a production or staging environment.</p>
+
+<p>```ruby
+namespace :db do
+  [ :staging, :production ].each do |env|</p>
+
+<pre><code>namespace env do
+  task :shell do
+    app = "myapp-#{env}"
+    config = Heroku::Commander.new(app: app).config
+    config.each_pair do |k, v|
+      ENV[k] = v
+    end
+    mongoid_yml = File.join(Rails.root, "config/mongoid.yml")
+    Mongoid.load! mongoid_yml, env
+    system! Mongoid::Shell::Commands::Mongo.new.to_s
+  end
+end
+</code></pre>
+
+<p>  end
+end
+```</p>
+
+<p>Run <code>rake db:staging:shell</code> or <code>rake db:production:shell</code>, which works as long as you have access to the Heroku app itself. Also note that the mongoid-shell gem will mask the MongoDB password in its output and automatically connect to the primary node of a replica-set.</p>
+
+<p>```
+$ rake db:staging:shell
+ mongo db:10007/app-staging --username user --password ************
+ MongoDB shell version: 2.0.7
+ connecting to: db:10007/app-staging</p>
+
+<blockquote><p>```</p></blockquote>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Improving Performance of Mongoid-Cached-Json]]></title>
+    <link href="http://artsy.github.com/blog/2013/01/20/improving-performance-of-mongoid-cached-json/"/>
+    <updated>2013-01-20T21:21:00-05:00</updated>
+    <id>http://artsy.github.com/blog/2013/01/20/improving-performance-of-mongoid-cached-json</id>
+    <content type="html"><![CDATA[<p>Last year, we have open-sourced and made extensive use of two Ruby libraries in our API: <a href="https://github.com/dblock/mongoid-cached-json">mongoid-cached-json</a> and <a href="https://github.com/artsy/garner">garner</a>. Both transform the procedural nightmare of caching and JSON generation into a declarative and easily manageable DSL. It was worth the investment, since our service spends half of its time generating JSON and reading from and writing to Memcached.</p>
+
+<p>Today we've released mongoid-cached-json 1.4 with two interesting performance improvements.</p>
+
+<!-- more -->
+
+
+<h2>Bulk Reference Resolving with a Local Cache</h2>
+
+<p>Consider an array of database model instances, each with numerous references to other objects. It's typical to see such instances reference the same object: for example we have an <code>Artwork</code> that references an <code>Artist</code>. It's common to see multiple artworks reference the same artist in a collection. Retrieving the artist from cache every time it is referenced is clearly inefficient.</p>
+
+<p><code>Mongoid::CachedJson</code> will now collect all JSON references, then resolve them after suppressing duplicates, in-place within the JSON tree. This significantly reduces the number of cache queries.</p>
+
+<p>Note, that while this optimization reduces load on the Memcached servers, there's a cost of doing additional work after collecting the entire JSON in Ruby.</p>
+
+<h2>Fetching Cache Data in Bulk</h2>
+
+<p>Various cache stores, including Memcached, support bulk read operations. The <a href="https://github.com/mperham/dalli">Dalli</a> gem, which we use in production, exposes this via the <code>read_multi</code> method. With the bulk reference optimization above we now have the entire list of keys to query from cache, at once. <code>Mongoid::CachedJson</code> will always invoke <code>read_multi</code> where available, which significantly reduces the number of network roundtrips to the cache servers.</p>
+
+<p>This is a good example of where declarative models and DSLs have tremendous advantages in enabling massive improvements across the board. Imagine making the <code>read_multi</code> optimization in hundreds of API endpoints!</p>
+
+<h2>Benchmarks</h2>
+
+<p>With the above optimizations the library does more work in order to make less roundtrips to Memcached over the network. Since the network is often the slowest part in any large scale system, the overall production performance should be better as long as we can obtain similar throughput in ideal network conditions on localhost. We've added some common case benchmarks in <a href="https://github.com/dblock/mongoid-cached-json/blob/master/spec/benchmark_spec.rb">spec/benchmark_spec.rb</a> and ran them against 1.2.3 and 1.4.0 to obtain <a href="https://gist.github.com/4583039">these results</a>. The overall performance gain averaged 14.6%, which is quite significant. With real world data in a production environment we're seeing 15-50% less time spent in Memcached, depending on the API.</p>
+
+<h2>Links</h2>
+
+<p>The concepts behind these improvements should be attributed to <a href="https://github.com/aaw">@aaw</a> and <a href="https://github.com/macreery">@macreery</a>. If you want to learn more about the above-mentioned libraries, check out the following links:</p>
+
+<ul>
+<li><a href="http://confreaks.com/videos/986-goruco2012-from-zero-to-api-cache-w-grape-mongodb-in-10-minutes">From Zero to API-Cache w/ Grape and MongoDB</a>, video recorded at GoRuCo</li>
+<li><a href="/blog/2012/02/20/caching-model-json-with-mongoid-cached-json/">Caching Model JSON with Mongoid-Cached-Json</a></li>
+<li><a href="/blog/2012/03/23/simplifying-model-level-json-versioning-with-mongoid-cached-json/">Simplifying Model Level Versioning with Mongoid-Cched-Json</a></li>
+<li><a href="/blog/2012/05/30/restful-api-caching-with-garner/">RESTful API Caching with Garner</a></li>
+</ul>
+
+]]></content>
+  </entry>
+  
+  <entry>
     <title type="html"><![CDATA[Friendly URLs with Mongoid::Slug]]></title>
     <link href="http://artsy.github.com/blog/2012/11/22/friendly-urls-with-mongoid-slug/"/>
     <updated>2012-11-22T21:21:00-05:00</updated>
     <id>http://artsy.github.com/blog/2012/11/22/friendly-urls-with-mongoid-slug</id>
-    <content type="html"><![CDATA[<p>All Art.sy URLs shared publicly are humanly readable. For example, you'll find all Barbara Kruger's works at <a href="http://art.sy/artist/barbara-kruger">art.sy/artist/barbara-kruger</a> and a post by Hyperallergic entitled "Superfluous Men Can't Get No Satisfaction" at <a href="http://art.sy/hyperallergic/post/superfluous-men-cant-get-no-satisfaction">art.sy/hyperallergic/post/superfluous-men-cant-get-no-satisfaction</a>. This is a lot prettier than having <code>id=42</code> in the browser's address and is a big improvement for SEO.</p>
+    <content type="html"><![CDATA[<p>All Artsy URLs shared publicly are humanly readable. For example, you'll find all Barbara Kruger's works at <a href="http://artsy.net/artist/barbara-kruger">artsy.net/artist/barbara-kruger</a> and a post by Hyperallergic entitled "Superfluous Men Can't Get No Satisfaction" at <a href="http://artsy.net/hyperallergic/post/superfluous-men-cant-get-no-satisfaction">artsy.net/hyperallergic/post/superfluous-men-cant-get-no-satisfaction</a>. This is a lot prettier than having <code>id=42</code> in the browser's address and is a big improvement for SEO.</p>
 
 <p><img src="http://artsy.github.com/images/2012-11-22-friendly-urls-with-mongoid-slug/barbara-kruger.png"></p>
 
@@ -134,7 +272,7 @@ end
 
 <p>Versioning is hard. Your data models evolve, but you must maintain backward-compatibility for your public interfaces. While many strategies exist to deal with this problem, we'd like to propose one that requires very little programming effort and that is more declarative in nature.</p>
 
-<p>At Art.sy we use <a href="http://github.com/intridea/grape">Grape</a> and implement the "path" versioning strategy from the <a href="http://github.com/intridea/grape/tree/frontier">frontier</a> branch. Our initial v1 API is consumed by our own website and services and lives at <a href="https://artsyapi.com/api/v1">https://artsyapi.com/api/v1</a>. We've also prototyped v2 and by the time v1 is frozen, it should already be in production.</p>
+<p>At Artsy we use <a href="http://github.com/intridea/grape">Grape</a> and implement the "path" versioning strategy from the <a href="http://github.com/intridea/grape/tree/frontier">frontier</a> branch. Our initial v1 API is consumed by our own website and services and lives at <a href="https://artsyapi.com/api/v1">https://artsyapi.com/api/v1</a>. We've also prototyped v2 and by the time v1 is frozen, it should already be in production.</p>
 
 <p>Grape takes care of version-based routing and has a system that lets you split version-based presentation of a model from the model implementation. I find that separation forcefully induced by unnecessary implementation complexity around wanting to return different JSON depending on the API version requested. What if implementing versioning in <code>as_json</code> were super simple?</p>
 
