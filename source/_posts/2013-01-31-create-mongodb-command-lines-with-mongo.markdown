@@ -68,14 +68,14 @@ namespace :db do
         end
         mongoid_yml = File.join(Rails.root, "config/mongoid.yml")
         Mongoid.load! mongoid_yml, env
-        system! Mongoid::Shell::Commands::Mongo.new.to_s
+        system Mongoid::Shell::Commands::Mongo.new.to_s
       end
     end
   end
 end
 ```
 
-Run `rake db:staging:shell` or `rake db:production:shell`, which works as long as you have access to the Heroku app itself. Also note that the mongoid-shell gem will mask the MongoDB password in its output and automatically connect to the primary node of a replica-set.
+Run `rake db:staging:shell` or `rake db:production:shell`, which works as long as you have access to the Heroku app itself. A bonus feature is that the mongoid-shell gem will automatically connect to the primary node of a replica-set.
 
 ```
 $ rake db:staging:shell
