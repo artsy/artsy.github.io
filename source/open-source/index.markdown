@@ -6,8 +6,13 @@ sharing: true
 footer: true
 ---
 
-We love open-source at Artsy. We use a ton of it. We've also contributed back to numerous projects, including [Grape](https://github.com/intridea/grape),
-[Analytical](https://github.com/jkrall/analytical), [Fog](https://github.com/fog/fog), [Kaminari](https://github.com/amatsuda/kaminari), [Barista](https://github.com/Sutto/barista) or [TaxCloud](https://github.com/drewtempelmeyer/tax_cloud). And we have built a few open-source projects from scratch since beginning of 2011.
+We love open-source at Artsy. We use a ton of it. We've also contributed back to numerous projects, including [Grape](https://github.com/intridea/grape), [Analytical](https://github.com/jkrall/analytical), [Fog](https://github.com/fog/fog), [Kaminari](https://github.com/amatsuda/kaminari), [Barista](https://github.com/Sutto/barista) or [TaxCloud](https://github.com/drewtempelmeyer/tax_cloud). And we have built a few open-source projects from scratch since beginning of 2011.
+
+[mongoid-shell](https://github.com/dblock/mongoid-shell)
+--------------------------------------------------------
+Create MongoDB command-lines from Mongoid configuration.
+
+[https://github.com/dblock/mongoid-shell](https://github.com/dblock/mongoid-shell)
 
 [heroku-forward](https://github.com/dblock/heroku-forward)
 ----------------------------------------------------------
@@ -23,13 +28,11 @@ This gem is a pure Ruby implementation of the HyperLogLog algorithm for estimati
 
 [https://github.com/aaw/hyperloglog-redis](https://github.com/aaw/hyperloglog-redis)
 
-
 [spidey](https://github.com/joeyAghion/spidey)
 -------------------------------------------------------------
 Spidey provides a bare-bones framework for crawling and scraping web sites. Its goal is to keep boilerplate scraping logic out of your code. The companion [spidey-mongo](https://github.com/joeyAghion/spidey-mongo) gem adds MongoDB as a data store.
 
 [https://github.com/joeyAghion/spidey](https://github.com/joeyAghion/spidey), [https://github.com/joeyAghion/spidey-mongo](https://github.com/joeyAghion/spidey-mongo)
-
 
 [rspec-rerun](https://github.com/dblock/rspec-rerun)
 ----------------------------------------------------
