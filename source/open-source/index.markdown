@@ -8,6 +8,12 @@ footer: true
 
 We love open-source at Artsy. We use a ton of it. We've also contributed back to numerous projects, including [Grape](https://github.com/intridea/grape), [Analytical](https://github.com/jkrall/analytical), [Fog](https://github.com/fog/fog), [Kaminari](https://github.com/amatsuda/kaminari), [Barista](https://github.com/Sutto/barista) or [TaxCloud](https://github.com/drewtempelmeyer/tax_cloud). And we have built a few open-source projects from scratch since beginning of 2011.
 
+[heroku-commander](https://github.com/dblock/heroku-commander)
+--------------------------------------------------------------
+Master the Heroku CLI from Ruby.
+
+[https://github.com/dblock/heroku-commander](https://github.com/dblock/heroku-commander)
+
 [mongoid-shell](https://github.com/dblock/mongoid-shell)
 --------------------------------------------------------
 Create MongoDB command-lines from Mongoid configuration.
