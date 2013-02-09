@@ -1,0 +1,634 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Data Corruption and Concurrent Updates to Embedded Objects with MongoDB - Art.sy Engineering</title>
+  <meta name="author" content="Art.sy">
+
+  
+  <meta name="description" content="We use MongoDB at Artsy as our primary data store via the Mongoid ODM. Eventually, we started noticing data corruption inside embedded objects at an &hellip;">
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://artsy.github.com/blog/2013/02/09/data-corruption-and-concurrent-updates-to-embedded-objects-with-mongoid">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <script src="/javascripts/modernizr-2.0.js"></script>
+  <script src="/javascripts/ender.js"></script>
+  <script src="/javascripts/octopress.js" type="text/javascript"></script>
+  <link href="/atom.xml" rel="alternate" title="Art.sy Engineering" type="application/atom+xml">
+  <!--[if IE 8]>
+<link href="/stylesheets/custom/ie_font.css" type="text/css">
+<![endif]-->
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-12450662-3']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+
+<body>
+  
+  <a href="/">
+    <h1 id="lrg-mark">
+      <span>Art.sy</span>
+    </h1>
+  </a>
+  
+  <header id="banner"><hgroup>
+  <div id="header">
+    <h2>Inspiration from the engineering team at <a href="http://art.sy">Art.sy</a> — A new way to discover fine art.</h2>
+  </div>
+</hgroup>
+
+</header>
+  
+  <div id="main">
+    <div id="mobile_search">
+      <form action="http://google.com/search" method="get">
+        <input type="hidden" name="q" value="site:artsy.github.com" />
+        <input class="search" type="text" name="q" results="0" placeholder="Search" />
+      </form>
+    </div>
+    <div id="content">
+      <div>
+<article class="hentry" role="article">
+  
+  <header>
+    
+    <a href="">
+      <div class="date">
+
+
+
+
+  
+<time datetime="2013-02-09T21:21:00-05:00" pubdate>02/09/13</time></div>
+    
+    
+      <h1 class="entry-title">Data Corruption and Concurrent Updates to Embedded Objects With MongoDB</h1>
+    
+    </a>
+    
+      <p class="meta">
+        
+      </p>
+    
+  </header>
+
+
+<div class="entry-content"><p>We use <a href="http://www.mongodb.org/">MongoDB</a> at Artsy as our primary data store via the <a href="http://mongoid.org/">Mongoid ODM</a>. Eventually, we started noticing data corruption inside embedded objects at an alarming rate of 2-3 records a day. The number of occurrences increased rapidly with load as our user growth accelerated.</p>
+
+<p>The root cause was not a HN-worthy sensational declaration about how MongoDB trashes data, but our lack of understanding of what can and cannot be concurrently written to the database, neatly hidden behind the ORM layer.</p>
+
+<!-- more -->
+
+
+<h3>Data Model</h3>
+
+<p>Consider the following artwork model with embedded images.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">Artwork</span>
+</span><span class='line'>  <span class="kp">include</span> <span class="no">Mongoid</span><span class="o">::</span><span class="no">Document</span>
+</span><span class='line'>  <span class="n">field</span> <span class="ss">:title</span><span class="p">,</span> <span class="n">type</span><span class="p">:</span> <span class="nb">String</span>
+</span><span class='line'>  <span class="n">embeds_many</span> <span class="ss">:images</span>
+</span><span class='line'><span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">class</span> <span class="nc">Image</span>
+</span><span class='line'>  <span class="kp">include</span> <span class="no">Mongoid</span><span class="o">::</span><span class="no">Document</span>
+</span><span class='line'>  <span class="n">embedded_in</span> <span class="ss">:artwork</span>
+</span><span class='line'>  <span class="n">field</span> <span class="ss">:filename</span><span class="p">,</span> <span class="n">type</span><span class="p">:</span> <span class="nb">String</span>
+</span><span class='line'>  <span class="n">field</span> <span class="ss">:width</span><span class="p">,</span> <span class="n">type</span><span class="p">:</span> <span class="nb">Integer</span>
+</span><span class='line'>  <span class="n">field</span> <span class="ss">:height</span><span class="p">,</span> <span class="n">type</span><span class="p">:</span> <span class="nb">Integer</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Let&#8217;s create a few objects and examine the database queries executed when constructing this relationship by setting a <code>DEBUG</code> logger level on the Moped driver used underneath the ODM.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="no">Moped</span><span class="o">.</span><span class="n">logger</span> <span class="o">=</span> <span class="no">Logger</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="vg">$stdout</span><span class="p">)</span>
+</span><span class='line'><span class="no">Moped</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">level</span> <span class="o">=</span> <span class="no">Logger</span><span class="o">::</span><span class="no">DEBUG</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1"># db.artworks.insert({ </span>
+</span><span class='line'><span class="c1">#   _id: ObjectId(&quot;510f22c5db8e540aab000001&quot;), </span>
+</span><span class='line'><span class="c1">#   title: &quot;Mona Lisa&quot; </span>
+</span><span class='line'><span class="c1"># })</span>
+</span><span class='line'><span class="n">artwork</span> <span class="o">=</span> <span class="no">Artwork</span><span class="o">.</span><span class="n">create!</span><span class="p">(</span><span class="n">title</span><span class="p">:</span> <span class="s2">&quot;Mona Lisa&quot;</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">image1</span> <span class="o">=</span> <span class="no">Image</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="n">filename</span><span class="p">:</span> <span class="s2">&quot;framed.jpg&quot;</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1"># db.artworks.update(</span>
+</span><span class='line'><span class="c1">#   { _id: ObjectId(&quot;510f22c5db8e540aab000001&quot;) },</span>
+</span><span class='line'><span class="c1">#   { $push : </span>
+</span><span class='line'><span class="c1">#     { images: </span>
+</span><span class='line'><span class="c1">#       { </span>
+</span><span class='line'><span class="c1">#         _id: ObjectId(&quot;510f22c5db8e540aab000002&quot;), </span>
+</span><span class='line'><span class="c1">#         filename: &quot;framed.jpg&quot; </span>
+</span><span class='line'><span class="c1">#       }</span>
+</span><span class='line'><span class="c1">#     }</span>
+</span><span class='line'><span class="c1">#   }</span>
+</span><span class='line'><span class="c1"># )</span>
+</span><span class='line'><span class="n">artwork</span><span class="o">.</span><span class="n">images</span> <span class="o">&lt;&lt;</span> <span class="n">image1</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">image2</span> <span class="o">=</span> <span class="no">Image</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="n">filename</span><span class="p">:</span> <span class="s2">&quot;unframed.jpg&quot;</span><span class="p">)</span>
+</span><span class='line'><span class="c1"># db.artworks.update(</span>
+</span><span class='line'><span class="c1">#   { _id: ObjectId(&quot;510f22c5db8e540aab000001&quot;) },</span>
+</span><span class='line'><span class="c1">#   { $push : </span>
+</span><span class='line'><span class="c1">#     { images: </span>
+</span><span class='line'><span class="c1">#       { </span>
+</span><span class='line'><span class="c1">#         _id: ObjectId(&quot;510f22c5db8e540aab000003&quot;), </span>
+</span><span class='line'><span class="c1">#         filename: &quot;unframed.jpg&quot; </span>
+</span><span class='line'><span class="c1">#       }</span>
+</span><span class='line'><span class="c1">#     }</span>
+</span><span class='line'><span class="c1">#   }</span>
+</span><span class='line'><span class="c1"># )</span>
+</span><span class='line'><span class="n">artwork</span><span class="o">.</span><span class="n">images</span> <span class="o">&lt;&lt;</span> <span class="n">image2</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Here&#8217;s the artwork data in MongoDB retrieved from a <code>mongo</code> shell:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="o">&gt;</span> <span class="n">db</span><span class="o">.</span><span class="n">artworks</span><span class="o">.</span><span class="n">findOne</span><span class="p">()</span>
+</span><span class='line'><span class="p">{</span>
+</span><span class='line'>  <span class="s2">&quot;_id&quot;</span> <span class="p">:</span> <span class="no">ObjectId</span><span class="p">(</span><span class="s2">&quot;510f22c5db8e540aab000001&quot;</span><span class="p">),</span>
+</span><span class='line'>  <span class="s2">&quot;title&quot;</span> <span class="p">:</span> <span class="s2">&quot;Mona Lisa&quot;</span><span class="p">,</span>
+</span><span class='line'>  <span class="s2">&quot;images&quot;</span> <span class="p">:</span> <span class="o">[</span>
+</span><span class='line'>    <span class="p">{</span>
+</span><span class='line'>      <span class="s2">&quot;_id&quot;</span> <span class="p">:</span> <span class="no">ObjectId</span><span class="p">(</span><span class="s2">&quot;510f22c5db8e540aab000002&quot;</span><span class="p">),</span>
+</span><span class='line'>      <span class="s2">&quot;filename&quot;</span> <span class="p">:</span> <span class="s2">&quot;framed.jpg&quot;</span>
+</span><span class='line'>    <span class="p">},</span>
+</span><span class='line'>    <span class="p">{</span>
+</span><span class='line'>      <span class="s2">&quot;_id&quot;</span> <span class="p">:</span> <span class="no">ObjectId</span><span class="p">(</span><span class="s2">&quot;510f22c5db8e540aab000003&quot;</span><span class="p">),</span>
+</span><span class='line'>      <span class="s2">&quot;filename&quot;</span> <span class="p">:</span> <span class="s2">&quot;unframed.jpg&quot;</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'>  <span class="o">]</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>We can modify the attributes of the second image.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="c1"># db.artworks.update(</span>
+</span><span class='line'><span class="c1">#   { _id: ObjectId(&quot;510f22c5db8e540aab000001&quot;) }, </span>
+</span><span class='line'><span class="c1">#   { $set : { &quot;images.1.width&quot; : 30, &quot;images.1.height&quot; : 40 } }</span>
+</span><span class='line'><span class="c1"># )</span>
+</span><span class='line'><span class="n">image2</span><span class="o">.</span><span class="n">update_attributes!</span><span class="p">(</span><span class="n">width</span><span class="p">:</span> <span class="mi">30</span><span class="p">,</span> <span class="n">height</span><span class="p">:</span> <span class="mi">40</span><span class="p">)</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>The image has been updated correctly.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="o">&gt;</span> <span class="n">db</span><span class="o">.</span><span class="n">artworks</span><span class="o">.</span><span class="n">findOne</span><span class="p">()</span>
+</span><span class='line'><span class="p">{</span>
+</span><span class='line'>  <span class="s2">&quot;_id&quot;</span> <span class="p">:</span> <span class="no">ObjectId</span><span class="p">(</span><span class="s2">&quot;510f22c5db8e540aab000001&quot;</span><span class="p">),</span>
+</span><span class='line'>  <span class="s2">&quot;title&quot;</span> <span class="p">:</span> <span class="s2">&quot;Mona Lisa&quot;</span><span class="p">,</span>
+</span><span class='line'>  <span class="s2">&quot;images&quot;</span> <span class="p">:</span> <span class="o">[</span>
+</span><span class='line'>    <span class="p">{</span>
+</span><span class='line'>      <span class="s2">&quot;_id&quot;</span> <span class="p">:</span> <span class="no">ObjectId</span><span class="p">(</span><span class="s2">&quot;510f22c5db8e540aab000002&quot;</span><span class="p">),</span>
+</span><span class='line'>      <span class="s2">&quot;filename&quot;</span> <span class="p">:</span> <span class="s2">&quot;framed.jpg&quot;</span>
+</span><span class='line'>    <span class="p">},</span>
+</span><span class='line'>    <span class="p">{</span>
+</span><span class='line'>      <span class="s2">&quot;_id&quot;</span> <span class="p">:</span> <span class="no">ObjectId</span><span class="p">(</span><span class="s2">&quot;510f22c5db8e540aab000003&quot;</span><span class="p">),</span>
+</span><span class='line'>      <span class="s2">&quot;filename&quot;</span> <span class="p">:</span> <span class="s2">&quot;unframed.jpg&quot;</span><span class="p">,</span>
+</span><span class='line'>      <span class="s2">&quot;height&quot;</span> <span class="p">:</span> <span class="mi">40</span><span class="p">,</span>
+</span><span class='line'>      <span class="s2">&quot;width&quot;</span> <span class="p">:</span> <span class="mi">30</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'>  <span class="o">]</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>Incomplete Record Corruption</h3>
+
+<p>Examining the query you will notice that it uses a so-called &#8220;positional&#8221; operator, <code>images.1.width</code> to update the record. Imagine what happens when the first record is being deleted from another process at the same time. That&#8217;s right, the update may happen to a record that doesn&#8217;t exist, in which case the behavior is to create it.</p>
+
+<p>We can simulate this by loading the object in Ruby, pulling the first record directly from the database and then performing the update.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">artwork</span><span class="o">.</span><span class="n">images</span> <span class="o">&lt;&lt;</span> <span class="n">image2</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1"># pull the first artwork directly from the database</span>
+</span><span class='line'><span class="no">Artwork</span><span class="o">.</span><span class="n">collection</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">_id</span><span class="p">:</span> <span class="n">artwork</span><span class="o">.</span><span class="n">id</span><span class="p">)</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+</span><span class='line'>  <span class="s2">&quot;$pull&quot;</span> <span class="o">=&gt;</span> <span class="p">{</span> <span class="s2">&quot;images&quot;</span> <span class="o">=&gt;</span> <span class="p">{</span> <span class="n">_id</span><span class="p">:</span> <span class="n">image1</span><span class="o">.</span><span class="n">id</span> <span class="p">}</span> <span class="p">})</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">image2</span><span class="o">.</span><span class="n">update_attributes!</span><span class="p">(</span><span class="n">width</span><span class="p">:</span> <span class="mi">30</span><span class="p">,</span> <span class="n">height</span><span class="p">:</span> <span class="mi">40</span><span class="p">)</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>This is a nasty surprise. We now have two records in the embedded collection, the second one missing an <code>_id</code>.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="o">&gt;</span> <span class="n">db</span><span class="o">.</span><span class="n">artworks</span><span class="o">.</span><span class="n">findOne</span><span class="p">()</span>
+</span><span class='line'><span class="p">{</span>
+</span><span class='line'>  <span class="s2">&quot;_id&quot;</span> <span class="p">:</span> <span class="no">ObjectId</span><span class="p">(</span><span class="s2">&quot;510f22c5db8e540aab000001&quot;</span><span class="p">),</span>
+</span><span class='line'>  <span class="s2">&quot;title&quot;</span> <span class="p">:</span> <span class="s2">&quot;Mona Lisa&quot;</span><span class="p">,</span>
+</span><span class='line'>  <span class="s2">&quot;images&quot;</span> <span class="p">:</span> <span class="o">[</span>
+</span><span class='line'>    <span class="p">{</span>
+</span><span class='line'>      <span class="s2">&quot;_id&quot;</span> <span class="p">:</span> <span class="no">ObjectId</span><span class="p">(</span><span class="s2">&quot;510f22c5db8e540aab000003&quot;</span><span class="p">),</span>
+</span><span class='line'>      <span class="s2">&quot;filename&quot;</span> <span class="p">:</span> <span class="s2">&quot;unframed.jpg&quot;</span>
+</span><span class='line'>    <span class="p">},</span>
+</span><span class='line'>    <span class="p">{</span>
+</span><span class='line'>      <span class="s2">&quot;height&quot;</span> <span class="p">:</span> <span class="mi">40</span><span class="p">,</span>
+</span><span class='line'>      <span class="s2">&quot;width&quot;</span> <span class="p">:</span> <span class="mi">30</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'>  <span class="o">]</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>When reloaded, Mongoid will assign an automatic <code>_id</code> to the second object, the correct height and width, but no filename.</p>
+
+<h3>Null Record Corruption</h3>
+
+<p>A similar scenario can be played by pulling both image records out of the embedded collection and making a positional update. This will create a <code>null</code> record.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">artwork</span><span class="o">.</span><span class="n">images</span> <span class="o">&lt;&lt;</span> <span class="n">image2</span>
+</span><span class='line'>
+</span><span class='line'><span class="no">Artwork</span><span class="o">.</span><span class="n">collection</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">_id</span><span class="p">:</span> <span class="n">artwork</span><span class="o">.</span><span class="n">id</span><span class="p">)</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+</span><span class='line'>  <span class="s2">&quot;$pull&quot;</span> <span class="o">=&gt;</span> <span class="p">{</span> <span class="s2">&quot;images&quot;</span> <span class="o">=&gt;</span> <span class="p">{</span> <span class="n">_id</span><span class="p">:</span> <span class="n">image1</span><span class="o">.</span><span class="n">id</span> <span class="p">}</span> <span class="p">})</span>
+</span><span class='line'><span class="no">Artwork</span><span class="o">.</span><span class="n">collection</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">_id</span><span class="p">:</span> <span class="n">artwork</span><span class="o">.</span><span class="n">id</span><span class="p">)</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+</span><span class='line'>  <span class="s2">&quot;$pull&quot;</span> <span class="o">=&gt;</span> <span class="p">{</span> <span class="s2">&quot;images&quot;</span> <span class="o">=&gt;</span> <span class="p">{</span> <span class="n">_id</span><span class="p">:</span> <span class="n">image2</span><span class="o">.</span><span class="n">id</span> <span class="p">}</span> <span class="p">})</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">image2</span><span class="o">.</span><span class="n">update_attributes!</span><span class="p">(</span><span class="n">width</span><span class="p">:</span> <span class="mi">30</span><span class="p">,</span> <span class="n">height</span><span class="p">:</span> <span class="mi">40</span><span class="p">)</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="o">&gt;</span> <span class="n">db</span><span class="o">.</span><span class="n">artworks</span><span class="o">.</span><span class="n">findOne</span><span class="p">()</span>
+</span><span class='line'><span class="p">{</span>
+</span><span class='line'>  <span class="s2">&quot;_id&quot;</span> <span class="p">:</span> <span class="no">ObjectId</span><span class="p">(</span><span class="s2">&quot;510f22c5db8e540aab000001&quot;</span><span class="p">),</span>
+</span><span class='line'>  <span class="s2">&quot;title&quot;</span> <span class="p">:</span> <span class="s2">&quot;Mona Lisa&quot;</span>
+</span><span class='line'>  <span class="s2">&quot;images&quot;</span> <span class="p">:</span> <span class="o">[</span>
+</span><span class='line'>    <span class="n">null</span><span class="p">,</span>
+</span><span class='line'>    <span class="p">{</span>
+</span><span class='line'>      <span class="s2">&quot;height&quot;</span> <span class="p">:</span> <span class="mi">40</span><span class="p">,</span>
+</span><span class='line'>      <span class="s2">&quot;width&quot;</span> <span class="p">:</span> <span class="mi">30</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'>  <span class="o">]</span><span class="p">,</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>Solutions</h3>
+
+<p>A first obvious solution is not to use embedded objects or to never modify them. Both <code>$push</code> and <code>$pull</code> are atomic operations, but not the positional update.</p>
+
+<p>A general solution to this problem is to make all update operations transactional. You can take a lock on the model by using <a href="https://github.com/afeld/mongoid-locker">mongoid-locker</a>. It works, but might be rather tedious depending on the complexity of your application.</p>
+
+<p>Finally, MongoDB supports something called a &#8220;positional operator&#8221; for embedded objects. This means you can atomically update a record found by its embedded object&#8217;s field using a reference to the position of that embedded object. This solves our problem, as long as the object is not embedded below the first level. Mongoid 3.1 (currently HEAD) implements this behavior by default (see <a href="https://github.com/mongoid/mongoid/issues/2545">#2545</a> for details), adjusting the selector to look for the embedded object&#8217;s <code>_id</code> and replacing the position with a <code>$</code> positional operator.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="c1"># db.artworks.update(</span>
+</span><span class='line'><span class="c1">#   { </span>
+</span><span class='line'><span class="c1">#     _id: ObjectId(&quot;510f22c5db8e540aab000001&quot;), </span>
+</span><span class='line'><span class="c1">#     &quot;images._id&quot; : ObjectId(&quot;510f22c5db8e540aab000003&quot;) </span>
+</span><span class='line'><span class="c1">#   }, </span>
+</span><span class='line'><span class="c1">#   { $set : { &quot;images.$.width&quot; : 30, &quot;images.$.height&quot; : 40 }}</span>
+</span><span class='line'><span class="c1"># )</span>
+</span><span class='line'><span class="n">image2</span><span class="o">.</span><span class="n">update_attributes!</span><span class="p">(</span><span class="n">width</span><span class="p">:</span> <span class="mi">30</span><span class="p">,</span> <span class="n">height</span><span class="p">:</span> <span class="mi">40</span><span class="p">)</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>We&#8217;ve been successfully running this in production for a few weeks now, without any more data corruption issues.</p>
+
+<p>While this is a huge step forward, covering all of our application&#8217;s scenarios, we would like complete native support for atomic updates inside MongoDB at all levels of nesting. Please add your +1 to <a href="https://jira.mongodb.org/browse/SERVER-831">SERVER-831</a>.</p>
+
+<h3>Links</h3>
+
+<ul>
+<li><a href="https://gist.github.com/dblock/4699070">Code to Detect Corrupt Embedded Objects</a></li>
+<li><a href="https://jira.mongodb.org/browse/SERVER-831">MongoDB SERVER-831: Positional Operator Matching Nested Arrays</a></li>
+<li><a href="https://github.com/mongoid/mongoid/issues/2545">Mongoid #2545: Use $ Positional Operator for Updating Embedded Documents</a></li>
+<li><a href="https://github.com/dblock/mongoid/tree/master-issues/spec/dblock">Repro Specs for Mongoid #2545 and Similar</a></li>
+</ul>
+
+</div>
+
+
+  <footer>
+    <div class="meta">
+      
+  
+
+
+
+  <span class="byline author vcard">
+    Posted by 
+    <span class="fn">
+      Daniel Doubrovkine
+    </span>
+    
+    
+    
+    
+      (
+      
+      <span class="fn">
+        <a href="https://www.github.com/dblock">github</a>
+      </span>
+      
+      
+      <span class="fn">
+        <a href="http://code.dblock.org">blog</a>
+      </span>
+      
+      
+      <span class="fn">
+        <a href="http://twitter.com/dblockdotorg">twitter</a>
+      </span>
+      
+      )
+    
+    
+  </span>
+
+
+    </div>
+    <div class="meta">
+      Categories: 
+
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/mongodb/'>MongoDB</a>, <a class='category' href='/blog/categories/mongoid/'>Mongoid</a>
+  
+</span>
+
+
+    </div>
+
+    
+      <div class="sharing">
+  
+  <a href="http://twitter.com/share" class="twitter-share-button" data-url="http://artsy.github.com/blog/2013/02/09/data-corruption-and-concurrent-updates-to-embedded-objects-with-mongoid/" data-via="artsy" data-counturl="http://artsy.github.com/blog/2013/02/09/data-corruption-and-concurrent-updates-to-embedded-objects-with-mongoid/" >Tweet</a>
+  
+  
+  
+</div>
+
+    
+    <p class="meta">
+      
+        <a class="basic-alignment left" href="/blog/2013/02/01/master-heroku-command-line-with-heroku-commander/" title="Previous Post: Master the Heroku CLI with Heroku Commander">&laquo; Master the Heroku CLI with Heroku Commander</a>
+      
+      
+    </p>
+  </footer>
+</article>
+
+  <section>
+    <h1>Comments</h1>
+    <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</div>
+  </section>
+
+</div>
+    </div>
+    <div id="sidebar">
+      
+  
+    <section>
+  <h1>Info</h1>
+  <ul>
+    <li> <a href="/about">About Us</a></li>
+    <li> <a href="/open-source">Art.sy Open-Source</a></li>
+    <li> <a href="http://art.sy/job/developer">Join the Art.sy Engineering Team</a></li>
+  </ul>
+</section>
+<section id="recent_posts_section">
+  <h1>Recent Posts</h1>
+  <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/2013/02/09/data-corruption-and-concurrent-updates-to-embedded-objects-with-mongoid/">Data Corruption and Concurrent Updates to Embedded Objects with MongoDB</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2013/02/01/master-heroku-command-line-with-heroku-commander/">Master the Heroku CLI with Heroku Commander</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2013/01/31/create-mongodb-command-lines-with-mongo/">Create MongoDB Command-Lines from Mongoid Configuration</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2013/01/20/improving-performance-of-mongoid-cached-json/">Improving Performance of Mongoid-Cached-Json</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2013/01/15/debugging-bundler-issues-with-heroku/">Debugging Bundler Issues on Heroku</a>
+      </li>
+    
+  </ul>
+  <a class="archive_link" href="/blog/archives">Blog Archive</a>
+</section>
+<section>
+  <h1>Search</h1>
+  <form action="http://google.com/search" method="get">
+    <input type="hidden" name="q" value="site:artsy.github.com" />
+    <input class="search" type="text" name="q" results="0" />
+  </form>
+</section>
+  
+
+
+    </div>
+  </div>
+  <footer id="main_footer"><p>
+  Copyright &copy; 2013 - Art.sy -
+  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+  
+
+<script type="text/javascript">
+      var disqus_shortname = 'artsy';
+      
+        
+        // var disqus_developer = 1;
+        var disqus_identifier = 'http://artsy.github.com/blog/2013/02/09/data-corruption-and-concurrent-updates-to-embedded-objects-with-mongoid/';
+        var disqus_url = 'http://artsy.github.com/blog/2013/02/09/data-corruption-and-concurrent-updates-to-embedded-objects-with-mongoid/';
+        var disqus_script = 'embed.js';
+      
+    (function () {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = 'http://' + disqus_shortname + '.disqus.com/' + disqus_script;
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    }());
+</script>
+
+
+
+
+
+
+
+  <script type="text/javascript">
+    (function(){
+      var twitterWidgets = document.createElement('script');
+      twitterWidgets.type = 'text/javascript';
+      twitterWidgets.async = true;
+      twitterWidgets.src = 'http://platform.twitter.com/widgets.js';
+      document.getElementsByTagName('head')[0].appendChild(twitterWidgets);
+    })();
+  </script>
+
+
+
+
+
+</body>
+</html>

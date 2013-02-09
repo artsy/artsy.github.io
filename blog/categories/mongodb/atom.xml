@@ -4,7 +4,7 @@
   <title><![CDATA[Category: MongoDB | Art.sy Engineering]]></title>
   <link href="http://artsy.github.com/blog/categories/mongodb/atom.xml" rel="self"/>
   <link href="http://artsy.github.com/"/>
-  <updated>2013-02-02T15:23:18-05:00</updated>
+  <updated>2013-02-09T13:36:07-05:00</updated>
   <id>http://artsy.github.com/</id>
   <author>
     <name><![CDATA[Art.sy]]></name>
@@ -12,6 +12,292 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Data Corruption and Concurrent Updates to Embedded Objects with MongoDB]]></title>
+    <link href="http://artsy.github.com/blog/2013/02/09/data-corruption-and-concurrent-updates-to-embedded-objects-with-mongoid/"/>
+    <updated>2013-02-09T21:21:00-05:00</updated>
+    <id>http://artsy.github.com/blog/2013/02/09/data-corruption-and-concurrent-updates-to-embedded-objects-with-mongoid</id>
+    <content type="html"><![CDATA[<p>We use <a href="http://www.mongodb.org/">MongoDB</a> at Artsy as our primary data store via the <a href="http://mongoid.org/">Mongoid ODM</a>. Eventually, we started noticing data corruption inside embedded objects at an alarming rate of 2-3 records a day. The number of occurrences increased rapidly with load as our user growth accelerated.</p>
+
+<p>The root cause was not a HN-worthy sensational declaration about how MongoDB trashes data, but our lack of understanding of what can and cannot be concurrently written to the database, neatly hidden behind the ORM layer.</p>
+
+<!-- more -->
+
+
+<h3>Data Model</h3>
+
+<p>Consider the following artwork model with embedded images.</p>
+
+<p>```ruby
+class Artwork
+  include Mongoid::Document
+  field :title, type: String
+  embeds_many :images
+end</p>
+
+<p>class Image
+  include Mongoid::Document
+  embedded_in :artwork
+  field :filename, type: String
+  field :width, type: Integer<br/>
+  field :height, type: Integer
+end
+```</p>
+
+<p>Let's create a few objects and examine the database queries executed when constructing this relationship by setting a <code>DEBUG</code> logger level on the Moped driver used underneath the ODM.</p>
+
+<p>```ruby
+Moped.logger = Logger.new($stdout)
+Moped.logger.level = Logger::DEBUG</p>
+
+<h1>db.artworks.insert({</h1>
+
+<h1>_id: ObjectId("510f22c5db8e540aab000001"),</h1>
+
+<h1>title: "Mona Lisa"</h1>
+
+<h1>})</h1>
+
+<p>artwork = Artwork.create!(title: "Mona Lisa")</p>
+
+<p>image1 = Image.new(filename: "framed.jpg")</p>
+
+<h1>db.artworks.update(</h1>
+
+<h1>{ _id: ObjectId("510f22c5db8e540aab000001") },</h1>
+
+<h1>{ $push :</h1>
+
+<h1>{ images:</h1>
+
+<h1>{</h1>
+
+<h1>_id: ObjectId("510f22c5db8e540aab000002"),</h1>
+
+<h1>filename: "framed.jpg"</h1>
+
+<h1>}</h1>
+
+<h1>}</h1>
+
+<h1>}</h1>
+
+<h1>)</h1>
+
+<p>artwork.images &lt;&lt; image1</p>
+
+<p>image2 = Image.new(filename: "unframed.jpg")</p>
+
+<h1>db.artworks.update(</h1>
+
+<h1>{ _id: ObjectId("510f22c5db8e540aab000001") },</h1>
+
+<h1>{ $push :</h1>
+
+<h1>{ images:</h1>
+
+<h1>{</h1>
+
+<h1>_id: ObjectId("510f22c5db8e540aab000003"),</h1>
+
+<h1>filename: "unframed.jpg"</h1>
+
+<h1>}</h1>
+
+<h1>}</h1>
+
+<h1>}</h1>
+
+<h1>)</h1>
+
+<p>artwork.images &lt;&lt; image2
+```</p>
+
+<p>Here's the artwork data in MongoDB retrieved from a <code>mongo</code> shell:</p>
+
+<p>```</p>
+
+<blockquote><p>db.artworks.findOne()
+{
+  "_id" : ObjectId("510f22c5db8e540aab000001"),
+  "title" : "Mona Lisa",
+  "images" : [</p>
+
+<pre><code>{
+  "_id" : ObjectId("510f22c5db8e540aab000002"),
+  "filename" : "framed.jpg"
+},
+{
+  "_id" : ObjectId("510f22c5db8e540aab000003"),
+  "filename" : "unframed.jpg"
+}
+</code></pre>
+
+<p>  ]
+}
+```</p></blockquote>
+
+<p>We can modify the attributes of the second image.</p>
+
+<p>```ruby</p>
+
+<h1>db.artworks.update(</h1>
+
+<h1>{ _id: ObjectId("510f22c5db8e540aab000001") },</h1>
+
+<h1>{ $set : { "images.1.width" : 30, "images.1.height" : 40 } }</h1>
+
+<h1>)</h1>
+
+<p>image2.update_attributes!(width: 30, height: 40)
+```</p>
+
+<p>The image has been updated correctly.</p>
+
+<p>```</p>
+
+<blockquote><p>db.artworks.findOne()
+{
+  "_id" : ObjectId("510f22c5db8e540aab000001"),
+  "title" : "Mona Lisa",
+  "images" : [</p>
+
+<pre><code>{
+  "_id" : ObjectId("510f22c5db8e540aab000002"),
+  "filename" : "framed.jpg"
+},
+{
+  "_id" : ObjectId("510f22c5db8e540aab000003"),
+  "filename" : "unframed.jpg",
+  "height" : 40,
+  "width" : 30
+}
+</code></pre>
+
+<p>  ]
+}
+```</p></blockquote>
+
+<h3>Incomplete Record Corruption</h3>
+
+<p>Examining the query you will notice that it uses a so-called "positional" operator, <code>images.1.width</code> to update the record. Imagine what happens when the first record is being deleted from another process at the same time. That's right, the update may happen to a record that doesn't exist, in which case the behavior is to create it.</p>
+
+<p>We can simulate this by loading the object in Ruby, pulling the first record directly from the database and then performing the update.</p>
+
+<p>```ruby
+artwork.images &lt;&lt; image2</p>
+
+<h1>pull the first artwork directly from the database</h1>
+
+<p>Artwork.collection.where(<em>id: artwork.id).update(
+  "$pull" => { "images" => { </em>id: image1.id } })</p>
+
+<p>image2.update_attributes!(width: 30, height: 40)
+```</p>
+
+<p>This is a nasty surprise. We now have two records in the embedded collection, the second one missing an <code>_id</code>.</p>
+
+<p>```</p>
+
+<blockquote><p>db.artworks.findOne()
+{
+  "_id" : ObjectId("510f22c5db8e540aab000001"),
+  "title" : "Mona Lisa",
+  "images" : [</p>
+
+<pre><code>{
+  "_id" : ObjectId("510f22c5db8e540aab000003"),
+  "filename" : "unframed.jpg"
+},
+{
+  "height" : 40,
+  "width" : 30
+}
+</code></pre>
+
+<p>  ]
+}
+```</p></blockquote>
+
+<p>When reloaded, Mongoid will assign an automatic <code>_id</code> to the second object, the correct height and width, but no filename.</p>
+
+<h3>Null Record Corruption</h3>
+
+<p>A similar scenario can be played by pulling both image records out of the embedded collection and making a positional update. This will create a <code>null</code> record.</p>
+
+<p>```ruby
+artwork.images &lt;&lt; image2</p>
+
+<p>Artwork.collection.where(<em>id: artwork.id).update(
+  "$pull" => { "images" => { </em>id: image1.id } })
+Artwork.collection.where(<em>id: artwork.id).update(
+  "$pull" => { "images" => { </em>id: image2.id } })</p>
+
+<p>image2.update_attributes!(width: 30, height: 40)
+```</p>
+
+<p>```</p>
+
+<blockquote><p>db.artworks.findOne()
+{
+  "_id" : ObjectId("510f22c5db8e540aab000001"),
+  "title" : "Mona Lisa"
+  "images" : [</p>
+
+<pre><code>null,
+{
+  "height" : 40,
+  "width" : 30
+}
+</code></pre>
+
+<p>  ],
+}
+```</p></blockquote>
+
+<h3>Solutions</h3>
+
+<p>A first obvious solution is not to use embedded objects or to never modify them. Both <code>$push</code> and <code>$pull</code> are atomic operations, but not the positional update.</p>
+
+<p>A general solution to this problem is to make all update operations transactional. You can take a lock on the model by using <a href="https://github.com/afeld/mongoid-locker">mongoid-locker</a>. It works, but might be rather tedious depending on the complexity of your application.</p>
+
+<p>Finally, MongoDB supports something called a "positional operator" for embedded objects. This means you can atomically update a record found by its embedded object's field using a reference to the position of that embedded object. This solves our problem, as long as the object is not embedded below the first level. Mongoid 3.1 (currently HEAD) implements this behavior by default (see <a href="https://github.com/mongoid/mongoid/issues/2545">#2545</a> for details), adjusting the selector to look for the embedded object's <code>_id</code> and replacing the position with a <code>$</code> positional operator.</p>
+
+<p>```ruby</p>
+
+<h1>db.artworks.update(</h1>
+
+<h1>{</h1>
+
+<h1>_id: ObjectId("510f22c5db8e540aab000001"),</h1>
+
+<h1>"images._id" : ObjectId("510f22c5db8e540aab000003")</h1>
+
+<h1>},</h1>
+
+<h1>{ $set : { "images.$.width" : 30, "images.$.height" : 40 }}</h1>
+
+<h1>)</h1>
+
+<p>image2.update_attributes!(width: 30, height: 40)
+```</p>
+
+<p>We've been successfully running this in production for a few weeks now, without any more data corruption issues.</p>
+
+<p>While this is a huge step forward, covering all of our application's scenarios, we would like complete native support for atomic updates inside MongoDB at all levels of nesting. Please add your +1 to <a href="https://jira.mongodb.org/browse/SERVER-831">SERVER-831</a>.</p>
+
+<h3>Links</h3>
+
+<ul>
+<li><a href="https://gist.github.com/dblock/4699070">Code to Detect Corrupt Embedded Objects</a></li>
+<li><a href="https://jira.mongodb.org/browse/SERVER-831">MongoDB SERVER-831: Positional Operator Matching Nested Arrays</a></li>
+<li><a href="https://github.com/mongoid/mongoid/issues/2545">Mongoid #2545: Use $ Positional Operator for Updating Embedded Documents</a></li>
+<li><a href="https://github.com/dblock/mongoid/tree/master-issues/spec/dblock">Repro Specs for Mongoid #2545 and Similar</a></li>
+</ul>
+
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Create MongoDB Command-Lines from Mongoid Configuration]]></title>
