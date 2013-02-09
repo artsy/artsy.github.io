@@ -4,7 +4,7 @@
   <title><![CDATA[Art.sy Engineering]]></title>
   <link href="http://artsy.github.com/atom.xml" rel="self"/>
   <link href="http://artsy.github.com/"/>
-  <updated>2013-02-09T13:36:07-05:00</updated>
+  <updated>2013-02-09T13:44:12-05:00</updated>
   <id>http://artsy.github.com/</id>
   <author>
     <name><![CDATA[Art.sy]]></name>
@@ -20,7 +20,7 @@
     <id>http://artsy.github.com/blog/2013/02/09/data-corruption-and-concurrent-updates-to-embedded-objects-with-mongoid</id>
     <content type="html"><![CDATA[<p>We use <a href="http://www.mongodb.org/">MongoDB</a> at Artsy as our primary data store via the <a href="http://mongoid.org/">Mongoid ODM</a>. Eventually, we started noticing data corruption inside embedded objects at an alarming rate of 2-3 records a day. The number of occurrences increased rapidly with load as our user growth accelerated.</p>
 
-<p>The root cause was not a HN-worthy sensational declaration about how MongoDB trashes data, but our lack of understanding of what can and cannot be concurrently written to the database, neatly hidden behind the ORM layer.</p>
+<p>The root cause was not a HN-worthy sensational declaration about how MongoDB trashes data, but our lack of understanding of what can and cannot be concurrently written to the database, neatly hidden behind the object data mapping layer.</p>
 
 <!-- more -->
 
@@ -228,7 +228,7 @@
 
 <h3>Incomplete Record Corruption</h3>
 
-<p>Examining the query you will notice that it uses a so-called &#8220;positional&#8221; operator, <code>images.1.width</code> to update the record. Imagine what happens when the first record is being deleted from another process at the same time. That&#8217;s right, the update may happen to a record that doesn&#8217;t exist, in which case the behavior is to create it.</p>
+<p>Examining the query you will notice that it uses a so-called &#8220;positional&#8221; operator, <code>images.1.width</code> to update the second record. Imagine what would happen if the first record was deleted from another process immediately before the update. That&#8217;s right, the update will be performed on a record that doesn&#8217;t exist, in which case the default MongoDB behavior is to create it!</p>
 
 <p>We can simulate this by loading the object in Ruby, pulling the first record directly from the database and then performing the update.</p>
 
@@ -249,7 +249,7 @@
 </span></code></pre></td></tr></table></div></figure>
 
 
-<p>This is a nasty surprise. We now have two records in the embedded collection, the second one missing an <code>_id</code>.</p>
+<p>This yields a nasty surprise. We now have two records in the embedded collection, the second one missing an <code>_id</code>.</p>
 
 <figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
 <span class='line-number'>2</span>
@@ -288,7 +288,7 @@
 
 <h3>Null Record Corruption</h3>
 
-<p>A similar scenario can be played by pulling both image records out of the embedded collection and making a positional update. This will create a <code>null</code> record.</p>
+<p>A similar scenario can play out by pulling both image records out of the embedded collection and making a positional update. This will create a <code>null</code> record, which is much worse, because Mongoid can&#8217;t even destroy it, attempting to pull a record with an <code>_id</code> that does not exist.</p>
 
 <figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
 <span class='line-number'>2</span>
@@ -342,7 +342,7 @@
 
 <p>A first obvious solution is not to use embedded objects or to never modify them. Both <code>$push</code> and <code>$pull</code> are atomic operations, but not the positional update.</p>
 
-<p>A general solution to this problem is to make all update operations transactional. You can take a lock on the model by using <a href="https://github.com/afeld/mongoid-locker">mongoid-locker</a>. It works, but might be rather tedious depending on the complexity of your application.</p>
+<p>A general solution to this problem is to make all update operations transactional. You can take a lock on the parent model by using <a href="https://github.com/afeld/mongoid-locker">mongoid-locker</a>. It works, but can be quite tedious depending on the complexity of your application.</p>
 
 <p>Finally, MongoDB supports something called a &#8220;positional operator&#8221; for embedded objects. This means you can atomically update a record found by its embedded object&#8217;s field using a reference to the position of that embedded object. This solves our problem, as long as the object is not embedded below the first level. Mongoid 3.1 (currently HEAD) implements this behavior by default (see <a href="https://github.com/mongoid/mongoid/issues/2545">#2545</a> for details), adjusting the selector to look for the embedded object&#8217;s <code>_id</code> and replacing the position with a <code>$</code> positional operator.</p>
 
