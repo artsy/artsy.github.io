@@ -170,7 +170,7 @@ When reloaded, Mongoid will assign an automatic `_id` to the second object, the 
 
 ### Null Record Corruption
 
-A similar scenario can be played by pulling both image records out of the emedded collection and making a positional update. This will create a `null` record.
+A similar scenario can be played by pulling both image records out of the embedded collection and making a positional update. This will create a `null` record.
 
 ```ruby
 artwork.images << image2
