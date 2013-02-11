@@ -40,6 +40,12 @@ A cartesian product implementation in Ruby that doesn't materialize the product 
 
 [https://github.com/aaw/cartesian-product](https://github.com/aaw/cartesian-product)
 
+[space-saver-redis](https://github.com/aaw/space-saver-redis)
+-------------------------------------------------------------
+A pure Ruby implementation of the SpaceSaver algorithm for estimating the top K elements in a data stream.
+
+[https://github.com/aaw/space-saver-redis](https://github.com/aaw/space-saver-redis)
+
 [spidey](https://github.com/joeyAghion/spidey)
 -------------------------------------------------------------
 Spidey provides a bare-bones framework for crawling and scraping web sites. Its goal is to keep boilerplate scraping logic out of your code. The companion [spidey-mongo](https://github.com/joeyAghion/spidey-mongo) gem adds MongoDB as a data store.
