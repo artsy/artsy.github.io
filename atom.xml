@@ -1,17 +1,649 @@
 <?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
 
-  <title><![CDATA[Art.sy Engineering]]></title>
+  <title><![CDATA[Artsy Engineering]]></title>
   <link href="http://artsy.github.com/atom.xml" rel="self"/>
   <link href="http://artsy.github.com/"/>
-  <updated>2013-01-31T11:40:38-05:00</updated>
+  <updated>2013-02-15T10:19:53-05:00</updated>
   <id>http://artsy.github.com/</id>
   <author>
-    <name><![CDATA[Art.sy]]></name>
+    <name><![CDATA[Artsy]]></name>
     
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Infinite Scroll with MongoDB]]></title>
+    <link href="http://artsy.github.com/blog/2013/02/15/infinite-scroll-with-mongodb/"/>
+    <updated>2013-02-15T21:21:00-05:00</updated>
+    <id>http://artsy.github.com/blog/2013/02/15/infinite-scroll-with-mongodb</id>
+    <content type="html"><![CDATA[<p>An infinite scroll can be a beautiful and functional way to present feed data. You can see ours on the <a href="http://artsy.net/">homepage of artsy.net</a>. It works by fetching a few items from the API, then fetching some more items as the user scrolls down the feed. Each API call returns the items along with a &#8220;cursor&#8221;, which marks the position of the last item retrieved. Subsequent API calls include the cursor in the query string and the iteration resumes from there.</p>
+
+<p>Why use a cursor and not standard pagination? Because inserting an item on top of the feed would shift the existing items down, causing the API to return a duplicate item on the page boundary. Removing an item from the top of the feed would pull the remaining items up, causing an item to be missed in the next request on the page boundary.</p>
+
+<p>Today we&#8217;re open-sourcing a small gem called <a href="https://github.com/dblock/mongoid-scroll">mongoid-scroll</a>, which implements this cursor-like behavior for MongoDB using mongoid or moped. Here&#8217;s how it works.</p>
+
+<!-- more -->
+
+
+<h2>Example</h2>
+
+<p>Define a sample <code>FeedItem</code> model with an index on <code>position</code>. We&#8217;ll be iterating over our feed, starting with the newest item first.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">module</span> <span class="nn">Feed</span>
+</span><span class='line'>  <span class="k">class</span> <span class="nc">Item</span>
+</span><span class='line'>    <span class="kp">include</span> <span class="no">Mongoid</span><span class="o">::</span><span class="no">Document</span>
+</span><span class='line'>    <span class="n">field</span> <span class="ss">:title</span><span class="p">,</span> <span class="n">type</span><span class="p">:</span> <span class="nb">String</span>
+</span><span class='line'>    <span class="n">field</span> <span class="ss">:position</span><span class="p">,</span> <span class="n">type</span><span class="p">:</span> <span class="nb">Integer</span>
+</span><span class='line'>    <span class="n">index</span><span class="p">({</span> <span class="n">position</span><span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">_id</span><span class="p">:</span> <span class="mi">1</span> <span class="p">})</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Insert some sample unordered data manufactured with <a href="https://github.com/stympy/faker">faker</a>.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">total_items</span> <span class="o">=</span> <span class="mi">20</span>
+</span><span class='line'><span class="n">rands</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="o">.</span><span class="n">.total_items</span><span class="p">)</span><span class="o">.</span><span class="n">to_a</span><span class="o">.</span><span class="n">sort</span> <span class="p">{</span> <span class="nb">rand</span> <span class="p">}</span><span class="o">[</span><span class="mi">0</span><span class="o">.</span><span class="n">.total_items</span><span class="o">]</span>
+</span><span class='line'><span class="n">total_items</span><span class="o">.</span><span class="n">times</span> <span class="k">do</span> <span class="o">|</span><span class="n">i</span><span class="o">|</span>
+</span><span class='line'>  <span class="no">Feed</span><span class="o">::</span><span class="no">Item</span><span class="o">.</span><span class="n">create!</span> <span class="n">title</span><span class="p">:</span> <span class="no">Faker</span><span class="o">::</span><span class="no">Lorem</span><span class="o">.</span><span class="n">sentence</span><span class="p">,</span> <span class="n">position</span><span class="p">:</span> <span class="n">rands</span><span class="o">.</span><span class="n">pop</span> <span class="o">+</span> <span class="mi">1</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Iterate over this collection using a cursor, 7 items at a time.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">next_cursor</span> <span class="o">=</span> <span class="kp">nil</span>
+</span><span class='line'><span class="k">while</span> <span class="kp">true</span>
+</span><span class='line'>  <span class="n">current_cursor</span> <span class="o">=</span> <span class="n">next_cursor</span>
+</span><span class='line'>  <span class="n">next_cursor</span> <span class="o">=</span> <span class="kp">nil</span>
+</span><span class='line'>  <span class="no">Feed</span><span class="o">::</span><span class="no">Item</span><span class="o">.</span><span class="n">desc</span><span class="p">(</span><span class="ss">:position</span><span class="p">)</span><span class="o">.</span><span class="n">limit</span><span class="p">(</span><span class="mi">7</span><span class="p">)</span><span class="o">.</span><span class="n">scroll</span><span class="p">(</span><span class="n">current_cursor</span><span class="p">)</span> <span class="k">do</span> <span class="o">|</span><span class="n">item</span><span class="p">,</span> <span class="n">cursor</span><span class="o">|</span>
+</span><span class='line'>    <span class="nb">puts</span> <span class="s2">&quot;</span><span class="si">#{</span><span class="n">item</span><span class="o">.</span><span class="n">position</span><span class="si">}</span><span class="s2">: </span><span class="si">#{</span><span class="n">item</span><span class="o">.</span><span class="n">title</span><span class="si">}</span><span class="s2">&quot;</span>
+</span><span class='line'>    <span class="n">next_cursor</span> <span class="o">=</span> <span class="n">cursor</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>  <span class="k">break</span> <span class="k">unless</span> <span class="n">next_cursor</span>
+</span><span class='line'>  <span class="c1"># destroy an item, the scroll is not affected</span>
+</span><span class='line'>  <span class="no">Feed</span><span class="o">::</span><span class="no">Item</span><span class="o">.</span><span class="n">desc</span><span class="p">(</span><span class="ss">:position</span><span class="p">)</span><span class="o">.</span><span class="n">first</span><span class="o">.</span><span class="n">destroy</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>The result is, as expected, all 20 items in reverse order.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+</pre></td><td class='code'><pre><code class='text'><span class='line'>20: Quae eveniet est a.
+</span><span class='line'>19: Ab voluptatem aut possimus.
+</span><span class='line'>18: Tenetur voluptatem aut modi eos et fugiat ipsa impedit.
+</span><span class='line'>17: Autem enim qui illum ut sed et et pariatur.
+</span><span class='line'>16: Est molestias quidem adipisci culpa non.
+</span><span class='line'>15: Incidunt ad atque minus fuga illum ex earum.
+</span><span class='line'>14: Ullam et cum harum tempore nostrum consequatur.
+</span><span class='line'>13: Porro nostrum laboriosam aperiam blanditiis est.
+</span><span class='line'>12: Facere non a vel est sapiente sit officiis.
+</span><span class='line'>11: Itaque commodi deserunt aut exercitationem aut voluptatem.
+</span><span class='line'>10: Veritatis mollitia libero hic velit quos.
+</span><span class='line'>9: Iste ea dicta ut culpa.
+</span><span class='line'>8: Voluptatibus vel et minima.
+</span><span class='line'>7: Possimus molestiae quis consectetur iusto sed.
+</span><span class='line'>6: Aut fugit omnis incidunt.
+</span><span class='line'>5: Recusandae corrupti est in dolor est commodi aut.
+</span><span class='line'>4: Tenetur veniam ut id.
+</span><span class='line'>3: Voluptas exercitationem eos quia rem quia quas qui quae.
+</span><span class='line'>2: Eveniet repellendus corrupti molestiae molestias qui ullam.
+</span><span class='line'>1: Sapiente impedit iste quos eligendi cupiditate accusantium ad.
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>We&#8217;ve used 4 queries to iterate over this collection.</p>
+
+<h2>First Query</h2>
+
+<p>The first ordered query without an existing cursor uses a <code>limit</code>.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='javascript'><span class='line'><span class="nx">db</span><span class="p">.</span><span class="nx">feed_items</span><span class="p">.</span><span class="nx">find</span><span class="p">().</span><span class="nx">sort</span><span class="p">({</span> <span class="nx">position</span><span class="o">:</span> <span class="o">-</span><span class="mi">1</span> <span class="p">}).</span><span class="nx">limit</span><span class="p">(</span><span class="mi">7</span><span class="p">)</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>The last item returned has a position of 14 (we scrolled from 20 down to 14, including the boundaries).</p>
+
+<h2>Second and Third Query</h2>
+
+<p>The second ordered query has to fetch any item that comes after 14, including any other item that has the same position further in the natural MongoDB order (there&#8217;re no duplicates in our example, but it&#8217;s entirely possible).</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+</pre></td><td class='code'><pre><code class='javascript'><span class='line'><span class="nx">db</span><span class="p">.</span><span class="nx">feed_items</span><span class="p">.</span><span class="nx">find</span><span class="p">({</span> <span class="s2">&quot;$or&quot;</span> <span class="o">:</span> <span class="p">[</span>
+</span><span class='line'> <span class="p">{</span> <span class="s2">&quot;position&quot;</span> <span class="o">:</span> <span class="p">{</span> <span class="s2">&quot;$lt&quot;</span> <span class="o">:</span> <span class="mi">14</span> <span class="p">}},</span>
+</span><span class='line'> <span class="p">{</span> <span class="s2">&quot;position&quot;</span> <span class="o">:</span> <span class="mi">14</span><span class="p">,</span> <span class="s2">&quot;_id&quot;</span><span class="o">:</span> <span class="p">{</span> <span class="s2">&quot;$gt&quot;</span> <span class="o">:</span> <span class="nx">ObjectId</span><span class="p">(</span><span class="s2">&quot;511d7c7c3b5552c92400000e&quot;</span><span class="p">)</span> <span class="p">}}</span>
+</span><span class='line'><span class="p">]}).</span><span class="nx">sort</span><span class="p">({</span> <span class="nx">position</span><span class="o">:</span> <span class="mi">1</span> <span class="p">}).</span><span class="nx">limit</span><span class="p">(</span><span class="mi">7</span><span class="p">)</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>Last Query</h2>
+
+<p>We&#8217;ve chosen to break out of the loop after getting no data back in the 4th iteration. You can check whether the item retrieved is the last one in the collection as an alternative to prevent this fourth empty database query.</p>
+
+<h2>Cursors</h2>
+
+<p>Cursors consist of the item&#8217;s position and the item&#8217;s BSON id. The cursor for the item at position 14 is <code>14:511d7c7c3b5552c92400000e</code>. This cursor is parsed to construct the query on subsequent requests or can be supplied as a <code>Mongoid::Scroll::Cursor</code> object.</p>
+
+<h2>Links</h2>
+
+<ul>
+<li><a href="https://github.com/dblock/mongoid-scroll">mongoid-scroll on Github</a></li>
+</ul>
+
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Data Corruption and Concurrent Updates to Embedded Objects with MongoDB]]></title>
+    <link href="http://artsy.github.com/blog/2013/02/09/data-corruption-and-concurrent-updates-to-embedded-objects-with-mongoid/"/>
+    <updated>2013-02-09T21:21:00-05:00</updated>
+    <id>http://artsy.github.com/blog/2013/02/09/data-corruption-and-concurrent-updates-to-embedded-objects-with-mongoid</id>
+    <content type="html"><![CDATA[<p>We use <a href="http://www.mongodb.org/">MongoDB</a> at Artsy as our primary data store via the <a href="http://mongoid.org/">Mongoid ODM</a>. Eventually, we started noticing data corruption inside embedded objects at an alarming rate of 2-3 records a day. The number of occurrences increased rapidly with load as our user growth accelerated.</p>
+
+<p>The root cause was not a HN-worthy sensational declaration about how MongoDB trashes data, but our lack of understanding of what can and cannot be concurrently written to the database, neatly hidden behind the object data mapping layer.</p>
+
+<!-- more -->
+
+
+<h3>Data Model</h3>
+
+<p>Consider the following artwork model with embedded images.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">Artwork</span>
+</span><span class='line'>  <span class="kp">include</span> <span class="no">Mongoid</span><span class="o">::</span><span class="no">Document</span>
+</span><span class='line'>  <span class="n">field</span> <span class="ss">:title</span><span class="p">,</span> <span class="n">type</span><span class="p">:</span> <span class="nb">String</span>
+</span><span class='line'>  <span class="n">embeds_many</span> <span class="ss">:images</span>
+</span><span class='line'><span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">class</span> <span class="nc">Image</span>
+</span><span class='line'>  <span class="kp">include</span> <span class="no">Mongoid</span><span class="o">::</span><span class="no">Document</span>
+</span><span class='line'>  <span class="n">embedded_in</span> <span class="ss">:artwork</span>
+</span><span class='line'>  <span class="n">field</span> <span class="ss">:filename</span><span class="p">,</span> <span class="n">type</span><span class="p">:</span> <span class="nb">String</span>
+</span><span class='line'>  <span class="n">field</span> <span class="ss">:width</span><span class="p">,</span> <span class="n">type</span><span class="p">:</span> <span class="nb">Integer</span>
+</span><span class='line'>  <span class="n">field</span> <span class="ss">:height</span><span class="p">,</span> <span class="n">type</span><span class="p">:</span> <span class="nb">Integer</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Let&#8217;s create a few objects and examine the database queries executed when constructing this relationship by setting a <code>DEBUG</code> logger level on the Moped driver used underneath the ODM.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="no">Moped</span><span class="o">.</span><span class="n">logger</span> <span class="o">=</span> <span class="no">Logger</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="vg">$stdout</span><span class="p">)</span>
+</span><span class='line'><span class="no">Moped</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">level</span> <span class="o">=</span> <span class="no">Logger</span><span class="o">::</span><span class="no">DEBUG</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1"># db.artworks.insert({ </span>
+</span><span class='line'><span class="c1">#   _id: ObjectId(&quot;510f22c5db8e540aab000001&quot;), </span>
+</span><span class='line'><span class="c1">#   title: &quot;Mona Lisa&quot; </span>
+</span><span class='line'><span class="c1"># })</span>
+</span><span class='line'><span class="n">artwork</span> <span class="o">=</span> <span class="no">Artwork</span><span class="o">.</span><span class="n">create!</span><span class="p">(</span><span class="n">title</span><span class="p">:</span> <span class="s2">&quot;Mona Lisa&quot;</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">image1</span> <span class="o">=</span> <span class="no">Image</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="n">filename</span><span class="p">:</span> <span class="s2">&quot;framed.jpg&quot;</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1"># db.artworks.update(</span>
+</span><span class='line'><span class="c1">#   { _id: ObjectId(&quot;510f22c5db8e540aab000001&quot;) },</span>
+</span><span class='line'><span class="c1">#   { $push : </span>
+</span><span class='line'><span class="c1">#     { images: </span>
+</span><span class='line'><span class="c1">#       { </span>
+</span><span class='line'><span class="c1">#         _id: ObjectId(&quot;510f22c5db8e540aab000002&quot;), </span>
+</span><span class='line'><span class="c1">#         filename: &quot;framed.jpg&quot; </span>
+</span><span class='line'><span class="c1">#       }</span>
+</span><span class='line'><span class="c1">#     }</span>
+</span><span class='line'><span class="c1">#   }</span>
+</span><span class='line'><span class="c1"># )</span>
+</span><span class='line'><span class="n">artwork</span><span class="o">.</span><span class="n">images</span> <span class="o">&lt;&lt;</span> <span class="n">image1</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">image2</span> <span class="o">=</span> <span class="no">Image</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="n">filename</span><span class="p">:</span> <span class="s2">&quot;unframed.jpg&quot;</span><span class="p">)</span>
+</span><span class='line'><span class="c1"># db.artworks.update(</span>
+</span><span class='line'><span class="c1">#   { _id: ObjectId(&quot;510f22c5db8e540aab000001&quot;) },</span>
+</span><span class='line'><span class="c1">#   { $push : </span>
+</span><span class='line'><span class="c1">#     { images: </span>
+</span><span class='line'><span class="c1">#       { </span>
+</span><span class='line'><span class="c1">#         _id: ObjectId(&quot;510f22c5db8e540aab000003&quot;), </span>
+</span><span class='line'><span class="c1">#         filename: &quot;unframed.jpg&quot; </span>
+</span><span class='line'><span class="c1">#       }</span>
+</span><span class='line'><span class="c1">#     }</span>
+</span><span class='line'><span class="c1">#   }</span>
+</span><span class='line'><span class="c1"># )</span>
+</span><span class='line'><span class="n">artwork</span><span class="o">.</span><span class="n">images</span> <span class="o">&lt;&lt;</span> <span class="n">image2</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Here&#8217;s the artwork data in MongoDB retrieved from a <code>mongo</code> shell:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="o">&gt;</span> <span class="n">db</span><span class="o">.</span><span class="n">artworks</span><span class="o">.</span><span class="n">findOne</span><span class="p">()</span>
+</span><span class='line'><span class="p">{</span>
+</span><span class='line'>  <span class="s2">&quot;_id&quot;</span> <span class="p">:</span> <span class="no">ObjectId</span><span class="p">(</span><span class="s2">&quot;510f22c5db8e540aab000001&quot;</span><span class="p">),</span>
+</span><span class='line'>  <span class="s2">&quot;title&quot;</span> <span class="p">:</span> <span class="s2">&quot;Mona Lisa&quot;</span><span class="p">,</span>
+</span><span class='line'>  <span class="s2">&quot;images&quot;</span> <span class="p">:</span> <span class="o">[</span>
+</span><span class='line'>    <span class="p">{</span>
+</span><span class='line'>      <span class="s2">&quot;_id&quot;</span> <span class="p">:</span> <span class="no">ObjectId</span><span class="p">(</span><span class="s2">&quot;510f22c5db8e540aab000002&quot;</span><span class="p">),</span>
+</span><span class='line'>      <span class="s2">&quot;filename&quot;</span> <span class="p">:</span> <span class="s2">&quot;framed.jpg&quot;</span>
+</span><span class='line'>    <span class="p">},</span>
+</span><span class='line'>    <span class="p">{</span>
+</span><span class='line'>      <span class="s2">&quot;_id&quot;</span> <span class="p">:</span> <span class="no">ObjectId</span><span class="p">(</span><span class="s2">&quot;510f22c5db8e540aab000003&quot;</span><span class="p">),</span>
+</span><span class='line'>      <span class="s2">&quot;filename&quot;</span> <span class="p">:</span> <span class="s2">&quot;unframed.jpg&quot;</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'>  <span class="o">]</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>We can modify the attributes of the second image.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="c1"># db.artworks.update(</span>
+</span><span class='line'><span class="c1">#   { _id: ObjectId(&quot;510f22c5db8e540aab000001&quot;) }, </span>
+</span><span class='line'><span class="c1">#   { $set : { &quot;images.1.width&quot; : 30, &quot;images.1.height&quot; : 40 } }</span>
+</span><span class='line'><span class="c1"># )</span>
+</span><span class='line'><span class="n">image2</span><span class="o">.</span><span class="n">update_attributes!</span><span class="p">(</span><span class="n">width</span><span class="p">:</span> <span class="mi">30</span><span class="p">,</span> <span class="n">height</span><span class="p">:</span> <span class="mi">40</span><span class="p">)</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>The image has been updated correctly.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="o">&gt;</span> <span class="n">db</span><span class="o">.</span><span class="n">artworks</span><span class="o">.</span><span class="n">findOne</span><span class="p">()</span>
+</span><span class='line'><span class="p">{</span>
+</span><span class='line'>  <span class="s2">&quot;_id&quot;</span> <span class="p">:</span> <span class="no">ObjectId</span><span class="p">(</span><span class="s2">&quot;510f22c5db8e540aab000001&quot;</span><span class="p">),</span>
+</span><span class='line'>  <span class="s2">&quot;title&quot;</span> <span class="p">:</span> <span class="s2">&quot;Mona Lisa&quot;</span><span class="p">,</span>
+</span><span class='line'>  <span class="s2">&quot;images&quot;</span> <span class="p">:</span> <span class="o">[</span>
+</span><span class='line'>    <span class="p">{</span>
+</span><span class='line'>      <span class="s2">&quot;_id&quot;</span> <span class="p">:</span> <span class="no">ObjectId</span><span class="p">(</span><span class="s2">&quot;510f22c5db8e540aab000002&quot;</span><span class="p">),</span>
+</span><span class='line'>      <span class="s2">&quot;filename&quot;</span> <span class="p">:</span> <span class="s2">&quot;framed.jpg&quot;</span>
+</span><span class='line'>    <span class="p">},</span>
+</span><span class='line'>    <span class="p">{</span>
+</span><span class='line'>      <span class="s2">&quot;_id&quot;</span> <span class="p">:</span> <span class="no">ObjectId</span><span class="p">(</span><span class="s2">&quot;510f22c5db8e540aab000003&quot;</span><span class="p">),</span>
+</span><span class='line'>      <span class="s2">&quot;filename&quot;</span> <span class="p">:</span> <span class="s2">&quot;unframed.jpg&quot;</span><span class="p">,</span>
+</span><span class='line'>      <span class="s2">&quot;height&quot;</span> <span class="p">:</span> <span class="mi">40</span><span class="p">,</span>
+</span><span class='line'>      <span class="s2">&quot;width&quot;</span> <span class="p">:</span> <span class="mi">30</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'>  <span class="o">]</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>Incomplete Record Corruption</h3>
+
+<p>Examining the query you will notice that it uses a so-called &#8220;positional&#8221; operator, <code>images.1.width</code> to update the second record. Imagine what would happen if the first record was deleted from another process immediately before the update. That&#8217;s right, the update will be performed on a record that doesn&#8217;t exist, in which case the default MongoDB behavior is to create it!</p>
+
+<p>We can simulate this by loading the object in Ruby, pulling the first record directly from the database and then performing the update.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">artwork</span><span class="o">.</span><span class="n">images</span> <span class="o">&lt;&lt;</span> <span class="n">image2</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1"># pull the first artwork directly from the database</span>
+</span><span class='line'><span class="no">Artwork</span><span class="o">.</span><span class="n">collection</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">_id</span><span class="p">:</span> <span class="n">artwork</span><span class="o">.</span><span class="n">id</span><span class="p">)</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+</span><span class='line'>  <span class="s2">&quot;$pull&quot;</span> <span class="o">=&gt;</span> <span class="p">{</span> <span class="s2">&quot;images&quot;</span> <span class="o">=&gt;</span> <span class="p">{</span> <span class="n">_id</span><span class="p">:</span> <span class="n">image1</span><span class="o">.</span><span class="n">id</span> <span class="p">}</span> <span class="p">})</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">image2</span><span class="o">.</span><span class="n">update_attributes!</span><span class="p">(</span><span class="n">width</span><span class="p">:</span> <span class="mi">30</span><span class="p">,</span> <span class="n">height</span><span class="p">:</span> <span class="mi">40</span><span class="p">)</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>This yields a nasty surprise. We now have two records in the embedded collection, the second one missing an <code>_id</code>.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="o">&gt;</span> <span class="n">db</span><span class="o">.</span><span class="n">artworks</span><span class="o">.</span><span class="n">findOne</span><span class="p">()</span>
+</span><span class='line'><span class="p">{</span>
+</span><span class='line'>  <span class="s2">&quot;_id&quot;</span> <span class="p">:</span> <span class="no">ObjectId</span><span class="p">(</span><span class="s2">&quot;510f22c5db8e540aab000001&quot;</span><span class="p">),</span>
+</span><span class='line'>  <span class="s2">&quot;title&quot;</span> <span class="p">:</span> <span class="s2">&quot;Mona Lisa&quot;</span><span class="p">,</span>
+</span><span class='line'>  <span class="s2">&quot;images&quot;</span> <span class="p">:</span> <span class="o">[</span>
+</span><span class='line'>    <span class="p">{</span>
+</span><span class='line'>      <span class="s2">&quot;_id&quot;</span> <span class="p">:</span> <span class="no">ObjectId</span><span class="p">(</span><span class="s2">&quot;510f22c5db8e540aab000003&quot;</span><span class="p">),</span>
+</span><span class='line'>      <span class="s2">&quot;filename&quot;</span> <span class="p">:</span> <span class="s2">&quot;unframed.jpg&quot;</span>
+</span><span class='line'>    <span class="p">},</span>
+</span><span class='line'>    <span class="p">{</span>
+</span><span class='line'>      <span class="s2">&quot;height&quot;</span> <span class="p">:</span> <span class="mi">40</span><span class="p">,</span>
+</span><span class='line'>      <span class="s2">&quot;width&quot;</span> <span class="p">:</span> <span class="mi">30</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'>  <span class="o">]</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>When reloaded, Mongoid will assign an automatic <code>_id</code> to the second object, the correct height and width, but no filename.</p>
+
+<h3>Null Record Corruption</h3>
+
+<p>A similar scenario can play out by pulling both image records out of the embedded collection and making a positional update. This will create a <code>null</code> record, which is much worse, because Mongoid can&#8217;t even destroy it, attempting to pull a record with an <code>_id</code> that does not exist.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">artwork</span><span class="o">.</span><span class="n">images</span> <span class="o">&lt;&lt;</span> <span class="n">image2</span>
+</span><span class='line'>
+</span><span class='line'><span class="no">Artwork</span><span class="o">.</span><span class="n">collection</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">_id</span><span class="p">:</span> <span class="n">artwork</span><span class="o">.</span><span class="n">id</span><span class="p">)</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+</span><span class='line'>  <span class="s2">&quot;$pull&quot;</span> <span class="o">=&gt;</span> <span class="p">{</span> <span class="s2">&quot;images&quot;</span> <span class="o">=&gt;</span> <span class="p">{</span> <span class="n">_id</span><span class="p">:</span> <span class="n">image1</span><span class="o">.</span><span class="n">id</span> <span class="p">}</span> <span class="p">})</span>
+</span><span class='line'><span class="no">Artwork</span><span class="o">.</span><span class="n">collection</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">_id</span><span class="p">:</span> <span class="n">artwork</span><span class="o">.</span><span class="n">id</span><span class="p">)</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+</span><span class='line'>  <span class="s2">&quot;$pull&quot;</span> <span class="o">=&gt;</span> <span class="p">{</span> <span class="s2">&quot;images&quot;</span> <span class="o">=&gt;</span> <span class="p">{</span> <span class="n">_id</span><span class="p">:</span> <span class="n">image2</span><span class="o">.</span><span class="n">id</span> <span class="p">}</span> <span class="p">})</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">image2</span><span class="o">.</span><span class="n">update_attributes!</span><span class="p">(</span><span class="n">width</span><span class="p">:</span> <span class="mi">30</span><span class="p">,</span> <span class="n">height</span><span class="p">:</span> <span class="mi">40</span><span class="p">)</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="o">&gt;</span> <span class="n">db</span><span class="o">.</span><span class="n">artworks</span><span class="o">.</span><span class="n">findOne</span><span class="p">()</span>
+</span><span class='line'><span class="p">{</span>
+</span><span class='line'>  <span class="s2">&quot;_id&quot;</span> <span class="p">:</span> <span class="no">ObjectId</span><span class="p">(</span><span class="s2">&quot;510f22c5db8e540aab000001&quot;</span><span class="p">),</span>
+</span><span class='line'>  <span class="s2">&quot;title&quot;</span> <span class="p">:</span> <span class="s2">&quot;Mona Lisa&quot;</span>
+</span><span class='line'>  <span class="s2">&quot;images&quot;</span> <span class="p">:</span> <span class="o">[</span>
+</span><span class='line'>    <span class="n">null</span><span class="p">,</span>
+</span><span class='line'>    <span class="p">{</span>
+</span><span class='line'>      <span class="s2">&quot;height&quot;</span> <span class="p">:</span> <span class="mi">40</span><span class="p">,</span>
+</span><span class='line'>      <span class="s2">&quot;width&quot;</span> <span class="p">:</span> <span class="mi">30</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'>  <span class="o">]</span><span class="p">,</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>Solutions</h3>
+
+<p>A first obvious solution is not to use embedded objects or to never modify them. Both <code>$push</code> and <code>$pull</code> are atomic operations, but not the positional update.</p>
+
+<p>A general solution to this problem is to make all update operations transactional. You can take a lock on the parent model by using <a href="https://github.com/afeld/mongoid-locker">mongoid-locker</a>. It works, but can be quite tedious depending on the complexity of your application.</p>
+
+<p>Finally, MongoDB supports something called a &#8220;positional operator&#8221; for embedded objects. This means you can atomically update a record found by its embedded object&#8217;s field using a reference to the position of that embedded object. This solves our problem, as long as the object is not embedded below the first level. Mongoid 3.1 (currently HEAD) implements this behavior by default (see <a href="https://github.com/mongoid/mongoid/issues/2545">#2545</a> for details), adjusting the selector to look for the embedded object&#8217;s <code>_id</code> and replacing the position with a <code>$</code> positional operator.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="c1"># db.artworks.update(</span>
+</span><span class='line'><span class="c1">#   { </span>
+</span><span class='line'><span class="c1">#     _id: ObjectId(&quot;510f22c5db8e540aab000001&quot;), </span>
+</span><span class='line'><span class="c1">#     &quot;images._id&quot; : ObjectId(&quot;510f22c5db8e540aab000003&quot;) </span>
+</span><span class='line'><span class="c1">#   }, </span>
+</span><span class='line'><span class="c1">#   { $set : { &quot;images.$.width&quot; : 30, &quot;images.$.height&quot; : 40 }}</span>
+</span><span class='line'><span class="c1"># )</span>
+</span><span class='line'><span class="n">image2</span><span class="o">.</span><span class="n">update_attributes!</span><span class="p">(</span><span class="n">width</span><span class="p">:</span> <span class="mi">30</span><span class="p">,</span> <span class="n">height</span><span class="p">:</span> <span class="mi">40</span><span class="p">)</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>We&#8217;ve been successfully running this in production for a few weeks now, without any more data corruption issues.</p>
+
+<p>While this is a huge step forward, covering all of our application&#8217;s scenarios, we would like complete native support for atomic updates inside MongoDB at all levels of nesting. Please add your +1 to <a href="https://jira.mongodb.org/browse/SERVER-831">SERVER-831</a>.</p>
+
+<h3>Links</h3>
+
+<ul>
+<li><a href="https://gist.github.com/dblock/4699070">Code to Detect Corrupt Embedded Objects</a></li>
+<li><a href="https://jira.mongodb.org/browse/SERVER-831">MongoDB SERVER-831: Positional Operator Matching Nested Arrays</a></li>
+<li><a href="https://github.com/mongoid/mongoid/issues/2545">Mongoid #2545: Use $ Positional Operator for Updating Embedded Documents</a></li>
+<li><a href="https://github.com/dblock/mongoid/tree/master-issues/spec/dblock">Repro Specs for Mongoid #2545 and Similar</a></li>
+</ul>
+
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Master the Heroku CLI with Heroku Commander]]></title>
+    <link href="http://artsy.github.com/blog/2013/02/01/master-heroku-command-line-with-heroku-commander/"/>
+    <updated>2013-02-01T21:21:00-05:00</updated>
+    <id>http://artsy.github.com/blog/2013/02/01/master-heroku-command-line-with-heroku-commander</id>
+    <content type="html"><![CDATA[<p><img src="http://artsy.github.com/images/2013-02-01-master-heroku-command-line-with-heroku-commander/heroku-commander.png"></p>
+
+<p>Heroku users frequently run the <strong>heroku</strong> command-line tool that ships with the <a href="https://toolbelt.heroku.com/">Heroku Toolbelt</a>. It has two very convenient features: it will remember API credentials and default to the &#8220;heroku&#8221; GIT remote to figure out the application to connect to. Neither of these features are available in the Heroku client API, so it&#8217;s not unusual to find developers invoke the Heroku CLI from Rake tasks and other automation scripts.</p>
+
+<p>There&#8217;re several problems with using the Heroku CLI for automation:</p>
+
+<ol>
+<li>The exit code from <code>heroku run</code> is not the exit code from the process being run on Heroku. See <a href="https://github.com/heroku/heroku/issues/186">#186</a>.</li>
+<li>Gathering console output from <code>heroku run:detached</code> requires an external <code>heroku logs --tail</code> process that will never finish.</li>
+</ol>
+
+
+<p>The <a href="https://github.com/dblock/heroku-commander">heroku-commander</a> gem wraps execution of the Heroku CLI to overcome these common limitations.</p>
+
+<!-- more -->
+
+
+<h3>Heroku Configuration</h3>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">commander</span> <span class="o">=</span> <span class="no">Heroku</span><span class="o">::</span><span class="no">Commander</span><span class="o">.</span><span class="n">new</span>
+</span><span class='line'><span class="c1"># a hash of all settings for your default heroku app</span>
+</span><span class='line'><span class="n">commander</span><span class="o">.</span><span class="n">config</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Notice that unlike <code>Heroku::Client.new</code>, this doesn&#8217;t require your e-mail or API key. It will invoke <code>heroku config -s</code>.</p>
+
+<p>You can specify an application name, too.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">commander</span> <span class="o">=</span> <span class="no">Heroku</span><span class="o">::</span><span class="no">Commander</span><span class="o">.</span><span class="n">new</span><span class="p">({</span> <span class="ss">:app</span> <span class="o">=&gt;</span> <span class="s2">&quot;heroku-commander&quot;</span> <span class="p">})</span>
+</span><span class='line'><span class="c1"># a hash of all settings for the heroku-commander application</span>
+</span><span class='line'><span class="n">commander</span><span class="o">.</span><span class="n">config</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>Run Commands on Heroku</h3>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">commander</span> <span class="o">=</span> <span class="no">Heroku</span><span class="o">::</span><span class="no">Commander</span><span class="o">.</span><span class="n">new</span>
+</span><span class='line'><span class="c1"># returns all output lines</span>
+</span><span class='line'><span class="c1"># eg. [ &quot;Linux 2.6.32-348-ec2 #54-Ubuntu SMP x86_64 GNU&quot; ]</span>
+</span><span class='line'><span class="n">commander</span><span class="o">.</span><span class="n">run</span> <span class="s2">&quot;uname -a&quot;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>This calls <code>(heroku run 2&gt;&amp;1 uname -a; echo rc=\\$?)</code>, parses output for the final exit code line and raises an exception if the run&#8217;s result code wasn&#8217;t zero. In other words, if the command fails, an error is raised, which makes this suitable for Rake tasks.</p>
+
+<p>You can also read output line-by-line.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">commander</span><span class="o">.</span><span class="n">run</span> <span class="s2">&quot;ls -1&quot;</span> <span class="k">do</span> <span class="o">|</span><span class="n">line</span><span class="o">|</span>
+</span><span class='line'>  <span class="c1"># each line from the output of ls -1</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>Detach Commands on Heroku</h3>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">commander</span> <span class="o">=</span> <span class="no">Heroku</span><span class="o">::</span><span class="no">Commander</span><span class="o">.</span><span class="n">new</span>
+</span><span class='line'><span class="n">commander</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="s2">&quot;ls -R&quot;</span><span class="p">,</span> <span class="p">{</span> <span class="ss">:detached</span> <span class="o">=&gt;</span> <span class="kp">true</span> <span class="p">})</span> <span class="k">do</span> <span class="o">|</span><span class="n">line</span><span class="o">|</span>
+</span><span class='line'>  <span class="c1"># each line from the output of ls -r -1</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>This calls <code>(heroku detached:run ls -r -1 2&gt;&amp;1; echo rc=\\$?)</code>, parses the output for a Heroku process ID, spawns a <code>heroku logs --tail -p pid</code> and monitors the log output until it reports process completion. It will also parse output for the final exit code and raise an exception if the run&#8217;s result code wasn&#8217;t zero.</p>
+
+<h3>More Examples</h3>
+
+<p>There&#8217;re more working examples <a href="https://github.com/dblock/heroku-commander/tree/master/examples">here</a>.</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Create MongoDB Command-Lines from Mongoid Configuration]]></title>
@@ -1822,652 +2454,6 @@ it out <a href="https://github.com/zamiang/detect-css3-3D-transform">on Github</
 <p>Have other tricks for keeping it real? Let us know in the comments.</p>
 
 <p><em>Update:</em> See a gist with <a href="https://gist.github.com/3073907">sample code for the slideshow app</a>.</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Replacing #! Routes with PushState Using Backbone.js]]></title>
-    <link href="http://artsy.github.com/blog/2012/06/25/replacing-hashbang-routes-with-pushstate/"/>
-    <updated>2012-06-25T11:35:00-04:00</updated>
-    <id>http://artsy.github.com/blog/2012/06/25/replacing-hashbang-routes-with-pushstate</id>
-    <content type="html"><![CDATA[<blockquote><p>The only constant is change, continuing change, inevitable change, that is the dominant factor in society
-[and web apps!] today. No sensible decision can be made any longer without taking into account not only
-the world as it is, but the world as it will be.</p>
-
-<p>&ndash; Isaac Asimov</p></blockquote>
-
-<h2>R.I.P #!</h2>
-
-<p>It did not take us long to discover we shared the concerns of Twitter&#8217;s
-<a href="http://danwebb.net/2011/5/28/it-is-about-the-hashbangs">Dan Webb on hashbang routes</a>,
-but it was almost a year before we were able to remove them from Artsy. Here&#8217;s how it went down.</p>
-
-<p>Artsy relies on the <a href="http://documentcloud.github.com/backbone/">Backbone.js</a> framework for our client application
-which offers a solid pushState routing scheme. This includes a seamless hashtag fallback for
-<a href="http://caniuse.com/#feat=history">browsers that don&#8217;t support the HTML5 History API</a> (looking at you IE 9).</p>
-
-<p>The pushState routing is optional, but <em>&#8220;the world as it should be&#8221;</em> suggests we say &#8220;Yes!&#8221; (or true) to pushState.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-</pre></td><td class='code'><pre><code class='coffeescript'><span class='line'><span class="nx">Backbone</span><span class="p">.</span><span class="nx">history</span><span class="p">.</span><span class="nx">start</span><span class="p">({</span> <span class="nv">pushState: </span><span class="kc">true</span> <span class="p">})</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-
-
-<!-- more -->
-
-
-<h3>The Client</h3>
-
-<p>At Artsy, we had left Backbone out of the loop for most of our internal linking. Our markup href attributes all
-began with &#8216;/#!&#8217; and expected the browser&#8217;s default hash behavior to keep the page from refreshing. For a proper
-pushState scheme, the app&#8217;s internal linking should begin with an absolute route. Backbone.js defaults to &#8216;/&#8217;, but
-this is configurable.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-</pre></td><td class='code'><pre><code class='coffeescript'><span class='line'><span class="c1"># Optional root attribute defaults to &#39;/&#39;</span>
-</span><span class='line'><span class="nx">Backbone</span><span class="p">.</span><span class="nx">history</span><span class="p">.</span><span class="nx">start</span>
-</span><span class='line'>  <span class="nv">pushState: </span><span class="kc">true</span>
-</span><span class='line'>  <span class="nv">root: </span><span class="s2">&quot;/specialized/client/&quot;</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<h4>Internal Links</h4>
-
-<p>All internal links need to begin with your configured root (&#8216;/&#8217; for Artsy).
-Be sure to leave out your domain (<del>http://artsy.net</del>).</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-</pre></td><td class='code'><pre><code class='html'><span class='line'><span class="nt">&lt;a</span> <span class="na">href=</span><span class="s">&quot;/&quot;</span><span class="nt">&gt;</span>Home<span class="nt">&lt;/a&gt;</span>
-</span><span class='line'>
-</span><span class='line'><span class="nt">&lt;a</span> <span class="na">href=</span><span class="s">&quot;/artwork/matthew-abbott-lobby-and-supercomputer&quot;</span><span class="nt">&gt;</span>My Favorite Work<span class="nt">&lt;/a&gt;</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>We now needed a global link handler that will leverage Backbone&#8217;s <code>navigate</code> method which takes
-care of updating the URL and avoiding a page refresh or alternatively wiring up the hashtag fallback.
-Since we follow the convention of starting all <code>href</code> attributes with our application&#8217;s root, we
-can match on that in our selector to get all anchors whose link begins with our root, <code>a[href^='/']</code>.
-This link handler is a great place to ensure backward compatibility while #!s are removed from
-internal links.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-<span class='line-number'>19</span>
-<span class='line-number'>20</span>
-</pre></td><td class='code'><pre><code class='coffeescript'><span class='line'><span class="c1"># Globally capture clicks. If they are internal and not in the pass </span>
-</span><span class='line'><span class="c1"># through list, route them through Backbone&#39;s navigate method.</span>
-</span><span class='line'><span class="nx">$</span><span class="p">(</span><span class="nb">document</span><span class="p">).</span><span class="kc">on</span> <span class="s2">&quot;click&quot;</span><span class="p">,</span> <span class="s2">&quot;a[href^=&#39;/&#39;]&quot;</span><span class="p">,</span> <span class="nf">(event) -&gt;</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="nv">href = </span><span class="nx">$</span><span class="p">(</span><span class="nx">event</span><span class="p">.</span><span class="nx">currentTarget</span><span class="p">).</span><span class="nx">attr</span><span class="p">(</span><span class="s1">&#39;href&#39;</span><span class="p">)</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="c1"># chain &#39;or&#39;s for other black list routes</span>
-</span><span class='line'>  <span class="nv">passThrough = </span><span class="nx">href</span><span class="p">.</span><span class="nx">indexOf</span><span class="p">(</span><span class="s1">&#39;sign_out&#39;</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">0</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="c1"># Allow shift+click for new tabs, etc.</span>
-</span><span class='line'>  <span class="k">if</span> <span class="o">!</span><span class="nx">passThrough</span> <span class="o">&amp;&amp;</span> <span class="o">!</span><span class="nx">event</span><span class="p">.</span><span class="nx">altKey</span> <span class="o">&amp;&amp;</span> <span class="o">!</span><span class="nx">event</span><span class="p">.</span><span class="nx">ctrlKey</span> <span class="o">&amp;&amp;</span> <span class="o">!</span><span class="nx">event</span><span class="p">.</span><span class="nx">metaKey</span> <span class="o">&amp;&amp;</span> <span class="o">!</span><span class="nx">event</span><span class="p">.</span><span class="nx">shiftKey</span>
-</span><span class='line'>    <span class="nx">event</span><span class="p">.</span><span class="nx">preventDefault</span><span class="p">()</span>
-</span><span class='line'>
-</span><span class='line'>    <span class="c1"># Remove leading slashes and hash bangs (backward compatablility)</span>
-</span><span class='line'>    <span class="nv">url = </span><span class="nx">href</span><span class="p">.</span><span class="nx">replace</span><span class="p">(</span><span class="sr">/^\//</span><span class="p">,</span><span class="s1">&#39;&#39;</span><span class="p">).</span><span class="nx">replace</span><span class="p">(</span><span class="s1">&#39;\#\!\/&#39;</span><span class="p">,</span><span class="s1">&#39;&#39;</span><span class="p">)</span>
-</span><span class='line'>
-</span><span class='line'>    <span class="c1"># Instruct Backbone to trigger routing events</span>
-</span><span class='line'>    <span class="nx">App</span><span class="p">.</span><span class="nx">router</span><span class="p">.</span><span class="nx">navigate</span> <span class="nx">url</span><span class="p">,</span> <span class="p">{</span> <span class="nv">trigger: </span><span class="kc">true</span> <span class="p">}</span>
-</span><span class='line'>
-</span><span class='line'>    <span class="k">return</span> <span class="kc">false</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>Thank you TenFarms for the excellent write up on <a href="http://dev.tenfarms.com/posts/proper-link-handling">proper link handling for pushState enabled browsers</a>.</p>
-
-<h4>External Links</h4>
-
-<p>The application will need a small check early in the initialization process to redirect external
-links still expecting the #! routing scheme.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-</pre></td><td class='code'><pre><code class='coffeescript'><span class='line'><span class="c1"># Our Backbone App namespace</span>
-</span><span class='line'><span class="nb">window</span><span class="p">.</span><span class="nv">App =</span>
-</span><span class='line'>  <span class="c1"># Namespace Backbone components</span>
-</span><span class='line'>  <span class="nv">Models: </span><span class="p">{}</span>
-</span><span class='line'>  <span class="nv">Collections: </span><span class="p">{}</span>
-</span><span class='line'>  <span class="nv">Views: </span><span class="p">{}</span>
-</span><span class='line'>  <span class="nv">redirectHashBang: </span><span class="o">-&gt;</span>
-</span><span class='line'>    <span class="nb">window</span><span class="p">.</span><span class="nv">location = </span><span class="nb">window</span><span class="p">.</span><span class="nx">location</span><span class="p">.</span><span class="nx">hash</span><span class="p">.</span><span class="nx">substring</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
-</span><span class='line'>
-</span><span class='line'><span class="c1"># DOM is ready, are we routing a #!?</span>
-</span><span class='line'><span class="nx">$</span> <span class="o">-&gt;</span>
-</span><span class='line'>  <span class="k">if</span> <span class="nb">window</span><span class="p">.</span><span class="nx">location</span><span class="p">.</span><span class="nx">hash</span><span class="p">.</span><span class="nx">indexOf</span><span class="p">(</span><span class="s1">&#39;!&#39;</span><span class="p">)</span> <span class="o">&gt;</span> <span class="o">-</span><span class="mi">1</span>
-</span><span class='line'>    <span class="k">return</span> <span class="nx">App</span><span class="p">.</span><span class="nx">redirectHashBang</span><span class="p">()</span>
-</span><span class='line'>  <span class="c1"># else... continue on with initialization</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<h3>The Server</h3>
-
-<p>Now that our app will receive requests to full URLs
-&#8216;http://artsy.net/artwork/mattew-abbott-lobby-and-supercomputer&#8217;
-instead of &#8216;http://artsy.net/#!/artwork/mattew-abbott-lobby-and-supercomputer&#8217;,
-we need to update our Rails setup.</p>
-
-<p>Below is an excerpt from our Rails application&#8217;s router.
-Note references to our home and artworks controllers. Both use a <code>before</code> filter
-to determine a user&#8217;s authentication state and serve a different layout, with
-unique assets or Backbone applications.</p>
-
-<p>Controllers related to specific models now have the opportunity to
-bootstrap associated JSON or mark up and we now get expected 404 (file not found)
-error behavior without extra work required by a hash routing scheme.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="c1"># Server - Rails</span>
-</span><span class='line'><span class="no">Application</span><span class="o">.</span><span class="n">routes</span><span class="o">.</span><span class="n">draw</span> <span class="k">do</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="n">root</span> <span class="ss">:to</span> <span class="o">=&gt;</span> <span class="s2">&quot;home#index&quot;</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="c1"># Controller logic determines the layout and could bootstrap data</span>
-</span><span class='line'>  <span class="n">resources</span> <span class="ss">:artworks</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="s2">&quot;artwork&quot;</span><span class="p">,</span> <span class="n">only</span><span class="p">:</span> <span class="ss">:show</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="c1"># Plural to singular redirect - mistakes happen!</span>
-</span><span class='line'>  <span class="n">get</span> <span class="s2">&quot;/artworks/:id&quot;</span> <span class="o">=&gt;</span> <span class="n">redirect</span><span class="p">(</span><span class="s1">&#39;/artwork/%{id}&#39;</span><span class="p">)</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="c1"># No match? Rails handles routing the 404 error.</span>
-</span><span class='line'>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>An added bonus here is a near one to one mapping with the Rails and client routes.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-</pre></td><td class='code'><pre><code class='coffeescript'><span class='line'><span class="c1"># Backbone.js - Client</span>
-</span><span class='line'><span class="k">class</span> <span class="nx">App</span><span class="p">.</span><span class="nx">Routers</span><span class="p">.</span><span class="nx">Client</span> <span class="k">extends</span> <span class="nx">Backbone</span><span class="p">.</span><span class="nx">Router</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="nv">routes:</span>
-</span><span class='line'>    <span class="s1">&#39;&#39;</span>            <span class="o">:</span> <span class="s1">&#39;home&#39;</span>
-</span><span class='line'>    <span class="s1">&#39;artwork/:id&#39;</span> <span class="o">:</span> <span class="s1">&#39;artwork&#39;</span>
-</span><span class='line'>    <span class="s1">&#39;artworks/:id&#39;</span><span class="o">:</span> <span class="s1">&#39;redirectToArtwork&#39;</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<h2>URLs R 4 Ever</h2>
-
-<p>Dan Webb&#8217;s assertion that <a href="http://danwebb.net/2011/5/28/it-is-about-the-hashbangs">URLs are forever</a> is correct,
-but so is Isaac Asimov&#8217;s statement on change. You can&#8217;t predict the future.
-You make decisions based on the best data you have at the time. We started our app with hashtag routing
-in early 2011 and added the ! around five months later (about the same time Dan Webb wrote his post).
-Had we started Artsy today, even six months ago, I&#8217;m confident we would have enabled Backbone&#8217;s pushState routing.
-There&#8217;s no need to look back. The future is here and its URLs are #! free!</p>
-
-<h3>Footnotes</h3>
-
-<ul>
-<li><a href="http://documentcloud.github.com/backbone">Backbone.js</a></li>
-<li><a href="https://developers.google.com/webmasters/ajax-crawling/docs/getting-started">Google offers #! to aid the crawlability of AJAX hash routed applications</a></li>
-<li><a href="http://caniuse.com/#feat=history">Browser support for the HTML5 History API (aka pushState)</a></li>
-<li><a href="http://www.adequatelygood.com/2011/2/Thoughts-on-the-Hashbang">Twitter advocates #!</a></li>
-<li><a href="http://danwebb.net/2011/5/28/it-is-about-the-hashbangs">Dan Webb&#8217;s critique <em>It&#8217;s About the Hashbangs</em></a></li>
-<li><a href="http://engineering.twitter.com/2012/05/improving-performance-on-twittercom.html">Twitter ditches #!</a></li>
-</ul>
-
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[RESTful API Caching with Garner]]></title>
-    <link href="http://artsy.github.com/blog/2012/05/30/restful-api-caching-with-garner/"/>
-    <updated>2012-05-30T21:21:00-04:00</updated>
-    <id>http://artsy.github.com/blog/2012/05/30/restful-api-caching-with-garner</id>
-    <content type="html"><![CDATA[<p>Implementing server-side RESTful API caching is hard. In a straightforward API all the expiry decisions can be made automatically based on the URL, but most real world APIs that add requirements around object relationships or user authorization make caching particularly challenging.</p>
-
-<p>At <a href="http://goruco.com/">GoRuCo</a> we open-sourced <a href="http://github.com/artsy/garner">Garner</a>, a cache implementation of the concepts described in this post. To &#8220;garner&#8221; means to gather data from various sources and to make it readily available in one place, kind-of like a cache! Garner works today with the <a href="http://github.com/intridea/grape">Grape API framework</a> and the <a href="http://github.com/mongoid/mongoid">Mongoid ODM</a>. We encourage you to fork the project, extend our library to other systems and contribute your code back, if you find it useful.</p>
-
-<p>Garner implements the Artsy API caching cookbook that has been tried by fire in production.</p>
-
-<!-- more -->
-
-
-<h3>Enabling Caching of Static Data</h3>
-
-<p>Caching static data is fairly easy: set <code>Cache-Control</code> and <code>Expires</code> headers in the HTTP response.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">expire_in</span> <span class="o">=</span> <span class="mi">60</span> <span class="o">*</span> <span class="mi">60</span> <span class="o">*</span> <span class="mi">24</span> <span class="o">*</span> <span class="mi">365</span>
-</span><span class='line'><span class="n">header</span> <span class="s2">&quot;Cache-Control&quot;</span><span class="p">,</span> <span class="s2">&quot;private, max-age=</span><span class="si">#{</span><span class="n">expire_in</span><span class="si">}</span><span class="s2">&quot;</span>
-</span><span class='line'><span class="n">header</span> <span class="s2">&quot;Expires&quot;</span><span class="p">,</span> <span class="no">CGI</span><span class="o">.</span><span class="n">rfc1123_date</span><span class="p">(</span><span class="no">Time</span><span class="o">.</span><span class="n">now</span><span class="o">.</span><span class="n">utc</span> <span class="o">+</span> <span class="n">expire_in</span><span class="p">)</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>This example indicates to a cache in front of your service (CDN, proxy or user&#8217;s browser) that the data expires in a year and that it&#8217;s private for this user. When caching truly static data, such as images, use <code>public</code>. Your CDN or proxy, such as <a href="https://www.varnish-cache.org/">Varnish</a> that sits in front of Artsy on <a href="http://www.heroku.com/">Heroku</a>, will cache the data and subsequent requests won&#8217;t even need to hit your server, even though it could potentially serve different content every time.</p>
-
-<h3>Disabling Caching of Dynamic Data</h3>
-
-<p>Caching dynamic data is slightly more involved. Let&#8217;s begin with a simple Ruby API that returns a counter.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">API</span> <span class="o">&lt;</span> <span class="no">Grape</span><span class="o">::</span><span class="no">API</span>
-</span><span class='line'>  <span class="k">def</span> <span class="nf">count</span>
-</span><span class='line'>    <span class="p">{</span> <span class="n">count</span> <span class="p">:</span> <span class="mi">0</span> <span class="p">}</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>This kind of dynamic data cannot have a well-defined expiration time. The counter may be incremented at any time via another API call or process, so we must tell the client not to cache it. This is accomplished by setting the value of <code>Cache-Control</code> to <code>private, max-age=0, must-revalidate</code>. The <code>private</code> option instructs the client that it&#8217;s allowed to store data in a private cache (unnecessary, but is known to work around overzealous cache implementations), <code>max-age</code> that it must check with the server every time it needs this data and <code>must-revalidate</code> prevents gateways from returning a response if your API server is unreachable. An additional <code>Expires</code> header set to a past date (usually January 1st 1990), will make double-sure the entire request expires immediately with old browsers.</p>
-
-<p>Garner provides <a href="https://github.com/dblock/garner/blob/master/lib/garner/middleware/cache/bust.rb">Garner::Middleware::Cache::Bust</a> a Rack middleware that accomplishes just that.</p>
-
-<h3>If-Modified-Since, ETags and If-None-Match</h3>
-
-<p>Given our API example, a client may want to retrieve the value of the counter and, for example, run a job every time the value changes. As it stands, the current API requires an effort on the client&#8217;s part to remember the previous value and compare it every time it makes an API call. This can be avoided by asking the server for a new counter if the value has changed since last time it was retrieved.</p>
-
-<p>One option for the client is to include an <code>If-Modified-Since</code> header with a timestamp. The server could then choose to respond with <code>304 Not Modified</code> if the counter hasn&#8217;t changed since the timestamp in <code>If-Modified-Since</code>. While this may be acceptable for certain data, timestamps have a granularity of seconds. A counter may be modified multiple times during the same second, therefore preventing it from retrieving the result of the second modification.</p>
-
-<p>A more robust solution is to generate a unique signature, called ETag, for this data and to use it to find out whether the counter has changed. There exists a generic <a href="https://github.com/rack/rack/blob/master/lib/rack/etag.rb">Rack::ETag</a> middleware that sets ETags on all text bodies. Adding the middleware would produce an ETag for every response from the API. You can now combine <code>Rack::ETag</code> and <code>Rack::Cache</code> - a client makes a request with an <code>If-None-Match: Etag</code> header and the server returns a <code>304 Not Modified</code> if the data hasn&#8217;t changed, without sending the data.</p>
-
-<h3>Memcached via Dalli and Rails.Cache</h3>
-
-<p>There&#8217;s an obvious problem with <code>Rack::Cache</code>. In order for it to serve a <code>304 Not Modified</code> response it must compare the ETag from the request with the ETag generated from the body of the current response. So it saves bandwidth, but doesn&#8217;t save execution time on the server. We&#8217;d also like the server to cache the entire response and therefore avoid any heavy processing, such as querying a database.</p>
-
-<p>A typical Ruby cache supports a block syntax. The following example returns a cached copy when available or executes the supplied block and stores the result in the cache. In this context <code>cache</code> could be <code>Rails.cache</code> or an instance of <code>ActiveSupport::Cache::FileStore</code>. We use <code>Rails.cache</code> with <a href="http://memcached.org/">Memcached</a> via the <a href="https://github.com/mperham/dalli">dalli gem</a> in production.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">cache</span><span class="p">(</span><span class="s2">&quot;count&quot;</span><span class="p">)</span> <span class="k">do</span>
-</span><span class='line'>  <span class="p">{</span> <span class="n">count</span> <span class="p">:</span> <span class="mi">0</span> <span class="p">}</span>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>The parameter of the <code>cache</code> call is the cache key that uniquely identifies the cache entry. Hard-coding cache keys is tedious, so we can generate a key from the API version, route and request parameters.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">def</span> <span class="nf">cache_key</span>
-</span><span class='line'>  <span class="n">options</span> <span class="o">=</span> <span class="p">{</span> <span class="p">}</span>
-</span><span class='line'>  <span class="n">options</span><span class="o">[</span><span class="ss">:version</span><span class="o">]</span> <span class="o">=</span> <span class="n">version</span>
-</span><span class='line'>  <span class="n">options</span><span class="o">[</span><span class="ss">:path</span><span class="o">]</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">path</span>
-</span><span class='line'>  <span class="n">options</span><span class="o">[</span><span class="ss">:params</span><span class="o">]</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">GET</span>
-</span><span class='line'>  <span class="no">Digest</span><span class="o">::</span><span class="no">MD5</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">(</span><span class="n">options</span><span class="o">.</span><span class="n">to_json</span><span class="p">)</span>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>This generic approach to key generation is fine to get one started, but is largely insufficient for real-world applications.</p>
-
-<h3>Production-Grade Cache Keys and Model Binding</h3>
-
-<p>Most large scale web properties operate on data with the following requirements.</p>
-
-<ul>
-<li>Partition cache in sync with object ownership and permissions. For example, a <code>Widget</code> may have different representations depending on whether <code>current_user</code> owns it or not or may choose to return a <code>401 Access Denied</code> in some of the cases.</li>
-<li>Retrieve objects from cache no matter where the calling code appears. The above strategy would generate identical keys from two different locations within the same function.</li>
-<li>Invalidate entire cached collections when one of the objects in a collection has changed. For example, invalidate all cached instances of <code>Widget</code> when a new <code>WidgetCategory</code> is created and forces a reorganization of those widgets.</li>
-</ul>
-
-
-<p>Garner will help you introduce such aspects of your domain model into the cache and solve all these.</p>
-
-<p>A cache is a collection of flat name/value pairs. We&#8217;ll specify object relationships within each key by chaining model names, field values and by using wildcards where appropriate. For example, <code>User/id=12,Widget/id=45,Gadget/*</code> binds the cache value to changes in <code>User</code> with id=12, <code>Widget</code> with id=45 and any instance of <code>Gadget</code>.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">cache</span><span class="p">(</span><span class="n">bind</span><span class="p">:</span> <span class="o">[[</span><span class="no">User</span><span class="p">,</span> <span class="p">{</span> <span class="nb">id</span><span class="p">:</span> <span class="n">current_user</span><span class="o">.</span><span class="n">id</span> <span class="p">}</span><span class="o">]</span><span class="p">,</span> <span class="o">[</span><span class="no">Widget</span><span class="p">,</span> <span class="p">{</span> <span class="nb">id</span><span class="p">:</span> <span class="n">params</span><span class="o">[</span><span class="ss">:widget_id</span><span class="o">]</span> <span class="p">}</span><span class="o">]</span><span class="p">,</span> <span class="o">[</span><span class="no">Gadget</span><span class="o">]</span> <span class="o">]</span><span class="p">)</span>
-</span><span class='line'>  <span class="no">Widget</span><span class="o">.</span><span class="n">where</span><span class="p">({</span> <span class="nb">id</span><span class="p">:</span> <span class="n">params</span><span class="o">[</span><span class="ss">:widget_id</span><span class="o">]</span><span class="p">,</span> <span class="n">user_id</span><span class="p">:</span> <span class="n">current_user</span><span class="o">.</span><span class="n">id</span> <span class="p">})</span><span class="o">.</span><span class="n">first</span><span class="o">.</span><span class="n">as_json</span>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>Binding to multiple objects or classes can also be reasoned about as a way to partition the cache. Adding structure into the fields lets us reason about the relationships between various instances of data in the cache.</p>
-
-<h3>Role-Based Caching</h3>
-
-<p>Role-Based caching is a subset of the generic problem of binding data to groups of other objects. For example, a <code>Widget</code> may have a different representation for an <code>admin</code> vs. a <code>user</code>. In Garner you can inject something called a &#8220;key strategy&#8221; into the current key generation pipeline. A strategy is a plain module that must implement two methods: <code>field</code> and <code>apply</code>. The former should define a unique key name and the latter applies the strategy within a context.</p>
-
-<p>The following example introduces the role of the current user into the cache key.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">module</span> <span class="nn">MyApp</span>
-</span><span class='line'>  <span class="k">module</span> <span class="nn">Garner</span>
-</span><span class='line'>    <span class="k">module</span> <span class="nn">RoleStrategy</span>
-</span><span class='line'>      <span class="k">class</span> <span class="o">&lt;&lt;</span> <span class="nb">self</span>
-</span><span class='line'>        <span class="k">def</span> <span class="nf">field</span>
-</span><span class='line'>          <span class="ss">:role</span>
-</span><span class='line'>        <span class="k">end</span>
-</span><span class='line'>        <span class="k">def</span> <span class="nf">apply</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">context</span> <span class="o">=</span> <span class="p">{})</span>
-</span><span class='line'>          <span class="n">key</span><span class="o">.</span><span class="n">merge</span> <span class="p">{</span> <span class="ss">:role</span> <span class="o">=&gt;</span> <span class="n">current_user</span><span class="o">.</span><span class="n">role</span> <span class="p">}</span>
-</span><span class='line'>        <span class="k">end</span>
-</span><span class='line'>      <span class="k">end</span>
-</span><span class='line'>    <span class="k">end</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>Garner key strategies can be currently set at application startup time.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="no">Garner</span><span class="o">::</span><span class="no">Cache</span><span class="o">::</span><span class="no">ObjectIdentity</span><span class="o">::</span><span class="no">KEY_STRATEGIES</span> <span class="o">=</span> <span class="o">[</span>
-</span><span class='line'>  <span class="no">Garner</span><span class="o">::</span><span class="no">Strategies</span><span class="o">::</span><span class="no">Keys</span><span class="o">::</span><span class="no">Caller</span><span class="p">,</span> <span class="c1"># support multiple calls from the same function</span>
-</span><span class='line'>  <span class="no">MyApp</span><span class="o">::</span><span class="no">Garner</span><span class="o">::</span><span class="no">RoleStrategy</span><span class="p">,</span> <span class="c1"># custom strategy for role-based access</span>
-</span><span class='line'>  <span class="no">Garner</span><span class="o">::</span><span class="no">Strategies</span><span class="o">::</span><span class="no">Keys</span><span class="o">::</span><span class="no">RequestPath</span> <span class="c1"># injects the HTTP request&#39;s URL</span>
-</span><span class='line'><span class="o">]</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<h3>Multiple Calls from the Same Function</h3>
-
-<p>Binding to the same set of objects within the same function call will produce the same key. To solve this in a generic way we can examine the call stack, find the caller that&#8217;s not within the helper module and inject it in the key options.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">api_caller</span> <span class="o">=</span> <span class="nb">caller</span><span class="o">.</span><span class="n">detect</span> <span class="p">{</span> <span class="o">|</span><span class="n">line</span><span class="o">|</span> <span class="o">!</span><span class="p">(</span><span class="n">line</span> <span class="o">=~</span> <span class="sr">/\/</span><span class="si">#{</span><span class="no">File</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="bp">__FILE__</span><span class="p">)</span><span class="si">}</span><span class="sr">/</span><span class="p">)</span> <span class="p">}</span>
-</span><span class='line'><span class="n">api_caller_line</span> <span class="o">=</span> <span class="n">api_caller</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="sr">/(.*\.rb:[0-9]*):/</span><span class="p">)</span> <span class="k">if</span> <span class="n">api_caller</span>
-</span><span class='line'><span class="n">options</span><span class="o">[</span><span class="ss">:caller</span><span class="o">]</span> <span class="o">=</span> <span class="n">api_caller_line</span><span class="o">[</span><span class="mi">1</span><span class="o">]</span> <span class="k">if</span> <span class="n">api_caller_line</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>Garner implements this as <a href="https://github.com/dblock/garner/blob/master/lib/garner/strategies/keys/caller_strategy.rb">Garner::Strategies::Keys::Caller</a>.</p>
-
-<h3>Cache Invalidation</h3>
-
-<p>Invalidating a cache entry bound to multiple objects requires keeping an additional index along with the actual cache data. In the example above we&#8217;ve bound the resulting Widget to a specific <code>User</code>, the <code>Widget</code> instance itself and all instances of <code>Gadget</code>. Every time a Gadget changes, we&#8217;ll want to invalidate this cache entry. Garner will handle this either automatically via a mixin (we&#8217;ve provided <a href="https://github.com/dblock/garner/blob/master/lib/garner/mixins/mongoid_document.rb">Garner::Mixins::Mongoid::Document</a> for the Mongoid ODM) or via an explicit <code>invalidate(Gadget)</code> call.</p>
-
-<p>Since we&#8217;re not able to scan the entire cache during invalidation, we keep a key index in the cache as well. The key for each index entry is derived from the individual elements in the binding.</p>
-
-<h3>Using with Grape</h3>
-
-<p>Garner currently ships with <a href="https://github.com/dblock/garner/blob/master/lib/garner/mixins/grape_cache.rb">Garner::Mixins::Grape::Cache</a>. There&#8217;re two ways to use it: <code>cache</code> and <code>cache_or_304</code>.</p>
-
-<p>The <code>cache</code> implementation will generate a key from the binding by applying all registered cache key strategies within the current context, look up the entry by that key and either cache hit or miss. In summary, it&#8217;s an extension to a standard cache, introducing a much more fully featured binding system.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="c1"># caches, but always returns the widget</span>
-</span><span class='line'><span class="n">get</span> <span class="s2">&quot;widget/:id&quot;</span> <span class="k">do</span>
-</span><span class='line'>  <span class="n">cache</span><span class="p">(</span><span class="n">bind</span><span class="p">:</span> <span class="o">[</span><span class="no">Widget</span><span class="p">,</span> <span class="n">params</span><span class="o">[</span><span class="ss">:id</span><span class="o">]]</span><span class="p">)</span> <span class="k">do</span>
-</span><span class='line'>    <span class="no">Widget</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="n">params</span><span class="o">[</span><span class="ss">:id</span><span class="o">]</span><span class="p">)</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>The <code>cache_or_304({ bind: [ ] })</code> will generate a meta key from the binding by applying all registered cache key strategies within the current context and search the cache index by the meta key. If a value is found, it will be compared to the ETag or the timestamp supplied in the request&#8217;s <code>If-None-Match</code> or <code>If-Modified-Since</code> and issue a <code>304 Not Modified</code> where appropriate.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="c1"># caches, returns the widget and supports If-Modified-Since or If-None-Match</span>
-</span><span class='line'><span class="n">get</span> <span class="s2">&quot;widget/:id&quot;</span> <span class="k">do</span>
-</span><span class='line'>  <span class="n">cache_or_304</span><span class="p">(</span><span class="n">bind</span><span class="p">:</span> <span class="o">[</span><span class="no">Widget</span><span class="p">,</span> <span class="n">params</span><span class="o">[</span><span class="ss">:id</span><span class="o">]]</span><span class="p">)</span> <span class="k">do</span>
-</span><span class='line'>    <span class="no">Widget</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="n">params</span><span class="o">[</span><span class="ss">:id</span><span class="o">]</span><span class="p">)</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<h3>Conclusion</h3>
-
-<p>An effective cache implementation for a web service combines server-side caching with client-side expiration. The latter broadly includes proxies, CDNs and browsers, all active actors in the process of exchanging information. The web is, in a way, an eventually consistent data storage and distribution system.</p>
-
-<h3>Links</h3>
-
-<ul>
-<li><a href="https://github.com/artsy/garner">Garner</a></li>
-</ul>
-
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Using Jenkins for Ruby and Ruby-on-Rails Teams]]></title>
-    <link href="http://artsy.github.com/blog/2012/05/27/using-jenkins-for-ruby-and-ruby-on-rails-teams/"/>
-    <updated>2012-05-27T08:15:00-04:00</updated>
-    <id>http://artsy.github.com/blog/2012/05/27/using-jenkins-for-ruby-and-ruby-on-rails-teams</id>
-    <content type="html"><![CDATA[<p>The <a href="http://jenkins-ci.org">Jenkins CI</a> project has grown tremendously in the past few months. There&#8217;re now hundreds of plugins and an amazing engaged community. Artsy is a happy user and proud contributor to this effort with the essential <a href="https://wiki.jenkins-ci.org/display/JENKINS/AnsiColor+Plugin">jenkins-ansicolor plugin</a>, eliminating boring console output since 2011.</p>
-
-<p>We are a continuous integration, deployment and devops shop and have been using Jenkins for over a year now. We&#8217;ve shared our experience at the <a href="http://www.cloudbees.com/juc2012.cb">Jenkins User Conference 2012</a> in <a href="http://www.slideshare.net/dblockdotorg/graduating-to-jenkins-ci-for-rubyonrails-teams">a presentation</a>. This blog post is an overview of how to get started with Jenkins for Ruby(-on-Rails) teams.</p>
-
-<p><img src="http://artsy.github.com/images/2012-05-27-using-jenkins-for-ruby-on-rails-teams/jenkins.png" title="[Artsy Jenkins CI]" ></p>
-
-<!-- more -->
-
-
-<p>When Artsy had only three engineers, we hesitated to deploy Jenkins. The CI server was written in Java (i.e. wasn&#8217;t written in Ruby). We feared introducing excessive infrastructure too early. In retrospect, we were not in the business of building CI infrastructure, so not using Jenkins was a mistake. Since we adopted it, Jenkins has been operating painlessly and scaled nicely as our needs continued to grow.</p>
-
-<p>Today, we run a single virtual server on <a href="http://www.linode.com">Linode</a> as our master Jenkins and have 8 Linode slaves. These are all $19 per month plans. Our usage is variable: few builds in the middle of the night and a very high number of builds during the day, so we&#8217;re planning on trying to build a Jenkins-slave on-demand system on AWS eventually.</p>
-
-<p>Setting up a Jenkins master is straightforward.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-</pre></td><td class='code'><pre><code class='bash'><span class='line'>useradd -m jenkins -p <span class="o">[</span>password<span class="o">]</span> -s /bin/bash
-</span><span class='line'>addgroup jenkins sudo
-</span><span class='line'>wget -q -O - http://pkg.jenkins-ci.org/debian/jenkins-ci.org.key | sudo apt-key add –
-</span><span class='line'>sudo sh -c <span class="s1">&#39;echo deb http://pkg.jenkins-ci.org/debian binary/ &gt; /etc/apt/sources.list.d/jenkins.list&#39;</span>
-</span><span class='line'>sudo aptitude update
-</span><span class='line'>sudo aptitude install jenkins
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>We change Jenkins port in <code>/etc/default/jenkins</code>, add the machine to DNS and update the Jenkins URL to an externally visible one in the &#8220;Manage Jenkins&#8221;, &#8220;Configure System&#8221; menu. We enable and use &#8220;Matrix-Based Security&#8221; with a single user that all developers share and give the user permission to do everything in the same UI. Finally, we configure the Git Plugin with a global username and e-mail from our shared IT account that has Github access, setup a Github Web Hook and SMTP E-Mail notifications. Restarting Jenkins from the command line with <code>sudo service jenkins restart</code> completes the initial setup.</p>
-
-<p>It&#8217;s also a good idea to setup Jenkins configuration backup with <a href="https://wiki.jenkins-ci.org/display/JENKINS/thinBackup">thinBackup</a>, install <a href="http://wiki.jenkins-ci.org/display/JENKINS/AnsiColor+Plugin">AnsiColor</a> and, of course, enable <a href="http://wiki.hudson-ci.org/display/HUDSON/ChuckNorris+Plugin">Chuck Norris</a>.</p>
-
-<p>A typical Ruby development environment includes <a href="https://rvm.io/">RVM</a>, a working GIT client and a Github SSH key. We install these under our <code>jenkins</code> user manually on the first slave Linode and then clone slaves when we need more. RVM setup includes entries in <code>~/.bash_profile</code>, so a Jenkins job for a Ruby project can load that file and execute commands, including <code>rake</code>.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="c">#!/bin/bash</span>
-</span><span class='line'><span class="nb">source</span> ~/.bash_profile
-</span><span class='line'>rvm use 1.9.2
-</span><span class='line'>gem install bundler
-</span><span class='line'>bundle install
-</span><span class='line'>bundle <span class="nb">exec </span>rake
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>Our default Ruby project Rake task is <code>test:ci</code>. We run Jasmine and Capybara tests using a real browser, so we need to redirect all visible output to an X-Windows Virtual Frame Buffer (<a href="http://www.xfree86.org/4.0.1/Xvfb.1.html">XVFB</a>). This can be done by setting an <code>ENV</code> variable inside a Rake task. Our test target also <a href="http://artsy.github.com/blog/2012/05/15/how-to-organize-over-3000-rspec-specs-and-retry-test-failures/">organizes our tests in suites</a>.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-<span class='line-number'>19</span>
-<span class='line-number'>20</span>
-<span class='line-number'>21</span>
-<span class='line-number'>22</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">namespace</span> <span class="ss">:test</span> <span class="k">do</span>
-</span><span class='line'>  <span class="n">task</span> <span class="ss">:specs</span><span class="p">,</span> <span class="o">[</span> <span class="ss">:display</span> <span class="o">]</span> <span class="o">=&gt;</span> <span class="ss">:environment</span> <span class="k">do</span> <span class="o">|</span><span class="n">t</span><span class="p">,</span> <span class="n">args</span><span class="o">|</span>
-</span><span class='line'><span class="err"> </span>  <span class="no">ENV</span><span class="o">[</span><span class="s1">&#39;DISPLAY&#39;</span><span class="o">]</span> <span class="o">=</span> <span class="n">args</span><span class="o">[</span><span class="ss">:display</span><span class="o">]</span> <span class="k">if</span> <span class="n">args</span><span class="o">[</span><span class="ss">:display</span><span class="o">]</span>
-</span><span class='line'><span class="err"> </span>  <span class="no">Rake</span><span class="o">::</span><span class="no">Task</span><span class="o">[</span><span class="s1">&#39;spec:suite:all&#39;</span><span class="o">].</span><span class="n">invoke</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'><span class="err">      </span>
-</span><span class='line'><span class="err"> </span> <span class="n">task</span> <span class="ss">:jasmine</span><span class="p">,</span> <span class="o">[</span> <span class="ss">:display</span> <span class="o">]</span> <span class="o">=&gt;</span> <span class="ss">:environment</span> <span class="k">do</span> <span class="o">|</span><span class="n">t</span><span class="p">,</span> <span class="n">args</span><span class="o">|</span>
-</span><span class='line'><span class="err"> </span>   <span class="no">ENV</span><span class="o">[</span><span class="s1">&#39;DISPLAY&#39;</span><span class="o">]</span> <span class="o">=</span> <span class="n">args</span><span class="o">[</span><span class="ss">:display</span><span class="o">]</span> <span class="k">if</span> <span class="n">args</span><span class="o">[</span><span class="ss">:display</span><span class="o">]</span>
-</span><span class='line'><span class="err">    </span><span class="nb">system</span><span class="o">!</span><span class="p">(</span><span class="s2">&quot;bundle exec rake jasmine:ci&quot;</span><span class="p">)</span>
-</span><span class='line'><span class="err">  </span><span class="k">end</span>
-</span><span class='line'><span class="err">    </span>
-</span><span class='line'><span class="err">  </span><span class="n">task</span> <span class="ss">:all</span><span class="p">,</span> <span class="o">[</span> <span class="ss">:display</span> <span class="o">]</span> <span class="o">=&gt;</span> <span class="ss">:environment</span> <span class="k">do</span> <span class="o">|</span><span class="n">t</span><span class="p">,</span> <span class="n">args</span><span class="o">|</span>
-</span><span class='line'><span class="err"> </span>   <span class="no">Rake</span><span class="o">::</span><span class="no">Task</span><span class="o">[</span><span class="s1">&#39;assets&#39;</span><span class="o">].</span><span class="n">invoke</span>
-</span><span class='line'><span class="err">    </span><span class="no">Rake</span><span class="o">::</span><span class="no">Task</span><span class="o">[</span><span class="s1">&#39;test:jasmine&#39;</span><span class="o">].</span><span class="n">invoke</span><span class="p">(</span><span class="n">args</span><span class="o">[</span><span class="ss">:display</span><span class="o">]</span><span class="p">)</span>
-</span><span class='line'><span class="err">    </span><span class="no">Rake</span><span class="o">::</span><span class="no">Task</span><span class="o">[</span><span class="s1">&#39;test:specs&#39;</span><span class="o">].</span><span class="n">invoke</span><span class="p">(</span><span class="n">args</span><span class="o">[</span><span class="ss">:display</span><span class="o">]</span><span class="p">)</span>
-</span><span class='line'><span class="err">  </span><span class="k">end</span>
-</span><span class='line'><span class="err">      </span>
-</span><span class='line'><span class="err">  </span><span class="n">task</span> <span class="ss">:ci</span> <span class="k">do</span>
-</span><span class='line'><span class="err">  </span>  <span class="no">Rake</span><span class="o">::</span><span class="no">Task</span><span class="o">[</span><span class="s1">&#39;test:all&#39;</span><span class="o">].</span><span class="n">invoke</span><span class="p">(</span><span class="s2">&quot;:99&quot;</span><span class="p">)</span>
-</span><span class='line'><span class="err">  </span><span class="k">end</span>
-</span><span class='line'><span class="err">      </span>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>A successful CI test run will trigger a deployment to a staging environment on Heroku.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">namespace</span> <span class="ss">:deploy</span> <span class="k">do</span>
-</span><span class='line'><span class="err">  </span><span class="n">task</span> <span class="ss">:staging</span> <span class="o">=&gt;</span> <span class="ss">:environment</span> <span class="k">do</span>
-</span><span class='line'><span class="err">  </span>  <span class="nb">system</span><span class="o">!</span><span class="p">(</span><span class="s2">&quot;bundle exec heroku maintenance:on --app=app-staging&quot;</span><span class="p">)</span>
-</span><span class='line'>    <span class="nb">system</span><span class="o">!</span><span class="p">(</span><span class="s2">&quot;git push git@heroku.com:app-staging.git origin/staging:master&quot;</span><span class="p">)</span>
-</span><span class='line'>    <span class="nb">system</span><span class="o">!</span><span class="p">(</span><span class="s2">&quot;bundle exec heroku maintenance:off --app=app-staging&quot;</span><span class="p">)</span>
-</span><span class='line'><span class="err">  </span><span class="k">end</span>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>You&#8217;ll notice that we execute system commands with <code>system!</code>. Unlike the usual <code>system</code> method, our wrapper raises an exception when a command returns a non-zero error code to abort execution.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">def</span> <span class="nf">system!</span><span class="p">(</span><span class="n">cmdline</span><span class="p">)</span>
-</span><span class='line'>  <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;[</span><span class="si">#{</span><span class="no">Time</span><span class="o">.</span><span class="n">now</span><span class="si">}</span><span class="s2">] </span><span class="si">#{</span><span class="n">cmdline</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-</span><span class='line'><span class="err">  </span><span class="n">rc</span> <span class="o">=</span> <span class="nb">system</span><span class="p">(</span><span class="n">cmdline</span><span class="p">)</span>
-</span><span class='line'><span class="err">  </span><span class="s2">&quot;failed with exit code </span><span class="si">#{</span><span class="vg">$?</span><span class="o">.</span><span class="n">exitstatus</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">if</span> <span class="p">(</span><span class="n">rc</span><span class="o">.</span><span class="n">nil?</span> <span class="o">||</span> <span class="o">!</span> <span class="n">rc</span> <span class="o">||</span> <span class="vg">$?</span><span class="o">.</span><span class="n">exitstatus</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">)</span>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>Our production deployment task is also a Jenkins job.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">namespace</span> <span class="ss">:deploy</span> <span class="k">do</span>
-</span><span class='line'><span class="err">  </span><span class="n">task</span> <span class="ss">:production</span> <span class="o">=&gt;</span> <span class="ss">:environment</span> <span class="k">do</span>
-</span><span class='line'>    <span class="nb">system</span><span class="o">!</span><span class="p">(</span><span class="s2">&quot;git push git@heroku.com:app-production.git origin/production:master&quot;</span><span class="p">)</span>
-</span><span class='line'><span class="err">  </span><span class="k">end</span>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>We don&#8217;t want any downtime on our production environment, so we don&#8217;t turn Heroku maintance on. Our staging deployment task also includes copying production data to staging, so we chose to enable maintenance to avoid people hitting the test environment while it&#8217;s being built and may be in a half-baked state.</p>
-
-<p>Finally, we also run production daily cron-like tasks via Jenkins. It gives us email notifications, console output and the ability to manually trigger them. Centralizing operations in the same environment as CI creates truly continuous integration, deployment and operations.</p>
 ]]></content>
   </entry>
   
