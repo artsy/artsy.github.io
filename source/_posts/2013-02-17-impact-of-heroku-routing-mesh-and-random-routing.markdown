@@ -74,13 +74,15 @@ config.middleware.use QueueTimeLogger
 
 It's important to note that since the `X-Request-Start` header is inserted by the router, we're not capturing queue wait time, we're capturing (queue wait time) + (clock skew between the router and the machine servicing the request). The time skew has a non-negligible contribution to the sum, especially that the sign of the clock skew contribution is unknown and we are replacing any negative time difference with 0. We can only hope that Heroku does a reasonable effort at synchronizing clocks between the router and the dyno servers.
 
-A possible solution to this problem could be to measure queue time inside the web server itself, implemented in [this gist](https://gist.github.com/dblock/4967551), but that needs more work to be able to report the data to NewRelic.
-
 ### What About Dumb Routing?
 
-One of the basic issues with one-request-at-a-time web servers and random routing is that the web server accepts more concurrent connections than it can chew. James Tucker describes possible improvements in [this thread](https://groups.google.com/d/msg/thin-ruby/7p5BHt5j7M4/KtubwDr0wakJ). It's technically feasible that the web server could report back to the router that it's currently processing a request and have the router pick another dyno. But it's equally important to understand that you will get increasingly unfair scheduling at the load balancer when you have more than your serviceable load. 
+One of the basic issues with one-request-at-a-time web servers and random routing is that the web server accepts more concurrent connections than it can chew. James Tucker describes possible improvements in [this thread](https://groups.google.com/d/msg/thin-ruby/7p5BHt5j7M4/KtubwDr0wakJ). It's technically feasible that the web server could report back to the router that it's currently processing a request and have the router pick another dyno. 
 
-To improve your throughput on Heroku you have to either reduce the time to service each request or provision more dynos. All things considered, I think that being able to service long-running requests without any significant impact on the entire distributed system would be a luxury.
+There're two non-trivial difficulties with the suggested scheme. The first is that it would require cooperation from the Heroku router, as currently, closing a TCP socket would cause it to return a 503 to the client. The second is in the way EventMachine accepts requests in a single-threaded scenario: a request will block the EventMachine reactor, and only once it has unblocked the reactor, will it accept more requests. Those requests will sit in the TCP queue for the duration of the long request, defeating the whole concept.
+
+### Improving Throughput on Heroku
+
+It's important to understand that with every system you will get increasingly unfair scheduling at the load balancer when you have more than your serviceable load. To improve this on Heroku you have to either reduce the time to service each request or provision more dynos. All things considered, I think that being able to service long-running requests without any significant impact on the entire distributed system would be a luxury.
 
 ### Links
 
@@ -90,7 +92,6 @@ To improve your throughput on Heroku you have to either reduce the time to servi
 * [Heroku Routing Performance Update](https://blog.heroku.com/archives/2013/2/16/routing_performance_update)
 * [Heroku No Longer Using a Global Request Queue](http://tiwatson.com/blog/2011-2-17-heroku-no-longer-using-a-global-request-queue)
 * [How EventMachine Accepts Connections](https://groups.google.com/d/msg/thin-ruby/7p5BHt5j7M4/KtubwDr0wakJ)
-* [Monkey Patch to Measure Queue Wait Time inside Thin](https://gist.github.com/dblock/4967551)
 * [Heroku HTTP Routing Documentation](https://devcenter.heroku.com/articles/http-routing)
 * [NewRelic Agent Instrumentation Queue Time Implementation](https://github.com/newrelic/rpm/blame/master/lib/new_relic/agent/instrumentation/queue_time.rb#L90)
 * [Tracking Front-End Time with NewRelic](https://newrelic.com/docs/features/tracking-front-end-time)
