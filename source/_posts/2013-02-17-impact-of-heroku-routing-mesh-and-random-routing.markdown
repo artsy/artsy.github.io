@@ -76,9 +76,11 @@ It's important to note that since the `X-Request-Start` header is inserted by th
 
 ### What About Dumb Routing?
 
-One of the basic issues with one-request-at-a-time web servers and random routing is that the web server accepts more concurrent connections than it can chew. James Tucker describes possible improvements in [this thread](https://groups.google.com/d/msg/thin-ruby/7p5BHt5j7M4/KtubwDr0wakJ). It's technically feasible that the web server could report back to the router that it's currently processing a request and have the router pick another dyno. 
+One of the basic issues with one-request-at-a-time web servers and random routing is how single-threaded web servers accept connections. It sounds technically feasible that the web server could report back to the router that it's currently processing a request and have the router pick another dyno, but there're two non-trivial difficulties with implementing this. 
 
-There're two non-trivial difficulties with the suggested scheme. The first is that it would require cooperation from the Heroku router, as currently, closing a TCP socket would cause it to return a 503 to the client. The second is in the way EventMachine accepts requests in a single-threaded scenario: a request will block the EventMachine reactor, and only once it has unblocked the reactor, will it accept more requests. Those requests will sit in the TCP queue for the duration of the long request, defeating the whole concept.
+The first is that it would require cooperation from the Heroku router, as currently, closing a TCP socket would cause it to return a 503 to the client. 
+
+The second is in the way EventMachine accepts requests in a single-threaded scenario: a request will block the EventMachine reactor, and only once it has unblocked the reactor, will it accept more requests. Those requests will sit in the TCP queue for the duration of the long request, defeating the whole concept.
 
 ### Improving Throughput on Heroku
 
@@ -91,7 +93,7 @@ It's important to understand that with every system you will get increasingly un
 * [In Defense of Heroku](http://code.dblock.org/in-defense-of-heroku)
 * [Heroku Routing Performance Update](https://blog.heroku.com/archives/2013/2/16/routing_performance_update)
 * [Heroku No Longer Using a Global Request Queue](http://tiwatson.com/blog/2011-2-17-heroku-no-longer-using-a-global-request-queue)
-* [How EventMachine Accepts Connections](https://groups.google.com/d/msg/thin-ruby/7p5BHt5j7M4/KtubwDr0wakJ)
+* [How EventMachine Accepts Connections](https://groups.google.com/d/msg/thin-ruby/7p5BHt5j7M4/GnRyUP0VTzgJ)
 * [Heroku HTTP Routing Documentation](https://devcenter.heroku.com/articles/http-routing)
 * [NewRelic Agent Instrumentation Queue Time Implementation](https://github.com/newrelic/rpm/blame/master/lib/new_relic/agent/instrumentation/queue_time.rb#L90)
 * [Tracking Front-End Time with NewRelic](https://newrelic.com/docs/features/tracking-front-end-time)
