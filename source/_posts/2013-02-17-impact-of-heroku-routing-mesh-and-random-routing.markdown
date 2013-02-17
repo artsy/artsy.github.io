@@ -81,3 +81,16 @@ A possible solution to this problem could be to measure queue time inside the we
 One of the basic issues with one-request-at-a-time web servers and random routing is that the web server accepts more concurrent connections than it can chew. James Tucker describes possible improvements in [this thread](https://groups.google.com/d/msg/thin-ruby/7p5BHt5j7M4/KtubwDr0wakJ). It's technically feasible that the web server could report back to the router that it's currently processing a request and have the router pick another dyno. But it's equally important to understand that you will get increasingly unfair scheduling at the load balancer when you have more than your serviceable load. 
 
 To improve your throughput on Heroku you have to either reduce the time to service each request or provision more dynos. All things considered, I think that being able to service long-running requests without any significant impact on the entire distributed system would be a luxury.
+
+### Links
+
+* [Queue Logger Middleware](https://gist.github.com/a-warner/f5db30857ed3423cea79)
+* [Heroku's Ugly Secret](http://rapgenius.com/James-somers-herokus-ugly-secret-lyrics)
+* [In Defense of Heroku](http://code.dblock.org/in-defense-of-heroku)
+* [Heroku Routing Performance Update](https://blog.heroku.com/archives/2013/2/16/routing_performance_update)
+* [Heroku No Longer Using a Global Request Queue](http://tiwatson.com/blog/2011-2-17-heroku-no-longer-using-a-global-request-queue)
+* [How EventMachine Accepts Connections](https://groups.google.com/d/msg/thin-ruby/7p5BHt5j7M4/KtubwDr0wakJ)
+* [Monkey Patch to Measure Queue Wait Time inside Thin](https://gist.github.com/dblock/4967551)
+* [Heroku HTTP Routing Documentation](https://devcenter.heroku.com/articles/http-routing)
+* [NewRelic Agent Instrumentation Queue Time Implementation](https://github.com/newrelic/rpm/blame/master/lib/new_relic/agent/instrumentation/queue_time.rb#L90)
+* [Tracking Front-End Time with NewRelic](https://newrelic.com/docs/features/tracking-front-end-time)
