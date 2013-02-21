@@ -4,7 +4,7 @@
   <title><![CDATA[Artsy Engineering]]></title>
   <link href="http://artsy.github.com/atom.xml" rel="self"/>
   <link href="http://artsy.github.com/"/>
-  <updated>2013-02-15T10:19:53-05:00</updated>
+  <updated>2013-02-21T11:40:21-05:00</updated>
   <id>http://artsy.github.com/</id>
   <author>
     <name><![CDATA[Artsy]]></name>
@@ -12,6 +12,139 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[The Impact of Heroku's Routing Mesh and Random Routing]]></title>
+    <link href="http://artsy.github.com/blog/2013/02/17/impact-of-heroku-routing-mesh-and-random-routing/"/>
+    <updated>2013-02-17T12:21:00-05:00</updated>
+    <id>http://artsy.github.com/blog/2013/02/17/impact-of-heroku-routing-mesh-and-random-routing</id>
+    <content type="html"><![CDATA[<p>The <a href="http://rapgenius.com/James-somers-herokus-ugly-secret-lyrics">Heroku&#8217;s Ugly Secret</a> blog post went viral last week. I <a href="http://code.dblock.org/in-defense-of-heroku">wrote</a> in defense of Heroku, which has now responded with an official <a href="https://blog.heroku.com/archives/2013/2/16/routing_performance_update/">Routing Performance Update</a>.</p>
+
+<p>Random request queuing has been discussed in the past in <a href="http://tiwatson.com/blog/2011-2-17-heroku-no-longer-using-a-global-request-queue">Tim Watson&#8217;s post</a> based on a <a href="https://groups.google.com/forum/?fromgroups=#!msg/heroku/8eOosLC5nrw/Xy2j7GapebIJ">response</a> by Heroku&#8217;s Adam Wiggins. While the documentation may not have been accurate or even somewhat misleading, we, at Artsy, understood the strategy and the limitations of the routing mesh for quite sometime. Therefore, we have been making continuous efforts to improve our application&#8217;s performance and reduce the negative impact of random routing inside the routing mesh over the past few months.</p>
+
+<p>One thing we didn&#8217;t do, was to measure the actual wait time inside a dyno. In restrospect, it seems obvious that we should have. In this post we&#8217;ll describe a middleware to do so. This is entirely based on the work of <a href="https://gist.github.com/daveyeu/4960893">David Yeu</a>, <a href="https://gist.github.com/jasonrclark/d82a1ea7695daac0b9ee">Jason R Clark</a> and RG&#8217;s own <a href="https://gist.github.com/a-warner/f5db30857ed3423cea79">Andrew Warner</a>.</p>
+
+<p>With this code in place, here&#8217;s a 12 hour graph of our website&#8217;s API performance. The dyno wait time for our application, in green, averaged 61.1ms for a total of 301ms average per request, which is 1/5th of the total request time. It&#8217;s certainly a lot, but we do spend a lot more time in our own code.</p>
+
+<p><img src="http://artsy.github.com/images/2013-02-17-impact-of-heroku-routing-mesh-and-random-routing/newrelic-12-hours.png"></p>
+
+<p>Note that the single peak on the right of the graph corresponds to a dyno auto-scale job. We double the number of dynos with early morning traffic, which causes new dynos to boot up and accumulate requests before they are &#8220;warm&#8221; enough to process requests at their normal rate.</p>
+
+<!-- more -->
+
+
+<h3>Queue Logger Middleware</h3>
+
+<p>Heroku adds an <code>X-Request-Start</code> header as documented <a href="https://devcenter.heroku.com/articles/http-routing">here</a> into every request it routes. We can then subtract the value of this header from <code>Time.now</code> once we&#8217;re inside our code. We&#8217;re also removing the the <code>X-Heroku-Queue-Wait-Time</code> header, as it&#8217;s mostly zero with the current Heroku routing strategy and gets <a href="https://github.com/newrelic/rpm/blame/master/lib/new_relic/agent/instrumentation/queue_time.rb#L90">used</a> as queue time by the NewRelic RPM. Finally, we&#8217;re setting <code>env['HTTP_X_QUEUE_TIME']</code>, which will be picked up by NewRelic as documented <a href="https://newrelic.com/docs/features/tracking-front-end-time">here</a> and adding a <code>X-Queue-Time</code> header to be able to see the queue time in every response with client tools.</p>
+
+<figure class='code'><figcaption><span>config/queue_time_logger.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="c1"># https://gist.github.com/a-warner/f5db30857ed3423cea79</span>
+</span><span class='line'><span class="c1"># combination of https://gist.github.com/daveyeu/4960893</span>
+</span><span class='line'><span class="c1"># and https://gist.github.com/jasonrclark/d82a1ea7695daac0b9ee</span>
+</span><span class='line'><span class="k">class</span> <span class="nc">QueueTimeLogger</span>
+</span><span class='line'>  <span class="kp">attr_reader</span> <span class="ss">:app</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="n">app</span><span class="p">,</span> <span class="n">options</span> <span class="o">=</span> <span class="p">{})</span>
+</span><span class='line'>    <span class="vi">@app</span> <span class="o">=</span> <span class="n">app</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">call</span><span class="p">(</span><span class="n">env</span><span class="p">)</span>
+</span><span class='line'>    <span class="n">now</span> <span class="o">=</span> <span class="no">Time</span><span class="o">.</span><span class="n">now</span><span class="o">.</span><span class="n">to_f</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="n">env</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="s2">&quot;HTTP_X_HEROKU_QUEUE_WAIT_TIME&quot;</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="n">microseconds</span> <span class="o">=</span> <span class="p">(</span><span class="n">now</span> <span class="o">*</span> <span class="mi">1_000_000</span><span class="p">)</span><span class="o">.</span><span class="n">to_i</span>
+</span><span class='line'>    <span class="n">env</span><span class="o">[</span><span class="s2">&quot;HTTP_X_MIDDLEWARE_START&quot;</span><span class="o">]</span> <span class="o">=</span> <span class="s2">&quot;t=</span><span class="si">#{</span><span class="n">microseconds</span><span class="si">}</span><span class="s2">&quot;</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="n">perf_headers</span> <span class="o">=</span> <span class="p">{}</span>
+</span><span class='line'>    <span class="k">if</span> <span class="p">(</span><span class="n">request_start</span> <span class="o">=</span> <span class="n">env</span><span class="o">[</span><span class="s2">&quot;HTTP_X_REQUEST_START&quot;</span><span class="o">]</span><span class="p">)</span>
+</span><span class='line'>      <span class="n">request_start_microseconds</span> <span class="o">=</span> <span class="n">request_start</span><span class="o">.</span><span class="n">gsub</span><span class="p">(</span><span class="s2">&quot;t=&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">to_i</span> <span class="o">*</span> <span class="mi">1_000</span>
+</span><span class='line'>      <span class="n">queue_time_microseconds</span> <span class="o">=</span> <span class="o">[</span> <span class="n">microseconds</span> <span class="o">-</span> <span class="n">request_start_microseconds</span><span class="p">,</span> <span class="mi">0</span> <span class="o">].</span><span class="n">max</span>
+</span><span class='line'>      <span class="n">env</span><span class="o">[</span><span class="s2">&quot;HTTP_X_QUEUE_TIME&quot;</span><span class="o">]</span> <span class="o">=</span> <span class="s2">&quot;t=</span><span class="si">#{</span><span class="n">queue_time_microseconds</span><span class="si">}</span><span class="s2">&quot;</span>
+</span><span class='line'>
+</span><span class='line'>      <span class="n">queue_time_milliseconds</span> <span class="o">=</span> <span class="p">(</span><span class="n">queue_time_microseconds</span> <span class="o">/</span> <span class="mi">1_000</span><span class="p">)</span><span class="o">.</span><span class="n">to_i</span>
+</span><span class='line'>      <span class="n">perf_headers</span><span class="o">[</span><span class="s2">&quot;X-Queue-Time&quot;</span><span class="o">]</span> <span class="o">=</span> <span class="n">queue_time_milliseconds</span><span class="o">.</span><span class="n">to_s</span>
+</span><span class='line'>    <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="n">status</span><span class="p">,</span> <span class="n">headers</span><span class="p">,</span> <span class="n">body</span> <span class="o">=</span> <span class="n">app</span><span class="o">.</span><span class="n">call</span><span class="p">(</span><span class="n">env</span><span class="p">)</span>
+</span><span class='line'>    <span class="o">[</span> <span class="n">status</span><span class="p">,</span> <span class="n">headers</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">perf_headers</span><span class="p">),</span> <span class="n">body</span> <span class="o">]</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>We insert this middleware into Rails. Remember that the middleware is executed in reverse order, so you should put this in the end of your <code>config/environment.rb</code>.</p>
+
+<figure class='code'><figcaption><span>config/environment.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="nb">require</span> <span class="no">File</span><span class="o">.</span><span class="n">expand_path</span><span class="p">(</span><span class="s1">&#39;../queue_time_logger&#39;</span><span class="p">,</span> <span class="bp">__FILE__</span><span class="p">)</span>
+</span><span class='line'><span class="n">config</span><span class="o">.</span><span class="n">middleware</span><span class="o">.</span><span class="n">use</span> <span class="no">QueueTimeLogger</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>Time Skew</h3>
+
+<p>It&#8217;s important to note that since the <code>X-Request-Start</code> header is inserted by the router, we&#8217;re not capturing queue wait time, we&#8217;re capturing (queue wait time) + (clock skew between the router and the machine servicing the request). The time skew has a non-negligible contribution to the sum, especially that the sign of the clock skew contribution is unknown and we are replacing any negative time difference with 0. We can only hope that Heroku does a reasonable effort at synchronizing clocks between the router and the dyno servers.</p>
+
+<h3>What About Dumb Routing?</h3>
+
+<p>One of the basic issues with one-request-at-a-time web servers and random routing is how single-threaded web servers accept connections. It sounds technically feasible that the web server could report back to the router that it&#8217;s currently processing a request and have the router pick another dyno, but there&#8217;re two non-trivial difficulties with implementing this.</p>
+
+<p>The first is that it would require cooperation from the Heroku router, as currently, closing a TCP socket would cause it to return a 503 to the client.</p>
+
+<p>The second is in the way EventMachine accepts requests in a single-threaded scenario: a request will block the EventMachine reactor, and only once it has unblocked the reactor, will it accept more requests. Those requests will sit in the TCP queue for the duration of the long request, defeating the whole concept.</p>
+
+<h3>Improving Throughput on Heroku</h3>
+
+<p>It&#8217;s important to understand that with every system you will get increasingly unfair scheduling at the load balancer when you have more than your serviceable load. To improve this on Heroku you have to either reduce the time to service each request or provision more dynos. All things considered, I think that being able to service long-running requests without any significant impact on the entire distributed system would be a luxury.</p>
+
+<h3>Links</h3>
+
+<ul>
+<li><a href="https://gist.github.com/a-warner/f5db30857ed3423cea79">Queue Logger Middleware</a></li>
+<li><a href="http://rapgenius.com/James-somers-herokus-ugly-secret-lyrics">Heroku&#8217;s Ugly Secret</a></li>
+<li><a href="http://code.dblock.org/in-defense-of-heroku">In Defense of Heroku</a></li>
+<li><a href="https://blog.heroku.com/archives/2013/2/16/routing_performance_update">Heroku Routing Performance Update</a></li>
+<li><a href="http://tiwatson.com/blog/2011-2-17-heroku-no-longer-using-a-global-request-queue">Heroku No Longer Using a Global Request Queue</a></li>
+<li><a href="https://groups.google.com/d/msg/thin-ruby/7p5BHt5j7M4/GnRyUP0VTzgJ">How EventMachine Accepts Connections</a></li>
+<li><a href="https://devcenter.heroku.com/articles/http-routing">Heroku HTTP Routing Documentation</a></li>
+<li><a href="https://github.com/newrelic/rpm/blame/master/lib/new_relic/agent/instrumentation/queue_time.rb#L90">NewRelic Agent Instrumentation Queue Time Implementation</a></li>
+<li><a href="https://newrelic.com/docs/features/tracking-front-end-time">Tracking Front-End Time with NewRelic</a></li>
+</ul>
+
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Infinite Scroll with MongoDB]]></title>
@@ -146,7 +279,7 @@
 <p>The first ordered query without an existing cursor uses a <code>limit</code>.</p>
 
 <figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-</pre></td><td class='code'><pre><code class='javascript'><span class='line'><span class="nx">db</span><span class="p">.</span><span class="nx">feed_items</span><span class="p">.</span><span class="nx">find</span><span class="p">().</span><span class="nx">sort</span><span class="p">({</span> <span class="nx">position</span><span class="o">:</span> <span class="o">-</span><span class="mi">1</span> <span class="p">}).</span><span class="nx">limit</span><span class="p">(</span><span class="mi">7</span><span class="p">)</span>
+</pre></td><td class='code'><pre><code class='javascript'><span class='line'><span class="nx">db</span><span class="p">.</span><span class="nx">feed_items</span><span class="p">.</span><span class="nx">find</span><span class="p">().</span><span class="nx">sort</span><span class="p">({</span> <span class="nx">position</span><span class="o">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="nx">_id</span><span class="o">:</span> <span class="o">-</span><span class="mi">1</span> <span class="p">}).</span><span class="nx">limit</span><span class="p">(</span><span class="mi">7</span><span class="p">)</span>
 </span></code></pre></td></tr></table></div></figure>
 
 
@@ -154,7 +287,7 @@
 
 <h2>Second and Third Query</h2>
 
-<p>The second ordered query has to fetch any item that comes after 14, including any other item that has the same position further in the natural MongoDB order (there&#8217;re no duplicates in our example, but it&#8217;s entirely possible).</p>
+<p>The second ordered query has to fetch any item that comes after 14, including any other item that has the same position further in the same direction as the MongoDB order (there&#8217;re no duplicates in our example, but it&#8217;s entirely possible).</p>
 
 <figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
 <span class='line-number'>2</span>
@@ -162,10 +295,12 @@
 <span class='line-number'>4</span>
 </pre></td><td class='code'><pre><code class='javascript'><span class='line'><span class="nx">db</span><span class="p">.</span><span class="nx">feed_items</span><span class="p">.</span><span class="nx">find</span><span class="p">({</span> <span class="s2">&quot;$or&quot;</span> <span class="o">:</span> <span class="p">[</span>
 </span><span class='line'> <span class="p">{</span> <span class="s2">&quot;position&quot;</span> <span class="o">:</span> <span class="p">{</span> <span class="s2">&quot;$lt&quot;</span> <span class="o">:</span> <span class="mi">14</span> <span class="p">}},</span>
-</span><span class='line'> <span class="p">{</span> <span class="s2">&quot;position&quot;</span> <span class="o">:</span> <span class="mi">14</span><span class="p">,</span> <span class="s2">&quot;_id&quot;</span><span class="o">:</span> <span class="p">{</span> <span class="s2">&quot;$gt&quot;</span> <span class="o">:</span> <span class="nx">ObjectId</span><span class="p">(</span><span class="s2">&quot;511d7c7c3b5552c92400000e&quot;</span><span class="p">)</span> <span class="p">}}</span>
-</span><span class='line'><span class="p">]}).</span><span class="nx">sort</span><span class="p">({</span> <span class="nx">position</span><span class="o">:</span> <span class="mi">1</span> <span class="p">}).</span><span class="nx">limit</span><span class="p">(</span><span class="mi">7</span><span class="p">)</span>
+</span><span class='line'> <span class="p">{</span> <span class="s2">&quot;position&quot;</span> <span class="o">:</span> <span class="mi">14</span><span class="p">,</span> <span class="s2">&quot;_id&quot;</span><span class="o">:</span> <span class="p">{</span> <span class="s2">&quot;$lt&quot;</span> <span class="o">:</span> <span class="nx">ObjectId</span><span class="p">(</span><span class="s2">&quot;511d7c7c3b5552c92400000e&quot;</span><span class="p">)</span> <span class="p">}}</span>
+</span><span class='line'><span class="p">]}).</span><span class="nx">sort</span><span class="p">({</span> <span class="nx">position</span><span class="o">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="nx">_id</span><span class="o">:</span> <span class="o">-</span><span class="mi">1</span> <span class="p">}).</span><span class="nx">limit</span><span class="p">(</span><span class="mi">7</span><span class="p">)</span>
 </span></code></pre></td></tr></table></div></figure>
 
+
+<p>Note that we&#8217;re sorting by <code>_id</code> as well because MongoDB may relocate a document and therefore alter the natural order. See <a href="https://github.com/dblock/mongoid-scroll/commit/3cd75ded93f82adfcb1c17a8b9c98715c536b680">this commit</a> for a test that reproduces this behavior.</p>
 
 <h2>Last Query</h2>
 
@@ -2407,53 +2542,6 @@ it out <a href="https://github.com/zamiang/detect-css3-3D-transform">on Github</
 <li>Cooler still would be for the EC2 plugin to take advantage of Amazon&#8217;s <a href="http://aws.amazon.com/ec2/spot-instances/">spot pricing</a>. Though not supported at the moment, it would allow us to spend a fraction as much (or spend the same amount, but on more powerful resources).</li>
 </ul>
 
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Spend Time With Your Site]]></title>
-    <link href="http://artsy.github.com/blog/2012/07/05/spend-time-with-your-site/"/>
-    <updated>2012-07-05T10:51:00-04:00</updated>
-    <id>http://artsy.github.com/blog/2012/07/05/spend-time-with-your-site</id>
-    <content type="html"><![CDATA[<p>Empathy with end users is critical when developing consumer-facing software. Many go <a href="http://innonate.com/2011/03/09/hackers-the-canon-of-consumer-facing-products/">even</a> <a href="http://www.uie.com/articles/self_design/">further</a> and argue that you should <em>be</em> your own user to effectively deliver the best experience.</p>
-
-<blockquote><p><em>I&#8217;d encourage anyone starting a startup to become one of its users, however unnatural it seems.</em></p>
-
-<p>&mdash; Paul Graham <a href="http://paulgraham.com/organic.html">Organic Startup Ideas</a></p></blockquote>
-
-<p>In practice, though, this can be difficult:</p>
-
-<ul>
-<li>As a developer, you&#8217;re just not representative of the intended audience.</li>
-<li>You&#8217;re [appropriately] focused on the product&#8217;s next iteration, while your audience is occupied with the current state.</li>
-<li>You spend countless hours focused on product details&mdash;of course it&#8217;s a challenge to empathize with a casual visitor&#8217;s first impression.</li>
-</ul>
-
-
-<h2>Keeping it Real</h2>
-
-<p>We&#8217;ve tried some best practices to overcome these tendencies. User feedback is emailed to everyone in the company. Engineers share customer support responsibilities. But one simple tool has been surprisingly useful: we stole a page from the agile development handbook and built an <a href="http://alistair.cockburn.us/Information+radiator">information radiator</a>. Like a <a href="http://en.wikipedia.org/wiki/Kanban_board">kanban board</a>, news ticker, or <a href="https://demo.geckoboard.com/dashboard/B6782E562794C2F2/">analytics wall board</a>, our information radiator gives us an ambient awareness of end users&#8217; experiences. How?</p>
-
-<!-- more -->
-
-
-<p><strong>It&#8217;s our site, as a slideshow.</strong></p>
-
-<p><img class="screenshot" src="http://artsy.github.com/images/2012-07-05-spend-time-with-your-site/slideshow_screenshot.jpg" title="[Artsy as a slideshow]" ></p>
-
-<p>That&#8217;s all. Our wall-mounted display shows the same web page that a visitor to our site recently requested. Every 20 seconds, it refreshes and shows a new, more recently requested page.</p>
-
-<p>Without much effort, this gives us a sense of where users spend time on the site (<em>nudes seem popular today</em>). The impact of events such as email blasts or celebrity mentions is immediately apparent (<em>did <a href="https://twitter.com/aplusk">@aplusk</a> just tweet us?</em>). And when problems happen, we notice them as soon as errors pop up on the screen (<em><a href="http://gigaom.com/cloud/some-of-amazon-web-services-are-down-again/">AWS down again?</a></em>).</p>
-
-<p>Of course, this doesn&#8217;t replace proper user research, analytics, or monitoring. And the approach might need tweaking to work for your site. The lesson, though, is <em>find a way to spend time with your site</em>.</p>
-
-<h2>Implementation Notes</h2>
-
-<p>Using <a href="https://github.com/matschaffer/knife-solo">knife-solo</a> and <a href="http://www.opscode.com/chef/">chef</a>, we spawned an <a href="http://aws.amazon.com/ec2/">EC2</a> instance and configured it to <a href="https://devcenter.heroku.com/articles/logging#syslog_drains">drain our main site&#8217;s logs from heroku</a>. A single, static web page contains a full-screen iframe and a bit of javascript that periodically requests the most recent URL from a tiny <a href="http://www.sinatrarb.com/">sinatra</a> app, loading the resulting URL into the iframe. The sinatra app performs an ugly bash command to grep the last appropriate GET request from the drained log, filtering out requests from Artsy HQ and other uninteresting cases. Via a special flag, our site suppresses the usual tracking and analytics when loaded in this context (you didn&#8217;t want to juice your stats, right?).</p>
-
-<p>Have other tricks for keeping it real? Let us know in the comments.</p>
-
-<p><em>Update:</em> See a gist with <a href="https://gist.github.com/3073907">sample code for the slideshow app</a>.</p>
 ]]></content>
   </entry>
   
