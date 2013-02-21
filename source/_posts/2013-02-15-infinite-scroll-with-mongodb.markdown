@@ -94,7 +94,7 @@ First Query
 The first ordered query without an existing cursor uses a `limit`.
 
 ```javascript
-db.feed_items.find().sort({ position: -1 }).limit(7)
+db.feed_items.find().sort({ position: -1, _id: -1 }).limit(7)
 ```
 
 The last item returned has a position of 14 (we scrolled from 20 down to 14, including the boundaries).
@@ -102,14 +102,16 @@ The last item returned has a position of 14 (we scrolled from 20 down to 14, inc
 Second and Third Query
 ----------------------
 
-The second ordered query has to fetch any item that comes after 14, including any other item that has the same position further in the natural MongoDB order (there're no duplicates in our example, but it's entirely possible).
+The second ordered query has to fetch any item that comes after 14, including any other item that has the same position further in the same direction as the MongoDB order (there're no duplicates in our example, but it's entirely possible).
 
 ```javascript
 db.feed_items.find({ "$or" : [
  { "position" : { "$lt" : 14 }},
- { "position" : 14, "_id": { "$gt" : ObjectId("511d7c7c3b5552c92400000e") }}
-]}).sort({ position: 1 }).limit(7)
+ { "position" : 14, "_id": { "$lt" : ObjectId("511d7c7c3b5552c92400000e") }}
+]}).sort({ position: -1, _id: -1 }).limit(7)
 ```
+
+Note that we're sorting by `_id` as well because MongoDB may relocate a document and therefore alter the natural order. See [this commit](https://github.com/dblock/mongoid-scroll/commit/3cd75ded93f82adfcb1c17a8b9c98715c536b680) for a test that reproduces this behavior.
 
 Last Query
 ----------
