@@ -22,7 +22,7 @@ A 503 error means "Service Unavailable". Heroku returns a 503 error when an HTTP
 
 ```
 Nov 14 12:10:50 production heroku/router:
- Error H12 (Request timeout) -> GET art.sy/api/spline
+ Error H12 (Request timeout) -> GET artsy.net/api/spline
  dyno=web.11 queue= wait= service=30000ms status=503 bytes=0
 ```
 

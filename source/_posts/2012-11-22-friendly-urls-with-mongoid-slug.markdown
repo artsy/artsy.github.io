@@ -9,7 +9,7 @@ github-url: https://www.github.com/dblock
 twitter-url: http://twitter.com/dblockdotorg
 blog-url: http://code.dblock.org
 ---
-All Art.sy URLs shared publicly are humanly readable. For example, you'll find all Barbara Kruger's works at [art.sy/artist/barbara-kruger](http://art.sy/artist/barbara-kruger) and a post by Hyperallergic entitled "Superfluous Men Can't Get No Satisfaction" at [art.sy/hyperallergic/post/superfluous-men-cant-get-no-satisfaction](http://art.sy/hyperallergic/post/superfluous-men-cant-get-no-satisfaction). This is a lot prettier than having `id=42` in the browser's address and is a big improvement for SEO.
+All Artsy URLs shared publicly are humanly readable. For example, you'll find all Barbara Kruger's works at [artsy.net/artist/barbara-kruger](http://artsy.net/artist/barbara-kruger) and a post by Hyperallergic entitled "Superfluous Men Can't Get No Satisfaction" at [artsy.net/hyperallergic/post/superfluous-men-cant-get-no-satisfaction](http://artsy.net/hyperallergic/post/superfluous-men-cant-get-no-satisfaction). This is a lot prettier than having `id=42` in the browser's address and is a big improvement for SEO.
 
 <img src="/images/2012-11-22-friendly-urls-with-mongoid-slug/barbara-kruger.png">
 

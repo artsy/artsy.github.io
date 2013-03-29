@@ -9,7 +9,7 @@ github-url: https://www.github.com/dblock
 twitter-url: http://twitter.com/dblockdotorg
 blog-url: http://code.dblock.org
 ---
-We do a lot of image processing at Art.sy. We have tens of thousands of beautiful original high resolution images from our partners and treat them with care. The files mostly come from professional art photographers, include embedded color profiles and other complicated features that make image processing a big deal.
+We do a lot of image processing at Artsy. We have tens of thousands of beautiful original high resolution images from our partners and treat them with care. The files mostly come from professional art photographers, include embedded color profiles and other complicated features that make image processing a big deal.
 
 Once uploaded, these images are converted to JPG, resized into many versions and often resampled. We are using [CarrierWave](https://github.com/jnicklas/carrierwave) for this process - our typical image uploader starts like a usual CarrierWave implementation with a few additional features.
 

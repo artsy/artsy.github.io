@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "How Art.sy Uses Github to Build Art.sy"
+title: "How Artsy Uses Github to Build Artsy"
 date: 2012-01-29 14:26
 comments: true
 categories: [Tools, Github]
@@ -9,9 +9,9 @@ github-url: https://www.github.com/dblock
 twitter-url: http://twitter.com/dblockdotorg
 blog-url: http://code.dblock.org
 ---
-[Zach Holman](http://zachholman.com/) gave a good talk on [How Github uses Github to build Github](http://zachholman.com/talk/how-github-uses-github-to-build-github) at Rubyconf. It was great to hear how similar our own processes are at Art.sy, with a few notable differences.
+[Zach Holman](http://zachholman.com/) gave a good talk on [How Github uses Github to build Github](http://zachholman.com/talk/how-github-uses-github-to-build-github) at Rubyconf. It was great to hear how similar our own processes are at Artsy, with a few notable differences.
 
-Art.sy engineers store almost everything on Github. We use Github Wikis, but don't use Github Issues much. We work in 3-week sprints with [Pivotal Tracker](http://pivotaltracker.com/) instead. This blog is on Github. And, of course, we have our own Hubot which feeds funny animated GIFs after each successful deploy to our IRC channel.
+Artsy engineers store almost everything on Github. We use Github Wikis, but don't use Github Issues much. We work in 3-week sprints with [Pivotal Tracker](http://pivotaltracker.com/) instead. This blog is on Github. And, of course, we have our own Hubot which feeds funny animated GIFs after each successful deploy to our IRC channel.
 
 The most interesting part for me was around these two slides.
 
@@ -20,7 +20,7 @@ The most interesting part for me was around these two slides.
 
 Zach emphasized that you don't need forks to make pull requests. While technically true, I find forks particularly useful to keep things clean. 
 
-At Art.sy we use personal forks to work on features, create topical branches and make pull requests into the master from there. This is the workflow of the vast majority of open-source projects too. Now, Zach is right, you don't want to create any second class developers - our entire team has write access to the master. We use pull requests from forks to do peer code reviews, even for trivial things. I would typically make a pull request including the person I'd like to code review my changes in the title. Here's an example.
+At Artsy we use personal forks to work on features, create topical branches and make pull requests into the master from there. This is the workflow of the vast majority of open-source projects too. Now, Zach is right, you don't want to create any second class developers - our entire team has write access to the master. We use pull requests from forks to do peer code reviews, even for trivial things. I would typically make a pull request including the person I'd like to code review my changes in the title. Here's an example.
 
 {% img /images/2012-01-29-how-art-dot-sy-uses-github-to-build-art-dot-sy/github-pull-request.png [Targeted Pull Request] %}
 

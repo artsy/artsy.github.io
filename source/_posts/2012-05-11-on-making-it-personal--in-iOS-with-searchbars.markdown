@@ -10,7 +10,7 @@ twitter-url: http://twitter.com/orta
 blog-url: http://orta.github.com
 ---
 
-We make Folio, a pretty kick-ass iPad app that we give away to our partners to showcase their inventory at art fairs. Whilst making it we tried to ensure that all of the application fits in with the [art.sy](http://art.sy) website aesthetic, and recently the last natively styled control fell to our mighty code hammers. That was the `UISearchBar`.
+We make Folio, a pretty kick-ass iPad app that we give away to our partners to showcase their inventory at art fairs. Whilst making it we tried to ensure that all of the application fits in with the [Artsy](http://artsy.net) website aesthetic, and recently the last natively styled control fell to our mighty code hammers. That was the `UISearchBar`.
 
 ![Screenshot of Artsy Folio](http://ortastuff.s3.amazonaws.com/images/custom_searchbar_example.jpg)
 

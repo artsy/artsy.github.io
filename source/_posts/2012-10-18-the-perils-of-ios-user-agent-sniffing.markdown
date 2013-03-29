@@ -20,7 +20,7 @@ Safari and a user agent for the UIWebView. This assumption is
 incorrect as iOS apps can and do
 [customize their user agent](http://stackoverflow.com/a/8666438). The
 main offender here is Facebook, whose iOS app alone accounts for about
-1-3% of Art.sy's daily traffic.
+1-3% of Artsy's daily traffic.
 
 Compare these user agent strings from iOS devices:
 ```

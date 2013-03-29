@@ -20,9 +20,9 @@ blog-url: http://shortforgilbert.com
 
 It did not take us long to discover we shared the concerns of Twitter's 
 [Dan Webb on hashbang routes](http://danwebb.net/2011/5/28/it-is-about-the-hashbangs), 
-but it was almost a year before we were able to remove them from art.sy. Here's how it went down.
+but it was almost a year before we were able to remove them from Artsy. Here's how it went down.
 
-Art.sy relies on the [Backbone.js](http://documentcloud.github.com/backbone/) framework for our client application
+Artsy relies on the [Backbone.js](http://documentcloud.github.com/backbone/) framework for our client application
 which offers a solid pushState routing scheme. This includes a seamless hashtag fallback for 
 [browsers that don't support the HTML5 History API](http://caniuse.com/#feat=history) (looking at you IE 9).
 
@@ -35,7 +35,7 @@ Backbone.history.start({ pushState: true })
 
 ### The Client
 
-At Art.sy, we had left Backbone out of the loop for most of our internal linking. Our markup href attributes all 
+At Artsy, we had left Backbone out of the loop for most of our internal linking. Our markup href attributes all 
 began with '/#!' and expected the browser's default hash behavior to keep the page from refreshing. For a proper
 pushState scheme, the app's internal linking should begin with an absolute route. Backbone.js defaults to '/', but
 this is configurable.
@@ -46,8 +46,8 @@ Backbone.history.start
   root: "/specialized/client/"
 ```
 #### Internal Links
-All internal links need to begin with your configured root ('/' for art.sy).
-Be sure to leave out your domain (~~http://art.sy~~).
+All internal links need to begin with your configured root ('/' for Artsy).
+Be sure to leave out your domain (~~http://artsy.net~~).
 ```html
 <a href="/">Home</a>
 
@@ -108,8 +108,8 @@ $ ->
 ### The Server
 
 Now that our app will receive requests to full URLs
-'http://art.sy/artwork/mattew-abbott-lobby-and-supercomputer'
-instead of 'http://art.sy/#!/artwork/mattew-abbott-lobby-and-supercomputer',
+'http://artsy.net/artwork/mattew-abbott-lobby-and-supercomputer'
+instead of 'http://artsy.net/#!/artwork/mattew-abbott-lobby-and-supercomputer',
 we need to update our Rails setup.
 
 Below is an excerpt from our Rails application's router.
@@ -157,7 +157,7 @@ Dan Webb's assertion that [URLs are forever](http://danwebb.net/2011/5/28/it-is-
 but so is Isaac Asimov's statement on change. You can't predict the future. 
 You make decisions based on the best data you have at the time. We started our app with hashtag routing
 in early 2011 and added the ! around five months later (about the same time Dan Webb wrote his post). 
-Had we started Art.sy today, even six months ago, I'm confident we would have enabled Backbone's pushState routing.
+Had we started Artsy today, even six months ago, I'm confident we would have enabled Backbone's pushState routing.
 There's no need to look back. The future is here and its URLs are #! free!
 
 
