@@ -1,17 +1,127 @@
 <?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
 
-  <title><![CDATA[Category: Testing | Art.sy Engineering]]></title>
+  <title><![CDATA[Category: Testing | Artsy Engineering]]></title>
   <link href="http://artsy.github.com/blog/categories/testing/atom.xml" rel="self"/>
   <link href="http://artsy.github.com/"/>
-  <updated>2012-09-14T12:15:28+01:00</updated>
+  <updated>2013-03-29T16:52:50+00:00</updated>
   <id>http://artsy.github.com/</id>
   <author>
-    <name><![CDATA[Art.sy]]></name>
+    <name><![CDATA[Artsy]]></name>
     
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[How to Run RSpec Test Suites in Parallel with JenkinsCI Build Flow]]></title>
+    <link href="http://artsy.github.com/blog/2012/10/09/how-to-run-rspec-test-suites-in-parallel-with-jenkins-ci-build-flow/"/>
+    <updated>2012-10-09T21:21:00+01:00</updated>
+    <id>http://artsy.github.com/blog/2012/10/09/how-to-run-rspec-test-suites-in-parallel-with-jenkins-ci-build-flow</id>
+    <content type="html"><![CDATA[<p>We now have over 4700 RSpec examples in one of our projects. They are stable, using the techniques described in an <a href="/blog/2012/02/03/reliably-testing-asynchronous-ui-w-slash-rspec-and-capybara/">earlier post</a> and organized in <a href="/blog/2012/05/15/how-to-organize-over-3000-rspec-specs-and-retry-test-failures/">suites</a>. But they now take almost 3 hours to run, which is clearly unacceptable.</p>
+
+<p>To solve this, we have parallelized parts of the process with existing tools, and can turn a build around in just under an hour. This post will dive into our <a href="http://jenkins-ci.org/">Jenkins</a> build flow setup.</p>
+
+<p>To keep things simple, we're going to only build the <code>master</code> branch. When a change is committed on <code>master</code> we're going to push <code>master</code> to a <code>master-ci</code> branch and trigger a distributed build on <code>master-ci</code>. Once all the parts have finished, we'll complete the build by pushing <code>master-ci</code> to <code>master-succeeded</code> and notify the dev team of success or failure.</p>
+
+<p>Here's a diagram of what's going on.</p>
+
+<p><img src="http://artsy.github.com/images/2012-10-09-how-to-run-rspec-test-suites-in-parallel-with-jenkins-ci-build-flow/master-ci.png"></p>
+
+<!-- more -->
+
+
+<h2>Plugins</h2>
+
+<p>Install the <a href="https://wiki.jenkins-ci.org/display/JENKINS/Build+Flow+Plugin">Build Flow</a> and the <a href="https://wiki.jenkins-ci.org/display/JENKINS/Parameterized+Trigger+Plugin">Parameterized Trigger</a> plugin. Grant <code>Anonymous</code> job read permissions in Jenkins system configuration (see <a href="https://issues.jenkins-ci.org/browse/JENKINS-14027">JENKINS-14027</a>).</p>
+
+<p>Create the following Jenkins jobs.</p>
+
+<h2>master-prequel</h2>
+
+<p>A free-style job that connects to the SCM, in our case Git.</p>
+
+<ul>
+<li>Set SCM repository URL to your Git repo, eg. <code>git@github.com:spline/reticulator.git</code></li>
+<li>Change the default branch specifier from <code>**</code> to <code>master</code>. We'll be pushing a <code>master-ci</code> branch, which could, in turn, cause more builds if you don't do this.</li>
+<li>Add a post-build action to build another project. Trigger the <code>master</code> project if the build succeeds.</li>
+</ul>
+
+
+<h2>master</h2>
+
+<p>This is a build-flow job. We'll describe the individual tasks that the flow invokes further. The flow DSL looks as follows.</p>
+
+<p><code>ruby
+build("master-ci-init")
+parallel (
+ { build("master-ci-task", tasks: "spec:suite:models:ci") },
+ { build("master-ci-task", tasks: "spec:suite:api:ci") },
+ { build("master-ci-task", tasks: "spec:suite:integration:ci") }
+)
+build("master-ci-succeeded")
+</code></p>
+
+<p>This is a good place to add an e-mail notification post-build action for every unstable build.</p>
+
+<h2>master-ci-init</h2>
+
+<p>A free-style job that creates the <code>master-ci</code> branch from master. It needs to be connected to your SCM and executes the following shell script.</p>
+
+<p>``` bash</p>
+
+<h1>!/bin/bash</h1>
+
+<p>git checkout $GIT_BRANCH
+git push origin -f $GIT_BRANCH:$GIT_BRANCH-ci
+```</p>
+
+<p>Note that we cannot combine this task with <code>master-prequel</code>, because we have to make sure the branch creation runs once under the entire flow, while <code>master-prequel</code> can be run multiple times, once per check-in. Otherwise the <code>master-ci</code> branch could get updated before a <code>master-ci-task</code> runs from a previous flow execution.</p>
+
+<h2>master-ci-task</h2>
+
+<p>A parameterized build that accepts a <code>tasks</code> parameter that the flow will pass in.</p>
+
+<p>Change the default branch specifier to <code>master-ci</code> and execute the following shell script.</p>
+
+<p>``` bash</p>
+
+<h1>!/bin/bash</h1>
+
+<p>bundle install
+bundle exec rake $tasks
+```</p>
+
+<p>This example runs <code>rake $tasks</code>, which we define to be various test suites in our flow DSL. Our test suite setup is described in <a href="/blog/2012/05/15/how-to-organize-over-3000-rspec-specs-and-retry-test-failures/">this post</a>. Your mileage may vary.</p>
+
+<h2>master-ci-succeeded</h2>
+
+<p>This is an optional step. We use this free-style job to tag <code>master-ci</code> as <code>master-succeeded</code> with the following shell script.</p>
+
+<p>``` bash</p>
+
+<h1>!/bin/bash</h1>
+
+<p>git checkout $GIT_BRANCH
+git push origin -f $GIT_BRANCH:${GIT_BRANCH/%-ci/}-succeeded
+```</p>
+
+<p>Our deployment to production will pickup the <code>master-succeeded</code> branch when it's time.</p>
+
+<h2>Improvements?</h2>
+
+<p>I see a few possible improvements here that might require a bit of work.</p>
+
+<ul>
+<li>The ability to split an RSpec suite up across an arbitrary number N sub-jobs and M executors would create an optimal parallel split based on the resources available.</li>
+<li>Passing the value of <code>GIT_BRANCH</code> and <code>GIT_COMMIT</code> across these jobs would enable building any branch and eliminate the need for <code>master-ci-init</code>.</li>
+<li>Build flow could support SCM polling the same way as free-style jobs, avoiding the need for <code>master-prequel</code>. We weren't able to get a stable notification of changes from Github with the Jenkins Github plugin.</li>
+</ul>
+
+
+<p>Please suggest further improvements in the comments below!</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Testing with Delayed Jobs]]></title>
@@ -140,7 +250,7 @@ end
     <link href="http://artsy.github.com/blog/2012/07/10/on-demand-jenkins-slaves-with-amazon-ec2/"/>
     <updated>2012-07-10T13:30:00+01:00</updated>
     <id>http://artsy.github.com/blog/2012/07/10/on-demand-jenkins-slaves-with-amazon-ec2</id>
-    <content type="html"><![CDATA[<p>The <a href="http://art.sy">Art.sy</a> team faithfully uses <a href="http://jenkins-ci.org">Jenkins</a> for continuous integration. <a href="http://artsy.github.com/blog/2012/05/27/using-jenkins-for-ruby-and-ruby-on-rails-teams/">As we've described before</a>, our Jenkins master and 8 slaves run on Linode. This arrangement has at least a few drawbacks:</p>
+    <content type="html"><![CDATA[<p>The <a href="http://artsy.net">Artsy</a> team faithfully uses <a href="http://jenkins-ci.org">Jenkins</a> for continuous integration. <a href="http://artsy.github.com/blog/2012/05/27/using-jenkins-for-ruby-and-ruby-on-rails-teams/">As we've described before</a>, our Jenkins master and 8 slaves run on Linode. This arrangement has at least a few drawbacks:</p>
 
 <ul>
 <li>Our Linode servers are manually configured. They require frequent maintenance, and inconsistencies lead to surprising build failures.</li>
@@ -207,16 +317,16 @@ end
     <link href="http://artsy.github.com/blog/2012/05/27/using-jenkins-for-ruby-and-ruby-on-rails-teams/"/>
     <updated>2012-05-27T08:15:00+01:00</updated>
     <id>http://artsy.github.com/blog/2012/05/27/using-jenkins-for-ruby-and-ruby-on-rails-teams</id>
-    <content type="html"><![CDATA[<p>The <a href="http://jenkins-ci.org">Jenkins CI</a> project has grown tremendously in the past few months. There're now hundreds of plugins and an amazing engaged community. Art.sy is a happy user and proud contributor to this effort with the essential <a href="https://wiki.jenkins-ci.org/display/JENKINS/AnsiColor+Plugin">jenkins-ansicolor plugin</a>, eliminating boring console output since 2011.</p>
+    <content type="html"><![CDATA[<p>The <a href="http://jenkins-ci.org">Jenkins CI</a> project has grown tremendously in the past few months. There're now hundreds of plugins and an amazing engaged community. Artsy is a happy user and proud contributor to this effort with the essential <a href="https://wiki.jenkins-ci.org/display/JENKINS/AnsiColor+Plugin">jenkins-ansicolor plugin</a>, eliminating boring console output since 2011.</p>
 
 <p>We are a continuous integration, deployment and devops shop and have been using Jenkins for over a year now. We've shared our experience at the <a href="http://www.cloudbees.com/juc2012.cb">Jenkins User Conference 2012</a> in <a href="http://www.slideshare.net/dblockdotorg/graduating-to-jenkins-ci-for-rubyonrails-teams">a presentation</a>. This blog post is an overview of how to get started with Jenkins for Ruby(-on-Rails) teams.</p>
 
-<p><img src="/images/2012-05-27-using-jenkins-for-ruby-on-rails-teams/jenkins.png" title="[Art.sy Jenkins CI]" ></p>
+<p><img src="/images/2012-05-27-using-jenkins-for-ruby-on-rails-teams/jenkins.png" title="[Artsy Jenkins CI]" ></p>
 
 <!-- more -->
 
 
-<p>When Art.sy had only three engineers, we hesitated to deploy Jenkins. The CI server was written in Java (i.e. wasn't written in Ruby). We feared introducing excessive infrastructure too early. In retrospect, we were not in the business of building CI infrastructure, so not using Jenkins was a mistake. Since we adopted it, Jenkins has been operating painlessly and scaled nicely as our needs continued to grow.</p>
+<p>When Artsy had only three engineers, we hesitated to deploy Jenkins. The CI server was written in Java (i.e. wasn't written in Ruby). We feared introducing excessive infrastructure too early. In retrospect, we were not in the business of building CI infrastructure, so not using Jenkins was a mistake. Since we adopted it, Jenkins has been operating painlessly and scaled nicely as our needs continued to grow.</p>
 
 <p>Today, we run a single virtual server on <a href="http://www.linode.com">Linode</a> as our master Jenkins and have 8 Linode slaves. These are all $19 per month plans. Our usage is variable: few builds in the middle of the night and a very high number of builds during the day, so we're planning on trying to build a Jenkins-slave on-demand system on AWS eventually.</p>
 
@@ -474,178 +584,6 @@ end
 ```</p>
 
 <p>A complete version of our <code>test_suites.rake</code>, including a <code>spec:suite:all</code> task that executes all specs can be found <a href="https://gist.github.com/2597305">in this gist</a>. Our Jenkins CI runs <code>rake spec:suite:all</code>, with a much improved weather report since we started using this system.</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Reliably Testing Asynchronous UI w/ RSpec and Capybara]]></title>
-    <link href="http://artsy.github.com/blog/2012/02/03/reliably-testing-asynchronous-ui-w-slash-rspec-and-capybara/"/>
-    <updated>2012-02-03T11:45:00+00:00</updated>
-    <id>http://artsy.github.com/blog/2012/02/03/reliably-testing-asynchronous-ui-w-slash-rspec-and-capybara</id>
-    <content type="html"><![CDATA[<p>tl;dr - You can write 632 rock solid UI tests with Capybara and RSpec, too.</p>
-
-<p><img src="/images/2012-02-03-reliably-testing-asynchronous-ui-w-slash-rspec-and-capybara/jenkins-ci.png" title="[Miami Weather in NYC]" ></p>
-
-<p>We have exactly 231 integration tests and 401 view tests out of a total of 3086 in our core application today. This adds up to 632 tests that exercise UI. The vast majority use <a href="http://rspec.info/">RSpec</a> with <a href="https://github.com/jnicklas/capybara">Capybara</a> and <a href="http://seleniumhq.org/">Selenium</a>. This means that every time the suite runs we set up real data in a local MongoDB and use a real browser to hit a fully running local application, 632 times. The suite currently takes 45 minutes to run headless on a slow Linode, UI tests taking more than half the time.</p>
-
-<p>While the site is in private beta (request your invite <a href="http://art.sy/request_invite">here</a>), you can get a glimpse of the complexity of the UI from the <a href="http://art.sy">splash page</a>. It's a rich client-side Javascript application that talks to an API. You can open your browser's developer tools and watch a combination of API calls and many asynchronous events.</p>
-
-<p>Keeping the UI tests reliable is notoriously difficult. For the longest time we felt depressed under the Pacific Northwest -like weather of our Jenkins CI and blamed every possible combination of code and infrastructure for the many intermittent failures. We've gone on sprees of marking many such tests "pending" too.</p>
-
-<p>We've learned a lot and stabilized our test suite. This is how we do UI testing.</p>
-
-<!-- more -->
-
-
-<h2>An Asynchronous Application</h2>
-
-<p>The splash page on <a href="http://art.sy">art.sy</a> is a <a href="http://documentcloud.github.com/backbone/">Backbone.js</a> application where views fade in and out depending on user actions. It also implements a responsive layout because some elements cannot render on mobile devices or shouldn't depending on the size of your browser.</p>
-
-<p>The application is initialized in a usual Backbone way.</p>
-
-<p>``` coffeescript
-window.Splash =
-  Views: {}
-  Routers: {}
-  Models: {}
-  initialize: -></p>
-
-<pre><code>contentWindow = new @Models.ContentWindow()
-@router = new @Routers.Client contentWindow
-new @Views.Responsive contentWindow
-</code></pre>
-
-<p>```</p>
-
-<p>From here, everything is asynchronous. The router will wire up the events and the different views that make up the page will render themselves.</p>
-
-<h2>Testing a Login Form</h2>
-
-<p>When a user clicks on a "Log In" link, he sees the <code>Splash.Views.Login</code> Backbone view. There's no page reload or server roundtrip: the current view is swapped out by the Backbone view coming in. Some CSS animates the transition.</p>
-
-<p>``` coffeescript</p>
-
-<p>class Splash.Routers.Client extends Backbone.Router</p>
-
-<p>  routes:</p>
-
-<pre><code>'log_in' : 'log_in'
-</code></pre>
-
-<p>  log_in: -></p>
-
-<pre><code>Splash.login = new Splash.Views.Login()
-@navigate 'log_in'
-</code></pre>
-
-<p>```</p>
-
-<p>The log-in view has two input fields: an e-mail address and password. We can write a Capybara test that enters valid values and ensures that the user logged in by checking for a specific header.</p>
-
-<p>``` ruby
-require 'spec_helper'</p>
-
-<p>feature "Log In" do
-  context "using a browser", :js => true do</p>
-
-<pre><code>scenario "allows a user to login" do
-  user = Fabricate(:user)
-  visit "/"
-  click_link "log_in"
-  fill_in "user[email]", :with =&gt; user.email
-  fill_in "user[password]", :with =&gt; user.password
-  click_button "sign in"
-  find("h1", :visible =&gt; true).text.should == "Login Successful"
-end
-</code></pre>
-
-<p>  end
-end
-```</p>
-
-<p>This test works well with Capybara, because it tries to wait for elements to appear on the page. For example, when you use <code>fill_in</code> it attempts to locate an element with the <code>user[email]</code> id, several times, until it times out or until the element is on the page.</p>
-
-<h2>Waiting for Explicit Events</h2>
-
-<p>The above test is "reliable" within some limits. It works as long as all the necessary asynchronous events run within a timeout period. But what if they don't? What if the test hardware is taking a break from flushing to disk? Or waiting on Google Analytics when the network cable is unplugged, which shouldn't affect the outcome of the test? These external issues make this code very brittle, so everyone keeps increasing the default timeout values.</p>
-
-<p>A winning strategy to avoid this is to introduce explicit wait controls inside the tests. These wait <code>Capybara.default_wait_time</code> for a true result and no longer force you to know which method in Capybara waits for a timeout and which doesn't. It effectively breaks up a single wait into multiple waits.</p>
-
-<p>Consider a widget that needs to be saved by making a postback.</p>
-
-<p>``` coffeescript
-@$el.removeClass("saved").addClass('saving')
-@widget.save
-  success: =></p>
-
-<pre><code>@$el.removeClass("saving").addClass("saved")
-</code></pre>
-
-<p>```</p>
-
-<p>When the widget is saved, its element will get a <code>.saved</code> CSS class. The test can wait for it.</p>
-
-<p><code>ruby
-it "saves the widget" do
-  widget_count = Widget.count
-  find("save").click
-  wait_until { find(".saved", visible: true) }
-  Widget.count.should == widget_count + 1
-end
-</code></p>
-
-<h2>There's Just Too Much Going On</h2>
-
-<p>Sometimes, waiting on explicit events is just not practical. You may have many AJAX requests going on at the same time and after those are done, you may still be executing JavaScript that modifies the DOM in meaningful ways. Lets attempt to answer the following two questions:</p>
-
-<ul>
-<li>How can we wait on all remaining AJAX requests to finish?</li>
-<li>How can we wait on all remaining DOM events to finish?</li>
-</ul>
-
-
-<h2>Remaining AJAX Requests</h2>
-
-<p>If you're using jQuery, you can test the number of active connections to a server. The number is zero when all pending AJAX requests have finished. This was an original idea from <a href="http://pivotallabs.com/users/mgehard/blog/articles/1671-waiting-for-jquery-ajax-calls-to-finish-in-cucumber">Pivotal</a>.</p>
-
-<p>``` ruby spec/support/wait_for_ajax_helper.rb
-def wait_for_ajax(timeout = Capybara.default_wait_time)
-  page.wait_until(timeout) do</p>
-
-<pre><code>page.evaluate_script 'jQuery.active == 0'
-</code></pre>
-
-<p>  end
-end
-```</p>
-
-<h2>Remaining DOM Events</h2>
-
-<p>This one is a bit tricker. We can leverage the fact that JavaScript engines are updating the UI on a single thread. If you defer an action it will execute after everything else that has been deferred before it. Therefore we can queue an addition of an empty DIV with a new id and finally wait for it. By using a unique ID we allow the waits to stack up nicely in a single spec.</p>
-
-<p>``` ruby spec/support/wait_for_dom_helper_.rb
-def wait_for_dom(timeout = Capybara.default_wait_time)
-  uuid = SecureRandom.uuid
-  page.find("body")
-  page.evaluate_script &lt;&lt;-EOS</p>
-
-<pre><code>_.defer(function() {
-  $('body').append("&lt;div id='#{uuid}'&gt;&lt;/div&gt;");
-});
-</code></pre>
-
-<p>  EOS
-  page.find("##{uuid}")
-end
-```</p>
-
-<p>We do have to make sure that the body element is loaded, first. This allows a <code>wait_for_dom</code> right after we navigate to a page that executes AJAX queries on load.</p>
-
-<h2>Combining Techniques</h2>
-
-<p>With enough attention we were able to explain and fix most spec failures. When implementing Capybara tests we favor explicit waits and use the combination of the two wait functions above when we just want to generically make sure that everything on the page has loaded and is ready for more action.</p>
-
-<p>Finally, integration tests are essential for continuous deployment. They are very much worth the extra development effort.</p>
 ]]></content>
   </entry>
   

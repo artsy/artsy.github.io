@@ -1,0 +1,324 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Beat Heroku's 60 Seconds Application Boot Timeout with a Proxy - Artsy Engineering</title>
+  <meta name="author" content="Artsy">
+
+  
+  <meta name="description" content="Heroku will log an R10 - Boot Timeout error when a web process takes longer than 60 seconds to bind to its assigned port. This error is often caused &hellip;">
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://artsy.github.com/blog/2012/12/13/beat-heroku-60-seconds-application-boot-timeout-with-a-proxy">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <script src="/javascripts/modernizr-2.0.js"></script>
+  <script src="/javascripts/ender.js"></script>
+  <script src="/javascripts/octopress.js" type="text/javascript"></script>
+  <link href="/atom.xml" rel="alternate" title="Artsy Engineering" type="application/atom+xml">
+  <!--[if IE 8]>
+<link href="/stylesheets/custom/ie_font.css" type="text/css">
+<![endif]-->
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-12450662-3']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+
+<body>
+  
+  <a href="/">
+    <h1 id="lrg-mark">
+      <span>Art.sy</span>
+    </h1>
+  </a>
+  
+  <header id="banner"><hgroup>
+  <div id="header">
+    <h2>Inspiration from the engineering team at <a href="http://artsy.net">Artsy</a> — A new way to discover fine art.</h2>
+  </div>
+</hgroup>
+
+</header>
+  
+  <div id="main">
+    <div id="mobile_search">
+      <form action="http://google.com/search" method="get">
+        <input type="hidden" name="q" value="site:artsy.github.com" />
+        <input class="search" type="text" name="q" results="0" placeholder="Search" />
+      </form>
+    </div>
+    <div id="content">
+      <div>
+<article class="hentry" role="article">
+  
+  <header>
+    
+    <a href="">
+      <div class="date">
+
+
+
+
+  
+<time datetime="2012-12-13T21:21:00+00:00" pubdate>12/13/12</time></div>
+    
+    
+      <h1 class="entry-title">Beat Heroku's 60 Seconds Application Boot Timeout With a Proxy</h1>
+    
+    </a>
+    
+      <p class="meta">
+        
+      </p>
+    
+  </header>
+
+
+<div class="entry-content"><p><img src="/images/2012-12-13-beat-heroku-60-seconds-application-boot-timeout-with-a-proxy/heroku-logo-light-234x60.png"></p>
+
+<p>Heroku will log an <a href="https://devcenter.heroku.com/articles/error-codes#r10-boot-timeout">R10 - Boot Timeout</a> error when a web process takes longer than 60 seconds to bind to its assigned port. This error is often caused by a process being unable to reach an external resource, such as a database or because you have a lot of gems in your <code>Gemfile</code> which take a long time to load.</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>Dec 12 12:12:12 prod heroku/web.1:
+</span><span class='line'>  Error R10 (Boot timeout)
+</span><span class='line'>  Web process failed to bind to $PORT within 60 seconds of launch</span></code></pre></td></tr></table></div></figure>
+
+
+<p>There&#8217;s currently no way to increase this boot timeout, but we can beat it with a proxy implemented by our new <a href="https://github.com/dblock/heroku-forward">heroku-forward</a> gem.</p>
+
+<!-- more -->
+
+
+<p>The concepts for <code>heroku-forward</code> come from <a href="http://noverloop.be/beating-herokus-60s-boot-times-with-the-cedar-stack-and-a-reverse-proxy/">this article</a> by Nicolas Overloop. The basic idea is to have a proxy bind to the port immediately and then buffer requests until the backend came up. The proxy implementation is Ilya Grigorik&#8217;s <a href="https://github.com/igrigorik/em-proxy">em-proxy</a>. Communication between the proxy and the backend happens over a unix domain socket (a file), which needed a bit of work (see <a href="https://github.com/igrigorik/em-proxy/pull/31">#31</a>), inspired by an excellent article, <a href="http://jgwmaxwell.com/fighting-the-unicorns-becoming-a-thin-wizard-on-heroku">Fighting the Unicorns: Becoming a Thin Wizard on Heroku</a> by JGW Maxwell. The <code>heroku-forward</code> gem connects all the dots.</p>
+
+<p>Check out the gem&#8217;s <a href="https://github.com/dblock/heroku-forward/blob/master/README.md">README</a> for how to set it up.</p>
+
+<p>Here&#8217;s the log output from an application that uses this gem. Notice that Heroku reports the state of <code>web.1</code> up after just 4 seconds, while the application takes 67 seconds to boot.</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>2012-12-11T23:33:42+00:00 heroku[web.1]: Starting process with command `bundle exec ruby config.ru`
+</span><span class='line'>2012-12-11T23:33:46+00:00 app[web.1]:  INFO -- : Launching Backend ...
+</span><span class='line'>2012-12-11T23:33:46+00:00 app[web.1]:  INFO -- : Launching Proxy Server at 0.0.0.0:42017 ...
+</span><span class='line'>2012-12-11T23:33:46+00:00 app[web.1]: DEBUG -- : Attempting to connect to /tmp/thin20121211-2-1bfazzx.
+</span><span class='line'>2012-12-11T23:33:46+00:00 app[web.1]:  WARN -- : no connection, 10 retries left.
+</span><span class='line'>2012-12-11T23:33:46+00:00 heroku[web.1]: State changed from starting to up
+</span><span class='line'>2012-12-11T23:34:32+00:00 app[web.1]: &gt;&gt; Thin web server (v1.5.0 codename Knife)
+</span><span class='line'>2012-12-11T23:34:32+00:00 app[web.1]: &gt;&gt; Maximum connections set to 1024
+</span><span class='line'>2012-12-11T23:34:32+00:00 app[web.1]: &gt;&gt; Listening on /tmp/thin20121211-2-1bfazzx, CTRL+C to stop
+</span><span class='line'>2012-12-11T23:34:53+00:00 app[web.1]: DEBUG -- : Attempting to connect to /tmp/thin20121211-2-1bfazzx.
+</span><span class='line'>2012-12-11T23:34:53+00:00 app[web.1]: DEBUG -- : Proxy Server ready at 0.0.0.0:42017 (67s).</span></code></pre></td></tr></table></div></figure>
+
+
+<p>You can read more about how we use Heroku at <a href="http://success.heroku.com/artsy">http://success.heroku.com/artsy</a>.</p>
+</div>
+
+
+  <footer>
+    <div class="meta">
+      
+  
+
+
+
+  <span class="byline author vcard">
+    Posted by 
+    <span class="fn">
+      Daniel Doubrovkine
+    </span>
+    
+    
+    
+    
+      (
+      
+      <span class="fn">
+        <a href="https://www.github.com/dblock">github</a>
+      </span>
+      
+      
+      <span class="fn">
+        <a href="http://code.dblock.org">blog</a>
+      </span>
+      
+      
+      <span class="fn">
+        <a href="http://twitter.com/dblockdotorg">twitter</a>
+      </span>
+      
+      )
+    
+    
+  </span>
+
+
+    </div>
+    <div class="meta">
+      Categories: 
+
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/heroku/'>Heroku</a>, <a class='category' href='/blog/categories/em-proxy/'>em-proxy</a>, <a class='category' href='/blog/categories/ruby/'>ruby</a>
+  
+</span>
+
+
+    </div>
+
+    
+      <div class="sharing">
+  
+  <a href="http://twitter.com/share" class="twitter-share-button" data-url="http://artsy.github.com/blog/2012/12/13/beat-heroku-60-seconds-application-boot-timeout-with-a-proxy/" data-via="artsy" data-counturl="http://artsy.github.com/blog/2012/12/13/beat-heroku-60-seconds-application-boot-timeout-with-a-proxy/" >Tweet</a>
+  
+  
+  
+</div>
+
+    
+    <p class="meta">
+      
+        <a class="basic-alignment left" href="/blog/2012/11/29/measuring-performance-in-grape-apis-with-new-relic/" title="Previous Post: Measuring Performance in Grape APIs with NewRelic RPM">&laquo; Measuring Performance in Grape APIs with NewRelic RPM</a>
+      
+      
+        <a class="basic-alignment right" href="/blog/2013/01/15/debugging-bundler-issues-with-heroku/" title="next Post: Debugging Bundler Issues on Heroku">Debugging Bundler Issues on Heroku &raquo;</a>
+      
+    </p>
+  </footer>
+</article>
+
+  <section>
+    <h1>Comments</h1>
+    <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</div>
+  </section>
+
+</div>
+    </div>
+    <div id="sidebar">
+      
+  
+    <section>
+  <h1>Info</h1>
+  <ul>
+    <li> <a href="/about">About Us</a></li>
+    <li> <a href="/open-source">Artsy Open-Source</a></li>
+    <li> <a href="http://artsy.net/job/developer">Join the Artsy Engineering Team</a></li>
+  </ul>
+</section>
+<section id="recent_posts_section">
+  <h1>Recent Posts</h1>
+  <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/2013/03/29/musical-chairs/">Musical Chairs</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2013/02/17/impact-of-heroku-routing-mesh-and-random-routing/">The Impact of Heroku's Routing Mesh and Random Routing</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2013/02/15/infinite-scroll-with-mongodb/">Infinite Scroll with MongoDB</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2013/02/09/data-corruption-and-concurrent-updates-to-embedded-objects-with-mongoid/">Data Corruption and Concurrent Updates to Embedded Objects with MongoDB</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2013/02/01/master-heroku-command-line-with-heroku-commander/">Master the Heroku CLI with Heroku Commander</a>
+      </li>
+    
+  </ul>
+  <a class="archive_link" href="/blog/archives">Blog Archive</a>
+</section>
+<section>
+  <h1>Search</h1>
+  <form action="http://google.com/search" method="get">
+    <input type="hidden" name="q" value="site:artsy.github.com" />
+    <input class="search" type="text" name="q" results="0" />
+  </form>
+</section>
+  
+
+
+    </div>
+  </div>
+  <footer id="main_footer"><p>
+  Copyright &copy; 2013 - Artsy -
+  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+  
+
+<script type="text/javascript">
+      var disqus_shortname = 'artsy';
+      
+        
+        // var disqus_developer = 1;
+        var disqus_identifier = 'http://artsy.github.com/blog/2012/12/13/beat-heroku-60-seconds-application-boot-timeout-with-a-proxy/';
+        var disqus_url = 'http://artsy.github.com/blog/2012/12/13/beat-heroku-60-seconds-application-boot-timeout-with-a-proxy/';
+        var disqus_script = 'embed.js';
+      
+    (function () {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = 'http://' + disqus_shortname + '.disqus.com/' + disqus_script;
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    }());
+</script>
+
+
+
+
+
+
+
+  <script type="text/javascript">
+    (function(){
+      var twitterWidgets = document.createElement('script');
+      twitterWidgets.type = 'text/javascript';
+      twitterWidgets.async = true;
+      twitterWidgets.src = 'http://platform.twitter.com/widgets.js';
+      document.getElementsByTagName('head')[0].appendChild(twitterWidgets);
+    })();
+  </script>
+
+
+
+
+
+</body>
+</html>
