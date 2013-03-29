@@ -36,7 +36,7 @@ curl http://artsy.net/api/v1/system/up?access_token=10013 -v
 { "error" : "Inspiration from the Engineering team at http://artsy.github.com" }
 ```
 
-What?! **401 Broadway**? See, our office address is *401 Broadway, 10013, New York, NY*. We just tried to add a more developer-friendly way to find us in the New York grid. And here's the view from our 25th floor office - that's SOHO right below us.
+What?! **401 Broadway**? See, our office address is *401 Broadway, 10013, New York, NY*. We just tried to add a more developer-friendly way to find us in the New York grid. And here's the view from our 25th floor office - that's SOHO right below us and the Empire State Building a bit North.
 
 <img src="/images/2013-04-01-an-easter-egg-for-curl/artsy-office-view.jpg" />
 
