@@ -4,7 +4,7 @@
   <title><![CDATA[Artsy Engineering]]></title>
   <link href="http://artsy.github.com/atom.xml" rel="self"/>
   <link href="http://artsy.github.com/"/>
-  <updated>2013-04-01T13:02:41-04:00</updated>
+  <updated>2013-05-01T12:24:07-04:00</updated>
   <id>http://artsy.github.com/</id>
   <author>
     <name><![CDATA[Artsy]]></name>
@@ -12,6 +12,162 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Bootstrapping JSON Data with Rails and Backbone.js]]></title>
+    <link href="http://artsy.github.com/blog/2013/04/13/bootstrapping-json-data-with-rails-and-backbone-js/"/>
+    <updated>2013-04-13T12:21:00-04:00</updated>
+    <id>http://artsy.github.com/blog/2013/04/13/bootstrapping-json-data-with-rails-and-backbone-js</id>
+    <content type="html"><![CDATA[<p>The <a href="http://artsy.net">artsy.net website</a> is a Backbone.js application that talks to a server-side RESTful Grape API sitting on top of a Rails app which serves minimal HTML markup. The latter includes such things as a page title, along with links to JavaScript and stylesheet packages. A page loads, scripts run, data is fetched from the API. The result is merged into a HAMLJS template and rendered client-side.</p>
+
+<p>Building this kind of one-page apps allows for clean separation between the presentation and API layers. The downside is that it will slow page render times - fetching data after page load means waiting for an AJAX request to complete before displaying anything.</p>
+
+<p>There&#8217;re many solutions to this problem, all involving some kind of server-side rendering. You could, for example, share views and JavaScript between client and server. This would be a major paradigm shift for a large application like ours and not something we could possibly maneuver in a short amount of time.</p>
+
+<p>Without changing the entire architecture of the system, how can we bootstrap JSON data server-side and avoid the data roundtrip on every page load?</p>
+
+<!-- more -->
+
+
+<h3>Model Repository</h3>
+
+<p>First, we need to keep track of our objects on the client. We&#8217;ve implemented a simple data repository. It ensures that the same model is passed around instead of instantiating new models each time. This helps prevent unnecessary trips to the server, and makes sure events are bound to the same model instance.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+</pre></td><td class='code'><pre><code class='coffeescript'><span class='line'><span class="nv">App.Repository =</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c1"># Gets a model from the repository or fetches it from the server.</span>
+</span><span class='line'>  <span class="nv">getOrFetch: </span><span class="nf">(id, options) -&gt;</span>
+</span><span class='line'>    <span class="nv">model = </span><span class="nx">@get</span><span class="p">(</span><span class="nx">id</span><span class="p">)</span>
+</span><span class='line'>    <span class="k">if</span> <span class="nx">model</span><span class="o">?</span>
+</span><span class='line'>      <span class="nx">options</span><span class="o">?</span><span class="p">.</span><span class="nx">success</span><span class="o">?</span> <span class="nx">options</span><span class="p">,</span> <span class="nx">model</span>
+</span><span class='line'>      <span class="nx">model</span>
+</span><span class='line'>    <span class="k">else</span>
+</span><span class='line'>      <span class="nv">model = </span><span class="k">new</span> <span class="nx">@model</span><span class="p">({</span> <span class="nv">id: </span><span class="nx">id</span> <span class="p">})</span>
+</span><span class='line'>      <span class="nx">model</span><span class="p">.</span><span class="nx">fetch</span> <span class="nx">options</span>
+</span><span class='line'>      <span class="nx">@add</span> <span class="nx">model</span>
+</span><span class='line'>    <span class="nx">model</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1"># Function to extend a collection in to a repository</span>
+</span><span class='line'><span class="nv">App.Repository.extend = </span><span class="nf">(collectionClass) -&gt;</span>
+</span><span class='line'>  <span class="nv">collection = </span><span class="k">new</span> <span class="nx">collectionClass</span>
+</span><span class='line'>  <span class="nv">repository = </span><span class="nx">_</span><span class="p">.</span><span class="nx">extend</span> <span class="nx">collection</span><span class="p">,</span> <span class="nx">App</span><span class="p">.</span><span class="nx">Repository</span>
+</span><span class='line'>  <span class="nv">repository.collectionClass = </span><span class="nx">collectionClass</span>
+</span><span class='line'>  <span class="nx">repository</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Objects of the same type are stored together in a repository collection.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+</pre></td><td class='code'><pre><code class='coffeescript'><span class='line'><span class="k">class</span> <span class="nx">App</span><span class="p">.</span><span class="nx">Collections</span><span class="p">.</span><span class="nx">Artists</span> <span class="k">extends</span> <span class="nx">Backbone</span><span class="p">.</span><span class="nx">Collection</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="nv">model: </span><span class="nx">App</span><span class="p">.</span><span class="nx">Models</span><span class="p">.</span><span class="nx">Artist</span>
+</span><span class='line'>  <span class="nv">App.Repositories.Artists = </span><span class="nx">App</span><span class="p">.</span><span class="nx">Repository</span><span class="p">.</span><span class="nx">extend</span> <span class="err">@</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>Fetching Data</h3>
+
+<p>A view requires data before it can be rendered. For example, navigating to <a href="http://artsy.net/artist/hendrik-kerstens">artsy.net/artist/hendrik-kerstens</a> (a Dutch photographer who obsessively took pictures of his daughter in all kinds of artificial setups for 20 years) will call the following.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+</pre></td><td class='code'><pre><code class='coffeescript'><span class='line'><span class="k">class</span> <span class="nx">App</span><span class="p">.</span><span class="nx">Views</span><span class="p">.</span><span class="nx">ArtistView</span> <span class="k">extends</span> <span class="nx">Backbone</span><span class="p">.</span><span class="nx">View</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="nv">render: </span><span class="o">-&gt;</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="nx">App</span><span class="p">.</span><span class="nx">Repositories</span><span class="p">.</span><span class="nx">Artists</span><span class="p">.</span><span class="nx">getOrFetch</span> <span class="nx">@options</span><span class="p">.</span><span class="nx">artistId</span><span class="p">,</span>
+</span><span class='line'>      <span class="nv">success: </span><span class="p">(</span><span class="nx">artist</span><span class="p">)</span> <span class="o">=&gt;</span>
+</span><span class='line'>        <span class="nx">@$el</span><span class="p">.</span><span class="nx">html</span><span class="p">(</span><span class="nx">JST</span><span class="p">[</span><span class="s1">&#39;templates/artist/show&#39;</span><span class="p">]({</span> <span class="nv">artist: </span><span class="nx">artist</span> <span class="p">}))</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>Bootstrapping Data</h3>
+
+<p>Since our implementation sits on top of a Rails app, we can now bootstrap the data in a server-side Rails view without any JavaScript code changes. The following example lives in <code>app/views/artists/_bootstrap.html.haml</code>.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='javascript'><span class='line'><span class="o">:</span><span class="nx">javascript</span>
+</span><span class='line'>  <span class="kd">var</span> <span class="nx">json</span> <span class="o">=</span> <span class="nx">$</span><span class="p">.</span><span class="nx">parseJSON</span><span class="p">(</span><span class="s2">&quot;#{j @artist.to_json}&quot;</span><span class="p">)</span>
+</span><span class='line'>  <span class="nx">App</span><span class="p">.</span><span class="nx">Repositories</span><span class="p">.</span><span class="nx">Artists</span><span class="p">.</span><span class="nx">add</span><span class="p">(</span><span class="k">new</span> <span class="nx">App</span><span class="p">.</span><span class="nx">Models</span><span class="p">.</span><span class="nx">Artist</span><span class="p">(</span><span class="nx">json</span><span class="p">));</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>You must encode JSON data inside a Rails template, otherwise unicode characters like U+2028 become actual line-endings. This has been discussed <a href="http://stackoverflow.com/questions/2965293/javascript-parse-error-on-u2028-unicode-character">here</a> and <a href="http://stackoverflow.com/questions/9691611/print-valid-non-escaped-json-in-a-view-with-rails">here</a>. The <code>j</code> above is an alias for <code>escape_javascript</code>.</p>
+
+<p>The Rails view layout calls <code>yield :javascript</code> and the <code>show.html.haml</code> template includes the bootstrapped data as a partial.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='haml'><span class='line'><span class="p">=</span> <span class="n">content_for</span> <span class="ss">:javascript</span> <span class="k">do</span>
+</span><span class='line'>  <span class="p">=</span> <span class="n">render</span> <span class="n">partial</span><span class="p">:</span> <span class="s2">&quot;artists/bootstrap&quot;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>The generated HTML includes the escaped JSON representation of the artist, which will be parsed client-side when the page loads and inserted into <code>App.Repositories.Artists</code>. The <code>App.Views.ArtistView</code> will no longer need to fetch the data from the server with an AJAX call.</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[ARAnalytics - Analytics for iOS Apps]]></title>
+    <link href="http://artsy.github.com/blog/2013/04/10/aranalytics/"/>
+    <updated>2013-04-10T17:23:00-04:00</updated>
+    <id>http://artsy.github.com/blog/2013/04/10/aranalytics</id>
+    <content type="html"><![CDATA[<p>In both my <a href="http://orta.github.com">personal apps</a> and Artsy Folio, I&#8217;m always after a deeper understanding of how people use the app. There&#8217;s three ways to do this: ask users, watch users and track usage. I&#8217;d like to talk about the third of these.</p>
+
+<p>We&#8217;ve experimented with quite a lot of analytics tools for the Artsy website, and it seemed fitting to do the same for our mobile app. We wanted the freedom to change the analytics tool without having to change the code, and so <a href="http://github.com/orta/ARAnalytics">ARAnalytics</a> was born.</p>
+
+<!-- more -->
+
+
+<p>ARAnalytics is the adaption of <a href="https://github.com/jkrall/analytical">Analytical</a> and  <a href="http://segmentio.github.com/analytics.js/">Analytics.js</a> to iOS. By using <a href="http://cocoapods.org">Cocoapods</a> it became possible to set up the entire analytics stack with only a few lines of code in your <code>Podfile</code>.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'>  <span class="n">pod</span> <span class="s2">&quot;ARAnalytics/Crashlytics&quot;</span>
+</span><span class='line'>  <span class="n">pod</span> <span class="s2">&quot;ARAnalytics/Mixpanel&quot;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>The list of supported libraries is pretty vast ( <em>TestFlight, Mixpanel, Localytics, Flurry, Google Analytics, KISSMetrics, Countly, Crittercism, Bugsnag and Crashlytics</em> ) and the API for <code>ARAnalytics</code> tries to bridge any gaps it can find in the implementations.</p>
+
+<p><code>ARAnalytics</code> simplifies the API to two main parts of tracking; user details and events. User details are things like your internal ID for a user, and custom properties like your app&#8217;s preferences, whilst events are temporal actions that are triggered based off user actions.</p>
+
+<p>There is another tool worth mentioning and that is <a href="http://cocoadocs.org/dosets/Analytics/0.0.5/">Analytics</a> which is a new port of Analytics.js which does a similar <em>simple API to different analytics providers</em> but works by offloading the work to the server. I think there are advantages and disadvantages to both of these approaches, but I think one or the other should cover nearly all use cases!</p>
+
+<p>ARAnalytics is available on Github at <a href="http://github.com/orta/ARAnalytics">orta/ARAnalytics</a> and documented on <a href="http://cocoadocs.org/docsets/ARAnalytics/1.2/">Cocoadocs</a> (which Artsy proudly sponsors!)</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[An Easter Egg for Curl]]></title>
@@ -2370,292 +2526,6 @@ it out <a href="https://github.com/zamiang/detect-css3-3D-transform">on Github</
 <p><img src="http://artsy.github.com/images/2012-09-13-on-grid-thumbnails/hover-thumbnails.jpg"></p>
 
 <p>The rest of the story is pretty straightforward. We wrapped all this up within a few days and got out a version of Folio for the Retina iPad, I ended up doing a talk about the issues involved in doing this in <a href="http://lsx.co/lsxcafe/">Leeds LSxCafé</a>, and you got a blog post out of it.</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[How Artsy Builds Labs, Experiments and Easter Eggs]]></title>
-    <link href="http://artsy.github.com/blog/2012/09/12/how-artsy-builds-experiments-labs-and-easter-eggs/"/>
-    <updated>2012-09-12T21:21:00-04:00</updated>
-    <id>http://artsy.github.com/blog/2012/09/12/how-artsy-builds-experiments-labs-and-easter-eggs</id>
-    <content type="html"><![CDATA[<p>At Artsy Engineering we encourage a culture of experimentation with something called <em>labs</em>.</p>
-
-<p>A new feature released into production is usually only turned on for a handful of users. We get feedback from our own team and a tiny group of early adopters, iterate, fix bugs, toss failed experiments and work on promoting complete, well behaved features to all users. The labs infrastructure gives us a chance to sleep on an idea and polish details. It also allows us to make progress continuously and flip a switch on the very last day.</p>
-
-<p>My favorite labs features push our collective imagination and give birth to productive brainstorms around coffee at a popular startup hangout around the corner from our Manhattan office. But the team&#8217;s favorite labs are, by far, those that ship as easter eggs. These are fun and sometimes useful features that don&#8217;t make much business sense. So, before I explain our rudimentary labs system, I want to invite you to our easter egg hunt. Check out <a href="http://artsy.net/humans.txt">http://artsy.net/humans.txt</a> for instructions.</p>
-
-<!-- more -->
-
-
-<p>Our labs infrastructure is rather straightforward. A lab feature data model is pretty boring, with the exception of a <code>created_by</code> field. Each such lab feature belongs to an engineer and you have to nurture your feature and fight for it to meet the production bar!</p>
-
-<figure class='code'><figcaption><span>app/models/lab_feature.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">LabFeature</span>
-</span><span class='line'>  <span class="kp">include</span> <span class="no">Mongoid</span><span class="o">::</span><span class="no">Document</span>
-</span><span class='line'>  <span class="kp">include</span> <span class="no">Mongoid</span><span class="o">::</span><span class="no">Timestamps</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="n">field</span> <span class="ss">:name</span>
-</span><span class='line'>  <span class="n">field</span> <span class="ss">:created_by</span>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>You can enable and disable a lab feature for a given user.</p>
-
-<figure class='code'><figcaption><span>app/models/user.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">User</span>
-</span><span class='line'>  <span class="n">references_and_referenced_in_many</span> <span class="ss">:lab_features</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="k">def</span> <span class="nf">enable_lab_feature!</span><span class="p">(</span><span class="n">feature</span><span class="p">)</span>
-</span><span class='line'>    <span class="n">lab_features</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="n">feature</span><span class="p">)</span> <span class="k">unless</span> <span class="n">lab_features</span><span class="o">.</span><span class="n">member?</span><span class="p">(</span><span class="n">feature</span><span class="p">)</span>
-</span><span class='line'>    <span class="n">save!</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="k">def</span> <span class="nf">disable_lab_feature!</span><span class="p">(</span><span class="n">feature</span><span class="p">)</span>
-</span><span class='line'>    <span class="n">lab_features</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="n">feature</span><span class="p">)</span>
-</span><span class='line'>    <span class="n">save!</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="k">def</span> <span class="nf">lab_feature_enabled?</span><span class="p">(</span><span class="n">feature</span><span class="p">)</span>
-</span><span class='line'>    <span class="n">lab_features</span><span class="o">.</span><span class="n">member?</span><span class="p">(</span><span class="n">feature</span><span class="p">)</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>In Ruby, we check whether the user has a lab with <code>lab_feature_enabled?</code>. In JavaScript, we return the lab features in a Backbone.js collection and check for the same.</p>
-
-<figure class='code'><figcaption><span>app/coffeescripts/models/user.coffee</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-</pre></td><td class='code'><pre><code class='coffeescript'><span class='line'><span class="k">class</span> <span class="nx">App</span><span class="p">.</span><span class="nx">Models</span><span class="p">.</span><span class="nx">CurrentUser</span> <span class="k">extends</span> <span class="nx">Backbone</span><span class="p">.</span><span class="nx">Model</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="nv">hasLabFeature: </span><span class="nf">(feature_name) -&gt;</span>
-</span><span class='line'>    <span class="nx">$</span><span class="p">.</span><span class="nx">inArray</span><span class="p">(</span><span class="nx">feature_name</span><span class="p">,</span> <span class="nx">@get</span><span class="p">(</span><span class="s1">&#39;lab_features&#39;</span><span class="p">))</span> <span class="o">&gt;=</span> <span class="mi">0</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>We also have a bit of UI and an API to let you turn a lab feature on and off when you&#8217;re part of our labs program. The program itself is also a lab feature!</p>
-
-<p>Lab features can be retired after the code is promoted to all users or deleted.</p>
-
-<figure class='code'><figcaption><span>app/models/lab_feature.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">LabFeature</span>
-</span><span class='line'>  <span class="k">def</span> <span class="nf">retire!</span>
-</span><span class='line'>    <span class="no">User</span><span class="o">.</span><span class="n">all</span><span class="o">.</span><span class="n">each</span> <span class="k">do</span> <span class="o">|</span><span class="n">u</span><span class="o">|</span>
-</span><span class='line'>      <span class="n">u</span><span class="o">.</span><span class="n">disable_lab_feature!</span><span class="p">(</span><span class="nb">self</span><span class="p">)</span>
-</span><span class='line'>    <span class="k">end</span>
-</span><span class='line'>    <span class="n">destroy</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>This &#8220;system&#8221; is super simple. I encourage you to think more in terms of experiments or labs - it helped us foster a culture of innovation, tremendously reduced risk of catastrophic failures, and, because anyone can push anything into labs at any time, removed the unnecessary discussions around whether an idea is worthy of an implementation at all.</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Testing with Delayed Jobs]]></title>
-    <link href="http://artsy.github.com/blog/2012/08/16/testing-with-delayed-jobs/"/>
-    <updated>2012-08-16T21:21:00-04:00</updated>
-    <id>http://artsy.github.com/blog/2012/08/16/testing-with-delayed-jobs</id>
-    <content type="html"><![CDATA[<p>A mean bug made it into our production environment. It wasn&#8217;t caught by our extensive test suite and caused thousands of emails to be sent to a handful of people. The root cause was an unfortunate combination of <a href="https://github.com/plataformatec/devise">Devise</a>, <a href="https://github.com/collectiveidea/delayed_job">DelayedJob</a> and, of course, our own code. It was an easy fix, but nobody ever wants this to happen again.</p>
-
-<p>tl;dr DelayedJob says it&#8217;s possible to set <code>Delayed::Worker.delay_jobs = false</code> for your tests. Don&#8217;t do it.</p>
-
-<!-- more -->
-
-
-<p>Consider the following <code>User</code> model that implements various Devise strategies which support some kind of notification.</p>
-
-<figure class='code'><figcaption><span>app/models/user.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">User</span>
-</span><span class='line'>  <span class="kp">include</span> <span class="no">Mongoid</span><span class="o">::</span><span class="no">Document</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="n">devise</span> <span class="ss">:database_authenticatable</span><span class="p">,</span> <span class="ss">:registerable</span><span class="p">,</span> <span class="o">.</span><span class="n">.</span><span class="o">.</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="n">field</span> <span class="ss">:notified_at</span><span class="p">,</span> <span class="n">type</span><span class="p">:</span> <span class="no">DateTime</span>
-</span><span class='line'>  <span class="n">after_save</span> <span class="ss">:notify!</span><span class="p">,</span> <span class="ss">:if</span> <span class="o">=&gt;</span> <span class="ss">:notify?</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="k">def</span> <span class="nf">notify!</span>
-</span><span class='line'>    <span class="k">super</span>
-</span><span class='line'>    <span class="n">update_attributes!</span><span class="p">({</span> <span class="n">notified_at</span><span class="p">:</span> <span class="no">Time</span><span class="o">.</span><span class="n">now</span><span class="o">.</span><span class="n">utc</span> <span class="p">})</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>We are overriding a black box <code>notify!</code> method and updating an attribute with a timestamp of the last notification.</p>
-
-<p>Let&#8217;s write a test.</p>
-
-<figure class='code'><figcaption><span>spec/models/user_spec.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-<span class='line-number'>19</span>
-<span class='line-number'>20</span>
-<span class='line-number'>21</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">describe</span> <span class="no">User</span> <span class="k">do</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="n">subject</span> <span class="p">{</span> <span class="no">User</span><span class="o">.</span><span class="n">new</span> <span class="p">}</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="n">context</span> <span class="s2">&quot;notification&quot;</span> <span class="k">do</span>
-</span><span class='line'>
-</span><span class='line'>    <span class="n">it</span> <span class="s2">&quot;sends one email&quot;</span> <span class="k">do</span>
-</span><span class='line'>      <span class="n">expect</span> <span class="p">{</span>
-</span><span class='line'>        <span class="n">subject</span><span class="o">.</span><span class="n">notify!</span>
-</span><span class='line'>      <span class="p">}</span><span class="o">.</span><span class="n">to</span> <span class="n">change</span><span class="p">(</span><span class="no">ActionMailer</span><span class="o">::</span><span class="no">Base</span><span class="o">.</span><span class="n">deliveries</span><span class="p">,</span> <span class="ss">:count</span><span class="p">)</span><span class="o">.</span><span class="n">by</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
-</span><span class='line'>    <span class="k">end</span>
-</span><span class='line'>
-</span><span class='line'>    <span class="n">it</span> <span class="s2">&quot;updates notified_at&quot;</span> <span class="k">do</span>
-</span><span class='line'>      <span class="n">expect</span> <span class="p">{</span>
-</span><span class='line'>        <span class="n">subject</span><span class="o">.</span><span class="n">notify!</span>
-</span><span class='line'>      <span class="p">}</span><span class="o">.</span><span class="n">to</span> <span class="n">change</span><span class="p">(</span><span class="n">subject</span><span class="p">,</span> <span class="ss">:notified_at</span><span class="p">)</span>
-</span><span class='line'>    <span class="k">end</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>All green. But once this code hit production, <code>notify!</code> was called in an infinite loop. How is that possible?</p>
-
-<p>The call to <code>notify!</code> is delayed using DelayedJob in production and is not delayed in test. It does not work under DelayedJob and will create as many delayed notifications as it possibly can until it runs out of stack space.</p>
-
-<p>As a common pattern in Devise, the implementation of <code>notify!</code> relies on an instance variable to signal that a notification has been sent. Setting the instance variable avoids sending the notification twice for multiple calls to <code>save!</code>. Our <code>after_save</code> callback invokes <code>update_attributes!</code>, which causes another <code>notify!</code> call unless <code>notify?</code> returns <code>false</code>. In a test, the call to <code>super</code> inside <code>notify!</code> will execute the notification (setting the instance variable), but will create a delayed job in production (without setting it).</p>
-
-<p>We&#8217;ll start by bringing our tests closer to a real production environment by leaving <code>Delayed::Worker.delay_jobs = true</code> and making sure our problem is reproduced with a spec. We could call <code>Delayed::Worker.new.work_off</code> for every test that needs to execute a delayed job, but that would be rather tedious. A better approach may be to register an observer that will execute a delayed job every time one is created. This is similar to a production environment where having enough delayed workers almost guarantees a job is picked up immediately after being scheduled.</p>
-
-<figure class='code'><figcaption><span>config/initializers/delayed_job_observer.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">DelayedJobObserver</span> <span class="o">&lt;</span> <span class="no">Mongoid</span><span class="o">::</span><span class="no">Observer</span>
-</span><span class='line'>  <span class="n">observe</span> <span class="no">Delayed</span><span class="o">::</span><span class="no">Job</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="k">class</span> <span class="o">&lt;&lt;</span> <span class="nb">self</span>
-</span><span class='line'>    <span class="kp">attr_accessor</span> <span class="ss">:runs</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="k">def</span> <span class="nf">after_create</span><span class="p">(</span><span class="n">delayed_job</span><span class="p">)</span>
-</span><span class='line'>    <span class="n">delayed_job</span><span class="o">.</span><span class="n">invoke_job</span>
-</span><span class='line'>    <span class="no">DelayedJobObserver</span><span class="o">.</span><span class="n">runs</span> <span class="o">+=</span> <span class="mi">1</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'><span class="k">end</span>
-</span><span class='line'>
-</span><span class='line'><span class="no">DelayedJobObserver</span><span class="o">.</span><span class="n">runs</span> <span class="o">=</span> <span class="mi">0</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>The complete code, which handles a few more cases, including enabling and disabling the observer, and counting successful runs and errors can be found in <a href="https://gist.github.com/3370052">this gist</a>. Please help us improve it.</p>
-
-<p>We can now test our notification without compromising on the delayed nature of the job and add a test making sure we create a single delayed job from a call to <code>notify!</code>.</p>
-
-<figure class='code'><figcaption><span>spec/models/user_spec.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">describe</span> <span class="no">User</span> <span class="k">do</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="n">subject</span> <span class="p">{</span> <span class="no">User</span><span class="o">.</span><span class="n">new</span> <span class="p">}</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="n">context</span> <span class="s2">&quot;notification&quot;</span> <span class="k">do</span>
-</span><span class='line'>
-</span><span class='line'>    <span class="n">it</span> <span class="s2">&quot;creates one delayed job&quot;</span> <span class="k">do</span>
-</span><span class='line'>      <span class="n">expect</span> <span class="p">{</span>
-</span><span class='line'>        <span class="n">subject</span><span class="o">.</span><span class="n">notify!</span>
-</span><span class='line'>      <span class="p">}</span><span class="o">.</span><span class="n">to</span> <span class="n">change</span><span class="p">(</span><span class="no">DelayedJobObserver</span><span class="p">,</span> <span class="ss">:runs</span><span class="p">)</span><span class="o">.</span><span class="n">by</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
-</span><span class='line'>    <span class="k">end</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>This test will also run for a long time before failing with a stack overflow error. Our fix was not to call <code>notify!</code> from an <code>after_save</code> callback.</p>
-
-<p>We&#8217;ve suggested that immediate execution using an observer becomes a feature in DelayedJob in <a href="https://github.com/collectiveidea/delayed_job/issues/423">#423</a>. Please add your comments.</p>
 ]]></content>
   </entry>
   
