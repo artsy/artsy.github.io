@@ -11,9 +11,23 @@ We love open-source at Artsy. We use a ton of it. We've also contributed back to
 
 [musical chairs](https://github.com/orta/chairs)
 --------------------------------------------------------------
+
 A gem for swapping iOS simulator states. Saves all the documents, library and cache for the most recently user iOS app into the current folder with a named version. Commands are modelled after git.
 
 [https://github.com/orta/chairs](https://github.com/orta/chairs)
+
+[ARAalytics](https://github.com/orta/ARAnalytics)
+--------------------------------------------------------------
+
+ARAnalytics is for Objective-C what Analatics.js is to Javascript. It lets you use multiple analytics providers with the same API.</p>
+[https://github.com/orta/ARAnalytics](https://github.com/orta/ARAnalytics)
+
+[jQuery.popLockit](https://github.com/zamiang/jquery.poplockit)
+------------------------------------------------------
+
+A jQuery plugin for 'locking' short content in place as the user scrolls by longer content. For example, it will lock metadata and share buttons in place as the user scrolls by a long essay or series of images.
+
+[https://github.com/zamiang/gem-licenses](https://github.com/zamiang/gem-licenses)
 
 [mongoid-scroll](https://github.com/dblock/mongoid-scroll)
 --------------------------------------------------------------
@@ -173,20 +187,6 @@ copy/paste? This project aims at improving this situation.
 
 [https://github.com/dblock/gem-licenses](https://github.com/dblock/gem-licenses)
 
-[vertebrae](https://github.com/craigspaeth/vertebrae)
------------------------------------------------------
-
-Vertebrae extends Backbone.js with some useful functions and assumptions to help DRY up your backbone app.
-
-[https://github.com/craigspaeth/vertebrae](https://github.com/craigspaeth/vertebrae)
-
-[sentry](https://github.com/craigspaeth/sentry)
------------------------------------------------
-
-A simple node tool to watch for file changes (using a path, wildcards, or regexes) and execute a function or shell command.
-It's like a watchr or guard for node.
-
-[https://github.com/craigspaeth/sentry](https://github.com/craigspaeth/sentry)
 
 [jquery\.konami\.coffee](https://github.com/craigspaeth/jquery.konami.coffee)
 -----------------------------------------------------------------------------
@@ -203,4 +203,3 @@ allows you to perform large scale image comparisons for a variety of tasks. PixM
 It runs over HTTP using a REST protocol and JSON formatted responses, wrapped by this library.
 
 [https://github.com/dblock/pixmatch](https://github.com/dblock/pixmatch)
-
