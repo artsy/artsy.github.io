@@ -22,7 +22,7 @@ A gem for swapping iOS simulator states. Saves all the documents, library and ca
 ARAnalytics is for Objective-C what Analatics.js is to Javascript. It lets you use multiple analytics providers with the same API.</p>
 [https://github.com/orta/ARAnalytics](https://github.com/orta/ARAnalytics)
 
-[jQuery.popLockit](https://github.com/zamiang/jquery.poplockit)
+[jquery-poplockit](https://github.com/zamiang/jquery.poplockit)
 ------------------------------------------------------
 
 A jQuery plugin for 'locking' short content in place as the user scrolls by longer content. For example, it will lock metadata and share buttons in place as the user scrolls by a long essay or series of images.
