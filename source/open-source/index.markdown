@@ -16,10 +16,10 @@ A gem for swapping iOS simulator states. Saves all the documents, library and ca
 
 [https://github.com/orta/chairs](https://github.com/orta/chairs)
 
-[ARAalytics](https://github.com/orta/ARAnalytics)
+[ARAnalytics](https://github.com/orta/ARAnalytics)
 --------------------------------------------------------------
 
-ARAnalytics is for Objective-C what Analatics.js is to Javascript. It lets you use multiple analytics providers with the same API.</p>
+ARAnalytics is for Objective-C what Analytics.js is to Javascript. It lets you use multiple analytics providers with the same API.</p>
 [https://github.com/orta/ARAnalytics](https://github.com/orta/ARAnalytics)
 
 [jquery-poplockit](https://github.com/zamiang/jquery.poplockit)
@@ -27,7 +27,7 @@ ARAnalytics is for Objective-C what Analatics.js is to Javascript. It lets you u
 
 A jQuery plugin for 'locking' short content in place as the user scrolls by longer content. For example, it will lock metadata and share buttons in place as the user scrolls by a long essay or series of images.
 
-[https://github.com/zamiang/gem-licenses](https://github.com/zamiang/gem-licenses)
+[https://github.com/zamiang/jquery.poplockit](https://github.com/zamiang/jquery.poplockit)
 
 [mongoid-scroll](https://github.com/dblock/mongoid-scroll)
 --------------------------------------------------------------
