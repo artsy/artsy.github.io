@@ -9,7 +9,7 @@ github-url: https://www.github.com/dblock
 twitter-url: http://twitter.com/dblockdotorg
 blog-url: http://code.dblock.org
 ---
-A whopping 49% of Artsy users have "gmail.com" email addresses. The next domain name, "hotmail.com", doesn't come close with only 6%.
+A whopping 49% of Artsy users have "gmail.com" email addresses. The next domain name, "hotmail.com", doesn't even come close, with only 6%.
 
 <img src="/images/2013-06-23-normalizing-gmail-email-addresses-with-canonical-emails/artsy-email-domains.png" />
 
@@ -19,7 +19,35 @@ The solution is to normalize these emails into a canonical form.
 
 <!-- more -->
 
-We use our newly open-sourced gem called [canonical-emails](https://github.com/dblock/canonical-emails). We also store both the original email address entered by the user and the canonical representation and perform all lookups by the canonical value.
+We use our newly open-sourced gem called [canonical-emails](https://github.com/dblock/canonical-emails). It patches `Mail::Address` methods at runtime.
+
+``` ruby
+module CanonicalEmails
+  module GMail
+    def self.transform(value)
+      Mail::Address.new(value).tap do |email|
+        if email.domain && [ "gmail.com" ].include?(email.domain.downcase)
+          email.instance_eval do
+            def get_local
+              value = super
+              value.gsub(".", "").downcase if value
+            end
+            def domain
+              value = super
+              value.downcase if value
+            end
+          end
+        end if value
+      end
+    end
+
+  end
+end
+```
+
+It would be great to see contributions to our gem if you have knowledge of special handling with other email providers!
+
+On the application side, Artsy stores both the original email address entered by the user and the canonical representation and perform all lookups by the canonical value.
 
 ``` ruby
 class User
