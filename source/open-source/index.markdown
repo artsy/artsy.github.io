@@ -8,22 +8,35 @@ footer: true
 
 We love open-source at Artsy. We use a ton of it. We've also contributed back to numerous projects, including [Grape](https://github.com/intridea/grape), [Analytical](https://github.com/jkrall/analytical), [Fog](https://github.com/fog/fog), [Kaminari](https://github.com/amatsuda/kaminari), [Barista](https://github.com/Sutto/barista) or [TaxCloud](https://github.com/drewtempelmeyer/tax_cloud). And we have built a few open-source projects from scratch since beginning of 2011.
 
+[canonical-emails](https://github.com/dblock/canonical-emails)
+--------------------------------------------------------------
+
+Combine email validation and transformations to produce canonical email addresses.
+
+[https://github.com/dblock/canonical-emails](https://github.com/dblock/canonical-emails)
+
+[mongoid-tag-collectible](https://github.com/dblock/mongoid-tag-collectible)
+----------------------------------------------------------------------------
+
+Easily maintain a collection of Tag instances with aggregate counts from your model's tags.
+
+[https://github.com/dblock/mongoid-tag-collectible](https://github.com/dblock/mongoid-tag-collectible)
 
 [musical chairs](https://github.com/orta/chairs)
---------------------------------------------------------------
+------------------------------------------------
 
 A gem for swapping iOS simulator states. Saves all the documents, library and cache for the most recently user iOS app into the current folder with a named version. Commands are modelled after git.
 
 [https://github.com/orta/chairs](https://github.com/orta/chairs)
 
 [ARAnalytics](https://github.com/orta/ARAnalytics)
---------------------------------------------------------------
+--------------------------------------------------
 
 ARAnalytics is for Objective-C what Analytics.js is to Javascript. It lets you use multiple analytics providers with the same API.</p>
 [https://github.com/orta/ARAnalytics](https://github.com/orta/ARAnalytics)
 
 [jquery-poplockit](https://github.com/zamiang/jquery.poplockit)
-------------------------------------------------------
+---------------------------------------------------------------
 
 A jQuery plugin for 'locking' short content in place as the user scrolls by longer content. For example, it will lock metadata and share buttons in place as the user scrolls by a long essay or series of images.
 
