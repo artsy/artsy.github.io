@@ -14,7 +14,9 @@ OpsWorks is a new service from Amazon that promises to provide high-level tools 
 
 > AWS OpsWorks features an integrated management experience for the entire application lifecycle including resource provisioning, configuration management, application deployment, monitoring, and access control. It will work with applications of any level of complexity and is independent of any particular architectural pattern.
 
-After scratching our heads about exactly what that meant, we tried it anyway. Artsy has been experimenting with OpsWorks for a few months now and we're excited to share what we've learned. If you've been straining at the limits of your Platform as a Service (PaaS) provider, or just wishing for more automation for your EC2 deployment, you may want to try it out too.
+After scratching our heads about exactly what that meant, we tried it anyway. If you've been straining at the limits of your Platform as a Service (PaaS) provider, or just wishing for more automation for your EC2 deployment, you may want to try it out too.
+
+Artsy has been experimenting with OpsWorks for a few months now and recently adopted it for the production [artsy.net](http://artsy.net) site. We're excited to share what we've learned in the process.
 
 {% img screenshot /images/2013-08-27-introduction-to-aws-opsworks/opsworks.png [OpsWorks overview] %}
 
@@ -31,7 +33,7 @@ Conversely, OpsWorks offers a higher-level of control than [CloudFormation](http
 
 {% img screenshot /images/2013-08-27-introduction-to-aws-opsworks/aws_control.png [How OpsWorks fits in AWS offerings] %}
 
-Historically, Artsy has delegated dev-ops concerns to Heroku. They worry about infrastructure, freeing us to focus on our application's higher-level goals. Increasingly though, we were forced to work around limitations of the platform's performance, architecture, and customizability. (We've even blogged about it [here](http://artsy.github.io/blog/2012/01/31/beyond-heroku-satellite-delayed-job-workers-on-ec2/), [here](http://artsy.github.io/blog/2012/11/15/how-to-monitor-503s-and-timeout-on-heroku/), [here](http://artsy.github.io/blog/2012/12/13/beat-heroku-60-seconds-application-boot-timeout-with-a-proxy/), [here](http://artsy.github.io/blog/2013/02/01/master-heroku-command-line-with-heroku-commander/), and [here](http://artsy.github.io/blog/2013/02/17/impact-of-heroku-routing-mesh-and-random-routing/).) Rather than continue to work against the platform, we turned to OpsWorks for greater flexibility while continuing to minimize administrative burden.
+Historically, Artsy delegated dev-ops concerns to Heroku. They worried about infrastructure, freeing us to focus on our application's higher-level goals. Increasingly though, we were forced to work around limitations of the platform's performance, architecture, and customizability. (We even blogged about it [here](http://artsy.github.io/blog/2012/01/31/beyond-heroku-satellite-delayed-job-workers-on-ec2/), [here](http://artsy.github.io/blog/2012/11/15/how-to-monitor-503s-and-timeout-on-heroku/), [here](http://artsy.github.io/blog/2012/12/13/beat-heroku-60-seconds-application-boot-timeout-with-a-proxy/), [here](http://artsy.github.io/blog/2013/02/01/master-heroku-command-line-with-heroku-commander/), and [here](http://artsy.github.io/blog/2013/02/17/impact-of-heroku-routing-mesh-and-random-routing/).) Rather than continue to work against the platform, we turned to OpsWorks for greater flexibility while keeping administrative burden low.
 
 
 ## OpsWorks Overview
