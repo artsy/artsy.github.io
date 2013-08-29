@@ -1,23 +1,434 @@
 <?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
 
-  <title><![CDATA[Category: Backbone.js | Art.sy Engineering]]></title>
-  <link href="http://artsy.github.com/blog/categories/backbone-js/atom.xml" rel="self"/>
-  <link href="http://artsy.github.com/"/>
-  <updated>2012-12-21T15:14:59-05:00</updated>
-  <id>http://artsy.github.com/</id>
+  <title><![CDATA[Category: Backbone.js | Artsy Engineering]]></title>
+  <link href="http://artsy.github.io/blog/categories/backbone-js/atom.xml" rel="self"/>
+  <link href="http://artsy.github.io/"/>
+  <updated>2013-08-29T13:09:01-04:00</updated>
+  <id>http://artsy.github.io/</id>
   <author>
-    <name><![CDATA[Art.sy]]></name>
+    <name><![CDATA[Artsy]]></name>
     
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
   
   <entry>
+    <title type="html"><![CDATA[Writing Headless Backbone Tests With Node.js]]></title>
+    <link href="http://artsy.github.io/blog/2013/06/14/writing-headless-backbone-tests-with-node-dot-js/"/>
+    <updated>2013-06-14T17:48:00-04:00</updated>
+    <id>http://artsy.github.io/blog/2013/06/14/writing-headless-backbone-tests-with-node-dot-js</id>
+    <content type="html"><![CDATA[<h2>TL;DR</h2>
+
+<p>Write fast, headless, tests for Backbone using Node.js. See this project as an example  <a href="https://github.com/craigspaeth/backbone-headless-testing">https://github.com/craigspaeth/backbone-headless-testing</a>.</p>
+
+<h2>A Brief History</h2>
+
+<p>Artsy is mostly a thick client <a href="http://backbonejs.org/">Backbone</a> app that sits on <a href="http://rubyonrails.org/">Rails</a> and largely depends on <a href="http://jnicklas.github.io/capybara/">Capybara</a> (<a href="http://docs.seleniumhq.org/">Selenium</a> backed bot that clicks around Firefox) for testing it's javascript. This leads to some seriously brittle and slow integration tests. <a href="http://artsy.github.io/blog/2012/02/03/reliably-testing-asynchronous-ui-w-slash-rspec-and-capybara/">Despite being able to wrangle Capybara</a> to do most of our client-side testing, we knew there must be a better way.</p>
+
+<p>When building a CMS app for our gallery partners to manage their Artsy inventory, we built a new Backbone app on top of <a href="http://nodejs.org/">node.js</a>. The result was a headless test suite that runs around 60 times faster.</p>
+
+<p>Let's take a look at how it's done.</p>
+
+<!-- more -->
+
+
+<h2>Setting Up The Environment</h2>
+
+<p>The trick to testing client-side code in node.js is creating an environment that mimics the browser. <a href="https://github.com/tmpvar/jsdom">Jsdom</a> does just that by bringing a pure javascript implementation of the DOM to node.js.</p>
+
+<p>``` javascript
+jsdom.env({
+  html: "<html><body></body></html>",
+  done: function(errs, window) {</p>
+
+<pre><code>global.window = window;
+// ... 
+callback();
+</code></pre>
+
+<p>  }
+});
+```</p>
+
+<p>At this point we've globally exposed the <code>window</code> object of our jsdom browser. However the DOM isn't the only global dependency in most of our client-side code. We'll also need to expose our common libraries like Backbone, Underscore, and jQuery.</p>
+
+<p><code>javascript
+global.window = window;
+global.Backbone = require('../app/javascripts/vendor/backbone.js');
+global.Underscore = require('../app/javascripts/vendor/underscore.js');
+global.jQuery = require('../app/javascripts/vendor/jQuery.js');
+</code></p>
+
+<p>We can simply require Backbone, Underscore, and jQuery like any node module because they follow <a href="http://wiki.CommonJS.org/wiki/Modules/1.1.1">CommonJS</a> convention. However not all libraries are CommonJS compatible, and in this case you might have to expose their attachment to <code>window</code>.</p>
+
+<p><code>javascript
+global.window = window;
+require('../app/javascripts/vendor/zepto.js');
+global.Zepto = window.Zepto;
+</code></p>
+
+<p>Finally you probably have a namespace like <code>App</code> which your components attach to.</p>
+
+<p><code>javascript
+global.window = window;
+// Libraries
+global.Backbone = require('../app/javascripts/vendor/backbone.js');
+global.Underscore = require('../app/javascripts/vendor/underscore.js');
+global.jQuery = require('../app/javascripts/vendor/jQuery.js');
+// Namespace
+global.App = {};
+// We're ready to test some Backbone components
+</code></p>
+
+<p>Try to keep global dependencies to a minimum. This reduces setup/teardown, increases modularity, and makes it easier to test your code.</p>
+
+<p>For example, instead of attaching a view to <code>App</code> it might be better to pass that view in to the options of another so you can call <code>this.options.header.doSomething()</code>.</p>
+
+<h2>Unit Testing Models</h2>
+
+<p>Because all good javascript guides are based off Todo apps, let's pretend we're testing a Todo model.</p>
+
+<p>``` javascript
+App.Todo = Backbone.Models.extend({</p>
+
+<p>  urlRoot: '/api/todo',</p>
+
+<p>  complete: function() {</p>
+
+<pre><code>var self = this;
+$.ajax({
+  url: '/api/todos/' + this.get('id') + '/complete',
+  type: 'PUT',
+  success: function() { self.set({ completed: true }); }
+});
+</code></pre>
+
+<p>  }
+});
+```</p>
+
+<p>Let's test that <code>#complete</code> makes the proper API PUT and <code>completed</code> is updated to true. After we setup our jsdom environment we need to stub <code>$.ajax</code> using <a href="http://sinonjs.org/docs/#stubs">sinon</a> as we won't be sending XHRs in node.</p>
+
+<p>``` javascript
+before(function(done) {
+  jsdom.env({</p>
+
+<pre><code>html: "&lt;html&gt;&lt;body&gt;&lt;/body&gt;&lt;/html&gt;",
+done: function(errs, window) {
+  global.$ = require('../../app/javascripts/vendor/jquery.js');
+  //...
+}
+</code></pre>
+
+<p>  });
+});</p>
+
+<p>beforeEach(function(done) {
+  ajaxStub = sinon.stub($, 'ajax');
+  todo = new App.Todo({ title: 'Feed the cat', id: 'feed-the-cat' });
+});
+```</p>
+
+<p>Now we can simply assert that <code>$.ajax</code> was called with the right params and completed changed.</p>
+
+<p>``` javascript
+it('PUTs to the API', function() {
+  todo.complete();
+  $.ajax.args[0][0].type.should.equal('PUT');
+  $.ajax.args[0][0].url.should</p>
+
+<pre><code>.equal('/api/todos/feed-the-cat/complete');
+</code></pre>
+
+<p>});</p>
+
+<p>it('updates the item to be completed', function() {
+  todo.set('completed', false);
+  $.ajax.args[0][0].success();
+  todo.get('completed').should.equal(true);
+});
+```</p>
+
+<h2>Unit Testing Views</h2>
+
+<p>Models are easy to unit test because they're mostly self-contained javascript. However a Backbone view might expect some server-side rendered HTML, use client-side templates, communicate to other views, and so on. This makes it harder to test but manageable given our set up.</p>
+
+<p>Let's pretend we have a view that renders our todo list inside a server-side rendered element, and uses a client-side template to fill in the actual list items.</p>
+
+<p>Our DOM might look something like this:</p>
+
+<p>``` html</p>
+
+<div id='todos'>
+  <h1>Things I need to do today</h1>
+  <ul class='todos-list'></ul>
+</div>
+
+
+<p>```</p>
+
+<p>and our view might look something like this:</p>
+
+<p>``` javascript
+App.TodosListView = Backbone.View.extend({</p>
+
+<p>  el: '#todos',</p>
+
+<p>  template: JST['todos/list_items'],</p>
+
+<p>  initialize: function() {</p>
+
+<pre><code>this.collection.bind('add remove', this.render);
+</code></pre>
+
+<p>  },</p>
+
+<p>  render: function() {</p>
+
+<pre><code>this.$('.todos-list')
+  .html(this.template({ todos: this.collection.models }));
+</code></pre>
+
+<p>  }
+})
+```</p>
+
+<p>We can render the server-side <code>#todos</code> element by compiling the express view into html and injecting it straight in jsdom with our globally exposed jQuery.</p>
+
+<p><code>javascript
+filename = path.resolve(__dirname, '../app/views/index.jade');
+template = fs.readFileSync(filename).toString();
+html = jade.compile(template, { filename: filename })();
+$('html').html(html);
+</code></p>
+
+<p>Next we need to expose our client-side templates. In this case I'm assuming client-side templates are pre-compiled into functions namespaced under a global JST object like in the <a href="http://guides.rubyonrails.org/asset_pipeline.html">Rail's asset pipeline</a> (if you're looking for a node.js tool <a href="https://github.com/craigspaeth/nap">nap</a> is what Artsy uses).</p>
+
+<p>We need to mimic what the JST functions are expecting so that when calling <code>JST['foo/bar']({ foo: 'some-data' })</code> we get back a string of html.</p>
+
+<p><code>javascript
+global.JST = {};
+var filename = path.resolve(
+  __dirname,
+  '../app/javascripts/templates/todos/list.jade'
+);
+JST['todos/list'] = jade.compile(
+  fs.readFileSync(filename).toString(),
+  { filename: filename }
+);
+</code></p>
+
+<p>With our server-side HTML injected and our client-side templates ready to use, all that's needed is to require any other dependent Backbone components. This boilerplate can get pretty repetitive and would be good to wrap up into a helper.</p>
+
+<p>``` javascript
+var clientenv = require('../helpers/clientenv');</p>
+
+<p>before(function(done) {
+  clientenv.setup(function() {</p>
+
+<pre><code>global.App.Todo = require('../app/javascripts/models/todo.js');
+global.App.Todos = require('../app/javascripts/collections/todos.js');
+done();
+</code></pre>
+
+<p>  });
+});</p>
+
+<p>beforeEach(function(done) {
+  var templateFilename = path.resolve(</p>
+
+<pre><code>    __dirname, 
+    '../../views/index.jade'
+  ),
+  html = require('jade').compile(
+    fs.readFileSync(templateFilename).toString(),
+    { filename: templateFilename }
+  )();
+</code></pre>
+
+<p>  $('html').html(html);
+  view = new App.TodosListView();
+  done();
+});</p>
+
+<p>it('renders items as they are added', function() {
+  view.collection.add([</p>
+
+<pre><code>new App.Todo({ title: 'clean the kitchen' })
+</code></pre>
+
+<p>  ]);
+  view.$el.html().should.include('clean the kitchen');
+});
+```</p>
+
+<p>With a little bit more work, testing views in node can be almost as easy as testing models.</p>
+
+<h2>Integration Tests</h2>
+
+<p>Although I encourage writing way more unit test coverage as they're faster and less brittle, it is necessary to have integration tests to cover longer scenarios. At Artsy we use some tricks to make integration testing less painful.</p>
+
+<h3>Stubbing the API Layer</h3>
+
+<p>In Artsy's case we're consuming a JSON API service that already has ample test coverage, so it makes sense to cut off integration at this point and stub our API responses.</p>
+
+<p>To do this we can conditionally check which environment we're running in and swap out the API to use a real API or an <a href="http://expressjs.com/">express</a> app serving a stubbed API.</p>
+
+<p><code>javascript
+if(app.get('env') == 'test') {
+  app.set('api url', 'http://localhost:5000');
+  // Create a mock api server in your test helpers
+  // and run it on 5000 in a before block
+} else {
+  app.set('api url', 'http://api.my-app.com');
+}
+// Bootstrap in your server-side view so the client app
+// knows where to point
+app.locals.API_URL_ROOT = app.get('api url');
+</code></p>
+
+<p>If our API was hosted on the same server as our client app, or we're proxying API calls because of lack of <a href="http://en.wikipedia.org/wiki/Cross-Origin_Resource_Sharing">CORS</a> support, this could be as easy as swapping out middleware.</p>
+
+<p><code>javascript
+if(app.get('env') == 'test') {
+  app.use('/api', require('./test/helpers/mock_api'));
+} else {
+  app.use('/api', require('./routes/api'));
+}
+</code></p>
+
+<p>This speeds up integration tests and simplifies the stack by not populating a database or booting an API server.</p>
+
+<h3>Headless Integration Tests with Zombie.js</h3>
+
+<p>Selenium has to actually boot up Firefox and poll the UI to wait for things to appear. This disconnect means extra seconds of "wait_util we're sure" time.  <a href="http://zombie.labnotes.org/">Zombie.js</a> is backed by our friend jsdom and alleviates these issues by giving us a fast headless browser that we can programmatically access.</p>
+
+<p>Of course the caveat to headless testing is that you can't visually see how a test is actually failing. Using <code>{ debug: true }</code> in your options will spit every Zombie action to stdout. In most cases this is enough, but sometimes you need to go a step further and actually visualize what the test is doing.</p>
+
+<p>A trick we use is to write tests using the browser's <code>jQuery</code>. This is more familiar than Zombie's DSL and lets you copy and paste test code directly in your browser's console to see if it's actually doing what you want.</p>
+
+<p>.e.g</p>
+
+<p>``` javascript
+Browser.visit('http://localhost:5000', function(err, browser) {
+  var $ = browser.window.$;</p>
+
+<p>  // From here we can run <code>NODE_ENV=test node app.js</code> and copy
+  // this code right into our browser's console.
+  $('#add-todo').val('Foo').change();
+  });
+}
+```</p>
+
+<h2>Conclusion</h2>
+
+<p>Using these techniques has greatly increased productivity and developer happiness for testing client-side code. For an example implementation of this see <a href="https://github.com/craigspaeth/backbone-headless-testing">https://github.com/craigspaeth/backbone-headless-testing</a>.</p>
+
+<p>Looking forward, testing client-side code can be made even better by using a package manager that adds require functionality like <a href="https://github.com/substack/node-browserify">browserify</a>, <a href="https://github.com/component/component">component</a>, or <a href="http://requirejs.org/">require.js</a>. But I've gone far enough for now, maybe in another blog post (leave a comment if you're interested).</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Bootstrapping JSON Data with Rails and Backbone.js]]></title>
+    <link href="http://artsy.github.io/blog/2013/04/13/bootstrapping-json-data-with-rails-and-backbone-js/"/>
+    <updated>2013-04-13T12:21:00-04:00</updated>
+    <id>http://artsy.github.io/blog/2013/04/13/bootstrapping-json-data-with-rails-and-backbone-js</id>
+    <content type="html"><![CDATA[<p>The <a href="http://artsy.net">artsy.net website</a> is a Backbone.js application that talks to a server-side RESTful Grape API sitting on top of a Rails app which serves minimal HTML markup. The latter includes such things as a page title, along with links to JavaScript and stylesheet packages. A page loads, scripts run, data is fetched from the API. The result is merged into a HAMLJS template and rendered client-side.</p>
+
+<p>Building this kind of one-page apps allows for clean separation between the presentation and API layers. The downside is that it will slow page render times - fetching data after page load means waiting for an AJAX request to complete before displaying anything.</p>
+
+<p>There're many solutions to this problem, all involving some kind of server-side rendering. You could, for example, share views and JavaScript between client and server. This would be a major paradigm shift for a large application like ours and not something we could possibly maneuver in a short amount of time.</p>
+
+<p>Without changing the entire architecture of the system, how can we bootstrap JSON data server-side and avoid the data roundtrip on every page load?</p>
+
+<!-- more -->
+
+
+<h3>Model Repository</h3>
+
+<p>First, we need to keep track of our objects on the client. We've implemented a simple data repository. It ensures that the same model is passed around instead of instantiating new models each time. This helps prevent unnecessary trips to the server, and makes sure events are bound to the same model instance.</p>
+
+<p>``` coffeescript
+App.Repository =</p>
+
+<p>  # Gets a model from the repository or fetches it from the server.
+  getOrFetch: (id, options) -></p>
+
+<pre><code>model = @get(id)
+if model?
+  options?.success? options, model
+  model
+else
+  model = new @model({ id: id })
+  model.fetch options
+  @add model
+model
+</code></pre>
+
+<h1>Function to extend a collection in to a repository</h1>
+
+<p>App.Repository.extend = (collectionClass) ->
+  collection = new collectionClass
+  repository = _.extend collection, App.Repository
+  repository.collectionClass = collectionClass
+  repository
+```</p>
+
+<p>Objects of the same type are stored together in a repository collection.</p>
+
+<p>``` coffeescript
+class App.Collections.Artists extends Backbone.Collection</p>
+
+<p>  model: App.Models.Artist
+  App.Repositories.Artists = App.Repository.extend @</p>
+
+<p>```</p>
+
+<h3>Fetching Data</h3>
+
+<p>A view requires data before it can be rendered. For example, navigating to <a href="http://artsy.net/artist/hendrik-kerstens">artsy.net/artist/hendrik-kerstens</a> (a Dutch photographer who obsessively took pictures of his daughter in all kinds of artificial setups for 20 years) will call the following.</p>
+
+<p>``` coffeescript
+class App.Views.ArtistView extends Backbone.View</p>
+
+<p>  render: -></p>
+
+<pre><code>App.Repositories.Artists.getOrFetch @options.artistId,
+  success: (artist) =&gt;
+    @$el.html(JST['templates/artist/show']({ artist: artist }))
+</code></pre>
+
+<p>```</p>
+
+<h3>Bootstrapping Data</h3>
+
+<p>Since our implementation sits on top of a Rails app, we can now bootstrap the data in a server-side Rails view without any JavaScript code changes. The following example lives in <code>app/views/artists/_bootstrap.html.haml</code>.</p>
+
+<p><code>javascript
+:javascript
+  var json = $.parseJSON("#{j @artist.to_json}")
+  App.Repositories.Artists.add(new App.Models.Artist(json));
+</code></p>
+
+<p>You must encode JSON data inside a Rails template, otherwise unicode characters like U+2028 become actual line-endings. This has been discussed <a href="http://stackoverflow.com/questions/2965293/javascript-parse-error-on-u2028-unicode-character">here</a> and <a href="http://stackoverflow.com/questions/9691611/print-valid-non-escaped-json-in-a-view-with-rails">here</a>. The <code>j</code> above is an alias for <code>escape_javascript</code>.</p>
+
+<p>The Rails view layout calls <code>yield :javascript</code> and the <code>show.html.haml</code> template includes the bootstrapped data as a partial.</p>
+
+<p><code>haml
+= content_for :javascript do
+  = render partial: "artists/bootstrap"
+</code></p>
+
+<p>The generated HTML includes the escaped JSON representation of the artist, which will be parsed client-side when the page loads and inserted into <code>App.Repositories.Artists</code>. The <code>App.Views.ArtistView</code> will no longer need to fetch the data from the server with an AJAX call.</p>
+]]></content>
+  </entry>
+  
+  <entry>
     <title type="html"><![CDATA[Replacing #! Routes with PushState Using Backbone.js]]></title>
-    <link href="http://artsy.github.com/blog/2012/06/25/replacing-hashbang-routes-with-pushstate/"/>
+    <link href="http://artsy.github.io/blog/2012/06/25/replacing-hashbang-routes-with-pushstate/"/>
     <updated>2012-06-25T11:35:00-04:00</updated>
-    <id>http://artsy.github.com/blog/2012/06/25/replacing-hashbang-routes-with-pushstate</id>
+    <id>http://artsy.github.io/blog/2012/06/25/replacing-hashbang-routes-with-pushstate</id>
     <content type="html"><![CDATA[<blockquote><p>The only constant is change, continuing change, inevitable change, that is the dominant factor in society
 [and web apps!] today. No sensible decision can be made any longer without taking into account not only
 the world as it is, but the world as it will be.</p>
@@ -28,9 +439,9 @@ the world as it is, but the world as it will be.</p>
 
 <p>It did not take us long to discover we shared the concerns of Twitter's
 <a href="http://danwebb.net/2011/5/28/it-is-about-the-hashbangs">Dan Webb on hashbang routes</a>,
-but it was almost a year before we were able to remove them from art.sy. Here's how it went down.</p>
+but it was almost a year before we were able to remove them from Artsy. Here's how it went down.</p>
 
-<p>Art.sy relies on the <a href="http://documentcloud.github.com/backbone/">Backbone.js</a> framework for our client application
+<p>Artsy relies on the <a href="http://documentcloud.github.com/backbone/">Backbone.js</a> framework for our client application
 which offers a solid pushState routing scheme. This includes a seamless hashtag fallback for
 <a href="http://caniuse.com/#feat=history">browsers that don't support the HTML5 History API</a> (looking at you IE 9).</p>
 
@@ -44,7 +455,7 @@ Backbone.history.start({ pushState: true })
 
 <h3>The Client</h3>
 
-<p>At Art.sy, we had left Backbone out of the loop for most of our internal linking. Our markup href attributes all
+<p>At Artsy, we had left Backbone out of the loop for most of our internal linking. Our markup href attributes all
 began with '/#!' and expected the browser's default hash behavior to keep the page from refreshing. For a proper
 pushState scheme, the app's internal linking should begin with an absolute route. Backbone.js defaults to '/', but
 this is configurable.
@@ -59,12 +470,12 @@ this is configurable.
 
 <h4>Internal Links</h4>
 
-<p>All internal links need to begin with your configured root ('/' for art.sy).
-Be sure to leave out your domain (<del>http://art.sy</del>).
+<p>All internal links need to begin with your configured root ('/' for Artsy).
+Be sure to leave out your domain (<del>http://artsy.net</del>).
 ```html
-<a href="http://artsy.github.com/">Home</a></p>
+<a href="http://artsy.github.io/">Home</a></p>
 
-<p><a href="http://artsy.github.com/artwork/matthew-abbott-lobby-and-supercomputer">My Favorite Work</a>
+<p><a href="http://artsy.github.io/artwork/matthew-abbott-lobby-and-supercomputer">My Favorite Work</a>
 ```</p>
 
 <p>We now needed a global link handler that will leverage Backbone's <code>navigate</code> method which takes
@@ -136,8 +547,8 @@ links still expecting the #! routing scheme.
 <h3>The Server</h3>
 
 <p>Now that our app will receive requests to full URLs
-'http://art.sy/artwork/mattew-abbott-lobby-and-supercomputer'
-instead of 'http://art.sy/#!/artwork/mattew-abbott-lobby-and-supercomputer',
+'http://artsy.net/artwork/mattew-abbott-lobby-and-supercomputer'
+instead of 'http://artsy.net/#!/artwork/mattew-abbott-lobby-and-supercomputer',
 we need to update our Rails setup.</p>
 
 <p>Below is an excerpt from our Rails application's router.
@@ -191,7 +602,7 @@ error behavior without extra work required by a hash routing scheme.</p>
 but so is Isaac Asimov's statement on change. You can't predict the future.
 You make decisions based on the best data you have at the time. We started our app with hashtag routing
 in early 2011 and added the ! around five months later (about the same time Dan Webb wrote his post).
-Had we started Art.sy today, even six months ago, I'm confident we would have enabled Backbone's pushState routing.
+Had we started Artsy today, even six months ago, I'm confident we would have enabled Backbone's pushState routing.
 There's no need to look back. The future is here and its URLs are #! free!</p>
 
 <h3>Footnotes</h3>

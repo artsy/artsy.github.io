@@ -1,28 +1,177 @@
 <?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
 
-  <title><![CDATA[Category: Fun | Art.sy Engineering]]></title>
-  <link href="http://artsy.github.com/blog/categories/fun/atom.xml" rel="self"/>
-  <link href="http://artsy.github.com/"/>
-  <updated>2012-12-21T15:14:59-05:00</updated>
-  <id>http://artsy.github.com/</id>
+  <title><![CDATA[Category: Fun | Artsy Engineering]]></title>
+  <link href="http://artsy.github.io/blog/categories/fun/atom.xml" rel="self"/>
+  <link href="http://artsy.github.io/"/>
+  <updated>2013-08-29T13:09:01-04:00</updated>
+  <id>http://artsy.github.io/</id>
   <author>
-    <name><![CDATA[Art.sy]]></name>
+    <name><![CDATA[Artsy]]></name>
     
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
   
   <entry>
-    <title type="html"><![CDATA[How Art.sy Builds Labs, Experiments and Easter Eggs]]></title>
-    <link href="http://artsy.github.com/blog/2012/09/12/how-artsy-builds-experiments-labs-and-easter-eggs/"/>
+    <title type="html"><![CDATA[An Easter Egg for Curl]]></title>
+    <link href="http://artsy.github.io/blog/2013/04/01/an-easter-egg-for-curl/"/>
+    <updated>2013-04-01T12:21:00-04:00</updated>
+    <id>http://artsy.github.io/blog/2013/04/01/an-easter-egg-for-curl</id>
+    <content type="html"><![CDATA[<p>Let's implement an Easter egg that requires <a href="http://curl.haxx.se/">curl</a> and is HTTP-compliant.</p>
+
+<p>We accept access tokens on our API endpoints. These can come from an <code>access_token</code> query string parameter.</p>
+
+<p>```
+curl http://artsy.net/api/v1/system/up?access_token=invalid -v</p>
+
+<p>&lt; HTTP/1.1 401 Unauthorized
+&lt; Content-Type: application/json
+&lt; Content-Length: 24</p>
+
+<p>{ "error" : "Unauthorized" }
+```</p>
+
+<p>So far, so good. Now try this:</p>
+
+<p>```
+curl http://artsy.net/api/v1/system/up?access_token=10013 -v</p>
+
+<p>&lt; HTTP/1.1 401 Broadway
+&lt; Content-Type: application/json
+&lt; Content-Length: 76</p>
+
+<p>{ "error" : "Inspiration from the Engineering team at http://artsy.github.com" }
+```</p>
+
+<p>What?! <strong>401 Broadway</strong>? See, our office address is <em>401 Broadway, 10013, New York, NY</em>. We just tried to add a more developer-friendly way to find us in the New York grid. And here's the view from our 25th floor office - that's SOHO right below us and the Empire State Building a bit North.</p>
+
+<p><img src="http://artsy.github.io/images/2013-04-01-an-easter-egg-for-curl/artsy-office-view.jpg" /></p>
+
+<p>Photo by <a href="https://github.com/zamiang">@zamiang</a>.</p>
+
+<p>Easter egg implementation follows.</p>
+
+<!-- more -->
+
+
+<p>Implementing a custom HTTP response is surprisingly hard with most web servers. Changing the text that follows error codes is not something most people need. Our API will have to return a custom error code and some monkey-patching will translate the status message. We use <a href="https://github.com/intridea/grape">grape</a>, which is Rack-based and supports inserting middleware, where we do authentication. We randomly chose the number 2600 for an internal status code.</p>
+
+<p>``` ruby api/api_action_dispatch_request.rb
+class ApiActionDispatchRequest &lt; ActionDispatch::Request</p>
+
+<p>  def initialize(env)</p>
+
+<pre><code>super(env)
+</code></pre>
+
+<p>  end</p>
+
+<p>  def <a href="key"></a></p>
+
+<pre><code>params[key] || headers["X_#{key.to_s.upcase}"]
+</code></pre>
+
+<p>  end</p>
+
+<p>end
+```</p>
+
+<p>``` ruby api/api_auth_middleware.rb
+class ApiAuthMiddleware &lt; Grape::Middleware::Base</p>
+
+<p>  def before</p>
+
+<pre><code>if access_token == "10013"
+  throw :error,
+    message: 'Inspiration from the Engineering team at http://artsy.github.com',
+    status: 2600
+else
+  ...
+end
+</code></pre>
+
+<p>  end</p>
+
+<p>  private</p>
+
+<pre><code>def access_token
+  @access_token ||= request[:access_token]
+end
+
+def request
+  @request ||= ApiActionDispatchRequest.new(env)
+end
+</code></pre>
+
+<p>end
+```</p>
+
+<h3>WEBrick</h3>
+
+<p>``` ruby config/initializers/broadway/webrick.rb
+module WEBrick
+  class HTTPResponse</p>
+
+<pre><code>def status=(status)
+  if status == 2600
+    @status = 401
+    @reason_phrase = "Broadway"
+  else
+    @status = status
+    @reason_phrase = HTTPStatus::reason_phrase(status)
+  end
+end
+</code></pre>
+
+<p>  end
+end
+```</p>
+
+<h3>Thin</h3>
+
+<p>``` ruby config/initializers/broadway/thin.rb
+module Thin
+  class Response</p>
+
+<pre><code>def head
+  if @status == 2600
+    "HTTP/1.1 401 Broadway\r\n#{headers_output}\r\n"
+  else
+    "HTTP/1.1 #{@status} #{HTTP_STATUS_CODES[@status.to_i]}\r\n#{headers_output}\r\n"
+  end
+end
+</code></pre>
+
+<p>  end
+end
+```</p>
+
+<h3>Unicorn</h3>
+
+<p><code>ruby config/initializers/broadway/unicorn.rb
+require 'unicorn/http_response'
+module Unicorn::HttpResponse
+  CODES[2600] = '401 Broadway'
+end
+</code></p>
+
+<h3>More Eggs?</h3>
+
+<p>Check out <a href="http://artsy.net/humans.txt">artsy.net/humans.txt</a> for more Easter eggs and please feel free to email me at <strong>db[at]artsy[dot]net</strong> if you want to come visit or <a href="http://artsy.net/jobs">work here</a>.</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[How Artsy Builds Labs, Experiments and Easter Eggs]]></title>
+    <link href="http://artsy.github.io/blog/2012/09/12/how-artsy-builds-experiments-labs-and-easter-eggs/"/>
     <updated>2012-09-12T21:21:00-04:00</updated>
-    <id>http://artsy.github.com/blog/2012/09/12/how-artsy-builds-experiments-labs-and-easter-eggs</id>
-    <content type="html"><![CDATA[<p>At Art.sy Engineering we encourage a culture of experimentation with something called <em>labs</em>.</p>
+    <id>http://artsy.github.io/blog/2012/09/12/how-artsy-builds-experiments-labs-and-easter-eggs</id>
+    <content type="html"><![CDATA[<p>At Artsy Engineering we encourage a culture of experimentation with something called <em>labs</em>.</p>
 
 <p>A new feature released into production is usually only turned on for a handful of users. We get feedback from our own team and a tiny group of early adopters, iterate, fix bugs, toss failed experiments and work on promoting complete, well behaved features to all users. The labs infrastructure gives us a chance to sleep on an idea and polish details. It also allows us to make progress continuously and flip a switch on the very last day.</p>
 
-<p>My favorite labs features push our collective imagination and give birth to productive brainstorms around coffee at a popular startup hangout around the corner from our Manhattan office. But the team's favorite labs are, by far, those that ship as easter eggs. These are fun and sometimes useful features that don't make much business sense. So, before I explain our rudimentary labs system, I want to invite you to our easter egg hunt. Check out <a href="http://art.sy/humans.txt">http://art.sy/humans.txt</a> for instructions.</p>
+<p>My favorite labs features push our collective imagination and give birth to productive brainstorms around coffee at a popular startup hangout around the corner from our Manhattan office. But the team's favorite labs are, by far, those that ship as easter eggs. These are fun and sometimes useful features that don't make much business sense. So, before I explain our rudimentary labs system, I want to invite you to our easter egg hunt. Check out <a href="http://artsy.net/humans.txt">http://artsy.net/humans.txt</a> for instructions.</p>
 
 <!-- more -->
 

@@ -1,23 +1,153 @@
 <?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
 
-  <title><![CDATA[Category: Email | Art.sy Engineering]]></title>
-  <link href="http://artsy.github.com/blog/categories/email/atom.xml" rel="self"/>
-  <link href="http://artsy.github.com/"/>
-  <updated>2012-12-21T15:14:59-05:00</updated>
-  <id>http://artsy.github.com/</id>
+  <title><![CDATA[Category: Email | Artsy Engineering]]></title>
+  <link href="http://artsy.github.io/blog/categories/email/atom.xml" rel="self"/>
+  <link href="http://artsy.github.io/"/>
+  <updated>2013-08-29T13:09:01-04:00</updated>
+  <id>http://artsy.github.io/</id>
   <author>
-    <name><![CDATA[Art.sy]]></name>
+    <name><![CDATA[Artsy]]></name>
     
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
   
   <entry>
+    <title type="html"><![CDATA[Normalizing GMail E-Mail Addresses with CanonicalEmails]]></title>
+    <link href="http://artsy.github.io/blog/2013/06/23/normalizing-gmail-email-addresses-with-canonical-emails/"/>
+    <updated>2013-06-23T12:21:00-04:00</updated>
+    <id>http://artsy.github.io/blog/2013/06/23/normalizing-gmail-email-addresses-with-canonical-emails</id>
+    <content type="html"><![CDATA[<p>A whopping 49% of Artsy users have "gmail.com" email addresses. The next domain name, "hotmail.com", doesn't even come close, with only 6%.</p>
+
+<p><img src="http://artsy.github.io/images/2013-06-23-normalizing-gmail-email-addresses-with-canonical-emails/artsy-email-domains.png" /></p>
+
+<p>GMail addresses ignore periods and are case-insensitive. For example, "Donald.Duck@gmail.com" and "donaldduck@gmail.com" are the same account. You can log-in to GMail with both. Users often register with the former and try to log-in to Artsy with the latter. With so many GMail users, expect a dozen support emails per day.</p>
+
+<p>The solution is to normalize these emails into a canonical form.</p>
+
+<!-- more -->
+
+
+<p>We use our newly open-sourced gem called <a href="https://github.com/dblock/canonical-emails">canonical-emails</a>. It patches <code>Mail::Address</code> methods at runtime.</p>
+
+<p>``` ruby
+module CanonicalEmails
+  module GMail</p>
+
+<pre><code>def self.transform(value)
+  Mail::Address.new(value).tap do |email|
+    if email.domain &amp;&amp; [ "gmail.com" ].include?(email.domain.downcase)
+      email.instance_eval do
+        def get_local
+          value = super
+          value.gsub(".", "").downcase if value
+        end
+        def domain
+          value = super
+          value.downcase if value
+        end
+      end
+    end if value
+  end
+end
+</code></pre>
+
+<p>  end
+end
+```</p>
+
+<p>It would be great to see contributions to our gem if you have knowledge of special handling with other email providers!</p>
+
+<p>On the application side, Artsy stores both the original email address entered by the user and the canonical representation and perform all lookups by the canonical value.</p>
+
+<p>``` ruby
+class User
+  include Mongoid::Document
+  include CanonicalEmail::Extensions</p>
+
+<p>  field :email, type: String
+  field :lookup_email, type: String
+  before_save :update_lookup_email
+  canonical_email :email, CanonicalEmails::GMail, CanonicalEmails::Downcase</p>
+
+<p>  def self.find_by_email(email)</p>
+
+<pre><code>email = CanonicalEmails::GMail.transform(email).to_s
+email = CanonicalEmails::Downcase.transform(email).address
+first(lookup_email: email)
+</code></pre>
+
+<p>  end</p>
+
+<p>  private</p>
+
+<p>  def update_lookup_email</p>
+
+<pre><code>self.lookup_email = self.canonical_email
+</code></pre>
+
+<p>  end</p>
+
+<p>end
+```</p>
+
+<p>What is your email domain breakdown? Here's the MongoDB/Mongoid/ruby map/reduce that I used to get the graph above.</p>
+
+<p>``` ruby
+map = %Q{
+  function() {</p>
+
+<pre><code>emit((this.email).split("@")[1], { count: 1 });
+</code></pre>
+
+<p>  }
+}</p>
+
+<p>reduce = %Q{
+  function(key, values) {</p>
+
+<pre><code>var result = { count: 0 };
+values.forEach(function(value) {
+  result.count += value.count;
+});
+return result;
+</code></pre>
+
+<p>  }
+}</p>
+
+<p>User.all.map_reduce(map, reduce)
+  .out(inline: true)
+  .sort_by{ |v| -v["value"]["count"] }
+  .take(10)
+  .map { |v| { v["_id"] => v["value"]["count"] / User.count }}
+```</p>
+
+<p>Raw output for our top 10.</p>
+
+<p><code>
+[
+  { "gmail.com" =&gt; 0.49 },
+  { "hotmail.com" =&gt; 0.06 },
+  { "yahoo.com" =&gt; 0.057 },
+  { "aol.com" =&gt; 0.017 },
+  { "me.com" =&gt; 0.015 },
+  { "mac.com" =&gt; 0.012 },
+  { "comcast.net" =&gt; 0.008 },
+  { "msn.com" =&gt; 0.003 },
+  { "mail.ru" =&gt; 0.003 },
+  { "verizon.net" =&gt; 0.003 }
+]
+</code></p>
+]]></content>
+  </entry>
+  
+  <entry>
     <title type="html"><![CDATA[Generating Automatic Plain Text MIME Parts with Rails ActionMailer]]></title>
-    <link href="http://artsy.github.com/blog/2012/05/16/generating-automatic-plain-text-mime-parts-with-rails-actionmailer/"/>
+    <link href="http://artsy.github.io/blog/2012/05/16/generating-automatic-plain-text-mime-parts-with-rails-actionmailer/"/>
     <updated>2012-05-16T20:52:00-04:00</updated>
-    <id>http://artsy.github.com/blog/2012/05/16/generating-automatic-plain-text-mime-parts-with-rails-actionmailer</id>
+    <id>http://artsy.github.io/blog/2012/05/16/generating-automatic-plain-text-mime-parts-with-rails-actionmailer</id>
     <content type="html"><![CDATA[<p>E-mail is one of the most important ways to engage your users. And every time you touch a user's inbox, it reflects on your brand. But getting email right has become increasing difficult due to the complexities introduced by the thousands of web-based, desktop and mobile mail clients. Email formatting is like the "Hunger Games" where the major players include online services such as GMail, Yahoo, Hotmail or AOL, desktop clients such as Outlook and a myriad mobile devices ranging from iPhone and Android to Blackberry.</p>
 
 <p>To deal with this landscape, the MIME standard allows systems to send e-mail with multiple parts: <code>plain/text</code> for business-efficient devices such as the Blackberry, and <code>text/html</code> for web-based e-mail readers, such as GMail. Furthermore, <code>ActionMailer</code> supports multiple template formats: create an <code>.html.haml</code> template along with a <code>.txt.haml</code> template to generate both. We also know that <code>text/plain</code> email helps deliverability, but we believe a disproportionately small amount of text e-mails are actually read - the vast majority of devices are capable of parsing some HTML.</p>

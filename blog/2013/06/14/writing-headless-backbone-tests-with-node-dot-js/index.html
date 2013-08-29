@@ -1,0 +1,683 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Writing Headless Backbone Tests With Node.js - Artsy Engineering</title>
+  <meta name="author" content="Artsy">
+
+  
+  <meta name="description" content="TL;DR Write fast, headless, tests for Backbone using Node.js. See this project as an example https://github.com/craigspaeth/backbone-headless-testing &hellip;">
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://artsy.github.io/blog/2013/06/14/writing-headless-backbone-tests-with-node-dot-js">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <script src="/javascripts/modernizr-2.0.js"></script>
+  <script src="/javascripts/ender.js"></script>
+  <script src="/javascripts/octopress.js" type="text/javascript"></script>
+  <link href="/atom.xml" rel="alternate" title="Artsy Engineering" type="application/atom+xml">
+  <!--[if IE 8]>
+<link href="/stylesheets/custom/ie_font.css" type="text/css">
+<![endif]-->
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-12450662-3']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+
+<body>
+  
+  <a href="/">
+    <h1 id="lrg-mark">
+      <span>Artsy</span>
+    </h1>
+  </a>
+  
+  <header id="banner"><hgroup>
+  <div id="header">
+    <h2>Inspiration from the engineering team at <a href="http://artsy.net">Artsy</a> — A new way to discover fine art.</h2>
+  </div>
+</hgroup>
+
+</header>
+  
+  <div id="main">
+    <div id="mobile_search">
+      <form action="http://google.com/search" method="get">
+        <input type="hidden" name="q" value="site:artsy.github.io" />
+        <input class="search" type="text" name="q" results="0" placeholder="Search" />
+      </form>
+    </div>
+    <div id="content">
+      <div>
+<article class="hentry" role="article">
+  
+  <header>
+    
+    <a href="">
+      <div class="date">
+
+
+
+
+  
+<time datetime="2013-06-14T17:48:00-04:00" pubdate>06/14/13</time></div>
+    
+    
+      <h1 class="entry-title">Writing Headless Backbone Tests With Node.js</h1>
+    
+    </a>
+    
+      <p class="meta">
+        
+      </p>
+    
+  </header>
+
+
+<div class="entry-content"><h2>TL;DR</h2>
+
+<p>Write fast, headless, tests for Backbone using Node.js. See this project as an example  <a href="https://github.com/craigspaeth/backbone-headless-testing">https://github.com/craigspaeth/backbone-headless-testing</a>.</p>
+
+<h2>A Brief History</h2>
+
+<p>Artsy is mostly a thick client <a href="http://backbonejs.org/">Backbone</a> app that sits on <a href="http://rubyonrails.org/">Rails</a> and largely depends on <a href="http://jnicklas.github.io/capybara/">Capybara</a> (<a href="http://docs.seleniumhq.org/">Selenium</a> backed bot that clicks around Firefox) for testing it&#8217;s javascript. This leads to some seriously brittle and slow integration tests. <a href="http://artsy.github.io/blog/2012/02/03/reliably-testing-asynchronous-ui-w-slash-rspec-and-capybara/">Despite being able to wrangle Capybara</a> to do most of our client-side testing, we knew there must be a better way.</p>
+
+<p>When building a CMS app for our gallery partners to manage their Artsy inventory, we built a new Backbone app on top of <a href="http://nodejs.org/">node.js</a>. The result was a headless test suite that runs around 60 times faster.</p>
+
+<p>Let&#8217;s take a look at how it&#8217;s done.</p>
+
+<!-- more -->
+
+
+<h2>Setting Up The Environment</h2>
+
+<p>The trick to testing client-side code in node.js is creating an environment that mimics the browser. <a href="https://github.com/tmpvar/jsdom">Jsdom</a> does just that by bringing a pure javascript implementation of the DOM to node.js.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class='javascript'><span class='line'><span class="nx">jsdom</span><span class="p">.</span><span class="nx">env</span><span class="p">({</span>
+</span><span class='line'>  <span class="nx">html</span><span class="o">:</span> <span class="s2">&quot;&lt;html&gt;&lt;body&gt;&lt;/body&gt;&lt;/html&gt;&quot;</span><span class="p">,</span>
+</span><span class='line'>  <span class="nx">done</span><span class="o">:</span> <span class="kd">function</span><span class="p">(</span><span class="nx">errs</span><span class="p">,</span> <span class="nb">window</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>    <span class="nx">global</span><span class="p">.</span><span class="nb">window</span> <span class="o">=</span> <span class="nb">window</span><span class="p">;</span>
+</span><span class='line'>    <span class="c1">// ... </span>
+</span><span class='line'>    <span class="nx">callback</span><span class="p">();</span>
+</span><span class='line'>  <span class="p">}</span>
+</span><span class='line'><span class="p">});</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>At this point we&#8217;ve globally exposed the <code>window</code> object of our jsdom browser. However the DOM isn&#8217;t the only global dependency in most of our client-side code. We&#8217;ll also need to expose our common libraries like Backbone, Underscore, and jQuery.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+</pre></td><td class='code'><pre><code class='javascript'><span class='line'><span class="nx">global</span><span class="p">.</span><span class="nb">window</span> <span class="o">=</span> <span class="nb">window</span><span class="p">;</span>
+</span><span class='line'><span class="nx">global</span><span class="p">.</span><span class="nx">Backbone</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">&#39;../app/javascripts/vendor/backbone.js&#39;</span><span class="p">);</span>
+</span><span class='line'><span class="nx">global</span><span class="p">.</span><span class="nx">Underscore</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">&#39;../app/javascripts/vendor/underscore.js&#39;</span><span class="p">);</span>
+</span><span class='line'><span class="nx">global</span><span class="p">.</span><span class="nx">jQuery</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">&#39;../app/javascripts/vendor/jQuery.js&#39;</span><span class="p">);</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>We can simply require Backbone, Underscore, and jQuery like any node module because they follow <a href="http://wiki.CommonJS.org/wiki/Modules/1.1.1">CommonJS</a> convention. However not all libraries are CommonJS compatible, and in this case you might have to expose their attachment to <code>window</code>.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='javascript'><span class='line'><span class="nx">global</span><span class="p">.</span><span class="nb">window</span> <span class="o">=</span> <span class="nb">window</span><span class="p">;</span>
+</span><span class='line'><span class="nx">require</span><span class="p">(</span><span class="s1">&#39;../app/javascripts/vendor/zepto.js&#39;</span><span class="p">);</span>
+</span><span class='line'><span class="nx">global</span><span class="p">.</span><span class="nx">Zepto</span> <span class="o">=</span> <span class="nb">window</span><span class="p">.</span><span class="nx">Zepto</span><span class="p">;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Finally you probably have a namespace like <code>App</code> which your components attach to.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class='javascript'><span class='line'><span class="nx">global</span><span class="p">.</span><span class="nb">window</span> <span class="o">=</span> <span class="nb">window</span><span class="p">;</span>
+</span><span class='line'><span class="c1">// Libraries</span>
+</span><span class='line'><span class="nx">global</span><span class="p">.</span><span class="nx">Backbone</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">&#39;../app/javascripts/vendor/backbone.js&#39;</span><span class="p">);</span>
+</span><span class='line'><span class="nx">global</span><span class="p">.</span><span class="nx">Underscore</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">&#39;../app/javascripts/vendor/underscore.js&#39;</span><span class="p">);</span>
+</span><span class='line'><span class="nx">global</span><span class="p">.</span><span class="nx">jQuery</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">&#39;../app/javascripts/vendor/jQuery.js&#39;</span><span class="p">);</span>
+</span><span class='line'><span class="c1">// Namespace</span>
+</span><span class='line'><span class="nx">global</span><span class="p">.</span><span class="nx">App</span> <span class="o">=</span> <span class="p">{};</span>
+</span><span class='line'><span class="c1">// We&#39;re ready to test some Backbone components</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Try to keep global dependencies to a minimum. This reduces setup/teardown, increases modularity, and makes it easier to test your code.</p>
+
+<p>For example, instead of attaching a view to <code>App</code> it might be better to pass that view in to the options of another so you can call <code>this.options.header.doSomething()</code>.</p>
+
+<h2>Unit Testing Models</h2>
+
+<p>Because all good javascript guides are based off Todo apps, let&#8217;s pretend we&#8217;re testing a Todo model.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+</pre></td><td class='code'><pre><code class='javascript'><span class='line'><span class="nx">App</span><span class="p">.</span><span class="nx">Todo</span> <span class="o">=</span> <span class="nx">Backbone</span><span class="p">.</span><span class="nx">Models</span><span class="p">.</span><span class="nx">extend</span><span class="p">({</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="nx">urlRoot</span><span class="o">:</span> <span class="s1">&#39;/api/todo&#39;</span><span class="p">,</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="nx">complete</span><span class="o">:</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
+</span><span class='line'>    <span class="kd">var</span> <span class="nx">self</span> <span class="o">=</span> <span class="k">this</span><span class="p">;</span>
+</span><span class='line'>    <span class="nx">$</span><span class="p">.</span><span class="nx">ajax</span><span class="p">({</span>
+</span><span class='line'>      <span class="nx">url</span><span class="o">:</span> <span class="s1">&#39;/api/todos/&#39;</span> <span class="o">+</span> <span class="k">this</span><span class="p">.</span><span class="nx">get</span><span class="p">(</span><span class="s1">&#39;id&#39;</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;/complete&#39;</span><span class="p">,</span>
+</span><span class='line'>      <span class="nx">type</span><span class="o">:</span> <span class="s1">&#39;PUT&#39;</span><span class="p">,</span>
+</span><span class='line'>      <span class="nx">success</span><span class="o">:</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span> <span class="nx">self</span><span class="p">.</span><span class="nx">set</span><span class="p">({</span> <span class="nx">completed</span><span class="o">:</span> <span class="kc">true</span> <span class="p">});</span> <span class="p">}</span>
+</span><span class='line'>    <span class="p">});</span>
+</span><span class='line'>  <span class="p">}</span>
+</span><span class='line'><span class="p">});</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Let&#8217;s test that <code>#complete</code> makes the proper API PUT and <code>completed</code> is updated to true. After we setup our jsdom environment we need to stub <code>$.ajax</code> using <a href="http://sinonjs.org/docs/#stubs">sinon</a> as we won&#8217;t be sending XHRs in node.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+</pre></td><td class='code'><pre><code class='javascript'><span class='line'><span class="nx">before</span><span class="p">(</span><span class="kd">function</span><span class="p">(</span><span class="nx">done</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>  <span class="nx">jsdom</span><span class="p">.</span><span class="nx">env</span><span class="p">({</span>
+</span><span class='line'>    <span class="nx">html</span><span class="o">:</span> <span class="s2">&quot;&lt;html&gt;&lt;body&gt;&lt;/body&gt;&lt;/html&gt;&quot;</span><span class="p">,</span>
+</span><span class='line'>    <span class="nx">done</span><span class="o">:</span> <span class="kd">function</span><span class="p">(</span><span class="nx">errs</span><span class="p">,</span> <span class="nb">window</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>      <span class="nx">global</span><span class="p">.</span><span class="nx">$</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">&#39;../../app/javascripts/vendor/jquery.js&#39;</span><span class="p">);</span>
+</span><span class='line'>      <span class="c1">//...</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'>  <span class="p">});</span>
+</span><span class='line'><span class="p">});</span>
+</span><span class='line'>
+</span><span class='line'><span class="nx">beforeEach</span><span class="p">(</span><span class="kd">function</span><span class="p">(</span><span class="nx">done</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>  <span class="nx">ajaxStub</span> <span class="o">=</span> <span class="nx">sinon</span><span class="p">.</span><span class="nx">stub</span><span class="p">(</span><span class="nx">$</span><span class="p">,</span> <span class="s1">&#39;ajax&#39;</span><span class="p">);</span>
+</span><span class='line'>  <span class="nx">todo</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">App</span><span class="p">.</span><span class="nx">Todo</span><span class="p">({</span> <span class="nx">title</span><span class="o">:</span> <span class="s1">&#39;Feed the cat&#39;</span><span class="p">,</span> <span class="nx">id</span><span class="o">:</span> <span class="s1">&#39;feed-the-cat&#39;</span> <span class="p">});</span>
+</span><span class='line'><span class="p">});</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Now we can simply assert that <code>$.ajax</code> was called with the right params and completed changed.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+</pre></td><td class='code'><pre><code class='javascript'><span class='line'><span class="nx">it</span><span class="p">(</span><span class="s1">&#39;PUTs to the API&#39;</span><span class="p">,</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
+</span><span class='line'>  <span class="nx">todo</span><span class="p">.</span><span class="nx">complete</span><span class="p">();</span>
+</span><span class='line'>  <span class="nx">$</span><span class="p">.</span><span class="nx">ajax</span><span class="p">.</span><span class="nx">args</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">].</span><span class="nx">type</span><span class="p">.</span><span class="nx">should</span><span class="p">.</span><span class="nx">equal</span><span class="p">(</span><span class="s1">&#39;PUT&#39;</span><span class="p">);</span>
+</span><span class='line'>  <span class="nx">$</span><span class="p">.</span><span class="nx">ajax</span><span class="p">.</span><span class="nx">args</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">].</span><span class="nx">url</span><span class="p">.</span><span class="nx">should</span>
+</span><span class='line'>    <span class="p">.</span><span class="nx">equal</span><span class="p">(</span><span class="s1">&#39;/api/todos/feed-the-cat/complete&#39;</span><span class="p">);</span>
+</span><span class='line'><span class="p">});</span>
+</span><span class='line'>
+</span><span class='line'><span class="nx">it</span><span class="p">(</span><span class="s1">&#39;updates the item to be completed&#39;</span><span class="p">,</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
+</span><span class='line'>  <span class="nx">todo</span><span class="p">.</span><span class="nx">set</span><span class="p">(</span><span class="s1">&#39;completed&#39;</span><span class="p">,</span> <span class="kc">false</span><span class="p">);</span>
+</span><span class='line'>  <span class="nx">$</span><span class="p">.</span><span class="nx">ajax</span><span class="p">.</span><span class="nx">args</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">].</span><span class="nx">success</span><span class="p">();</span>
+</span><span class='line'>  <span class="nx">todo</span><span class="p">.</span><span class="nx">get</span><span class="p">(</span><span class="s1">&#39;completed&#39;</span><span class="p">).</span><span class="nx">should</span><span class="p">.</span><span class="nx">equal</span><span class="p">(</span><span class="kc">true</span><span class="p">);</span>
+</span><span class='line'><span class="p">});</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>Unit Testing Views</h2>
+
+<p>Models are easy to unit test because they&#8217;re mostly self-contained javascript. However a Backbone view might expect some server-side rendered HTML, use client-side templates, communicate to other views, and so on. This makes it harder to test but manageable given our set up.</p>
+
+<p>Let&#8217;s pretend we have a view that renders our todo list inside a server-side rendered element, and uses a client-side template to fill in the actual list items.</p>
+
+<p>Our DOM might look something like this:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+</pre></td><td class='code'><pre><code class='html'><span class='line'><span class="nt">&lt;div</span> <span class="na">id=</span><span class="s">&#39;todos&#39;</span><span class="nt">&gt;</span>
+</span><span class='line'>  <span class="nt">&lt;h1&gt;</span>Things I need to do today<span class="nt">&lt;/h1&gt;</span>
+</span><span class='line'>  <span class="nt">&lt;ul</span> <span class="na">class=</span><span class="s">&#39;todos-list&#39;</span><span class="nt">&gt;&lt;/ul&gt;</span>
+</span><span class='line'><span class="nt">&lt;/div&gt;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>and our view might look something like this:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+</pre></td><td class='code'><pre><code class='javascript'><span class='line'><span class="nx">App</span><span class="p">.</span><span class="nx">TodosListView</span> <span class="o">=</span> <span class="nx">Backbone</span><span class="p">.</span><span class="nx">View</span><span class="p">.</span><span class="nx">extend</span><span class="p">({</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="nx">el</span><span class="o">:</span> <span class="s1">&#39;#todos&#39;</span><span class="p">,</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="nx">template</span><span class="o">:</span> <span class="nx">JST</span><span class="p">[</span><span class="s1">&#39;todos/list_items&#39;</span><span class="p">],</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="nx">initialize</span><span class="o">:</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
+</span><span class='line'>    <span class="k">this</span><span class="p">.</span><span class="nx">collection</span><span class="p">.</span><span class="nx">bind</span><span class="p">(</span><span class="s1">&#39;add remove&#39;</span><span class="p">,</span> <span class="k">this</span><span class="p">.</span><span class="nx">render</span><span class="p">);</span>
+</span><span class='line'>  <span class="p">},</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="nx">render</span><span class="o">:</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
+</span><span class='line'>    <span class="k">this</span><span class="p">.</span><span class="nx">$</span><span class="p">(</span><span class="s1">&#39;.todos-list&#39;</span><span class="p">)</span>
+</span><span class='line'>      <span class="p">.</span><span class="nx">html</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">template</span><span class="p">({</span> <span class="nx">todos</span><span class="o">:</span> <span class="k">this</span><span class="p">.</span><span class="nx">collection</span><span class="p">.</span><span class="nx">models</span> <span class="p">}));</span>
+</span><span class='line'>  <span class="p">}</span>
+</span><span class='line'><span class="p">})</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>We can render the server-side <code>#todos</code> element by compiling the express view into html and injecting it straight in jsdom with our globally exposed jQuery.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+</pre></td><td class='code'><pre><code class='javascript'><span class='line'><span class="nx">filename</span> <span class="o">=</span> <span class="nx">path</span><span class="p">.</span><span class="nx">resolve</span><span class="p">(</span><span class="nx">__dirname</span><span class="p">,</span> <span class="s1">&#39;../app/views/index.jade&#39;</span><span class="p">);</span>
+</span><span class='line'><span class="nx">template</span> <span class="o">=</span> <span class="nx">fs</span><span class="p">.</span><span class="nx">readFileSync</span><span class="p">(</span><span class="nx">filename</span><span class="p">).</span><span class="nx">toString</span><span class="p">();</span>
+</span><span class='line'><span class="nx">html</span> <span class="o">=</span> <span class="nx">jade</span><span class="p">.</span><span class="nx">compile</span><span class="p">(</span><span class="nx">template</span><span class="p">,</span> <span class="p">{</span> <span class="nx">filename</span><span class="o">:</span> <span class="nx">filename</span> <span class="p">})();</span>
+</span><span class='line'><span class="nx">$</span><span class="p">(</span><span class="s1">&#39;html&#39;</span><span class="p">).</span><span class="nx">html</span><span class="p">(</span><span class="nx">html</span><span class="p">);</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Next we need to expose our client-side templates. In this case I&#8217;m assuming client-side templates are pre-compiled into functions namespaced under a global JST object like in the <a href="http://guides.rubyonrails.org/asset_pipeline.html">Rail&#8217;s asset pipeline</a> (if you&#8217;re looking for a node.js tool <a href="https://github.com/craigspaeth/nap">nap</a> is what Artsy uses).</p>
+
+<p>We need to mimic what the JST functions are expecting so that when calling <code>JST['foo/bar']({ foo: 'some-data' })</code> we get back a string of html.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+</pre></td><td class='code'><pre><code class='javascript'><span class='line'><span class="nx">global</span><span class="p">.</span><span class="nx">JST</span> <span class="o">=</span> <span class="p">{};</span>
+</span><span class='line'><span class="kd">var</span> <span class="nx">filename</span> <span class="o">=</span> <span class="nx">path</span><span class="p">.</span><span class="nx">resolve</span><span class="p">(</span>
+</span><span class='line'>  <span class="nx">__dirname</span><span class="p">,</span>
+</span><span class='line'>  <span class="s1">&#39;../app/javascripts/templates/todos/list.jade&#39;</span>
+</span><span class='line'><span class="p">);</span>
+</span><span class='line'><span class="nx">JST</span><span class="p">[</span><span class="s1">&#39;todos/list&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nx">jade</span><span class="p">.</span><span class="nx">compile</span><span class="p">(</span>
+</span><span class='line'>  <span class="nx">fs</span><span class="p">.</span><span class="nx">readFileSync</span><span class="p">(</span><span class="nx">filename</span><span class="p">).</span><span class="nx">toString</span><span class="p">(),</span>
+</span><span class='line'>  <span class="p">{</span> <span class="nx">filename</span><span class="o">:</span> <span class="nx">filename</span> <span class="p">}</span>
+</span><span class='line'><span class="p">);</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>With our server-side HTML injected and our client-side templates ready to use, all that&#8217;s needed is to require any other dependent Backbone components. This boilerplate can get pretty repetitive and would be good to wrap up into a helper.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+</pre></td><td class='code'><pre><code class='javascript'><span class='line'><span class="kd">var</span> <span class="nx">clientenv</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">&#39;../helpers/clientenv&#39;</span><span class="p">);</span>
+</span><span class='line'>
+</span><span class='line'><span class="nx">before</span><span class="p">(</span><span class="kd">function</span><span class="p">(</span><span class="nx">done</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>  <span class="nx">clientenv</span><span class="p">.</span><span class="nx">setup</span><span class="p">(</span><span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
+</span><span class='line'>    <span class="nx">global</span><span class="p">.</span><span class="nx">App</span><span class="p">.</span><span class="nx">Todo</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">&#39;../app/javascripts/models/todo.js&#39;</span><span class="p">);</span>
+</span><span class='line'>    <span class="nx">global</span><span class="p">.</span><span class="nx">App</span><span class="p">.</span><span class="nx">Todos</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">&#39;../app/javascripts/collections/todos.js&#39;</span><span class="p">);</span>
+</span><span class='line'>    <span class="nx">done</span><span class="p">();</span>
+</span><span class='line'>  <span class="p">});</span>
+</span><span class='line'><span class="p">});</span>
+</span><span class='line'>
+</span><span class='line'><span class="nx">beforeEach</span><span class="p">(</span><span class="kd">function</span><span class="p">(</span><span class="nx">done</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>  <span class="kd">var</span> <span class="nx">templateFilename</span> <span class="o">=</span> <span class="nx">path</span><span class="p">.</span><span class="nx">resolve</span><span class="p">(</span>
+</span><span class='line'>        <span class="nx">__dirname</span><span class="p">,</span>
+</span><span class='line'>        <span class="s1">&#39;../../views/index.jade&#39;</span>
+</span><span class='line'>      <span class="p">),</span>
+</span><span class='line'>      <span class="nx">html</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">&#39;jade&#39;</span><span class="p">).</span><span class="nx">compile</span><span class="p">(</span>
+</span><span class='line'>        <span class="nx">fs</span><span class="p">.</span><span class="nx">readFileSync</span><span class="p">(</span><span class="nx">templateFilename</span><span class="p">).</span><span class="nx">toString</span><span class="p">(),</span>
+</span><span class='line'>        <span class="p">{</span> <span class="nx">filename</span><span class="o">:</span> <span class="nx">templateFilename</span> <span class="p">}</span>
+</span><span class='line'>      <span class="p">)();</span>
+</span><span class='line'>  <span class="nx">$</span><span class="p">(</span><span class="s1">&#39;html&#39;</span><span class="p">).</span><span class="nx">html</span><span class="p">(</span><span class="nx">html</span><span class="p">);</span>
+</span><span class='line'>  <span class="nx">view</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">App</span><span class="p">.</span><span class="nx">TodosListView</span><span class="p">();</span>
+</span><span class='line'>  <span class="nx">done</span><span class="p">();</span>
+</span><span class='line'><span class="p">});</span>
+</span><span class='line'>
+</span><span class='line'><span class="nx">it</span><span class="p">(</span><span class="s1">&#39;renders items as they are added&#39;</span><span class="p">,</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
+</span><span class='line'>  <span class="nx">view</span><span class="p">.</span><span class="nx">collection</span><span class="p">.</span><span class="nx">add</span><span class="p">([</span>
+</span><span class='line'>    <span class="k">new</span> <span class="nx">App</span><span class="p">.</span><span class="nx">Todo</span><span class="p">({</span> <span class="nx">title</span><span class="o">:</span> <span class="s1">&#39;clean the kitchen&#39;</span> <span class="p">})</span>
+</span><span class='line'>  <span class="p">]);</span>
+</span><span class='line'>  <span class="nx">view</span><span class="p">.</span><span class="nx">$el</span><span class="p">.</span><span class="nx">html</span><span class="p">().</span><span class="nx">should</span><span class="p">.</span><span class="nx">include</span><span class="p">(</span><span class="s1">&#39;clean the kitchen&#39;</span><span class="p">);</span>
+</span><span class='line'><span class="p">});</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>With a little bit more work, testing views in node can be almost as easy as testing models.</p>
+
+<h2>Integration Tests</h2>
+
+<p>Although I encourage writing way more unit test coverage as they&#8217;re faster and less brittle, it is necessary to have integration tests to cover longer scenarios. At Artsy we use some tricks to make integration testing less painful.</p>
+
+<h3>Stubbing the API Layer</h3>
+
+<p>In Artsy&#8217;s case we&#8217;re consuming a JSON API service that already has ample test coverage, so it makes sense to cut off integration at this point and stub our API responses.</p>
+
+<p>To do this we can conditionally check which environment we&#8217;re running in and swap out the API to use a real API or an <a href="http://expressjs.com/">express</a> app serving a stubbed API.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+</pre></td><td class='code'><pre><code class='javascript'><span class='line'><span class="k">if</span><span class="p">(</span><span class="nx">app</span><span class="p">.</span><span class="nx">get</span><span class="p">(</span><span class="s1">&#39;env&#39;</span><span class="p">)</span> <span class="o">==</span> <span class="s1">&#39;test&#39;</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>  <span class="nx">app</span><span class="p">.</span><span class="nx">set</span><span class="p">(</span><span class="s1">&#39;api url&#39;</span><span class="p">,</span> <span class="s1">&#39;http://localhost:5000&#39;</span><span class="p">);</span>
+</span><span class='line'>  <span class="c1">// Create a mock api server in your test helpers </span>
+</span><span class='line'>  <span class="c1">// and run it on 5000 in a before block</span>
+</span><span class='line'><span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+</span><span class='line'>  <span class="nx">app</span><span class="p">.</span><span class="nx">set</span><span class="p">(</span><span class="s1">&#39;api url&#39;</span><span class="p">,</span> <span class="s1">&#39;http://api.my-app.com&#39;</span><span class="p">);</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'><span class="c1">// Bootstrap in your server-side view so the client app</span>
+</span><span class='line'><span class="c1">// knows where to point</span>
+</span><span class='line'><span class="nx">app</span><span class="p">.</span><span class="nx">locals</span><span class="p">.</span><span class="nx">API_URL_ROOT</span> <span class="o">=</span> <span class="nx">app</span><span class="p">.</span><span class="nx">get</span><span class="p">(</span><span class="s1">&#39;api url&#39;</span><span class="p">);</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>If our API was hosted on the same server as our client app, or we&#8217;re proxying API calls because of lack of <a href="http://en.wikipedia.org/wiki/Cross-Origin_Resource_Sharing">CORS</a> support, this could be as easy as swapping out middleware.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='javascript'><span class='line'><span class="k">if</span><span class="p">(</span><span class="nx">app</span><span class="p">.</span><span class="nx">get</span><span class="p">(</span><span class="s1">&#39;env&#39;</span><span class="p">)</span> <span class="o">==</span> <span class="s1">&#39;test&#39;</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>  <span class="nx">app</span><span class="p">.</span><span class="nx">use</span><span class="p">(</span><span class="s1">&#39;/api&#39;</span><span class="p">,</span> <span class="nx">require</span><span class="p">(</span><span class="s1">&#39;./test/helpers/mock_api&#39;</span><span class="p">));</span>
+</span><span class='line'><span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+</span><span class='line'>  <span class="nx">app</span><span class="p">.</span><span class="nx">use</span><span class="p">(</span><span class="s1">&#39;/api&#39;</span><span class="p">,</span> <span class="nx">require</span><span class="p">(</span><span class="s1">&#39;./routes/api&#39;</span><span class="p">));</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>This speeds up integration tests and simplifies the stack by not populating a database or booting an API server.</p>
+
+<h3>Headless Integration Tests with Zombie.js</h3>
+
+<p>Selenium has to actually boot up Firefox and poll the UI to wait for things to appear. This disconnect means extra seconds of &#8220;wait_util we&#8217;re sure&#8221; time.  <a href="http://zombie.labnotes.org/">Zombie.js</a> is backed by our friend jsdom and alleviates these issues by giving us a fast headless browser that we can programmatically access.</p>
+
+<p>Of course the caveat to headless testing is that you can&#8217;t visually see how a test is actually failing. Using <code>{ debug: true }</code> in your options will spit every Zombie action to stdout. In most cases this is enough, but sometimes you need to go a step further and actually visualize what the test is doing.</p>
+
+<p>A trick we use is to write tests using the browser&#8217;s <code>jQuery</code>. This is more familiar than Zombie&#8217;s DSL and lets you copy and paste test code directly in your browser&#8217;s console to see if it&#8217;s actually doing what you want.</p>
+
+<p>.e.g</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class='javascript'><span class='line'><span class="nx">Browser</span><span class="p">.</span><span class="nx">visit</span><span class="p">(</span><span class="s1">&#39;http://localhost:5000&#39;</span><span class="p">,</span> <span class="kd">function</span><span class="p">(</span><span class="nx">err</span><span class="p">,</span> <span class="nx">browser</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>  <span class="kd">var</span> <span class="nx">$</span> <span class="o">=</span> <span class="nx">browser</span><span class="p">.</span><span class="nb">window</span><span class="p">.</span><span class="nx">$</span><span class="p">;</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c1">// From here we can run `NODE_ENV=test node app.js` and copy</span>
+</span><span class='line'>  <span class="c1">// this code right into our browser&#39;s console.</span>
+</span><span class='line'>  <span class="nx">$</span><span class="p">(</span><span class="s1">&#39;#add-todo&#39;</span><span class="p">).</span><span class="nx">val</span><span class="p">(</span><span class="s1">&#39;Foo&#39;</span><span class="p">).</span><span class="nx">change</span><span class="p">();</span>
+</span><span class='line'>  <span class="p">});</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>Conclusion</h2>
+
+<p>Using these techniques has greatly increased productivity and developer happiness for testing client-side code. For an example implementation of this see <a href="https://github.com/craigspaeth/backbone-headless-testing">https://github.com/craigspaeth/backbone-headless-testing</a>.</p>
+
+<p>Looking forward, testing client-side code can be made even better by using a package manager that adds require functionality like <a href="https://github.com/substack/node-browserify">browserify</a>, <a href="https://github.com/component/component">component</a>, or <a href="http://requirejs.org/">require.js</a>. But I&#8217;ve gone far enough for now, maybe in another blog post (leave a comment if you&#8217;re interested).</p>
+</div>
+
+
+  <footer>
+    <div class="meta">
+      
+  
+
+
+
+  <span class="byline author vcard">
+    Posted by 
+    <span class="fn">
+      Artsy
+    </span>
+    
+    
+    
+    
+    
+  </span>
+
+
+    </div>
+    <div class="meta">
+      Categories: 
+
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/backbone-js/'>Backbone.js</a>, <a class='category' href='/blog/categories/javascript/'>Javascript</a>, <a class='category' href='/blog/categories/node-js/'>Node.js</a>
+  
+</span>
+
+
+    </div>
+
+    
+      <div class="sharing">
+  
+  <a href="http://twitter.com/share" class="twitter-share-button" data-url="http://artsy.github.io/blog/2013/06/14/writing-headless-backbone-tests-with-node-dot-js/" data-via="artsy" data-counturl="http://artsy.github.io/blog/2013/06/14/writing-headless-backbone-tests-with-node-dot-js/" >Tweet</a>
+  
+  
+  
+</div>
+
+    
+    <p class="meta">
+      
+        <a class="basic-alignment left" href="/blog/2013/04/13/bootstrapping-json-data-with-rails-and-backbone-js/" title="Previous Post: Bootstrapping JSON Data with Rails and Backbone.js">&laquo; Bootstrapping JSON Data with Rails and Backbone.js</a>
+      
+      
+        <a class="basic-alignment right" href="/blog/2013/06/21/adding-api-documentation-with-grape-swagger/" title="next Post: Adding API Docs with Grape and Swagger">Adding API Docs with Grape and Swagger &raquo;</a>
+      
+    </p>
+  </footer>
+</article>
+
+  <section>
+    <h1>Comments</h1>
+    <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</div>
+  </section>
+
+</div>
+    </div>
+    <div id="sidebar">
+      
+  
+    <section>
+  <h1>Info</h1>
+  <ul>
+    <li> <a href="/about">About Us</a></li>
+    <li> <a href="/open-source">Artsy Open-Source</a></li>
+    <li> <a href="http://artsy.net/job/developer">Join the Artsy Engineering Team</a></li>
+  </ul>
+</section>
+<section id="recent_posts_section">
+  <h1>Recent Posts</h1>
+  <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/2013/08/27/introduction-to-aws-opsworks/">Introduction to AWS OpsWorks</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2013/06/23/normalizing-gmail-email-addresses-with-canonical-emails/">Normalizing GMail E-Mail Addresses with CanonicalEmails</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2013/06/21/adding-api-documentation-with-grape-swagger/">Adding API Docs with Grape and Swagger</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2013/06/14/writing-headless-backbone-tests-with-node-dot-js/">Writing Headless Backbone Tests With Node.js</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2013/04/13/bootstrapping-json-data-with-rails-and-backbone-js/">Bootstrapping JSON Data with Rails and Backbone.js</a>
+      </li>
+    
+  </ul>
+  <a class="archive_link" href="/blog/archives">Blog Archive</a>
+</section>
+<section>
+  <h1>Search</h1>
+  <form action="http://google.com/search" method="get">
+    <input type="hidden" name="q" value="site:artsy.github.io" />
+    <input class="search" type="text" name="q" results="0" />
+  </form>
+</section>
+  
+
+
+    </div>
+  </div>
+  <footer id="main_footer"><p>
+  Copyright &copy; 2013 - Artsy -
+  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+  
+
+<script type="text/javascript">
+      var disqus_shortname = 'artsy';
+      
+        
+        // var disqus_developer = 1;
+        var disqus_identifier = 'http://artsy.github.io/blog/2013/06/14/writing-headless-backbone-tests-with-node-dot-js/';
+        var disqus_url = 'http://artsy.github.io/blog/2013/06/14/writing-headless-backbone-tests-with-node-dot-js/';
+        var disqus_script = 'embed.js';
+      
+    (function () {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = 'http://' + disqus_shortname + '.disqus.com/' + disqus_script;
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    }());
+</script>
+
+
+
+
+
+
+
+  <script type="text/javascript">
+    (function(){
+      var twitterWidgets = document.createElement('script');
+      twitterWidgets.type = 'text/javascript';
+      twitterWidgets.async = true;
+      twitterWidgets.src = 'http://platform.twitter.com/widgets.js';
+      document.getElementsByTagName('head')[0].appendChild(twitterWidgets);
+    })();
+  </script>
+
+
+
+
+
+</body>
+</html>

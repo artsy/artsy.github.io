@@ -1,0 +1,312 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Improving Performance of Mongoid-Cached-Json - Artsy Engineering</title>
+  <meta name="author" content="Artsy">
+
+  
+  <meta name="description" content="Last year, we have open-sourced and made extensive use of two Ruby libraries in our API: mongoid-cached-json and garner. Both transform the &hellip;">
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://artsy.github.io/blog/2013/01/20/improving-performance-of-mongoid-cached-json">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <script src="/javascripts/modernizr-2.0.js"></script>
+  <script src="/javascripts/ender.js"></script>
+  <script src="/javascripts/octopress.js" type="text/javascript"></script>
+  <link href="/atom.xml" rel="alternate" title="Artsy Engineering" type="application/atom+xml">
+  <!--[if IE 8]>
+<link href="/stylesheets/custom/ie_font.css" type="text/css">
+<![endif]-->
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-12450662-3']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+
+<body>
+  
+  <a href="/">
+    <h1 id="lrg-mark">
+      <span>Artsy</span>
+    </h1>
+  </a>
+  
+  <header id="banner"><hgroup>
+  <div id="header">
+    <h2>Inspiration from the engineering team at <a href="http://artsy.net">Artsy</a> — A new way to discover fine art.</h2>
+  </div>
+</hgroup>
+
+</header>
+  
+  <div id="main">
+    <div id="mobile_search">
+      <form action="http://google.com/search" method="get">
+        <input type="hidden" name="q" value="site:artsy.github.io" />
+        <input class="search" type="text" name="q" results="0" placeholder="Search" />
+      </form>
+    </div>
+    <div id="content">
+      <div>
+<article class="hentry" role="article">
+  
+  <header>
+    
+    <a href="">
+      <div class="date">
+
+
+
+
+  
+<time datetime="2013-01-20T21:21:00-05:00" pubdate>01/20/13</time></div>
+    
+    
+      <h1 class="entry-title">Improving Performance of Mongoid-Cached-Json</h1>
+    
+    </a>
+    
+      <p class="meta">
+        
+      </p>
+    
+  </header>
+
+
+<div class="entry-content"><p>Last year, we have open-sourced and made extensive use of two Ruby libraries in our API: <a href="https://github.com/dblock/mongoid-cached-json">mongoid-cached-json</a> and <a href="https://github.com/artsy/garner">garner</a>. Both transform the procedural nightmare of caching and JSON generation into a declarative and easily manageable DSL. It was worth the investment, since our service spends half of its time generating JSON and reading from and writing to Memcached.</p>
+
+<p>Today we&#8217;ve released mongoid-cached-json 1.4 with two interesting performance improvements.</p>
+
+<!-- more -->
+
+
+<h2>Bulk Reference Resolving with a Local Cache</h2>
+
+<p>Consider an array of database model instances, each with numerous references to other objects. It&#8217;s typical to see such instances reference the same object: for example we have an <code>Artwork</code> that references an <code>Artist</code>. It&#8217;s common to see multiple artworks reference the same artist in a collection. Retrieving the artist from cache every time it is referenced is clearly inefficient.</p>
+
+<p><code>Mongoid::CachedJson</code> will now collect all JSON references, then resolve them after suppressing duplicates, in-place within the JSON tree. This significantly reduces the number of cache queries.</p>
+
+<p>Note, that while this optimization reduces load on the Memcached servers, there&#8217;s a cost of doing additional work after collecting the entire JSON in Ruby.</p>
+
+<h2>Fetching Cache Data in Bulk</h2>
+
+<p>Various cache stores, including Memcached, support bulk read operations. The <a href="https://github.com/mperham/dalli">Dalli</a> gem, which we use in production, exposes this via the <code>read_multi</code> method. With the bulk reference optimization above we now have the entire list of keys to query from cache, at once. <code>Mongoid::CachedJson</code> will always invoke <code>read_multi</code> where available, which significantly reduces the number of network roundtrips to the cache servers.</p>
+
+<p>This is a good example of where declarative models and DSLs have tremendous advantages in enabling massive improvements across the board. Imagine making the <code>read_multi</code> optimization in hundreds of API endpoints!</p>
+
+<h2>Benchmarks</h2>
+
+<p>With the above optimizations the library does more work in order to make less roundtrips to Memcached over the network. Since the network is often the slowest part in any large scale system, the overall production performance should be better as long as we can obtain similar throughput in ideal network conditions on localhost. We&#8217;ve added some common case benchmarks in <a href="https://github.com/dblock/mongoid-cached-json/blob/master/spec/benchmark_spec.rb">spec/benchmark_spec.rb</a> and ran them against 1.2.3 and 1.4.0 to obtain <a href="https://gist.github.com/4583039">these results</a>. The overall performance gain averaged 14.6%, which is quite significant. With real world data in a production environment we&#8217;re seeing 15-50% less time spent in Memcached, depending on the API.</p>
+
+<h2>Links</h2>
+
+<p>The concepts behind these improvements should be attributed to <a href="https://github.com/aaw">@aaw</a> and <a href="https://github.com/macreery">@macreery</a>. If you want to learn more about the above-mentioned libraries, check out the following links:</p>
+
+<ul>
+<li><a href="http://confreaks.com/videos/986-goruco2012-from-zero-to-api-cache-w-grape-mongodb-in-10-minutes">From Zero to API-Cache w/ Grape and MongoDB</a>, video recorded at GoRuCo</li>
+<li><a href="/blog/2012/02/20/caching-model-json-with-mongoid-cached-json/">Caching Model JSON with Mongoid-Cached-Json</a></li>
+<li><a href="/blog/2012/03/23/simplifying-model-level-json-versioning-with-mongoid-cached-json/">Simplifying Model Level Versioning with Mongoid-Cched-Json</a></li>
+<li><a href="/blog/2012/05/30/restful-api-caching-with-garner/">RESTful API Caching with Garner</a></li>
+</ul>
+
+</div>
+
+
+  <footer>
+    <div class="meta">
+      
+  
+
+
+
+  <span class="byline author vcard">
+    Posted by 
+    <span class="fn">
+      Daniel Doubrovkine
+    </span>
+    
+    
+    
+    
+      (
+      
+      <span class="fn">
+        <a href="http://code.dblock.org">blog</a>
+      </span>
+      
+      
+      <span class="fn">
+        <a href="https://www.github.com/dblock">github</a>
+      </span>
+      
+      
+      <span class="fn">
+        <a href="http://twitter.com/dblockdotorg">twitter</a>
+      </span>
+      
+      )
+    
+    
+  </span>
+
+
+    </div>
+    <div class="meta">
+      Categories: 
+
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/api/'>API</a>, <a class='category' href='/blog/categories/caching/'>Caching</a>, <a class='category' href='/blog/categories/mongoid/'>Mongoid</a>
+  
+</span>
+
+
+    </div>
+
+    
+      <div class="sharing">
+  
+  <a href="http://twitter.com/share" class="twitter-share-button" data-url="http://artsy.github.io/blog/2013/01/20/improving-performance-of-mongoid-cached-json/" data-via="artsy" data-counturl="http://artsy.github.io/blog/2013/01/20/improving-performance-of-mongoid-cached-json/" >Tweet</a>
+  
+  
+  
+</div>
+
+    
+    <p class="meta">
+      
+        <a class="basic-alignment left" href="/blog/2013/01/15/debugging-bundler-issues-with-heroku/" title="Previous Post: Debugging Bundler Issues on Heroku">&laquo; Debugging Bundler Issues on Heroku</a>
+      
+      
+        <a class="basic-alignment right" href="/blog/2013/01/31/create-mongodb-command-lines-with-mongo/" title="next Post: Create MongoDB Command-Lines from Mongoid Configuration">Create MongoDB Command-Lines from Mongoid Configuration &raquo;</a>
+      
+    </p>
+  </footer>
+</article>
+
+  <section>
+    <h1>Comments</h1>
+    <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</div>
+  </section>
+
+</div>
+    </div>
+    <div id="sidebar">
+      
+  
+    <section>
+  <h1>Info</h1>
+  <ul>
+    <li> <a href="/about">About Us</a></li>
+    <li> <a href="/open-source">Artsy Open-Source</a></li>
+    <li> <a href="http://artsy.net/job/developer">Join the Artsy Engineering Team</a></li>
+  </ul>
+</section>
+<section id="recent_posts_section">
+  <h1>Recent Posts</h1>
+  <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/2013/08/27/introduction-to-aws-opsworks/">Introduction to AWS OpsWorks</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2013/06/23/normalizing-gmail-email-addresses-with-canonical-emails/">Normalizing GMail E-Mail Addresses with CanonicalEmails</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2013/06/21/adding-api-documentation-with-grape-swagger/">Adding API Docs with Grape and Swagger</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2013/06/14/writing-headless-backbone-tests-with-node-dot-js/">Writing Headless Backbone Tests With Node.js</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2013/04/13/bootstrapping-json-data-with-rails-and-backbone-js/">Bootstrapping JSON Data with Rails and Backbone.js</a>
+      </li>
+    
+  </ul>
+  <a class="archive_link" href="/blog/archives">Blog Archive</a>
+</section>
+<section>
+  <h1>Search</h1>
+  <form action="http://google.com/search" method="get">
+    <input type="hidden" name="q" value="site:artsy.github.io" />
+    <input class="search" type="text" name="q" results="0" />
+  </form>
+</section>
+  
+
+
+    </div>
+  </div>
+  <footer id="main_footer"><p>
+  Copyright &copy; 2013 - Artsy -
+  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+  
+
+<script type="text/javascript">
+      var disqus_shortname = 'artsy';
+      
+        
+        // var disqus_developer = 1;
+        var disqus_identifier = 'http://artsy.github.io/blog/2013/01/20/improving-performance-of-mongoid-cached-json/';
+        var disqus_url = 'http://artsy.github.io/blog/2013/01/20/improving-performance-of-mongoid-cached-json/';
+        var disqus_script = 'embed.js';
+      
+    (function () {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = 'http://' + disqus_shortname + '.disqus.com/' + disqus_script;
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    }());
+</script>
+
+
+
+
+
+
+
+  <script type="text/javascript">
+    (function(){
+      var twitterWidgets = document.createElement('script');
+      twitterWidgets.type = 'text/javascript';
+      twitterWidgets.async = true;
+      twitterWidgets.src = 'http://platform.twitter.com/widgets.js';
+      document.getElementsByTagName('head')[0].appendChild(twitterWidgets);
+    })();
+  </script>
+
+
+
+
+
+</body>
+</html>
