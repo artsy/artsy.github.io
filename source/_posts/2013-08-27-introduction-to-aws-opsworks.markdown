@@ -64,7 +64,7 @@ If the built-in layers don't quite satisfy your needs, there are several facilit
 
 ### Chef cookbooks
 
-OpsWorks uses [Chef](http://www.opscode.com/chef/) to configure EC2 instances. If you're unfamiliar, Chef is a popular tool for making server configuration more automated and repeatable&mdash;like code. The Chef "recipes" that configure each layer are open-source and available in the [opsworks-cookbooks](github.com/aws/opsworks-cookbooks) github repo. (Cookbooks contain one or more "recipes"&mdash;get it?) There, you can see precisely what commands are run in response to server lifecycle events (i.e., as servers are started, configured, deployed to, and stopped). These recipes write out configuration files, restart services, authorize users for SSH access, ensure logs are rotated, etc.&mdash;everything typical deployments might need.
+OpsWorks uses [Chef](http://www.opscode.com/chef/) to configure EC2 instances. If you're unfamiliar, Chef is a popular tool for making server configuration more automated and repeatable&mdash;like code. The Chef "recipes" that configure each layer are open-source and available in the [opsworks-cookbooks](http://github.com/aws/opsworks-cookbooks) github repo. (Cookbooks contain one or more "recipes"&mdash;get it?) There, you can see precisely what commands are run in response to server lifecycle events (i.e., as servers are started, configured, deployed to, and stopped). These recipes write out configuration files, restart services, authorize users for SSH access, ensure logs are rotated, etc.&mdash;everything typical deployments might need.
 
 For example, the recipes that set up an HAProxy instance look like this:
 
