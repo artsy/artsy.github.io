@@ -29,7 +29,7 @@ If you've worked with the confusing array of AWS services in the past, you're al
 
 But this simplicity comes at a cost. Your application's architecture is constrained to a few common patterns. Your functionality may be limited by the system packages available in the standardized environment, or your performance may be limited by the available resources. OpsWorks offers more flexibility and control, allowing you to customize the types of servers you employ and the layers or services that make up your application. It's a lower-level tool than those PaaS providers.
 
-Conversely, OpsWorks offers a higher-level of control than [CloudFormation](https://aws.amazon.com/cloudformation/) or than managing EC2 instances and related services directly. By focusing on the most commonly used AWS services, instance types, and architectures, it can provide greater automation and more robust tools for configuration, authorization, scaling, and monitoring. Amazon CTO [Werner Vogels](http://www.allthingsdistributed.com/2013/02/aws-opsworks.html) rendered it thus:
+Conversely, OpsWorks offers higher-level control than [CloudFormation](https://aws.amazon.com/cloudformation/) or than managing EC2 instances and related services directly. By focusing on the most commonly used AWS services, instance types, and architectures, it can provide greater automation and more robust tools for configuration, authorization, scaling, and monitoring. Amazon CTO [Werner Vogels](http://www.allthingsdistributed.com/2013/02/aws-opsworks.html) rendered it thus:
 
 {% img screenshot /images/2013-08-27-introduction-to-aws-opsworks/aws_control.png [How OpsWorks fits in AWS offerings] %}
 
@@ -102,7 +102,7 @@ Down the road, we might introduce additional layers for Redis, Solr, or MongoDB.
 
 ## Performance
 
-OpsWorks makes almost all [EC2 instance types](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-types.html) available, so we can choose an appropriate balance of CPU power, memory, disk space, network performance, and architecture for each instance. This can be a _huge_ boon to the performance of resource-constrained applications. While it probably still pales in comparison to running directly on physical hardware, this benefit alone could make OpsWorks a worthwhile choice over providers of "standard" computing resources.
+OpsWorks makes most [EC2 instance types](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-types.html) available, so we can choose an appropriate balance of CPU power, memory, disk space, network performance, and architecture for each instance. This can be a _huge_ boon to the performance of resource-constrained applications. It probably still pales in comparison to running directly on physical hardware, but this benefit alone could make OpsWorks a worthwhile choice over providers of "standard" computing resources.
 
 While not a rigorous comparison, the experience of one of our particularly memory-constrained applications illustrates this. The application's responses took an average of 638 milliseconds when running on Heroku's ["2x" (1 GB) dynos](https://devcenter.heroku.com/articles/dyno-size). The same application responded in only 134 milliseconds on OpsWorks-managed _m1.large_ instances (with 7.5 GB). That's a ~80% (5x) improvement!
 
@@ -117,7 +117,7 @@ We've experienced our fair share of failures with both OpsWorks and Heroku. PaaS
 
 In contrast, I can easily SSH into an OpsWorks instance and notice that a runaway process has pegged the CPU or that a chatty log has filled the disk. (Of course, the additional control afforded by OpsWorks increases the chance that I've caused the problem myself.)
 
-Which do we prefer? We'd probably be safer with Heroku's experts in charge, but I'll happily accept minor sysadmin duties in exchange for the flexibility OpsWorks affords. And by sticking with the OpsWorks default recipes as much as possible, we benefit from the platform's combined experience.
+Which do we prefer? We'd probably be safer with Heroku's experts in charge, but I'll happily accept light sysadmin duties in exchange for the flexibility OpsWorks affords. And by sticking with the OpsWorks default recipes as much as possible, we benefit from the platform's combined experience.
 
 
 ## Scaling and recovery
