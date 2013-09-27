@@ -226,6 +226,13 @@ which is a full API explorer solution.
 <h1 id="ios">iOS<h1>
 ----------------------
 
+[cocoadocs](https://github.com/CocoaPods/cocoadocs.org)
+------------------------------------------------
+
+[CocoaDocs](http://cocoadocs.org/) documents every public OSS library in [CocoaPods](http://cocoapods.org/).
+
+[https://github.com/CocoaPods/cocoadocs.org](https://github.com/CocoaPods/cocoadocs.org)
+
 [musical chairs](https://github.com/orta/chairs)
 ------------------------------------------------
 
