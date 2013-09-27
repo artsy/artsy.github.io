@@ -216,3 +216,39 @@ allows you to perform large scale image comparisons for a variety of tasks. PixM
 It runs over HTTP using a REST protocol and JSON formatted responses, wrapped by this library.
 
 [https://github.com/dblock/pixmatch](https://github.com/dblock/pixmatch)
+
+[backbone-super-sync](https://github.com/artsy/backbone-super-sync)
+----------------------------------------------
+
+Node server-side Backbone.sync adapter using [super agent](https://github.com/visionmedia/superagent).
+
+[https://github.com/artsy/backbone-super-sync](https://github.com/artsy/backbone-super-sync)
+
+
+[benv](https://github.com/artsy/benv)
+----------------------------------------------
+
+Stub a browser environment in node.js and headlessly test your client-side code.
+
+[https://github.com/artsy/benv](https://github.com/artsy/benv)
+
+[bucket-assets](https://github.com/artsy/bucket-assets)
+----------------------------------------------
+
+Node module that uploads a folder of static assets to an s3 bucket with convenient defaults.
+
+[https://github.com/artsy/bucket-assets](https://github.com/artsy/bucket-assets)
+
+[sharify](https://github.com/artsy/sharify)
+----------------------------------------------
+
+Node module to easily share data between your server-side and browserify modules.
+
+[https://github.com/artsy/sharify](https://github.com/artsy/sharify)
+
+[flare](https://github.com/artsy/flare)
+------------------------------------------
+
+Artsy iPhone Launch Marketing Page
+
+[https://github.com/artsy/flare](https://github.com/artsy/flare)
