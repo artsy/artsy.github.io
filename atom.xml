@@ -4,7 +4,7 @@
   <title><![CDATA[Artsy Engineering]]></title>
   <link href="http://artsy.github.io/atom.xml" rel="self"/>
   <link href="http://artsy.github.io/"/>
-  <updated>2013-08-29T18:46:19-04:00</updated>
+  <updated>2013-11-13T20:49:36-05:00</updated>
   <id>http://artsy.github.io/</id>
   <author>
     <name><![CDATA[Artsy]]></name>
@@ -12,6 +12,263 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Upgrading to Mongoid 4.x]]></title>
+    <link href="http://artsy.github.io/blog/2013/11/07/upgrading-to-mongoid4/"/>
+    <updated>2013-11-07T12:34:00-05:00</updated>
+    <id>http://artsy.github.io/blog/2013/11/07/upgrading-to-mongoid4</id>
+    <content type="html"><![CDATA[<p>I recently went through an exercise of upgrading one of Artsy&#8217;s largest web projects to the current HEAD of Mongoid 4.x. This is going to be a major release with numerous changes and I wanted to flush out bugs before the final version of the ODM is released. All Mongoid changes currently live on <a href="https://github.com/mongoid/mongoid">master</a>.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">gem</span> <span class="s1">&#39;mongoid&#39;</span><span class="p">,</span> <span class="ss">github</span><span class="p">:</span> <span class="s1">&#39;mongoid/mongoid&#39;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>In the process I&#8217;ve worked on making a few gems compatible with Mongoid 4 and learned a couple of things that should help you make this process smooth for your own applications.</p>
+
+<!-- more -->
+
+
+<h2>Moped::BSON::ObjectId</h2>
+
+<p>Moped&#8217;s BSON implementation has been removed in favor of the MongoDB bson gem 2.0 and higher. All <code>Moped::BSON</code> references must change to <code>BSON</code>. This is rather annoying and forces many libraries to have to fork behavior at runtime.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">module</span> <span class="nn">Mongoid</span>
+</span><span class='line'>  <span class="k">def</span> <span class="nc">self</span><span class="o">.</span><span class="nf">mongoid3?</span>
+</span><span class='line'>    <span class="o">::</span><span class="no">Mongoid</span><span class="o">.</span><span class="n">const_defined?</span> <span class="ss">:Observer</span> <span class="c1"># deprecated in Mongoid 4.x</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">def</span> <span class="nc">self</span><span class="o">.</span><span class="nf">mongoid2?</span>
+</span><span class='line'>    <span class="o">::</span><span class="no">Mongoid</span><span class="o">.</span><span class="n">const_defined?</span> <span class="ss">:Contexts</span> <span class="c1"># deprecated in Mongoid 3.x</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>The <code>mongoid2?</code> implementation is borrowed from <a href="https://github.com/pyromaniac/mongoid_orderable">mongoid_orderable</a> and I wrote the <code>mongoid3?</code> version by parsing the CHANGELOG - observers are deprecated in 4.0.</p>
+
+<p>Now, instead of calling <code>Moped::BSON::ObjectId.legal?(id)</code>, you have to do something like this:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">if</span> <span class="no">Mongoid</span><span class="o">.</span><span class="n">mongoid3?</span>
+</span><span class='line'>  <span class="ss">Moped</span><span class="p">:</span><span class="ss">:BSON</span><span class="o">::</span><span class="no">ObjectId</span><span class="o">.</span><span class="n">legal?</span> <span class="nb">id</span>
+</span><span class='line'><span class="k">else</span>
+</span><span class='line'>  <span class="ss">BSON</span><span class="p">:</span><span class="ss">:ObjectId</span><span class="o">.</span><span class="n">legal?</span> <span class="nb">id</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Furthermore, you can no longer convert a string into a <code>Moped::BSON::ObjectId(id)</code>, you must explicitly call <code>from_string</code>:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">if</span> <span class="no">Mongoid</span><span class="o">.</span><span class="n">mongoid3?</span>
+</span><span class='line'>  <span class="ss">Moped</span><span class="p">:</span><span class="ss">:BSON</span><span class="o">::</span><span class="no">ObjectId</span><span class="p">(</span><span class="nb">id</span><span class="p">)</span>
+</span><span class='line'><span class="k">else</span>
+</span><span class='line'>  <span class="ss">BSON</span><span class="p">:</span><span class="ss">:ObjectId</span><span class="o">.</span><span class="n">from_string</span><span class="p">(</span><span class="nb">id</span><span class="p">)</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Libraries should then adjust their dependencies on Mongoid and specify <code>&gt;= 3.0</code>, and maybe <code>&lt; 5.0</code>.</p>
+
+<h2>Testing Against Multiple Mongoid Versions</h2>
+
+<p>The <a href="https://github.com/pyromaniac/mongoid_orderable">mongoid-orderable</a> gem has a neat system for testing against all versions of Mongoid with <a href="https://travis-ci.org/">Travis CI</a>. First, the <em>.travis.yml</em> file declares a test matrix that sets <code>MONGOID_VERSION</code>. Note that Mongoid 3.x or newer doesn&#8217;t run with Ruby 1.8.x or 1.9.2.</p>
+
+<figure class='code'><figcaption><span>.travis.yml</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="ss">rvm</span><span class="p">:</span>
+</span><span class='line'>  <span class="o">-</span> <span class="mi">1</span><span class="o">.</span><span class="mi">8</span><span class="o">.</span><span class="mi">7</span>
+</span><span class='line'>  <span class="o">-</span> <span class="mi">1</span><span class="o">.</span><span class="mi">9</span><span class="o">.</span><span class="mi">2</span>
+</span><span class='line'>  <span class="o">-</span> <span class="mi">1</span><span class="o">.</span><span class="mi">9</span><span class="o">.</span><span class="mi">3</span>
+</span><span class='line'>  <span class="o">-</span> <span class="n">ruby</span><span class="o">-</span><span class="n">head</span>
+</span><span class='line'>
+</span><span class='line'><span class="ss">env</span><span class="p">:</span>
+</span><span class='line'>  <span class="o">-</span> <span class="no">MONGOID_VERSION</span><span class="o">=</span><span class="mi">2</span>
+</span><span class='line'>  <span class="o">-</span> <span class="no">MONGOID_VERSION</span><span class="o">=</span><span class="mi">3</span>
+</span><span class='line'>  <span class="o">-</span> <span class="no">MONGOID_VERSION</span><span class="o">=</span><span class="mi">4</span>
+</span><span class='line'>
+</span><span class='line'><span class="ss">matrix</span><span class="p">:</span>
+</span><span class='line'>  <span class="ss">exclude</span><span class="p">:</span>
+</span><span class='line'>    <span class="o">-</span> <span class="ss">rvm</span><span class="p">:</span> <span class="mi">1</span><span class="o">.</span><span class="mi">8</span><span class="o">.</span><span class="mi">7</span>
+</span><span class='line'>      <span class="ss">env</span><span class="p">:</span> <span class="no">MONGOID_VERSION</span><span class="o">=</span><span class="mi">3</span>
+</span><span class='line'>    <span class="o">-</span> <span class="ss">rvm</span><span class="p">:</span> <span class="mi">1</span><span class="o">.</span><span class="mi">8</span><span class="o">.</span><span class="mi">7</span>
+</span><span class='line'>      <span class="ss">env</span><span class="p">:</span> <span class="no">MONGOID_VERSION</span><span class="o">=</span><span class="mi">4</span>
+</span><span class='line'>    <span class="o">-</span> <span class="ss">rvm</span><span class="p">:</span> <span class="mi">1</span><span class="o">.</span><span class="mi">9</span><span class="o">.</span><span class="mi">2</span>
+</span><span class='line'>      <span class="ss">env</span><span class="p">:</span> <span class="no">MONGOID_VERSION</span><span class="o">=</span><span class="mi">3</span>
+</span><span class='line'>    <span class="o">-</span> <span class="ss">rvm</span><span class="p">:</span> <span class="mi">1</span><span class="o">.</span><span class="mi">9</span><span class="o">.</span><span class="mi">2</span>
+</span><span class='line'>      <span class="ss">env</span><span class="p">:</span> <span class="no">MONGOID_VERSION</span><span class="o">=</span><span class="mi">4</span>
+</span><span class='line'>
+</span><span class='line'><span class="ss">services</span><span class="p">:</span> <span class="n">mongodb</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>The library&#8217;s <em>Gemfile</em> locks a different version depending on the environment variable, defaulting to 3.x. You can also test against a very specific version, if you must.</p>
+
+<figure class='code'><figcaption><span>Gemfile</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">source</span> <span class="s2">&quot;http://rubygems.org&quot;</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">gemspec</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">case</span> <span class="n">version</span> <span class="o">=</span> <span class="no">ENV</span><span class="o">[</span><span class="s1">&#39;MONGOID_VERSION&#39;</span><span class="o">]</span> <span class="o">||</span> <span class="s2">&quot;~&gt; 3.1&quot;</span>
+</span><span class='line'><span class="k">when</span> <span class="sr">/4/</span>
+</span><span class='line'>  <span class="n">gem</span> <span class="s2">&quot;mongoid&quot;</span><span class="p">,</span> <span class="ss">:github</span> <span class="o">=&gt;</span> <span class="s1">&#39;mongoid/mongoid&#39;</span>
+</span><span class='line'><span class="k">when</span> <span class="sr">/3/</span>
+</span><span class='line'>  <span class="n">gem</span> <span class="s2">&quot;mongoid&quot;</span><span class="p">,</span> <span class="s2">&quot;~&gt; 3.1&quot;</span>
+</span><span class='line'><span class="k">when</span> <span class="sr">/2/</span>
+</span><span class='line'>  <span class="n">gem</span> <span class="s2">&quot;mongoid&quot;</span><span class="p">,</span> <span class="s2">&quot;~&gt; 2.8&quot;</span>
+</span><span class='line'><span class="k">else</span>
+</span><span class='line'>  <span class="n">gem</span> <span class="s2">&quot;mongoid&quot;</span><span class="p">,</span> <span class="n">version</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>Upgraded Gems</h2>
+
+<p>I used the above method to make a few gems Mongoid 4.x compatible, via the following pull requests.</p>
+
+<ul>
+<li><a href="https://github.com/digitalplaywright/mongoid-slug/pull/146">mongoid-slug</a></li>
+<li><a href="https://github.com/dblock/mongoid-scroll/commit/b67e2867b133cd6bd1b8361ea51409f80ae91ffd">mongoid-scroll</a></li>
+<li><a href="https://github.com/pyromaniac/mongoid_orderable/pull/18">mongoid_orderable</a></li>
+<li><a href="https://github.com/aq1018/mongoid-history/pull/83">mongoid-history</a></li>
+<li><a href="https://github.com/aaw/mongoid_collection_snapshot/pull/5">mongoid_collection_snapshot</a></li>
+<li><a href="https://github.com/joeyAghion/delayed_job_shallow_mongoid/pull/6">delayed_job_shallow_mongoid</a></li>
+</ul>
+
+
+<h2>Upgrading a Rails Project</h2>
+
+<p>If you&#8217;re using Rails, you&#8217;re in for upgrading both Mongoid 4.x and Rails to 4.x. This means you will suffer a lot of pain trying to find compatible versions of various interdependent gems. I suggest locking Rails, Mongoid and ActiveSupport to begin with.</p>
+
+<figure class='code'><figcaption><span>Gemfile</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">gem</span> <span class="s1">&#39;rails&#39;</span><span class="p">,</span> <span class="s1">&#39;4.0.1&#39;</span>
+</span><span class='line'><span class="n">gem</span> <span class="s1">&#39;activesupport&#39;</span><span class="p">,</span> <span class="s1">&#39;4.0.1&#39;</span>
+</span><span class='line'><span class="n">gem</span> <span class="s1">&#39;mongoid&#39;</span><span class="p">,</span> <span class="ss">github</span><span class="p">:</span> <span class="s1">&#39;mongoid/mongoid&#39;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Bulk search &amp; replace <code>Moped::BSON::ObjectId</code> references.</p>
+
+<p>Calls to <code>inc</code>, <code>set</code> and <code>add_to_set</code> now take hashes, eg. <code>artist.inc(likes_count: 1)</code>.</p>
+
+<p>If you&#8217;re converting Mongoid objects to JSON and seeing data such as <code>{ "$oid" =&gt; "..." }</code> instead of an ID, monkey-patch <code>BSON::ObjectId.as_json</code>. See <a href="https://groups.google.com/forum/#!msg/mongoid/MaXFVw7D_4s/T3sl6Flg428J">this discussion thread</a>.</p>
+
+<figure class='code'><figcaption><span>config/initializers/bson/object_id.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">module</span> <span class="nn">BSON</span>
+</span><span class='line'>  <span class="k">class</span> <span class="nc">ObjectId</span>
+</span><span class='line'>    <span class="k">def</span> <span class="nf">as_json</span><span class="p">(</span><span class="n">options</span> <span class="o">=</span> <span class="p">{})</span>
+</span><span class='line'>      <span class="nb">to_s</span>
+</span><span class='line'>    <span class="k">end</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>If you&#8217;re using Warden (including via Devise) and/or rely on session cookies that may contain a user ID, add an implementation for the deprecated <code>Moped::BSON::Document</code>. This will prevent all old cookies from causing a serialization error and logging all those users out.</p>
+
+<figure class='code'><figcaption><span>config/initializers/bson/</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">module</span> <span class="nn">Moped</span>
+</span><span class='line'>  <span class="k">module</span> <span class="nn">BSON</span>
+</span><span class='line'>    <span class="no">ObjectId</span> <span class="o">=</span> <span class="o">::</span><span class="ss">BSON</span><span class="p">:</span><span class="ss">:ObjectId</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="k">class</span> <span class="nc">Document</span> <span class="o">&lt;</span> <span class="no">Hash</span>
+</span><span class='line'>      <span class="k">class</span> <span class="o">&lt;&lt;</span> <span class="nb">self</span>
+</span><span class='line'>        <span class="k">def</span> <span class="nf">deserialize</span><span class="p">(</span><span class="n">io</span><span class="p">,</span> <span class="n">document</span> <span class="o">=</span> <span class="kp">new</span><span class="p">)</span>
+</span><span class='line'>          <span class="n">__bson_load__</span><span class="p">(</span><span class="n">io</span><span class="p">,</span> <span class="n">document</span><span class="p">)</span>
+</span><span class='line'>        <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>        <span class="k">def</span> <span class="nf">serialize</span><span class="p">(</span><span class="n">document</span><span class="p">,</span> <span class="n">io</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+</span><span class='line'>          <span class="n">document</span><span class="o">.</span><span class="n">__bson_dump__</span><span class="p">(</span><span class="n">io</span><span class="p">)</span>
+</span><span class='line'>        <span class="k">end</span>
+</span><span class='line'>      <span class="k">end</span>
+</span><span class='line'>    <span class="k">end</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>Updates</h2>
+
+<p>Please post your updates below and questions to the <a href="https://groups.google.com/forum/#!forum/mongoid">mongoid mailing list</a>. I&#8217;ll update this post up until Mongoid 4.x ships.</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Introduction to AWS OpsWorks]]></title>
@@ -2848,91 +3105,6 @@
 <h2>Fixing Timeouts</h2>
 
 <p>The root causes of timeouts are specific to your application. Our general approach for long running requests is to offload the request processing into a delayed job or background process and &#8220;cook&#8221; data in a way that makes it readily available to API endpoints. You can read more about this and related aspects of our system architecture in <a href="http://artsy.github.io/blog/2012/10/10/artsy-technology-stack/">this earlier blog post</a>.</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[The perils of iOS user agent strings]]></title>
-    <link href="http://artsy.github.io/blog/2012/10/18/the-perils-of-ios-user-agent-sniffing/"/>
-    <updated>2012-10-18T15:19:00-04:00</updated>
-    <id>http://artsy.github.io/blog/2012/10/18/the-perils-of-ios-user-agent-sniffing</id>
-    <content type="html"><![CDATA[<p>There is a great deal of misinformation on the web about detecting an
-iPad or an iPhone in JavaScript. The
-<a href="http://stackoverflow.com/a/4617648">top answer on stackoverflow</a> -
-and many <a href="http://www.sitepoint.com/identify-apple-iphone-ipod-ipad-visitors/">blog posts</a> using <a href="http://www.askdavetaylor.com/detect_apple_iphone_user_web_site_server.html">this technique</a> - are all incorrect.</p>
-
-<p>The conventional wisdom is that iOS devices have a user agent for
-Safari and a user agent for the UIWebView. This assumption is
-incorrect as iOS apps can and do
-<a href="http://stackoverflow.com/a/8666438">customize their user agent</a>. The
-main offender here is Facebook, whose iOS app alone accounts for about
-1-3% of Artsy&#8217;s daily traffic.</p>
-
-<p>Compare these user agent strings from iOS devices:</p>
-
-<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-</pre></td><td class='code'><pre><code class=''><span class='line'># iOS Safari
-</span><span class='line'>iPad: Mozilla/5.0 (iPad; CPU OS 5_1 like Mac OS X) AppleWebKit/534.46 (KHTML, like Gecko) Version/5.1 Mobile/9B176 Safari/7534.48.3
-</span><span class='line'>iPhone: Mozilla/5.0 (iPhone; CPU iPhone OS 5_0 like Mac OS X) AppleWebKit/534.46 (KHTML, like Gecko) Version/5.1 Mobile/9A334 Safari/7534.48.3
-</span><span class='line'>
-</span><span class='line'># UIWebView
-</span><span class='line'>iPad: Mozilla/5.0 (iPad; CPU OS 5_1 like Mac OS X) AppleWebKit/534.46 (KHTML, like Gecko) Mobile/98176
-</span><span class='line'>iPhone: Mozilla/5.0 (iPhone; U; CPU iPhone OS 4_1 like Mac OS X; en-us) AppleWebKit/532.9 (KHTML, like Gecko) Mobile/8B117
-</span><span class='line'>
-</span><span class='line'># Facebook UIWebView
-</span><span class='line'>iPad: Mozilla/5.0 (iPad; U; CPU iPhone OS 5_1_1 like Mac OS X; en_US) AppleWebKit (KHTML, like Gecko) Mobile [FBAN/FBForIPhone;FBAV/4.1.1;FBBV/4110.0;FBDV/iPad2,1;FBMD/iPad;FBSN/iPhone OS;FBSV/5.1.1;FBSS/1; FBCR/;FBID/tablet;FBLC/en_US;FBSF/1.0]
-</span><span class='line'>iPhone: Mozilla/5.0 (iPhone; U; CPU iPhone OS 5_1_1 like Mac OS X; ru_RU) AppleWebKit (KHTML, like Gecko) Mobile [FBAN/FBForIPhone;FBAV/4.1;FBBV/4100.0;FBDV/iPhone3,1;FBMD/iPhone;FBSN/iPhone OS;FBSV/5.1.1;FBSS/2; tablet;FBLC/en_US]</span></code></pre></td></tr></table></div></figure>
-
-
-<p></p>
-
-<!-- more -->
-
-
-<p>The old way to identify iPhone / iPad in JavaScript:</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-</pre></td><td class='code'><pre><code class='javascript'><span class='line'><span class="nx">IS_IPAD</span> <span class="o">=</span> <span class="nx">navigator</span><span class="p">.</span><span class="nx">userAgent</span><span class="p">.</span><span class="nx">match</span><span class="p">(</span><span class="sr">/iPad/i</span><span class="p">)</span> <span class="o">!=</span> <span class="kc">null</span><span class="p">;</span>
-</span><span class='line'><span class="nx">IS_IPHONE</span> <span class="o">=</span> <span class="nx">navigator</span><span class="p">.</span><span class="nx">userAgent</span><span class="p">.</span><span class="nx">match</span><span class="p">(</span><span class="sr">/iPhone/i</span><span class="p">)</span> <span class="o">!=</span> <span class="kc">null</span><span class="p">)</span> <span class="o">||</span> <span class="p">(</span><span class="nx">navigator</span><span class="p">.</span><span class="nx">userAgent</span><span class="p">.</span><span class="nx">match</span><span class="p">(</span><span class="sr">/iPod/i</span><span class="p">)</span> <span class="o">!=</span> <span class="kc">null</span><span class="p">);</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>If you were to go with this approach for detecting iPhone and iPad,
-you would end up with IS_IPHONE <em>and</em> IS_IPAD both being true if a user
-comes from Facebook on an iPad. That could create some odd behavior!</p>
-
-<p>The correct way to identify iPhone / iPad in JavaScript:</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-</pre></td><td class='code'><pre><code class='javascript'><span class='line'><span class="nx">IS_IPAD</span> <span class="o">=</span> <span class="nx">navigator</span><span class="p">.</span><span class="nx">userAgent</span><span class="p">.</span><span class="nx">match</span><span class="p">(</span><span class="sr">/iPad/i</span><span class="p">)</span> <span class="o">!=</span> <span class="kc">null</span><span class="p">;</span>
-</span><span class='line'><span class="nx">IS_IPHONE</span> <span class="o">=</span> <span class="p">(</span><span class="nx">navigator</span><span class="p">.</span><span class="nx">userAgent</span><span class="p">.</span><span class="nx">match</span><span class="p">(</span><span class="sr">/iPhone/i</span><span class="p">)</span> <span class="o">!=</span> <span class="kc">null</span><span class="p">)</span> <span class="o">||</span> <span class="p">(</span><span class="nx">navigator</span><span class="p">.</span><span class="nx">userAgent</span><span class="p">.</span><span class="nx">match</span><span class="p">(</span><span class="sr">/iPod/i</span><span class="p">)</span> <span class="o">!=</span> <span class="kc">null</span><span class="p">);</span>
-</span><span class='line'><span class="k">if</span> <span class="p">(</span><span class="nx">IS_IPAD</span><span class="p">)</span> <span class="p">{</span>
-</span><span class='line'>  <span class="nx">IS_IPHONE</span> <span class="o">=</span> <span class="kc">false</span><span class="p">;</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>We simply declare <code>IS_IPHONE</code> to be <code>false</code> on iPads to cover for the
-bizarre Facebook UIWebView iPad user agent. This is one example of how
-<em>user agent sniffing is unreliable</em>. The more iOS apps that customize
-their user agent, the more issues user agent sniffing will have. If
-you can avoid user agent sniffing (hint: CSS Media Queries), DO
-IT.</p>
 ]]></content>
   </entry>
   

@@ -4,7 +4,7 @@
   <title><![CDATA[Category: Data | Artsy Engineering]]></title>
   <link href="http://artsy.github.io/blog/categories/data/atom.xml" rel="self"/>
   <link href="http://artsy.github.io/"/>
-  <updated>2013-08-29T18:46:19-04:00</updated>
+  <updated>2013-11-13T20:49:36-05:00</updated>
   <id>http://artsy.github.io/</id>
   <author>
     <name><![CDATA[Artsy]]></name>
@@ -76,22 +76,19 @@ end
 
 <p>The majority of our pages are in the form of "/model/id", for example "/artwork/leonardo-mona-lisa". We're interested in all pageviews for a given artwork and in pageviews for a given artist, at a given date. We'll store selected Google Analytics data in a <code>GoogleAnalyticsPageviewsRecord</code> model described further.</p>
 
-<p>``` ruby
+<p><code>ruby
 t = Date.today - 1
-GoogleAnalyticsPageviews.all(profile, { :start_date => t, :end_date => t }) do |row|
-  model = /<sup>\/#!\/(?<type>[a-z-]+)\/(?<id>[a-z-]+)$/.match(row.page_path)</sup>
+GoogleAnalyticsPageviews.all(profile, { :start_date =&gt; t, :end_date =&gt; t }) do |row|
+  model = /^\/#\!\/(?&lt;type&gt;[a-z-]+)\/(?&lt;id&gt;[a-z-]+)$/.match(row.page_path)
   next unless (model[:type] == "artwork" || model[:type] == "artist")
-  GoogleAnalyticsPageviewsRecord.create!({</p>
-
-<pre><code>:model_type =&gt; model[:type],
-:model_id =&gt; model[:id],
-:pageviews =&gt; row.pageviews,
-:dt =&gt; t.strftime("%Y-%m-%d")
-</code></pre>
-
-<p>  })
+  GoogleAnalyticsPageviewsRecord.create!({
+    :model_type =&gt; model[:type],
+    :model_id =&gt; model[:id],
+    :pageviews =&gt; row.pageviews,
+    :dt =&gt; t.strftime("%Y-%m-%d")
+  })
 end
-```</p>
+</code></p>
 
 <p>Each <code>GoogleAnalyticsPageviewsRecord</code> contains the total pageviews for a given model ID at a given date. We now have a record for each artwork and artist. We can rollup existing data into a set of collections, incrementally. For example, <code>google_analytics_artworks_monthly</code> will contain the monthly hits for each artwork.</p>
 
@@ -104,35 +101,29 @@ class GoogleAnalyticsPageviewsRecord
   field :pageviews, type: Integer
   field :dt, type: Date</p>
 
-<p>  index [</p>
-
-<pre><code>[:model_type, Mongo::ASCENDING],
-[:model_id, Mongo::ASCENDING],
-[:dt, Mongo::DESCENDING]
-</code></pre>
-
-<p>  ], :unique => true</p>
+<p>  index [
+    [:model_type, Mongo::ASCENDING],
+    [:model_id, Mongo::ASCENDING],
+    [:dt, Mongo::DESCENDING]
+  ], :unique => true</p>
 
 <p>  after_create :rollup</p>
 
-<p>  def rollup</p>
-
-<pre><code>Mongoid.master.collection("google_analytics_#{self.model_type}s_total").update(
-  { :model_id =&gt; self.model_id },
-  { "$inc" =&gt; { "count" =&gt; self.pageviews }}, { :upsert =&gt; true })
-{
-  :daily =&gt; self.dt.strftime("%Y-%m-%d"),
-  :weekly =&gt; self.dt.beginning_of_week.strftime("%Y-%W"),
-  :monthly =&gt; self.dt.beginning_of_month.strftime("%Y-%m"),
-  :yearly =&gt; self.dt.beginning_of_year.strftime("%Y")
-}.each_pair do |t, dt|
-  Mongoid.master.collection("google_analytics_#{self.model_type}s_#{t}").update(
-    { :model_id =&gt; self.model_id, :dt =&gt; dt },
-    { "$inc" =&gt; { "count" =&gt; self.pageviews }}, { :upsert =&gt; true })
-end
-</code></pre>
-
-<p>  end</p>
+<p>  def rollup
+    Mongoid.master.collection("google_analytics<em>#{self.model_type}s_total").update(
+      { :model_id => self.model_id },
+      { "$inc" => { "count" => self.pageviews }}, { :upsert => true })
+    {
+      :daily => self.dt.strftime("%Y-%m-%d"),
+      :weekly => self.dt.beginning_of_week.strftime("%Y-%W"),
+      :monthly => self.dt.beginning_of_month.strftime("%Y-%m"),
+      :yearly => self.dt.beginning_of_year.strftime("%Y")
+    }.each_pair do |t, dt|
+      Mongoid.master.collection("google_analytics</em>#{self.model_type}s_#{t}").update(
+        { :model_id => self.model_id, :dt => dt },
+        { "$inc" => { "count" => self.pageviews }}, { :upsert => true })
+    end
+  end</p>
 
 <p>end
 ```</p>

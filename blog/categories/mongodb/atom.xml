@@ -4,7 +4,7 @@
   <title><![CDATA[Category: MongoDB | Artsy Engineering]]></title>
   <link href="http://artsy.github.io/blog/categories/mongodb/atom.xml" rel="self"/>
   <link href="http://artsy.github.io/"/>
-  <updated>2013-08-29T18:46:19-04:00</updated>
+  <updated>2013-11-13T20:49:36-05:00</updated>
   <id>http://artsy.github.io/</id>
   <author>
     <name><![CDATA[Artsy]]></name>
@@ -12,6 +12,181 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Upgrading to Mongoid 4.x]]></title>
+    <link href="http://artsy.github.io/blog/2013/11/07/upgrading-to-mongoid4/"/>
+    <updated>2013-11-07T12:34:00-05:00</updated>
+    <id>http://artsy.github.io/blog/2013/11/07/upgrading-to-mongoid4</id>
+    <content type="html"><![CDATA[<p>I recently went through an exercise of upgrading one of Artsy's largest web projects to the current HEAD of Mongoid 4.x. This is going to be a major release with numerous changes and I wanted to flush out bugs before the final version of the ODM is released. All Mongoid changes currently live on <a href="https://github.com/mongoid/mongoid">master</a>.</p>
+
+<p><code>ruby
+gem 'mongoid', github: 'mongoid/mongoid'
+</code></p>
+
+<p>In the process I've worked on making a few gems compatible with Mongoid 4 and learned a couple of things that should help you make this process smooth for your own applications.</p>
+
+<!-- more -->
+
+
+<h2>Moped::BSON::ObjectId</h2>
+
+<p>Moped's BSON implementation has been removed in favor of the MongoDB bson gem 2.0 and higher. All <code>Moped::BSON</code> references must change to <code>BSON</code>. This is rather annoying and forces many libraries to have to fork behavior at runtime.</p>
+
+<p>```ruby
+module Mongoid
+  def self.mongoid3?
+    ::Mongoid.const_defined? :Observer # deprecated in Mongoid 4.x
+  end</p>
+
+<p>  def self.mongoid2?
+    ::Mongoid.const_defined? :Contexts # deprecated in Mongoid 3.x
+  end
+end
+```</p>
+
+<p>The <code>mongoid2?</code> implementation is borrowed from <a href="https://github.com/pyromaniac/mongoid_orderable">mongoid_orderable</a> and I wrote the <code>mongoid3?</code> version by parsing the CHANGELOG - observers are deprecated in 4.0.</p>
+
+<p>Now, instead of calling <code>Moped::BSON::ObjectId.legal?(id)</code>, you have to do something like this:</p>
+
+<p><code>ruby
+if Mongoid.mongoid3?
+  Moped::BSON::ObjectId.legal? id
+else
+  BSON::ObjectId.legal? id
+end
+</code></p>
+
+<p>Furthermore, you can no longer convert a string into a <code>Moped::BSON::ObjectId(id)</code>, you must explicitly call <code>from_string</code>:</p>
+
+<p><code>ruby
+if Mongoid.mongoid3?
+  Moped::BSON::ObjectId(id)
+else
+  BSON::ObjectId.from_string(id)
+end
+</code></p>
+
+<p>Libraries should then adjust their dependencies on Mongoid and specify <code>&gt;= 3.0</code>, and maybe <code>&lt; 5.0</code>.</p>
+
+<h2>Testing Against Multiple Mongoid Versions</h2>
+
+<p>The <a href="https://github.com/pyromaniac/mongoid_orderable">mongoid-orderable</a> gem has a neat system for testing against all versions of Mongoid with <a href="https://travis-ci.org/">Travis CI</a>. First, the <em>.travis.yml</em> file declares a test matrix that sets <code>MONGOID_VERSION</code>. Note that Mongoid 3.x or newer doesn't run with Ruby 1.8.x or 1.9.2.</p>
+
+<p>```ruby .travis.yml
+rvm:
+  - 1.8.7
+  - 1.9.2
+  - 1.9.3
+  - ruby-head</p>
+
+<p>env:
+  - MONGOID_VERSION=2
+  - MONGOID_VERSION=3
+  - MONGOID_VERSION=4</p>
+
+<p>matrix:
+  exclude:
+    - rvm: 1.8.7
+      env: MONGOID_VERSION=3
+    - rvm: 1.8.7
+      env: MONGOID_VERSION=4
+    - rvm: 1.9.2
+      env: MONGOID_VERSION=3
+    - rvm: 1.9.2
+      env: MONGOID_VERSION=4</p>
+
+<p>services: mongodb
+```</p>
+
+<p>The library's <em>Gemfile</em> locks a different version depending on the environment variable, defaulting to 3.x. You can also test against a very specific version, if you must.</p>
+
+<p>```ruby Gemfile
+source "http://rubygems.org"</p>
+
+<p>gemspec</p>
+
+<p>case version = ENV['MONGOID_VERSION'] || "~> 3.1"
+when /4/
+  gem "mongoid", :github => 'mongoid/mongoid'
+when /3/
+  gem "mongoid", "~> 3.1"
+when /2/
+  gem "mongoid", "~> 2.8"
+else
+  gem "mongoid", version
+end
+```</p>
+
+<h2>Upgraded Gems</h2>
+
+<p>I used the above method to make a few gems Mongoid 4.x compatible, via the following pull requests.</p>
+
+<ul>
+<li><a href="https://github.com/digitalplaywright/mongoid-slug/pull/146">mongoid-slug</a></li>
+<li><a href="https://github.com/dblock/mongoid-scroll/commit/b67e2867b133cd6bd1b8361ea51409f80ae91ffd">mongoid-scroll</a></li>
+<li><a href="https://github.com/pyromaniac/mongoid_orderable/pull/18">mongoid_orderable</a></li>
+<li><a href="https://github.com/aq1018/mongoid-history/pull/83">mongoid-history</a></li>
+<li><a href="https://github.com/aaw/mongoid_collection_snapshot/pull/5">mongoid_collection_snapshot</a></li>
+<li><a href="https://github.com/joeyAghion/delayed_job_shallow_mongoid/pull/6">delayed_job_shallow_mongoid</a></li>
+</ul>
+
+
+<h2>Upgrading a Rails Project</h2>
+
+<p>If you're using Rails, you're in for upgrading both Mongoid 4.x and Rails to 4.x. This means you will suffer a lot of pain trying to find compatible versions of various interdependent gems. I suggest locking Rails, Mongoid and ActiveSupport to begin with.</p>
+
+<p><code>ruby Gemfile
+gem 'rails', '4.0.1'
+gem 'activesupport', '4.0.1'
+gem 'mongoid', github: 'mongoid/mongoid'
+</code></p>
+
+<p>Bulk search &amp; replace <code>Moped::BSON::ObjectId</code> references.</p>
+
+<p>Calls to <code>inc</code>, <code>set</code> and <code>add_to_set</code> now take hashes, eg. <code>artist.inc(likes_count: 1)</code>.</p>
+
+<p>If you're converting Mongoid objects to JSON and seeing data such as <code>{ "$oid" =&gt; "..." }</code> instead of an ID, monkey-patch <code>BSON::ObjectId.as_json</code>. See <a href="https://groups.google.com/forum/#!msg/mongoid/MaXFVw7D_4s/T3sl6Flg428J">this discussion thread</a>.</p>
+
+<p><code>ruby config/initializers/bson/object_id.rb
+module BSON
+  class ObjectId
+    def as_json(options = {})
+      to_s
+    end
+  end
+end
+</code></p>
+
+<p>If you're using Warden (including via Devise) and/or rely on session cookies that may contain a user ID, add an implementation for the deprecated <code>Moped::BSON::Document</code>. This will prevent all old cookies from causing a serialization error and logging all those users out.</p>
+
+<p>``` ruby config/initializers/bson/
+module Moped
+  module BSON
+    ObjectId = ::BSON::ObjectId</p>
+
+<pre><code>class Document &lt; Hash
+  class &lt;&lt; self
+    def deserialize(io, document = new)
+      __bson_load__(io, document)
+    end
+
+    def serialize(document, io = "")
+      document.__bson_dump__(io)
+    end
+  end
+end
+</code></pre>
+
+<p>  end
+end
+```</p>
+
+<h2>Updates</h2>
+
+<p>Please post your updates below and questions to the <a href="https://groups.google.com/forum/#!forum/mongoid">mongoid mailing list</a>. I'll update this post up until Mongoid 4.x ships.</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Infinite Scroll with MongoDB]]></title>
@@ -31,19 +206,16 @@
 
 <p>Define a sample <code>FeedItem</code> model with an index on <code>position</code>. We'll be iterating over our feed, starting with the newest item first.</p>
 
-<p>```ruby
+<p><code>ruby
 module Feed
-  class Item</p>
-
-<pre><code>include Mongoid::Document
-field :title, type: String
-field :position, type: Integer
-index({ position: -1, _id: 1 })
-</code></pre>
-
-<p>  end
+  class Item
+    include Mongoid::Document
+    field :title, type: String
+    field :position, type: Integer
+    index({ position: -1, _id: 1 })
+  end
 end
-```</p>
+</code></p>
 
 <p>Insert some sample unordered data manufactured with <a href="https://github.com/stympy/faker">faker</a>.</p>
 
@@ -57,23 +229,20 @@ end
 
 <p>Iterate over this collection using a cursor, 7 items at a time.</p>
 
-<p>```ruby
+<p><code>ruby
 next_cursor = nil
 while true
   current_cursor = next_cursor
   next_cursor = nil
-  Feed::Item.desc(:position).limit(7).scroll(current_cursor) do |item, cursor|</p>
-
-<pre><code>puts "#{item.position}: #{item.title}"
-next_cursor = cursor
-</code></pre>
-
-<p>  end
+  Feed::Item.desc(:position).limit(7).scroll(current_cursor) do |item, cursor|
+    puts "#{item.position}: #{item.title}"
+    next_cursor = cursor
+  end
   break unless next_cursor
   # destroy an item, the scroll is not affected
   Feed::Item.desc(:position).first.destroy
 end
-```</p>
+</code></p>
 
 <p>The result is, as expected, all 20 items in reverse order.</p>
 
@@ -245,27 +414,22 @@ Moped.logger.level = Logger::DEBUG</p>
 
 <p>Here's the artwork data in MongoDB retrieved from a <code>mongo</code> shell:</p>
 
-<p>```</p>
-
-<blockquote><p>db.artworks.findOne()
+<pre><code>&gt; db.artworks.findOne()
 {
   "_id" : ObjectId("510f22c5db8e540aab000001"),
   "title" : "Mona Lisa",
-  "images" : [</p>
-
-<pre><code>{
-  "_id" : ObjectId("510f22c5db8e540aab000002"),
-  "filename" : "framed.jpg"
-},
-{
-  "_id" : ObjectId("510f22c5db8e540aab000003"),
-  "filename" : "unframed.jpg"
+  "images" : [
+    {
+      "_id" : ObjectId("510f22c5db8e540aab000002"),
+      "filename" : "framed.jpg"
+    },
+    {
+      "_id" : ObjectId("510f22c5db8e540aab000003"),
+      "filename" : "unframed.jpg"
+    }
+  ]
 }
 </code></pre>
-
-<p>  ]
-}
-```</p></blockquote>
 
 <p>We can modify the attributes of the second image.</p>
 
@@ -284,29 +448,24 @@ Moped.logger.level = Logger::DEBUG</p>
 
 <p>The image has been updated correctly.</p>
 
-<p>```</p>
-
-<blockquote><p>db.artworks.findOne()
+<pre><code>&gt; db.artworks.findOne()
 {
   "_id" : ObjectId("510f22c5db8e540aab000001"),
   "title" : "Mona Lisa",
-  "images" : [</p>
-
-<pre><code>{
-  "_id" : ObjectId("510f22c5db8e540aab000002"),
-  "filename" : "framed.jpg"
-},
-{
-  "_id" : ObjectId("510f22c5db8e540aab000003"),
-  "filename" : "unframed.jpg",
-  "height" : 40,
-  "width" : 30
+  "images" : [
+    {
+      "_id" : ObjectId("510f22c5db8e540aab000002"),
+      "filename" : "framed.jpg"
+    },
+    {
+      "_id" : ObjectId("510f22c5db8e540aab000003"),
+      "filename" : "unframed.jpg",
+      "height" : 40,
+      "width" : 30
+    }
+  ]
 }
 </code></pre>
-
-<p>  ]
-}
-```</p></blockquote>
 
 <h3>Incomplete Record Corruption</h3>
 
@@ -327,27 +486,22 @@ artwork.images &lt;&lt; image2</p>
 
 <p>This yields a nasty surprise. We now have two records in the embedded collection, the second one missing an <code>_id</code>.</p>
 
-<p>```</p>
-
-<blockquote><p>db.artworks.findOne()
+<pre><code>&gt; db.artworks.findOne()
 {
   "_id" : ObjectId("510f22c5db8e540aab000001"),
   "title" : "Mona Lisa",
-  "images" : [</p>
-
-<pre><code>{
-  "_id" : ObjectId("510f22c5db8e540aab000003"),
-  "filename" : "unframed.jpg"
-},
-{
-  "height" : 40,
-  "width" : 30
+  "images" : [
+    {
+      "_id" : ObjectId("510f22c5db8e540aab000003"),
+      "filename" : "unframed.jpg"
+    },
+    {
+      "height" : 40,
+      "width" : 30
+    }
+  ]
 }
 </code></pre>
-
-<p>  ]
-}
-```</p></blockquote>
 
 <p>When reloaded, Mongoid will assign an automatic <code>_id</code> to the second object, the correct height and width, but no filename.</p>
 
@@ -366,24 +520,19 @@ Artwork.collection.where(<em>id: artwork.id).update(
 <p>image2.update_attributes!(width: 30, height: 40)
 ```</p>
 
-<p>```</p>
-
-<blockquote><p>db.artworks.findOne()
+<pre><code>&gt; db.artworks.findOne()
 {
   "_id" : ObjectId("510f22c5db8e540aab000001"),
   "title" : "Mona Lisa"
-  "images" : [</p>
-
-<pre><code>null,
-{
-  "height" : 40,
-  "width" : 30
+  "images" : [
+    null,
+    {
+      "height" : 40,
+      "width" : 30
+    }
+  ],
 }
 </code></pre>
-
-<p>  ],
-}
-```</p></blockquote>
 
 <h3>Solutions</h3>
 
@@ -439,19 +588,16 @@ Artwork.collection.where(<em>id: artwork.id).update(
 
 <p>For example, connect to your production MongoDB instance from a <code>db:production:shell</code> Rake task.</p>
 
-<p>```ruby
+<p><code>ruby
 namespace :db
-  namespace :production</p>
-
-<pre><code>task :shell
-  Mongoid.load! "mongoid.yml", :production
-  system Mongoid::Shell::Commands::Mongo.new.to_s
+  namespace :production
+    task :shell
+      Mongoid.load! "mongoid.yml", :production
+      system Mongoid::Shell::Commands::Mongo.new.to_s
+    end
+  end
 end
-</code></pre>
-
-<p>  end
-end
-```</p>
+</code></p>
 
 <!-- more -->
 
@@ -488,37 +634,33 @@ dump = Mongoid::Shell::Commands::Mongodump.new(db: db, out: out)</p>
 
 <p>Here's a complete Rake task that dynamically fetches Heroku configuration and opens a MongoDB shell on a production or staging environment.</p>
 
-<p>```ruby
+<p><code>ruby
 namespace :db do
-  [ :staging, :production ].each do |env|</p>
-
-<pre><code>namespace env do
-  task :shell do
-    app = "myapp-#{env}"
-    config = Heroku::Commander.new(app: app).config
-    config.each_pair do |k, v|
-      ENV[k] = v
+  [ :staging, :production ].each do |env|
+    namespace env do
+      task :shell do
+        app = "myapp-#{env}"
+        config = Heroku::Commander.new(app: app).config
+        config.each_pair do |k, v|
+          ENV[k] = v
+        end
+        mongoid_yml = File.join(Rails.root, "config/mongoid.yml")
+        Mongoid.load! mongoid_yml, env
+        system Mongoid::Shell::Commands::Mongo.new.to_s
+      end
     end
-    mongoid_yml = File.join(Rails.root, "config/mongoid.yml")
-    Mongoid.load! mongoid_yml, env
-    system Mongoid::Shell::Commands::Mongo.new.to_s
   end
 end
-</code></pre>
-
-<p>  end
-end
-```</p>
+</code></p>
 
 <p>Run <code>rake db:staging:shell</code> or <code>rake db:production:shell</code>, which works as long as you have access to the Heroku app itself. A bonus feature is that the mongoid-shell gem will automatically connect to the primary node of a replica-set.</p>
 
-<p>```
-$ rake db:staging:shell
+<pre><code>$ rake db:staging:shell
  mongo db:10007/app-staging --username user --password ************
  MongoDB shell version: 2.0.7
- connecting to: db:10007/app-staging</p>
-
-<blockquote><p>```</p></blockquote>
+ connecting to: db:10007/app-staging
+ &gt;
+</code></pre>
 ]]></content>
   </entry>
   
@@ -564,16 +706,12 @@ end
 
 <p>You can now find this post by <code>_id</code> or <code>slug</code> with the same <code>find</code> method. And with <code>history: true</code>, you can find a document by any of its older slugs!</p>
 
-<p>```</p>
+<pre><code># find by ID
+user.posts.find("47cc67093475061e3d95369d")
 
-<h1>find by ID</h1>
-
-<p>user.posts.find("47cc67093475061e3d95369d")</p>
-
-<h1>find by slug</h1>
-
-<p>user.posts.find("superfluous-men-cant-get-no-satisfaction")
-```</p>
+# find by slug
+user.posts.find("superfluous-men-cant-get-no-satisfaction")
+</code></pre>
 
 <p>Mongoid-slug is smart enough to figure out whether you're querying by a <code>Moped::BSON::ObjectId</code> or a slug. Performance-wise the lookup by slug is cheap: mongoid_slug ensures an index on <code>_slugs</code>. This all works, of course, because MongoDB builds a B-tree index atop all elements in each <code>_slugs</code> array.</p>
 
@@ -585,17 +723,11 @@ end
 
 <p>``` ruby
 slug :title, :published, scope: :author, history: true do |p|
-  if p.published? || p.has_slug?</p>
-
-<pre><code>p.title.to_url
-</code></pre>
-
-<p>  else</p>
-
-<pre><code>p.id.to_s
-</code></pre>
-
-<p>  end
+  if p.published? || p.has_slug?
+    p.title.to_url
+  else
+    p.id.to_s
+  end
 end</p>
 
 <p>def has_slug?

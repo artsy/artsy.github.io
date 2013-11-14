@@ -4,7 +4,7 @@
   <title><![CDATA[Category: Rack | Artsy Engineering]]></title>
   <link href="http://artsy.github.io/blog/categories/rack/atom.xml" rel="self"/>
   <link href="http://artsy.github.io/"/>
-  <updated>2013-08-29T18:46:19-04:00</updated>
+  <updated>2013-11-13T20:49:36-05:00</updated>
   <id>http://artsy.github.io/</id>
   <author>
     <name><![CDATA[Artsy]]></name>
@@ -29,11 +29,10 @@
 
 <p>A 503 error means "Service Unavailable". Heroku returns a 503 error when an HTTP request times out between the Heroku routing mesh and your application, including when the application failed to boot. This timeout limit is set to 30 seconds, as <a href="https://devcenter.heroku.com/articles/request-timeout">documented by Heroku</a>, and shows up in the logs as follows.</p>
 
-<p><code>
-Nov 14 12:10:50 production heroku/router:
+<pre><code>Nov 14 12:10:50 production heroku/router:
  Error H12 (Request timeout) -&gt; GET artsy.net/api/spline
  dyno=web.11 queue= wait= service=30000ms status=503 bytes=0
-</code></p>
+</code></pre>
 
 <p>This usually means that the application could not process the request fast enough, and in very rare cases, that there's an infrastructure problem with Heroku itself. A 504 error which means "Gateway Timeout" would have probably been a more appropriate choice. Either way, the root cause could be something as simple as trying to run a very long database query or do too much work that doesn't fit in a 30 seconds window. It could also involve an external service that didn't respond quickly enough. Your mileage may vary.</p>
 
@@ -58,35 +57,26 @@ class Api &lt; Grape::API
   use Rack::Timeout</p>
 
 <p>  desc "Returns a reticulated spline."
-  get "spline/:id"</p>
-
-<pre><code>Spline.find(params[:id])
-</code></pre>
-
-<p>  end
+  get "spline/:id"
+    Spline.find(params[:id])
+  end
 end
 ```</p>
 
 <p>Because your application is now getting a timeout exception, you can also report it in NewRelic. The following works in Grape.</p>
 
-<p>``` ruby
-rescue_from Timeout::Error, :backtrace => true do |e|
-  NewRelic::Agent.instance.error_collector.notice_error e,</p>
-
-<pre><code>uri: request.path,
-referer: request.referer,
-request_params: request.params
-</code></pre>
-
-<p>  rack_response({</p>
-
-<pre><code>:type =&gt; "timeout_error",
-:message =&gt; "The request timed out."
-</code></pre>
-
-<p>  }.to_json, 503)
+<p><code>ruby
+rescue_from Timeout::Error, :backtrace =&gt; true do |e|
+  NewRelic::Agent.instance.error_collector.notice_error e,
+    uri: request.path,
+    referer: request.referer,
+    request_params: request.params
+  rack_response({
+    :type =&gt; "timeout_error",
+    :message =&gt; "The request timed out."
+  }.to_json, 503)
 end
-```</p>
+</code></p>
 
 <p>Don't forget to write a test!</p>
 
@@ -94,16 +84,13 @@ end
 require 'spec_helper'</p>
 
 <p>describe Api do
-  it "times out after Rack::Timeout.timeout" do</p>
-
-<pre><code>Rack::Timeout.stub(:timeout).and_return(1)
-Spline.stub(:find) { sleep 3 }
-get "/spline/1"
-response.status.should == 503
-response.body.should == '{"type":"timeout_error","message":"The request timed out."}'
-</code></pre>
-
-<p>  end
+  it "times out after Rack::Timeout.timeout" do
+    Rack::Timeout.stub(:timeout).and_return(1)
+    Spline.stub(:find) { sleep 3 }
+    get "/spline/1"
+    response.status.should == 503
+    response.body.should == '{"type":"timeout_error","message":"The request timed out."}'
+  end
 end
 ```</p>
 
@@ -151,28 +138,22 @@ run Acme::Instance
 require 'spec_helper'</p>
 
 <p>describe Rack::Deflater do
-  it "produces an identical eTag whether content is deflated or not" do</p>
-
-<pre><code>get "/api/acme"
-response.headers["Content-Encoding"].should be_nil
-etag = response.headers["Etag"]
-content_length = response.headers["Content-Length"].to_i
-get "/api/acme", {}, { "HTTP_ACCEPT_ENCODING" =&gt; "gzip" }
-response.headers["Etag"].should == etag
-response.headers["Content-Length"].to_i.should_not == content_length
-response.headers["Content-Encoding"].should == "gzip"
-</code></pre>
-
-<p>  end
-  it "deflates JSONP content" do</p>
-
-<pre><code>get "/api/acme?callback=parseResponse", {}, { "HTTP_ACCEPT_ENCODING" =&gt; "deflate" }
-response.headers["Content-Encoding"].should == "deflate"
-inflated_response_body = Zlib::Inflate.new(-Zlib::MAX_WBITS).inflate(response.body.to_s)
-inflated_response_body.should == "parseResponse(...)"
-</code></pre>
-
-<p>  end
+  it "produces an identical eTag whether content is deflated or not" do
+    get "/api/acme"
+    response.headers["Content-Encoding"].should be_nil
+    etag = response.headers["Etag"]
+    content_length = response.headers["Content-Length"].to_i
+    get "/api/acme", {}, { "HTTP_ACCEPT_ENCODING" => "gzip" }
+    response.headers["Etag"].should == etag
+    response.headers["Content-Length"].to_i.should_not == content_length
+    response.headers["Content-Encoding"].should == "gzip"
+  end
+  it "deflates JSONP content" do
+    get "/api/acme?callback=parseResponse", {}, { "HTTP_ACCEPT_ENCODING" => "deflate" }
+    response.headers["Content-Encoding"].should == "deflate"
+    inflated_response_body = Zlib::Inflate.new(-Zlib::MAX_WBITS).inflate(response.body.to_s)
+    inflated_response_body.should == "parseResponse(...)"
+  end
 end
 ```</p>
 ]]></content>
