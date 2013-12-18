@@ -4,7 +4,7 @@
   <title><![CDATA[Artsy Engineering]]></title>
   <link href="http://artsy.github.io/atom.xml" rel="self"/>
   <link href="http://artsy.github.io/"/>
-  <updated>2013-11-13T20:49:36-05:00</updated>
+  <updated>2013-12-18T12:56:57-05:00</updated>
   <id>http://artsy.github.io/</id>
   <author>
     <name><![CDATA[Artsy]]></name>
@@ -12,6 +12,251 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Rendering on the Server and Client in Node.js]]></title>
+    <link href="http://artsy.github.io/blog/2013/11/30/rendering-on-the-server-and-client-in-node-dot-js/"/>
+    <updated>2013-11-30T22:38:00-05:00</updated>
+    <id>http://artsy.github.io/blog/2013/11/30/rendering-on-the-server-and-client-in-node-dot-js</id>
+    <content type="html"><![CDATA[<p><img src="http://artsy.github.io/images/2013-12-18-rendering-on-the-server-and-client-in-node-dot-js/isomorphic.png" alt="Diagram of Shared Server/Client Architecture" /></p>
+
+<p>At Artsy we&#8217;ve been building <a href="http://nodejs.org/">Node.js</a> applications that share code and rendering between the server and browser. We&#8217;ve seen many benefits from this &#8211; pages load faster, we can optimize SEO, developers are more productive, and JavaScript coding is just an overall better experience.</p>
+
+<p>Today we&#8217;re happy to announce <a href="http://ezeljs.com/">Ezel</a>, our open source boilerplate we use to bootstrap our Node projects and the <a href="https://github.com/artsy/benv">various</a> <a href="https://github.com/artsy/backbone-super-sync">node</a> <a href="https://github.com/artsy/sharify">modules</a> that built up to it.</p>
+
+<p>In his article, <a href="http://nerds.airbnb.com/isomorphic-JavaScript-future-web-apps/"><em>Isomorphic JavaScript: The Future of Web Apps</em></a>, Spike Brehm from AirBnB describes this growing trend well and we&#8217;re excited to be a part of it. In this article I&#8217;ll tell Artsy&#8217;s story of moving from a single monolithic application to modular <a href="http://backbonejs.org/">Backbone</a> apps that run in Node and the browser and consume our external API.</p>
+
+<!-- more -->
+
+
+<h2>Growing Pains</h2>
+
+<p><img src="http://artsy.github.io/images/2013-12-18-rendering-on-the-server-and-client-in-node-dot-js/rails-evolution.png" alt="Evolution of Artsy SOA Diagramm" /></p>
+
+<p>Artsy started as a mostly standard <a href="http://rubyonrails.org/">Rails</a> app almost three years ago. In these beginnings we were wildly productive and owe a lot of props to this great framework. However as time went on we started to deviate from the conventional Rails path until we were hardly leveraging much Rails at all. To support an early iOS app we used <a href="https://github.com/intridea/grape">Grape</a> to build an API. While building our API we wrote a lot of client-side JavaScript and soon integrated <a href="http://backbonejs.org/">Backbone</a> for organization. Eventually we cleanly separated our project into a single page Backbone app talking to our API all on inside of this original repository.</p>
+
+<p>We knew we were outgrowing this monolithic project because we had some clear problems&#8230;</p>
+
+<ul>
+<li>Slow initial page loads because of lacking server-side rendering. Twitter <a href="https://blog.twitter.com/2012/improving-performance-twittercom">describes this problem well</a>.</li>
+<li>Slow following client-side renders because of downloading large asset packages without clear ways to break them up.</li>
+<li>SEO issues like building <a href="https://developers.google.com/webmasters/ajax-crawling/docs/specification">escaped fragment</a> pages in Ruby on the server while our users saw what JavaScript rendered on the client.</li>
+<li>Maintaining duplicated Ruby/JavaScript code such as templates, date libraries, etc.</li>
+<li>Very slow and brittle tests. We had a massive integration test suite consisting of over 3000 <a href="https://github.com/jnicklas/capybara">Capybara</a> tests that took hours to run because we lacked good JavaScript testing tools.</li>
+<li>Poor mobile experience from trying to responsively scale down a large single page app with bloated and unused assets.</li>
+<li>Slow asset compilation, server boot, and general build times. Productivity suffered greatly as more code was added to the same monolithic project.</li>
+</ul>
+
+
+<h2>There&#8217;s Got to Be a Better Way</h2>
+
+<p>A monolithic app that treats it&#8217;s client-side code as a second class citizen was clearly not going to scale. Our poor mobile web experience was a good candidate to try something new. So we started building a separate mobile optimized website (m.artsy.net).</p>
+
+<p>Some goals became clear:</p>
+
+<ul>
+<li>Better client-side tools from JavaScript testing to package mangers.</li>
+<li>Share rendering code server/client to reduce duplication and optimize initial page load.</li>
+<li>Flexibility. We needed a way to divide our app into smaller chunks with smaller asset packages.</li>
+</ul>
+
+
+<h2>Choosing Technology</h2>
+
+<p><img src="http://artsy.github.io/images/2013-12-18-rendering-on-the-server-and-client-in-node-dot-js/tech.png" alt="Logos of Browserify, Express, and Backbone" /></p>
+
+<p>Node was a clear choice because it made sharing rendering code server/client possible where other languages and frameworks struggle to do so. There were some existing Node projects that accomplish this such as <a href="http://derbyjs.com/">Derby</a> and <a href="https://github.com/airbnb/rendr">Rendr</a>. However, adopting these had challenges of their own including being difficult to integrate with our API, learning unnecessary conventions, or being early prototypes with lacking documentation.</p>
+
+<p>We wanted an approach that breaks our app into smaller, more flexible, pieces. Not all of Artsy needs to be a thick-client app, or even use much client-side JavaScript at all. Adopting an existing solution and combining most of the server and client into a shared abstraction seemed like an unnecessary black box. After trying many other frameworks we found a combination of lower-level tools to be a clear winner.</p>
+
+<p>We open sourced this combination of tools and patterns into <a href="http://ezeljs.com/">Ezel</a>. Ezel is a light-weight boilerplate project using <a href="http://expressjs.com/">Express</a> and <a href="http://backbonejs.org/">Backbone</a> for structure, and <a href="http://browserify.org/">Browserify</a> to compose modules that can be shared server/client.</p>
+
+<h2>Sharing and Rendering Server/Client</h2>
+
+<p><img src="http://artsy.github.io/images/2013-12-18-rendering-on-the-server-and-client-in-node-dot-js/rendering.png" alt="Diagram of Server + Client Render" /></p>
+
+<p>To share rendering code server/client we had to make sure our templates and objects being passed in to them could work the same server/client.</p>
+
+<h3>Sharing Objects (Backbone Models)</h3>
+
+<p><a href="http://browserify.org/">Browserify</a> lets you write modules that can run in Node or the browser. Since Backbone is able to be required on the server out of the box, it&#8217;s easy to write models and collections that can be required on both sides with Browserify. However, there are two main speed bumps in doing this:</p>
+
+<ol>
+<li><p>Backbone uses AJAX for persistence.</p>
+
+<p>We needed a Backbone.sync adapter that makes HTTP requests server-side, so we wrote one and <a href="https://github.com/artsy/backbone-super-sync">it&#8217;s open sourced.</a></p></li>
+<li><p>Data from the server needed to be shared in modules that are used server/client.</p>
+
+<p>For instance, our API is an external URL stored in an environment variable. We needed to use this variable in a module that will be required on the server and the client with Browserify. <a href="http://backbonejs.org/#FAQ-bootstrap">Bootstrapping data</a> is a common technique to share data from the server by embedding JavaScript in the initial HTML and exposing that data globally to the client. To avoid exposing globals we open sourced a tiny module called <a href="https://github.com/artsy/sharify">sharify</a>.</p></li>
+</ol>
+
+
+<h3>Sharing Templates</h3>
+
+<p>Browserify even lets you share non-JavaScript components server/client using <a href="https://github.com/substack/node-browserify#list-of-source-transforms">transforms</a>. To reuse our <a href="http://jade-lang.com/">jade</a> templates server/client it was a simple matter of using the <a href="https://github.com/OliverJAsh/node-jadeify2">jadeify</a> transform.</p>
+
+<h3>All Together Now</h3>
+
+<p>With templates and models require-able server/client, sharing rendering code became much simpler. Below is an example using the same artwork model and detail template server/client.</p>
+
+<p>Shared Backbone &#8220;Artwork&#8221; model to be required server/client:</p>
+
+<figure class='code'><figcaption><span>models/artwork.js</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class='javascript'><span class='line'><span class="kd">var</span> <span class="nx">Backbone</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">&#39;backbone&#39;</span><span class="p">),</span>
+</span><span class='line'>    <span class="nx">API_URL</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">&#39;sharify&#39;</span><span class="p">).</span><span class="nx">data</span><span class="p">.</span><span class="nx">API_URL</span><span class="p">;</span>
+</span><span class='line'>
+</span><span class='line'><span class="nx">module</span><span class="p">.</span><span class="nx">exports</span> <span class="o">=</span> <span class="nx">Artwork</span> <span class="o">=</span> <span class="nx">Backbone</span><span class="p">.</span><span class="nx">Model</span><span class="p">.</span><span class="nx">extend</span><span class="p">({</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="nx">url</span><span class="o">:</span> <span class="nx">API_URL</span> <span class="o">+</span> <span class="s1">&#39;/api/v1/artwork&#39;</span>
+</span><span class='line'>
+</span><span class='line'><span class="p">});</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Shared partial jade template used server/client:</p>
+
+<figure class='code'><figcaption><span>templates/artwork-details.jade</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='jade'><span class='line'><span class="nt">h1</span><span class="p">=</span> <span class="n">artwork</span><span class="o">.</span><span class="n">get</span><span class="o">(</span><span class="-Symbol">&#39;artist</span><span class="err">&#39;</span><span class="o">).</span><span class="n">name</span>
+</span><span class='line'><span class="nt">h2</span><span class="p">=</span> <span class="n">artwork</span><span class="o">.</span><span class="n">get</span><span class="o">(</span><span class="-Symbol">&#39;title</span><span class="err">&#39;</span><span class="o">)</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Full server-side page template including the partial:</p>
+
+<figure class='code'><figcaption><span>templates/artwork-page.jade</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+</pre></td><td class='code'><pre><code class='jade'><span class='line'><span class="nt">doctype</span> 5
+</span><span class='line'><span class="nt">html</span>
+</span><span class='line'>  <span class="nt">head</span>
+</span><span class='line'>    <span class="nt">title</span> Artsy | <span class="si">#{</span><span class="n">artwork</span><span class="o">.</span><span class="n">get</span><span class="o">(</span><span class="-Symbol">&#39;title</span><span class="err">&#39;</span><span class="o">)</span><span class="si">}</span>
+</span><span class='line'>  <span class="nt">body</span>
+</span><span class='line'>    <span class="nt">include</span> artwork-details
+</span><span class='line'>    <span class="err">!= </span><span class="nt">sharify</span><span class="nc">.script</span>()
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Route handler that uses the model server-side:</p>
+
+<figure class='code'><figcaption><span>app.js</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+</pre></td><td class='code'><pre><code class='javascript'><span class='line'><span class="c1">//...</span>
+</span><span class='line'><span class="kd">var</span> <span class="nx">Artwork</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">&#39;models/artwork.js&#39;</span><span class="p">);</span>
+</span><span class='line'>
+</span><span class='line'><span class="nx">app</span><span class="p">.</span><span class="nx">get</span><span class="p">(</span><span class="s1">&#39;/artwork/:id&#39;</span><span class="p">,</span> <span class="kd">function</span><span class="p">(</span><span class="nx">req</span><span class="p">,</span> <span class="nx">res</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>  <span class="k">new</span> <span class="nx">Artwork</span><span class="p">({</span> <span class="nx">id</span><span class="o">:</span> <span class="nx">req</span><span class="p">.</span><span class="nx">params</span><span class="p">.</span><span class="nx">id</span> <span class="p">}).</span><span class="nx">fetch</span><span class="p">({</span>
+</span><span class='line'>    <span class="nx">success</span><span class="o">:</span> <span class="kd">function</span><span class="p">(</span><span class="nx">artwork</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>      <span class="c1">// Boostrap artwork data into sharify</span>
+</span><span class='line'>      <span class="nx">res</span><span class="p">.</span><span class="nx">locals</span><span class="p">.</span><span class="nx">sharify</span><span class="p">.</span><span class="nx">data</span><span class="p">.</span><span class="nx">ARTWORK_JSON</span> <span class="o">=</span> <span class="nx">artwork</span><span class="p">.</span><span class="nx">toJSON</span><span class="p">();</span>
+</span><span class='line'>      <span class="nx">res</span><span class="p">.</span><span class="nx">render</span><span class="p">(</span><span class="s1">&#39;artwork-page&#39;</span><span class="p">,</span> <span class="p">{</span> <span class="nx">artwork</span><span class="o">:</span> <span class="nx">artwork</span> <span class="p">});</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'>  <span class="p">});</span>
+</span><span class='line'><span class="p">});</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Client side code that requires the partial template and model:</p>
+
+<figure class='code'><figcaption><span>client.js</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class='javascript'><span class='line'><span class="kd">var</span> <span class="nx">Artwork</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">&#39;models/artwork.js&#39;</span><span class="p">),</span>
+</span><span class='line'>    <span class="nx">ARTWORK_JSON</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">&#39;sharify&#39;</span><span class="p">).</span><span class="nx">data</span><span class="p">.</span><span class="nx">ARTWORK_JSON</span><span class="p">,</span>
+</span><span class='line'>    <span class="nx">detailsTemplate</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">&#39;templates/artwork-details.jade&#39;</span><span class="p">);</span>
+</span><span class='line'>
+</span><span class='line'><span class="kd">var</span> <span class="nx">artwork</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">Artwork</span><span class="p">(</span><span class="nx">ARTWORK_JSON</span><span class="p">);</span>
+</span><span class='line'><span class="nx">artwork</span><span class="p">.</span><span class="nx">on</span><span class="p">(</span><span class="s1">&#39;change&#39;</span><span class="p">,</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
+</span><span class='line'>  <span class="nx">$</span><span class="p">(</span><span class="s1">&#39;body&#39;</span><span class="p">).</span><span class="nx">html</span><span class="p">(</span><span class="nx">detailsTemplate</span><span class="p">({</span> <span class="nx">artwork</span><span class="o">:</span> <span class="nx">artwork</span> <span class="p">}));</span>
+</span><span class='line'><span class="p">});</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>Developer Happiness</h2>
+
+<p><img src="http://artsy.github.io/images/2013-12-18-rendering-on-the-server-and-client-in-node-dot-js/so-much-win.png" alt="Happy Developer Image" /></p>
+
+<p>Not only does sharing code server/client let you easily optimize page rendering for fast page loads, but development becomes a lot nicer because we can reuse server-side JavaScript tools including&#8230;</p>
+
+<h3>Package Mangers</h3>
+
+<p>With Browserify we were able to use npm as a package manager for server or client-side dependencies. There are <a href="http://bower.io/">other</a> <a href="http://component.io/">package</a> <a href="http://jamjs.org/">managers</a> for the client-side. However, because we were already using npm (and npm supports git urls), we could usually point to the project hosted on npm or Github without having to fork it.</p>
+
+<p>For projects that don&#8217;t support CommonJS modules (or npm), often one can still use npm and requires like so:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='json'><span class='line'><span class="s2">&quot;devDependencies&quot;</span><span class="err">:</span> <span class="p">{</span>
+</span><span class='line'>  <span class="nt">&quot;zepto&quot;</span><span class="p">:</span> <span class="s2">&quot;git://github.com/madrobby/zepto.git#c074a94f0f26dc946f1c501f5f45d603adada44d&quot;</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'><figcaption><span>client.js</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+</pre></td><td class='code'><pre><code class='javascript'><span class='line'><span class="c1">// Require the base Zepto library (attaches `Zepto` to window)</span>
+</span><span class='line'><span class="nx">require</span><span class="p">(</span><span class="s1">&#39;zepto/src/zepto.js&#39;</span><span class="p">);</span>
+</span><span class='line'><span class="c1">// Attach Zepto&#39;s plugins</span>
+</span><span class='line'><span class="nx">require</span><span class="p">(</span><span class="s1">&#39;zepto/src/event.js&#39;</span><span class="p">);</span>
+</span><span class='line'><span class="nx">require</span><span class="p">(</span><span class="s1">&#39;zepto/src/detect.js&#39;</span><span class="p">);</span>
+</span><span class='line'><span class="c1">// ....</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>Testing</h3>
+
+<p>Testing is light-years ahead because you can test all of your code in Node headless. I wrote <a href="http://artsy.github.io/blog/2013/06/14/writing-headless-backbone-tests-with-node-dot-js/">an article</a> on this a while back, and now with Browserify it&#8217;s even better.</p>
+
+<p>Models, templates, and other modules that are shared server/client can be required into <a href="http://visionmedia.github.io/mocha/">mocha</a> and tested server-side without extra effort. For more view-like client-side code that depends on DOM APIs, pre-rendered HTML, etc., we open sourced a library called <a href="https://github.com/craigspaeth/benv">benv</a> to help build a fake browser environment in Node for testing.</p>
+
+<h3>Modularity</h3>
+
+<p>We wanted to avoid a monolithic organization that groups code by type such as &#8220;stylesheets&#8221;, &#8220;javascripts&#8221;, &#8220;controllers&#8221;, etc.. Not only is this a maintenance problem as it makes boundaries of your app unclear, but it also affects your users because it encourages grouping assets into large monolithic packages that take a long time to download.</p>
+
+<p>Instead, we borrowed a page from <a href="http://stackoverflow.com/questions/2472984/django-and-project-application-organization">Django</a> and broke up our project into smaller conceptual pieces called &#8220;apps&#8221; (small express sub-applications mounted into the main project) and &#8220;components&#8221; (portions of reusable UI such as a modal widget). This let us easily maintain decoupled segments of our project and build up smaller asset packages through Browserify&#8217;s <code>require</code>s and <a href="http://learnboost.github.io/stylus/docs/import.html">Stylus</a>&#8217; <code>import</code>s. For more details on how this is done please check out <a href="http://ezeljs.com/">Ezel</a>, its <a href="https://github.com/artsy/ezel#project-vs-apps-vs-components">organization</a>, and <a href="https://github.com/artsy/ezel#asset-pipeline">asset pipeline</a> docs.</p>
+
+<p>It&#8217;s also worth noting, to avoid CSS spaghetti we followed a simple convention of name-spacing all of our classes/ids by the app or component name it was a part of. This was inspired by a <a href="http://philipwalton.com/articles/css-architecture/">blog post from Philip Walton</a>.</p>
+
+<h2>Success!</h2>
+
+<p>With this new architecture and set of Node tools we&#8217;ve seen enormous benefits compared to the pains of developing Backbone in a monolithic project with lacking JavaScript tools. Our mobile web experience is much better, we can render more content on the server for SEO and faster page loads, our test/build/deploy cycles went from hours to minutes, our developer on-boarding time went from days to minutes, and overall developer happiness has significantly improved.</p>
+
+<p>It&#8217;s an exciting time to be developing JavaScript apps and we will continue to open source our efforts wherever possible. Thanks and <a href="https://github.com/artsy">follow us on Github</a>!</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Upgrading to Mongoid 4.x]]></title>
@@ -474,7 +719,7 @@
 </pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">module</span> <span class="nn">CanonicalEmails</span>
 </span><span class='line'>  <span class="k">module</span> <span class="nn">GMail</span>
 </span><span class='line'>    <span class="k">def</span> <span class="nc">self</span><span class="o">.</span><span class="nf">transform</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
-</span><span class='line'>      <span class="no">Mail</span><span class="o">::</span><span class="no">Address</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="n">value</span><span class="p">)</span><span class="o">.</span><span class="n">tap</span> <span class="k">do</span> <span class="o">|</span><span class="n">email</span><span class="o">|</span>
+</span><span class='line'>      <span class="ss">Mail</span><span class="p">:</span><span class="ss">:Address</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="n">value</span><span class="p">)</span><span class="o">.</span><span class="n">tap</span> <span class="k">do</span> <span class="o">|</span><span class="n">email</span><span class="o">|</span>
 </span><span class='line'>        <span class="k">if</span> <span class="n">email</span><span class="o">.</span><span class="n">domain</span> <span class="o">&amp;&amp;</span> <span class="o">[</span> <span class="s2">&quot;gmail.com&quot;</span> <span class="o">].</span><span class="n">include?</span><span class="p">(</span><span class="n">email</span><span class="o">.</span><span class="n">domain</span><span class="o">.</span><span class="n">downcase</span><span class="p">)</span>
 </span><span class='line'>          <span class="n">email</span><span class="o">.</span><span class="n">instance_eval</span> <span class="k">do</span>
 </span><span class='line'>            <span class="k">def</span> <span class="nf">get_local</span>
@@ -522,17 +767,17 @@
 <span class='line-number'>21</span>
 <span class='line-number'>22</span>
 </pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">User</span>
-</span><span class='line'>  <span class="kp">include</span> <span class="no">Mongoid</span><span class="o">::</span><span class="no">Document</span>
-</span><span class='line'>  <span class="kp">include</span> <span class="no">CanonicalEmail</span><span class="o">::</span><span class="no">Extensions</span>
+</span><span class='line'>  <span class="kp">include</span> <span class="ss">Mongoid</span><span class="p">:</span><span class="ss">:Document</span>
+</span><span class='line'>  <span class="kp">include</span> <span class="ss">CanonicalEmail</span><span class="p">:</span><span class="ss">:Extensions</span>
 </span><span class='line'>
-</span><span class='line'>  <span class="n">field</span> <span class="ss">:email</span><span class="p">,</span> <span class="n">type</span><span class="p">:</span> <span class="nb">String</span>
-</span><span class='line'>  <span class="n">field</span> <span class="ss">:lookup_email</span><span class="p">,</span> <span class="n">type</span><span class="p">:</span> <span class="nb">String</span>
+</span><span class='line'>  <span class="n">field</span> <span class="ss">:email</span><span class="p">,</span> <span class="ss">type</span><span class="p">:</span> <span class="nb">String</span>
+</span><span class='line'>  <span class="n">field</span> <span class="ss">:lookup_email</span><span class="p">,</span> <span class="ss">type</span><span class="p">:</span> <span class="nb">String</span>
 </span><span class='line'>  <span class="n">before_save</span> <span class="ss">:update_lookup_email</span>
-</span><span class='line'>  <span class="n">canonical_email</span> <span class="ss">:email</span><span class="p">,</span> <span class="no">CanonicalEmails</span><span class="o">::</span><span class="no">GMail</span><span class="p">,</span> <span class="no">CanonicalEmails</span><span class="o">::</span><span class="no">Downcase</span>
+</span><span class='line'>  <span class="n">canonical_email</span> <span class="ss">:email</span><span class="p">,</span> <span class="ss">CanonicalEmails</span><span class="p">:</span><span class="ss">:GMail</span><span class="p">,</span> <span class="ss">CanonicalEmails</span><span class="p">:</span><span class="ss">:Downcase</span>
 </span><span class='line'>
 </span><span class='line'>  <span class="k">def</span> <span class="nc">self</span><span class="o">.</span><span class="nf">find_by_email</span><span class="p">(</span><span class="n">email</span><span class="p">)</span>
-</span><span class='line'>    <span class="n">email</span> <span class="o">=</span> <span class="no">CanonicalEmails</span><span class="o">::</span><span class="no">GMail</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">email</span><span class="p">)</span><span class="o">.</span><span class="n">to_s</span>
-</span><span class='line'>    <span class="n">email</span> <span class="o">=</span> <span class="no">CanonicalEmails</span><span class="o">::</span><span class="no">Downcase</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">email</span><span class="p">)</span><span class="o">.</span><span class="n">address</span>
+</span><span class='line'>    <span class="n">email</span> <span class="o">=</span> <span class="ss">CanonicalEmails</span><span class="p">:</span><span class="ss">:GMail</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">email</span><span class="p">)</span><span class="o">.</span><span class="n">to_s</span>
+</span><span class='line'>    <span class="n">email</span> <span class="o">=</span> <span class="ss">CanonicalEmails</span><span class="p">:</span><span class="ss">:Downcase</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">email</span><span class="p">)</span><span class="o">.</span><span class="n">address</span>
 </span><span class='line'>    <span class="n">first</span><span class="p">(</span><span class="n">lookup_email</span><span class="p">:</span> <span class="n">email</span><span class="p">)</span>
 </span><span class='line'>  <span class="k">end</span>
 </span><span class='line'>
@@ -586,7 +831,7 @@
 </span><span class='line'><span class="sx">}</span>
 </span><span class='line'>
 </span><span class='line'><span class="no">User</span><span class="o">.</span><span class="n">all</span><span class="o">.</span><span class="n">map_reduce</span><span class="p">(</span><span class="n">map</span><span class="p">,</span> <span class="n">reduce</span><span class="p">)</span>
-</span><span class='line'>  <span class="o">.</span><span class="n">out</span><span class="p">(</span><span class="n">inline</span><span class="p">:</span> <span class="kp">true</span><span class="p">)</span>
+</span><span class='line'>  <span class="o">.</span><span class="n">out</span><span class="p">(</span><span class="ss">inline</span><span class="p">:</span> <span class="kp">true</span><span class="p">)</span>
 </span><span class='line'>  <span class="o">.</span><span class="n">sort_by</span><span class="p">{</span> <span class="o">|</span><span class="n">v</span><span class="o">|</span> <span class="o">-</span><span class="n">v</span><span class="o">[</span><span class="s2">&quot;value&quot;</span><span class="o">][</span><span class="s2">&quot;count&quot;</span><span class="o">]</span> <span class="p">}</span>
 </span><span class='line'>  <span class="o">.</span><span class="n">take</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
 </span><span class='line'>  <span class="o">.</span><span class="n">map</span> <span class="p">{</span> <span class="o">|</span><span class="n">v</span><span class="o">|</span> <span class="p">{</span> <span class="n">v</span><span class="o">[</span><span class="s2">&quot;_id&quot;</span><span class="o">]</span> <span class="o">=&gt;</span> <span class="n">v</span><span class="o">[</span><span class="s2">&quot;value&quot;</span><span class="o">][</span><span class="s2">&quot;count&quot;</span><span class="o">]</span> <span class="o">/</span> <span class="no">User</span><span class="o">.</span><span class="n">count</span> <span class="p">}}</span>
@@ -653,10 +898,10 @@
 <span class='line-number'>4</span>
 <span class='line-number'>5</span>
 <span class='line-number'>6</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">use</span> <span class="no">Rack</span><span class="o">::</span><span class="no">Cors</span> <span class="k">do</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">use</span> <span class="ss">Rack</span><span class="p">:</span><span class="ss">:Cors</span> <span class="k">do</span>
 </span><span class='line'>  <span class="n">allow</span> <span class="k">do</span>
 </span><span class='line'>    <span class="n">origins</span> <span class="s1">&#39;*&#39;</span>
-</span><span class='line'>    <span class="n">resource</span> <span class="s1">&#39;*&#39;</span><span class="p">,</span> <span class="n">headers</span><span class="p">:</span> <span class="ss">:any</span><span class="p">,</span> <span class="nb">methods</span><span class="p">:</span> <span class="ss">:get</span>
+</span><span class='line'>    <span class="n">resource</span> <span class="s1">&#39;*&#39;</span><span class="p">,</span> <span class="ss">headers</span><span class="p">:</span> <span class="ss">:any</span><span class="p">,</span> <span class="nb">methods</span><span class="p">:</span> <span class="ss">:get</span>
 </span><span class='line'>  <span class="k">end</span>
 </span><span class='line'><span class="k">end</span>
 </span></code></pre></td></tr></table></div></figure>
@@ -728,7 +973,7 @@
 <span class='line-number'>11</span>
 <span class='line-number'>12</span>
 </pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">module</span> <span class="nn">Acme</span>
-</span><span class='line'>  <span class="k">class</span> <span class="nc">API</span> <span class="o">&lt;</span> <span class="no">Grape</span><span class="o">::</span><span class="no">API</span>
+</span><span class='line'>  <span class="k">class</span> <span class="nc">API</span> <span class="o">&lt;</span> <span class="ss">Grape</span><span class="p">:</span><span class="ss">:API</span>
 </span><span class='line'>    <span class="nb">format</span> <span class="ss">:json</span>
 </span><span class='line'>
 </span><span class='line'>    <span class="n">desc</span> <span class="s2">&quot;This is the root of our API.&quot;</span>
@@ -1278,7 +1523,7 @@
 </pre></td><td class='code'><pre><code class='coffeescript'><span class='line'><span class="k">class</span> <span class="nx">App</span><span class="p">.</span><span class="nx">Collections</span><span class="p">.</span><span class="nx">Artists</span> <span class="k">extends</span> <span class="nx">Backbone</span><span class="p">.</span><span class="nx">Collection</span>
 </span><span class='line'>
 </span><span class='line'>  <span class="nv">model: </span><span class="nx">App</span><span class="p">.</span><span class="nx">Models</span><span class="p">.</span><span class="nx">Artist</span>
-</span><span class='line'>  <span class="nv">App.Repositories.Artists = </span><span class="nx">App</span><span class="p">.</span><span class="nx">Repository</span><span class="p">.</span><span class="nx">extend</span> <span class="err">@</span>
+</span><span class='line'>  <span class="nv">App.Repositories.Artists = </span><span class="nx">App</span><span class="p">.</span><span class="nx">Repository</span><span class="p">.</span><span class="nx">extend</span> <span class="nx">@</span>
 </span></code></pre></td></tr></table></div></figure>
 
 
@@ -1295,11 +1540,11 @@
 <span class='line-number'>7</span>
 </pre></td><td class='code'><pre><code class='coffeescript'><span class='line'><span class="k">class</span> <span class="nx">App</span><span class="p">.</span><span class="nx">Views</span><span class="p">.</span><span class="nx">ArtistView</span> <span class="k">extends</span> <span class="nx">Backbone</span><span class="p">.</span><span class="nx">View</span>
 </span><span class='line'>
-</span><span class='line'>  <span class="nv">render: </span><span class="o">-&gt;</span>
+</span><span class='line'>  <span class="nv">render: </span><span class="nf">-&gt;</span>
 </span><span class='line'>
 </span><span class='line'>    <span class="nx">App</span><span class="p">.</span><span class="nx">Repositories</span><span class="p">.</span><span class="nx">Artists</span><span class="p">.</span><span class="nx">getOrFetch</span> <span class="nx">@options</span><span class="p">.</span><span class="nx">artistId</span><span class="p">,</span>
-</span><span class='line'>      <span class="nv">success: </span><span class="p">(</span><span class="nx">artist</span><span class="p">)</span> <span class="o">=&gt;</span>
-</span><span class='line'>        <span class="nx">@$el</span><span class="p">.</span><span class="nx">html</span><span class="p">(</span><span class="nx">JST</span><span class="p">[</span><span class="s1">&#39;templates/artist/show&#39;</span><span class="p">]({</span> <span class="nv">artist: </span><span class="nx">artist</span> <span class="p">}))</span>
+</span><span class='line'>      <span class="nv">success: </span><span class="nf">(artist) =&gt;</span>
+</span><span class='line'>        <span class="nx">@$el</span><span class="p">.</span><span class="nx">html</span><span class="p">(</span><span class="nx">JST</span><span class="p">[</span><span class="s">&#39;templates/artist/show&#39;</span><span class="p">]({</span> <span class="nv">artist: </span><span class="nx">artist</span> <span class="p">}))</span>
 </span></code></pre></td></tr></table></div></figure>
 
 
@@ -1323,7 +1568,7 @@
 <figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
 <span class='line-number'>2</span>
 </pre></td><td class='code'><pre><code class='haml'><span class='line'><span class="p">=</span> <span class="n">content_for</span> <span class="ss">:javascript</span> <span class="k">do</span>
-</span><span class='line'>  <span class="p">=</span> <span class="n">render</span> <span class="n">partial</span><span class="p">:</span> <span class="s2">&quot;artists/bootstrap&quot;</span>
+</span><span class='line'>  <span class="p">=</span> <span class="n">render</span> <span class="ss">partial</span><span class="p">:</span> <span class="s2">&quot;artists/bootstrap&quot;</span>
 </span></code></pre></td></tr></table></div></figure>
 
 
@@ -1429,7 +1674,7 @@
 <span class='line-number'>9</span>
 <span class='line-number'>10</span>
 <span class='line-number'>11</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">ApiActionDispatchRequest</span> <span class="o">&lt;</span> <span class="no">ActionDispatch</span><span class="o">::</span><span class="no">Request</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">ApiActionDispatchRequest</span> <span class="o">&lt;</span> <span class="ss">ActionDispatch</span><span class="p">:</span><span class="ss">:Request</span>
 </span><span class='line'>
 </span><span class='line'>  <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="n">env</span><span class="p">)</span>
 </span><span class='line'>    <span class="k">super</span><span class="p">(</span><span class="n">env</span><span class="p">)</span>
@@ -1468,13 +1713,13 @@
 <span class='line-number'>21</span>
 <span class='line-number'>22</span>
 <span class='line-number'>23</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">ApiAuthMiddleware</span> <span class="o">&lt;</span> <span class="no">Grape</span><span class="o">::</span><span class="no">Middleware</span><span class="o">::</span><span class="no">Base</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">ApiAuthMiddleware</span> <span class="o">&lt;</span> <span class="ss">Grape</span><span class="p">:</span><span class="ss">:Middleware</span><span class="o">::</span><span class="no">Base</span>
 </span><span class='line'>
 </span><span class='line'>  <span class="k">def</span> <span class="nf">before</span>
 </span><span class='line'>    <span class="k">if</span> <span class="n">access_token</span> <span class="o">==</span> <span class="s2">&quot;10013&quot;</span>
 </span><span class='line'>      <span class="kp">throw</span> <span class="ss">:error</span><span class="p">,</span>
-</span><span class='line'>        <span class="n">message</span><span class="p">:</span> <span class="s1">&#39;Inspiration from the Engineering team at http://artsy.github.com&#39;</span><span class="p">,</span>
-</span><span class='line'>        <span class="n">status</span><span class="p">:</span> <span class="mi">2600</span>
+</span><span class='line'>        <span class="ss">message</span><span class="p">:</span> <span class="s1">&#39;Inspiration from the Engineering team at http://artsy.github.com&#39;</span><span class="p">,</span>
+</span><span class='line'>        <span class="ss">status</span><span class="p">:</span> <span class="mi">2600</span>
 </span><span class='line'>    <span class="k">else</span>
 </span><span class='line'>      <span class="o">.</span><span class="n">.</span><span class="o">.</span>
 </span><span class='line'>    <span class="k">end</span>
@@ -1517,7 +1762,7 @@
 </span><span class='line'>        <span class="vi">@reason_phrase</span> <span class="o">=</span> <span class="s2">&quot;Broadway&quot;</span>
 </span><span class='line'>      <span class="k">else</span>
 </span><span class='line'>        <span class="vi">@status</span> <span class="o">=</span> <span class="n">status</span>
-</span><span class='line'>        <span class="vi">@reason_phrase</span> <span class="o">=</span> <span class="no">HTTPStatus</span><span class="o">::</span><span class="n">reason_phrase</span><span class="p">(</span><span class="n">status</span><span class="p">)</span>
+</span><span class='line'>        <span class="vi">@reason_phrase</span> <span class="o">=</span> <span class="ss">HTTPStatus</span><span class="p">:</span><span class="ss">:reason_phrase</span><span class="p">(</span><span class="n">status</span><span class="p">)</span>
 </span><span class='line'>      <span class="k">end</span>
 </span><span class='line'>    <span class="k">end</span>
 </span><span class='line'>  <span class="k">end</span>
@@ -1756,10 +2001,10 @@
 <span class='line-number'>8</span>
 </pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">module</span> <span class="nn">Feed</span>
 </span><span class='line'>  <span class="k">class</span> <span class="nc">Item</span>
-</span><span class='line'>    <span class="kp">include</span> <span class="no">Mongoid</span><span class="o">::</span><span class="no">Document</span>
-</span><span class='line'>    <span class="n">field</span> <span class="ss">:title</span><span class="p">,</span> <span class="n">type</span><span class="p">:</span> <span class="nb">String</span>
-</span><span class='line'>    <span class="n">field</span> <span class="ss">:position</span><span class="p">,</span> <span class="n">type</span><span class="p">:</span> <span class="nb">Integer</span>
-</span><span class='line'>    <span class="n">index</span><span class="p">({</span> <span class="n">position</span><span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">_id</span><span class="p">:</span> <span class="mi">1</span> <span class="p">})</span>
+</span><span class='line'>    <span class="kp">include</span> <span class="ss">Mongoid</span><span class="p">:</span><span class="ss">:Document</span>
+</span><span class='line'>    <span class="n">field</span> <span class="ss">:title</span><span class="p">,</span> <span class="ss">type</span><span class="p">:</span> <span class="nb">String</span>
+</span><span class='line'>    <span class="n">field</span> <span class="ss">:position</span><span class="p">,</span> <span class="ss">type</span><span class="p">:</span> <span class="nb">Integer</span>
+</span><span class='line'>    <span class="n">index</span><span class="p">({</span> <span class="ss">position</span><span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="ss">_id</span><span class="p">:</span> <span class="mi">1</span> <span class="p">})</span>
 </span><span class='line'>  <span class="k">end</span>
 </span><span class='line'><span class="k">end</span>
 </span></code></pre></td></tr></table></div></figure>
@@ -1775,7 +2020,7 @@
 </pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">total_items</span> <span class="o">=</span> <span class="mi">20</span>
 </span><span class='line'><span class="n">rands</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="o">.</span><span class="n">.total_items</span><span class="p">)</span><span class="o">.</span><span class="n">to_a</span><span class="o">.</span><span class="n">sort</span> <span class="p">{</span> <span class="nb">rand</span> <span class="p">}</span><span class="o">[</span><span class="mi">0</span><span class="o">.</span><span class="n">.total_items</span><span class="o">]</span>
 </span><span class='line'><span class="n">total_items</span><span class="o">.</span><span class="n">times</span> <span class="k">do</span> <span class="o">|</span><span class="n">i</span><span class="o">|</span>
-</span><span class='line'>  <span class="no">Feed</span><span class="o">::</span><span class="no">Item</span><span class="o">.</span><span class="n">create!</span> <span class="n">title</span><span class="p">:</span> <span class="no">Faker</span><span class="o">::</span><span class="no">Lorem</span><span class="o">.</span><span class="n">sentence</span><span class="p">,</span> <span class="n">position</span><span class="p">:</span> <span class="n">rands</span><span class="o">.</span><span class="n">pop</span> <span class="o">+</span> <span class="mi">1</span>
+</span><span class='line'>  <span class="ss">Feed</span><span class="p">:</span><span class="ss">:Item</span><span class="o">.</span><span class="n">create!</span> <span class="ss">title</span><span class="p">:</span> <span class="ss">Faker</span><span class="p">:</span><span class="ss">:Lorem</span><span class="o">.</span><span class="n">sentence</span><span class="p">,</span> <span class="ss">position</span><span class="p">:</span> <span class="n">rands</span><span class="o">.</span><span class="n">pop</span> <span class="o">+</span> <span class="mi">1</span>
 </span><span class='line'><span class="k">end</span>
 </span></code></pre></td></tr></table></div></figure>
 
@@ -1798,13 +2043,13 @@
 </span><span class='line'><span class="k">while</span> <span class="kp">true</span>
 </span><span class='line'>  <span class="n">current_cursor</span> <span class="o">=</span> <span class="n">next_cursor</span>
 </span><span class='line'>  <span class="n">next_cursor</span> <span class="o">=</span> <span class="kp">nil</span>
-</span><span class='line'>  <span class="no">Feed</span><span class="o">::</span><span class="no">Item</span><span class="o">.</span><span class="n">desc</span><span class="p">(</span><span class="ss">:position</span><span class="p">)</span><span class="o">.</span><span class="n">limit</span><span class="p">(</span><span class="mi">7</span><span class="p">)</span><span class="o">.</span><span class="n">scroll</span><span class="p">(</span><span class="n">current_cursor</span><span class="p">)</span> <span class="k">do</span> <span class="o">|</span><span class="n">item</span><span class="p">,</span> <span class="n">cursor</span><span class="o">|</span>
+</span><span class='line'>  <span class="ss">Feed</span><span class="p">:</span><span class="ss">:Item</span><span class="o">.</span><span class="n">desc</span><span class="p">(</span><span class="ss">:position</span><span class="p">)</span><span class="o">.</span><span class="n">limit</span><span class="p">(</span><span class="mi">7</span><span class="p">)</span><span class="o">.</span><span class="n">scroll</span><span class="p">(</span><span class="n">current_cursor</span><span class="p">)</span> <span class="k">do</span> <span class="o">|</span><span class="n">item</span><span class="p">,</span> <span class="n">cursor</span><span class="o">|</span>
 </span><span class='line'>    <span class="nb">puts</span> <span class="s2">&quot;</span><span class="si">#{</span><span class="n">item</span><span class="o">.</span><span class="n">position</span><span class="si">}</span><span class="s2">: </span><span class="si">#{</span><span class="n">item</span><span class="o">.</span><span class="n">title</span><span class="si">}</span><span class="s2">&quot;</span>
 </span><span class='line'>    <span class="n">next_cursor</span> <span class="o">=</span> <span class="n">cursor</span>
 </span><span class='line'>  <span class="k">end</span>
 </span><span class='line'>  <span class="k">break</span> <span class="k">unless</span> <span class="n">next_cursor</span>
 </span><span class='line'>  <span class="c1"># destroy an item, the scroll is not affected</span>
-</span><span class='line'>  <span class="no">Feed</span><span class="o">::</span><span class="no">Item</span><span class="o">.</span><span class="n">desc</span><span class="p">(</span><span class="ss">:position</span><span class="p">)</span><span class="o">.</span><span class="n">first</span><span class="o">.</span><span class="n">destroy</span>
+</span><span class='line'>  <span class="ss">Feed</span><span class="p">:</span><span class="ss">:Item</span><span class="o">.</span><span class="n">desc</span><span class="p">(</span><span class="ss">:position</span><span class="p">)</span><span class="o">.</span><span class="n">first</span><span class="o">.</span><span class="n">destroy</span>
 </span><span class='line'><span class="k">end</span>
 </span></code></pre></td></tr></table></div></figure>
 
@@ -1931,17 +2176,17 @@
 <span class='line-number'>12</span>
 <span class='line-number'>13</span>
 </pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">Artwork</span>
-</span><span class='line'>  <span class="kp">include</span> <span class="no">Mongoid</span><span class="o">::</span><span class="no">Document</span>
-</span><span class='line'>  <span class="n">field</span> <span class="ss">:title</span><span class="p">,</span> <span class="n">type</span><span class="p">:</span> <span class="nb">String</span>
+</span><span class='line'>  <span class="kp">include</span> <span class="ss">Mongoid</span><span class="p">:</span><span class="ss">:Document</span>
+</span><span class='line'>  <span class="n">field</span> <span class="ss">:title</span><span class="p">,</span> <span class="ss">type</span><span class="p">:</span> <span class="nb">String</span>
 </span><span class='line'>  <span class="n">embeds_many</span> <span class="ss">:images</span>
 </span><span class='line'><span class="k">end</span>
 </span><span class='line'>
 </span><span class='line'><span class="k">class</span> <span class="nc">Image</span>
-</span><span class='line'>  <span class="kp">include</span> <span class="no">Mongoid</span><span class="o">::</span><span class="no">Document</span>
+</span><span class='line'>  <span class="kp">include</span> <span class="ss">Mongoid</span><span class="p">:</span><span class="ss">:Document</span>
 </span><span class='line'>  <span class="n">embedded_in</span> <span class="ss">:artwork</span>
-</span><span class='line'>  <span class="n">field</span> <span class="ss">:filename</span><span class="p">,</span> <span class="n">type</span><span class="p">:</span> <span class="nb">String</span>
-</span><span class='line'>  <span class="n">field</span> <span class="ss">:width</span><span class="p">,</span> <span class="n">type</span><span class="p">:</span> <span class="nb">Integer</span>
-</span><span class='line'>  <span class="n">field</span> <span class="ss">:height</span><span class="p">,</span> <span class="n">type</span><span class="p">:</span> <span class="nb">Integer</span>
+</span><span class='line'>  <span class="n">field</span> <span class="ss">:filename</span><span class="p">,</span> <span class="ss">type</span><span class="p">:</span> <span class="nb">String</span>
+</span><span class='line'>  <span class="n">field</span> <span class="ss">:width</span><span class="p">,</span> <span class="ss">type</span><span class="p">:</span> <span class="nb">Integer</span>
+</span><span class='line'>  <span class="n">field</span> <span class="ss">:height</span><span class="p">,</span> <span class="ss">type</span><span class="p">:</span> <span class="nb">Integer</span>
 </span><span class='line'><span class="k">end</span>
 </span></code></pre></td></tr></table></div></figure>
 
@@ -1986,15 +2231,15 @@
 <span class='line-number'>36</span>
 <span class='line-number'>37</span>
 </pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="no">Moped</span><span class="o">.</span><span class="n">logger</span> <span class="o">=</span> <span class="no">Logger</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="vg">$stdout</span><span class="p">)</span>
-</span><span class='line'><span class="no">Moped</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">level</span> <span class="o">=</span> <span class="no">Logger</span><span class="o">::</span><span class="no">DEBUG</span>
+</span><span class='line'><span class="no">Moped</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">level</span> <span class="o">=</span> <span class="ss">Logger</span><span class="p">:</span><span class="ss">:DEBUG</span>
 </span><span class='line'>
 </span><span class='line'><span class="c1"># db.artworks.insert({ </span>
 </span><span class='line'><span class="c1">#   _id: ObjectId(&quot;510f22c5db8e540aab000001&quot;), </span>
 </span><span class='line'><span class="c1">#   title: &quot;Mona Lisa&quot; </span>
 </span><span class='line'><span class="c1"># })</span>
-</span><span class='line'><span class="n">artwork</span> <span class="o">=</span> <span class="no">Artwork</span><span class="o">.</span><span class="n">create!</span><span class="p">(</span><span class="n">title</span><span class="p">:</span> <span class="s2">&quot;Mona Lisa&quot;</span><span class="p">)</span>
+</span><span class='line'><span class="n">artwork</span> <span class="o">=</span> <span class="no">Artwork</span><span class="o">.</span><span class="n">create!</span><span class="p">(</span><span class="ss">title</span><span class="p">:</span> <span class="s2">&quot;Mona Lisa&quot;</span><span class="p">)</span>
 </span><span class='line'>
-</span><span class='line'><span class="n">image1</span> <span class="o">=</span> <span class="no">Image</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="n">filename</span><span class="p">:</span> <span class="s2">&quot;framed.jpg&quot;</span><span class="p">)</span>
+</span><span class='line'><span class="n">image1</span> <span class="o">=</span> <span class="no">Image</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="ss">filename</span><span class="p">:</span> <span class="s2">&quot;framed.jpg&quot;</span><span class="p">)</span>
 </span><span class='line'>
 </span><span class='line'><span class="c1"># db.artworks.update(</span>
 </span><span class='line'><span class="c1">#   { _id: ObjectId(&quot;510f22c5db8e540aab000001&quot;) },</span>
@@ -2009,7 +2254,7 @@
 </span><span class='line'><span class="c1"># )</span>
 </span><span class='line'><span class="n">artwork</span><span class="o">.</span><span class="n">images</span> <span class="o">&lt;&lt;</span> <span class="n">image1</span>
 </span><span class='line'>
-</span><span class='line'><span class="n">image2</span> <span class="o">=</span> <span class="no">Image</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="n">filename</span><span class="p">:</span> <span class="s2">&quot;unframed.jpg&quot;</span><span class="p">)</span>
+</span><span class='line'><span class="n">image2</span> <span class="o">=</span> <span class="no">Image</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="ss">filename</span><span class="p">:</span> <span class="s2">&quot;unframed.jpg&quot;</span><span class="p">)</span>
 </span><span class='line'><span class="c1"># db.artworks.update(</span>
 </span><span class='line'><span class="c1">#   { _id: ObjectId(&quot;510f22c5db8e540aab000001&quot;) },</span>
 </span><span class='line'><span class="c1">#   { $push : </span>
@@ -2071,7 +2316,7 @@
 </span><span class='line'><span class="c1">#   { _id: ObjectId(&quot;510f22c5db8e540aab000001&quot;) }, </span>
 </span><span class='line'><span class="c1">#   { $set : { &quot;images.1.width&quot; : 30, &quot;images.1.height&quot; : 40 } }</span>
 </span><span class='line'><span class="c1"># )</span>
-</span><span class='line'><span class="n">image2</span><span class="o">.</span><span class="n">update_attributes!</span><span class="p">(</span><span class="n">width</span><span class="p">:</span> <span class="mi">30</span><span class="p">,</span> <span class="n">height</span><span class="p">:</span> <span class="mi">40</span><span class="p">)</span>
+</span><span class='line'><span class="n">image2</span><span class="o">.</span><span class="n">update_attributes!</span><span class="p">(</span><span class="ss">width</span><span class="p">:</span> <span class="mi">30</span><span class="p">,</span> <span class="ss">height</span><span class="p">:</span> <span class="mi">40</span><span class="p">)</span>
 </span></code></pre></td></tr></table></div></figure>
 
 
@@ -2130,10 +2375,10 @@
 </pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">artwork</span><span class="o">.</span><span class="n">images</span> <span class="o">&lt;&lt;</span> <span class="n">image2</span>
 </span><span class='line'>
 </span><span class='line'><span class="c1"># pull the first artwork directly from the database</span>
-</span><span class='line'><span class="no">Artwork</span><span class="o">.</span><span class="n">collection</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">_id</span><span class="p">:</span> <span class="n">artwork</span><span class="o">.</span><span class="n">id</span><span class="p">)</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
-</span><span class='line'>  <span class="s2">&quot;$pull&quot;</span> <span class="o">=&gt;</span> <span class="p">{</span> <span class="s2">&quot;images&quot;</span> <span class="o">=&gt;</span> <span class="p">{</span> <span class="n">_id</span><span class="p">:</span> <span class="n">image1</span><span class="o">.</span><span class="n">id</span> <span class="p">}</span> <span class="p">})</span>
+</span><span class='line'><span class="no">Artwork</span><span class="o">.</span><span class="n">collection</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="ss">_id</span><span class="p">:</span> <span class="n">artwork</span><span class="o">.</span><span class="n">id</span><span class="p">)</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+</span><span class='line'>  <span class="s2">&quot;$pull&quot;</span> <span class="o">=&gt;</span> <span class="p">{</span> <span class="s2">&quot;images&quot;</span> <span class="o">=&gt;</span> <span class="p">{</span> <span class="ss">_id</span><span class="p">:</span> <span class="n">image1</span><span class="o">.</span><span class="n">id</span> <span class="p">}</span> <span class="p">})</span>
 </span><span class='line'>
-</span><span class='line'><span class="n">image2</span><span class="o">.</span><span class="n">update_attributes!</span><span class="p">(</span><span class="n">width</span><span class="p">:</span> <span class="mi">30</span><span class="p">,</span> <span class="n">height</span><span class="p">:</span> <span class="mi">40</span><span class="p">)</span>
+</span><span class='line'><span class="n">image2</span><span class="o">.</span><span class="n">update_attributes!</span><span class="p">(</span><span class="ss">width</span><span class="p">:</span> <span class="mi">30</span><span class="p">,</span> <span class="ss">height</span><span class="p">:</span> <span class="mi">40</span><span class="p">)</span>
 </span></code></pre></td></tr></table></div></figure>
 
 
@@ -2188,12 +2433,12 @@
 <span class='line-number'>8</span>
 </pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">artwork</span><span class="o">.</span><span class="n">images</span> <span class="o">&lt;&lt;</span> <span class="n">image2</span>
 </span><span class='line'>
-</span><span class='line'><span class="no">Artwork</span><span class="o">.</span><span class="n">collection</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">_id</span><span class="p">:</span> <span class="n">artwork</span><span class="o">.</span><span class="n">id</span><span class="p">)</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
-</span><span class='line'>  <span class="s2">&quot;$pull&quot;</span> <span class="o">=&gt;</span> <span class="p">{</span> <span class="s2">&quot;images&quot;</span> <span class="o">=&gt;</span> <span class="p">{</span> <span class="n">_id</span><span class="p">:</span> <span class="n">image1</span><span class="o">.</span><span class="n">id</span> <span class="p">}</span> <span class="p">})</span>
-</span><span class='line'><span class="no">Artwork</span><span class="o">.</span><span class="n">collection</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">_id</span><span class="p">:</span> <span class="n">artwork</span><span class="o">.</span><span class="n">id</span><span class="p">)</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
-</span><span class='line'>  <span class="s2">&quot;$pull&quot;</span> <span class="o">=&gt;</span> <span class="p">{</span> <span class="s2">&quot;images&quot;</span> <span class="o">=&gt;</span> <span class="p">{</span> <span class="n">_id</span><span class="p">:</span> <span class="n">image2</span><span class="o">.</span><span class="n">id</span> <span class="p">}</span> <span class="p">})</span>
+</span><span class='line'><span class="no">Artwork</span><span class="o">.</span><span class="n">collection</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="ss">_id</span><span class="p">:</span> <span class="n">artwork</span><span class="o">.</span><span class="n">id</span><span class="p">)</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+</span><span class='line'>  <span class="s2">&quot;$pull&quot;</span> <span class="o">=&gt;</span> <span class="p">{</span> <span class="s2">&quot;images&quot;</span> <span class="o">=&gt;</span> <span class="p">{</span> <span class="ss">_id</span><span class="p">:</span> <span class="n">image1</span><span class="o">.</span><span class="n">id</span> <span class="p">}</span> <span class="p">})</span>
+</span><span class='line'><span class="no">Artwork</span><span class="o">.</span><span class="n">collection</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="ss">_id</span><span class="p">:</span> <span class="n">artwork</span><span class="o">.</span><span class="n">id</span><span class="p">)</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+</span><span class='line'>  <span class="s2">&quot;$pull&quot;</span> <span class="o">=&gt;</span> <span class="p">{</span> <span class="s2">&quot;images&quot;</span> <span class="o">=&gt;</span> <span class="p">{</span> <span class="ss">_id</span><span class="p">:</span> <span class="n">image2</span><span class="o">.</span><span class="n">id</span> <span class="p">}</span> <span class="p">})</span>
 </span><span class='line'>
-</span><span class='line'><span class="n">image2</span><span class="o">.</span><span class="n">update_attributes!</span><span class="p">(</span><span class="n">width</span><span class="p">:</span> <span class="mi">30</span><span class="p">,</span> <span class="n">height</span><span class="p">:</span> <span class="mi">40</span><span class="p">)</span>
+</span><span class='line'><span class="n">image2</span><span class="o">.</span><span class="n">update_attributes!</span><span class="p">(</span><span class="ss">width</span><span class="p">:</span> <span class="mi">30</span><span class="p">,</span> <span class="ss">height</span><span class="p">:</span> <span class="mi">40</span><span class="p">)</span>
 </span></code></pre></td></tr></table></div></figure>
 
 
@@ -2249,7 +2494,7 @@
 </span><span class='line'><span class="c1">#   }, </span>
 </span><span class='line'><span class="c1">#   { $set : { &quot;images.$.width&quot; : 30, &quot;images.$.height&quot; : 40 }}</span>
 </span><span class='line'><span class="c1"># )</span>
-</span><span class='line'><span class="n">image2</span><span class="o">.</span><span class="n">update_attributes!</span><span class="p">(</span><span class="n">width</span><span class="p">:</span> <span class="mi">30</span><span class="p">,</span> <span class="n">height</span><span class="p">:</span> <span class="mi">40</span><span class="p">)</span>
+</span><span class='line'><span class="n">image2</span><span class="o">.</span><span class="n">update_attributes!</span><span class="p">(</span><span class="ss">width</span><span class="p">:</span> <span class="mi">30</span><span class="p">,</span> <span class="ss">height</span><span class="p">:</span> <span class="mi">40</span><span class="p">)</span>
 </span></code></pre></td></tr></table></div></figure>
 
 
@@ -2296,7 +2541,7 @@
 <figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
 <span class='line-number'>2</span>
 <span class='line-number'>3</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">commander</span> <span class="o">=</span> <span class="no">Heroku</span><span class="o">::</span><span class="no">Commander</span><span class="o">.</span><span class="n">new</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">commander</span> <span class="o">=</span> <span class="ss">Heroku</span><span class="p">:</span><span class="ss">:Commander</span><span class="o">.</span><span class="n">new</span>
 </span><span class='line'><span class="c1"># a hash of all settings for your default heroku app</span>
 </span><span class='line'><span class="n">commander</span><span class="o">.</span><span class="n">config</span>
 </span></code></pre></td></tr></table></div></figure>
@@ -2309,7 +2554,7 @@
 <figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
 <span class='line-number'>2</span>
 <span class='line-number'>3</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">commander</span> <span class="o">=</span> <span class="no">Heroku</span><span class="o">::</span><span class="no">Commander</span><span class="o">.</span><span class="n">new</span><span class="p">({</span> <span class="ss">:app</span> <span class="o">=&gt;</span> <span class="s2">&quot;heroku-commander&quot;</span> <span class="p">})</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">commander</span> <span class="o">=</span> <span class="ss">Heroku</span><span class="p">:</span><span class="ss">:Commander</span><span class="o">.</span><span class="n">new</span><span class="p">({</span> <span class="ss">:app</span> <span class="o">=&gt;</span> <span class="s2">&quot;heroku-commander&quot;</span> <span class="p">})</span>
 </span><span class='line'><span class="c1"># a hash of all settings for the heroku-commander application</span>
 </span><span class='line'><span class="n">commander</span><span class="o">.</span><span class="n">config</span>
 </span></code></pre></td></tr></table></div></figure>
@@ -2321,7 +2566,7 @@
 <span class='line-number'>2</span>
 <span class='line-number'>3</span>
 <span class='line-number'>4</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">commander</span> <span class="o">=</span> <span class="no">Heroku</span><span class="o">::</span><span class="no">Commander</span><span class="o">.</span><span class="n">new</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">commander</span> <span class="o">=</span> <span class="ss">Heroku</span><span class="p">:</span><span class="ss">:Commander</span><span class="o">.</span><span class="n">new</span>
 </span><span class='line'><span class="c1"># returns all output lines</span>
 </span><span class='line'><span class="c1"># eg. [ &quot;Linux 2.6.32-348-ec2 #54-Ubuntu SMP x86_64 GNU&quot; ]</span>
 </span><span class='line'><span class="n">commander</span><span class="o">.</span><span class="n">run</span> <span class="s2">&quot;uname -a&quot;</span>
@@ -2347,7 +2592,7 @@
 <span class='line-number'>2</span>
 <span class='line-number'>3</span>
 <span class='line-number'>4</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">commander</span> <span class="o">=</span> <span class="no">Heroku</span><span class="o">::</span><span class="no">Commander</span><span class="o">.</span><span class="n">new</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">commander</span> <span class="o">=</span> <span class="ss">Heroku</span><span class="p">:</span><span class="ss">:Commander</span><span class="o">.</span><span class="n">new</span>
 </span><span class='line'><span class="n">commander</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="s2">&quot;ls -R&quot;</span><span class="p">,</span> <span class="p">{</span> <span class="ss">:detached</span> <span class="o">=&gt;</span> <span class="kp">true</span> <span class="p">})</span> <span class="k">do</span> <span class="o">|</span><span class="n">line</span><span class="o">|</span>
 </span><span class='line'>  <span class="c1"># each line from the output of ls -r -1</span>
 </span><span class='line'><span class="k">end</span>
@@ -2385,7 +2630,7 @@
 </span><span class='line'>  <span class="n">namespace</span> <span class="ss">:production</span>
 </span><span class='line'>    <span class="n">task</span> <span class="ss">:shell</span>
 </span><span class='line'>      <span class="no">Mongoid</span><span class="o">.</span><span class="n">load!</span> <span class="s2">&quot;mongoid.yml&quot;</span><span class="p">,</span> <span class="ss">:production</span>
-</span><span class='line'>      <span class="nb">system</span> <span class="no">Mongoid</span><span class="o">::</span><span class="no">Shell</span><span class="o">::</span><span class="no">Commands</span><span class="o">::</span><span class="no">Mongo</span><span class="o">.</span><span class="n">new</span><span class="o">.</span><span class="n">to_s</span>
+</span><span class='line'>      <span class="nb">system</span> <span class="ss">Mongoid</span><span class="p">:</span><span class="ss">:Shell</span><span class="o">::</span><span class="ss">Commands</span><span class="p">:</span><span class="ss">:Mongo</span><span class="o">.</span><span class="n">new</span><span class="o">.</span><span class="n">to_s</span>
 </span><span class='line'>    <span class="k">end</span>
 </span><span class='line'>  <span class="k">end</span>
 </span><span class='line'><span class="k">end</span>
@@ -2406,11 +2651,11 @@
 <span class='line-number'>5</span>
 <span class='line-number'>6</span>
 </pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="c1"># will use Mongoid.default_session</span>
-</span><span class='line'><span class="no">Mongoid</span><span class="o">::</span><span class="no">Shell</span><span class="o">::</span><span class="no">Commands</span><span class="o">::</span><span class="no">Mongodump</span><span class="o">.</span><span class="n">new</span>
+</span><span class='line'><span class="ss">Mongoid</span><span class="p">:</span><span class="ss">:Shell</span><span class="o">::</span><span class="ss">Commands</span><span class="p">:</span><span class="ss">:Mongodump</span><span class="o">.</span><span class="n">new</span>
 </span><span class='line'>
 </span><span class='line'><span class="c1"># use a hand-crafted session</span>
-</span><span class='line'><span class="n">s</span> <span class="o">=</span> <span class="no">Moped</span><span class="o">::</span><span class="no">Session</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="o">[</span> <span class="s2">&quot;127.0.0.1:27017&quot;</span> <span class="o">]</span><span class="p">)</span>
-</span><span class='line'><span class="no">Mongoid</span><span class="o">::</span><span class="no">Shell</span><span class="o">::</span><span class="no">Commands</span><span class="o">::</span><span class="no">Mongodump</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="n">session</span><span class="p">:</span> <span class="n">s</span><span class="p">)</span>
+</span><span class='line'><span class="n">s</span> <span class="o">=</span> <span class="ss">Moped</span><span class="p">:</span><span class="ss">:Session</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="o">[</span> <span class="s2">&quot;127.0.0.1:27017&quot;</span> <span class="o">]</span><span class="p">)</span>
+</span><span class='line'><span class="ss">Mongoid</span><span class="p">:</span><span class="ss">:Shell</span><span class="o">::</span><span class="ss">Commands</span><span class="p">:</span><span class="ss">:Mongodump</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="ss">session</span><span class="p">:</span> <span class="n">s</span><span class="p">)</span>
 </span></code></pre></td></tr></table></div></figure>
 
 
@@ -2423,7 +2668,7 @@
 <span class='line-number'>5</span>
 </pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">out</span> <span class="o">=</span> <span class="no">File</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="no">Dir</span><span class="o">.</span><span class="n">tmpdir</span><span class="p">,</span> <span class="s1">&#39;db_backup&#39;</span><span class="p">)</span>
 </span><span class='line'><span class="n">db</span> <span class="o">=</span> <span class="s1">&#39;my_database&#39;</span>
-</span><span class='line'><span class="n">dump</span> <span class="o">=</span> <span class="no">Mongoid</span><span class="o">::</span><span class="no">Shell</span><span class="o">::</span><span class="no">Commands</span><span class="o">::</span><span class="no">Mongodump</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="n">db</span><span class="p">:</span> <span class="n">db</span><span class="p">,</span> <span class="n">out</span><span class="p">:</span> <span class="n">out</span><span class="p">)</span>
+</span><span class='line'><span class="n">dump</span> <span class="o">=</span> <span class="ss">Mongoid</span><span class="p">:</span><span class="ss">:Shell</span><span class="o">::</span><span class="ss">Commands</span><span class="p">:</span><span class="ss">:Mongodump</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="ss">db</span><span class="p">:</span> <span class="n">db</span><span class="p">,</span> <span class="ss">out</span><span class="p">:</span> <span class="n">out</span><span class="p">)</span>
 </span><span class='line'><span class="c1"># mongodump --db my_database --out /tmp/db_backup</span>
 </span><span class='line'><span class="nb">system</span> <span class="n">dump</span><span class="o">.</span><span class="n">to_s</span>
 </span></code></pre></td></tr></table></div></figure>
@@ -2456,13 +2701,13 @@
 </span><span class='line'>    <span class="n">namespace</span> <span class="n">env</span> <span class="k">do</span>
 </span><span class='line'>      <span class="n">task</span> <span class="ss">:shell</span> <span class="k">do</span>
 </span><span class='line'>        <span class="n">app</span> <span class="o">=</span> <span class="s2">&quot;myapp-</span><span class="si">#{</span><span class="n">env</span><span class="si">}</span><span class="s2">&quot;</span>
-</span><span class='line'>        <span class="n">config</span> <span class="o">=</span> <span class="no">Heroku</span><span class="o">::</span><span class="no">Commander</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="n">app</span><span class="p">:</span> <span class="n">app</span><span class="p">)</span><span class="o">.</span><span class="n">config</span>
+</span><span class='line'>        <span class="n">config</span> <span class="o">=</span> <span class="ss">Heroku</span><span class="p">:</span><span class="ss">:Commander</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="ss">app</span><span class="p">:</span> <span class="n">app</span><span class="p">)</span><span class="o">.</span><span class="n">config</span>
 </span><span class='line'>        <span class="n">config</span><span class="o">.</span><span class="n">each_pair</span> <span class="k">do</span> <span class="o">|</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="o">|</span>
 </span><span class='line'>          <span class="no">ENV</span><span class="o">[</span><span class="n">k</span><span class="o">]</span> <span class="o">=</span> <span class="n">v</span>
 </span><span class='line'>        <span class="k">end</span>
 </span><span class='line'>        <span class="n">mongoid_yml</span> <span class="o">=</span> <span class="no">File</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="no">Rails</span><span class="o">.</span><span class="n">root</span><span class="p">,</span> <span class="s2">&quot;config/mongoid.yml&quot;</span><span class="p">)</span>
 </span><span class='line'>        <span class="no">Mongoid</span><span class="o">.</span><span class="n">load!</span> <span class="n">mongoid_yml</span><span class="p">,</span> <span class="n">env</span>
-</span><span class='line'>        <span class="nb">system</span> <span class="no">Mongoid</span><span class="o">::</span><span class="no">Shell</span><span class="o">::</span><span class="no">Commands</span><span class="o">::</span><span class="no">Mongo</span><span class="o">.</span><span class="n">new</span><span class="o">.</span><span class="n">to_s</span>
+</span><span class='line'>        <span class="nb">system</span> <span class="ss">Mongoid</span><span class="p">:</span><span class="ss">:Shell</span><span class="o">::</span><span class="ss">Commands</span><span class="p">:</span><span class="ss">:Mongo</span><span class="o">.</span><span class="n">new</span><span class="o">.</span><span class="n">to_s</span>
 </span><span class='line'>      <span class="k">end</span>
 </span><span class='line'>    <span class="k">end</span>
 </span><span class='line'>  <span class="k">end</span>
@@ -2477,10 +2722,10 @@
 <span class='line-number'>3</span>
 <span class='line-number'>4</span>
 <span class='line-number'>5</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="err">$</span> <span class="n">rake</span> <span class="n">db</span><span class="ss">:staging:shell</span>
-</span><span class='line'> <span class="n">mongo</span> <span class="n">db</span><span class="p">:</span><span class="mi">10007</span><span class="o">/</span><span class="n">app</span><span class="o">-</span><span class="n">staging</span> <span class="o">--</span><span class="n">username</span> <span class="n">user</span> <span class="o">--</span><span class="n">password</span> <span class="o">************</span>
-</span><span class='line'> <span class="no">MongoDB</span> <span class="n">shell</span> <span class="n">version</span><span class="p">:</span> <span class="mi">2</span><span class="o">.</span><span class="mi">0</span><span class="o">.</span><span class="mi">7</span>
-</span><span class='line'> <span class="n">connecting</span> <span class="n">to</span><span class="p">:</span> <span class="n">db</span><span class="p">:</span><span class="mi">10007</span><span class="o">/</span><span class="n">app</span><span class="o">-</span><span class="n">staging</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="err">$</span> <span class="n">rake</span> <span class="ss">db</span><span class="p">:</span><span class="ss">staging</span><span class="p">:</span><span class="n">shell</span>
+</span><span class='line'> <span class="n">mongo</span> <span class="ss">db</span><span class="p">:</span><span class="mi">10007</span><span class="o">/</span><span class="n">app</span><span class="o">-</span><span class="n">staging</span> <span class="o">--</span><span class="n">username</span> <span class="n">user</span> <span class="o">--</span><span class="n">password</span> <span class="o">************</span>
+</span><span class='line'> <span class="no">MongoDB</span> <span class="n">shell</span> <span class="ss">version</span><span class="p">:</span> <span class="mi">2</span><span class="o">.</span><span class="mi">0</span><span class="o">.</span><span class="mi">7</span>
+</span><span class='line'> <span class="n">connecting</span> <span class="ss">to</span><span class="p">:</span> <span class="ss">db</span><span class="p">:</span><span class="mi">10007</span><span class="o">/</span><span class="n">app</span><span class="o">-</span><span class="n">staging</span>
 </span><span class='line'> <span class="o">&gt;</span>
 </span></code></pre></td></tr></table></div></figure>
 
@@ -2792,7 +3037,7 @@
 <span class='line-number'>2</span>
 <span class='line-number'>3</span>
 <span class='line-number'>4</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">API</span> <span class="o">&lt;&lt;</span> <span class="no">Grape</span><span class="o">::</span><span class="no">API</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">API</span> <span class="o">&lt;&lt;</span> <span class="ss">Grape</span><span class="p">:</span><span class="ss">:API</span>
 </span><span class='line'>  <span class="n">use</span> <span class="no">ApiNewRelicInstrumenter</span>
 </span><span class='line'>  <span class="o">.</span><span class="n">.</span><span class="o">.</span>
 </span><span class='line'><span class="k">end</span>
@@ -2818,14 +3063,14 @@
 <span class='line-number'>15</span>
 <span class='line-number'>16</span>
 <span class='line-number'>17</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">ApiNewRelicInstrumenter</span> <span class="o">&lt;</span> <span class="no">Grape</span><span class="o">::</span><span class="no">Middleware</span><span class="o">::</span><span class="no">Base</span>
-</span><span class='line'>  <span class="kp">include</span> <span class="no">NewRelic</span><span class="o">::</span><span class="no">Agent</span><span class="o">::</span><span class="no">Instrumentation</span><span class="o">::</span><span class="no">ControllerInstrumentation</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">ApiNewRelicInstrumenter</span> <span class="o">&lt;</span> <span class="ss">Grape</span><span class="p">:</span><span class="ss">:Middleware</span><span class="o">::</span><span class="no">Base</span>
+</span><span class='line'>  <span class="kp">include</span> <span class="ss">NewRelic</span><span class="p">:</span><span class="ss">:Agent</span><span class="o">::</span><span class="ss">Instrumentation</span><span class="p">:</span><span class="ss">:ControllerInstrumentation</span>
 </span><span class='line'>
 </span><span class='line'>  <span class="k">def</span> <span class="nf">call</span><span class="p">(</span><span class="n">env</span><span class="p">)</span>
 </span><span class='line'>    <span class="n">trace_options</span> <span class="o">=</span> <span class="p">{</span>
-</span><span class='line'>      <span class="n">category</span><span class="p">:</span> <span class="ss">:rack</span><span class="p">,</span>
-</span><span class='line'>      <span class="n">path</span><span class="p">:</span> <span class="n">env</span><span class="o">[</span><span class="s1">&#39;api.endpoint&#39;</span><span class="o">].</span><span class="n">routes</span><span class="o">.</span><span class="n">first</span><span class="o">.</span><span class="n">route_path</span><span class="p">,</span>
-</span><span class='line'>      <span class="n">request</span><span class="p">:</span> <span class="n">request</span><span class="p">,</span>
+</span><span class='line'>      <span class="ss">category</span><span class="p">:</span> <span class="ss">:rack</span><span class="p">,</span>
+</span><span class='line'>      <span class="ss">path</span><span class="p">:</span> <span class="n">env</span><span class="o">[</span><span class="s1">&#39;api.endpoint&#39;</span><span class="o">].</span><span class="n">routes</span><span class="o">.</span><span class="n">first</span><span class="o">.</span><span class="n">route_path</span><span class="p">,</span>
+</span><span class='line'>      <span class="ss">request</span><span class="p">:</span> <span class="n">request</span><span class="p">,</span>
 </span><span class='line'>      <span class="o">.</span><span class="n">.</span><span class="o">.</span>
 </span><span class='line'>    <span class="p">}</span>
 </span><span class='line'>
@@ -2891,15 +3136,15 @@
 <span class='line-number'>10</span>
 <span class='line-number'>11</span>
 </pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">Post</span>
-</span><span class='line'>  <span class="kp">include</span> <span class="no">Mongoid</span><span class="o">::</span><span class="no">Document</span>
-</span><span class='line'>  <span class="kp">include</span> <span class="no">Mongoid</span><span class="o">::</span><span class="no">Slug</span>
+</span><span class='line'>  <span class="kp">include</span> <span class="ss">Mongoid</span><span class="p">:</span><span class="ss">:Document</span>
+</span><span class='line'>  <span class="kp">include</span> <span class="ss">Mongoid</span><span class="p">:</span><span class="ss">:Slug</span>
 </span><span class='line'>
 </span><span class='line'>  <span class="n">belongs_to</span> <span class="ss">:author</span><span class="p">,</span> <span class="n">class_name</span><span class="p">:</span> <span class="s2">&quot;User&quot;</span>
 </span><span class='line'>
-</span><span class='line'>  <span class="n">field</span> <span class="ss">:title</span><span class="p">,</span> <span class="n">type</span><span class="p">:</span> <span class="nb">String</span>
-</span><span class='line'>  <span class="n">slug</span> <span class="ss">:title</span><span class="p">,</span> <span class="n">history</span><span class="p">:</span> <span class="kp">true</span><span class="p">,</span> <span class="n">scope</span><span class="p">:</span> <span class="ss">:author</span>
+</span><span class='line'>  <span class="n">field</span> <span class="ss">:title</span><span class="p">,</span> <span class="ss">type</span><span class="p">:</span> <span class="nb">String</span>
+</span><span class='line'>  <span class="n">slug</span> <span class="ss">:title</span><span class="p">,</span> <span class="ss">history</span><span class="p">:</span> <span class="kp">true</span><span class="p">,</span> <span class="ss">scope</span><span class="p">:</span> <span class="ss">:author</span>
 </span><span class='line'>
-</span><span class='line'>  <span class="n">field</span> <span class="ss">:published</span><span class="p">,</span> <span class="n">type</span><span class="p">:</span> <span class="no">Boolean</span>
+</span><span class='line'>  <span class="n">field</span> <span class="ss">:published</span><span class="p">,</span> <span class="ss">type</span><span class="p">:</span> <span class="no">Boolean</span>
 </span><span class='line'><span class="k">end</span>
 </span></code></pre></td></tr></table></div></figure>
 
@@ -2940,7 +3185,7 @@
 <span class='line-number'>9</span>
 <span class='line-number'>10</span>
 <span class='line-number'>11</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">slug</span> <span class="ss">:title</span><span class="p">,</span> <span class="ss">:published</span><span class="p">,</span> <span class="n">scope</span><span class="p">:</span> <span class="ss">:author</span><span class="p">,</span> <span class="n">history</span><span class="p">:</span> <span class="kp">true</span> <span class="k">do</span> <span class="o">|</span><span class="nb">p</span><span class="o">|</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">slug</span> <span class="ss">:title</span><span class="p">,</span> <span class="ss">:published</span><span class="p">,</span> <span class="ss">scope</span><span class="p">:</span> <span class="ss">:author</span><span class="p">,</span> <span class="ss">history</span><span class="p">:</span> <span class="kp">true</span> <span class="k">do</span> <span class="o">|</span><span class="nb">p</span><span class="o">|</span>
 </span><span class='line'>  <span class="k">if</span> <span class="nb">p</span><span class="o">.</span><span class="n">published?</span> <span class="o">||</span> <span class="nb">p</span><span class="o">.</span><span class="n">has_slug?</span>
 </span><span class='line'>    <span class="nb">p</span><span class="o">.</span><span class="n">title</span><span class="o">.</span><span class="n">to_url</span>
 </span><span class='line'>  <span class="k">else</span>
@@ -2986,125 +3231,6 @@
 
 
 <p>Pretty amazing!</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[How to Monitor 503s and Timeout Requests on Heroku]]></title>
-    <link href="http://artsy.github.io/blog/2012/11/15/how-to-monitor-503s-and-timeout-on-heroku/"/>
-    <updated>2012-11-15T21:21:00-05:00</updated>
-    <id>http://artsy.github.io/blog/2012/11/15/how-to-monitor-503s-and-timeout-on-heroku</id>
-    <content type="html"><![CDATA[<p>We have recently started hitting an unusually high number of &#8220;503: Service Unavailable&#8221; errors with one of our applications on Heroku. What are these? How can we monitor their quantity and frequency? What&#8217;s the fix?</p>
-
-<p><img src="http://artsy.github.io/images/2012-11-15-how-to-monitor-503s-and-timeout-on-heroku/503-error.png"></p>
-
-<!-- more -->
-
-
-<h2>What does 503 mean?</h2>
-
-<p>A 503 error means &#8220;Service Unavailable&#8221;. Heroku returns a 503 error when an HTTP request times out between the Heroku routing mesh and your application, including when the application failed to boot. This timeout limit is set to 30 seconds, as <a href="https://devcenter.heroku.com/articles/request-timeout">documented by Heroku</a>, and shows up in the logs as follows.</p>
-
-<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-</pre></td><td class='code'><pre><code class=''><span class='line'>Nov 14 12:10:50 production heroku/router:
-</span><span class='line'> Error H12 (Request timeout) -&gt; GET artsy.net/api/spline
-</span><span class='line'> dyno=web.11 queue= wait= service=30000ms status=503 bytes=0</span></code></pre></td></tr></table></div></figure>
-
-
-<p>This usually means that the application could not process the request fast enough, and in very rare cases, that there&#8217;s an infrastructure problem with Heroku itself. A 504 error which means &#8220;Gateway Timeout&#8221; would have probably been a more appropriate choice. Either way, the root cause could be something as simple as trying to run a very long database query or do too much work that doesn&#8217;t fit in a 30 seconds window. It could also involve an external service that didn&#8217;t respond quickly enough. Your mileage may vary.</p>
-
-<h2>Monitoring 503s</h2>
-
-<p>503 errors don&#8217;t happen within your application, they are reported by the routing mesh. They will not appear in internal monitoring systems attached to your app, including <a href="http://newrelic.com/">NewRelic</a>.</p>
-
-<p>We get the frequency of 503s by sending our Heroku logs to <a href="https://papertrailapp.com/">Papertrail</a> and using their <a href="http://help.papertrailapp.com/kb/how-it-works/alerts">alerts feature</a> to push the number of 503s to <a href="http://www.geckoboard.com/">Geckoboard</a>. You can send these to <a href="http://graphite.wikidot.com/">Graphite</a> or any other monitoring system in the same manner.</p>
-
-<p>This is what it looks like:</p>
-
-<p><img src="http://artsy.github.io/images/2012-11-15-how-to-monitor-503s-and-timeout-on-heroku/503-geckoboard.png"></p>
-
-<h2>Aborting Requests</h2>
-
-<p>When Heroku reports a 503 status code, it just gives up. Your application continues executing the request though, often to completion, which may take forever. In the meantime, Heroku will send a new request to the dyno that&#8217;s still busy, and get a new 503. This is known as a &#8220;stuck&#8221; dyno.</p>
-
-<p>To prevent dynos from being stuck you must abort the request within the 30 second period. This can be accomplished with the <a href="https://github.com/kch/rack-timeout">rack-timeout</a> gem and setting <code>Rack::Timeout.timeout = 29</code> in an initializer (or a smaller value within which you want to guarantee a response). The gem automatically inserts itself into a Rails application, but you will need to manually mount it in other Rack apps, such as those using <a href="https://github.com/intridea/grape">Grape</a>.</p>
-
-<figure class='code'><figcaption><span>api.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">Api</span> <span class="o">&lt;</span> <span class="no">Grape</span><span class="o">::</span><span class="no">API</span>
-</span><span class='line'>  <span class="n">use</span> <span class="no">Rack</span><span class="o">::</span><span class="no">Timeout</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="n">desc</span> <span class="s2">&quot;Returns a reticulated spline.&quot;</span>
-</span><span class='line'>  <span class="n">get</span> <span class="s2">&quot;spline/:id&quot;</span>
-</span><span class='line'>    <span class="no">Spline</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="n">params</span><span class="o">[</span><span class="ss">:id</span><span class="o">]</span><span class="p">)</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>Because your application is now getting a timeout exception, you can also report it in NewRelic. The following works in Grape.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">rescue_from</span> <span class="no">Timeout</span><span class="o">::</span><span class="no">Error</span><span class="p">,</span> <span class="ss">:backtrace</span> <span class="o">=&gt;</span> <span class="kp">true</span> <span class="k">do</span> <span class="o">|</span><span class="n">e</span><span class="o">|</span>
-</span><span class='line'>  <span class="no">NewRelic</span><span class="o">::</span><span class="no">Agent</span><span class="o">.</span><span class="n">instance</span><span class="o">.</span><span class="n">error_collector</span><span class="o">.</span><span class="n">notice_error</span> <span class="n">e</span><span class="p">,</span>
-</span><span class='line'>    <span class="n">uri</span><span class="p">:</span> <span class="n">request</span><span class="o">.</span><span class="n">path</span><span class="p">,</span>
-</span><span class='line'>    <span class="n">referer</span><span class="p">:</span> <span class="n">request</span><span class="o">.</span><span class="n">referer</span><span class="p">,</span>
-</span><span class='line'>    <span class="n">request_params</span><span class="p">:</span> <span class="n">request</span><span class="o">.</span><span class="n">params</span>
-</span><span class='line'>  <span class="n">rack_response</span><span class="p">({</span>
-</span><span class='line'>    <span class="ss">:type</span> <span class="o">=&gt;</span> <span class="s2">&quot;timeout_error&quot;</span><span class="p">,</span>
-</span><span class='line'>    <span class="ss">:message</span> <span class="o">=&gt;</span> <span class="s2">&quot;The request timed out.&quot;</span>
-</span><span class='line'>  <span class="p">}</span><span class="o">.</span><span class="n">to_json</span><span class="p">,</span> <span class="mi">503</span><span class="p">)</span>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>Don&#8217;t forget to write a test!</p>
-
-<figure class='code'><figcaption><span>api_spec.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="nb">require</span> <span class="s1">&#39;spec_helper&#39;</span>
-</span><span class='line'>
-</span><span class='line'><span class="n">describe</span> <span class="no">Api</span> <span class="k">do</span>
-</span><span class='line'>  <span class="n">it</span> <span class="s2">&quot;times out after Rack::Timeout.timeout&quot;</span> <span class="k">do</span>
-</span><span class='line'>    <span class="no">Rack</span><span class="o">::</span><span class="no">Timeout</span><span class="o">.</span><span class="n">stub</span><span class="p">(</span><span class="ss">:timeout</span><span class="p">)</span><span class="o">.</span><span class="n">and_return</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
-</span><span class='line'>    <span class="no">Spline</span><span class="o">.</span><span class="n">stub</span><span class="p">(</span><span class="ss">:find</span><span class="p">)</span> <span class="p">{</span> <span class="nb">sleep</span> <span class="mi">3</span> <span class="p">}</span>
-</span><span class='line'>    <span class="n">get</span> <span class="s2">&quot;/spline/1&quot;</span>
-</span><span class='line'>    <span class="n">response</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">should</span> <span class="o">==</span> <span class="mi">503</span>
-</span><span class='line'>    <span class="n">response</span><span class="o">.</span><span class="n">body</span><span class="o">.</span><span class="n">should</span> <span class="o">==</span> <span class="s1">&#39;{&quot;type&quot;:&quot;timeout_error&quot;,&quot;message&quot;:&quot;The request timed out.&quot;}&#39;</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<h2>Fixing Timeouts</h2>
-
-<p>The root causes of timeouts are specific to your application. Our general approach for long running requests is to offload the request processing into a delayed job or background process and &#8220;cook&#8221; data in a way that makes it readily available to API endpoints. You can read more about this and related aspects of our system architecture in <a href="http://artsy.github.io/blog/2012/10/10/artsy-technology-stack/">this earlier blog post</a>.</p>
 ]]></content>
   </entry>
   
