@@ -15,7 +15,7 @@ At Artsy we've been building [Node.js](http://nodejs.org/) applications that sha
 
 Today we're happy to announce [Ezel](http://ezeljs.com/), our open source boilerplate we use to bootstrap our Node projects and the [various](https://github.com/artsy/benv) [node](https://github.com/artsy/backbone-super-sync) [modules](https://github.com/artsy/sharify) that built up to it.
 
-In his article, [_Isomorphic JavaScript: The Future of Web Apps_](http://nerds.airbnb.com/isomorphic-JavaScript-future-web-apps/), Spike Brehm from AirBnB describes this growing trend well and we're excited to be a part of it. In this article I'll tell Artsy's story of moving from a single monolithic  application to modular [Backbone](http://backbonejs.org/) apps that run in Node and the browser and consume our external API.
+In his article, [_Isomorphic JavaScript: The Future of Web Apps_](http://nerds.airbnb.com/isomorphic-JavaScript-future-web-apps/), Spike Brehm from AirBnB describes this growing trend well and we're excited to be a part of it. In this article I'll tell Artsy's story of moving from a single monolithic application to modular [Backbone](http://backbonejs.org/) apps that run in Node and the browser and consume our external API.
 
 <!-- more -->
 
@@ -190,4 +190,4 @@ It's also worth noting, to avoid CSS spaghetti we followed a simple convention o
 
 With this new architecture and set of Node tools we've seen enormous benefits compared to the pains of developing Backbone in a monolithic project with lacking JavaScript tools. Our mobile web experience is much better, we can render more content on the server for SEO and faster page loads, our test/build/deploy cycles went from hours to minutes, our developer on-boarding time went from days to minutes, and overall developer happiness has significantly improved.
 
-It's an exciting time to be developing JavaScript apps and we will continue to open source our efforts wherever possible. Thanks and [follow us on Github](https://github.com/artsy). 
+It's an exciting time to be developing JavaScript apps and we will continue to open source our efforts wherever possible. Thanks and [follow us on Github](https://github.com/artsy)! 
