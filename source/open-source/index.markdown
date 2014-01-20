@@ -14,6 +14,20 @@ Our projects are mostly [Ruby](#ruby), [Javascript](#javascript), [iOS](#ios) an
 <h1 id="ruby">Ruby<h1>
 ----------------------
 
+[artsy-ruby-client](https://github.com/artsy/artsy-ruby-client)
+----------------------------------------
+
+A Ruby client for the Artsy API.
+
+[https://github.com/artsy/artsy-ruby-client](https://github.com/artsy/artsy-ruby-client)
+
+[momentum](https://github.com/artsy/momentum)
+----------------------------------------
+
+Shared utilities for managing and deploying OpsWorks apps at Artsy.
+
+[https://github.com/artsy/momentum](https://github.com/artsy/momentum)
+
 [garner](http://github.com/artsy/garner)
 ----------------------------------------
 
@@ -145,38 +159,66 @@ Mongoid extension that enables infinite scrolling with MongoDB.
 
 # &nbsp;
 <h1 id="javascript">Javascript<h1>
-----------------------
+----------------------------------
 
-[jquery\.konami\.coffee](https://github.com/craigspaeth/jquery.konami.coffee)
------------------------------------------------------------------------------
+[ezel](https://github.com/artsy/ezel)
+-------------------------------------
+
+A boilerplate for Backbone projects that share code server/client and scale through modular architecture.
+
+[https://github.com/artsy/ezel](https://github.com/artsy/ezel)
+
+[artsy-2013](https://github.com/artsy/artsy-2013)
+-------------------------------------------------
+
+Artsy's "2013 year in review" page using node for some preprocessors.
+
+[https://github.com/artsy/artsy-2013](https://github.com/artsy/artsy-2013)
+
+[browserify-dev-middleware](https://github.com/artsy/browserify-dev-middleware)
+-------------------------------------------------------------------------------
+
+Middleware to compile browserify files on request for development purpose.
+
+[https://github.com/artsy/browserify-dev-middleware](https://github.com/artsy/browserify-dev-middleware)
+
+[backbone-cache-sync](https://github.com/artsy/backbone-cache-sync)
+-------------------------------------------------------------------
+
+Server-side Backbone.sync adapter that caches requests using Redis.
+
+[https://github.com/craigspaeth/jquery.konami.coffee](https://github.com/craigspaeth/jquery.konami.coffee)
+
+[jquery.konami.coffee](https://github.com/craigspaeth/jquery.konami.coffee)
+--------------------------------------------------------------------------------------------
 
 A jQuery plugin to listen for a user entering the konami code.
 
 [https://github.com/craigspaeth/jquery.konami.coffee](https://github.com/craigspaeth/jquery.konami.coffee)
 
 [backbone-super-sync](https://github.com/artsy/backbone-super-sync)
-----------------------------------------------
+-------------------------------------------------------------------
 
 Node server-side Backbone.sync adapter using [super agent](https://github.com/visionmedia/superagent).
 
 [https://github.com/artsy/backbone-super-sync](https://github.com/artsy/backbone-super-sync)
 
 [benv](https://github.com/artsy/benv)
-----------------------------------------------
+-------------------------------------
 
 Stub a browser environment in node.js and headlessly test your client-side code.
 
 [https://github.com/artsy/benv](https://github.com/artsy/benv)
 
 [bucket-assets](https://github.com/artsy/bucket-assets)
-----------------------------------------------
+-------------------------------------------------------
 
 Node module that uploads a folder of static assets to an s3 bucket with convenient defaults.
 
 [https://github.com/artsy/bucket-assets](https://github.com/artsy/bucket-assets)
 
 [sharify](https://github.com/artsy/sharify)
-----------------------------------------------
+-------------------------------------------
 
 Node module to easily share data between your server-side and browserify modules.
 
@@ -190,7 +232,7 @@ Node Asset Packager helps compile and package your assets including stylesheets,
 [https://github.com/craigspaeth/nap](https://github.com/craigspaeth/nap)
 
 [flare](https://github.com/artsy/flare)
-------------------------------------------
+---------------------------------------
 
 Artsy iPhone Launch Marketing Page
 
