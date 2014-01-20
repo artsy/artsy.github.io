@@ -2,10 +2,10 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
 
   <title><![CDATA[Category: Analytics | Artsy Engineering]]></title>
-  <link href="http://artsy.github.com/blog/categories/analytics/atom.xml" rel="self"/>
-  <link href="http://artsy.github.com/"/>
-  <updated>2013-04-10T18:11:18+01:00</updated>
-  <id>http://artsy.github.com/</id>
+  <link href="http://artsy.github.io/blog/categories/analytics/atom.xml" rel="self"/>
+  <link href="http://artsy.github.io/"/>
+  <updated>2014-01-20T16:37:25+00:00</updated>
+  <id>http://artsy.github.io/</id>
   <author>
     <name><![CDATA[Artsy]]></name>
     
@@ -15,9 +15,9 @@
   
   <entry>
     <title type="html"><![CDATA[ARAnalytics - Analytics for iOS Apps]]></title>
-    <link href="http://artsy.github.com/blog/2013/04/10/aranalytics/"/>
+    <link href="http://artsy.github.io/blog/2013/04/10/aranalytics/"/>
     <updated>2013-04-10T17:23:00+01:00</updated>
-    <id>http://artsy.github.com/blog/2013/04/10/aranalytics</id>
+    <id>http://artsy.github.io/blog/2013/04/10/aranalytics</id>
     <content type="html"><![CDATA[<p>In both my <a href="http://orta.github.com">personal apps</a> and Artsy Folio, I'm always after a deeper understanding of how people use the app. There's three ways to do this: ask users, watch users and track usage. I'd like to talk about the third of these.</p>
 
 <p>We've experimented with quite a lot of analytics tools for the Artsy website, and it seemed fitting to do the same for our mobile app. We wanted the freedom to change the analytics tool without having to change the code, and so <a href="http://github.com/orta/ARAnalytics">ARAnalytics</a> was born.</p>
@@ -44,9 +44,9 @@
   
   <entry>
     <title type="html"><![CDATA[How to Start Small with Big Data and Google Analytics]]></title>
-    <link href="http://artsy.github.com/blog/2012/05/01/how-to-start-small-with-big-data-and-google-analytics/"/>
+    <link href="http://artsy.github.io/blog/2012/05/01/how-to-start-small-with-big-data-and-google-analytics/"/>
     <updated>2012-05-01T20:52:00+01:00</updated>
-    <id>http://artsy.github.com/blog/2012/05/01/how-to-start-small-with-big-data-and-google-analytics</id>
+    <id>http://artsy.github.io/blog/2012/05/01/how-to-start-small-with-big-data-and-google-analytics</id>
     <content type="html"><![CDATA[<p>Why do so many companies write a homegrown pageviews tracking system? Between Google Analytics, Kissmetrics and many others, isn't that a completely solved problem?</p>
 
 <p>These popular solutions lack domain knowledge. They are easily capable of segmenting users by region or browser, but they fail to recognize rules core to your business. Tracking pageviews with a homegrown system becomes your next sprint's goal.</p>
@@ -105,22 +105,19 @@ end
 
 <p>The majority of our pages are in the form of "/model/id", for example "/artwork/leonardo-mona-lisa". We're interested in all pageviews for a given artwork and in pageviews for a given artist, at a given date. We'll store selected Google Analytics data in a <code>GoogleAnalyticsPageviewsRecord</code> model described further.</p>
 
-<p>``` ruby
+<p><code>ruby
 t = Date.today - 1
-GoogleAnalyticsPageviews.all(profile, { :start_date => t, :end_date => t }) do |row|
-  model = /<sup>\/#!\/(?<type>[a-z-]+)\/(?<id>[a-z-]+)$/.match(row.page_path)</sup>
+GoogleAnalyticsPageviews.all(profile, { :start_date =&gt; t, :end_date =&gt; t }) do |row|
+  model = /^\/#\!\/(?&lt;type&gt;[a-z-]+)\/(?&lt;id&gt;[a-z-]+)$/.match(row.page_path)
   next unless (model[:type] == "artwork" || model[:type] == "artist")
-  GoogleAnalyticsPageviewsRecord.create!({</p>
-
-<pre><code>:model_type =&gt; model[:type],
-:model_id =&gt; model[:id],
-:pageviews =&gt; row.pageviews,
-:dt =&gt; t.strftime("%Y-%m-%d")
-</code></pre>
-
-<p>  })
+  GoogleAnalyticsPageviewsRecord.create!({
+    :model_type =&gt; model[:type],
+    :model_id =&gt; model[:id],
+    :pageviews =&gt; row.pageviews,
+    :dt =&gt; t.strftime("%Y-%m-%d")
+  })
 end
-```</p>
+</code></p>
 
 <p>Each <code>GoogleAnalyticsPageviewsRecord</code> contains the total pageviews for a given model ID at a given date. We now have a record for each artwork and artist. We can rollup existing data into a set of collections, incrementally. For example, <code>google_analytics_artworks_monthly</code> will contain the monthly hits for each artwork.</p>
 
@@ -133,35 +130,29 @@ class GoogleAnalyticsPageviewsRecord
   field :pageviews, type: Integer
   field :dt, type: Date</p>
 
-<p>  index [</p>
-
-<pre><code>[:model_type, Mongo::ASCENDING],
-[:model_id, Mongo::ASCENDING],
-[:dt, Mongo::DESCENDING]
-</code></pre>
-
-<p>  ], :unique => true</p>
+<p>  index [
+    [:model_type, Mongo::ASCENDING],
+    [:model_id, Mongo::ASCENDING],
+    [:dt, Mongo::DESCENDING]
+  ], :unique => true</p>
 
 <p>  after_create :rollup</p>
 
-<p>  def rollup</p>
-
-<pre><code>Mongoid.master.collection("google_analytics_#{self.model_type}s_total").update(
-  { :model_id =&gt; self.model_id },
-  { "$inc" =&gt; { "count" =&gt; self.pageviews }}, { :upsert =&gt; true })
-{
-  :daily =&gt; self.dt.strftime("%Y-%m-%d"),
-  :weekly =&gt; self.dt.beginning_of_week.strftime("%Y-%W"),
-  :monthly =&gt; self.dt.beginning_of_month.strftime("%Y-%m"),
-  :yearly =&gt; self.dt.beginning_of_year.strftime("%Y")
-}.each_pair do |t, dt|
-  Mongoid.master.collection("google_analytics_#{self.model_type}s_#{t}").update(
-    { :model_id =&gt; self.model_id, :dt =&gt; dt },
-    { "$inc" =&gt; { "count" =&gt; self.pageviews }}, { :upsert =&gt; true })
-end
-</code></pre>
-
-<p>  end</p>
+<p>  def rollup
+    Mongoid.master.collection("google_analytics<em>#{self.model_type}s_total").update(
+      { :model_id => self.model_id },
+      { "$inc" => { "count" => self.pageviews }}, { :upsert => true })
+    {
+      :daily => self.dt.strftime("%Y-%m-%d"),
+      :weekly => self.dt.beginning_of_week.strftime("%Y-%W"),
+      :monthly => self.dt.beginning_of_month.strftime("%Y-%m"),
+      :yearly => self.dt.beginning_of_year.strftime("%Y")
+    }.each_pair do |t, dt|
+      Mongoid.master.collection("google_analytics</em>#{self.model_type}s_#{t}").update(
+        { :model_id => self.model_id, :dt => dt },
+        { "$inc" => { "count" => self.pageviews }}, { :upsert => true })
+    end
+  end</p>
 
 <p>end
 ```</p>

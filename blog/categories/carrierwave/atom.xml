@@ -2,10 +2,10 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
 
   <title><![CDATA[Category: CarrierWave | Artsy Engineering]]></title>
-  <link href="http://artsy.github.com/blog/categories/carrierwave/atom.xml" rel="self"/>
-  <link href="http://artsy.github.com/"/>
-  <updated>2013-04-10T18:11:18+01:00</updated>
-  <id>http://artsy.github.com/</id>
+  <link href="http://artsy.github.io/blog/categories/carrierwave/atom.xml" rel="self"/>
+  <link href="http://artsy.github.io/"/>
+  <updated>2014-01-20T16:37:25+00:00</updated>
+  <id>http://artsy.github.io/</id>
   <author>
     <name><![CDATA[Artsy]]></name>
     
@@ -15,9 +15,9 @@
   
   <entry>
     <title type="html"><![CDATA[Delaying CarrierWave Image Processing]]></title>
-    <link href="http://artsy.github.com/blog/2012/01/31/delaying-carrierwave-image-processing/"/>
+    <link href="http://artsy.github.io/blog/2012/01/31/delaying-carrierwave-image-processing/"/>
     <updated>2012-01-31T08:31:00+00:00</updated>
-    <id>http://artsy.github.com/blog/2012/01/31/delaying-carrierwave-image-processing</id>
+    <id>http://artsy.github.io/blog/2012/01/31/delaying-carrierwave-image-processing</id>
     <content type="html"><![CDATA[<p>We do a lot of image processing at Artsy. We have tens of thousands of beautiful original high resolution images from our partners and treat them with care. The files mostly come from professional art photographers, include embedded color profiles and other complicated features that make image processing a big deal.</p>
 
 <p>Once uploaded, these images are converted to JPG, resized into many versions and often resampled. We are using <a href="https://github.com/jnicklas/carrierwave">CarrierWave</a> for this process - our typical image uploader starts like a usual CarrierWave implementation with a few additional features.</p>
@@ -34,11 +34,10 @@
 
 <p>Here's the complete source.</p>
 
-<p>``` ruby app/models/image_uploader.rb</p>
+<p>``` ruby app/models/image_uploader.rb
+    class ImageUploader &lt; CarrierWave::Uploader::Base</p>
 
-<pre><code>class ImageUploader &lt; CarrierWave::Uploader::Base
-
-  include CarrierWave::RMagick
+<pre><code>  include CarrierWave::RMagick
 
   # default url for a missing image
   def default_url
@@ -98,46 +97,39 @@
 end
 </code></pre>
 
-<p>```</p>
+<pre><code>
+We derive actual uploaders from the `ImageUploader` class.
 
-<p>We derive actual uploaders from the <code>ImageUploader</code> class.</p>
+``` ruby app/models/widget_uploader.rb
+    class WidgetUploader &lt; ImageUploader
 
-<p>``` ruby app/models/widget_uploader.rb</p>
+      process :increment_version
 
-<pre><code>class WidgetUploader &lt; ImageUploader
+      def increment_version
+        return if self.is_processing_delayed?
+        self.model.image_version = (self.model.image_version.to_i + 1)
+        self.model.image_versions = []
+      end
 
-  process :increment_version
+      version :small, if: :is_processing_delayed? do
+        process :convert =&gt; 'jpg'
+        process :resize_to_limit =&gt; [200, 200]
+        process :quality =&gt; 70
+      end
 
-  def increment_version
-    return if self.is_processing_delayed?
-    self.model.image_version = (self.model.image_version.to_i + 1)
-    self.model.image_versions = []
-  end
-
-  version :small, if: :is_processing_delayed? do
-    process :convert =&gt; 'jpg'
-    process :resize_to_limit =&gt; [200, 200]
-    process :quality =&gt; 70
-  end
-
-  version :square, if: :is_processing_delayed? do
-    process :convert =&gt; 'jpg'
-    process :resize_to_fill =&gt; [230, 230]
-    process :quality =&gt; 90
-  end
-end
+      version :square, if: :is_processing_delayed? do
+        process :convert =&gt; 'jpg'
+        process :resize_to_fill =&gt; [230, 230]
+        process :quality =&gt; 90
+      end
+    end
 </code></pre>
-
-<p>```</p>
 
 <p>And the uploader is mounted via <code>mount_uploader</code>.</p>
 
-<p>``` ruby</p>
-
-<pre><code>mount_uploader :image,  WidgetUploader, delayed: true
-</code></pre>
-
-<p>```</p>
+<p><code>ruby
+    mount_uploader :image,  WidgetUploader, delayed: true
+</code></p>
 
 <p>You'll notice a few unusual things here. The versions have an <code>:if</code> condition and there're mentions of <code>is_processing_delayed?</code>. This comes from a small module <a href="https://github.com/joeyAghion/">@joeyAghion</a> wrote called <code>DelayedImageProcessing</code>. It's a much more evolved version designed on top of <a href="http://code.dblock.org/carrierwave-delayjob-processing-of-selected-versions">my earlier idea</a> of delaying some image processing for background jobs.</p>
 

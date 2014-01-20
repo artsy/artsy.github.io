@@ -2,10 +2,10 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
 
   <title><![CDATA[Category: Heroku | Artsy Engineering]]></title>
-  <link href="http://artsy.github.com/blog/categories/heroku/atom.xml" rel="self"/>
-  <link href="http://artsy.github.com/"/>
-  <updated>2013-04-10T18:11:18+01:00</updated>
-  <id>http://artsy.github.com/</id>
+  <link href="http://artsy.github.io/blog/categories/heroku/atom.xml" rel="self"/>
+  <link href="http://artsy.github.io/"/>
+  <updated>2014-01-20T16:37:25+00:00</updated>
+  <id>http://artsy.github.io/</id>
   <author>
     <name><![CDATA[Artsy]]></name>
     
@@ -14,10 +14,172 @@
 
   
   <entry>
+    <title type="html"><![CDATA[Introduction to AWS OpsWorks]]></title>
+    <link href="http://artsy.github.io/blog/2013/08/27/introduction-to-aws-opsworks/"/>
+    <updated>2013-08-27T12:31:00+01:00</updated>
+    <id>http://artsy.github.io/blog/2013/08/27/introduction-to-aws-opsworks</id>
+    <content type="html"><![CDATA[<p>OpsWorks is a new service from Amazon that promises to provide high-level tools to manage your EC2-based deployment. From <a href="http://aws.typepad.com/aws/2013/02/aws-opsworks-flexible-application-management-in-the-cloud.html">the announcement</a>:</p>
+
+<blockquote><p>AWS OpsWorks features an integrated management experience for the entire application lifecycle including resource provisioning, configuration management, application deployment, monitoring, and access control. It will work with applications of any level of complexity and is independent of any particular architectural pattern.</p></blockquote>
+
+<p>After scratching our heads about exactly what that meant, we tried it anyway. If you've been straining at the limits of your Platform as a Service (PaaS) provider, or just wishing for more automation for your EC2 deployment, you may want to try it out too.</p>
+
+<p>Artsy has been experimenting with OpsWorks for a few months now and recently adopted it for the production <a href="http://artsy.net">artsy.net</a> site. We're excited to share what we've learned in the process.</p>
+
+<p>{% img screenshot /images/2013-08-27-introduction-to-aws-opsworks/opsworks.png [OpsWorks overview] %}</p>
+
+<!-- more -->
+
+
+<h2>Why OpsWorks?</h2>
+
+<p>If you've worked with the confusing array of AWS services in the past, you're already wondering how OpsWorks fits in. Amazon's own <a href="http://aws.amazon.com/elasticbeanstalk/">Elastic Beanstalk</a> or PaaS providers such as <a href="http://heroku.com">Heroku</a> typically focus on making your application as simple as possible to deploy. You don't have to worry about the underlying hardware or virtual resources; the platform manages that transparently. Dependencies (such as a data-store, cache, or email server) often take the form of external services.</p>
+
+<p>But this simplicity comes at a cost. Your application's architecture is constrained to a few common patterns. Your functionality may be limited by the system packages available in the standardized environment, or your performance may be limited by the available resources. OpsWorks offers more flexibility and control, allowing you to customize the types of servers you employ and the layers or services that make up your application. It's a lower-level tool than those PaaS providers.</p>
+
+<p>Conversely, OpsWorks offers higher-level control than <a href="https://aws.amazon.com/cloudformation/">CloudFormation</a> or than managing EC2 instances and related services directly. By focusing on the most commonly used AWS services, instance types, and architectures, it can provide greater automation and more robust tools for configuration, authorization, scaling, and monitoring. Amazon CTO <a href="http://www.allthingsdistributed.com/2013/02/aws-opsworks.html">Werner Vogels</a> rendered it thus:</p>
+
+<p>{% img screenshot /images/2013-08-27-introduction-to-aws-opsworks/aws_control.png [How OpsWorks fits in AWS offerings] %}</p>
+
+<p>Historically, Artsy delegated dev-ops concerns to Heroku. They worried about infrastructure, freeing us to focus on our application's higher-level goals. Increasingly though, we were forced to work around limitations of the platform's performance, architecture, and customizability. (We even blogged about it <a href="http://artsy.github.io/blog/2012/01/31/beyond-heroku-satellite-delayed-job-workers-on-ec2/">here</a>, <a href="http://artsy.github.io/blog/2012/11/15/how-to-monitor-503s-and-timeout-on-heroku/">here</a>, <a href="http://artsy.github.io/blog/2012/12/13/beat-heroku-60-seconds-application-boot-timeout-with-a-proxy/">here</a>, <a href="http://artsy.github.io/blog/2013/02/01/master-heroku-command-line-with-heroku-commander/">here</a>, and <a href="http://artsy.github.io/blog/2013/02/17/impact-of-heroku-routing-mesh-and-random-routing/">here</a>.) Rather than continue to work against the platform, we turned to OpsWorks for greater flexibility while keeping administrative burden low.</p>
+
+<h2>OpsWorks Overview</h2>
+
+<p>OpsWorks comes with a new vocabulary. Let's look at the major concepts:</p>
+
+<ul>
+<li>A <em><strong>Stack</strong></em> is the highest-level container. It groups custom configuration and houses one or more applications. To manage a simple to-do list site, you'd create a <em>todo</em> stack, although you might choose to have separate <em>todo-production</em> and <em>todo-staging</em> stacks.</li>
+<li>Each stack has one or more <em><strong>Layers</strong></em>. Think of these as definitions for different server roles. A simple static web site might have a single Nginx layer. A typical web application might instead have a load-balancer layer, a Rails layer, and a MySQL layer. OpsWorks defines plenty of <a href="http://docs.aws.amazon.com/opsworks/latest/userguide/workinglayers.html">built-in layers</a> (for Rails, HAProxy, PHP, Node, Memcached, MySQL, etc.), but you can also define your own.</li>
+<li><em><strong>Applications</strong></em> are your code, sourced from a git or subversion repository, an S3 bucket, or even an external web site. A typical Rails site might have a single application defined, but you can define multiple applications if you'd like to configure, scale, and monitor them together.</li>
+<li>Finally, we define <em><strong>Instances</strong></em> and assign each to one or more layers. These are the EC2 servers themselves. You can start instances manually, or configure them to start and stop on a schedule or in response to load patterns.</li>
+</ul>
+
+
+<h2>Configuring your stack</h2>
+
+<p>If your app employs a common architecture, you can probably use the OpsWorks dashboard to define layers, add a few instances, link your git repo and be up and running. Examples:</p>
+
+<ul>
+<li>A static web site hosted on Nginx</li>
+<li>A single-server PHP app</li>
+<li>A Rails app with an <a href="http://haproxy.1wt.eu/">HAProxy</a> load-balancer, unicorn app servers, and MySQL database</li>
+<li>A Node.js app using <a href="http://aws.amazon.com/elasticloadbalancing/">Elastic Load Balancer</a> and a Memcached cache</li>
+</ul>
+
+
+<p>You can find <a href="http://docs.aws.amazon.com/opsworks/latest/userguide/walkthroughs.html">detailed walk-throughs</a> of a few such common use cases in the OpsWorks docs.</p>
+
+<p>{% img screenshot /images/2013-08-27-introduction-to-aws-opsworks/standard_instances.png [PHP app instances (image from AWS blog)] %}</p>
+
+<p>If the built-in layers don't quite satisfy your needs, there are several facilities for customization. But first, it's useful to understand how OpsWorks manages your instances.</p>
+
+<h3>Chef cookbooks</h3>
+
+<p>OpsWorks uses <a href="http://www.opscode.com/chef/">Chef</a> to configure EC2 instances. If you're unfamiliar, Chef is a popular tool for making server configuration more automated and repeatable&mdash;like code. The Chef "recipes" that configure each layer are open-source and available in the <a href="http://github.com/aws/opsworks-cookbooks">opsworks-cookbooks</a> github repo. (Cookbooks contain one or more "recipes"&mdash;get it?) There, you can see precisely what commands are run in response to server lifecycle events (i.e., as servers are started, configured, deployed to, and stopped). These recipes write out configuration files, restart services, authorize users for SSH access, ensure logs are rotated, etc.&mdash;everything typical deployments might need.</p>
+
+<p>For example, the recipes that set up an HAProxy instance look like this:</p>
+
+<p>{% img screenshot /images/2013-08-27-introduction-to-aws-opsworks/haproxy_recipes.png [Built-in recipes for the HAProxy layer] %}</p>
+
+<h3>Overriding configuration "attributes"</h3>
+
+<p>Chef cookbooks accept parameters in the form of "node attributes." The default attributes will serve you well in most cases. To override them, edit the stack's <a href="http://docs.aws.amazon.com/opsworks/latest/userguide/workingstacks-json.html"><em>custom Chef JSON</em></a>. For example, to configure Unicorn to run 8 workers instead of 16 and Memcached to bind to port 11212 instead of 11211, you'd enter the following for your stack's custom JSON:</p>
+
+<p>{% img screenshot /images/2013-08-27-introduction-to-aws-opsworks/custom_json.png '{"rails:" {"max_pool_size": 8}, "memcached": {"port": 11212}}' %}</p>
+
+<h3>Custom cookbooks</h3>
+
+<p>If setting node attributes isn't sufficient, you can go further and override the files written out by your layer's recipes. Simply toggle the <em>Use custom Chef cookbooks</em> option in your stack settings and provide a link to a git, subversion, S3, or HTTP location for your <a href="http://docs.aws.amazon.com/opsworks/latest/userguide/workingcookbook-installingcustom-enable.html">custom cookbooks</a>.</p>
+
+<p>{% img screenshot /images/2013-08-27-introduction-to-aws-opsworks/custom_cookbooks.png [Enabling custom cookbooks] %}</p>
+
+<p>Your custom cookbooks bundle can also contain original or <a href="http://docs.opscode.com/essentials_cookbooks.html">borrowed</a> recipes that perform any other custom configuration. Tell OpsWorks when to run your recipes by associating them with the desired events in your layer settings. For example, we use custom recipes at our Rails layer's <em>setup</em> stage to perform additional Nginx configuration, install a JavaScript runtime, and send logs to <a href="https://papertrailapp.com/">Papertrail</a>.</p>
+
+<p>{% img screenshot /images/2013-08-27-introduction-to-aws-opsworks/custom_recipes.png [custom Chef recipes] %}</p>
+
+<p>OpsWorks shares details about the entire stack with recipes via node attributes, allowing custom recipes to connect to other instances as required.</p>
+
+<h3>Custom layers</h3>
+
+<p>If the built-in layers don't satisfy your needs even after customization, you can create custom layers. The base OpsWorks configuration is provided (for SSH authorization, monitoring, etc.) and your custom recipes do the rest. For example, we created a custom layer to process background jobs:</p>
+
+<p>{% img screenshot /images/2013-08-27-introduction-to-aws-opsworks/custom_layer.png [custom background jobs layer] %}</p>
+
+<p>Down the road, we might introduce additional layers for Redis, Solr, or MongoDB. (Even better, AWS may introduce built-in support for these.)</p>
+
+<h2>Performance</h2>
+
+<p>OpsWorks makes most <a href="http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-types.html">EC2 instance types</a> available, so we can choose an appropriate balance of CPU power, memory, disk space, network performance, and architecture for each instance. This can be a <em>huge</em> boon to the performance of resource-constrained applications. It probably still pales in comparison to running directly on physical hardware, but this benefit alone could make OpsWorks a worthwhile choice over providers of "standard" computing resources.</p>
+
+<p>While not a rigorous comparison, the experience of one of our particularly memory-constrained applications illustrates this. The application's responses took an average of 638 milliseconds when running on Heroku's <a href="https://devcenter.heroku.com/articles/dyno-size">"2x" (1 GB) dynos</a>. The same application responded in only 134 milliseconds on OpsWorks-managed <em>m1.large</em> instances (with 7.5 GB). That's a ~80% (5x) improvement!</p>
+
+<p>{% img screenshot /images/2013-08-27-introduction-to-aws-opsworks/new_relic_comparison.png [OpsWorks performance superimposed on Heroku performance (chart: New Relic)] %}</p>
+
+<h2>Troubleshooting</h2>
+
+<p>That's all well and good, but what about when things <em>aren't</em> working?</p>
+
+<p>We've experienced our fair share of failures with both OpsWorks and Heroku. PaaS providers like Heroku offer a pleasant abstraction, but in doing so reduce our visibility into the systems running our application. (Want to know why a dyno seems to be performing poorly? Good luck diagnosing resource contention, disk space problems, or network latency.) Instead, we're reduced to repeatedly issuing restart commands.</p>
+
+<p>In contrast, I can easily SSH into an OpsWorks instance and notice that a runaway process has pegged the CPU or that a chatty log has filled the disk. (Of course, the additional control afforded by OpsWorks increases the chance that I've caused the problem myself.)</p>
+
+<p>Which do we prefer? We'd probably be safer with Heroku's experts in charge, but I'll happily accept light sysadmin duties in exchange for the flexibility OpsWorks affords. And by sticking with the OpsWorks default recipes as much as possible, we benefit from the platform's combined experience.</p>
+
+<h2>Scaling and recovery</h2>
+
+<p>Scalability and recovery are critical, so how does OpsWorks compare to full-featured PaaS providers? Pretty well, actually.</p>
+
+<p>OpsWorks instances can be launched in multiple AWS availability zones for greater redundancy. And if an instance fails for any reason, OpsWorks will stop it and start a new one in its place.</p>
+
+<p>Especially useful is the automatic scaling, which can be time-based or load-based. This nicely matches  the horizontal scaling needs of our app: we've chosen to run additional Rails app servers during peak business hours, and additional background workers when load on existing servers exceeds a certain threshold.</p>
+
+<p>{% img screenshot /images/2013-08-27-introduction-to-aws-opsworks/time-based_scaling.png [time-based scaling] %}</p>
+
+<p>{% img screenshot /images/2013-08-27-introduction-to-aws-opsworks/load-based_scaling.png [load-based scaling] %}</p>
+
+<p>When background workers are busy, new instances spin up automatically to tackle the growing queue. <em>That</em> is dev-ops gold.</p>
+
+<h2>Monitoring</h2>
+
+<p>OpsWorks provides a monitoring view of each stack, with CPU, memory, load, and process statistics aggregated by layer. You can drill down to individual instances and review periods anywhere from 1 hour to 2 weeks long.</p>
+
+<p>{% img screenshot /images/2013-08-27-introduction-to-aws-opsworks/monitoring.png [OpsWorks monitoring view] %}</p>
+
+<p>We haven't tried it, but OpsWorks also offers a built-in <a href="http://docs.aws.amazon.com/opsworks/latest/userguide/workinglayers-ganglia.html">Ganglia layer</a> that automatically collects metrics from each of your stack's instances.</p>
+
+<p>Conveniently, AWS also sends these metrics to its own <a href="http://aws.amazon.com/cloudwatch/">CloudWatch</a> monitoring service, where you can configure custom alerts.</p>
+
+<h2>Integration with other AWS services</h2>
+
+<p>You might be noticing a theme here: OpsWorks leverages AWS's other tools and services quite a bit.</p>
+
+<p><a href="http://aws.amazon.com/iam/">Identity and Access Management (IAM)</a> allows you to define individual user accounts within an umbrella account for your organization. These users can be authorized for varying levels of access to your OpsWorks stacks. From the <em>Permissions</em> view of each stack, you can then grant them SSH and <em>sudo</em> rights on an individual basis.</p>
+
+<p>{% img screenshot /images/2013-08-27-introduction-to-aws-opsworks/permissions.png [OpsWorks permissions view] %}</p>
+
+<p>Other tools such as the <a href="https://console.aws.amazon.com/ec2">EC2 Dashboard</a> and <a href="http://docs.aws.amazon.com/AWSRubySDK/latest/frames.html">AWS API</a> work as you'd hope, with all of the usual functions being applicable to your OpsWorks-managed instances and other services like elastic IPs and EBS volumes.</p>
+
+<h2>Cost</h2>
+
+<p>Pricing is simple and enticing. There's no charge for using OpsWorks; you pay only for your underlying usage of other AWS resources like EC2 instances, S3 storage, bandwidth, elastic IPs, etc. If you've purchased <a href="http://aws.amazon.com/ec2/reserved-instances/">reserved instances</a>, those savings will apply as usual.</p>
+
+<p>Unfortunately, OpsWorks doesn't yet support <a href="http://aws.amazon.com/ec2/spot-instances/">spot instances</a> (but I imagine that's in the works).</p>
+
+<h2>Roadmap</h2>
+
+<p>In the few months since its launch, OpsWorks has added support for <a href="http://aws.amazon.com/elasticloadbalancing/">ELB</a>, monitoring, custom AMIs, and more recent versions of Chef and Ruby. There's also an <a href="https://forums.aws.amazon.com/forum.jspa?forumID=153">active discussion forum</a> where developers and Amazon employees circulate issues and request features. It's a relatively new service and can occasionally be rough around the edges, but--knowing AWS--we expect the current pace of enhancements to continue.</p>
+
+<p>We've already launched one major app on OpsWorks and will be looking for more opportunities as it gains a following and grows in sophistication.</p>
+
+<p><em>Look for a follow-up post where we document our experience transitioning an app from Heroku to OpsWorks!</em></p>
+]]></content>
+  </entry>
+  
+  <entry>
     <title type="html"><![CDATA[The Impact of Heroku's Routing Mesh and Random Routing]]></title>
-    <link href="http://artsy.github.com/blog/2013/02/17/impact-of-heroku-routing-mesh-and-random-routing/"/>
+    <link href="http://artsy.github.io/blog/2013/02/17/impact-of-heroku-routing-mesh-and-random-routing/"/>
     <updated>2013-02-17T12:21:00+00:00</updated>
-    <id>http://artsy.github.com/blog/2013/02/17/impact-of-heroku-routing-mesh-and-random-routing</id>
+    <id>http://artsy.github.io/blog/2013/02/17/impact-of-heroku-routing-mesh-and-random-routing</id>
     <content type="html"><![CDATA[<p>The <a href="http://rapgenius.com/James-somers-herokus-ugly-secret-lyrics">Heroku's Ugly Secret</a> blog post went viral last week. I <a href="http://code.dblock.org/in-defense-of-heroku">wrote</a> in defense of Heroku, which has now responded with an official <a href="https://blog.heroku.com/archives/2013/2/16/routing_performance_update/">Routing Performance Update</a>.</p>
 
 <p>Random request queuing has been discussed in the past in <a href="http://tiwatson.com/blog/2011-2-17-heroku-no-longer-using-a-global-request-queue">Tim Watson's post</a> based on a <a href="https://groups.google.com/forum/?fromgroups=#!msg/heroku/8eOosLC5nrw/Xy2j7GapebIJ">response</a> by Heroku's Adam Wiggins. While the documentation may not have been accurate or even somewhat misleading, we, at Artsy, understood the strategy and the limitations of the routing mesh for quite sometime. Therefore, we have been making continuous efforts to improve our application's performance and reduce the negative impact of random routing inside the routing mesh over the past few months.</p>
@@ -26,7 +188,7 @@
 
 <p>With this code in place, here's a 12 hour graph of our website's API performance. The dyno wait time for our application, in green, averaged 61.1ms for a total of 301ms average per request, which is 1/5th of the total request time. It's certainly a lot, but we do spend a lot more time in our own code.</p>
 
-<p><img src="http://artsy.github.com/images/2013-02-17-impact-of-heroku-routing-mesh-and-random-routing/newrelic-12-hours.png"></p>
+<p><img src="http://artsy.github.io/images/2013-02-17-impact-of-heroku-routing-mesh-and-random-routing/newrelic-12-hours.png"></p>
 
 <p>Note that the single peak on the right of the graph corresponds to a dyno auto-scale job. We double the number of dynos with early morning traffic, which causes new dynos to boot up and accumulate requests before they are "warm" enough to process requests at their normal rate.</p>
 
@@ -48,18 +210,14 @@
 <p>class QueueTimeLogger
   attr_reader :app</p>
 
-<p>  def initialize(app, options = {})</p>
+<p>  def initialize(app, options = {})
+    @app = app
+  end</p>
 
-<pre><code>@app = app
-</code></pre>
+<p>  def call(env)
+    now = Time.now.to_f</p>
 
-<p>  end</p>
-
-<p>  def call(env)</p>
-
-<pre><code>now = Time.now.to_f
-
-env.delete("HTTP_X_HEROKU_QUEUE_WAIT_TIME")
+<pre><code>env.delete("HTTP_X_HEROKU_QUEUE_WAIT_TIME")
 
 microseconds = (now * 1_000_000).to_i
 env["HTTP_X_MIDDLEWARE_START"] = "t=#{microseconds}"
@@ -124,10 +282,10 @@ config.middleware.use QueueTimeLogger
   
   <entry>
     <title type="html"><![CDATA[Master the Heroku CLI with Heroku Commander]]></title>
-    <link href="http://artsy.github.com/blog/2013/02/01/master-heroku-command-line-with-heroku-commander/"/>
+    <link href="http://artsy.github.io/blog/2013/02/01/master-heroku-command-line-with-heroku-commander/"/>
     <updated>2013-02-01T21:21:00+00:00</updated>
-    <id>http://artsy.github.com/blog/2013/02/01/master-heroku-command-line-with-heroku-commander</id>
-    <content type="html"><![CDATA[<p><img src="http://artsy.github.com/images/2013-02-01-master-heroku-command-line-with-heroku-commander/heroku-commander.png"></p>
+    <id>http://artsy.github.io/blog/2013/02/01/master-heroku-command-line-with-heroku-commander</id>
+    <content type="html"><![CDATA[<p><img src="http://artsy.github.io/images/2013-02-01-master-heroku-command-line-with-heroku-commander/heroku-commander.png"></p>
 
 <p>Heroku users frequently run the <strong>heroku</strong> command-line tool that ships with the <a href="https://toolbelt.heroku.com/">Heroku Toolbelt</a>. It has two very convenient features: it will remember API credentials and default to the "heroku" GIT remote to figure out the application to connect to. Neither of these features are available in the Heroku client API, so it's not unusual to find developers invoke the Heroku CLI from Rake tasks and other automation scripts.</p>
 
@@ -207,34 +365,30 @@ end
   
   <entry>
     <title type="html"><![CDATA[Debugging Bundler Issues on Heroku]]></title>
-    <link href="http://artsy.github.com/blog/2013/01/15/debugging-bundler-issues-with-heroku/"/>
+    <link href="http://artsy.github.io/blog/2013/01/15/debugging-bundler-issues-with-heroku/"/>
     <updated>2013-01-15T21:21:00+00:00</updated>
-    <id>http://artsy.github.com/blog/2013/01/15/debugging-bundler-issues-with-heroku</id>
+    <id>http://artsy.github.io/blog/2013/01/15/debugging-bundler-issues-with-heroku</id>
     <content type="html"><![CDATA[<p>A few days ago we have started seeing the Heroku deployments of one of our applications randomly hang during <code>bundle install</code>. The problem worsened with time and we were not able to do a deployment for days.</p>
 
-<p>```
-$ git push -f git@heroku.com:application.git FETCH_HEAD:master
------> Deleting 12 files matching .slugignore patterns.
------> Ruby/Rails app detected
------> Using Ruby version: ruby-1.9.3
------> Installing dependencies using Bundler version 1.3.0.pre.5</p>
-
-<pre><code>   Running: bundle install --without development:test --path vendor/bundle --binstubs vendor/bundle/bin
-   Fetching gem metadata from http://rubygems.org/.......
-   Fetching gem metadata from http://rubygems.org/..
-</code></pre>
-
-<p>/app/slug-compiler/lib/utils.rb:66:in <code>block (2 levels) in spawn': command='/app/slug-compiler/lib/../../tmp/buildpacks/ruby/bin/compile /tmp/build_1p6071sni4hh1 /app/tmp/repo.git/.cache' exit_status=0 out='' at=timeout elapsed=900.1056394577026 (Utils::TimeoutError)
-  from /app/slug-compiler/lib/utils.rb:52:in</code>loop'
-  from /app/slug-compiler/lib/utils.rb:52:in <code>block in spawn'
-  from /app/slug-compiler/lib/utils.rb:47:in</code>popen'
-  from /app/slug-compiler/lib/utils.rb:47:in <code>spawn'
-  from /app/slug-compiler/lib/buildpack.rb:37:in</code>block in compile'
-  from /app/slug-compiler/lib/buildpack.rb:35:in <code>fork'
-  from /app/slug-compiler/lib/buildpack.rb:35:in</code>compile'
+<pre><code>$ git push -f git@heroku.com:application.git FETCH_HEAD:master
+-----&gt; Deleting 12 files matching .slugignore patterns.
+-----&gt; Ruby/Rails app detected
+-----&gt; Using Ruby version: ruby-1.9.3
+-----&gt; Installing dependencies using Bundler version 1.3.0.pre.5
+       Running: bundle install --without development:test --path vendor/bundle --binstubs vendor/bundle/bin
+       Fetching gem metadata from http://rubygems.org/.......
+       Fetching gem metadata from http://rubygems.org/..
+/app/slug-compiler/lib/utils.rb:66:in `block (2 levels) in spawn': command='/app/slug-compiler/lib/../../tmp/buildpacks/ruby/bin/compile /tmp/build_1p6071sni4hh1 /app/tmp/repo.git/.cache' exit_status=0 out='' at=timeout elapsed=900.1056394577026 (Utils::TimeoutError)
+  from /app/slug-compiler/lib/utils.rb:52:in `loop'
+  from /app/slug-compiler/lib/utils.rb:52:in `block in spawn'
+  from /app/slug-compiler/lib/utils.rb:47:in `popen'
+  from /app/slug-compiler/lib/utils.rb:47:in `spawn'
+  from /app/slug-compiler/lib/buildpack.rb:37:in `block in compile'
+  from /app/slug-compiler/lib/buildpack.rb:35:in `fork'
+  from /app/slug-compiler/lib/buildpack.rb:35:in `compile'
   from /app/slug-compiler/lib/slug.rb:497:in `block in run_buildpack'
  !     Heroku push rejected, failed to compile Ruby/rails app
-```</p>
+</code></pre>
 
 <p>Seeing bundler hang on "Fetching gem metadata from http://rubygems.org/", my immediate reaction was to blame the RubyGems Dependency API for its poor performance and attempt the <a href="http://hone.herokuapp.com/bundler%20heroku/2012/10/22/rubygems-and-the-dependency-api.html">recommended workaround</a> of switching to <em>http://bundler-api.herokuapp.com</em>. That didn't work.</p>
 
@@ -253,7 +407,7 @@ $ git push -f git@heroku.com:application.git FETCH_HEAD:master
 
 <p>Heroku provides small Ubuntu virtual machines on-demand, called "dynos", that look very much like any other Linux box. You can <code>heroku run bash</code> and examine the file system of a running dyno. You can delete the bundler cache, rerun <code>bundle install</code>, etc. But deployment does not happen in a running dyno - every time you push to Heroku, deployment happens inside a compiler dyno. Heroku attaches the dyno to your slug filesystem (your code), which may include a cache from previous runs. It then executes the code inside <a href="https://github.com/heroku/heroku-buildpack-ruby">heroku-buildpack-ruby</a>, specifically <a href="https://github.com/heroku/heroku-buildpack-ruby/blob/5dbf4c06c765dc832c073fe5be9360533fd1846d/lib/language_pack/ruby.rb#L49">this method</a>.</p>
 
-<p>``` ruby
+<p><code>ruby
 def compile
   Dir.chdir(build_path)
   remove_vendor_bundle
@@ -261,18 +415,15 @@ def compile
   install_jvm
   setup_language_pack_environment
   setup_profiled
-  allow_git do</p>
-
-<pre><code>install_language_pack_gems
-build_bundler
-create_database_yml
-install_binaries
-run_assets_precompile_rake_task
-</code></pre>
-
-<p>  end
+  allow_git do
+    install_language_pack_gems
+    build_bundler
+    create_database_yml
+    install_binaries
+    run_assets_precompile_rake_task
+  end
 end
-```</p>
+</code></p>
 
 <p>A lot of these functions invoke <code>IO.open</code> and transmit <code>$stdout</code> and <code>$stderr</code> back to you. You see everything Heroku sees and while you cannot get access to the compiler dyno, there's really no mystery to this process. Heroku slug compiler will timeout after 15 minutes and produce a stack with <code>Utils::TimeoutError</code>. And everything Heroku does should be reproducible locally.</p>
 
@@ -280,37 +431,28 @@ end
 
 <p>The key to getting a repro of my issue locally was to use the <a href="https://github.com/carlhuda/bundler/blob/master/ISSUES.md">Bundler Troubleshooting</a> section. I had previously missed one of the steps in cleaning the local Bundler cache.</p>
 
-<p>```</p>
+<pre><code># remove user-specific gems and git repos
+rm -rf ~/.bundle/ ~/.gem/bundler/ ~/.gems/cache/bundler/
 
-<h1>remove user-specific gems and git repos</h1>
+# remove system-wide git repos and git checkouts
+rm -rf $GEM_HOME/bundler/ $GEM_HOME/cache/bundler/
 
-<p>rm -rf ~/.bundle/ ~/.gem/bundler/ ~/.gems/cache/bundler/</p>
+# remove project-specific settings and git repos
+rm -rf .bundle/
 
-<h1>remove system-wide git repos and git checkouts</h1>
+# remove project-specific cached .gem files
+rm -rf vendor/cache/
 
-<p>rm -rf $GEM_HOME/bundler/ $GEM_HOME/cache/bundler/</p>
+# remove the saved resolve of the Gemfile
+rm -rf Gemfile.lock
 
-<h1>remove project-specific settings and git repos</h1>
+# uninstall the rubygems-bundler and open_gem gems
+rvm gemset use global # if using rvm
+gem uninstall rubygems-bundler open_gem
 
-<p>rm -rf .bundle/</p>
-
-<h1>remove project-specific cached .gem files</h1>
-
-<p>rm -rf vendor/cache/</p>
-
-<h1>remove the saved resolve of the Gemfile</h1>
-
-<p>rm -rf Gemfile.lock</p>
-
-<h1>uninstall the rubygems-bundler and open_gem gems</h1>
-
-<p>rvm gemset use global # if using rvm
-gem uninstall rubygems-bundler open_gem</p>
-
-<h1>try to install one more time</h1>
-
-<p>bundle install
-```</p>
+# try to install one more time
+bundle install
+</code></pre>
 
 <p>This hung with my Gemfile the same way as on Heroku.</p>
 
@@ -334,18 +476,17 @@ gem uninstall rubygems-bundler open_gem</p>
   
   <entry>
     <title type="html"><![CDATA[Beat Heroku's 60 Seconds Application Boot Timeout with a Proxy]]></title>
-    <link href="http://artsy.github.com/blog/2012/12/13/beat-heroku-60-seconds-application-boot-timeout-with-a-proxy/"/>
+    <link href="http://artsy.github.io/blog/2012/12/13/beat-heroku-60-seconds-application-boot-timeout-with-a-proxy/"/>
     <updated>2012-12-13T21:21:00+00:00</updated>
-    <id>http://artsy.github.com/blog/2012/12/13/beat-heroku-60-seconds-application-boot-timeout-with-a-proxy</id>
-    <content type="html"><![CDATA[<p><img src="http://artsy.github.com/images/2012-12-13-beat-heroku-60-seconds-application-boot-timeout-with-a-proxy/heroku-logo-light-234x60.png"></p>
+    <id>http://artsy.github.io/blog/2012/12/13/beat-heroku-60-seconds-application-boot-timeout-with-a-proxy</id>
+    <content type="html"><![CDATA[<p><img src="http://artsy.github.io/images/2012-12-13-beat-heroku-60-seconds-application-boot-timeout-with-a-proxy/heroku-logo-light-234x60.png"></p>
 
 <p>Heroku will log an <a href="https://devcenter.heroku.com/articles/error-codes#r10-boot-timeout">R10 - Boot Timeout</a> error when a web process takes longer than 60 seconds to bind to its assigned port. This error is often caused by a process being unable to reach an external resource, such as a database or because you have a lot of gems in your <code>Gemfile</code> which take a long time to load.</p>
 
-<p><code>
-Dec 12 12:12:12 prod heroku/web.1:
+<pre><code>Dec 12 12:12:12 prod heroku/web.1:
   Error R10 (Boot timeout)
   Web process failed to bind to $PORT within 60 seconds of launch
-</code></p>
+</code></pre>
 
 <p>There's currently no way to increase this boot timeout, but we can beat it with a proxy implemented by our new <a href="https://github.com/dblock/heroku-forward">heroku-forward</a> gem.</p>
 
@@ -358,8 +499,7 @@ Dec 12 12:12:12 prod heroku/web.1:
 
 <p>Here's the log output from an application that uses this gem. Notice that Heroku reports the state of <code>web.1</code> up after just 4 seconds, while the application takes 67 seconds to boot.</p>
 
-<p><code>
-2012-12-11T23:33:42+00:00 heroku[web.1]: Starting process with command `bundle exec ruby config.ru`
+<pre><code>2012-12-11T23:33:42+00:00 heroku[web.1]: Starting process with command `bundle exec ruby config.ru`
 2012-12-11T23:33:46+00:00 app[web.1]:  INFO -- : Launching Backend ...
 2012-12-11T23:33:46+00:00 app[web.1]:  INFO -- : Launching Proxy Server at 0.0.0.0:42017 ...
 2012-12-11T23:33:46+00:00 app[web.1]: DEBUG -- : Attempting to connect to /tmp/thin20121211-2-1bfazzx.
@@ -370,89 +510,9 @@ Dec 12 12:12:12 prod heroku/web.1:
 2012-12-11T23:34:32+00:00 app[web.1]: &gt;&gt; Listening on /tmp/thin20121211-2-1bfazzx, CTRL+C to stop
 2012-12-11T23:34:53+00:00 app[web.1]: DEBUG -- : Attempting to connect to /tmp/thin20121211-2-1bfazzx.
 2012-12-11T23:34:53+00:00 app[web.1]: DEBUG -- : Proxy Server ready at 0.0.0.0:42017 (67s).
-</code></p>
-
-<p>You can read more about how we use Heroku at <a href="http://success.heroku.com/artsy">http://success.heroku.com/artsy</a>.</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Measuring Performance in Grape APIs with NewRelic RPM]]></title>
-    <link href="http://artsy.github.com/blog/2012/11/29/measuring-performance-in-grape-apis-with-new-relic/"/>
-    <updated>2012-11-29T21:21:00+00:00</updated>
-    <id>http://artsy.github.com/blog/2012/11/29/measuring-performance-in-grape-apis-with-new-relic</id>
-    <content type="html"><![CDATA[<p>Knowing how well your API performs in real time is essential to any successful project. That's because you can't fix what you can't measure.</p>
-
-<p>We use and heavily contribute to <a href="http://github.com/intridea/grape">Grape</a>, a Ruby API DSL. Grape is a Rack middleware and we have been reporting API performance data to <a href="http://newrelic.com/">NewRelic</a> with code from <a href="http://code.dblock.org/new-relic-performance-instrumentation-with-grape-api">my older blog post</a>.</p>
-
-<p>It's time to improve the reporting implementation and address performance monitoring in both development and production environments. Here's what a single API request breakdown is going to look like.</p>
-
-<p><img src="http://artsy.github.com/images/2012-11-29-measuring-performance-in-grape-apis-with-new-relic/transaction-detail.png"></p>
-
-<!-- more -->
-
-
-<h2>NewRelic RPM</h2>
-
-<p>The first step is to add the <code>newrelic_rpm</code> gem to Gemfile, which implements the actual realtime performance reporting to NewRelic. We also use <a href="https://github.com/mongoid/mongoid">Mongoid</a> and the <a href="https://github.com/mongoid/moped">Moped</a> MongoDB Ruby driver, which can be instrumented with <code>newrelic_moped</code>.</p>
-
-<p><code>ruby Gemfile
-gem "newrelic_moped", "0.0.3"
-gem "newrelic_rpm", "3.3.3"
-</code></p>
-
-<p>You will need <code>config/newrelic.yml</code> in your application. Ours can be found in <a href="https://gist.github.com/4170458">this gist</a> and works well both locally and on Heroku.</p>
-
-<h2>Instrumenting Grape</h2>
-
-<p>In the past we used <a href="https://gist.github.com/1233422">NewRelic::Agent::Instrumentation::API</a>, which works for any generic Rack middleware. This would report all API calls to NewRelic, but would treat requests to <em>/api/artist/andy-warhol</em> and <em>/api/artist/wassily-kandinsky</em> as unrelated. That is because the instrumenter is a Rack middleware that wraps Grape requests <em>before</em> they reach Grape. The only information available is the request URL, and not the actual API route that is going to be matched when the request is processed.</p>
-
-<p>We want both requests to <em>/api/artist/andy-warhol</em> and <em>/api/artist/wassily-kandinsky</em> to be treated as <em>/api/artist/:id</em>. Lets insert a middleware inside Grape itself, once the URL has been matched to a route.</p>
-
-<p><code>ruby api.rb
-class API &lt;&lt; Grape::API
-  use ApiNewRelicInstrumenter
-  ...
-end
-</code></p>
-
-<p>The new instrumenter has access to the current API endpoint via <code>env['api.endpoint']</code> and reports data via NewRelic's <code>ControllerInstrumentation</code>.</p>
-
-<p>``` ruby
-class ApiNewRelicInstrumenter &lt; Grape::Middleware::Base
-  include NewRelic::Agent::Instrumentation::ControllerInstrumentation</p>
-
-<p>  def call(env)</p>
-
-<pre><code>trace_options = {
-  category: :rack,
-  path: env['api.endpoint'].routes.first.route_path,
-  request: request,
-  ...
-}
-
-perform_action_with_newrelic_trace(trace_options) do
-  yield
-end
 </code></pre>
 
-<p>  end
-end
-```</p>
-
-<p>The complete code for <code>ApiNewRelicInstrumenter</code> can be found in <a href="https://gist.github.com/4170469">this gist</a>. It supports enabling and disabling performance reporting by setting <code>NEW_RELIC_ID</code> and works around NewRelic's method name limitations (these cannot contain slashes).</p>
-
-<h2>Development Environment</h2>
-
-<p>You can now see NewRelic performance data in development mode, too. If you mount Grape inside Rails run <code>NEW_RELIC_ID=foo rails s</code>. Navigate to <em>http://localhost:3000/newrelic</em> to see your local traces.</p>
-
-<p><img src="http://artsy.github.com/images/2012-11-29-measuring-performance-in-grape-apis-with-new-relic/developer-mode.png"></p>
-
-<p>Drill into an individual request to find several detailed breakdowns of how time was spent, including specific MongoDB queries (under "SQL", naturally).</p>
-
-<p><img src="http://artsy.github.com/images/2012-11-29-measuring-performance-in-grape-apis-with-new-relic/sql-detail.png"></p>
-
-<p>NewRelic is a commercial product, but you can run development mode for free! Note that enabling this will triple your local Rails boot time: we enable development mode by setting <code>development_mode: &lt;%= !!ENV['NEW_RELIC_ID'] %&gt;</code> in <a href="https://gist.github.com/4170458">newrelic.rpm</a>.</p>
+<p>You can read more about how we use Heroku at <a href="http://success.heroku.com/artsy">http://success.heroku.com/artsy</a>.</p>
 ]]></content>
   </entry>
   
