@@ -226,10 +226,19 @@ which is a full API explorer solution.
 <h1 id="ios">iOS<h1>
 ----------------------
 
-[cocoadocs](https://github.com/CocoaPods/cocoadocs.org)
+[CocoaPods](https://cocoapods.org)
 ------------------------------------------------
 
-[CocoaDocs](http://cocoadocs.org/) documents every public OSS library in [CocoaPods](http://cocoapods.org/).
+[CocoaPods](http://cocoapods.org/) is the dependency manager for iOS. Artsy provides occasional sponsorship, and provides developer time for features &amp; related projects.
+
+[https://github.com/CocoaPods/CocoaPods](https://github.com/CocoaPods/CocoaPods)
+
+----------------------
+
+[CocoaDocs](https://github.com/CocoaPods/cocoadocs.org)
+------------------------------------------------
+
+[CocoaDocs](http://cocoadocs.org/) documents every public OSS library in [CocoaPods](http://cocoapods.org/). Artsy pays for hosting.
 
 [https://github.com/CocoaPods/cocoadocs.org](https://github.com/CocoaPods/cocoadocs.org)
 
