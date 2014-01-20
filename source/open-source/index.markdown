@@ -224,10 +224,10 @@ which is a full API explorer solution.
 
 # &nbsp;
 <h1 id="ios">iOS<h1>
-----------------------
+--------------------
 
 [CocoaPods](https://cocoapods.org)
-------------------------------------------------
+----------------------------------
 
 [CocoaPods](http://cocoapods.org/) is the dependency manager for iOS. Artsy provides occasional sponsorship, and provides developer time for features &amp; related projects.
 
