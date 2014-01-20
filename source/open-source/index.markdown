@@ -268,10 +268,19 @@ which is a full API explorer solution.
 <h1 id="ios">iOS<h1>
 ----------------------
 
-[cocoadocs](https://github.com/CocoaPods/cocoadocs.org)
+[CocoaPods](https://cocoapods.org)
 ------------------------------------------------
 
-[CocoaDocs](http://cocoadocs.org/) documents every public OSS library in [CocoaPods](http://cocoapods.org/).
+[CocoaPods](http://cocoapods.org/) is the dependency manager for iOS. Artsy provides occasional sponsorship, and provides developer time for features &amp; related projects.
+
+[https://github.com/CocoaPods/CocoaPods](https://github.com/CocoaPods/CocoaPods)
+
+----------------------
+
+[CocoaDocs](https://github.com/CocoaPods/cocoadocs.org)
+------------------------------------------------
+
+[CocoaDocs](http://cocoadocs.org/) documents every public OSS library in [CocoaPods](http://cocoapods.org/). Artsy pays for hosting.
 
 [https://github.com/CocoaPods/cocoadocs.org](https://github.com/CocoaPods/cocoadocs.org)
 
@@ -299,9 +308,16 @@ Vertically stack views using Auto Layout, with an order specific subclass that u
 [ORSimulatorKeyboardAccessor](https://github.com/orta/ORSimulatorKeyboardAccessor)
 --------------------------------------------------
 
-Use your keyboard in the iOS simulator with a blocks based API
+ORSimulatorKeyboardAccessor allows you to use your keyboard in the iOS simulator with a blocks based API.
 
 [https://github.com/orta/ORSimulatorKeyboardAccessor](https://github.com/orta/ORSimulatorKeyboardAccessor)
+
+[DRBOperationTree](https://github.com/dstnbrkr/DRBOperationTree)
+---------------------------------------------------
+
+DRBOperationTree is an iOS and OSX API to organize NSOperations into a tree so that each node's output becomes the input for its child nodes.
+
+[https://github.com/dstnbrkr/DRBOperationTree](https://github.com/dstnbrkr/DRBOperationTree)
 
 # &nbsp;
 <h1 id="heroku">Heroku<h1>
