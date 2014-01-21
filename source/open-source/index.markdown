@@ -156,6 +156,12 @@ Mongoid extension that enables infinite scrolling with MongoDB.
 
 [https://github.com/dblock/mongoid-scroll](https://github.com/dblock/mongoid-scroll)
 
+[forgetsy](https://github.com/cavvia/forgetsy)
+--------------------------------------------------------------
+Forgetsy is a highly scalable trending library using [Forget Table](http://word.bitly.com/post/41284219720/forget-table) data structures, backed by Redis.
+
+[https://github.com/cavvia/forgetsy](https://github.com/cavvia/forgetsy)
+
 
 # &nbsp;
 <h1 id="javascript">Javascript<h1>
