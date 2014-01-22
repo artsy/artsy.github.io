@@ -325,6 +325,13 @@ DRBOperationTree is an iOS and OSX API to organize NSOperations into a tree so t
 
 [https://github.com/dstnbrkr/DRBOperationTree](https://github.com/dstnbrkr/DRBOperationTree)
 
+[Fui](https://github.com/dblock/fui)
+----------------------------------------------------
+
+Fui stands for _Find Unused Interfaces_, a Ruby gem that works against an Objective-C codebase.
+
+[https://github.com/dblock/fui](https://github.com/dblock/fui)
+
 # &nbsp;
 <h1 id="heroku">Heroku<h1>
 ----------------------
