@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: Travis | Artsy Engineering]]></title>
+  <link href="http://artsy.github.io/blog/categories/travis/atom.xml" rel="self"/>
+  <link href="http://artsy.github.io/"/>
+  <updated>2014-01-30T17:26:50-05:00</updated>
+  <id>http://artsy.github.io/</id>
+  <author>
+    <name><![CDATA[Artsy]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Isolating Spurious and Nondeterministic Tests]]></title>
+    <link href="http://artsy.github.io/blog/2014/01/30/isolating-spurious-and-nondeterministic-tests/"/>
+    <updated>2014-01-30T14:42:00-05:00</updated>
+    <id>http://artsy.github.io/blog/2014/01/30/isolating-spurious-and-nondeterministic-tests</id>
+    <content type="html"><![CDATA[<p>Testing is a critical part of our workflow at <a href="https://artsy.net">Artsy</a>. It gives us confidence to make regular, aggressive enhancements. But anyone who has worked with a large, complex test suite has struggled with occasional failures that are difficult to reproduce or fix.</p>
+
+<p>These failures might be due to slight timing differences or lack of proper isolation between tests. Integration tests are particularly thorny, since problems can originate not only in application code, but in the browser, testing tools (e.g., <a href="http://docs.seleniumhq.org/">Selenium</a>), database, network, or external APIs and dependencies.</p>
+
+<h2>The Quarantine</h2>
+
+<p>We've been <a href="http://artsy.github.io/blog/2012/05/15/how-to-organize-over-3000-rspec-specs-and-retry-test-failures/">automatically retrying failed tests</a>, with some success. However, these problems tend to get worse. (If you have 10 tests that each have a 1% chance of failing, roughly 1 in 10 builds will fail. If you have 50, 4 in 10 builds will fail.)</p>
+
+<p>Martin Fowler offers the most compelling thoughts on this topic in <a href="http://martinfowler.com/articles/nonDeterminism.html">Eradicating Non-Determinism in Tests</a>. (Read it, really.) He suggests quarantining problematic tests in a separate suite, so they don't block the build pipeline.</p>
+
+<!-- more -->
+
+
+<h2>Setting it up</h2>
+
+<p>This turned out to be pretty easy to set up, using our preferred tools of <a href="https://relishapp.com/rspec">RSpec</a> and <a href="http://travis-ci.com/">Travis</a>. First, tag a problem test with <code>spurious</code>:</p>
+
+<pre><code>it 'performs tricky browser interaction', spurious: true do
+  ...
+end
+</code></pre>
+
+<p>Your continuous integration script can exclude the tagged tests as follows:</p>
+
+<pre><code>bundle exec rspec --tag ~spurious
+</code></pre>
+
+<p>We'd like to be aware of spurious failures, but not allow them to fail the build. In our app's <code>.travis.yml</code> file, this is as simple as adding a script entry that always exits with <code>0</code> status:</p>
+
+<pre><code>language: ruby
+rvm:
+  - 1.9.3
+script:
+  - "bundle exec rspec --tag ~spurious"
+  - "bundle exec rspec --tag spurious || true"
+</code></pre>
+
+<p>We'll see any spurious failures in the build's output, but our pipeline won't be affected.</p>
+
+<h2>Bonus: Limiting quarantined tests</h2>
+
+<p>So, what prevents the quarantine from getting larger and larger, while the test suite gets weaker and weaker? Fowler <a href="http://martinfowler.com/articles/nonDeterminism.html#Quarantine">recommends</a> enforcing a limit on the number of quarantined tests (e.g., 8).</p>
+
+<p>We can even trigger a build failure if the limit is exceeded. This <code>.travis.yml</code> writes the spurious suite's abbreviated output to a file, then asserts that the summary mentions no more than "8 examples":</p>
+
+<pre><code>language: ruby
+rvm:
+  - 1.9.3
+script:
+  - "bundle exec rspec --tag ~spurious"
+  - "bundle exec rspec --tag spurious --format documentation --format progress --out spurious.out || true"
+  - "[[ $(grep -oE '^\d+' spurious.out) -le 8 ]]"
+</code></pre>
+
+<h2>Conclusion</h2>
+
+<p>The quarantine is no excuse to create tests that fail under realistic conditions. It's simply a framework for recognizing and, eventually, fixing or eliminating the problematic tests that inevitably crop up in a complex environment.</p>
+
+<p>Hopefully, our experiment is useful to other teams struggling with unreliable builds. Share any feedback in the comments!</p>
+]]></content>
+  </entry>
+  
+</feed>

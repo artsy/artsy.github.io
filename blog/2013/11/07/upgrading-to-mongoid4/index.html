@@ -1,0 +1,525 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Upgrading to Mongoid 4.x - Artsy Engineering</title>
+  <meta name="author" content="Artsy">
+
+  
+  <meta name="description" content="I recently went through an exercise of upgrading one of Artsy&#8217;s largest web projects to the current HEAD of Mongoid 4.x. This is going to be a &hellip;">
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://artsy.github.io/blog/2013/11/07/upgrading-to-mongoid4">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <script src="/javascripts/modernizr-2.0.js"></script>
+  <script src="/javascripts/ender.js"></script>
+  <script src="/javascripts/octopress.js" type="text/javascript"></script>
+  <link href="/atom.xml" rel="alternate" title="Artsy Engineering" type="application/atom+xml">
+  <!--[if IE 8]>
+<link href="/stylesheets/custom/ie_font.css" type="text/css">
+<![endif]-->
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-12450662-3']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+
+<body>
+  
+  <a href="/">
+    <h1 id="lrg-mark">
+      <span>Artsy</span>
+    </h1>
+  </a>
+  
+  <header id="banner"><hgroup>
+  <div id="header">
+    <h2>Inspiration from the engineering team at <a href="http://artsy.net">Artsy</a> — A new way to discover fine art.</h2>
+  </div>
+</hgroup>
+
+</header>
+  
+  <div id="main">
+    <div id="mobile_search">
+      <form action="http://google.com/search" method="get">
+        <input type="hidden" name="q" value="site:artsy.github.io" />
+        <input class="search" type="text" name="q" results="0" placeholder="Search" />
+      </form>
+    </div>
+    <div id="content">
+      <div>
+<article class="hentry" role="article">
+  
+  <header>
+    
+    <a href="">
+      <div class="date">
+
+
+
+
+  
+<time datetime="2013-11-07T12:34:00-05:00" pubdate>11/07/13</time></div>
+    
+    
+      <h1 class="entry-title">Upgrading to Mongoid 4.x</h1>
+    
+    </a>
+    
+      <p class="meta">
+        
+      </p>
+    
+  </header>
+
+
+<div class="entry-content"><p>I recently went through an exercise of upgrading one of Artsy&#8217;s largest web projects to the current HEAD of Mongoid 4.x. This is going to be a major release with numerous changes and I wanted to flush out bugs before the final version of the ODM is released. All Mongoid changes currently live on <a href="https://github.com/mongoid/mongoid">master</a>.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">gem</span> <span class="s1">&#39;mongoid&#39;</span><span class="p">,</span> <span class="ss">github</span><span class="p">:</span> <span class="s1">&#39;mongoid/mongoid&#39;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>In the process I&#8217;ve worked on making a few gems compatible with Mongoid 4 and learned a couple of things that should help you make this process smooth for your own applications.</p>
+
+<!-- more -->
+
+
+<h2>Moped::BSON::ObjectId</h2>
+
+<p>Moped&#8217;s BSON implementation has been removed in favor of the MongoDB bson gem 2.0 and higher. All <code>Moped::BSON</code> references must change to <code>BSON</code>. This is rather annoying and forces many libraries to have to fork behavior at runtime.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">module</span> <span class="nn">Mongoid</span>
+</span><span class='line'>  <span class="k">def</span> <span class="nc">self</span><span class="o">.</span><span class="nf">mongoid3?</span>
+</span><span class='line'>    <span class="o">::</span><span class="no">Mongoid</span><span class="o">.</span><span class="n">const_defined?</span> <span class="ss">:Observer</span> <span class="c1"># deprecated in Mongoid 4.x</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">def</span> <span class="nc">self</span><span class="o">.</span><span class="nf">mongoid2?</span>
+</span><span class='line'>    <span class="o">::</span><span class="no">Mongoid</span><span class="o">.</span><span class="n">const_defined?</span> <span class="ss">:Contexts</span> <span class="c1"># deprecated in Mongoid 3.x</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>The <code>mongoid2?</code> implementation is borrowed from <a href="https://github.com/pyromaniac/mongoid_orderable">mongoid_orderable</a> and I wrote the <code>mongoid3?</code> version by parsing the CHANGELOG - observers are deprecated in 4.0.</p>
+
+<p>Now, instead of calling <code>Moped::BSON::ObjectId.legal?(id)</code>, you have to do something like this:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">if</span> <span class="no">Mongoid</span><span class="o">.</span><span class="n">mongoid3?</span>
+</span><span class='line'>  <span class="ss">Moped</span><span class="p">:</span><span class="ss">:BSON</span><span class="o">::</span><span class="no">ObjectId</span><span class="o">.</span><span class="n">legal?</span> <span class="nb">id</span>
+</span><span class='line'><span class="k">else</span>
+</span><span class='line'>  <span class="ss">BSON</span><span class="p">:</span><span class="ss">:ObjectId</span><span class="o">.</span><span class="n">legal?</span> <span class="nb">id</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Furthermore, you can no longer convert a string into a <code>Moped::BSON::ObjectId(id)</code>, you must explicitly call <code>from_string</code>:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">if</span> <span class="no">Mongoid</span><span class="o">.</span><span class="n">mongoid3?</span>
+</span><span class='line'>  <span class="ss">Moped</span><span class="p">:</span><span class="ss">:BSON</span><span class="o">::</span><span class="no">ObjectId</span><span class="p">(</span><span class="nb">id</span><span class="p">)</span>
+</span><span class='line'><span class="k">else</span>
+</span><span class='line'>  <span class="ss">BSON</span><span class="p">:</span><span class="ss">:ObjectId</span><span class="o">.</span><span class="n">from_string</span><span class="p">(</span><span class="nb">id</span><span class="p">)</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Libraries should then adjust their dependencies on Mongoid and specify <code>&gt;= 3.0</code>, and maybe <code>&lt; 5.0</code>.</p>
+
+<h2>Testing Against Multiple Mongoid Versions</h2>
+
+<p>The <a href="https://github.com/pyromaniac/mongoid_orderable">mongoid-orderable</a> gem has a neat system for testing against all versions of Mongoid with <a href="https://travis-ci.org/">Travis CI</a>. First, the <em>.travis.yml</em> file declares a test matrix that sets <code>MONGOID_VERSION</code>. Note that Mongoid 3.x or newer doesn&#8217;t run with Ruby 1.8.x or 1.9.2.</p>
+
+<figure class='code'><figcaption><span>.travis.yml</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="ss">rvm</span><span class="p">:</span>
+</span><span class='line'>  <span class="o">-</span> <span class="mi">1</span><span class="o">.</span><span class="mi">8</span><span class="o">.</span><span class="mi">7</span>
+</span><span class='line'>  <span class="o">-</span> <span class="mi">1</span><span class="o">.</span><span class="mi">9</span><span class="o">.</span><span class="mi">2</span>
+</span><span class='line'>  <span class="o">-</span> <span class="mi">1</span><span class="o">.</span><span class="mi">9</span><span class="o">.</span><span class="mi">3</span>
+</span><span class='line'>  <span class="o">-</span> <span class="n">ruby</span><span class="o">-</span><span class="n">head</span>
+</span><span class='line'>
+</span><span class='line'><span class="ss">env</span><span class="p">:</span>
+</span><span class='line'>  <span class="o">-</span> <span class="no">MONGOID_VERSION</span><span class="o">=</span><span class="mi">2</span>
+</span><span class='line'>  <span class="o">-</span> <span class="no">MONGOID_VERSION</span><span class="o">=</span><span class="mi">3</span>
+</span><span class='line'>  <span class="o">-</span> <span class="no">MONGOID_VERSION</span><span class="o">=</span><span class="mi">4</span>
+</span><span class='line'>
+</span><span class='line'><span class="ss">matrix</span><span class="p">:</span>
+</span><span class='line'>  <span class="ss">exclude</span><span class="p">:</span>
+</span><span class='line'>    <span class="o">-</span> <span class="ss">rvm</span><span class="p">:</span> <span class="mi">1</span><span class="o">.</span><span class="mi">8</span><span class="o">.</span><span class="mi">7</span>
+</span><span class='line'>      <span class="ss">env</span><span class="p">:</span> <span class="no">MONGOID_VERSION</span><span class="o">=</span><span class="mi">3</span>
+</span><span class='line'>    <span class="o">-</span> <span class="ss">rvm</span><span class="p">:</span> <span class="mi">1</span><span class="o">.</span><span class="mi">8</span><span class="o">.</span><span class="mi">7</span>
+</span><span class='line'>      <span class="ss">env</span><span class="p">:</span> <span class="no">MONGOID_VERSION</span><span class="o">=</span><span class="mi">4</span>
+</span><span class='line'>    <span class="o">-</span> <span class="ss">rvm</span><span class="p">:</span> <span class="mi">1</span><span class="o">.</span><span class="mi">9</span><span class="o">.</span><span class="mi">2</span>
+</span><span class='line'>      <span class="ss">env</span><span class="p">:</span> <span class="no">MONGOID_VERSION</span><span class="o">=</span><span class="mi">3</span>
+</span><span class='line'>    <span class="o">-</span> <span class="ss">rvm</span><span class="p">:</span> <span class="mi">1</span><span class="o">.</span><span class="mi">9</span><span class="o">.</span><span class="mi">2</span>
+</span><span class='line'>      <span class="ss">env</span><span class="p">:</span> <span class="no">MONGOID_VERSION</span><span class="o">=</span><span class="mi">4</span>
+</span><span class='line'>
+</span><span class='line'><span class="ss">services</span><span class="p">:</span> <span class="n">mongodb</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>The library&#8217;s <em>Gemfile</em> locks a different version depending on the environment variable, defaulting to 3.x. You can also test against a very specific version, if you must.</p>
+
+<figure class='code'><figcaption><span>Gemfile</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">source</span> <span class="s2">&quot;http://rubygems.org&quot;</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">gemspec</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">case</span> <span class="n">version</span> <span class="o">=</span> <span class="no">ENV</span><span class="o">[</span><span class="s1">&#39;MONGOID_VERSION&#39;</span><span class="o">]</span> <span class="o">||</span> <span class="s2">&quot;~&gt; 3.1&quot;</span>
+</span><span class='line'><span class="k">when</span> <span class="sr">/4/</span>
+</span><span class='line'>  <span class="n">gem</span> <span class="s2">&quot;mongoid&quot;</span><span class="p">,</span> <span class="ss">:github</span> <span class="o">=&gt;</span> <span class="s1">&#39;mongoid/mongoid&#39;</span>
+</span><span class='line'><span class="k">when</span> <span class="sr">/3/</span>
+</span><span class='line'>  <span class="n">gem</span> <span class="s2">&quot;mongoid&quot;</span><span class="p">,</span> <span class="s2">&quot;~&gt; 3.1&quot;</span>
+</span><span class='line'><span class="k">when</span> <span class="sr">/2/</span>
+</span><span class='line'>  <span class="n">gem</span> <span class="s2">&quot;mongoid&quot;</span><span class="p">,</span> <span class="s2">&quot;~&gt; 2.8&quot;</span>
+</span><span class='line'><span class="k">else</span>
+</span><span class='line'>  <span class="n">gem</span> <span class="s2">&quot;mongoid&quot;</span><span class="p">,</span> <span class="n">version</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>Upgraded Gems</h2>
+
+<p>I used the above method to make a few gems Mongoid 4.x compatible, via the following pull requests.</p>
+
+<ul>
+<li><a href="https://github.com/digitalplaywright/mongoid-slug/pull/146">mongoid-slug</a></li>
+<li><a href="https://github.com/dblock/mongoid-scroll/commit/b67e2867b133cd6bd1b8361ea51409f80ae91ffd">mongoid-scroll</a></li>
+<li><a href="https://github.com/pyromaniac/mongoid_orderable/pull/18">mongoid_orderable</a></li>
+<li><a href="https://github.com/aq1018/mongoid-history/pull/83">mongoid-history</a></li>
+<li><a href="https://github.com/aaw/mongoid_collection_snapshot/pull/5">mongoid_collection_snapshot</a></li>
+<li><a href="https://github.com/joeyAghion/delayed_job_shallow_mongoid/pull/6">delayed_job_shallow_mongoid</a></li>
+</ul>
+
+
+<h2>Upgrading a Rails Project</h2>
+
+<p>If you&#8217;re using Rails, you&#8217;re in for upgrading both Mongoid 4.x and Rails to 4.x. This means you will suffer a lot of pain trying to find compatible versions of various interdependent gems. I suggest locking Rails, Mongoid and ActiveSupport to begin with.</p>
+
+<figure class='code'><figcaption><span>Gemfile</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">gem</span> <span class="s1">&#39;rails&#39;</span><span class="p">,</span> <span class="s1">&#39;4.0.1&#39;</span>
+</span><span class='line'><span class="n">gem</span> <span class="s1">&#39;activesupport&#39;</span><span class="p">,</span> <span class="s1">&#39;4.0.1&#39;</span>
+</span><span class='line'><span class="n">gem</span> <span class="s1">&#39;mongoid&#39;</span><span class="p">,</span> <span class="ss">github</span><span class="p">:</span> <span class="s1">&#39;mongoid/mongoid&#39;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Bulk search &amp; replace <code>Moped::BSON::ObjectId</code> references.</p>
+
+<p>Calls to <code>inc</code>, <code>set</code> and <code>add_to_set</code> now take hashes, eg. <code>artist.inc(likes_count: 1)</code>.</p>
+
+<p>If you&#8217;re converting Mongoid objects to JSON and seeing data such as <code>{ "$oid" =&gt; "..." }</code> instead of an ID, monkey-patch <code>BSON::ObjectId.as_json</code>. See <a href="https://groups.google.com/forum/#!msg/mongoid/MaXFVw7D_4s/T3sl6Flg428J">this discussion thread</a>.</p>
+
+<figure class='code'><figcaption><span>config/initializers/bson/object_id.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">module</span> <span class="nn">BSON</span>
+</span><span class='line'>  <span class="k">class</span> <span class="nc">ObjectId</span>
+</span><span class='line'>    <span class="k">def</span> <span class="nf">as_json</span><span class="p">(</span><span class="n">options</span> <span class="o">=</span> <span class="p">{})</span>
+</span><span class='line'>      <span class="nb">to_s</span>
+</span><span class='line'>    <span class="k">end</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>If you&#8217;re using Warden (including via Devise) and/or rely on session cookies that may contain a user ID, add an implementation for the deprecated <code>Moped::BSON::Document</code>. This will prevent all old cookies from causing a serialization error and logging all those users out.</p>
+
+<figure class='code'><figcaption><span>config/initializers/bson/</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">module</span> <span class="nn">Moped</span>
+</span><span class='line'>  <span class="k">module</span> <span class="nn">BSON</span>
+</span><span class='line'>    <span class="no">ObjectId</span> <span class="o">=</span> <span class="o">::</span><span class="ss">BSON</span><span class="p">:</span><span class="ss">:ObjectId</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="k">class</span> <span class="nc">Document</span> <span class="o">&lt;</span> <span class="no">Hash</span>
+</span><span class='line'>      <span class="k">class</span> <span class="o">&lt;&lt;</span> <span class="nb">self</span>
+</span><span class='line'>        <span class="k">def</span> <span class="nf">deserialize</span><span class="p">(</span><span class="n">io</span><span class="p">,</span> <span class="n">document</span> <span class="o">=</span> <span class="kp">new</span><span class="p">)</span>
+</span><span class='line'>          <span class="n">__bson_load__</span><span class="p">(</span><span class="n">io</span><span class="p">,</span> <span class="n">document</span><span class="p">)</span>
+</span><span class='line'>        <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>        <span class="k">def</span> <span class="nf">serialize</span><span class="p">(</span><span class="n">document</span><span class="p">,</span> <span class="n">io</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+</span><span class='line'>          <span class="n">document</span><span class="o">.</span><span class="n">__bson_dump__</span><span class="p">(</span><span class="n">io</span><span class="p">)</span>
+</span><span class='line'>        <span class="k">end</span>
+</span><span class='line'>      <span class="k">end</span>
+</span><span class='line'>    <span class="k">end</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>Updates</h2>
+
+<p>Please post your updates below and questions to the <a href="https://groups.google.com/forum/#!forum/mongoid">mongoid mailing list</a>. I&#8217;ll update this post up until Mongoid 4.x ships.</p>
+</div>
+
+
+  <footer>
+    <div class="meta">
+      
+  
+
+
+
+  <span class="byline author vcard">
+    Posted by 
+    <span class="fn">
+      Daniel Doubrovkine
+    </span>
+    
+    
+    
+    
+      (
+      
+      <span class="fn">
+        <a href="http://code.dblock.org">blog</a>
+      </span>
+      
+      
+      <span class="fn">
+        <a href="https://www.github.com/dblock">github</a>
+      </span>
+      
+      
+      <span class="fn">
+        <a href="http://twitter.com/dblockdotorg">twitter</a>
+      </span>
+      
+      )
+    
+    
+  </span>
+
+
+    </div>
+    <div class="meta">
+      Categories: 
+
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/mongodb/'>MongoDB</a>, <a class='category' href='/blog/categories/mongoid/'>Mongoid</a>
+  
+</span>
+
+
+    </div>
+
+    
+      <div class="sharing">
+  
+  <a href="http://twitter.com/share" class="twitter-share-button" data-url="http://artsy.github.io/blog/2013/11/07/upgrading-to-mongoid4/" data-via="artsy" data-counturl="http://artsy.github.io/blog/2013/11/07/upgrading-to-mongoid4/" >Tweet</a>
+  
+  
+  
+</div>
+
+    
+    <p class="meta">
+      
+        <a class="basic-alignment left" href="/blog/2013/08/27/introduction-to-aws-opsworks/" title="Previous Post: Introduction to AWS OpsWorks">&laquo; Introduction to AWS OpsWorks</a>
+      
+      
+        <a class="basic-alignment right" href="/blog/2013/11/30/rendering-on-the-server-and-client-in-node-dot-js/" title="next Post: Rendering on the Server and Client in Node.js">Rendering on the Server and Client in Node.js &raquo;</a>
+      
+    </p>
+  </footer>
+</article>
+
+  <section>
+    <h1>Comments</h1>
+    <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</div>
+  </section>
+
+</div>
+    </div>
+    <div id="sidebar">
+      
+  
+    <section>
+  <h1>Info</h1>
+  <ul>
+    <li> <a href="/about">About Us</a></li>
+    <li> <a href="/open-source">Artsy Open-Source</a></li>
+    <li> <a href="http://artsy.net/job/developer">Join the Artsy Engineering Team</a></li>
+  </ul>
+</section>
+<section id="recent_posts_section">
+  <h1>Recent Posts</h1>
+  <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/2014/01/30/isolating-spurious-and-nondeterministic-tests/">Isolating Spurious and Nondeterministic Tests</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2013/11/30/rendering-on-the-server-and-client-in-node-dot-js/">Rendering on the Server and Client in Node.js</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2013/11/07/upgrading-to-mongoid4/">Upgrading to Mongoid 4.x</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2013/08/27/introduction-to-aws-opsworks/">Introduction to AWS OpsWorks</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2013/06/23/normalizing-gmail-email-addresses-with-canonical-emails/">Normalizing GMail E-Mail Addresses with CanonicalEmails</a>
+      </li>
+    
+  </ul>
+  <a class="archive_link" href="/blog/archives">Blog Archive</a>
+</section>
+<section>
+  <h1>Search</h1>
+  <form action="http://google.com/search" method="get">
+    <input type="hidden" name="q" value="site:artsy.github.io" />
+    <input class="search" type="text" name="q" results="0" />
+  </form>
+</section>
+  
+
+
+    </div>
+  </div>
+  <footer id="main_footer"><p>
+  Copyright &copy; 2014 - Artsy -
+  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+  
+
+<script type="text/javascript">
+      var disqus_shortname = 'artsy';
+      
+        
+        // var disqus_developer = 1;
+        var disqus_identifier = 'http://artsy.github.io/blog/2013/11/07/upgrading-to-mongoid4/';
+        var disqus_url = 'http://artsy.github.io/blog/2013/11/07/upgrading-to-mongoid4/';
+        var disqus_script = 'embed.js';
+      
+    (function () {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = 'http://' + disqus_shortname + '.disqus.com/' + disqus_script;
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    }());
+</script>
+
+
+
+
+
+
+
+  <script type="text/javascript">
+    (function(){
+      var twitterWidgets = document.createElement('script');
+      twitterWidgets.type = 'text/javascript';
+      twitterWidgets.async = true;
+      twitterWidgets.src = 'http://platform.twitter.com/widgets.js';
+      document.getElementsByTagName('head')[0].appendChild(twitterWidgets);
+    })();
+  </script>
+
+
+
+
+
+</body>
+</html>
