@@ -20,6 +20,8 @@ We've been [automatically retrying failed tests](http://artsy.github.io/blog/201
 
 Martin Fowler offers the most compelling thoughts on this topic in [Eradicating Non-Determinism in Tests](http://martinfowler.com/articles/nonDeterminism.html). (Read it, really.) He suggests quarantining problematic tests in a separate suite, so they don't block the build pipeline.
 
+<!-- more -->
+
 ## Setting it up
 
 This turned out to be pretty easy to set up, using our preferred tools of [RSpec](https://relishapp.com/rspec) and [Travis](http://travis-ci.com/). First, tag a problem test with `spurious`:
