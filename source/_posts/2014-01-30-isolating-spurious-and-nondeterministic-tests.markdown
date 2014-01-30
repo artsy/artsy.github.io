@@ -3,7 +3,7 @@ layout: post
 title: "Isolating Spurious and Nondeterministic Tests"
 date: 2014-01-30 14:42
 comments: true
-categories: [rspec, testing, travis]
+categories: [RSpec, Testing, Travis]
 author: Joey Aghion
 github-url: https://github.com/joeyAghion
 twitter-url: http://twitter.com/joeyAghion
