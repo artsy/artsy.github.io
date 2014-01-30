@@ -30,7 +30,7 @@ This turned out to be pretty easy to set up, using our preferred tools of [RSpec
       ...
     end
 
-You continuous integration script can exclude the tagged tests as follows:
+Your continuous integration script can exclude the tagged tests as follows:
 
     bundle exec rspec --tag ~spurious
 
