@@ -42,7 +42,7 @@ A monolithic app that treats it's client-side code as a second class citizen was
 
 Some goals became clear:
 
-* Better client-side tools from JavaScript testing to package mangers.
+* Better client-side tools from JavaScript testing to package managers.
 * Share rendering code server/client to reduce duplication and optimize initial page load.
 * Flexibility. We needed a way to divide our app into smaller chunks with smaller asset packages.
 
@@ -150,7 +150,7 @@ artwork.on('change', function() {
 
 Not only does sharing code server/client let you easily optimize page rendering for fast page loads, but development becomes a lot nicer because we can reuse server-side JavaScript tools including...
 
-### Package Mangers
+### Package Managers
 
 With Browserify we were able to use npm as a package manager for server or client-side dependencies. There are [other](http://bower.io/) [package](http://component.io/) [managers](http://jamjs.org/) for the client-side. However, because we were already using npm (and npm supports git urls), we could usually point to the project hosted on npm or Github without having to fork it.
 
