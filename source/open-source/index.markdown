@@ -162,6 +162,13 @@ Forgetsy is a highly scalable trending library using [Forget Table](http://word.
 
 [https://github.com/cavvia/forgetsy](https://github.com/cavvia/forgetsy)
 
+[DZT](https://github.com/dblock/dzt)
+------------------------------------
+
+Slice deep-zoom images for [OpenSeaDragon](http://openseadragon.github.io/) or [ARTiledImageView](https://github.com/dblock/ARTiledImageView).
+
+[https://github.com/dblock/dzt)
+
 
 # &nbsp;
 <h1 id="javascript">Javascript<h1>
@@ -331,6 +338,14 @@ DRBOperationTree is an iOS and OSX API to organize NSOperations into a tree so t
 Fui stands for _Find Unused Interfaces_, a Ruby gem that works against an Objective-C codebase.
 
 [https://github.com/dblock/fui](https://github.com/dblock/fui)
+
+[ARTiledImageView](https://github.com/dblock/ARTiledImageView)
+------------------------------------------------------
+
+Display, pan and deep zoom with tiled images on iOS.
+
+[https://github.com/dblock/ARTiledImageView)
+
 
 # &nbsp;
 <h1 id="heroku">Heroku<h1>
