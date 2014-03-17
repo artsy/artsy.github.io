@@ -10,11 +10,11 @@ github-url: https://github.com/mzikherman
 
 ![Example of Analytics Email](/images/2014-03-17-some-tips-for-email-layout-and-responsiveness/analytics.png)
 
-Email can be one of the most powerful ways to engage with your users, and can serve a multitude of purposes. It can be used as a way to highlight selected content (weekly/monthly newsletters, 'year in review', etc.), provide a service to users (analytics breakdown of visits to your profile/favorites page), or re-engage with users (new feature announcements, etc.). Here at Artsy we use all of these kinds of emails and have found them to be a very valuable asset. However, best practices for template layout and CSS (keeping in mind the variety of devices and screen sizes that your users have) are quite different, and very far behind, the current HTML5 standards and practices for making beautiful web pages. In this article, I'd like to present some techniques I've successfully used at Artsy to create emails that look good on your browser or mobile device, in some of the most popular email clients out there.
+Email can be one of the most powerful ways to engage with your users, and can serve a multitude of purposes. It can be used as a way to highlight selected content (weekly/monthly newsletters, 'year in review', etc.), provide a service to users (analytics breakdown of visits to your profile/favorites page), or re-engage with users (new feature announcements, etc.). Here at Artsy we use all of these kinds of emails and have found them to be a very valuable asset. However, best practices for template layout and CSS (keeping in mind the variety of devices and screen sizes that your users have) are quite different from, and very far behind, the current HTML5 standards and practices for making beautiful web pages. In this article, I'd like to present some techniques I've successfully used at Artsy to create emails that look good on your browser or mobile device, in some of the most popular email clients out there.
 
 ## The Main Difference Between Email and Web
 
-A fundamental difference between email and web, and which essentially accounts for the completely different methodology and rules you should follow for emails, is that of the rendering client. In 2014, (assuming you are not supporting certain legacy versions of Internet Explorer and other old versions), browsers for the most part will render passed in HTML and CSS in a standard fashion. While there are some notable exceptions still, graceful degradation is quite possible. That is because the only 'interpreter' of your HTML is the end user's browser, which operates under a certain set of known rules. With emails however, the interpreter is the end user's mail client of choice, which can be: native iOS apps, web apps, and even standalone desktop applications. All of these do their own parsing/interpreting before rendering, which can cause HTML that results in a nice looking web page to look totally broken in an email, as well as the same exact email looking remarkably different across mail clients. 
+A fundamental difference between email and web, and which essentially accounts for the completely different methodology and rules you should follow for emails, is that of the rendering client. In 2014, (assuming you are not supporting certain legacy versions of Internet Explorer and other old versions), browsers for the most part will render passed in HTML and CSS in a standard fashion. While there are some notable exceptions still, graceful degradation is quite possible. That is because the only 'interpreter' of your HTML is the end user's browser, which operates under a certain set of known rules. With emails however, the interpreter is the end user's mail client of choice, which can be: native iOS apps, web apps, and even standalone desktop applications. All of these do their own parsing/interpreting before rendering, which can cause HTML that results in a nice looking web page to look totally broken in an email, as well as the same exact email looking remarkably different across mail clients. One of the main reasons why email clients do this is to remove things that might interfere with the rendering of the mail client itself, or any security risks.
 
 Also of note is that the use of Javascript within an email is of course, not possible. Additionally, the HTML that will be emailed to your users needs to be sent as one file with inlined CSS. You can use a tool like [premailer](https://github.com/premailer/premailer/) to allow you to develop your CSS separately and then convert to an inline style.
 
@@ -70,7 +70,7 @@ Here is sample HTML that generates the top part of the email shown above. While 
 </table>
 ```
 
-Now under this we present a heatmap and table of top views by city. For that we use the same 3-column table, except specify a colspan of 2 on the column that contains the heatmap. That is because we would like that column to take up a width equal to the first 2 columns of the equally spaced three at the top, and the table of top views will take up the last column. Here's that CSS:
+Now under this we present a heatmap and table of top views by city. For that we use the same 3-column table, except specify a colspan of 2 on the column that contains the heatmap. That is because we would like that column to take up a width equal to the first 2 columns of the equally spaced three at the top, and the table of top views will take up the last column. Here's that markup:
 
 ``` html
 	<tr>
@@ -100,7 +100,7 @@ Notice that again we are using no position or display related CSS. However, now 
 
 ## Background Images and Overlayed Text
 
-Ok, so tables are all well and good and you can achieve a lot using them, and without having to use any display or position CSS. But what if you want to overlay text on an image? (or even another image over an image)? On a web page, there are many ways to accomplish that, but they all use that forbidden fruit of CSS. Well, no worries, because you can still accomplish that using background images!
+Ok, so tables are all well and good and you can achieve a lot using them, and without having to use any display or position CSS. But what if you want to overlay text on an image? (or even another image over an image)? On a web page, there are many ways to accomplish that, but they all use CSS that you really should not be using in emails (namely: position, display, top, right, bottom, left, and most layout properties besides padding). Well, no worries, because you can still accomplish that using background images!
 
 Here is an example from our current welcome mail to users:
 
@@ -164,7 +164,7 @@ As an example, consider the following two images. The first is the desktop versi
 
 ![Example of Personalized Mobile](/images/2014-03-17-some-tips-for-email-layout-and-responsiveness/personalized_summary.png)
 
-Now, the markup for this is pretty vanilla (similar to above, 3 column layout in a table). Now for mobile, we want to left-align everything and trim things down to one column. Additionally, we are truncated text with ellipsis in the desktop version, as we now have _more_ room on mobile as a one column layout, we'd like to potentially reveal more text as well.
+The markup for this is pretty vanilla (similar to above, 3 column layout in a table). For mobile, we want to left-align everything and trim things down to one column. Of note here is that we are truncating text with ellipsis in the desktop version, and when the content reflows to one column we actually have _more_ room to reveal the text (but still keeping truncation in just in case), so we have to enclose the text in a div (must have a block element for truncation)
 
 Here is how we truncate text:
 
@@ -188,7 +188,7 @@ We specify a width on a block-level element and then use the ellipsis trick. Her
   }
 ```
 
-We've set the breakpoint at 320px (vertical layout on an iPhone), and at widths less than or equal to that, this rule will kick in. Not the '!important' at the end (all of our media queries will have that to allow them to override CSS). This is enough to expand that div and reveal more text.
+We've set the breakpoint at 320px (vertical layout on an iPhone), and at widths less than or equal to that, this rule will kick in. Note the '!important' at the end (all of our media queries will have that to allow them to override the existing inline CSS). This is enough to expand that div and reveal more text.
 
 Here's the media queries for the rest of this section that transforms the three column layout into one:
 
@@ -212,8 +212,8 @@ Here's the media queries for the rest of this section that transforms the three 
   }
 ```
 
-where the td[id='nested-summary-col'] are the td's that hold the thumbnail and artist or gallery name. We 
-Essentially all we are doing is changing the width of the container/parent table to 300px, and then making the width of each td 300px and adding a float. This will force your table to now be a one column layout- easy!
+where the ```td[id='nested-summary-col']``` are the ```td```s that hold the thumbnail and artist or gallery name.
+Essentially all we are doing is changing the width of the container/parent table to 300px, and then making the width of each ```td``` 300px and adding a float. This will force your table to now be a one column layout- easy!
 
 ### Some misc. email tweaks
 
@@ -225,16 +225,18 @@ Sometimes it becomes necessary to hide/show certain things for mobile or desktop
 
 Another thing you might encounter is that text links automatically become blue in email. This is because many mail clients will take an un-styled or black link text and make them a default blue color. An easy hack to get around this is to explicitly color your links something like '#000001'. This 'almost-black' will be left untouched by mail clients, yet is close enough to black that the naked eye can't perceive the difference.
 
-Here's a screenshot of an isotope-y layout, with truncation of text, and resized for mobile (the full gamut of tricks):
+Here's a screenshot of an [isotope](https://github.com/desandro/isotope) or [Pinterest](https://www.pinterest.com/) column style layout, with truncation of text, and resized for mobile (running the full gamut of tricks):
 
 ![Example of Personalized Suggestions](/images/2014-03-17-some-tips-for-email-layout-and-responsiveness/personalized_suggestions.png)
+
+[Here is a gist](https://gist.github.com/mzikherman/9610125) I use to prepare artworks for a columnar display like this. You pass in a collection of artworks (where each artwork is arbitrarily sized), and the number of columns and width of the desired output. It will return the artworks grouped into columns that can be directly rendered in an email, while respecting aspect ratios and ensuring the columns are of _approximately_ equal height - resulting in a dynamic feeling layout. For this email, we group this set of artworks into 2 coumns, with each column having a width of 300px (for desktop).
 
 ## Great tools to use:
 
 [Premailer](https://github.com/premailer/premailer/) This will enable you to develop CSS in a sane (ie- not inline) way, and then at generation/compile time, inline it for you.
 [Litmus](http://litmus.com/) Using Litmus's VM's with different OS's and mail clients, you can preview how a sample email will look among all sorts of different configurations. I recommend figuring out what mail clients/browsers/OS's you want to target and making sure you test all your emails here.
+[Haml](http://haml.info/) (or any templating language of choice). A lot of the blocks of content in our mails are dynamically generated, and Haml's conditionals and looping syntax, as well as 
+Ruby-style string evaluation has proven invaluable.
 
-
-
-
-That's all for now! With a lot of trial and error, I've built up a toolbelt of tricks, techniques and hacks I've been using to develop responsive and pretty emails quickly, and have been able to send them to our users with confidence. Post any comments or tips of your own here, and [follow us on Github](https://github.com/artsy)! 
+-----
+That's all for now! With a lot of trial and error, I've built up a toolbelt of tricks, techniques and hacks I've been using to develop responsive and pretty emails quickly. I think of the limited set of tools at my disposal as a puzzle with which you can still create great looking and responsive layouts to feature your content. Previewing mails using [Inbox Inspector](http://mailchimp.com/features/inbox-inspector/) have enabled me to craft, deploy, and send them to our users with confidence. Post any comments or tips of your own here, and [follow us on Github](https://github.com/artsy)! 
