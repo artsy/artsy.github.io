@@ -236,9 +236,9 @@ Here's a screenshot of an [isotope](https://github.com/desandro/isotope) or [Pin
 
 ## Great tools to use:
 
-[Premailer](https://github.com/premailer/premailer/) This will enable you to develop CSS in a sane (ie- not inline) way, and then at generation/compile time, inline it for you.
-[Litmus](http://litmus.com/) Using Litmus's VM's with different OS's and mail clients, you can preview how a sample email will look among all sorts of different configurations. I recommend figuring out what mail clients/browsers/OS's you want to target and making sure you test all your emails here.
-[Haml](http://haml.info/) (or any templating language of choice). A lot of the blocks of content in our mails are dynamically generated, and Haml's conditionals and looping syntax, as well as 
+* [Premailer](https://github.com/premailer/premailer/) This will enable you to develop CSS in a sane (ie- not inline) way, and then at generation/compile time, inline it for you.
+* [Litmus](http://litmus.com/) Using Litmus's VM's with different OS's and mail clients, you can preview how a sample email will look among all sorts of different configurations. I recommend figuring out what mail clients/browsers/OS's you want to target and making sure you test all your emails here.
+* [Haml](http://haml.info/) (or any templating language of choice). A lot of the blocks of content in our mails are dynamically generated, and Haml's conditionals and looping syntax, as well as 
 Ruby-style string evaluation has proven invaluable.
 
 -----
