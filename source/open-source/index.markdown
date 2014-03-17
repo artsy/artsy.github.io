@@ -162,12 +162,12 @@ Forgetsy is a highly scalable trending library using [Forget Table](http://word.
 
 [https://github.com/cavvia/forgetsy](https://github.com/cavvia/forgetsy)
 
-[DZT](https://github.com/dblock/dzt)
+[dzt](https://github.com/dblock/dzt)
 ------------------------------------
 
 Slice deep-zoom images for [OpenSeaDragon](http://openseadragon.github.io/) or [ARTiledImageView](https://github.com/dblock/ARTiledImageView).
 
-[https://github.com/dblock/dzt)
+[https://github.com/dblock/dzt](https://github.com/dblock/dzt)
 
 
 # &nbsp;
