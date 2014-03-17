@@ -34,7 +34,7 @@ Where the inverse of the decay rate (λ) is the lifetime of an observation in th
 
 Forgetsy removes the need for manually sliding time windows or explicitly maintaining rolling counts, as observations naturally decay away over time. It's designed for heavy writes and sparse reads, as it implements decay at read time. Each set is implemented as a [redis](http://redis.io/) sorted set, and keys are scrubbed when a count is decayed to near zero, providing storage efficiency.
 
-As a result, Forgetsy handles distributions with up to around 10<sup>6</sup> active categories, receiving hundreds of writes per second, without much fuss. For more information on usage, check out the [github project](https://github.com/cavvia/forgetsy) page.
+As a result, Forgetsy handles distributions with up to around 10<sup>6</sup> active categories, receiving hundreds of writes per second, without much fuss.
 
 ## Usage
 
@@ -75,6 +75,8 @@ Optionally fetch the top _n_ users, or an individual user's trending score:
   follows_delta.fetch(n: 20)
   follows_delta.fetch(bin: 'UserFoo')
 ```
+
+For more information on usage, check out the [github project](https://github.com/cavvia/forgetsy) page.
 
 ## In the Wild
 
