@@ -23,7 +23,7 @@ Also of note is that the use of Javascript within an email is of course, not pos
 
 ## Some Basics about Tables
 
-Yes, it's 2014, and yes, we're going to talk about tables on an engineering blog. That's because for emails, tables are going to be your main tool to position and lay out your content. Two of the most common CSS selectors ('position' and 'display') are bad ideas to use in email. They are mostly unsupported by mail clients (which will reach in and rewrite your HTML/CSS) and will lead to unexpected looking output. However, you can achieve virtually any layout desired using tables.
+Yes, it's 2014, and yes, we're going to talk about tables on an engineering blog. That's because for emails, tables are going to be your main tool to position and lay out your content. Two of the most common CSS selectors (```position``` and ```display```) are bad ideas to use in email. They are mostly unsupported by mail clients (which will reach in and rewrite your HTML/CSS) and will lead to unexpected looking output. However, you can achieve virtually any layout desired using tables.
 
 Here is sample HTML that generates the top part of the email shown above. While it may make your eyes bleed from the table use, notice we are able to achieve the beginnings of a basic 3-column layout, with equal-width columns and centered headers/text with no position-related CSS.
 
@@ -103,7 +103,7 @@ Notice that again we are using no position or display related CSS. However, now 
 
 ## Background Images and Overlayed Text
 
-Ok, so tables are all well and good and you can achieve a lot using them, and without having to use any display or position CSS. But what if you want to overlay text on an image? (or even another image over an image)? On a web page, there are many ways to accomplish that, but they all use CSS that you really should not be using in emails (namely: position, display, top, right, bottom, left, and most layout properties besides padding). Well, no worries, because you can still accomplish that using background images!
+Ok, so tables are all well and good and you can achieve a lot using them, and without having to use any display or position CSS. But what if you want to overlay text on an image? (or even another image over an image)? On a web page, there are many ways to accomplish that, but they all use CSS that you really should not be using in emails (namely: ```position```, ```display```, ```top```, ```right```, ```bottom```, ```left```, and most layout properties besides padding. Also, no negative padding please!). But no worries, because you can still accomplish that using background images!
 
 Here is an example from our current welcome mail to users:
 
@@ -167,7 +167,7 @@ As an example, consider the following two images. The first is the desktop versi
 
 ![Example of Personalized Mobile](/images/2014-03-17-some-tips-for-email-layout-and-responsiveness/personalized_summary.png)
 
-The markup for this is pretty vanilla (similar to above, 3 column layout in a table). For mobile, we want to left-align everything and trim things down to one column. Of note here is that we are truncating text with ellipsis in the desktop version, and when the content reflows to one column we actually have _more_ room to reveal the text (but still keeping truncation in just in case), so we have to enclose the text in a div (must have a block element for truncation)
+The markup for this is pretty vanilla (similar to above, 3 column layout in a table). For mobile, we want to left-align everything and trim things down to one column. Of note here is that we are truncating text with ellipsis in the desktop version, and when the content reflows to one column we actually have _more_ room to reveal the text (but still keeping truncation in just in case), so we have to enclose the text in a ```div``` (must have a block element for truncation)
 
 Here is how we truncate text:
 
@@ -222,9 +222,9 @@ Essentially all we are doing is changing the width of the container/parent table
 
 Sometimes it becomes necessary to hide/show certain things for mobile or desktop. This can be a bit tricky due to not being able to use `display:none;` , so here are a few things I've found that worked:
 
-* width: 0px (works for hiding images)
-* line-height: 0px (works for hiding text)
-* font-size: 0px (works for hiding text)
+* ```width: 0px;``` (works for hiding images)
+* ```line-height: 0px;``` (works for hiding text)
+* ```font-size: 0px;``` (works for hiding text)
 
 Another thing you might encounter is that text links automatically become blue in email. This is because many mail clients will take an un-styled or black link text and make them a default blue color. An easy hack to get around this is to explicitly color your links something like '#000001'. This 'almost-black' will be left untouched by mail clients, yet is close enough to black that the naked eye can't perceive the difference.
 
