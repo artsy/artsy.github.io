@@ -12,9 +12,9 @@ blog-url: http://cavvia.net
 
 ![Armory Trending Screen](/images/2014-03-17-detecting-trends-with-forgetsy/monolith.jpg)
 
-As part of our partnership with [The Armory Show](https://www.thearmoryshow.com/) this year, we installed a number of terminals throughout the fair. These screens used our own real-time data to display an ever shifting set of trending artworks, artists, and booths, to the attendees.
+As part of our partnership with [The New York Armory Show](https://www.thearmoryshow.com/) this year, we installed a number of terminals throughout the fair. These screens used our own real-time data to display an ever shifting set of trending artworks, artists, and booths, to the attendees.
 
-As part of this effort, we've open-sourced [Forgetsy](https://github.com/cavvia/forgetsy), a lightweight trending library. Put simply, Forgetsy implements data structures that forget. Loosely based on Bit.ly's [Forget Table](http://word.bitly.com/post/41284219720/forget-table) concept, Forgetsy uses decaying counters to track temporal trends in categorical distributions.
+Out of this work, we've open-sourced [Forgetsy](https://github.com/cavvia/forgetsy), a lightweight Ruby trending library. Put simply, Forgetsy implements data structures that forget. Loosely based on Bit.ly's [Forget Table](http://word.bitly.com/post/41284219720/forget-table) concept, Forgetsy uses decaying counters to track temporal trends in categorical distributions.
 
 <!-- more -->
 
@@ -30,11 +30,11 @@ In Forgetsy, trends are encapsulated by a construct named _delta_. A _delta_ con
 
 ![Exponential Decay](http://latex.codecogs.com/gif.latex?X_t_1%3DX_t_0%5Ctimes%7Be%5E%7B-%5Clambda%5Ctimes%7Bt%7D%7D%7D)
 
-Where the inverse of the decay rate (λ) is the lifetime of an observation in the set, τ. By normalising one set by a set with half the decay rate (or double the lifetime), we obtain a trending score for each category in a distribution. This score expresses the change in the rate of observations of a category over the lifetime of the set, as a proportion in the range 0..1.
+Where the inverse of the decay rate (λ) is the lifetime of an observation in the set, τ. By normalising one set by a set with half the decay rate (or double the lifetime), we obtain a trending score for each category in a distribution. This score expresses the change in the rate of observations of a category over the lifetime of the set, as a proportion in the range [0,1].
 
 Forgetsy removes the need for manually sliding time windows or explicitly maintaining rolling counts, as observations naturally decay away over time. It's designed for heavy writes and sparse reads, as it implements decay at read time. Each set is implemented as a [redis](http://redis.io/) sorted set, and keys are scrubbed when a count is decayed to near zero, providing storage efficiency.
 
-As a result, Forgetsy handles distributions with upto around 10<sup>6</sup> active categories, receiving hundreds of writes per second, without much fuss. For more information on usage, check out the [github project](https://github.com/cavvia/forgetsy) page.
+As a result, Forgetsy handles distributions with up to around 10<sup>6</sup> active categories, receiving hundreds of writes per second, without much fuss. For more information on usage, check out the [github project](https://github.com/cavvia/forgetsy) page.
 
 ## Usage
 
@@ -46,13 +46,7 @@ Take a social network in which users can follow each other. You want to track tr
 
 The delta consists of two sets of counters indexed by category identifiers. In this example, the identifiers will be user ids. One set decays over the mean lifetime specified by τ, and another set decays over double the lifetime.
 
-You can now add observations to the delta, in the form of follow events. Fetch the delta like so:
-
-``` ruby
-  follows_delta = Forgetsy::Delta.fetch('user_follows')
-```
-
-Each time a user follows another, you increment the followed user id. You can also do this retrospectively:
+You can now add observations to the delta, in the form of follow events. Each time a user follows another, you increment the followed user id. You can also do this retrospectively:
 
 ``` ruby
   follows_delta.incr('UserFoo', date: 2.weeks.ago)
@@ -73,7 +67,7 @@ Will print:
   { 'UserFoo' => 0.789, 'UserBar' => 0.367 }
 ```
 
-Each user is given a dimensionless score in the range 0..1 corresponding to the normalised follows delta over the time period. This expresses the proportion of follows gained by the user over the last week compared to double that lifetime.
+Each user is given a dimensionless score in the range [0,1] corresponding to the normalised follows delta over the time period. This expresses the proportion of follows gained by the user over the last week compared to double that lifetime.
 
 Optionally fetch the top _n_ users, or an individual user's trending score:
 
@@ -82,7 +76,7 @@ Optionally fetch the top _n_ users, or an individual user's trending score:
   follows_delta.fetch(bin: 'UserFoo')
 ```
 
-## In the wild
+## In the Wild
 
 In practice, we use linear, weighted combinations of deltas to produce trending scores for any given domain, such as artists. Forgetsy doesn't provide a server, but we send events to an rpc service that updates the deltas in a streamed manner. These events might include artist follows, artwork favorites, auction lot sales or individual page views.
 
