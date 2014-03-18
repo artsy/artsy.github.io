@@ -200,7 +200,7 @@ Middleware to compile browserify files on request for development purpose.
 
 Server-side Backbone.sync adapter that caches requests using Redis.
 
-[https://github.com/craigspaeth/jquery.konami.coffee](https://github.com/craigspaeth/jquery.konami.coffee)
+[https://github.com/artsy/backbone-cache-sync](https://github.com/artsy/backbone-cache-sync)
 
 [jquery.konami.coffee](https://github.com/craigspaeth/jquery.konami.coffee)
 --------------------------------------------------------------------------------------------
