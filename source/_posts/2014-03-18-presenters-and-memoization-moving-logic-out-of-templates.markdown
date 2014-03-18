@@ -6,6 +6,7 @@ comments: true
 categories: [Ruby, Rails]
 author: Matt Zikherman
 github-url: https://github.com/mzikherman
+twitter-url: http://twitter.com/mzikherman
 ---
 
 

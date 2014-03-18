@@ -6,6 +6,7 @@ comments: true
 categories: [Email, CSS]
 author: Matt Zikherman
 github-url: https://github.com/mzikherman
+twitter-url: http://twitter.com/mzikherman
 ---
 
 ![Example of Analytics Email](/images/2014-03-17-some-tips-for-email-layout-and-responsiveness/analytics.png)
