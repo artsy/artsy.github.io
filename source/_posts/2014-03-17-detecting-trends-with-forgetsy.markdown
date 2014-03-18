@@ -41,7 +41,7 @@ As a result, Forgetsy handles distributions with up to around 10<sup>6</sup> act
 Take a social network in which users can follow each other. You want to track trending users. You construct a delta with a one week lifetime, to capture trends in your follows data over one week periods:
 
 ``` ruby
-  follows_delta = Forgetsy::Delta.create('user_follows', t: 1.week)
+follows_delta = Forgetsy::Delta.create('user_follows', t: 1.week)
 ```
 
 The delta consists of two sets of counters indexed by category identifiers. In this example, the identifiers will be user ids. One set decays over the mean lifetime specified by τ, and another set decays over double the lifetime.
@@ -49,22 +49,22 @@ The delta consists of two sets of counters indexed by category identifiers. In t
 You can now add observations to the delta, in the form of follow events. Each time a user follows another, you increment the followed user id. You can also do this retrospectively:
 
 ``` ruby
-  follows_delta.incr('UserFoo', date: 2.weeks.ago)
-  follows_delta.incr('UserBar', date: 10.days.ago)
-  follows_delta.incr('UserBar', date: 1.week.ago)
-  ...
+follows_delta.incr('UserFoo', date: 2.weeks.ago)
+follows_delta.incr('UserBar', date: 10.days.ago)
+follows_delta.incr('UserBar', date: 1.week.ago)
+...
 ```
 
 Providing an explicit date is useful if you are processing data asynchronously. You can also use the `incr_by` option to increment a counter in batches. You can now consult your follows delta to find your top trending users:
 
 ``` ruby
-  puts follows_delta.fetch
+puts follows_delta.fetch
 ```
 
 Will print:
 
 ``` ruby
-  { 'UserFoo' => 0.789, 'UserBar' => 0.367 }
+{ 'UserFoo' => 0.789, 'UserBar' => 0.367 }
 ```
 
 Each user is given a dimensionless score in the range [0,1] corresponding to the normalised follows delta over the time period. This expresses the proportion of follows gained by the user over the last week compared to double that lifetime.
@@ -72,8 +72,8 @@ Each user is given a dimensionless score in the range [0,1] corresponding to the
 Optionally fetch the top _n_ users, or an individual user's trending score:
 
 ``` ruby
-  follows_delta.fetch(n: 20)
-  follows_delta.fetch(bin: 'UserFoo')
+follows_delta.fetch(n: 20)
+follows_delta.fetch(bin: 'UserFoo')
 ```
 
 For more information on usage, check out the [github project](https://github.com/cavvia/forgetsy) page.
