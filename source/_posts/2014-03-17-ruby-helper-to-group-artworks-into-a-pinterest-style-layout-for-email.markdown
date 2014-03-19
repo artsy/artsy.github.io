@@ -6,6 +6,7 @@ comments: true
 categories: [Email, CSS, Ruby]
 author: Matt Zikherman
 github-url: https://github.com/mzikherman
+twitter-url: http://twitter.com/mzikherman
 ---
 
 ![Example of two column layout](/images/2014-03-17-ruby-helper-to-group-artworks-into-a-pinterest-style-layout-for-email/two-column-layout.png)
