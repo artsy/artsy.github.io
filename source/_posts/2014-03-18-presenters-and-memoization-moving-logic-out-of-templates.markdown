@@ -18,21 +18,23 @@ In this article I'll present what I've been doing to keep my templates relativel
 
 ## The Setup - Presenters and Memoization
 
-First, I'd like to introduce the Presenter pattern, and how this can help clean up your templates. Consider the following screenshot of a section of a weekly email that we send our users:
+First, I'd like to introduce the Presenter pattern, and how this can help clean up your templates. Here are a couple of links about using presenters with [Rails](http://rubyonrails.org/) that I've found useful:
+
+* [Jay Fields' Guide to Presenters](http://blog.jayfields.com/2007/03/rails-presenter-pattern.html)
+* [Mike Desjardins' Slideshare Presentation](http://www.slideshare.net/mdesjardins/presenters-in-rails)
+
+Consider the following screenshot of a section of a weekly email that we send our users:
 
 ![Example of Recently Added Works](/images/2014-03-18-presenters-and-memoization-moving-logic-out-of-templates/recently_added.png)
 
-This section shows works that have been added that week by artists that you follow. That's clearly going to involve some database calls, and potentially heavy ones at that. Now we want to make sure that we only make these calls once (no matter what we wind up doing with the data later), and we also would like to make sure that any code that is making these calls, and potentially munging the data into an easy-to-render format, is done in Ruby (and not in our templates directly).
+This section shows works that have been added that week by artists that you follow. That's clearly going to involve some database calls, and potentially heavy ones at that. Now we'd like to accomplish two things here: we want to make sure that we only make these calls once (no matter what we wind up doing with the data later), and we also would like to make sure that any code or logic that is making these calls and doing any data manipulation is not being done directly in our templates. Keeping this kind of logic out of your template will make it easier to debug, maintain and write.
 
-Let's start by creating a Module to hold the various logic required for this email.
+Let's start by creating a Module to hold the various logic required for this email:
 
 ``` ruby
-module WeeklyEmail
-  class Presenter
-
-    def initialize(user)
-      @user = user
-    end
+class WeeklyEmailPresenter
+  def initialize(user)
+    @user = user
   end
 end
 ```
@@ -40,22 +42,19 @@ end
 Ok, so far so good. In our mail template rendering/calling code, we can now say:
 
 ``` ruby
-@presenter = WeeklyEmail::Presenter.new(user)
+@presenter = WeeklyEmailPresenter.new(user)
 ```
 
 This will allow us to refer to methods in this class in our mail template. So now let's add a method that will query our database and return a list of artists that this user should be notified about:
 
 ``` ruby
-module WeeklyEmail
-  class Presenter
+class WeeklyEmailPresenter
+  def initialize(user)
+    @user = user
+  end
 
-    def initialize(user)
-      @user = user
-    end
-
-    def recently_added_works
-      # Some really heavy database query
-    end
+  def recently_added_works
+    # Some really heavy database query
   end
 end
 ```
@@ -64,39 +63,34 @@ Ok, that was easy. In our HAML template, we can now do:
 
 ``` haml
 -if @presenter.recently_added_works && @presenter.recently_added_works.any?
-  %table{ id: "recently-added-works", cellpadding: "0", cellspacing: "0", style: "border: 0;padding:10px 0px 15px 0px;width:610px" }
+  %table
     %tr
-      %td{ align: "left", valign: "middle", style: 'padding-bottom:15px;border-bottom:1px solid #ccc;', colspan: "3" }
+      %td
         -@presenter.recently_added_works.each do |artists|
           <!-- markup to render each artist with recently added works -->
 ```
 
-(As a side note- this is a great opportunity to take the markup for each row in this table and move it into a partial, further cleaning up this layout!)
-
 However, take a look at how many times we've referred to ```@presenter.recently_added_works``` - 3 times already! And we'll most likely refer to it more elsewhere (perhaps when deriving a subject line, or showing a total count somewhere, etc.). Depending on how you've implemented the method ```recently_added_works```, you may be re-querying the database every time it's referred to! Clearly that's a lot of wasted resources. So, let's look at an easy change that will guarantee we only ever perform the work to assemble this data once. We memoize it:
 
 ``` ruby
-module WeeklyEmail
-  class Presenter
+class WeeklyEmailPresenter
+  def initialize(user)
+    @user = user
+  end
 
-    def initialize(user)
-      @user = user
-    end
+  def recently_added_works
+    @recently_added_works ||= build_recently_added_works
+  end
 
-    def recently_added_works
-      @recently_added_works ||= build_recently_added_works
-    end
+  private
 
-    private
-
-    def build_recently_added_works
-      # Code to do database lookups
-    end
+  def build_recently_added_works
+    # Code to do database lookups
   end
 end
 ```
 
-All we do is move the actual code that's doing the heavy lifting into a ```private``` method (for convention, I like to prefix the name with ```build_```), and then the public method that will be referred to multiple times throughout, will call the private method, and will only call it once. We accomplish this by using instance variables, and conditional assignment.
+All we're doing is moving the actual code that's doing the heavy lifting into a ```private``` method (for convention, I like to prefix the name with ```build_```). The public method that we refer to elsewhere in our presenter and template simply calls the appropriate ```private``` method. Through using an instance variable combined with conditional assignment, we guarantee that the ```build_``` method (our heavy and slow workhorse method) will only be called once, no matter how many times we refer to the public method.
 
 
 That's it! To summarize, use instance variables in your public methods which is what your templates and other code will use. Those public methods should call private ```build_``` methods which actually do all the heavy lifting. This way, you get to easily move logic away from a template and into its own module, and can guarantee that you're not repeating any long-running database queries or other slow data processing.
