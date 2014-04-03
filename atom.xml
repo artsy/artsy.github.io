@@ -4,7 +4,7 @@
   <title><![CDATA[Artsy Engineering]]></title>
   <link href="http://artsy.github.io/atom.xml" rel="self"/>
   <link href="http://artsy.github.io/"/>
-  <updated>2014-03-17T21:25:45-04:00</updated>
+  <updated>2014-04-03T13:59:05-04:00</updated>
   <id>http://artsy.github.io/</id>
   <author>
     <name><![CDATA[Artsy]]></name>
@@ -12,6 +12,365 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Refactoring Infrastructure]]></title>
+    <link href="http://artsy.github.io/blog/2014/04/02/refactoring-infrastructure/"/>
+    <updated>2014-04-02T10:32:00-04:00</updated>
+    <id>http://artsy.github.io/blog/2014/04/02/refactoring-infrastructure</id>
+    <content type="html"><![CDATA[<p><a href="http://martinfowler.com/books/refactoring.html">Refactoring</a> usually describes chages to <em>code</em>. Specifically, small changes that bring a codebase closer to the desired state. By making these changes incrementally and without modifying the end-to-end behavior, we avoid risk and the intermediate broken states that usually plague large-scale changes. But refactoring need not be limited to code. It&#8217;s also an effective way to make infrastructure improvements.</p>
+
+<p>Take the most common&#8211;and simplest&#8211;example: database schema changes. Environments that demand constant uptime have long had to chunk schema changes into steps that allow for a graceful transition. In the simple case of replacing a column, this might look like:</p>
+
+<ol>
+<li>Add the new column</li>
+<li>Redirect code references there from the old column</li>
+<li>Migrate data as necessary, and finally</li>
+<li>Remove the old column</li>
+</ol>
+
+
+<p>The same sequencing applies to making larger infrastructure changes gracefully. Some recent examples from our own experience:</p>
+
+<!-- more -->
+
+
+<h2>Splitting databases</h2>
+
+<p>When MongoDB&#8217;s <a href="http://docs.mongodb.org/manual/faq/concurrency/">database-level write-lock</a> started to impact our API performance, we explored switching certain batch insertions to a separate database. We made the transition seamless by first adding a version number to the batch logic. Existing batches would default to &#8220;v1&#8221; treatment and be read from the main database, while new batches would get &#8220;v2&#8221; treatment and be inserted into (and then read from) a secondary database. (See <a href="https://gist.github.com/joeyAghion/9955727">this gist</a> for a more concrete demonstration.) After a few cycles, legacy collections had all been replaced by more recent batches in the new database and could be removed.</p>
+
+<h2>Extracting a web front-end from a monolithic app</h2>
+
+<p>The <a href="https://artsy.net">artsy.net</a> site was recently extracted from our main Rails application into a dedicated Node.js app and a true client of our API. We rolled it out almost page-by-page; we simply configured <a href="http://wiki.nginx.org/Main">Nginx</a> to proxy requests for a whitelist of paths to the new site. That allowed us to start with the simplest of pages and incorporate new ones as they were developed. Nginx supports <a href="http://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_pass">sophisticated proxying rules</a>, but our example can be as simple as:</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>location ^~ /about|press {
+</span><span class='line'>  proxy_pass http://next.artsy.net;
+</span><span class='line'>}</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Once the new app was feature-complete, we removed the proxying layer and updated DNS so it would handle all requests.</p>
+
+<h2>New hosting environment</h2>
+
+<p>When we <a href="http://artsy.github.io/blog/2013/08/27/introduction-to-aws-opsworks/">switched hosting providers</a> for our main application, it required changes to <em>many</em> related tools and services (for logs, deploys, background queues, etc.). To mitigate risk, we set up a &#8220;double-deploy&#8221; to the legacy and new environments as soon as the basic elements were in place. The environments ran the same code and shared a data store. First, we targeted the new environment from only a few internal apps. As we surfaced and fixed bugs, we directed more client applications away from the old, eventually winding it down altogether. The process was spread over months, but since each individual change was small and low-risk, we were confident and could adjust course as necessary.</p>
+
+<h2>Full application rewrite</h2>
+
+<p>Occasionally&#8211;but rarely&#8211;it&#8217;s awkward to partially roll out a new system. Maybe it&#8217;s a significant enough re-imagining that it won&#8217;t play nicely with the legacy application (e.g., a clashing UI that&#8217;s difficult to back-port). It&#8217;s <em>still</em> possible to take a refactoring approach. When the new application is minimally viable, new customers can be directed to it. As more customers join and the new application reaches feature parity (and beyond), the user base naturally shifts toward the new and away from the old. Legacy customers can be transitioned when it&#8217;s more convenient.</p>
+
+<p>Trying a refactoring approach over the course of these large infrastructure changes has convinced me of the following lessons:</p>
+
+<p><strong>1. There&#8217;s <em>always</em> a more incremental approach.</strong> Repeat after me.</p>
+
+<p><strong>2. Your culture will benefit.</strong> Just as the tools and vocabulary of code refactoring yield benefits to development workflow, there are cultural benefits to viewing infrastructure as more dynamic and flexible. We&#8217;re able to make more aggressive changes, and with greater confidence in the result. Nothing is sacred, &#8220;fixed,&#8221; or can&#8217;t be undone.</p>
+
+<p><strong>3. Ship sooner.</strong> By exercising the ability to roll out infrastructure changes incrementally, bugs and mistaken assumptions are surfaced earlier.</p>
+
+<p><strong>4. Transitions can be ugly.</strong> There will likely be some embarrassing intermediate stages. Embrace it. As a rule of thumb, it&#8217;s OK to compromise the old system&#8217;s integrity (i.e., <em>hack</em>) to ease the transition as you work toward the new ideal.</p>
+
+<p>The tools for managing infrastructure have been improving steadily (see <a href="http://www.getchef.com/chef/">Chef</a>, <a href="http://www.ansible.com/home">Ansible</a>, <a href="https://www.docker.io/">Docker</a>), making infrastructure changes more lightweight, testable, and repeatable&#8211;closer to code. Refactoring infrastructure is the natural extension of this. From <a href="https://twitter.com/KentBeck">Kent Beck</a>:</p>
+
+<blockquote class="twitter-tweet" lang="en"><p>for each desired change, make the change easy (warning: this may be hard), then make the easy change</p>&mdash; Kent Beck (@KentBeck) <a href="https://twitter.com/KentBeck/statuses/250733358307500032">September 25, 2012</a></blockquote>
+
+
+<script async src="http://artsy.github.io//platform.twitter.com/widgets.js" charset="utf-8"></script>
+
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Presenters and Memoization: Moving Logic out of Templates]]></title>
+    <link href="http://artsy.github.io/blog/2014/03/18/presenters-and-memoization-moving-logic-out-of-templates/"/>
+    <updated>2014-03-18T17:27:00-04:00</updated>
+    <id>http://artsy.github.io/blog/2014/03/18/presenters-and-memoization-moving-logic-out-of-templates</id>
+    <content type="html"><![CDATA[<p>When dealing with rendering data for an email, one frequently has to make many database calls to assemble the required data. This can be slow, and depending on how you structure the code that is assembling the data vs rendering the data in a template, it&#8217;s very easy to be making repeated calls, which can significantly slow down your process. Additionally, whether you are using <a href="http://haml.info/">Haml</a>, <a href="http://mustache.github.io/">Mustache</a>, <a href="http://jade-lang.com/">Jade</a>, or any other templating language, embedding too much logic in the template can making things hard to maintain (especially if some logic lives in the template and some elsewhere in your domain code). Of course some logic in the template (a conditional: should I render this section?, or loops: render this hash of data) is necessary, but I like to keep as much out of there as possible. It&#8217;s easier to optimize, debug and maintain that logic elsewhere, and also writing complex logic in <a href="https://www.ruby-lang.org">Ruby</a> is much more fun than in a templating language!</p>
+
+<p>In this article I&#8217;ll present what I&#8217;ve been doing to keep my templates relatively logic-free, and how I make sure I don&#8217;t repeat any heavy database calls in assembling my data.</p>
+
+<!-- more -->
+
+
+<h2>The Setup - Presenters and Memoization</h2>
+
+<p>First, I&#8217;d like to introduce the Presenter pattern, and how this can help clean up your templates. Here are a couple of links about using presenters with <a href="http://rubyonrails.org/">Rails</a> that I&#8217;ve found useful:</p>
+
+<ul>
+<li><a href="http://blog.jayfields.com/2007/03/rails-presenter-pattern.html">Jay Fields&#8217; Guide to Presenters</a></li>
+<li><a href="http://www.slideshare.net/mdesjardins/presenters-in-rails">Mike Desjardins&#8217; Slideshare Presentation</a></li>
+</ul>
+
+
+<p>Consider the following screenshot of a section of a weekly email that we send our users:</p>
+
+<p><img src="http://artsy.github.io/images/2014-03-18-presenters-and-memoization-moving-logic-out-of-templates/recently_added.png" alt="Example of Recently Added Works" /></p>
+
+<p>This section shows works that have been added that week by artists that you follow. That&#8217;s clearly going to involve some database calls, and potentially heavy ones at that. Now we&#8217;d like to accomplish two things here: we want to make sure that we only make these calls once (no matter what we wind up doing with the data later), and we also would like to make sure that any code or logic that is making these calls and doing any data manipulation is not being done directly in our templates. Keeping this kind of logic out of your template will make it easier to debug, maintain and write.</p>
+
+<p>Let&#8217;s start by creating a Module to hold the various logic required for this email:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">WeeklyEmailPresenter</span>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="n">user</span><span class="p">)</span>
+</span><span class='line'>    <span class="vi">@user</span> <span class="o">=</span> <span class="n">user</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Ok, so far so good. In our mail template rendering/calling code, we can now say:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="vi">@presenter</span> <span class="o">=</span> <span class="no">WeeklyEmailPresenter</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="n">user</span><span class="p">)</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>This will allow us to refer to methods in this class in our mail template. So now let&#8217;s add a method that will query our database and return a list of artists that this user should be notified about:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">WeeklyEmailPresenter</span>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="n">user</span><span class="p">)</span>
+</span><span class='line'>    <span class="vi">@user</span> <span class="o">=</span> <span class="n">user</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">recently_added_works</span>
+</span><span class='line'>    <span class="c1"># Some really heavy database query</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Ok, that was easy. In our HAML template, we can now do:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+</pre></td><td class='code'><pre><code class='haml'><span class='line'><span class="p">-</span><span class="k">if</span> <span class="vi">@presenter</span><span class="o">.</span><span class="n">recently_added_works</span> <span class="o">&amp;&amp;</span> <span class="vi">@presenter</span><span class="o">.</span><span class="n">recently_added_works</span><span class="o">.</span><span class="n">any?</span>
+</span><span class='line'>  <span class="nt">%table</span>
+</span><span class='line'>    <span class="nt">%tr</span>
+</span><span class='line'>      <span class="nt">%td</span>
+</span><span class='line'>        <span class="p">-</span><span class="vi">@presenter</span><span class="o">.</span><span class="n">recently_added_works</span><span class="o">.</span><span class="n">each</span> <span class="k">do</span> <span class="o">|</span><span class="n">artists</span><span class="o">|</span>
+</span><span class='line'>          &lt;!-- markup to render each artist with recently added works --&gt;
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>However, take a look at how many times we&#8217;ve referred to <code>@presenter.recently_added_works</code> - 3 times already! And we&#8217;ll most likely refer to it more elsewhere (perhaps when deriving a subject line, or showing a total count somewhere, etc.). Depending on how you&#8217;ve implemented the method <code>recently_added_works</code>, you may be re-querying the database every time it&#8217;s referred to! Clearly that&#8217;s a lot of wasted resources. So, let&#8217;s look at an easy change that will guarantee we only ever perform the work to assemble this data once. We memoize it:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">WeeklyEmailPresenter</span>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="n">user</span><span class="p">)</span>
+</span><span class='line'>    <span class="vi">@user</span> <span class="o">=</span> <span class="n">user</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">recently_added_works</span>
+</span><span class='line'>    <span class="vi">@recently_added_works</span> <span class="o">||=</span> <span class="n">build_recently_added_works</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="kp">private</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">build_recently_added_works</span>
+</span><span class='line'>    <span class="c1"># Code to do database lookups</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>All we&#8217;re doing is moving the actual code that&#8217;s doing the heavy lifting into a <code>private</code> method (for convention, I like to prefix the name with <code>build_</code>). The public method that we refer to elsewhere in our presenter and template simply calls the appropriate <code>private</code> method. Through using an instance variable combined with conditional assignment, we guarantee that the <code>build_</code> method (our heavy and slow workhorse method) will only be called once, no matter how many times we refer to the public method.</p>
+
+<p>That&#8217;s it! To summarize, use instance variables in your public methods which is what your templates and other code will use. Those public methods should call private <code>build_</code> methods which actually do all the heavy lifting. This way, you get to easily move logic away from a template and into its own module, and can guarantee that you&#8217;re not repeating any long-running database queries or other slow data processing.</p>
+
+<p>Hopefully you&#8217;ve found this a useful pattern to follow, please leave any feedback in the comments and <a href="https://github.com/artsy">follow us on Github</a>!</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Ruby Helper to Group Artworks into a Pinterest-style Layout for Email]]></title>
+    <link href="http://artsy.github.io/blog/2014/03/17/ruby-helper-to-group-artworks-into-a-pinterest-style-layout-for-email/"/>
+    <updated>2014-03-17T19:32:00-04:00</updated>
+    <id>http://artsy.github.io/blog/2014/03/17/ruby-helper-to-group-artworks-into-a-pinterest-style-layout-for-email</id>
+    <content type="html"><![CDATA[<p><img src="http://artsy.github.io/images/2014-03-17-ruby-helper-to-group-artworks-into-a-pinterest-style-layout-for-email/two-column-layout.png" alt="Example of two column layout" /></p>
+
+<p>Something we&#8217;d like to do is email our users some suggested artworks as part of their personalized emails. The layout of those suggestions should look something like our newly re-designed <a href="https://artsy.net/browse/artworks?price_range=-1%3A1000000000000">Browse</a> page, with a &#8216;salon&#8217; style layout. Here&#8217;s some simple Ruby code that can group artworks into columns for you, that can then be directly rendered in an email (via <a href="http://haml.info/">Haml</a>, <a href="http://mustache.github.io/">Mustache</a>, <a href="http://jade-lang.com/">Jade</a>, or your templating language of choice.)</p>
+
+<!-- more -->
+
+
+<h2>The code</h2>
+
+<p>First let&#8217;s look at the code, and then I&#8217;ll describe it:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+<span class='line-number'>38</span>
+<span class='line-number'>39</span>
+<span class='line-number'>40</span>
+<span class='line-number'>41</span>
+<span class='line-number'>42</span>
+<span class='line-number'>43</span>
+<span class='line-number'>44</span>
+<span class='line-number'>45</span>
+<span class='line-number'>46</span>
+<span class='line-number'>47</span>
+<span class='line-number'>48</span>
+<span class='line-number'>49</span>
+<span class='line-number'>50</span>
+<span class='line-number'>51</span>
+<span class='line-number'>52</span>
+<span class='line-number'>53</span>
+<span class='line-number'>54</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">module</span> <span class="nn">ArtworkColumns</span>
+</span><span class='line'>  <span class="c1"># Return an array of artworks grouped together in sub arrays by being added to the shortest &#39;column&#39;</span>
+</span><span class='line'>  <span class="c1"># based on a fixed width and aspect ratios.</span>
+</span><span class='line'>  <span class="c1">#</span>
+</span><span class='line'>  <span class="c1"># @param {Array} artworks The array of artworks to group into columns</span>
+</span><span class='line'>  <span class="c1"># @param {Number} num_columns The number of columns to group them into</span>
+</span><span class='line'>  <span class="c1"># @param {Number} width The width the images will be displayed at</span>
+</span><span class='line'>  <span class="c1">#</span>
+</span><span class='line'>  <span class="c1"># @return {Array} An array of artworks grouped into sub arrays by being added to the shortest one.</span>
+</span><span class='line'>  <span class="k">def</span> <span class="nc">self</span><span class="o">.</span><span class="nf">artwork_columns</span><span class="p">(</span><span class="n">artworks</span><span class="p">,</span> <span class="n">num_columns</span><span class="p">,</span> <span class="n">width</span><span class="p">)</span>
+</span><span class='line'>    <span class="n">artwork_cols</span> <span class="o">=</span> <span class="o">[]</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="c1"># Initialize columns</span>
+</span><span class='line'>    <span class="n">num_columns</span><span class="o">.</span><span class="n">times</span> <span class="k">do</span>
+</span><span class='line'>      <span class="n">artwork_cols</span> <span class="o">&lt;&lt;</span> <span class="o">[]</span>
+</span><span class='line'>    <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="n">artworks</span><span class="o">.</span><span class="n">each</span> <span class="k">do</span> <span class="o">|</span><span class="n">artwork</span><span class="o">|</span>
+</span><span class='line'>      <span class="n">add_to_shortest_column!</span><span class="p">(</span><span class="n">artwork_cols</span><span class="p">,</span> <span class="n">artwork</span><span class="p">,</span> <span class="n">width</span><span class="p">)</span>
+</span><span class='line'>    <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="n">artwork_cols</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="kp">private</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c1"># Adds artwork to shortest column</span>
+</span><span class='line'>  <span class="k">def</span> <span class="nc">self</span><span class="o">.</span><span class="nf">add_to_shortest_column!</span><span class="p">(</span><span class="n">artwork_cols</span><span class="p">,</span> <span class="n">artwork</span><span class="p">,</span> <span class="n">width</span><span class="p">)</span>
+</span><span class='line'>    <span class="n">min_height</span> <span class="o">=</span> <span class="n">column_height</span><span class="p">(</span><span class="n">artwork_cols</span><span class="o">[</span><span class="mi">0</span><span class="o">]</span><span class="p">,</span> <span class="n">width</span><span class="p">)</span>
+</span><span class='line'>    <span class="n">min_column_idx</span> <span class="o">=</span> <span class="mi">0</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="n">artwork_cols</span><span class="o">.</span><span class="n">each_with_index</span> <span class="k">do</span> <span class="o">|</span><span class="n">column</span><span class="p">,</span> <span class="n">idx</span><span class="o">|</span>
+</span><span class='line'>      <span class="n">height</span> <span class="o">=</span> <span class="n">column_height</span><span class="p">(</span><span class="n">column</span><span class="p">,</span> <span class="n">width</span><span class="p">)</span>
+</span><span class='line'>      <span class="k">if</span> <span class="n">height</span> <span class="o">&lt;</span> <span class="n">min_height</span>
+</span><span class='line'>        <span class="n">min_height</span> <span class="o">=</span> <span class="n">height</span>
+</span><span class='line'>        <span class="n">min_column_idx</span> <span class="o">=</span> <span class="n">idx</span>
+</span><span class='line'>      <span class="k">end</span>
+</span><span class='line'>    <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="n">artwork_cols</span><span class="o">[</span><span class="n">min_column_idx</span><span class="o">]</span> <span class="o">&lt;&lt;</span> <span class="n">artwork</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c1"># Calculate sum of heights of artworks in column</span>
+</span><span class='line'>  <span class="k">def</span> <span class="nc">self</span><span class="o">.</span><span class="nf">column_height</span><span class="p">(</span><span class="n">artwork_col</span><span class="p">,</span> <span class="n">width</span><span class="p">)</span>
+</span><span class='line'>    <span class="n">height</span> <span class="o">=</span> <span class="mi">0</span>
+</span><span class='line'>    <span class="n">artwork_col</span><span class="o">.</span><span class="n">each</span> <span class="k">do</span> <span class="o">|</span><span class="n">artwork</span><span class="o">|</span>
+</span><span class='line'>      <span class="k">if</span> <span class="p">(</span><span class="n">aspect_ratio</span> <span class="o">=</span> <span class="n">artwork</span><span class="o">.</span><span class="n">default_image</span><span class="o">.</span><span class="n">aspect_ratio</span><span class="p">)</span>
+</span><span class='line'>        <span class="n">height</span> <span class="o">+=</span> <span class="p">(</span><span class="n">width</span> <span class="o">/</span> <span class="n">aspect_ratio</span><span class="p">)</span><span class="o">.</span><span class="n">floor</span>
+</span><span class='line'>      <span class="k">else</span>
+</span><span class='line'>        <span class="n">height</span> <span class="o">+=</span> <span class="n">width</span>
+</span><span class='line'>      <span class="k">end</span>
+</span><span class='line'>    <span class="k">end</span>
+</span><span class='line'>    <span class="n">height</span>
+</span><span class='line'>  <span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>The algorithm is quite simple (original JS idea and implementation courtesy of Artsy&#8217;s <a href="https://github.com/gib">Gib</a>). The inputs are fairly obvious, an array of artworks to be grouped, the number of columns to group them into, and the width of each column.</p>
+
+<p>We then simply iterate over all our artworks, and add them to whichever column is shortest. This way we end up with several columns that are for the most part equally sized in height, and as they all have different aspect ratios, when they are rendered in a table, you wind up with a nice looking &#8216;dynamic&#8217; layout. The height of each column is calculated as the sum of the heights of the artworks in each column. The heights are derived from the inputted widths and aspect ratios of the images.</p>
+
+<p>Here&#8217;s how you might iterate over the returned column groupings and render a layout similar to the above:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+</pre></td><td class='code'><pre><code class='haml'><span class='line'><span class="p">-</span> <span class="n">artwork_suggestions</span><span class="o">.</span><span class="n">each_with_index</span> <span class="k">do</span> <span class="o">|</span><span class="n">artwork_arr</span><span class="p">,</span> <span class="n">idx</span><span class="o">|</span>
+</span><span class='line'>  <span class="nt">%td</span><span class="p">{</span> <span class="nb">id</span><span class="p">:</span> <span class="s1">&#39;artwork-column&#39;</span><span class="p">,</span> <span class="ss">style</span><span class="p">:</span> <span class="s2">&quot;width: 290px;padding-top:20px;text-align:left;&quot;</span> <span class="p">}</span>
+</span><span class='line'>    <span class="p">-</span> <span class="n">artwork_array</span><span class="o">.</span><span class="n">each</span> <span class="k">do</span> <span class="o">|</span><span class="n">artwork</span><span class="o">|</span>
+</span><span class='line'>      <span class="nt">%a</span><span class="p">{</span> <span class="ss">href</span><span class="p">:</span> <span class="s2">&quot;</span><span class="si">#{</span><span class="n">canonical_url</span><span class="si">}</span>/artwork/<span class="si">#{</span><span class="n">artwork</span><span class="o">.</span><span class="n">slug</span><span class="si">}</span>?<span class="si">#{</span><span class="vi">@utm_params</span><span class="si">}</span>&quot; }&lt;
+</span><span class='line'>        <span class="nt">%img</span><span class="p">{</span> <span class="nb">id</span><span class="p">:</span> <span class="s1">&#39;artwork&#39;</span><span class="p">,</span> <span class="ss">src</span><span class="p">:</span> <span class="s2">&quot;</span><span class="si">#{</span><span class="n">artwork</span><span class="o">.</span><span class="n">default_image</span><span class="o">.</span><span class="n">image_url</span><span class="p">(</span><span class="ss">:large</span><span class="p">)</span><span class="si">}</span>&quot;, style: &quot;width: 290px;&quot; }
+</span><span class='line'>      <span class="nt">%br</span>
+</span><span class='line'>      &lt;!-- additional artwork details, title, artist, etc. --&gt;
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>These few lines of Ruby code have allowed us to move logic out of Haml (yuck!) and into Ruby (yay!) and allow <a href="http://haml.info/">Haml</a> to just focus on rendering the objects passed in (certainly via loops and conditionals, etc.)</p>
+
+<p>That&#8217;s all for now! In my next post I&#8217;ll talk about how I use the Presenter pattern and memoization to move even more logic out of templates (and save some database calls while we&#8217;re at it!)</p>
+
+<p>Thanks again! Post any comments or tips of your own here, and <a href="https://github.com/artsy">follow us on Github</a>!</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Some Tips for Email Layout and Responsiveness]]></title>
@@ -419,7 +778,7 @@ Ruby-style string evaluation has proven invaluable.</li>
 <p>Take a social network in which users can follow each other. You want to track trending users. You construct a delta with a one week lifetime, to capture trends in your follows data over one week periods:</p>
 
 <figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'>  <span class="n">follows_delta</span> <span class="o">=</span> <span class="ss">Forgetsy</span><span class="p">:</span><span class="ss">:Delta</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">&#39;user_follows&#39;</span><span class="p">,</span> <span class="ss">t</span><span class="p">:</span> <span class="mi">1</span><span class="o">.</span><span class="n">week</span><span class="p">)</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">follows_delta</span> <span class="o">=</span> <span class="ss">Forgetsy</span><span class="p">:</span><span class="ss">:Delta</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">&#39;user_follows&#39;</span><span class="p">,</span> <span class="ss">t</span><span class="p">:</span> <span class="mi">1</span><span class="o">.</span><span class="n">week</span><span class="p">)</span>
 </span></code></pre></td></tr></table></div></figure>
 
 
@@ -431,24 +790,24 @@ Ruby-style string evaluation has proven invaluable.</li>
 <span class='line-number'>2</span>
 <span class='line-number'>3</span>
 <span class='line-number'>4</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'>  <span class="n">follows_delta</span><span class="o">.</span><span class="n">incr</span><span class="p">(</span><span class="s1">&#39;UserFoo&#39;</span><span class="p">,</span> <span class="ss">date</span><span class="p">:</span> <span class="mi">2</span><span class="o">.</span><span class="n">weeks</span><span class="o">.</span><span class="n">ago</span><span class="p">)</span>
-</span><span class='line'>  <span class="n">follows_delta</span><span class="o">.</span><span class="n">incr</span><span class="p">(</span><span class="s1">&#39;UserBar&#39;</span><span class="p">,</span> <span class="ss">date</span><span class="p">:</span> <span class="mi">10</span><span class="o">.</span><span class="n">days</span><span class="o">.</span><span class="n">ago</span><span class="p">)</span>
-</span><span class='line'>  <span class="n">follows_delta</span><span class="o">.</span><span class="n">incr</span><span class="p">(</span><span class="s1">&#39;UserBar&#39;</span><span class="p">,</span> <span class="ss">date</span><span class="p">:</span> <span class="mi">1</span><span class="o">.</span><span class="n">week</span><span class="o">.</span><span class="n">ago</span><span class="p">)</span>
-</span><span class='line'>  <span class="o">.</span><span class="n">.</span><span class="o">.</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">follows_delta</span><span class="o">.</span><span class="n">incr</span><span class="p">(</span><span class="s1">&#39;UserFoo&#39;</span><span class="p">,</span> <span class="ss">date</span><span class="p">:</span> <span class="mi">2</span><span class="o">.</span><span class="n">weeks</span><span class="o">.</span><span class="n">ago</span><span class="p">)</span>
+</span><span class='line'><span class="n">follows_delta</span><span class="o">.</span><span class="n">incr</span><span class="p">(</span><span class="s1">&#39;UserBar&#39;</span><span class="p">,</span> <span class="ss">date</span><span class="p">:</span> <span class="mi">10</span><span class="o">.</span><span class="n">days</span><span class="o">.</span><span class="n">ago</span><span class="p">)</span>
+</span><span class='line'><span class="n">follows_delta</span><span class="o">.</span><span class="n">incr</span><span class="p">(</span><span class="s1">&#39;UserBar&#39;</span><span class="p">,</span> <span class="ss">date</span><span class="p">:</span> <span class="mi">1</span><span class="o">.</span><span class="n">week</span><span class="o">.</span><span class="n">ago</span><span class="p">)</span>
+</span><span class='line'><span class="o">.</span><span class="n">.</span><span class="o">.</span>
 </span></code></pre></td></tr></table></div></figure>
 
 
 <p>Providing an explicit date is useful if you are processing data asynchronously. You can also use the <code>incr_by</code> option to increment a counter in batches. You can now consult your follows delta to find your top trending users:</p>
 
 <figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'>  <span class="nb">puts</span> <span class="n">follows_delta</span><span class="o">.</span><span class="n">fetch</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="nb">puts</span> <span class="n">follows_delta</span><span class="o">.</span><span class="n">fetch</span>
 </span></code></pre></td></tr></table></div></figure>
 
 
 <p>Will print:</p>
 
 <figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'>  <span class="p">{</span> <span class="s1">&#39;UserFoo&#39;</span> <span class="o">=&gt;</span> <span class="mi">0</span><span class="o">.</span><span class="mi">789</span><span class="p">,</span> <span class="s1">&#39;UserBar&#39;</span> <span class="o">=&gt;</span> <span class="mi">0</span><span class="o">.</span><span class="mi">367</span> <span class="p">}</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="p">{</span> <span class="s1">&#39;UserFoo&#39;</span> <span class="o">=&gt;</span> <span class="mi">0</span><span class="o">.</span><span class="mi">789</span><span class="p">,</span> <span class="s1">&#39;UserBar&#39;</span> <span class="o">=&gt;</span> <span class="mi">0</span><span class="o">.</span><span class="mi">367</span> <span class="p">}</span>
 </span></code></pre></td></tr></table></div></figure>
 
 
@@ -458,8 +817,8 @@ Ruby-style string evaluation has proven invaluable.</li>
 
 <figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
 <span class='line-number'>2</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'>  <span class="n">follows_delta</span><span class="o">.</span><span class="n">fetch</span><span class="p">(</span><span class="ss">n</span><span class="p">:</span> <span class="mi">20</span><span class="p">)</span>
-</span><span class='line'>  <span class="n">follows_delta</span><span class="o">.</span><span class="n">fetch</span><span class="p">(</span><span class="ss">bin</span><span class="p">:</span> <span class="s1">&#39;UserFoo&#39;</span><span class="p">)</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">follows_delta</span><span class="o">.</span><span class="n">fetch</span><span class="p">(</span><span class="ss">n</span><span class="p">:</span> <span class="mi">20</span><span class="p">)</span>
+</span><span class='line'><span class="n">follows_delta</span><span class="o">.</span><span class="n">fetch</span><span class="p">(</span><span class="ss">bin</span><span class="p">:</span> <span class="s1">&#39;UserFoo&#39;</span><span class="p">)</span>
 </span></code></pre></td></tr></table></div></figure>
 
 
@@ -3133,341 +3492,6 @@ script:
 <h3>More Examples</h3>
 
 <p>There&#8217;re more working examples <a href="https://github.com/dblock/heroku-commander/tree/master/examples">here</a>.</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Create MongoDB Command-Lines from Mongoid Configuration]]></title>
-    <link href="http://artsy.github.io/blog/2013/01/31/create-mongodb-command-lines-with-mongo/"/>
-    <updated>2013-01-31T21:21:00-05:00</updated>
-    <id>http://artsy.github.io/blog/2013/01/31/create-mongodb-command-lines-with-mongo</id>
-    <content type="html"><![CDATA[<p>We use MongoDB as our primary store and have built a healthy amount of automation around various database instances and operational environments. For example, we backup databases to S3 using <code>mongodump</code>, mirror data between instances with <code>mongorestore</code> and often need to open a MongoDB shell with <code>mongo</code> to examine data at the lowest level.</p>
-
-<p>Generating MongoDB command-lines is tedious and error-prone. Introducing a new gem called <a href="https://github.com/dblock/mongoid-shell">mongoid-shell</a> to help with this. The library can generate command-lines for various MongoDB shell tools from your Mongoid configuration.</p>
-
-<p>For example, connect to your production MongoDB instance from a <code>db:production:shell</code> Rake task.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">namespace</span> <span class="ss">:db</span>
-</span><span class='line'>  <span class="n">namespace</span> <span class="ss">:production</span>
-</span><span class='line'>    <span class="n">task</span> <span class="ss">:shell</span>
-</span><span class='line'>      <span class="no">Mongoid</span><span class="o">.</span><span class="n">load!</span> <span class="s2">&quot;mongoid.yml&quot;</span><span class="p">,</span> <span class="ss">:production</span>
-</span><span class='line'>      <span class="nb">system</span> <span class="ss">Mongoid</span><span class="p">:</span><span class="ss">:Shell</span><span class="o">::</span><span class="ss">Commands</span><span class="p">:</span><span class="ss">:Mongo</span><span class="o">.</span><span class="n">new</span><span class="o">.</span><span class="n">to_s</span>
-</span><span class='line'>    <span class="k">end</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-
-
-<!-- more -->
-
-
-<p>Commands can be created for the current default session or you can pass a session as an argument to a new command.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="c1"># will use Mongoid.default_session</span>
-</span><span class='line'><span class="ss">Mongoid</span><span class="p">:</span><span class="ss">:Shell</span><span class="o">::</span><span class="ss">Commands</span><span class="p">:</span><span class="ss">:Mongodump</span><span class="o">.</span><span class="n">new</span>
-</span><span class='line'>
-</span><span class='line'><span class="c1"># use a hand-crafted session</span>
-</span><span class='line'><span class="n">s</span> <span class="o">=</span> <span class="ss">Moped</span><span class="p">:</span><span class="ss">:Session</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="o">[</span> <span class="s2">&quot;127.0.0.1:27017&quot;</span> <span class="o">]</span><span class="p">)</span>
-</span><span class='line'><span class="ss">Mongoid</span><span class="p">:</span><span class="ss">:Shell</span><span class="o">::</span><span class="ss">Commands</span><span class="p">:</span><span class="ss">:Mongodump</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="ss">session</span><span class="p">:</span> <span class="n">s</span><span class="p">)</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>Commands accept parameters. Here&#8217;s how to backup <code>my_database</code> to <code>/tmp/db_backup</code>.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">out</span> <span class="o">=</span> <span class="no">File</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="no">Dir</span><span class="o">.</span><span class="n">tmpdir</span><span class="p">,</span> <span class="s1">&#39;db_backup&#39;</span><span class="p">)</span>
-</span><span class='line'><span class="n">db</span> <span class="o">=</span> <span class="s1">&#39;my_database&#39;</span>
-</span><span class='line'><span class="n">dump</span> <span class="o">=</span> <span class="ss">Mongoid</span><span class="p">:</span><span class="ss">:Shell</span><span class="o">::</span><span class="ss">Commands</span><span class="p">:</span><span class="ss">:Mongodump</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="ss">db</span><span class="p">:</span> <span class="n">db</span><span class="p">,</span> <span class="ss">out</span><span class="p">:</span> <span class="n">out</span><span class="p">)</span>
-</span><span class='line'><span class="c1"># mongodump --db my_database --out /tmp/db_backup</span>
-</span><span class='line'><span class="nb">system</span> <span class="n">dump</span><span class="o">.</span><span class="n">to_s</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>The mongoid-shell gem currently supports <code>mongo</code>, <code>mongodump</code>, <code>mongorestore</code> and <code>mongostat</code> and various MongoDB configurations, including replica-sets.</p>
-
-<p>Please note that we don&#8217;t recommend you store passwords for production environments in your <code>mongoid.yml</code>. At Artsy, we set all sensitive values directly on our Heroku instances with <code>heroku config:add</code> and use <a href="https://github.com/dblock/heroku-commander">heroku-commander</a> to retrieve these settings in rake. We also have a bit of convention in our application name, such as &#8220;app-staging&#8221; and &#8220;app-production&#8221;.</p>
-
-<p>Here&#8217;s a complete Rake task that dynamically fetches Heroku configuration and opens a MongoDB shell on a production or staging environment.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">namespace</span> <span class="ss">:db</span> <span class="k">do</span>
-</span><span class='line'>  <span class="o">[</span> <span class="ss">:staging</span><span class="p">,</span> <span class="ss">:production</span> <span class="o">].</span><span class="n">each</span> <span class="k">do</span> <span class="o">|</span><span class="n">env</span><span class="o">|</span>
-</span><span class='line'>    <span class="n">namespace</span> <span class="n">env</span> <span class="k">do</span>
-</span><span class='line'>      <span class="n">task</span> <span class="ss">:shell</span> <span class="k">do</span>
-</span><span class='line'>        <span class="n">app</span> <span class="o">=</span> <span class="s2">&quot;myapp-</span><span class="si">#{</span><span class="n">env</span><span class="si">}</span><span class="s2">&quot;</span>
-</span><span class='line'>        <span class="n">config</span> <span class="o">=</span> <span class="ss">Heroku</span><span class="p">:</span><span class="ss">:Commander</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="ss">app</span><span class="p">:</span> <span class="n">app</span><span class="p">)</span><span class="o">.</span><span class="n">config</span>
-</span><span class='line'>        <span class="n">config</span><span class="o">.</span><span class="n">each_pair</span> <span class="k">do</span> <span class="o">|</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="o">|</span>
-</span><span class='line'>          <span class="no">ENV</span><span class="o">[</span><span class="n">k</span><span class="o">]</span> <span class="o">=</span> <span class="n">v</span>
-</span><span class='line'>        <span class="k">end</span>
-</span><span class='line'>        <span class="n">mongoid_yml</span> <span class="o">=</span> <span class="no">File</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="no">Rails</span><span class="o">.</span><span class="n">root</span><span class="p">,</span> <span class="s2">&quot;config/mongoid.yml&quot;</span><span class="p">)</span>
-</span><span class='line'>        <span class="no">Mongoid</span><span class="o">.</span><span class="n">load!</span> <span class="n">mongoid_yml</span><span class="p">,</span> <span class="n">env</span>
-</span><span class='line'>        <span class="nb">system</span> <span class="ss">Mongoid</span><span class="p">:</span><span class="ss">:Shell</span><span class="o">::</span><span class="ss">Commands</span><span class="p">:</span><span class="ss">:Mongo</span><span class="o">.</span><span class="n">new</span><span class="o">.</span><span class="n">to_s</span>
-</span><span class='line'>      <span class="k">end</span>
-</span><span class='line'>    <span class="k">end</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>Run <code>rake db:staging:shell</code> or <code>rake db:production:shell</code>, which works as long as you have access to the Heroku app itself. A bonus feature is that the mongoid-shell gem will automatically connect to the primary node of a replica-set.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="err">$</span> <span class="n">rake</span> <span class="ss">db</span><span class="p">:</span><span class="ss">staging</span><span class="p">:</span><span class="n">shell</span>
-</span><span class='line'> <span class="n">mongo</span> <span class="ss">db</span><span class="p">:</span><span class="mi">10007</span><span class="o">/</span><span class="n">app</span><span class="o">-</span><span class="n">staging</span> <span class="o">--</span><span class="n">username</span> <span class="n">user</span> <span class="o">--</span><span class="n">password</span> <span class="o">************</span>
-</span><span class='line'> <span class="no">MongoDB</span> <span class="n">shell</span> <span class="ss">version</span><span class="p">:</span> <span class="mi">2</span><span class="o">.</span><span class="mi">0</span><span class="o">.</span><span class="mi">7</span>
-</span><span class='line'> <span class="n">connecting</span> <span class="ss">to</span><span class="p">:</span> <span class="ss">db</span><span class="p">:</span><span class="mi">10007</span><span class="o">/</span><span class="n">app</span><span class="o">-</span><span class="n">staging</span>
-</span><span class='line'> <span class="o">&gt;</span>
-</span></code></pre></td></tr></table></div></figure>
-
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Improving Performance of Mongoid-Cached-Json]]></title>
-    <link href="http://artsy.github.io/blog/2013/01/20/improving-performance-of-mongoid-cached-json/"/>
-    <updated>2013-01-20T21:21:00-05:00</updated>
-    <id>http://artsy.github.io/blog/2013/01/20/improving-performance-of-mongoid-cached-json</id>
-    <content type="html"><![CDATA[<p>Last year, we have open-sourced and made extensive use of two Ruby libraries in our API: <a href="https://github.com/dblock/mongoid-cached-json">mongoid-cached-json</a> and <a href="https://github.com/artsy/garner">garner</a>. Both transform the procedural nightmare of caching and JSON generation into a declarative and easily manageable DSL. It was worth the investment, since our service spends half of its time generating JSON and reading from and writing to Memcached.</p>
-
-<p>Today we&#8217;ve released mongoid-cached-json 1.4 with two interesting performance improvements.</p>
-
-<!-- more -->
-
-
-<h2>Bulk Reference Resolving with a Local Cache</h2>
-
-<p>Consider an array of database model instances, each with numerous references to other objects. It&#8217;s typical to see such instances reference the same object: for example we have an <code>Artwork</code> that references an <code>Artist</code>. It&#8217;s common to see multiple artworks reference the same artist in a collection. Retrieving the artist from cache every time it is referenced is clearly inefficient.</p>
-
-<p><code>Mongoid::CachedJson</code> will now collect all JSON references, then resolve them after suppressing duplicates, in-place within the JSON tree. This significantly reduces the number of cache queries.</p>
-
-<p>Note, that while this optimization reduces load on the Memcached servers, there&#8217;s a cost of doing additional work after collecting the entire JSON in Ruby.</p>
-
-<h2>Fetching Cache Data in Bulk</h2>
-
-<p>Various cache stores, including Memcached, support bulk read operations. The <a href="https://github.com/mperham/dalli">Dalli</a> gem, which we use in production, exposes this via the <code>read_multi</code> method. With the bulk reference optimization above we now have the entire list of keys to query from cache, at once. <code>Mongoid::CachedJson</code> will always invoke <code>read_multi</code> where available, which significantly reduces the number of network roundtrips to the cache servers.</p>
-
-<p>This is a good example of where declarative models and DSLs have tremendous advantages in enabling massive improvements across the board. Imagine making the <code>read_multi</code> optimization in hundreds of API endpoints!</p>
-
-<h2>Benchmarks</h2>
-
-<p>With the above optimizations the library does more work in order to make less roundtrips to Memcached over the network. Since the network is often the slowest part in any large scale system, the overall production performance should be better as long as we can obtain similar throughput in ideal network conditions on localhost. We&#8217;ve added some common case benchmarks in <a href="https://github.com/dblock/mongoid-cached-json/blob/master/spec/benchmark_spec.rb">spec/benchmark_spec.rb</a> and ran them against 1.2.3 and 1.4.0 to obtain <a href="https://gist.github.com/4583039">these results</a>. The overall performance gain averaged 14.6%, which is quite significant. With real world data in a production environment we&#8217;re seeing 15-50% less time spent in Memcached, depending on the API.</p>
-
-<h2>Links</h2>
-
-<p>The concepts behind these improvements should be attributed to <a href="https://github.com/aaw">@aaw</a> and <a href="https://github.com/macreery">@macreery</a>. If you want to learn more about the above-mentioned libraries, check out the following links:</p>
-
-<ul>
-<li><a href="http://confreaks.com/videos/986-goruco2012-from-zero-to-api-cache-w-grape-mongodb-in-10-minutes">From Zero to API-Cache w/ Grape and MongoDB</a>, video recorded at GoRuCo</li>
-<li><a href="http://artsy.github.io/blog/2012/02/20/caching-model-json-with-mongoid-cached-json/">Caching Model JSON with Mongoid-Cached-Json</a></li>
-<li><a href="http://artsy.github.io/blog/2012/03/23/simplifying-model-level-json-versioning-with-mongoid-cached-json/">Simplifying Model Level Versioning with Mongoid-Cched-Json</a></li>
-<li><a href="http://artsy.github.io/blog/2012/05/30/restful-api-caching-with-garner/">RESTful API Caching with Garner</a></li>
-</ul>
-
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Debugging Bundler Issues on Heroku]]></title>
-    <link href="http://artsy.github.io/blog/2013/01/15/debugging-bundler-issues-with-heroku/"/>
-    <updated>2013-01-15T21:21:00-05:00</updated>
-    <id>http://artsy.github.io/blog/2013/01/15/debugging-bundler-issues-with-heroku</id>
-    <content type="html"><![CDATA[<p>A few days ago we have started seeing the Heroku deployments of one of our applications randomly hang during <code>bundle install</code>. The problem worsened with time and we were not able to do a deployment for days.</p>
-
-<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-</pre></td><td class='code'><pre><code class=''><span class='line'>$ git push -f git@heroku.com:application.git FETCH_HEAD:master
-</span><span class='line'>-----&gt; Deleting 12 files matching .slugignore patterns.
-</span><span class='line'>-----&gt; Ruby/Rails app detected
-</span><span class='line'>-----&gt; Using Ruby version: ruby-1.9.3
-</span><span class='line'>-----&gt; Installing dependencies using Bundler version 1.3.0.pre.5
-</span><span class='line'>       Running: bundle install --without development:test --path vendor/bundle --binstubs vendor/bundle/bin
-</span><span class='line'>       Fetching gem metadata from http://rubygems.org/.......
-</span><span class='line'>       Fetching gem metadata from http://rubygems.org/..
-</span><span class='line'>/app/slug-compiler/lib/utils.rb:66:in `block (2 levels) in spawn': command='/app/slug-compiler/lib/../../tmp/buildpacks/ruby/bin/compile /tmp/build_1p6071sni4hh1 /app/tmp/repo.git/.cache' exit_status=0 out='' at=timeout elapsed=900.1056394577026 (Utils::TimeoutError)
-</span><span class='line'>  from /app/slug-compiler/lib/utils.rb:52:in `loop'
-</span><span class='line'>  from /app/slug-compiler/lib/utils.rb:52:in `block in spawn'
-</span><span class='line'>  from /app/slug-compiler/lib/utils.rb:47:in `popen'
-</span><span class='line'>  from /app/slug-compiler/lib/utils.rb:47:in `spawn'
-</span><span class='line'>  from /app/slug-compiler/lib/buildpack.rb:37:in `block in compile'
-</span><span class='line'>  from /app/slug-compiler/lib/buildpack.rb:35:in `fork'
-</span><span class='line'>  from /app/slug-compiler/lib/buildpack.rb:35:in `compile'
-</span><span class='line'>  from /app/slug-compiler/lib/slug.rb:497:in `block in run_buildpack'
-</span><span class='line'> !     Heroku push rejected, failed to compile Ruby/rails app</span></code></pre></td></tr></table></div></figure>
-
-
-<p>Seeing bundler hang on &#8220;Fetching gem metadata from http://rubygems.org/&#8221;, my immediate reaction was to blame the RubyGems Dependency API for its poor performance and attempt the <a href="http://hone.herokuapp.com/bundler%20heroku/2012/10/22/rubygems-and-the-dependency-api.html">recommended workaround</a> of switching to <em>http://bundler-api.herokuapp.com</em>. That didn&#8217;t work.</p>
-
-<p>I also tried to reproduce the issue on a local environment, including a (what I thought was) a completely clean machine at no avail. My <code>bundle install</code> would always succeed.</p>
-
-<p>Finally, everything pointed at an infrastructure problem with Heroku itself, so I opened a ticket (#72648), <a href="https://twitter.com/dblockdotorg/status/290221530892365824">tweeted</a> endlessly to Heroku devs, pinged a  contact at Heroku on Skype and generally annoyed people for 5 straight days. It was a frustrating problem and I was getting no useful help.</p>
-
-<p>Fast forward, this turned out to be <a href="https://github.com/carlhuda/bundler/issues/2248">an issue in Bundler</a>. Narrowing it down would have been relatively easy if I had known where to look.</p>
-
-<p>I hope this post helps you with similar issues.</p>
-
-<!-- more -->
-
-
-<h2>Heroku Slug Compiler</h2>
-
-<p>Heroku provides small Ubuntu virtual machines on-demand, called &#8220;dynos&#8221;, that look very much like any other Linux box. You can <code>heroku run bash</code> and examine the file system of a running dyno. You can delete the bundler cache, rerun <code>bundle install</code>, etc. But deployment does not happen in a running dyno - every time you push to Heroku, deployment happens inside a compiler dyno. Heroku attaches the dyno to your slug filesystem (your code), which may include a cache from previous runs. It then executes the code inside <a href="https://github.com/heroku/heroku-buildpack-ruby">heroku-buildpack-ruby</a>, specifically <a href="https://github.com/heroku/heroku-buildpack-ruby/blob/5dbf4c06c765dc832c073fe5be9360533fd1846d/lib/language_pack/ruby.rb#L49">this method</a>.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">def</span> <span class="nf">compile</span>
-</span><span class='line'>  <span class="no">Dir</span><span class="o">.</span><span class="n">chdir</span><span class="p">(</span><span class="n">build_path</span><span class="p">)</span>
-</span><span class='line'>  <span class="n">remove_vendor_bundle</span>
-</span><span class='line'>  <span class="n">install_ruby</span>
-</span><span class='line'>  <span class="n">install_jvm</span>
-</span><span class='line'>  <span class="n">setup_language_pack_environment</span>
-</span><span class='line'>  <span class="n">setup_profiled</span>
-</span><span class='line'>  <span class="n">allow_git</span> <span class="k">do</span>
-</span><span class='line'>    <span class="n">install_language_pack_gems</span>
-</span><span class='line'>    <span class="n">build_bundler</span>
-</span><span class='line'>    <span class="n">create_database_yml</span>
-</span><span class='line'>    <span class="n">install_binaries</span>
-</span><span class='line'>    <span class="n">run_assets_precompile_rake_task</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>A lot of these functions invoke <code>IO.open</code> and transmit <code>$stdout</code> and <code>$stderr</code> back to you. You see everything Heroku sees and while you cannot get access to the compiler dyno, there&#8217;s really no mystery to this process. Heroku slug compiler will timeout after 15 minutes and produce a stack with <code>Utils::TimeoutError</code>. And everything Heroku does should be reproducible locally.</p>
-
-<h2>Troubleshooting Bundler</h2>
-
-<p>The key to getting a repro of my issue locally was to use the <a href="https://github.com/carlhuda/bundler/blob/master/ISSUES.md">Bundler Troubleshooting</a> section. I had previously missed one of the steps in cleaning the local Bundler cache.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-<span class='line-number'>19</span>
-<span class='line-number'>20</span>
-<span class='line-number'>21</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="c1"># remove user-specific gems and git repos</span>
-</span><span class='line'><span class="n">rm</span> <span class="o">-</span><span class="n">rf</span> <span class="o">~</span><span class="sr">/.bundle/</span> <span class="o">~</span><span class="sr">/.gem/</span><span class="n">bundler</span><span class="o">/</span> <span class="o">~</span><span class="sr">/.gems/</span><span class="n">cache</span><span class="o">/</span><span class="n">bundler</span><span class="o">/</span>
-</span><span class='line'>
-</span><span class='line'><span class="c1"># remove system-wide git repos and git checkouts</span>
-</span><span class='line'><span class="n">rm</span> <span class="o">-</span><span class="n">rf</span> <span class="vg">$GEM_HOME</span><span class="o">/</span><span class="n">bundler</span><span class="o">/</span> <span class="vg">$GEM_HOME</span><span class="o">/</span><span class="n">cache</span><span class="o">/</span><span class="n">bundler</span><span class="o">/</span>
-</span><span class='line'>
-</span><span class='line'><span class="c1"># remove project-specific settings and git repos</span>
-</span><span class='line'><span class="n">rm</span> <span class="o">-</span><span class="n">rf</span> <span class="o">.</span><span class="n">bundle</span><span class="o">/</span>
-</span><span class='line'>
-</span><span class='line'><span class="c1"># remove project-specific cached .gem files</span>
-</span><span class='line'><span class="n">rm</span> <span class="o">-</span><span class="n">rf</span> <span class="n">vendor</span><span class="o">/</span><span class="n">cache</span><span class="o">/</span>
-</span><span class='line'>
-</span><span class='line'><span class="c1"># remove the saved resolve of the Gemfile</span>
-</span><span class='line'><span class="n">rm</span> <span class="o">-</span><span class="n">rf</span> <span class="no">Gemfile</span><span class="o">.</span><span class="n">lock</span>
-</span><span class='line'>
-</span><span class='line'><span class="c1"># uninstall the rubygems-bundler and open_gem gems</span>
-</span><span class='line'><span class="n">rvm</span> <span class="n">gemset</span> <span class="n">use</span> <span class="n">global</span> <span class="c1"># if using rvm</span>
-</span><span class='line'><span class="n">gem</span> <span class="n">uninstall</span> <span class="n">rubygems</span><span class="o">-</span><span class="n">bundler</span> <span class="n">open_gem</span>
-</span><span class='line'>
-</span><span class='line'><span class="c1"># try to install one more time</span>
-</span><span class='line'><span class="n">bundle</span> <span class="n">install</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>This hung with my Gemfile the same way as on Heroku.</p>
-
-<h2>Bundler Dependency Resolver</h2>
-
-<p>So what is bundler doing?</p>
-
-<p>Bundler runs the gem dependency resolver, which is described in detail in <a href="http://patshaughnessy.net/2011/9/24/how-does-bundler-bundle">Pat Shaughnessy&#8217;s blog post</a>. The post suggests running <code>DEBUG_RESOLVER=1 bundle install</code>, which produced a mountain of output that isn&#8217;t very helpful.</p>
-
-<p>I made a <a href="https://github.com/carlhuda/bundler/pull/2249">pull request</a> with a similar setting called <code>DEBUG_RESOLVER_TREE</code>, which reduces the output to the gems being resolved. This helped me narrow down a <a href="https://github.com/carlhuda/bundler/issues/2248">small repro</a>. I was also able to make some sense of what bundler was doing: backtracking in an attempt to find a combination of gems matching the versions declared in <code>Gemfile</code> for every combinations of <code>railties</code>, <code>actionmailer</code>, <code>activeresource</code>, <code>activerecord</code>, <code>actionpack</code> and <code>builder</code> above version 3.2, only to fail to find a compatible version of <code>builder</code> every single time. That&#8217;s a lot of versions to try.</p>
-
-<p>Adding an entry for <code>builder</code> to <code>Gemfile</code> fixed the issue.</p>
-
-<p>Similar issues to my <a href="https://github.com/carlhuda/bundler/issues/2248">#2248</a> in Bundler have been reported in <a href="https://github.com/carlhuda/bundler/issues/2030">#2030</a>, <a href="https://github.com/carlhuda/bundler/issues/2090">#2090</a> and <a href="https://github.com/carlhuda/bundler/issues/2125">#2125</a>.</p>
-
-<h2>Troubleshooting Tip</h2>
-
-<p>If you remember anything from this post, next time you have a hang inside <code>bundle install</code> on or off Heroku, start with <a href="https://github.com/carlhuda/bundler/blob/master/ISSUES.md">Bundler Troubleshooting</a>.</p>
 ]]></content>
   </entry>
   
