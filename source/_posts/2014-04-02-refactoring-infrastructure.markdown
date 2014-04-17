@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "Refactoring Infrastructure"
+title: Refactoring Infrastructure
 date: 2014-04-02 10:32
 comments: true
 categories: [dev-ops]
@@ -39,7 +39,7 @@ location ^~ /about|press {
 }
 ```
 
-Once the new app was feature-complete, we removed the proxying layer and updated DNS so it would handle all requests. 
+Once the new app was feature-complete, we removed the proxying layer and updated DNS so it would handle all requests.
 
 New hosting environment
 ---
