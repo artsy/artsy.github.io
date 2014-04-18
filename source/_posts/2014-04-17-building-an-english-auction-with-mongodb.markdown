@@ -1,7 +1,7 @@
 ---
 layout: post
 title: Building an English Auction with MongoDB
-date: 2013-06-23 12:21
+date: 2014-04-17 12:21
 comments: true
 categories: [Ruby,Auctions,Bidding,MongoDB]
 author: Daniel Doubrovkine
