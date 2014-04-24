@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Generating Notifications and Personalized Emails Efficiently"
-date: 2014-04-10 16:00
+date: 2014-04-24 16:00
 comments: true
 categories: [Ruby, Email, CSS, HTML]
 author: Matt Zikherman
