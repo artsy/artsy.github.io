@@ -11,7 +11,7 @@ twitter-url: http://twitter.com/mzikherman
 
 We recently launched a new personalized email here at [Artsy](https://artsy.net) that features content that a given user might find interesting. The goal of this post is to describe how we built a backend system that efficiently generates these e-mails for all our users. I'll talk about the first, naive implementation that had performance problems right away, and how the second implementation (currently in production) solved those issues, and whose behavior at scale is well-defined and understood. I won't go into the details of the design and layout of the mail itself and how we render the content - there are several earlier blog posts that deal with those: [Presenters and Memoization](http://artsy.github.io/blog/2014/03/18/presenters-and-memoization-moving-logic-out-of-templates/), [Pinterest-style Layouts](http://artsy.github.io/blog/2014/03/17/ruby-helper-to-group-artworks-into-a-pinterest-style-layout-for-email/) and [Email Layouts and Responsiveness](http://artsy.github.io/blog/2014/03/17/some-tips-for-email-layout-and-responsiveness/).
 
-![Personalized Email Example](/images/2014-04-10-generating-notifications-and-personalized-emails-efficiently/percy_example.png)
+![Personalized Email Example](/images/2014-04-24-generating-notifications-and-personalized-emails-efficiently/percy_example.png)
 
 <!-- more -->
 
