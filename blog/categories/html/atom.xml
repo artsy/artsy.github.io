@@ -1,0 +1,240 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: HTML | Artsy Engineering]]></title>
+  <link href="http://artsy.github.io/blog/categories/html/atom.xml" rel="self"/>
+  <link href="http://artsy.github.io/"/>
+  <updated>2014-04-24T11:40:45-04:00</updated>
+  <id>http://artsy.github.io/</id>
+  <author>
+    <name><![CDATA[Artsy]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Generating Notifications and Personalized Emails Efficiently]]></title>
+    <link href="http://artsy.github.io/blog/2014/04/24/generating-notifications-and-personalized-emails-efficiently/"/>
+    <updated>2014-04-24T16:00:00-04:00</updated>
+    <id>http://artsy.github.io/blog/2014/04/24/generating-notifications-and-personalized-emails-efficiently</id>
+    <content type="html"><![CDATA[<p>We recently launched a new personalized email here at <a href="https://artsy.net">Artsy</a> that features content that a given user might find interesting. The goal of this post is to describe how we built a backend system that efficiently generates these e-mails for all our users. I'll talk about the first, naive implementation that had performance problems right away, and how the second implementation (currently in production) solved those issues, and whose behavior at scale is well-defined and understood. I won't go into the details of the design and layout of the mail itself and how we render the content - there are several earlier blog posts that deal with those: <a href="http://artsy.github.io/blog/2014/03/18/presenters-and-memoization-moving-logic-out-of-templates/">Presenters and Memoization</a>, <a href="http://artsy.github.io/blog/2014/03/17/ruby-helper-to-group-artworks-into-a-pinterest-style-layout-for-email/">Pinterest-style Layouts</a> and <a href="http://artsy.github.io/blog/2014/03/17/some-tips-for-email-layout-and-responsiveness/">Email Layouts and Responsiveness</a>.</p>
+
+<p><img src="/images/2014-04-24-generating-notifications-and-personalized-emails-efficiently/percy_example.png" alt="Personalized Email Example" /></p>
+
+<!-- more -->
+
+
+<h3>Deciding What Content to Include</h3>
+
+<p>First, we had to decide what types of personalized content we wanted to feature in our mails. Users can follow artists and galleries, and so this seemed like a great place to start. We'd like to let you know about new artworks that have been uploaded by artists that you follow, as well as new shows that have been added by galleries you follow, or that are exhibiting artists you follow. Since we have location data for our galleries and our users (accomplished thru an onboarding flow, or thru geo-locating their IP address), we also want to include new shows that are opening near you. Additionally, we have a recommendations engine that recommends artworks to users based on their preferences and activity on the site, and we'd like to show some of the latest and best of such recommendations.</p>
+
+<h3>Initial Implementation Ideas</h3>
+
+<p>My first thought was to have an observer (really just some <code>after_save</code> callbacks) that will wait for data to get into a state where a user can be validly notified, and in a background task write these notifications to interested users. Here's how the base setup of our <code>Notification</code> model looked:</p>
+
+<p>``` ruby
+class Notification
+  include Mongoid::Document
+  include Mongoid::Timestamps</p>
+
+<p>  belongs_to :user
+  belongs_to :notifiable, polymorphic: true, inverse_of: :notifications
+end
+```</p>
+
+<p>It's a simple join of the user and the <code>notifiable</code> (the object/action that a user is being notified about).</p>
+
+<p>Then, a specific notification (such as one for published artworks by artists you follow) can inherit from this and look like:</p>
+
+<p>``` ruby
+class PublishedArtworkNotification &lt; Notification
+  def self.notify!(artwork_id)
+    user_ids = FollowArtist.where(artist: artwork.artist).pluck("user_id")
+    user_ids.each_slice(100) do |uids|
+      PublishedArtworkNotification.delay(queue: :any, priority: 6).create_for_users(artwork_id, uids)
+    end
+  end</p>
+
+<p>  def self.create_for_users(artwork, uids)
+    uids.each do |uid|
+      PublishedArtworkNotification.create!(user_id: uid, notifiable_id: artwork_id, notifiable_type: 'Artwork')
+    end
+  end
+end
+```</p>
+
+<p>Then, the <code>after_save</code> hook on an <code>Artwork</code> model is:</p>
+
+<p><code>ruby
+def delay_notify
+  PublishedArtworkNotification.delay(queue: :any).notify!(self.id) if self.published_changed? &amp;&amp; self.published
+end
+</code></p>
+
+<p>So, when an artwork is published, we run <code>notify!</code> in the background for the respective notification. That method will pull all interested users (via following the artist), and then spawn off more background processes to write the notifications in batches of 100. We batched these writes to avoid any one background process taking too long (an artist such as <a href="https://artsy.net/artist/andy-warhol">Andy Warhol</a> has around twelve thousand followers currently), and also ran them at a lower priority to avoid blocking other jobs in our queue.</p>
+
+<p>The other types of notifications were all implemented similarly (via an observer on the model, and a specific <code>Notification</code> class inheriting from the base class). We also added some other logic into the base <code>Notification</code> class such as some uniqueness constraints, as well as an ability to mark notifications as 'sent' or 'invalid'. However, we ran into serious performance/scaling issues fairly quickly, and had to re-implement this scheme.</p>
+
+<h3>Performance Bottlenecks</h3>
+
+<p>All of these records were being written to one collection in <a href="https://www.mongodb.org/">MongoDB</a>, and the size of this collection grew quite rapidly. It's size almost immediately dwarfed the size of any of our other collections, and the number of records quickly reached into the tens of millions. This led to problems: writing new notifications started to crawl to a standstill. We had several indices on this collection to aid in querying, and these made the insertion of new notifications very non-performant, and also started to affect overall database performance. Querying against this collection degraded quickly and started to similarly affect database performance. Archiving old records also proved next to impossible. We couldn't simply drop the entire collection, but had to prune records. This similarly was totally non-performant and was adversely affecting database and site performance. We needed to come up with a new implementation for <code>Notification</code>, and addressing these issues was essential.</p>
+
+<h3>Resolving Performance Bottlenecks</h3>
+
+<p>So, we decided on a scheme where each day would result in a new <code>Notifications</code> collection (name keyed on the date), named <code>notifications_20140101</code>, <code>notifications_20140102</code>, etc. Each of these collections would have an <code>_id</code> field that corresponds to a user_id, and an <code>events</code> array (or 'stack' if you will) that records the id's of notified objects, as well as the type of notification. An example of a record in that collection is:</p>
+
+<p><code>json
+{"_id"=&gt;"5106b619f56337db300001f8",
+ "events"=&gt;[{"t"=&gt;"NearbyShow", "o"=&gt;"533998b1c9dc24c371000041"},
+            {"t"=&gt;"NearbyShow", "o"=&gt;"5345774cc9dc246d580003d0"},
+            {"t"=&gt;"NearbyShow", "o"=&gt;"5335af4fa09a67145300028c"},
+            {"t"=&gt;"NearbyShow", "o"=&gt;"533f1174a09a67298900007b"},
+            {"t"=&gt;"ArtworkPublished", "o"=&gt;"5334647b139b2165160000d8"}]
+}
+</code></p>
+
+<p>So, here we see all of my notifications for April 22, 2014. On that day, I was notified about 4 shows opening near my location, and one artwork added by an artist I follow. Incidentally, that artwork was a piece by <a href="https://artsy.net/artist/rob-wynne">Rob Wynne</a> entitled <a href="https://artsy.net/artwork/rob-wynne-youre-dreaming">You're Dreaming</a>. The show notifications were for NYC-area shows opening at <a href="https://artsy.net/klein-sun-gallery">Klein Sun Gallery</a>, <a href="https://artsy.net/garis-and-hahn">Garis &amp; Hahn</a>, <a href="https://artsy.net/miyako-yoshinaga-gallery">Miyako Yoshinaga Gallery</a> and <a href="https://artsy.net/dodgegallery">DODGEgallery</a>.</p>
+
+<p>A couple of nice things about this implementation is it limits the size of a collection: any one day's collection will scale directly with the number of users, which seems reasonable. Our earlier implementation scaled with the product of the number of users and amount of content on Artsy, which is clearly problematic. Also, archiving old notifications is as simple as dropping a particular day's collection, which is very performant. However, querying and assembling these notifications is a bit trickier than in the naive implementation, as well as marking which events have already been sent to a user, so as to avoid duplicating any content in between mailings.</p>
+
+<p>Let's see how we rewrite the notification generation in this scheme:</p>
+
+<p>``` ruby
+module NotificationService</p>
+
+<p>  def self.notify_many!(user_ids, object_id, type)
+    events = events_from(object_id, type)
+    user_ids.each do |user_id|
+      notify_with_events(user_id, events)
+    end
+  end</p>
+
+<p>  private</p>
+
+<p>  def self.notify_with_events(user_id, events)
+    collection.find(_id: user_id).upsert('$push' => { events: { '$each' => events } })
+  end</p>
+
+<p>  def self.events_from(object_ids, type)
+    Array(object_ids).map do |object_id|
+      {
+        't' => type,
+        'o' => object_id
+      }
+    end
+  end</p>
+
+<p>  # collection storing notifications for the given day
+  def self.collection(date = Date.today)
+    Mongoid.default_session.with(safe: false)[collection_name(date)]
+  end</p>
+
+<p>  def self.collection_name(date)
+    "notifications_#{date.to_s(:number)}"
+  end</p>
+
+<p>end
+```</p>
+
+<p>Here's how the <code>after_save</code> callback looks now:</p>
+
+<p><code>ruby
+def notify_published
+  NotificationService.notify_many!(user_ids, self, 'ArtworkPublished') if self.published_changed? &amp;&amp; self.published
+end
+</code></p>
+
+<p>Let's take a look at what's going on here. When an artwork is published, we call <code>notify_many!</code> in the <code>NotificationService</code> module. That will determine the correct collection (keyed by the date) using the <code>collection</code> and <code>collection_name</code> helpers. We build our events stack with the <code>events_from</code> helper, and then do an <code>upsert</code> with a <code>$push</code> to either insert or update that user's events for that day. Due to the fast performance of this scheme, we also no longer have to batch notification creation. As a sample benchmark, writing this type of notification to our <a href="https://artsy.net/artist/andy-warhol">Warhol</a> followers takes under 15 seconds.</p>
+
+<p>Ok, so we seem to have solved some of our issues: namely writing and archiving notifications is performant, and we understand the behavior of these collections as the number of users and content on the site grows. Now let's look at how we can query against this scheme in an efficient manner, and also how we can mark events as 'seen' to avoid emailing out duplicates.</p>
+
+<h3>Marking Notifications as Flushed and Retrieving Notifications</h3>
+
+<p>We decided to push a <code>flushed</code> event onto the user's stack after we send out notifications, and analogously, when we are querying a user's notifications, we want to throw away notifications that occur before a <code>flushed</code> event. Here's that method, in our <code>NotificationService</code> module:</p>
+
+<p>``` ruby</p>
+
+<h1>Mark all events until this point "seen." Pushes a {flushed: <id>}</h1>
+
+<h1>hash on to events array.</h1>
+
+<p>def self.flush!(user_id, since = Date.today - 7.days)
+  flushed = { 'flushed' => Moped::BSON::ObjectId.new }
+  collections_since(since).each do |coll|
+    coll.find(_id: user_id).update('$push' => { events: flushed })
+  end
+  flushed  # return "id" of flushed marker, in case useful later
+end</p>
+
+<p>private</p>
+
+<p>def self.collections_since(date)
+  (date..Date.today).map { |d| collection(d) }
+end
+```</p>
+
+<p>Pretty simple. We push the appropriate event onto every collection that was under consideration via the <code>collections_since</code> helper. When we send out a personalized email we accumulate the last 7 day's worth of activity for you, and so after we generate/send a mail for a user, we can simply say <code>NotificationService.flush!(user)</code>. Here's how that day's notifications for me looks after the <code>flushed</code> event:</p>
+
+<p><code>json
+  {"_id"=&gt;"5106b619f56337db300001f8",
+   "events"=&gt;[{"t"=&gt;"NearbyShow", "o"=&gt;"5338504e139b21f2a9000362"},
+              {"t"=&gt;"FollowedArtistShow", "o"=&gt;"533ddba3a09a6764f60006b6"}, {"t"=&gt;"NearbyShow", "o"=&gt;"533ddba3a09a6764f60006b6"},
+              {"flushed"=&gt;"5352b346b504f5f3690002fe"}]
+  }
+</code></p>
+
+<p>For the last piece of the puzzle, let's look at how we query against this scheme and compile together all notifications that are applicable for a given user:</p>
+
+<p>``` ruby
+module NotificationService
+  NOTIFICATION_TYPES = {
+    'FollowedArtistShow' => PartnerShow,
+    'FollowedPartnerShow' => PartnerShow,
+    'NearbyShow' => PartnerShow,
+    'ArtworkPublished' => Artwork,
+    'ArtworkSuggested' => Artwork
+  }</p>
+
+<p>  class Notification &lt; Struct.new(:type, :object_id)
+    def object
+      @object ||= NOTIFICATION_TYPES[type].find(object_id)
+    end</p>
+
+<pre><code>def applicable?
+  object.try(:notifiable?) || false
+end
+</code></pre>
+
+<p>  end</p>
+
+<h1>Return applicable notifications for user since given date.</h1>
+
+<p>def self.get(user_id, since = Date.today - 7.days)
+  collections_since(since)
+    .map { |coll| coll.find(_id: user_id).one }.compact
+    .flat_map { |doc| doc['events'].slice_before { |ev| ev['flushed'] }.to_a.last }
+    .reject { |ev| ev['flushed'] }.uniq
+    .map { |ev| Notification.new(ev['t'], ev['o']) }.select(&amp;:applicable?)
+end
+```</p>
+
+<p>We introduce a lite-weight <code>Notification</code> class that will load the object, as well as perform an additional check. We use the previously introduced <code>collections_since</code> helper to retrieve all the notification collections under consideration. We query each and build up an array of all events from a user's stack. We remove events that occurred prior to a <code>flushed</code> event in a given collection and the <code>flushed</code> events themselves. Then we actually load all the objects and return the ones that are still <code>applicable?</code>. That final <code>applicable?</code> check is to allow us to filter out content at run-time that is no longer valid. For example, if an artwork is published and the correct event is written out to users, but before the user can be notified the artwork is unpublished, this can serve as a run-time check to not include that work. <code>def notifiable?</code> can thus be implemented in the <code>Artwork</code> model like so:</p>
+
+<p><code>ruby
+def notifiable?
+  published?
+end
+</code></p>
+
+<p>And...that's basically it! Throughout the week as partners are uploading their shows/fair booths/artworks, these records are being opportunistically written to that day's notification collection, in a performant and scalable fashion. Then when we want to send you a personalized email, we pull all your appropriate notifications via the <code>get</code> routine in our <code>NotificationService</code>, and primarily using the technique described in <a href="http://artsy.github.io/blog/2014/03/18/presenters-and-memoization-moving-logic-out-of-templates/">Presenters and Memoization</a> we make sure we cache/memoize all such data. Using the tips in <a href="http://artsy.github.io/blog/2014/03/17/ruby-helper-to-group-artworks-into-a-pinterest-style-layout-for-email/">Pinterest-style Layouts</a> and <a href="http://artsy.github.io/blog/2014/03/17/some-tips-for-email-layout-and-responsiveness/">Email Layouts and Responsiveness</a> we can render this content and support various devices/email clients. We parallelize and batch the generation/sending of our e-mails as well. This whole system, from notification generation to actually emailing users, is running successfully and smoothly in production.</p>
+
+<h3>Next Steps</h3>
+
+<p>I think this type of infrastructure can easily be adapted to serve as a feed on a front-end or other client app. An API to serve up these notifications (AKA feed items) can be built and different feed items can then be rendered or aggregated at load-time. Simple client-side polling can even be set up to alert a user if something has happened that interests them <em>while</em> they're browsing! I think push notifications and other messaging can be handled by this system as well.</p>
+
+<p>I'd love to hear any feedback and thoughts, and hopefully you've found this post informative and interesting. Please leave any feedback in the comments and <a href="https://github.com/artsy">follow us on Github</a>!</p>
+]]></content>
+  </entry>
+  
+</feed>

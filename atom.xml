@@ -4,7 +4,7 @@
   <title><![CDATA[Artsy Engineering]]></title>
   <link href="http://artsy.github.io/atom.xml" rel="self"/>
   <link href="http://artsy.github.io/"/>
-  <updated>2014-04-03T13:59:05-04:00</updated>
+  <updated>2014-04-24T11:40:45-04:00</updated>
   <id>http://artsy.github.io/</id>
   <author>
     <name><![CDATA[Artsy]]></name>
@@ -12,6 +12,628 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Generating Notifications and Personalized Emails Efficiently]]></title>
+    <link href="http://artsy.github.io/blog/2014/04/24/generating-notifications-and-personalized-emails-efficiently/"/>
+    <updated>2014-04-24T16:00:00-04:00</updated>
+    <id>http://artsy.github.io/blog/2014/04/24/generating-notifications-and-personalized-emails-efficiently</id>
+    <content type="html"><![CDATA[<p>We recently launched a new personalized email here at <a href="https://artsy.net">Artsy</a> that features content that a given user might find interesting. The goal of this post is to describe how we built a backend system that efficiently generates these e-mails for all our users. I&#8217;ll talk about the first, naive implementation that had performance problems right away, and how the second implementation (currently in production) solved those issues, and whose behavior at scale is well-defined and understood. I won&#8217;t go into the details of the design and layout of the mail itself and how we render the content - there are several earlier blog posts that deal with those: <a href="http://artsy.github.io/blog/2014/03/18/presenters-and-memoization-moving-logic-out-of-templates/">Presenters and Memoization</a>, <a href="http://artsy.github.io/blog/2014/03/17/ruby-helper-to-group-artworks-into-a-pinterest-style-layout-for-email/">Pinterest-style Layouts</a> and <a href="http://artsy.github.io/blog/2014/03/17/some-tips-for-email-layout-and-responsiveness/">Email Layouts and Responsiveness</a>.</p>
+
+<p><img src="http://artsy.github.io/images/2014-04-24-generating-notifications-and-personalized-emails-efficiently/percy_example.png" alt="Personalized Email Example" /></p>
+
+<!-- more -->
+
+
+<h3>Deciding What Content to Include</h3>
+
+<p>First, we had to decide what types of personalized content we wanted to feature in our mails. Users can follow artists and galleries, and so this seemed like a great place to start. We&#8217;d like to let you know about new artworks that have been uploaded by artists that you follow, as well as new shows that have been added by galleries you follow, or that are exhibiting artists you follow. Since we have location data for our galleries and our users (accomplished thru an onboarding flow, or thru geo-locating their IP address), we also want to include new shows that are opening near you. Additionally, we have a recommendations engine that recommends artworks to users based on their preferences and activity on the site, and we&#8217;d like to show some of the latest and best of such recommendations.</p>
+
+<h3>Initial Implementation Ideas</h3>
+
+<p>My first thought was to have an observer (really just some <code>after_save</code> callbacks) that will wait for data to get into a state where a user can be validly notified, and in a background task write these notifications to interested users. Here&#8217;s how the base setup of our <code>Notification</code> model looked:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">Notification</span>
+</span><span class='line'>  <span class="kp">include</span> <span class="ss">Mongoid</span><span class="p">:</span><span class="ss">:Document</span>
+</span><span class='line'>  <span class="kp">include</span> <span class="ss">Mongoid</span><span class="p">:</span><span class="ss">:Timestamps</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="n">belongs_to</span> <span class="ss">:user</span>
+</span><span class='line'>  <span class="n">belongs_to</span> <span class="ss">:notifiable</span><span class="p">,</span> <span class="ss">polymorphic</span><span class="p">:</span> <span class="kp">true</span><span class="p">,</span> <span class="n">inverse_of</span><span class="p">:</span> <span class="ss">:notifications</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>It&#8217;s a simple join of the user and the <code>notifiable</code> (the object/action that a user is being notified about).</p>
+
+<p>Then, a specific notification (such as one for published artworks by artists you follow) can inherit from this and look like:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">PublishedArtworkNotification</span> <span class="o">&lt;</span> <span class="no">Notification</span>
+</span><span class='line'>  <span class="k">def</span> <span class="nc">self</span><span class="o">.</span><span class="nf">notify!</span><span class="p">(</span><span class="n">artwork_id</span><span class="p">)</span>
+</span><span class='line'>    <span class="n">user_ids</span> <span class="o">=</span> <span class="no">FollowArtist</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="ss">artist</span><span class="p">:</span> <span class="n">artwork</span><span class="o">.</span><span class="n">artist</span><span class="p">)</span><span class="o">.</span><span class="n">pluck</span><span class="p">(</span><span class="s2">&quot;user_id&quot;</span><span class="p">)</span>
+</span><span class='line'>    <span class="n">user_ids</span><span class="o">.</span><span class="n">each_slice</span><span class="p">(</span><span class="mi">100</span><span class="p">)</span> <span class="k">do</span> <span class="o">|</span><span class="n">uids</span><span class="o">|</span>
+</span><span class='line'>      <span class="no">PublishedArtworkNotification</span><span class="o">.</span><span class="n">delay</span><span class="p">(</span><span class="ss">queue</span><span class="p">:</span> <span class="ss">:any</span><span class="p">,</span> <span class="ss">priority</span><span class="p">:</span> <span class="mi">6</span><span class="p">)</span><span class="o">.</span><span class="n">create_for_users</span><span class="p">(</span><span class="n">artwork_id</span><span class="p">,</span> <span class="n">uids</span><span class="p">)</span>
+</span><span class='line'>    <span class="k">end</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">def</span> <span class="nc">self</span><span class="o">.</span><span class="nf">create_for_users</span><span class="p">(</span><span class="n">artwork</span><span class="p">,</span> <span class="n">uids</span><span class="p">)</span>
+</span><span class='line'>    <span class="n">uids</span><span class="o">.</span><span class="n">each</span> <span class="k">do</span> <span class="o">|</span><span class="n">uid</span><span class="o">|</span>
+</span><span class='line'>      <span class="no">PublishedArtworkNotification</span><span class="o">.</span><span class="n">create!</span><span class="p">(</span><span class="n">user_id</span><span class="p">:</span> <span class="n">uid</span><span class="p">,</span> <span class="n">notifiable_id</span><span class="p">:</span> <span class="n">artwork_id</span><span class="p">,</span> <span class="n">notifiable_type</span><span class="p">:</span> <span class="s1">&#39;Artwork&#39;</span><span class="p">)</span>
+</span><span class='line'>    <span class="k">end</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Then, the <code>after_save</code> hook on an <code>Artwork</code> model is:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">def</span> <span class="nf">delay_notify</span>
+</span><span class='line'>  <span class="no">PublishedArtworkNotification</span><span class="o">.</span><span class="n">delay</span><span class="p">(</span><span class="ss">queue</span><span class="p">:</span> <span class="ss">:any</span><span class="p">)</span><span class="o">.</span><span class="n">notify!</span><span class="p">(</span><span class="nb">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span> <span class="k">if</span> <span class="nb">self</span><span class="o">.</span><span class="n">published_changed?</span> <span class="o">&amp;&amp;</span> <span class="nb">self</span><span class="o">.</span><span class="n">published</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>So, when an artwork is published, we run <code>notify!</code> in the background for the respective notification. That method will pull all interested users (via following the artist), and then spawn off more background processes to write the notifications in batches of 100. We batched these writes to avoid any one background process taking too long (an artist such as <a href="https://artsy.net/artist/andy-warhol">Andy Warhol</a> has around twelve thousand followers currently), and also ran them at a lower priority to avoid blocking other jobs in our queue.</p>
+
+<p>The other types of notifications were all implemented similarly (via an observer on the model, and a specific <code>Notification</code> class inheriting from the base class). We also added some other logic into the base <code>Notification</code> class such as some uniqueness constraints, as well as an ability to mark notifications as &#8216;sent&#8217; or &#8216;invalid&#8217;. However, we ran into serious performance/scaling issues fairly quickly, and had to re-implement this scheme.</p>
+
+<h3>Performance Bottlenecks</h3>
+
+<p>All of these records were being written to one collection in <a href="https://www.mongodb.org/">MongoDB</a>, and the size of this collection grew quite rapidly. It&#8217;s size almost immediately dwarfed the size of any of our other collections, and the number of records quickly reached into the tens of millions. This led to problems: writing new notifications started to crawl to a standstill. We had several indices on this collection to aid in querying, and these made the insertion of new notifications very non-performant, and also started to affect overall database performance. Querying against this collection degraded quickly and started to similarly affect database performance. Archiving old records also proved next to impossible. We couldn&#8217;t simply drop the entire collection, but had to prune records. This similarly was totally non-performant and was adversely affecting database and site performance. We needed to come up with a new implementation for <code>Notification</code>, and addressing these issues was essential.</p>
+
+<h3>Resolving Performance Bottlenecks</h3>
+
+<p>So, we decided on a scheme where each day would result in a new <code>Notifications</code> collection (name keyed on the date), named <code>notifications_20140101</code>, <code>notifications_20140102</code>, etc. Each of these collections would have an <code>_id</code> field that corresponds to a user_id, and an <code>events</code> array (or &#8216;stack&#8217; if you will) that records the id&#8217;s of notified objects, as well as the type of notification. An example of a record in that collection is:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+</pre></td><td class='code'><pre><code class='json'><span class='line'><span class="p">{</span><span class="nt">&quot;_id&quot;</span><span class="err">=&gt;</span><span class="s2">&quot;5106b619f56337db300001f8&quot;</span><span class="p">,</span>
+</span><span class='line'> <span class="nt">&quot;events&quot;</span><span class="err">=&gt;</span><span class="p">[{</span><span class="nt">&quot;t&quot;</span><span class="err">=&gt;</span><span class="s2">&quot;NearbyShow&quot;</span><span class="p">,</span> <span class="nt">&quot;o&quot;</span><span class="err">=&gt;</span><span class="s2">&quot;533998b1c9dc24c371000041&quot;</span><span class="p">},</span>
+</span><span class='line'>            <span class="p">{</span><span class="nt">&quot;t&quot;</span><span class="err">=&gt;</span><span class="s2">&quot;NearbyShow&quot;</span><span class="p">,</span> <span class="nt">&quot;o&quot;</span><span class="err">=&gt;</span><span class="s2">&quot;5345774cc9dc246d580003d0&quot;</span><span class="p">},</span>
+</span><span class='line'>            <span class="p">{</span><span class="nt">&quot;t&quot;</span><span class="err">=&gt;</span><span class="s2">&quot;NearbyShow&quot;</span><span class="p">,</span> <span class="nt">&quot;o&quot;</span><span class="err">=&gt;</span><span class="s2">&quot;5335af4fa09a67145300028c&quot;</span><span class="p">},</span>
+</span><span class='line'>            <span class="p">{</span><span class="nt">&quot;t&quot;</span><span class="err">=&gt;</span><span class="s2">&quot;NearbyShow&quot;</span><span class="p">,</span> <span class="nt">&quot;o&quot;</span><span class="err">=&gt;</span><span class="s2">&quot;533f1174a09a67298900007b&quot;</span><span class="p">},</span>
+</span><span class='line'>            <span class="p">{</span><span class="nt">&quot;t&quot;</span><span class="err">=&gt;</span><span class="s2">&quot;ArtworkPublished&quot;</span><span class="p">,</span> <span class="nt">&quot;o&quot;</span><span class="err">=&gt;</span><span class="s2">&quot;5334647b139b2165160000d8&quot;</span><span class="p">}]</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>So, here we see all of my notifications for April 22, 2014. On that day, I was notified about 4 shows opening near my location, and one artwork added by an artist I follow. Incidentally, that artwork was a piece by <a href="https://artsy.net/artist/rob-wynne">Rob Wynne</a> entitled <a href="https://artsy.net/artwork/rob-wynne-youre-dreaming">You&#8217;re Dreaming</a>. The show notifications were for NYC-area shows opening at <a href="https://artsy.net/klein-sun-gallery">Klein Sun Gallery</a>, <a href="https://artsy.net/garis-and-hahn">Garis &amp; Hahn</a>, <a href="https://artsy.net/miyako-yoshinaga-gallery">Miyako Yoshinaga Gallery</a> and <a href="https://artsy.net/dodgegallery">DODGEgallery</a>.</p>
+
+<p>A couple of nice things about this implementation is it limits the size of a collection: any one day&#8217;s collection will scale directly with the number of users, which seems reasonable. Our earlier implementation scaled with the product of the number of users and amount of content on Artsy, which is clearly problematic. Also, archiving old notifications is as simple as dropping a particular day&#8217;s collection, which is very performant. However, querying and assembling these notifications is a bit trickier than in the naive implementation, as well as marking which events have already been sent to a user, so as to avoid duplicating any content in between mailings.</p>
+
+<p>Let&#8217;s see how we rewrite the notification generation in this scheme:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">module</span> <span class="nn">NotificationService</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">def</span> <span class="nc">self</span><span class="o">.</span><span class="nf">notify_many!</span><span class="p">(</span><span class="n">user_ids</span><span class="p">,</span> <span class="nb">object_id</span><span class="p">,</span> <span class="n">type</span><span class="p">)</span>
+</span><span class='line'>    <span class="n">events</span> <span class="o">=</span> <span class="n">events_from</span><span class="p">(</span><span class="nb">object_id</span><span class="p">,</span> <span class="n">type</span><span class="p">)</span>
+</span><span class='line'>    <span class="n">user_ids</span><span class="o">.</span><span class="n">each</span> <span class="k">do</span> <span class="o">|</span><span class="n">user_id</span><span class="o">|</span>
+</span><span class='line'>      <span class="n">notify_with_events</span><span class="p">(</span><span class="n">user_id</span><span class="p">,</span> <span class="n">events</span><span class="p">)</span>
+</span><span class='line'>    <span class="k">end</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="kp">private</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">def</span> <span class="nc">self</span><span class="o">.</span><span class="nf">notify_with_events</span><span class="p">(</span><span class="n">user_id</span><span class="p">,</span> <span class="n">events</span><span class="p">)</span>
+</span><span class='line'>    <span class="n">collection</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="ss">_id</span><span class="p">:</span> <span class="n">user_id</span><span class="p">)</span><span class="o">.</span><span class="n">upsert</span><span class="p">(</span><span class="s1">&#39;$push&#39;</span> <span class="o">=&gt;</span> <span class="p">{</span> <span class="ss">events</span><span class="p">:</span> <span class="p">{</span> <span class="s1">&#39;$each&#39;</span> <span class="o">=&gt;</span> <span class="n">events</span> <span class="p">}</span> <span class="p">})</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">def</span> <span class="nc">self</span><span class="o">.</span><span class="nf">events_from</span><span class="p">(</span><span class="n">object_ids</span><span class="p">,</span> <span class="n">type</span><span class="p">)</span>
+</span><span class='line'>    <span class="nb">Array</span><span class="p">(</span><span class="n">object_ids</span><span class="p">)</span><span class="o">.</span><span class="n">map</span> <span class="k">do</span> <span class="o">|</span><span class="nb">object_id</span><span class="o">|</span>
+</span><span class='line'>      <span class="p">{</span>
+</span><span class='line'>        <span class="s1">&#39;t&#39;</span> <span class="o">=&gt;</span> <span class="n">type</span><span class="p">,</span>
+</span><span class='line'>        <span class="s1">&#39;o&#39;</span> <span class="o">=&gt;</span> <span class="nb">object_id</span>
+</span><span class='line'>      <span class="p">}</span>
+</span><span class='line'>    <span class="k">end</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c1"># collection storing notifications for the given day</span>
+</span><span class='line'>  <span class="k">def</span> <span class="nc">self</span><span class="o">.</span><span class="nf">collection</span><span class="p">(</span><span class="n">date</span> <span class="o">=</span> <span class="no">Date</span><span class="o">.</span><span class="n">today</span><span class="p">)</span>
+</span><span class='line'>    <span class="no">Mongoid</span><span class="o">.</span><span class="n">default_session</span><span class="o">.</span><span class="n">with</span><span class="p">(</span><span class="ss">safe</span><span class="p">:</span> <span class="kp">false</span><span class="p">)</span><span class="o">[</span><span class="n">collection_name</span><span class="p">(</span><span class="n">date</span><span class="p">)</span><span class="o">]</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">def</span> <span class="nc">self</span><span class="o">.</span><span class="nf">collection_name</span><span class="p">(</span><span class="n">date</span><span class="p">)</span>
+</span><span class='line'>    <span class="s2">&quot;notifications_</span><span class="si">#{</span><span class="n">date</span><span class="o">.</span><span class="n">to_s</span><span class="p">(</span><span class="ss">:number</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Here&#8217;s how the <code>after_save</code> callback looks now:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">def</span> <span class="nf">notify_published</span>
+</span><span class='line'>  <span class="no">NotificationService</span><span class="o">.</span><span class="n">notify_many!</span><span class="p">(</span><span class="n">user_ids</span><span class="p">,</span> <span class="nb">self</span><span class="p">,</span> <span class="s1">&#39;ArtworkPublished&#39;</span><span class="p">)</span> <span class="k">if</span> <span class="nb">self</span><span class="o">.</span><span class="n">published_changed?</span> <span class="o">&amp;&amp;</span> <span class="nb">self</span><span class="o">.</span><span class="n">published</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Let&#8217;s take a look at what&#8217;s going on here. When an artwork is published, we call <code>notify_many!</code> in the <code>NotificationService</code> module. That will determine the correct collection (keyed by the date) using the <code>collection</code> and <code>collection_name</code> helpers. We build our events stack with the <code>events_from</code> helper, and then do an <code>upsert</code> with a <code>$push</code> to either insert or update that user&#8217;s events for that day. Due to the fast performance of this scheme, we also no longer have to batch notification creation. As a sample benchmark, writing this type of notification to our <a href="https://artsy.net/artist/andy-warhol">Warhol</a> followers takes under 15 seconds.</p>
+
+<p>Ok, so we seem to have solved some of our issues: namely writing and archiving notifications is performant, and we understand the behavior of these collections as the number of users and content on the site grows. Now let&#8217;s look at how we can query against this scheme in an efficient manner, and also how we can mark events as &#8216;seen&#8217; to avoid emailing out duplicates.</p>
+
+<h3>Marking Notifications as Flushed and Retrieving Notifications</h3>
+
+<p>We decided to push a <code>flushed</code> event onto the user&#8217;s stack after we send out notifications, and analogously, when we are querying a user&#8217;s notifications, we want to throw away notifications that occur before a <code>flushed</code> event. Here&#8217;s that method, in our <code>NotificationService</code> module:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="c1"># Mark all events until this point &quot;seen.&quot; Pushes a {flushed: &lt;id&gt;}</span>
+</span><span class='line'><span class="c1"># hash on to events array.</span>
+</span><span class='line'><span class="k">def</span> <span class="nc">self</span><span class="o">.</span><span class="nf">flush!</span><span class="p">(</span><span class="n">user_id</span><span class="p">,</span> <span class="n">since</span> <span class="o">=</span> <span class="no">Date</span><span class="o">.</span><span class="n">today</span> <span class="o">-</span> <span class="mi">7</span><span class="o">.</span><span class="n">days</span><span class="p">)</span>
+</span><span class='line'>  <span class="n">flushed</span> <span class="o">=</span> <span class="p">{</span> <span class="s1">&#39;flushed&#39;</span> <span class="o">=&gt;</span> <span class="ss">Moped</span><span class="p">:</span><span class="ss">:BSON</span><span class="o">::</span><span class="no">ObjectId</span><span class="o">.</span><span class="n">new</span> <span class="p">}</span>
+</span><span class='line'>  <span class="n">collections_since</span><span class="p">(</span><span class="n">since</span><span class="p">)</span><span class="o">.</span><span class="n">each</span> <span class="k">do</span> <span class="o">|</span><span class="n">coll</span><span class="o">|</span>
+</span><span class='line'>    <span class="n">coll</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="ss">_id</span><span class="p">:</span> <span class="n">user_id</span><span class="p">)</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="s1">&#39;$push&#39;</span> <span class="o">=&gt;</span> <span class="p">{</span> <span class="ss">events</span><span class="p">:</span> <span class="n">flushed</span> <span class="p">})</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>  <span class="n">flushed</span>  <span class="c1"># return &quot;id&quot; of flushed marker, in case useful later</span>
+</span><span class='line'><span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'><span class="kp">private</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">def</span> <span class="nc">self</span><span class="o">.</span><span class="nf">collections_since</span><span class="p">(</span><span class="n">date</span><span class="p">)</span>
+</span><span class='line'>  <span class="p">(</span><span class="n">date</span><span class="o">.</span><span class="n">.</span><span class="no">Date</span><span class="o">.</span><span class="n">today</span><span class="p">)</span><span class="o">.</span><span class="n">map</span> <span class="p">{</span> <span class="o">|</span><span class="n">d</span><span class="o">|</span> <span class="n">collection</span><span class="p">(</span><span class="n">d</span><span class="p">)</span> <span class="p">}</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Pretty simple. We push the appropriate event onto every collection that was under consideration via the <code>collections_since</code> helper. When we send out a personalized email we accumulate the last 7 day&#8217;s worth of activity for you, and so after we generate/send a mail for a user, we can simply say <code>NotificationService.flush!(user)</code>. Here&#8217;s how that day&#8217;s notifications for me looks after the <code>flushed</code> event:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='json'><span class='line'>  <span class="p">{</span><span class="nt">&quot;_id&quot;</span><span class="err">=&gt;</span><span class="s2">&quot;5106b619f56337db300001f8&quot;</span><span class="p">,</span>
+</span><span class='line'>   <span class="nt">&quot;events&quot;</span><span class="err">=&gt;</span><span class="p">[{</span><span class="nt">&quot;t&quot;</span><span class="err">=&gt;</span><span class="s2">&quot;NearbyShow&quot;</span><span class="p">,</span> <span class="nt">&quot;o&quot;</span><span class="err">=&gt;</span><span class="s2">&quot;5338504e139b21f2a9000362&quot;</span><span class="p">},</span>
+</span><span class='line'>              <span class="p">{</span><span class="nt">&quot;t&quot;</span><span class="err">=&gt;</span><span class="s2">&quot;FollowedArtistShow&quot;</span><span class="p">,</span> <span class="nt">&quot;o&quot;</span><span class="err">=&gt;</span><span class="s2">&quot;533ddba3a09a6764f60006b6&quot;</span><span class="p">},</span> <span class="p">{</span><span class="nt">&quot;t&quot;</span><span class="err">=&gt;</span><span class="s2">&quot;NearbyShow&quot;</span><span class="p">,</span> <span class="nt">&quot;o&quot;</span><span class="err">=&gt;</span><span class="s2">&quot;533ddba3a09a6764f60006b6&quot;</span><span class="p">},</span>
+</span><span class='line'>              <span class="p">{</span><span class="nt">&quot;flushed&quot;</span><span class="err">=&gt;</span><span class="s2">&quot;5352b346b504f5f3690002fe&quot;</span><span class="p">}]</span>
+</span><span class='line'>  <span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>For the last piece of the puzzle, let&#8217;s look at how we query against this scheme and compile together all notifications that are applicable for a given user:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">module</span> <span class="nn">NotificationService</span>
+</span><span class='line'>  <span class="no">NOTIFICATION_TYPES</span> <span class="o">=</span> <span class="p">{</span>
+</span><span class='line'>    <span class="s1">&#39;FollowedArtistShow&#39;</span> <span class="o">=&gt;</span> <span class="no">PartnerShow</span><span class="p">,</span>
+</span><span class='line'>    <span class="s1">&#39;FollowedPartnerShow&#39;</span> <span class="o">=&gt;</span> <span class="no">PartnerShow</span><span class="p">,</span>
+</span><span class='line'>    <span class="s1">&#39;NearbyShow&#39;</span> <span class="o">=&gt;</span> <span class="no">PartnerShow</span><span class="p">,</span>
+</span><span class='line'>    <span class="s1">&#39;ArtworkPublished&#39;</span> <span class="o">=&gt;</span> <span class="no">Artwork</span><span class="p">,</span>
+</span><span class='line'>    <span class="s1">&#39;ArtworkSuggested&#39;</span> <span class="o">=&gt;</span> <span class="no">Artwork</span>
+</span><span class='line'>  <span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">class</span> <span class="nc">Notification</span> <span class="o">&lt;</span> <span class="no">Struct</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="ss">:type</span><span class="p">,</span> <span class="ss">:object_id</span><span class="p">)</span>
+</span><span class='line'>    <span class="k">def</span> <span class="nf">object</span>
+</span><span class='line'>      <span class="vi">@object</span> <span class="o">||=</span> <span class="no">NOTIFICATION_TYPES</span><span class="o">[</span><span class="n">type</span><span class="o">].</span><span class="n">find</span><span class="p">(</span><span class="nb">object_id</span><span class="p">)</span>
+</span><span class='line'>    <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="k">def</span> <span class="nf">applicable?</span>
+</span><span class='line'>      <span class="n">object</span><span class="o">.</span><span class="n">try</span><span class="p">(</span><span class="ss">:notifiable?</span><span class="p">)</span> <span class="o">||</span> <span class="kp">false</span>
+</span><span class='line'>    <span class="k">end</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1"># Return applicable notifications for user since given date.</span>
+</span><span class='line'><span class="k">def</span> <span class="nc">self</span><span class="o">.</span><span class="nf">get</span><span class="p">(</span><span class="n">user_id</span><span class="p">,</span> <span class="n">since</span> <span class="o">=</span> <span class="no">Date</span><span class="o">.</span><span class="n">today</span> <span class="o">-</span> <span class="mi">7</span><span class="o">.</span><span class="n">days</span><span class="p">)</span>
+</span><span class='line'>  <span class="n">collections_since</span><span class="p">(</span><span class="n">since</span><span class="p">)</span>
+</span><span class='line'>    <span class="o">.</span><span class="n">map</span> <span class="p">{</span> <span class="o">|</span><span class="n">coll</span><span class="o">|</span> <span class="n">coll</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="ss">_id</span><span class="p">:</span> <span class="n">user_id</span><span class="p">)</span><span class="o">.</span><span class="n">one</span> <span class="p">}</span><span class="o">.</span><span class="n">compact</span>
+</span><span class='line'>    <span class="o">.</span><span class="n">flat_map</span> <span class="p">{</span> <span class="o">|</span><span class="n">doc</span><span class="o">|</span> <span class="n">doc</span><span class="o">[</span><span class="s1">&#39;events&#39;</span><span class="o">].</span><span class="n">slice_before</span> <span class="p">{</span> <span class="o">|</span><span class="n">ev</span><span class="o">|</span> <span class="n">ev</span><span class="o">[</span><span class="s1">&#39;flushed&#39;</span><span class="o">]</span> <span class="p">}</span><span class="o">.</span><span class="n">to_a</span><span class="o">.</span><span class="n">last</span> <span class="p">}</span>
+</span><span class='line'>    <span class="o">.</span><span class="n">reject</span> <span class="p">{</span> <span class="o">|</span><span class="n">ev</span><span class="o">|</span> <span class="n">ev</span><span class="o">[</span><span class="s1">&#39;flushed&#39;</span><span class="o">]</span> <span class="p">}</span><span class="o">.</span><span class="n">uniq</span>
+</span><span class='line'>    <span class="o">.</span><span class="n">map</span> <span class="p">{</span> <span class="o">|</span><span class="n">ev</span><span class="o">|</span> <span class="no">Notification</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="n">ev</span><span class="o">[</span><span class="s1">&#39;t&#39;</span><span class="o">]</span><span class="p">,</span> <span class="n">ev</span><span class="o">[</span><span class="s1">&#39;o&#39;</span><span class="o">]</span><span class="p">)</span> <span class="p">}</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="o">&amp;</span><span class="ss">:applicable?</span><span class="p">)</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>We introduce a lite-weight <code>Notification</code> class that will load the object, as well as perform an additional check. We use the previously introduced <code>collections_since</code> helper to retrieve all the notification collections under consideration. We query each and build up an array of all events from a user&#8217;s stack. We remove events that occurred prior to a <code>flushed</code> event in a given collection and the <code>flushed</code> events themselves. Then we actually load all the objects and return the ones that are still <code>applicable?</code>. That final <code>applicable?</code> check is to allow us to filter out content at run-time that is no longer valid. For example, if an artwork is published and the correct event is written out to users, but before the user can be notified the artwork is unpublished, this can serve as a run-time check to not include that work. <code>def notifiable?</code> can thus be implemented in the <code>Artwork</code> model like so:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">def</span> <span class="nf">notifiable?</span>
+</span><span class='line'>  <span class="n">published?</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>And&#8230;that&#8217;s basically it! Throughout the week as partners are uploading their shows/fair booths/artworks, these records are being opportunistically written to that day&#8217;s notification collection, in a performant and scalable fashion. Then when we want to send you a personalized email, we pull all your appropriate notifications via the <code>get</code> routine in our <code>NotificationService</code>, and primarily using the technique described in <a href="http://artsy.github.io/blog/2014/03/18/presenters-and-memoization-moving-logic-out-of-templates/">Presenters and Memoization</a> we make sure we cache/memoize all such data. Using the tips in <a href="http://artsy.github.io/blog/2014/03/17/ruby-helper-to-group-artworks-into-a-pinterest-style-layout-for-email/">Pinterest-style Layouts</a> and <a href="http://artsy.github.io/blog/2014/03/17/some-tips-for-email-layout-and-responsiveness/">Email Layouts and Responsiveness</a> we can render this content and support various devices/email clients. We parallelize and batch the generation/sending of our e-mails as well. This whole system, from notification generation to actually emailing users, is running successfully and smoothly in production.</p>
+
+<h3>Next Steps</h3>
+
+<p>I think this type of infrastructure can easily be adapted to serve as a feed on a front-end or other client app. An API to serve up these notifications (AKA feed items) can be built and different feed items can then be rendered or aggregated at load-time. Simple client-side polling can even be set up to alert a user if something has happened that interests them <em>while</em> they&#8217;re browsing! I think push notifications and other messaging can be handled by this system as well.</p>
+
+<p>I&#8217;d love to hear any feedback and thoughts, and hopefully you&#8217;ve found this post informative and interesting. Please leave any feedback in the comments and <a href="https://github.com/artsy">follow us on Github</a>!</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Building an English Auction with MongoDB]]></title>
+    <link href="http://artsy.github.io/blog/2014/04/17/building-an-english-auction-with-mongodb/"/>
+    <updated>2014-04-17T12:21:00-04:00</updated>
+    <id>http://artsy.github.io/blog/2014/04/17/building-an-english-auction-with-mongodb</id>
+    <content type="html"><![CDATA[<p>Artsy ran several successful auctions over the past few months. The first, <a href="https://artsy.net/feature/two-x-two">TWO x TWO</a>, raised hundreds of thousands of dollars for amfAR (the AIDS Research foundation), and the Dallas Museum of Art. It was followed by <a href="https://artsy.net/feature/ici-benefit-auction">Independent Curators International</a>, at which Artsy launched on-site auction projection screens, which displayed competing bids coming in online from places around the world, like Oslo and Santa Monica, in realtime. Users could place bids on the website, via the iPhone app or with one of the Artsy representatives in the room carrying an iPad.  All the auction lots sold, and Artsy helped ICI to raise 50% more than its target revenue goal. Other, recent Artsy auctions include <a href="https://artsy.net/feature/public-art-fund-2014-spring-benefit">Public Art Fund</a> and the <a href="https://artsy.net/feature/brooklyn-artists-ball">Brooklyn Artists Ball</a>, benefitting the Brooklyn Museum.</p>
+
+<p><img src="http://artsy.github.io/images/2014-04-17-implementing-bidding-in-an-english-auction-with-mongodb/ici-live-auction.jpg" alt="ICI Auction: Live" /></p>
+
+<p>The domain of auctions is a fascinating one, and includes everything from buying items on eBay to trading livestock and selling investment products on the stock exchange. For those interested in the large spectrum of auctions I highly recommend <a href="http://www.sci.brooklyn.cuny.edu/~parsons/projects/mech-design/publications/bluffers-final.pdf">Auctions and bidding: A guide for computer
+scientists</a> by Simon Parsons (CUNY), Juan A. Rodriguez-Aguilar (CSIC) and Mark Klein (MIT).</p>
+
+<p>At Artsy we implemented a classic English auction with, so called, &#8220;book bids&#8221;. I spent a fair amount of time visiting engineering teams that have built internet auctions, most of which were transactional systems where taking a position on an item involved starting a transaction, running an auction round and committing the changes. In contrast, we chose to deliver a simpler, eventually consistent system on top of MongoDB, in which all data is immutable and where some level of serialization occurs within a single background process.</p>
+
+<p>In this post we&#8217;ll go over some data modeling and examine the auction engine implementation details.</p>
+
+<!-- more -->
+
+
+<h3>Data Modeling</h3>
+
+<p>In the Artsy platform, an <em>Auction</em> is an specialization of a more general concept of a <em>Sale</em>. A sale typically has an opening and a closing date, during which bidding or purchases can occur. We create a relationship between an artwork and a sale, which, in the case of an auction, includes the opening bid amount. We store all money in cents, and assume the currency to be USD, making it easy to extend the system for other currencies in the future.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">SaleArtwork</span>
+</span><span class='line'>  <span class="kp">include</span> <span class="ss">Mongoid</span><span class="p">:</span><span class="ss">:Document</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="n">field</span> <span class="ss">:opening_bid_cents</span><span class="p">,</span> <span class="ss">type</span><span class="p">:</span> <span class="nb">Integer</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="n">belongs_to</span> <span class="ss">:artwork</span><span class="p">,</span> <span class="n">inverse_of</span><span class="p">:</span> <span class="kp">nil</span>
+</span><span class='line'>  <span class="n">belongs_to</span> <span class="ss">:sale</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="n">belongs_to</span> <span class="ss">:highest_bid</span><span class="p">,</span> <span class="n">class_name</span><span class="p">:</span> <span class="s2">&quot;Bid&quot;</span><span class="p">,</span> <span class="n">inverse_of</span><span class="p">:</span> <span class="kp">nil</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c1"># Minimum next acceptable bid amount, in cents.</span>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">minimum_next_bid_cents</span>
+</span><span class='line'>    <span class="k">return</span> <span class="n">opening_bid_cents</span> <span class="k">if</span> <span class="n">highest_bid</span><span class="o">.</span><span class="n">nil?</span> <span class="o">&amp;&amp;</span> <span class="n">opening_bid_cents</span><span class="o">.</span><span class="n">present?</span>
+</span><span class='line'>    <span class="c1"># calculate using a bid incrementing strategy ...</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>A user registers to bid and creates a <em>Bidder</em> record.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">Bidder</span>
+</span><span class='line'>  <span class="kp">include</span> <span class="ss">Mongoid</span><span class="p">:</span><span class="ss">:Document</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="n">belongs_to</span> <span class="ss">:user</span>
+</span><span class='line'>  <span class="n">belongs_to</span> <span class="ss">:sale</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="n">has_many</span> <span class="ss">:positions</span><span class="p">,</span> <span class="n">class_name</span><span class="p">:</span> <span class="s1">&#39;BidderPosition&#39;</span><span class="p">,</span> <span class="n">inverse_of</span><span class="p">:</span> <span class="ss">:bidder</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>This doesn&#8217;t just mimic the real world where bidding typically requires registration - the bidder record doesn&#8217;t belong to the user and contains essential data to identify an individual that is placing a bid. It also solves a very peculiar problem where a user decides to delete their account mid-auction. Finally, a bidder could eventually delegate bidding to an agent through this model&#8217;s permissions.</p>
+
+<p>A bidder doesn&#8217;t actually place any bids, but create a <em>Bidder Position</em>, which indicates the highest amount they are willing to pay for a given artwork.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">BidderPosition</span>
+</span><span class='line'>  <span class="kp">include</span> <span class="ss">Mongoid</span><span class="p">:</span><span class="ss">:Document</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="n">field</span> <span class="ss">:active</span><span class="p">,</span> <span class="ss">type</span><span class="p">:</span> <span class="no">Boolean</span><span class="p">,</span> <span class="ss">default</span><span class="p">:</span> <span class="kp">true</span>
+</span><span class='line'>  <span class="n">field</span> <span class="ss">:max_bid_amount_cents</span><span class="p">,</span> <span class="ss">type</span><span class="p">:</span> <span class="nb">Integer</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="n">belongs_to</span> <span class="ss">:bidder</span><span class="p">,</span> <span class="n">class_name</span><span class="p">:</span> <span class="s1">&#39;Bidder&#39;</span><span class="p">,</span> <span class="n">inverse_of</span><span class="p">:</span> <span class="ss">:positions</span>
+</span><span class='line'>  <span class="n">belongs_to</span> <span class="ss">:sale_artwork</span>
+</span><span class='line'>  <span class="n">has_many</span> <span class="ss">:bids</span><span class="p">,</span> <span class="n">inverse_of</span><span class="p">:</span> <span class="ss">:position</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="n">scope</span> <span class="ss">:active</span><span class="p">,</span> <span class="n">where</span><span class="p">(</span><span class="ss">active</span><span class="p">:</span> <span class="kp">true</span><span class="p">)</span><span class="o">.</span><span class="n">asc</span><span class="p">(</span><span class="ss">:max_bid_amount_cents</span><span class="p">)</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>This is called a &#8220;book bid&#8221; - before technology took over the auctions world buyers delegated an agent to bid on their behalf after giving them a maximum amount they were willing to part with. Bidder positions belong to a bidder and to the artwork-to-sale relationship. They cannot be changed - if a user wants to increase his maximum bid, he simply creates a new bidder position.</p>
+
+<h3>Bidding Round</h3>
+
+<p>Every time a bidder position is created, a <em>Bidding Round</em> is queued for the item being bid on. We can parallelize execution of these by artwork, however all bidding rounds for the same artwork are serialized.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">EnglishAuction</span>
+</span><span class='line'>  <span class="c1"># Run multiple rounds of bidding for the given lot, to rest. Return number of bids generated.</span>
+</span><span class='line'>  <span class="k">def</span> <span class="nc">self</span><span class="o">.</span><span class="nf">run!</span><span class="p">(</span><span class="n">sale_artwork</span><span class="p">)</span>
+</span><span class='line'>    <span class="k">return</span> <span class="mi">0</span> <span class="k">unless</span> <span class="n">sale_artwork</span><span class="o">.</span><span class="n">sale</span> <span class="o">&amp;&amp;</span> <span class="n">sale_artwork</span><span class="o">.</span><span class="n">sale</span><span class="o">.</span><span class="n">biddable?</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="n">round</span> <span class="o">=</span> <span class="ss">EnglishAuction</span><span class="p">:</span><span class="ss">:Round</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="n">sale_artwork</span><span class="p">)</span>
+</span><span class='line'>    <span class="n">round</span><span class="o">.</span><span class="n">run!</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="n">round</span><span class="o">.</span><span class="n">bids_generated</span><span class="o">.</span><span class="n">size</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>A bidding round iterates over all active bidder positions in ascending order by dollar value, outbids any bidders below the max bid, and places new bids, as necessary. The entire round algorithm is below.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+<span class='line-number'>38</span>
+<span class='line-number'>39</span>
+<span class='line-number'>40</span>
+<span class='line-number'>41</span>
+<span class='line-number'>42</span>
+<span class='line-number'>43</span>
+<span class='line-number'>44</span>
+<span class='line-number'>45</span>
+<span class='line-number'>46</span>
+<span class='line-number'>47</span>
+<span class='line-number'>48</span>
+<span class='line-number'>49</span>
+<span class='line-number'>50</span>
+<span class='line-number'>51</span>
+<span class='line-number'>52</span>
+<span class='line-number'>53</span>
+<span class='line-number'>54</span>
+<span class='line-number'>55</span>
+<span class='line-number'>56</span>
+<span class='line-number'>57</span>
+<span class='line-number'>58</span>
+<span class='line-number'>59</span>
+<span class='line-number'>60</span>
+<span class='line-number'>61</span>
+<span class='line-number'>62</span>
+<span class='line-number'>63</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="c1"># A bidding round for an English auction.</span>
+</span><span class='line'><span class="k">class</span> <span class="nc">Round</span>
+</span><span class='line'>  <span class="kp">attr_accessor</span> <span class="ss">:bids_generated</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c1"># @param sale_artwork A relationship between an artwork and a sale.</span>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="n">sale_artwork</span><span class="p">)</span>
+</span><span class='line'>    <span class="vi">@sale_artwork</span> <span class="o">=</span> <span class="n">sale_artwork</span>
+</span><span class='line'>    <span class="vi">@bids_generated</span> <span class="o">=</span> <span class="o">[]</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c1"># Run multiple rounds of bidding, to rest.</span>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">run!</span>
+</span><span class='line'>    <span class="k">while</span> <span class="p">(</span><span class="n">bids</span> <span class="o">=</span> <span class="n">process_more_bids!</span><span class="p">)</span><span class="o">.</span><span class="n">any?</span> <span class="k">do</span>
+</span><span class='line'>      <span class="vi">@bids_generated</span> <span class="o">+=</span> <span class="n">bids</span>
+</span><span class='line'>    <span class="k">end</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c1"># Run one round of bidding. Return bids.</span>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">process_more_bids!</span>
+</span><span class='line'>    <span class="vi">@sale_artwork</span><span class="o">.</span><span class="n">bidder_positions</span><span class="o">.</span><span class="n">active</span><span class="o">.</span><span class="n">map</span> <span class="k">do</span> <span class="o">|</span><span class="n">bidder_position</span><span class="o">|</span>
+</span><span class='line'>      <span class="n">process_bidder_position!</span><span class="p">(</span><span class="n">bidder_position</span><span class="p">)</span>
+</span><span class='line'>    <span class="k">end</span><span class="o">.</span><span class="n">compact</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c1"># Process a single bid position.</span>
+</span><span class='line'>  <span class="c1"># @returns Generated bid, if any.</span>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">process_bidder_position!</span><span class="p">(</span><span class="n">bidder_position</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="c1"># ignore if current position is highest</span>
+</span><span class='line'>    <span class="k">return</span> <span class="kp">nil</span> <span class="k">if</span> <span class="n">bidder_position</span> <span class="o">==</span> <span class="vi">@sale_artwork</span><span class="o">.</span><span class="n">highest_bid</span><span class="o">.</span><span class="n">try</span><span class="p">(</span><span class="ss">:position</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="c1"># ignore if bidder is already highest</span>
+</span><span class='line'>    <span class="k">return</span> <span class="kp">nil</span> <span class="k">if</span> <span class="n">bidder_position</span><span class="o">.</span><span class="n">bidder</span> <span class="o">==</span> <span class="vi">@sale_artwork</span><span class="o">.</span><span class="n">highest_bid</span><span class="o">.</span><span class="n">try</span><span class="p">(</span><span class="ss">:position</span><span class="p">)</span><span class="o">.</span><span class="n">try</span><span class="p">(</span><span class="ss">:bidder</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="c1"># close if below opening bid</span>
+</span><span class='line'>    <span class="k">if</span> <span class="n">bidder_position</span><span class="o">.</span><span class="n">max_bid_amount_cents</span> <span class="o">&lt;</span> <span class="p">(</span><span class="vi">@sale_artwork</span><span class="o">.</span><span class="n">opening_bid_cents</span> <span class="o">||</span> <span class="mi">1</span><span class="p">)</span>
+</span><span class='line'>      <span class="n">bidder_position</span><span class="o">.</span><span class="n">deactivate!</span> <span class="s2">&quot;Bid must be greater than the minimum bid of </span><span class="si">#{</span><span class="vi">@sale_artwork</span><span class="o">.</span><span class="n">opening_bid_cents</span><span class="si">}</span><span class="s2">.&quot;</span>
+</span><span class='line'>      <span class="k">return</span> <span class="kp">nil</span>
+</span><span class='line'>    <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="n">amount_cents</span> <span class="o">=</span> <span class="vi">@sale_artwork</span><span class="o">.</span><span class="n">minimum_next_bid_cents</span> <span class="c1"># opening bid or an increment thereafter</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="k">if</span> <span class="n">bidder_position</span><span class="o">.</span><span class="n">max_bid_amount_cents</span> <span class="o">&lt;</span> <span class="n">amount_cents</span>
+</span><span class='line'>      <span class="n">highest_bid_amount</span> <span class="o">=</span> <span class="vi">@sale_artwork</span><span class="o">.</span><span class="n">highest_bid</span><span class="o">.</span><span class="n">try</span><span class="p">(</span><span class="ss">:amount_cents</span><span class="p">)</span> <span class="o">||</span> <span class="mi">0</span>
+</span><span class='line'>
+</span><span class='line'>      <span class="c1"># if max is between current and increment (or if it&#39;s at current, but earlier), bid max anyway</span>
+</span><span class='line'>      <span class="c1"># this means that a bidder who placed an identical max bid earlier becomes the highest bidder</span>
+</span><span class='line'>      <span class="k">if</span> <span class="n">bidder_position</span><span class="o">.</span><span class="n">max_bid_amount_cents</span> <span class="o">&gt;</span> <span class="n">highest_bid_amount</span> <span class="o">||</span>
+</span><span class='line'>        <span class="p">(</span><span class="n">bidder_position</span><span class="o">.</span><span class="n">max_bid_amount_cents</span> <span class="o">==</span> <span class="n">highest_bid_amount</span> <span class="o">&amp;&amp;</span> <span class="n">bidder_position</span><span class="o">.</span><span class="n">id</span> <span class="o">&lt;</span> <span class="vi">@sale_artwork</span><span class="o">.</span><span class="n">highest_bid</span><span class="o">.</span><span class="n">position</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+</span><span class='line'>        <span class="n">amount_cents</span> <span class="o">=</span> <span class="n">bidder_position</span><span class="o">.</span><span class="n">max_bid_amount_cents</span>
+</span><span class='line'>      <span class="k">else</span>
+</span><span class='line'>        <span class="c1"># outbid, next bid must be at least amount_cents</span>
+</span><span class='line'>        <span class="n">bidder_position</span><span class="o">.</span><span class="n">update_attributes!</span> <span class="ss">active</span><span class="p">:</span> <span class="kp">false</span>
+</span><span class='line'>        <span class="k">return</span> <span class="kp">nil</span>
+</span><span class='line'>      <span class="k">end</span>
+</span><span class='line'>    <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="c1"># place a bid</span>
+</span><span class='line'>    <span class="n">bidder_position</span><span class="o">.</span><span class="n">bids</span><span class="o">.</span><span class="n">create!</span><span class="p">(</span><span class="n">attrs</span><span class="p">)</span><span class="o">.</span><span class="n">tap</span> <span class="k">do</span> <span class="o">|</span><span class="n">bid</span><span class="o">|</span>
+</span><span class='line'>      <span class="vi">@sale_artwork</span><span class="o">.</span><span class="n">update_attributes!</span> <span class="n">highest_bid</span><span class="p">:</span> <span class="n">bid</span>
+</span><span class='line'>    <span class="k">end</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>One of the interesting aspects of this system is what happens when two users create two identical bidder positions - the earlier one wins and the later one is outbid. In a transactional system we could produce an error message to the second bidder before the position is even created.</p>
+
+<h3>Bidder Notifications</h3>
+
+<p>Notifying upon being &#8220;outbid&#8221; is straightforward, because a position only enters that state once, but notifying bidders of when they are the current high bidder or when their bid has been increased is trickier. We don&#8217;t want to generate notifications every time a bid is made (i.e., it&#8217;s the current high). Rather, we want to allow the round to reach a stable state at which there&#8217;s only a single active position and then notify the current high and outbid bidders. This happens after each <code>round.run!</code>.</p>
+
+<h3>Beyond Bidding</h3>
+
+<p>Aside of the bidding implementation we&#8217;ve built a whole software ecosystem around auctions. We developed a backend system to manage these. We put up projection screens at the event that list works being auctioned and flash every time a bid is placed. We register users&#8217; credit cards and collect their money.</p>
+
+<p>The software part, however, is definitely dwarfed by the amount of logistics and people involved in making one of those auctions a success. We&#8217;re only trying to make that a bit more efficient. We&#8217;ll see you at the upcoming BAM Art Auction, SFMOMA Modern Ball or the Whitney Museum Art Party!</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Refactoring Infrastructure]]></title>
@@ -3031,467 +3653,6 @@ script:
 <li><a href="https://github.com/dblock/mongoid-scroll">mongoid-scroll on Github</a></li>
 </ul>
 
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Data Corruption and Concurrent Updates to Embedded Objects with MongoDB]]></title>
-    <link href="http://artsy.github.io/blog/2013/02/09/data-corruption-and-concurrent-updates-to-embedded-objects-with-mongoid/"/>
-    <updated>2013-02-09T21:21:00-05:00</updated>
-    <id>http://artsy.github.io/blog/2013/02/09/data-corruption-and-concurrent-updates-to-embedded-objects-with-mongoid</id>
-    <content type="html"><![CDATA[<p>We use <a href="http://www.mongodb.org/">MongoDB</a> at Artsy as our primary data store via the <a href="http://mongoid.org/">Mongoid ODM</a>. Eventually, we started noticing data corruption inside embedded objects at an alarming rate of 2-3 records a day. The number of occurrences increased rapidly with load as our user growth accelerated.</p>
-
-<p>The root cause was not a HN-worthy sensational declaration about how MongoDB trashes data, but our lack of understanding of what can and cannot be concurrently written to the database, neatly hidden behind the object data mapping layer.</p>
-
-<!-- more -->
-
-
-<h3>Data Model</h3>
-
-<p>Consider the following artwork model with embedded images.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">Artwork</span>
-</span><span class='line'>  <span class="kp">include</span> <span class="ss">Mongoid</span><span class="p">:</span><span class="ss">:Document</span>
-</span><span class='line'>  <span class="n">field</span> <span class="ss">:title</span><span class="p">,</span> <span class="ss">type</span><span class="p">:</span> <span class="nb">String</span>
-</span><span class='line'>  <span class="n">embeds_many</span> <span class="ss">:images</span>
-</span><span class='line'><span class="k">end</span>
-</span><span class='line'>
-</span><span class='line'><span class="k">class</span> <span class="nc">Image</span>
-</span><span class='line'>  <span class="kp">include</span> <span class="ss">Mongoid</span><span class="p">:</span><span class="ss">:Document</span>
-</span><span class='line'>  <span class="n">embedded_in</span> <span class="ss">:artwork</span>
-</span><span class='line'>  <span class="n">field</span> <span class="ss">:filename</span><span class="p">,</span> <span class="ss">type</span><span class="p">:</span> <span class="nb">String</span>
-</span><span class='line'>  <span class="n">field</span> <span class="ss">:width</span><span class="p">,</span> <span class="ss">type</span><span class="p">:</span> <span class="nb">Integer</span>
-</span><span class='line'>  <span class="n">field</span> <span class="ss">:height</span><span class="p">,</span> <span class="ss">type</span><span class="p">:</span> <span class="nb">Integer</span>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>Let&#8217;s create a few objects and examine the database queries executed when constructing this relationship by setting a <code>DEBUG</code> logger level on the Moped driver used underneath the ODM.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-<span class='line-number'>19</span>
-<span class='line-number'>20</span>
-<span class='line-number'>21</span>
-<span class='line-number'>22</span>
-<span class='line-number'>23</span>
-<span class='line-number'>24</span>
-<span class='line-number'>25</span>
-<span class='line-number'>26</span>
-<span class='line-number'>27</span>
-<span class='line-number'>28</span>
-<span class='line-number'>29</span>
-<span class='line-number'>30</span>
-<span class='line-number'>31</span>
-<span class='line-number'>32</span>
-<span class='line-number'>33</span>
-<span class='line-number'>34</span>
-<span class='line-number'>35</span>
-<span class='line-number'>36</span>
-<span class='line-number'>37</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="no">Moped</span><span class="o">.</span><span class="n">logger</span> <span class="o">=</span> <span class="no">Logger</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="vg">$stdout</span><span class="p">)</span>
-</span><span class='line'><span class="no">Moped</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">level</span> <span class="o">=</span> <span class="ss">Logger</span><span class="p">:</span><span class="ss">:DEBUG</span>
-</span><span class='line'>
-</span><span class='line'><span class="c1"># db.artworks.insert({ </span>
-</span><span class='line'><span class="c1">#   _id: ObjectId(&quot;510f22c5db8e540aab000001&quot;), </span>
-</span><span class='line'><span class="c1">#   title: &quot;Mona Lisa&quot; </span>
-</span><span class='line'><span class="c1"># })</span>
-</span><span class='line'><span class="n">artwork</span> <span class="o">=</span> <span class="no">Artwork</span><span class="o">.</span><span class="n">create!</span><span class="p">(</span><span class="ss">title</span><span class="p">:</span> <span class="s2">&quot;Mona Lisa&quot;</span><span class="p">)</span>
-</span><span class='line'>
-</span><span class='line'><span class="n">image1</span> <span class="o">=</span> <span class="no">Image</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="ss">filename</span><span class="p">:</span> <span class="s2">&quot;framed.jpg&quot;</span><span class="p">)</span>
-</span><span class='line'>
-</span><span class='line'><span class="c1"># db.artworks.update(</span>
-</span><span class='line'><span class="c1">#   { _id: ObjectId(&quot;510f22c5db8e540aab000001&quot;) },</span>
-</span><span class='line'><span class="c1">#   { $push : </span>
-</span><span class='line'><span class="c1">#     { images: </span>
-</span><span class='line'><span class="c1">#       { </span>
-</span><span class='line'><span class="c1">#         _id: ObjectId(&quot;510f22c5db8e540aab000002&quot;), </span>
-</span><span class='line'><span class="c1">#         filename: &quot;framed.jpg&quot; </span>
-</span><span class='line'><span class="c1">#       }</span>
-</span><span class='line'><span class="c1">#     }</span>
-</span><span class='line'><span class="c1">#   }</span>
-</span><span class='line'><span class="c1"># )</span>
-</span><span class='line'><span class="n">artwork</span><span class="o">.</span><span class="n">images</span> <span class="o">&lt;&lt;</span> <span class="n">image1</span>
-</span><span class='line'>
-</span><span class='line'><span class="n">image2</span> <span class="o">=</span> <span class="no">Image</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="ss">filename</span><span class="p">:</span> <span class="s2">&quot;unframed.jpg&quot;</span><span class="p">)</span>
-</span><span class='line'><span class="c1"># db.artworks.update(</span>
-</span><span class='line'><span class="c1">#   { _id: ObjectId(&quot;510f22c5db8e540aab000001&quot;) },</span>
-</span><span class='line'><span class="c1">#   { $push : </span>
-</span><span class='line'><span class="c1">#     { images: </span>
-</span><span class='line'><span class="c1">#       { </span>
-</span><span class='line'><span class="c1">#         _id: ObjectId(&quot;510f22c5db8e540aab000003&quot;), </span>
-</span><span class='line'><span class="c1">#         filename: &quot;unframed.jpg&quot; </span>
-</span><span class='line'><span class="c1">#       }</span>
-</span><span class='line'><span class="c1">#     }</span>
-</span><span class='line'><span class="c1">#   }</span>
-</span><span class='line'><span class="c1"># )</span>
-</span><span class='line'><span class="n">artwork</span><span class="o">.</span><span class="n">images</span> <span class="o">&lt;&lt;</span> <span class="n">image2</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>Here&#8217;s the artwork data in MongoDB retrieved from a <code>mongo</code> shell:</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="o">&gt;</span> <span class="n">db</span><span class="o">.</span><span class="n">artworks</span><span class="o">.</span><span class="n">findOne</span><span class="p">()</span>
-</span><span class='line'><span class="p">{</span>
-</span><span class='line'>  <span class="s2">&quot;_id&quot;</span> <span class="p">:</span> <span class="no">ObjectId</span><span class="p">(</span><span class="s2">&quot;510f22c5db8e540aab000001&quot;</span><span class="p">),</span>
-</span><span class='line'>  <span class="s2">&quot;title&quot;</span> <span class="p">:</span> <span class="s2">&quot;Mona Lisa&quot;</span><span class="p">,</span>
-</span><span class='line'>  <span class="s2">&quot;images&quot;</span> <span class="p">:</span> <span class="o">[</span>
-</span><span class='line'>    <span class="p">{</span>
-</span><span class='line'>      <span class="s2">&quot;_id&quot;</span> <span class="p">:</span> <span class="no">ObjectId</span><span class="p">(</span><span class="s2">&quot;510f22c5db8e540aab000002&quot;</span><span class="p">),</span>
-</span><span class='line'>      <span class="s2">&quot;filename&quot;</span> <span class="p">:</span> <span class="s2">&quot;framed.jpg&quot;</span>
-</span><span class='line'>    <span class="p">},</span>
-</span><span class='line'>    <span class="p">{</span>
-</span><span class='line'>      <span class="s2">&quot;_id&quot;</span> <span class="p">:</span> <span class="no">ObjectId</span><span class="p">(</span><span class="s2">&quot;510f22c5db8e540aab000003&quot;</span><span class="p">),</span>
-</span><span class='line'>      <span class="s2">&quot;filename&quot;</span> <span class="p">:</span> <span class="s2">&quot;unframed.jpg&quot;</span>
-</span><span class='line'>    <span class="p">}</span>
-</span><span class='line'>  <span class="o">]</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>We can modify the attributes of the second image.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="c1"># db.artworks.update(</span>
-</span><span class='line'><span class="c1">#   { _id: ObjectId(&quot;510f22c5db8e540aab000001&quot;) }, </span>
-</span><span class='line'><span class="c1">#   { $set : { &quot;images.1.width&quot; : 30, &quot;images.1.height&quot; : 40 } }</span>
-</span><span class='line'><span class="c1"># )</span>
-</span><span class='line'><span class="n">image2</span><span class="o">.</span><span class="n">update_attributes!</span><span class="p">(</span><span class="ss">width</span><span class="p">:</span> <span class="mi">30</span><span class="p">,</span> <span class="ss">height</span><span class="p">:</span> <span class="mi">40</span><span class="p">)</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>The image has been updated correctly.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="o">&gt;</span> <span class="n">db</span><span class="o">.</span><span class="n">artworks</span><span class="o">.</span><span class="n">findOne</span><span class="p">()</span>
-</span><span class='line'><span class="p">{</span>
-</span><span class='line'>  <span class="s2">&quot;_id&quot;</span> <span class="p">:</span> <span class="no">ObjectId</span><span class="p">(</span><span class="s2">&quot;510f22c5db8e540aab000001&quot;</span><span class="p">),</span>
-</span><span class='line'>  <span class="s2">&quot;title&quot;</span> <span class="p">:</span> <span class="s2">&quot;Mona Lisa&quot;</span><span class="p">,</span>
-</span><span class='line'>  <span class="s2">&quot;images&quot;</span> <span class="p">:</span> <span class="o">[</span>
-</span><span class='line'>    <span class="p">{</span>
-</span><span class='line'>      <span class="s2">&quot;_id&quot;</span> <span class="p">:</span> <span class="no">ObjectId</span><span class="p">(</span><span class="s2">&quot;510f22c5db8e540aab000002&quot;</span><span class="p">),</span>
-</span><span class='line'>      <span class="s2">&quot;filename&quot;</span> <span class="p">:</span> <span class="s2">&quot;framed.jpg&quot;</span>
-</span><span class='line'>    <span class="p">},</span>
-</span><span class='line'>    <span class="p">{</span>
-</span><span class='line'>      <span class="s2">&quot;_id&quot;</span> <span class="p">:</span> <span class="no">ObjectId</span><span class="p">(</span><span class="s2">&quot;510f22c5db8e540aab000003&quot;</span><span class="p">),</span>
-</span><span class='line'>      <span class="s2">&quot;filename&quot;</span> <span class="p">:</span> <span class="s2">&quot;unframed.jpg&quot;</span><span class="p">,</span>
-</span><span class='line'>      <span class="s2">&quot;height&quot;</span> <span class="p">:</span> <span class="mi">40</span><span class="p">,</span>
-</span><span class='line'>      <span class="s2">&quot;width&quot;</span> <span class="p">:</span> <span class="mi">30</span>
-</span><span class='line'>    <span class="p">}</span>
-</span><span class='line'>  <span class="o">]</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<h3>Incomplete Record Corruption</h3>
-
-<p>Examining the query you will notice that it uses a so-called &#8220;positional&#8221; operator, <code>images.1.width</code> to update the second record. Imagine what would happen if the first record was deleted from another process immediately before the update. That&#8217;s right, the update will be performed on a record that doesn&#8217;t exist, in which case the default MongoDB behavior is to create it!</p>
-
-<p>We can simulate this by loading the object in Ruby, pulling the first record directly from the database and then performing the update.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">artwork</span><span class="o">.</span><span class="n">images</span> <span class="o">&lt;&lt;</span> <span class="n">image2</span>
-</span><span class='line'>
-</span><span class='line'><span class="c1"># pull the first artwork directly from the database</span>
-</span><span class='line'><span class="no">Artwork</span><span class="o">.</span><span class="n">collection</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="ss">_id</span><span class="p">:</span> <span class="n">artwork</span><span class="o">.</span><span class="n">id</span><span class="p">)</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
-</span><span class='line'>  <span class="s2">&quot;$pull&quot;</span> <span class="o">=&gt;</span> <span class="p">{</span> <span class="s2">&quot;images&quot;</span> <span class="o">=&gt;</span> <span class="p">{</span> <span class="ss">_id</span><span class="p">:</span> <span class="n">image1</span><span class="o">.</span><span class="n">id</span> <span class="p">}</span> <span class="p">})</span>
-</span><span class='line'>
-</span><span class='line'><span class="n">image2</span><span class="o">.</span><span class="n">update_attributes!</span><span class="p">(</span><span class="ss">width</span><span class="p">:</span> <span class="mi">30</span><span class="p">,</span> <span class="ss">height</span><span class="p">:</span> <span class="mi">40</span><span class="p">)</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>This yields a nasty surprise. We now have two records in the embedded collection, the second one missing an <code>_id</code>.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="o">&gt;</span> <span class="n">db</span><span class="o">.</span><span class="n">artworks</span><span class="o">.</span><span class="n">findOne</span><span class="p">()</span>
-</span><span class='line'><span class="p">{</span>
-</span><span class='line'>  <span class="s2">&quot;_id&quot;</span> <span class="p">:</span> <span class="no">ObjectId</span><span class="p">(</span><span class="s2">&quot;510f22c5db8e540aab000001&quot;</span><span class="p">),</span>
-</span><span class='line'>  <span class="s2">&quot;title&quot;</span> <span class="p">:</span> <span class="s2">&quot;Mona Lisa&quot;</span><span class="p">,</span>
-</span><span class='line'>  <span class="s2">&quot;images&quot;</span> <span class="p">:</span> <span class="o">[</span>
-</span><span class='line'>    <span class="p">{</span>
-</span><span class='line'>      <span class="s2">&quot;_id&quot;</span> <span class="p">:</span> <span class="no">ObjectId</span><span class="p">(</span><span class="s2">&quot;510f22c5db8e540aab000003&quot;</span><span class="p">),</span>
-</span><span class='line'>      <span class="s2">&quot;filename&quot;</span> <span class="p">:</span> <span class="s2">&quot;unframed.jpg&quot;</span>
-</span><span class='line'>    <span class="p">},</span>
-</span><span class='line'>    <span class="p">{</span>
-</span><span class='line'>      <span class="s2">&quot;height&quot;</span> <span class="p">:</span> <span class="mi">40</span><span class="p">,</span>
-</span><span class='line'>      <span class="s2">&quot;width&quot;</span> <span class="p">:</span> <span class="mi">30</span>
-</span><span class='line'>    <span class="p">}</span>
-</span><span class='line'>  <span class="o">]</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>When reloaded, Mongoid will assign an automatic <code>_id</code> to the second object, the correct height and width, but no filename.</p>
-
-<h3>Null Record Corruption</h3>
-
-<p>A similar scenario can play out by pulling both image records out of the embedded collection and making a positional update. This will create a <code>null</code> record, which is much worse, because Mongoid can&#8217;t even destroy it, attempting to pull a record with an <code>_id</code> that does not exist.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">artwork</span><span class="o">.</span><span class="n">images</span> <span class="o">&lt;&lt;</span> <span class="n">image2</span>
-</span><span class='line'>
-</span><span class='line'><span class="no">Artwork</span><span class="o">.</span><span class="n">collection</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="ss">_id</span><span class="p">:</span> <span class="n">artwork</span><span class="o">.</span><span class="n">id</span><span class="p">)</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
-</span><span class='line'>  <span class="s2">&quot;$pull&quot;</span> <span class="o">=&gt;</span> <span class="p">{</span> <span class="s2">&quot;images&quot;</span> <span class="o">=&gt;</span> <span class="p">{</span> <span class="ss">_id</span><span class="p">:</span> <span class="n">image1</span><span class="o">.</span><span class="n">id</span> <span class="p">}</span> <span class="p">})</span>
-</span><span class='line'><span class="no">Artwork</span><span class="o">.</span><span class="n">collection</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="ss">_id</span><span class="p">:</span> <span class="n">artwork</span><span class="o">.</span><span class="n">id</span><span class="p">)</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
-</span><span class='line'>  <span class="s2">&quot;$pull&quot;</span> <span class="o">=&gt;</span> <span class="p">{</span> <span class="s2">&quot;images&quot;</span> <span class="o">=&gt;</span> <span class="p">{</span> <span class="ss">_id</span><span class="p">:</span> <span class="n">image2</span><span class="o">.</span><span class="n">id</span> <span class="p">}</span> <span class="p">})</span>
-</span><span class='line'>
-</span><span class='line'><span class="n">image2</span><span class="o">.</span><span class="n">update_attributes!</span><span class="p">(</span><span class="ss">width</span><span class="p">:</span> <span class="mi">30</span><span class="p">,</span> <span class="ss">height</span><span class="p">:</span> <span class="mi">40</span><span class="p">)</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="o">&gt;</span> <span class="n">db</span><span class="o">.</span><span class="n">artworks</span><span class="o">.</span><span class="n">findOne</span><span class="p">()</span>
-</span><span class='line'><span class="p">{</span>
-</span><span class='line'>  <span class="s2">&quot;_id&quot;</span> <span class="p">:</span> <span class="no">ObjectId</span><span class="p">(</span><span class="s2">&quot;510f22c5db8e540aab000001&quot;</span><span class="p">),</span>
-</span><span class='line'>  <span class="s2">&quot;title&quot;</span> <span class="p">:</span> <span class="s2">&quot;Mona Lisa&quot;</span>
-</span><span class='line'>  <span class="s2">&quot;images&quot;</span> <span class="p">:</span> <span class="o">[</span>
-</span><span class='line'>    <span class="n">null</span><span class="p">,</span>
-</span><span class='line'>    <span class="p">{</span>
-</span><span class='line'>      <span class="s2">&quot;height&quot;</span> <span class="p">:</span> <span class="mi">40</span><span class="p">,</span>
-</span><span class='line'>      <span class="s2">&quot;width&quot;</span> <span class="p">:</span> <span class="mi">30</span>
-</span><span class='line'>    <span class="p">}</span>
-</span><span class='line'>  <span class="o">]</span><span class="p">,</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<h3>Solutions</h3>
-
-<p>A first obvious solution is not to use embedded objects or to never modify them. Both <code>$push</code> and <code>$pull</code> are atomic operations, but not the positional update.</p>
-
-<p>A general solution to this problem is to make all update operations transactional. You can take a lock on the parent model by using <a href="https://github.com/afeld/mongoid-locker">mongoid-locker</a>. It works, but can be quite tedious depending on the complexity of your application.</p>
-
-<p>Finally, MongoDB supports something called a &#8220;positional operator&#8221; for embedded objects. This means you can atomically update a record found by its embedded object&#8217;s field using a reference to the position of that embedded object. This solves our problem, as long as the object is not embedded below the first level. Mongoid 3.1 (currently HEAD) implements this behavior by default (see <a href="https://github.com/mongoid/mongoid/issues/2545">#2545</a> for details), adjusting the selector to look for the embedded object&#8217;s <code>_id</code> and replacing the position with a <code>$</code> positional operator.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="c1"># db.artworks.update(</span>
-</span><span class='line'><span class="c1">#   { </span>
-</span><span class='line'><span class="c1">#     _id: ObjectId(&quot;510f22c5db8e540aab000001&quot;), </span>
-</span><span class='line'><span class="c1">#     &quot;images._id&quot; : ObjectId(&quot;510f22c5db8e540aab000003&quot;) </span>
-</span><span class='line'><span class="c1">#   }, </span>
-</span><span class='line'><span class="c1">#   { $set : { &quot;images.$.width&quot; : 30, &quot;images.$.height&quot; : 40 }}</span>
-</span><span class='line'><span class="c1"># )</span>
-</span><span class='line'><span class="n">image2</span><span class="o">.</span><span class="n">update_attributes!</span><span class="p">(</span><span class="ss">width</span><span class="p">:</span> <span class="mi">30</span><span class="p">,</span> <span class="ss">height</span><span class="p">:</span> <span class="mi">40</span><span class="p">)</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>We&#8217;ve been successfully running this in production for a few weeks now, without any more data corruption issues.</p>
-
-<p>While this is a huge step forward, covering all of our application&#8217;s scenarios, we would like complete native support for atomic updates inside MongoDB at all levels of nesting. Please add your +1 to <a href="https://jira.mongodb.org/browse/SERVER-831">SERVER-831</a>.</p>
-
-<h3>Links</h3>
-
-<ul>
-<li><a href="https://gist.github.com/dblock/4699070">Code to Detect Corrupt Embedded Objects</a></li>
-<li><a href="https://jira.mongodb.org/browse/SERVER-831">MongoDB SERVER-831: Positional Operator Matching Nested Arrays</a></li>
-<li><a href="https://github.com/mongoid/mongoid/issues/2545">Mongoid #2545: Use $ Positional Operator for Updating Embedded Documents</a></li>
-<li><a href="https://github.com/dblock/mongoid/tree/master-issues/spec/dblock">Repro Specs for Mongoid #2545 and Similar</a></li>
-</ul>
-
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Master the Heroku CLI with Heroku Commander]]></title>
-    <link href="http://artsy.github.io/blog/2013/02/01/master-heroku-command-line-with-heroku-commander/"/>
-    <updated>2013-02-01T21:21:00-05:00</updated>
-    <id>http://artsy.github.io/blog/2013/02/01/master-heroku-command-line-with-heroku-commander</id>
-    <content type="html"><![CDATA[<p><img src="http://artsy.github.io/images/2013-02-01-master-heroku-command-line-with-heroku-commander/heroku-commander.png"></p>
-
-<p>Heroku users frequently run the <strong>heroku</strong> command-line tool that ships with the <a href="https://toolbelt.heroku.com/">Heroku Toolbelt</a>. It has two very convenient features: it will remember API credentials and default to the &#8220;heroku&#8221; GIT remote to figure out the application to connect to. Neither of these features are available in the Heroku client API, so it&#8217;s not unusual to find developers invoke the Heroku CLI from Rake tasks and other automation scripts.</p>
-
-<p>There&#8217;re several problems with using the Heroku CLI for automation:</p>
-
-<ol>
-<li>The exit code from <code>heroku run</code> is not the exit code from the process being run on Heroku. See <a href="https://github.com/heroku/heroku/issues/186">#186</a>.</li>
-<li>Gathering console output from <code>heroku run:detached</code> requires an external <code>heroku logs --tail</code> process that will never finish.</li>
-</ol>
-
-
-<p>The <a href="https://github.com/dblock/heroku-commander">heroku-commander</a> gem wraps execution of the Heroku CLI to overcome these common limitations.</p>
-
-<!-- more -->
-
-
-<h3>Heroku Configuration</h3>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">commander</span> <span class="o">=</span> <span class="ss">Heroku</span><span class="p">:</span><span class="ss">:Commander</span><span class="o">.</span><span class="n">new</span>
-</span><span class='line'><span class="c1"># a hash of all settings for your default heroku app</span>
-</span><span class='line'><span class="n">commander</span><span class="o">.</span><span class="n">config</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>Notice that unlike <code>Heroku::Client.new</code>, this doesn&#8217;t require your e-mail or API key. It will invoke <code>heroku config -s</code>.</p>
-
-<p>You can specify an application name, too.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">commander</span> <span class="o">=</span> <span class="ss">Heroku</span><span class="p">:</span><span class="ss">:Commander</span><span class="o">.</span><span class="n">new</span><span class="p">({</span> <span class="ss">:app</span> <span class="o">=&gt;</span> <span class="s2">&quot;heroku-commander&quot;</span> <span class="p">})</span>
-</span><span class='line'><span class="c1"># a hash of all settings for the heroku-commander application</span>
-</span><span class='line'><span class="n">commander</span><span class="o">.</span><span class="n">config</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<h3>Run Commands on Heroku</h3>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">commander</span> <span class="o">=</span> <span class="ss">Heroku</span><span class="p">:</span><span class="ss">:Commander</span><span class="o">.</span><span class="n">new</span>
-</span><span class='line'><span class="c1"># returns all output lines</span>
-</span><span class='line'><span class="c1"># eg. [ &quot;Linux 2.6.32-348-ec2 #54-Ubuntu SMP x86_64 GNU&quot; ]</span>
-</span><span class='line'><span class="n">commander</span><span class="o">.</span><span class="n">run</span> <span class="s2">&quot;uname -a&quot;</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>This calls <code>(heroku run 2&gt;&amp;1 uname -a; echo rc=\\$?)</code>, parses output for the final exit code line and raises an exception if the run&#8217;s result code wasn&#8217;t zero. In other words, if the command fails, an error is raised, which makes this suitable for Rake tasks.</p>
-
-<p>You can also read output line-by-line.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">commander</span><span class="o">.</span><span class="n">run</span> <span class="s2">&quot;ls -1&quot;</span> <span class="k">do</span> <span class="o">|</span><span class="n">line</span><span class="o">|</span>
-</span><span class='line'>  <span class="c1"># each line from the output of ls -1</span>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<h3>Detach Commands on Heroku</h3>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">commander</span> <span class="o">=</span> <span class="ss">Heroku</span><span class="p">:</span><span class="ss">:Commander</span><span class="o">.</span><span class="n">new</span>
-</span><span class='line'><span class="n">commander</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="s2">&quot;ls -R&quot;</span><span class="p">,</span> <span class="p">{</span> <span class="ss">:detached</span> <span class="o">=&gt;</span> <span class="kp">true</span> <span class="p">})</span> <span class="k">do</span> <span class="o">|</span><span class="n">line</span><span class="o">|</span>
-</span><span class='line'>  <span class="c1"># each line from the output of ls -r -1</span>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>This calls <code>(heroku detached:run ls -r -1 2&gt;&amp;1; echo rc=\\$?)</code>, parses the output for a Heroku process ID, spawns a <code>heroku logs --tail -p pid</code> and monitors the log output until it reports process completion. It will also parse output for the final exit code and raise an exception if the run&#8217;s result code wasn&#8217;t zero.</p>
-
-<h3>More Examples</h3>
-
-<p>There&#8217;re more working examples <a href="https://github.com/dblock/heroku-commander/tree/master/examples">here</a>.</p>
 ]]></content>
   </entry>
   

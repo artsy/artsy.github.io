@@ -1,0 +1,598 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Generating Notifications and Personalized Emails Efficiently - Artsy Engineering</title>
+  <meta name="author" content="Artsy">
+
+  
+  <meta name="description" content="We recently launched a new personalized email here at Artsy that features content that a given user might find interesting. The goal of this post is &hellip;">
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://artsy.github.io/blog/2014/04/24/generating-notifications-and-personalized-emails-efficiently">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <script src="/javascripts/modernizr-2.0.js"></script>
+  <script src="/javascripts/ender.js"></script>
+  <script src="/javascripts/octopress.js" type="text/javascript"></script>
+  <link href="/atom.xml" rel="alternate" title="Artsy Engineering" type="application/atom+xml">
+  <!--[if IE 8]>
+<link href="/stylesheets/custom/ie_font.css" type="text/css">
+<![endif]-->
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-12450662-3']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+
+<body>
+  
+  <a href="/">
+    <h1 id="lrg-mark">
+      <span>Artsy</span>
+    </h1>
+  </a>
+  
+  <header id="banner"><hgroup>
+  <div id="header">
+    <h2>Inspiration from the engineering team at <a href="http://artsy.net">Artsy</a> — A new way to discover fine art.</h2>
+  </div>
+</hgroup>
+
+</header>
+  
+  <div id="main">
+    <div id="mobile_search">
+      <form action="http://google.com/search" method="get">
+        <input type="hidden" name="q" value="site:artsy.github.io" />
+        <input class="search" type="text" name="q" results="0" placeholder="Search" />
+      </form>
+    </div>
+    <div id="content">
+      <div>
+<article class="hentry" role="article">
+  
+  <header>
+    
+    <a href="">
+      <div class="date">
+
+
+
+
+  
+<time datetime="2014-04-24T16:00:00-04:00" pubdate>04/24/14</time></div>
+    
+    
+      <h1 class="entry-title">Generating Notifications and Personalized Emails Efficiently</h1>
+    
+    </a>
+    
+      <p class="meta">
+        
+      </p>
+    
+  </header>
+
+
+<div class="entry-content"><p>We recently launched a new personalized email here at <a href="https://artsy.net">Artsy</a> that features content that a given user might find interesting. The goal of this post is to describe how we built a backend system that efficiently generates these e-mails for all our users. I&#8217;ll talk about the first, naive implementation that had performance problems right away, and how the second implementation (currently in production) solved those issues, and whose behavior at scale is well-defined and understood. I won&#8217;t go into the details of the design and layout of the mail itself and how we render the content - there are several earlier blog posts that deal with those: <a href="http://artsy.github.io/blog/2014/03/18/presenters-and-memoization-moving-logic-out-of-templates/">Presenters and Memoization</a>, <a href="http://artsy.github.io/blog/2014/03/17/ruby-helper-to-group-artworks-into-a-pinterest-style-layout-for-email/">Pinterest-style Layouts</a> and <a href="http://artsy.github.io/blog/2014/03/17/some-tips-for-email-layout-and-responsiveness/">Email Layouts and Responsiveness</a>.</p>
+
+<p><img src="/images/2014-04-24-generating-notifications-and-personalized-emails-efficiently/percy_example.png" alt="Personalized Email Example" /></p>
+
+<!-- more -->
+
+
+<h3>Deciding What Content to Include</h3>
+
+<p>First, we had to decide what types of personalized content we wanted to feature in our mails. Users can follow artists and galleries, and so this seemed like a great place to start. We&#8217;d like to let you know about new artworks that have been uploaded by artists that you follow, as well as new shows that have been added by galleries you follow, or that are exhibiting artists you follow. Since we have location data for our galleries and our users (accomplished thru an onboarding flow, or thru geo-locating their IP address), we also want to include new shows that are opening near you. Additionally, we have a recommendations engine that recommends artworks to users based on their preferences and activity on the site, and we&#8217;d like to show some of the latest and best of such recommendations.</p>
+
+<h3>Initial Implementation Ideas</h3>
+
+<p>My first thought was to have an observer (really just some <code>after_save</code> callbacks) that will wait for data to get into a state where a user can be validly notified, and in a background task write these notifications to interested users. Here&#8217;s how the base setup of our <code>Notification</code> model looked:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">Notification</span>
+</span><span class='line'>  <span class="kp">include</span> <span class="ss">Mongoid</span><span class="p">:</span><span class="ss">:Document</span>
+</span><span class='line'>  <span class="kp">include</span> <span class="ss">Mongoid</span><span class="p">:</span><span class="ss">:Timestamps</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="n">belongs_to</span> <span class="ss">:user</span>
+</span><span class='line'>  <span class="n">belongs_to</span> <span class="ss">:notifiable</span><span class="p">,</span> <span class="ss">polymorphic</span><span class="p">:</span> <span class="kp">true</span><span class="p">,</span> <span class="n">inverse_of</span><span class="p">:</span> <span class="ss">:notifications</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>It&#8217;s a simple join of the user and the <code>notifiable</code> (the object/action that a user is being notified about).</p>
+
+<p>Then, a specific notification (such as one for published artworks by artists you follow) can inherit from this and look like:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">PublishedArtworkNotification</span> <span class="o">&lt;</span> <span class="no">Notification</span>
+</span><span class='line'>  <span class="k">def</span> <span class="nc">self</span><span class="o">.</span><span class="nf">notify!</span><span class="p">(</span><span class="n">artwork_id</span><span class="p">)</span>
+</span><span class='line'>    <span class="n">user_ids</span> <span class="o">=</span> <span class="no">FollowArtist</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="ss">artist</span><span class="p">:</span> <span class="n">artwork</span><span class="o">.</span><span class="n">artist</span><span class="p">)</span><span class="o">.</span><span class="n">pluck</span><span class="p">(</span><span class="s2">&quot;user_id&quot;</span><span class="p">)</span>
+</span><span class='line'>    <span class="n">user_ids</span><span class="o">.</span><span class="n">each_slice</span><span class="p">(</span><span class="mi">100</span><span class="p">)</span> <span class="k">do</span> <span class="o">|</span><span class="n">uids</span><span class="o">|</span>
+</span><span class='line'>      <span class="no">PublishedArtworkNotification</span><span class="o">.</span><span class="n">delay</span><span class="p">(</span><span class="ss">queue</span><span class="p">:</span> <span class="ss">:any</span><span class="p">,</span> <span class="ss">priority</span><span class="p">:</span> <span class="mi">6</span><span class="p">)</span><span class="o">.</span><span class="n">create_for_users</span><span class="p">(</span><span class="n">artwork_id</span><span class="p">,</span> <span class="n">uids</span><span class="p">)</span>
+</span><span class='line'>    <span class="k">end</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">def</span> <span class="nc">self</span><span class="o">.</span><span class="nf">create_for_users</span><span class="p">(</span><span class="n">artwork</span><span class="p">,</span> <span class="n">uids</span><span class="p">)</span>
+</span><span class='line'>    <span class="n">uids</span><span class="o">.</span><span class="n">each</span> <span class="k">do</span> <span class="o">|</span><span class="n">uid</span><span class="o">|</span>
+</span><span class='line'>      <span class="no">PublishedArtworkNotification</span><span class="o">.</span><span class="n">create!</span><span class="p">(</span><span class="n">user_id</span><span class="p">:</span> <span class="n">uid</span><span class="p">,</span> <span class="n">notifiable_id</span><span class="p">:</span> <span class="n">artwork_id</span><span class="p">,</span> <span class="n">notifiable_type</span><span class="p">:</span> <span class="s1">&#39;Artwork&#39;</span><span class="p">)</span>
+</span><span class='line'>    <span class="k">end</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Then, the <code>after_save</code> hook on an <code>Artwork</code> model is:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">def</span> <span class="nf">delay_notify</span>
+</span><span class='line'>  <span class="no">PublishedArtworkNotification</span><span class="o">.</span><span class="n">delay</span><span class="p">(</span><span class="ss">queue</span><span class="p">:</span> <span class="ss">:any</span><span class="p">)</span><span class="o">.</span><span class="n">notify!</span><span class="p">(</span><span class="nb">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span> <span class="k">if</span> <span class="nb">self</span><span class="o">.</span><span class="n">published_changed?</span> <span class="o">&amp;&amp;</span> <span class="nb">self</span><span class="o">.</span><span class="n">published</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>So, when an artwork is published, we run <code>notify!</code> in the background for the respective notification. That method will pull all interested users (via following the artist), and then spawn off more background processes to write the notifications in batches of 100. We batched these writes to avoid any one background process taking too long (an artist such as <a href="https://artsy.net/artist/andy-warhol">Andy Warhol</a> has around twelve thousand followers currently), and also ran them at a lower priority to avoid blocking other jobs in our queue.</p>
+
+<p>The other types of notifications were all implemented similarly (via an observer on the model, and a specific <code>Notification</code> class inheriting from the base class). We also added some other logic into the base <code>Notification</code> class such as some uniqueness constraints, as well as an ability to mark notifications as &#8216;sent&#8217; or &#8216;invalid&#8217;. However, we ran into serious performance/scaling issues fairly quickly, and had to re-implement this scheme.</p>
+
+<h3>Performance Bottlenecks</h3>
+
+<p>All of these records were being written to one collection in <a href="https://www.mongodb.org/">MongoDB</a>, and the size of this collection grew quite rapidly. It&#8217;s size almost immediately dwarfed the size of any of our other collections, and the number of records quickly reached into the tens of millions. This led to problems: writing new notifications started to crawl to a standstill. We had several indices on this collection to aid in querying, and these made the insertion of new notifications very non-performant, and also started to affect overall database performance. Querying against this collection degraded quickly and started to similarly affect database performance. Archiving old records also proved next to impossible. We couldn&#8217;t simply drop the entire collection, but had to prune records. This similarly was totally non-performant and was adversely affecting database and site performance. We needed to come up with a new implementation for <code>Notification</code>, and addressing these issues was essential.</p>
+
+<h3>Resolving Performance Bottlenecks</h3>
+
+<p>So, we decided on a scheme where each day would result in a new <code>Notifications</code> collection (name keyed on the date), named <code>notifications_20140101</code>, <code>notifications_20140102</code>, etc. Each of these collections would have an <code>_id</code> field that corresponds to a user_id, and an <code>events</code> array (or &#8216;stack&#8217; if you will) that records the id&#8217;s of notified objects, as well as the type of notification. An example of a record in that collection is:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+</pre></td><td class='code'><pre><code class='json'><span class='line'><span class="p">{</span><span class="nt">&quot;_id&quot;</span><span class="err">=&gt;</span><span class="s2">&quot;5106b619f56337db300001f8&quot;</span><span class="p">,</span>
+</span><span class='line'> <span class="nt">&quot;events&quot;</span><span class="err">=&gt;</span><span class="p">[{</span><span class="nt">&quot;t&quot;</span><span class="err">=&gt;</span><span class="s2">&quot;NearbyShow&quot;</span><span class="p">,</span> <span class="nt">&quot;o&quot;</span><span class="err">=&gt;</span><span class="s2">&quot;533998b1c9dc24c371000041&quot;</span><span class="p">},</span>
+</span><span class='line'>            <span class="p">{</span><span class="nt">&quot;t&quot;</span><span class="err">=&gt;</span><span class="s2">&quot;NearbyShow&quot;</span><span class="p">,</span> <span class="nt">&quot;o&quot;</span><span class="err">=&gt;</span><span class="s2">&quot;5345774cc9dc246d580003d0&quot;</span><span class="p">},</span>
+</span><span class='line'>            <span class="p">{</span><span class="nt">&quot;t&quot;</span><span class="err">=&gt;</span><span class="s2">&quot;NearbyShow&quot;</span><span class="p">,</span> <span class="nt">&quot;o&quot;</span><span class="err">=&gt;</span><span class="s2">&quot;5335af4fa09a67145300028c&quot;</span><span class="p">},</span>
+</span><span class='line'>            <span class="p">{</span><span class="nt">&quot;t&quot;</span><span class="err">=&gt;</span><span class="s2">&quot;NearbyShow&quot;</span><span class="p">,</span> <span class="nt">&quot;o&quot;</span><span class="err">=&gt;</span><span class="s2">&quot;533f1174a09a67298900007b&quot;</span><span class="p">},</span>
+</span><span class='line'>            <span class="p">{</span><span class="nt">&quot;t&quot;</span><span class="err">=&gt;</span><span class="s2">&quot;ArtworkPublished&quot;</span><span class="p">,</span> <span class="nt">&quot;o&quot;</span><span class="err">=&gt;</span><span class="s2">&quot;5334647b139b2165160000d8&quot;</span><span class="p">}]</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>So, here we see all of my notifications for April 22, 2014. On that day, I was notified about 4 shows opening near my location, and one artwork added by an artist I follow. Incidentally, that artwork was a piece by <a href="https://artsy.net/artist/rob-wynne">Rob Wynne</a> entitled <a href="https://artsy.net/artwork/rob-wynne-youre-dreaming">You&#8217;re Dreaming</a>. The show notifications were for NYC-area shows opening at <a href="https://artsy.net/klein-sun-gallery">Klein Sun Gallery</a>, <a href="https://artsy.net/garis-and-hahn">Garis &amp; Hahn</a>, <a href="https://artsy.net/miyako-yoshinaga-gallery">Miyako Yoshinaga Gallery</a> and <a href="https://artsy.net/dodgegallery">DODGEgallery</a>.</p>
+
+<p>A couple of nice things about this implementation is it limits the size of a collection: any one day&#8217;s collection will scale directly with the number of users, which seems reasonable. Our earlier implementation scaled with the product of the number of users and amount of content on Artsy, which is clearly problematic. Also, archiving old notifications is as simple as dropping a particular day&#8217;s collection, which is very performant. However, querying and assembling these notifications is a bit trickier than in the naive implementation, as well as marking which events have already been sent to a user, so as to avoid duplicating any content in between mailings.</p>
+
+<p>Let&#8217;s see how we rewrite the notification generation in this scheme:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">module</span> <span class="nn">NotificationService</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">def</span> <span class="nc">self</span><span class="o">.</span><span class="nf">notify_many!</span><span class="p">(</span><span class="n">user_ids</span><span class="p">,</span> <span class="nb">object_id</span><span class="p">,</span> <span class="n">type</span><span class="p">)</span>
+</span><span class='line'>    <span class="n">events</span> <span class="o">=</span> <span class="n">events_from</span><span class="p">(</span><span class="nb">object_id</span><span class="p">,</span> <span class="n">type</span><span class="p">)</span>
+</span><span class='line'>    <span class="n">user_ids</span><span class="o">.</span><span class="n">each</span> <span class="k">do</span> <span class="o">|</span><span class="n">user_id</span><span class="o">|</span>
+</span><span class='line'>      <span class="n">notify_with_events</span><span class="p">(</span><span class="n">user_id</span><span class="p">,</span> <span class="n">events</span><span class="p">)</span>
+</span><span class='line'>    <span class="k">end</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="kp">private</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">def</span> <span class="nc">self</span><span class="o">.</span><span class="nf">notify_with_events</span><span class="p">(</span><span class="n">user_id</span><span class="p">,</span> <span class="n">events</span><span class="p">)</span>
+</span><span class='line'>    <span class="n">collection</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="ss">_id</span><span class="p">:</span> <span class="n">user_id</span><span class="p">)</span><span class="o">.</span><span class="n">upsert</span><span class="p">(</span><span class="s1">&#39;$push&#39;</span> <span class="o">=&gt;</span> <span class="p">{</span> <span class="ss">events</span><span class="p">:</span> <span class="p">{</span> <span class="s1">&#39;$each&#39;</span> <span class="o">=&gt;</span> <span class="n">events</span> <span class="p">}</span> <span class="p">})</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">def</span> <span class="nc">self</span><span class="o">.</span><span class="nf">events_from</span><span class="p">(</span><span class="n">object_ids</span><span class="p">,</span> <span class="n">type</span><span class="p">)</span>
+</span><span class='line'>    <span class="nb">Array</span><span class="p">(</span><span class="n">object_ids</span><span class="p">)</span><span class="o">.</span><span class="n">map</span> <span class="k">do</span> <span class="o">|</span><span class="nb">object_id</span><span class="o">|</span>
+</span><span class='line'>      <span class="p">{</span>
+</span><span class='line'>        <span class="s1">&#39;t&#39;</span> <span class="o">=&gt;</span> <span class="n">type</span><span class="p">,</span>
+</span><span class='line'>        <span class="s1">&#39;o&#39;</span> <span class="o">=&gt;</span> <span class="nb">object_id</span>
+</span><span class='line'>      <span class="p">}</span>
+</span><span class='line'>    <span class="k">end</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c1"># collection storing notifications for the given day</span>
+</span><span class='line'>  <span class="k">def</span> <span class="nc">self</span><span class="o">.</span><span class="nf">collection</span><span class="p">(</span><span class="n">date</span> <span class="o">=</span> <span class="no">Date</span><span class="o">.</span><span class="n">today</span><span class="p">)</span>
+</span><span class='line'>    <span class="no">Mongoid</span><span class="o">.</span><span class="n">default_session</span><span class="o">.</span><span class="n">with</span><span class="p">(</span><span class="ss">safe</span><span class="p">:</span> <span class="kp">false</span><span class="p">)</span><span class="o">[</span><span class="n">collection_name</span><span class="p">(</span><span class="n">date</span><span class="p">)</span><span class="o">]</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">def</span> <span class="nc">self</span><span class="o">.</span><span class="nf">collection_name</span><span class="p">(</span><span class="n">date</span><span class="p">)</span>
+</span><span class='line'>    <span class="s2">&quot;notifications_</span><span class="si">#{</span><span class="n">date</span><span class="o">.</span><span class="n">to_s</span><span class="p">(</span><span class="ss">:number</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Here&#8217;s how the <code>after_save</code> callback looks now:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">def</span> <span class="nf">notify_published</span>
+</span><span class='line'>  <span class="no">NotificationService</span><span class="o">.</span><span class="n">notify_many!</span><span class="p">(</span><span class="n">user_ids</span><span class="p">,</span> <span class="nb">self</span><span class="p">,</span> <span class="s1">&#39;ArtworkPublished&#39;</span><span class="p">)</span> <span class="k">if</span> <span class="nb">self</span><span class="o">.</span><span class="n">published_changed?</span> <span class="o">&amp;&amp;</span> <span class="nb">self</span><span class="o">.</span><span class="n">published</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Let&#8217;s take a look at what&#8217;s going on here. When an artwork is published, we call <code>notify_many!</code> in the <code>NotificationService</code> module. That will determine the correct collection (keyed by the date) using the <code>collection</code> and <code>collection_name</code> helpers. We build our events stack with the <code>events_from</code> helper, and then do an <code>upsert</code> with a <code>$push</code> to either insert or update that user&#8217;s events for that day. Due to the fast performance of this scheme, we also no longer have to batch notification creation. As a sample benchmark, writing this type of notification to our <a href="https://artsy.net/artist/andy-warhol">Warhol</a> followers takes under 15 seconds.</p>
+
+<p>Ok, so we seem to have solved some of our issues: namely writing and archiving notifications is performant, and we understand the behavior of these collections as the number of users and content on the site grows. Now let&#8217;s look at how we can query against this scheme in an efficient manner, and also how we can mark events as &#8216;seen&#8217; to avoid emailing out duplicates.</p>
+
+<h3>Marking Notifications as Flushed and Retrieving Notifications</h3>
+
+<p>We decided to push a <code>flushed</code> event onto the user&#8217;s stack after we send out notifications, and analogously, when we are querying a user&#8217;s notifications, we want to throw away notifications that occur before a <code>flushed</code> event. Here&#8217;s that method, in our <code>NotificationService</code> module:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="c1"># Mark all events until this point &quot;seen.&quot; Pushes a {flushed: &lt;id&gt;}</span>
+</span><span class='line'><span class="c1"># hash on to events array.</span>
+</span><span class='line'><span class="k">def</span> <span class="nc">self</span><span class="o">.</span><span class="nf">flush!</span><span class="p">(</span><span class="n">user_id</span><span class="p">,</span> <span class="n">since</span> <span class="o">=</span> <span class="no">Date</span><span class="o">.</span><span class="n">today</span> <span class="o">-</span> <span class="mi">7</span><span class="o">.</span><span class="n">days</span><span class="p">)</span>
+</span><span class='line'>  <span class="n">flushed</span> <span class="o">=</span> <span class="p">{</span> <span class="s1">&#39;flushed&#39;</span> <span class="o">=&gt;</span> <span class="ss">Moped</span><span class="p">:</span><span class="ss">:BSON</span><span class="o">::</span><span class="no">ObjectId</span><span class="o">.</span><span class="n">new</span> <span class="p">}</span>
+</span><span class='line'>  <span class="n">collections_since</span><span class="p">(</span><span class="n">since</span><span class="p">)</span><span class="o">.</span><span class="n">each</span> <span class="k">do</span> <span class="o">|</span><span class="n">coll</span><span class="o">|</span>
+</span><span class='line'>    <span class="n">coll</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="ss">_id</span><span class="p">:</span> <span class="n">user_id</span><span class="p">)</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="s1">&#39;$push&#39;</span> <span class="o">=&gt;</span> <span class="p">{</span> <span class="ss">events</span><span class="p">:</span> <span class="n">flushed</span> <span class="p">})</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>  <span class="n">flushed</span>  <span class="c1"># return &quot;id&quot; of flushed marker, in case useful later</span>
+</span><span class='line'><span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'><span class="kp">private</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">def</span> <span class="nc">self</span><span class="o">.</span><span class="nf">collections_since</span><span class="p">(</span><span class="n">date</span><span class="p">)</span>
+</span><span class='line'>  <span class="p">(</span><span class="n">date</span><span class="o">.</span><span class="n">.</span><span class="no">Date</span><span class="o">.</span><span class="n">today</span><span class="p">)</span><span class="o">.</span><span class="n">map</span> <span class="p">{</span> <span class="o">|</span><span class="n">d</span><span class="o">|</span> <span class="n">collection</span><span class="p">(</span><span class="n">d</span><span class="p">)</span> <span class="p">}</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Pretty simple. We push the appropriate event onto every collection that was under consideration via the <code>collections_since</code> helper. When we send out a personalized email we accumulate the last 7 day&#8217;s worth of activity for you, and so after we generate/send a mail for a user, we can simply say <code>NotificationService.flush!(user)</code>. Here&#8217;s how that day&#8217;s notifications for me looks after the <code>flushed</code> event:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='json'><span class='line'>  <span class="p">{</span><span class="nt">&quot;_id&quot;</span><span class="err">=&gt;</span><span class="s2">&quot;5106b619f56337db300001f8&quot;</span><span class="p">,</span>
+</span><span class='line'>   <span class="nt">&quot;events&quot;</span><span class="err">=&gt;</span><span class="p">[{</span><span class="nt">&quot;t&quot;</span><span class="err">=&gt;</span><span class="s2">&quot;NearbyShow&quot;</span><span class="p">,</span> <span class="nt">&quot;o&quot;</span><span class="err">=&gt;</span><span class="s2">&quot;5338504e139b21f2a9000362&quot;</span><span class="p">},</span>
+</span><span class='line'>              <span class="p">{</span><span class="nt">&quot;t&quot;</span><span class="err">=&gt;</span><span class="s2">&quot;FollowedArtistShow&quot;</span><span class="p">,</span> <span class="nt">&quot;o&quot;</span><span class="err">=&gt;</span><span class="s2">&quot;533ddba3a09a6764f60006b6&quot;</span><span class="p">},</span> <span class="p">{</span><span class="nt">&quot;t&quot;</span><span class="err">=&gt;</span><span class="s2">&quot;NearbyShow&quot;</span><span class="p">,</span> <span class="nt">&quot;o&quot;</span><span class="err">=&gt;</span><span class="s2">&quot;533ddba3a09a6764f60006b6&quot;</span><span class="p">},</span>
+</span><span class='line'>              <span class="p">{</span><span class="nt">&quot;flushed&quot;</span><span class="err">=&gt;</span><span class="s2">&quot;5352b346b504f5f3690002fe&quot;</span><span class="p">}]</span>
+</span><span class='line'>  <span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>For the last piece of the puzzle, let&#8217;s look at how we query against this scheme and compile together all notifications that are applicable for a given user:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">module</span> <span class="nn">NotificationService</span>
+</span><span class='line'>  <span class="no">NOTIFICATION_TYPES</span> <span class="o">=</span> <span class="p">{</span>
+</span><span class='line'>    <span class="s1">&#39;FollowedArtistShow&#39;</span> <span class="o">=&gt;</span> <span class="no">PartnerShow</span><span class="p">,</span>
+</span><span class='line'>    <span class="s1">&#39;FollowedPartnerShow&#39;</span> <span class="o">=&gt;</span> <span class="no">PartnerShow</span><span class="p">,</span>
+</span><span class='line'>    <span class="s1">&#39;NearbyShow&#39;</span> <span class="o">=&gt;</span> <span class="no">PartnerShow</span><span class="p">,</span>
+</span><span class='line'>    <span class="s1">&#39;ArtworkPublished&#39;</span> <span class="o">=&gt;</span> <span class="no">Artwork</span><span class="p">,</span>
+</span><span class='line'>    <span class="s1">&#39;ArtworkSuggested&#39;</span> <span class="o">=&gt;</span> <span class="no">Artwork</span>
+</span><span class='line'>  <span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">class</span> <span class="nc">Notification</span> <span class="o">&lt;</span> <span class="no">Struct</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="ss">:type</span><span class="p">,</span> <span class="ss">:object_id</span><span class="p">)</span>
+</span><span class='line'>    <span class="k">def</span> <span class="nf">object</span>
+</span><span class='line'>      <span class="vi">@object</span> <span class="o">||=</span> <span class="no">NOTIFICATION_TYPES</span><span class="o">[</span><span class="n">type</span><span class="o">].</span><span class="n">find</span><span class="p">(</span><span class="nb">object_id</span><span class="p">)</span>
+</span><span class='line'>    <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="k">def</span> <span class="nf">applicable?</span>
+</span><span class='line'>      <span class="n">object</span><span class="o">.</span><span class="n">try</span><span class="p">(</span><span class="ss">:notifiable?</span><span class="p">)</span> <span class="o">||</span> <span class="kp">false</span>
+</span><span class='line'>    <span class="k">end</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1"># Return applicable notifications for user since given date.</span>
+</span><span class='line'><span class="k">def</span> <span class="nc">self</span><span class="o">.</span><span class="nf">get</span><span class="p">(</span><span class="n">user_id</span><span class="p">,</span> <span class="n">since</span> <span class="o">=</span> <span class="no">Date</span><span class="o">.</span><span class="n">today</span> <span class="o">-</span> <span class="mi">7</span><span class="o">.</span><span class="n">days</span><span class="p">)</span>
+</span><span class='line'>  <span class="n">collections_since</span><span class="p">(</span><span class="n">since</span><span class="p">)</span>
+</span><span class='line'>    <span class="o">.</span><span class="n">map</span> <span class="p">{</span> <span class="o">|</span><span class="n">coll</span><span class="o">|</span> <span class="n">coll</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="ss">_id</span><span class="p">:</span> <span class="n">user_id</span><span class="p">)</span><span class="o">.</span><span class="n">one</span> <span class="p">}</span><span class="o">.</span><span class="n">compact</span>
+</span><span class='line'>    <span class="o">.</span><span class="n">flat_map</span> <span class="p">{</span> <span class="o">|</span><span class="n">doc</span><span class="o">|</span> <span class="n">doc</span><span class="o">[</span><span class="s1">&#39;events&#39;</span><span class="o">].</span><span class="n">slice_before</span> <span class="p">{</span> <span class="o">|</span><span class="n">ev</span><span class="o">|</span> <span class="n">ev</span><span class="o">[</span><span class="s1">&#39;flushed&#39;</span><span class="o">]</span> <span class="p">}</span><span class="o">.</span><span class="n">to_a</span><span class="o">.</span><span class="n">last</span> <span class="p">}</span>
+</span><span class='line'>    <span class="o">.</span><span class="n">reject</span> <span class="p">{</span> <span class="o">|</span><span class="n">ev</span><span class="o">|</span> <span class="n">ev</span><span class="o">[</span><span class="s1">&#39;flushed&#39;</span><span class="o">]</span> <span class="p">}</span><span class="o">.</span><span class="n">uniq</span>
+</span><span class='line'>    <span class="o">.</span><span class="n">map</span> <span class="p">{</span> <span class="o">|</span><span class="n">ev</span><span class="o">|</span> <span class="no">Notification</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="n">ev</span><span class="o">[</span><span class="s1">&#39;t&#39;</span><span class="o">]</span><span class="p">,</span> <span class="n">ev</span><span class="o">[</span><span class="s1">&#39;o&#39;</span><span class="o">]</span><span class="p">)</span> <span class="p">}</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="o">&amp;</span><span class="ss">:applicable?</span><span class="p">)</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>We introduce a lite-weight <code>Notification</code> class that will load the object, as well as perform an additional check. We use the previously introduced <code>collections_since</code> helper to retrieve all the notification collections under consideration. We query each and build up an array of all events from a user&#8217;s stack. We remove events that occurred prior to a <code>flushed</code> event in a given collection and the <code>flushed</code> events themselves. Then we actually load all the objects and return the ones that are still <code>applicable?</code>. That final <code>applicable?</code> check is to allow us to filter out content at run-time that is no longer valid. For example, if an artwork is published and the correct event is written out to users, but before the user can be notified the artwork is unpublished, this can serve as a run-time check to not include that work. <code>def notifiable?</code> can thus be implemented in the <code>Artwork</code> model like so:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">def</span> <span class="nf">notifiable?</span>
+</span><span class='line'>  <span class="n">published?</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>And&#8230;that&#8217;s basically it! Throughout the week as partners are uploading their shows/fair booths/artworks, these records are being opportunistically written to that day&#8217;s notification collection, in a performant and scalable fashion. Then when we want to send you a personalized email, we pull all your appropriate notifications via the <code>get</code> routine in our <code>NotificationService</code>, and primarily using the technique described in <a href="http://artsy.github.io/blog/2014/03/18/presenters-and-memoization-moving-logic-out-of-templates/">Presenters and Memoization</a> we make sure we cache/memoize all such data. Using the tips in <a href="http://artsy.github.io/blog/2014/03/17/ruby-helper-to-group-artworks-into-a-pinterest-style-layout-for-email/">Pinterest-style Layouts</a> and <a href="http://artsy.github.io/blog/2014/03/17/some-tips-for-email-layout-and-responsiveness/">Email Layouts and Responsiveness</a> we can render this content and support various devices/email clients. We parallelize and batch the generation/sending of our e-mails as well. This whole system, from notification generation to actually emailing users, is running successfully and smoothly in production.</p>
+
+<h3>Next Steps</h3>
+
+<p>I think this type of infrastructure can easily be adapted to serve as a feed on a front-end or other client app. An API to serve up these notifications (AKA feed items) can be built and different feed items can then be rendered or aggregated at load-time. Simple client-side polling can even be set up to alert a user if something has happened that interests them <em>while</em> they&#8217;re browsing! I think push notifications and other messaging can be handled by this system as well.</p>
+
+<p>I&#8217;d love to hear any feedback and thoughts, and hopefully you&#8217;ve found this post informative and interesting. Please leave any feedback in the comments and <a href="https://github.com/artsy">follow us on Github</a>!</p>
+</div>
+
+
+  <footer>
+    <div class="meta">
+      
+  
+
+
+
+  <span class="byline author vcard">
+    Posted by 
+    <span class="fn">
+      Matt Zikherman
+    </span>
+    
+    
+    
+    
+      (
+      
+      
+      <span class="fn">
+        <a href="https://github.com/mzikherman">github</a>
+      </span>
+      
+      
+      <span class="fn">
+        <a href="http://twitter.com/mzikherman">twitter</a>
+      </span>
+      
+      )
+    
+    
+  </span>
+
+
+    </div>
+    <div class="meta">
+      Categories: 
+
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/css/'>CSS</a>, <a class='category' href='/blog/categories/email/'>Email</a>, <a class='category' href='/blog/categories/html/'>HTML</a>, <a class='category' href='/blog/categories/ruby/'>Ruby</a>
+  
+</span>
+
+
+    </div>
+
+    
+      <div class="sharing">
+  
+  <a href="http://twitter.com/share" class="twitter-share-button" data-url="http://artsy.github.io/blog/2014/04/24/generating-notifications-and-personalized-emails-efficiently/" data-via="artsy" data-counturl="http://artsy.github.io/blog/2014/04/24/generating-notifications-and-personalized-emails-efficiently/" >Tweet</a>
+  
+  
+  
+</div>
+
+    
+    <p class="meta">
+      
+        <a class="basic-alignment left" href="/blog/2014/04/17/building-an-english-auction-with-mongodb/" title="Previous Post: Building an English Auction with MongoDB">&laquo; Building an English Auction with MongoDB</a>
+      
+      
+    </p>
+  </footer>
+</article>
+
+  <section>
+    <h1>Comments</h1>
+    <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</div>
+  </section>
+
+</div>
+    </div>
+    <div id="sidebar">
+      
+  
+    <section>
+  <h1>Info</h1>
+  <ul>
+    <li> <a href="/about">About Us</a></li>
+    <li> <a href="/open-source">Artsy Open-Source</a></li>
+    <li> <a href="http://artsy.net/job/developer">Join the Artsy Engineering Team</a></li>
+  </ul>
+</section>
+<section id="recent_posts_section">
+  <h1>Recent Posts</h1>
+  <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/2014/04/24/generating-notifications-and-personalized-emails-efficiently/">Generating Notifications and Personalized Emails Efficiently</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2014/04/17/building-an-english-auction-with-mongodb/">Building an English Auction with MongoDB</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2014/04/02/refactoring-infrastructure/">Refactoring Infrastructure</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2014/03/18/presenters-and-memoization-moving-logic-out-of-templates/">Presenters and Memoization: Moving Logic out of Templates</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2014/03/17/ruby-helper-to-group-artworks-into-a-pinterest-style-layout-for-email/">Ruby Helper to Group Artworks into a Pinterest-style Layout for Email</a>
+      </li>
+    
+  </ul>
+  <a class="archive_link" href="/blog/archives">Blog Archive</a>
+</section>
+<section>
+  <h1>Search</h1>
+  <form action="http://google.com/search" method="get">
+    <input type="hidden" name="q" value="site:artsy.github.io" />
+    <input class="search" type="text" name="q" results="0" />
+  </form>
+</section>
+  
+
+
+    </div>
+  </div>
+  <footer id="main_footer"><p>
+  Copyright &copy; 2014 - Artsy -
+  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+  
+
+<script type="text/javascript">
+      var disqus_shortname = 'artsy';
+      
+        
+        // var disqus_developer = 1;
+        var disqus_identifier = 'http://artsy.github.io/blog/2014/04/24/generating-notifications-and-personalized-emails-efficiently/';
+        var disqus_url = 'http://artsy.github.io/blog/2014/04/24/generating-notifications-and-personalized-emails-efficiently/';
+        var disqus_script = 'embed.js';
+      
+    (function () {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = 'http://' + disqus_shortname + '.disqus.com/' + disqus_script;
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    }());
+</script>
+
+
+
+
+
+
+
+  <script type="text/javascript">
+    (function(){
+      var twitterWidgets = document.createElement('script');
+      twitterWidgets.type = 'text/javascript';
+      twitterWidgets.async = true;
+      twitterWidgets.src = 'http://platform.twitter.com/widgets.js';
+      document.getElementsByTagName('head')[0].appendChild(twitterWidgets);
+    })();
+  </script>
+
+
+
+
+
+</body>
+</html>
