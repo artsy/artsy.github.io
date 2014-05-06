@@ -174,10 +174,10 @@ invoked and with what properties they are sent with. Let's take a look.
                             @"button_title" : buttonTitle ?: @"",
                         };
                     },
-                    ARAnalyticsShouldFire: ^BOOL(MyViewController *controller, NSArray *parameters) {
-                        return /* selective disable firing of analytics */;
-                    }
-                }
+					ARAnalyticsShouldFire: ^BOOL(MyViewController *controller, NSArray *parameters) {
+						return /* selective disable firing of analytics */;
+					}
+				}
 			]
 		}
 	]
