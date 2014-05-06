@@ -190,6 +190,34 @@ So you see that even though you're defining your analytics once, at application
 startup, you're still able to provide dynamic, per-instance behaviour and event
 properties. 
 
+Finally, we've also written support for page views. In a few lines, you can
+have every view controller track its page view with ARAnalytics. 
+
+``` objc
+[ARAnalytics setupWithAnalytics:@{
+	/* keys */
+} configuration:
+@{
+	ARAnalyticsTrackedScreens: @[
+		@{
+			ARAnalyticsClass: MyViewController.class,
+			ARAnalyticsDetails: @[ // default selector on iOS is viewDidAppear:
+				@{
+					ARAnalyticsPageNameKeyPath: @"title"
+				}
+			]
+		}
+	]
+}];
+
+@end
+
+```
+
+This code will track a page view with the title the same as the view 
+controller's `title` property, but just like with events you can provide 
+fine-grained handling. 
+
 ## What we Learnt
 
 AOP is a really cool paradigm that can reduce tight coupling in your code and
