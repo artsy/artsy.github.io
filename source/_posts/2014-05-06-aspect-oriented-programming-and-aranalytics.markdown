@@ -10,7 +10,7 @@ twitter-url: http://twitter.com/ashfurrow
 blog-url: http://ashfurrow.com/
 ---
 
-Analytics are a common in iOS applications. They help inform our decisions 
+Analytics are common in iOS applications. They help inform our decisions 
 about products. Since analytics are so common, Artsy developed a library called
 [ARAnalytics](https://github.com/orta/ARAnalytics). This library provides a 
 single interface to many different backend analytics providers, freeing 
@@ -50,29 +50,29 @@ where talking and the topic of [Aspect-Oriented Programming](http://en.wikipedia
 specifically in the context of analytics. AOP takes a look at the different 
 *conerns* of an application – logical, cohesive units of functionality. While 
 most programming paradigms, including those used with Objective-C, group and
-encapsulate these concerns, there are some concerns that are "cross-cutting", 
+encapsulate these concerns, there are some concerns that are "cross-cutting" 
 because they are involved through several other concerns. 
 
 Analytics is such a cross-cutting concern. That makes it a prime target for 
 being abstracted away using AOP. Using [another blog post](http://albertodebortoli.github.io/blog/2014/03/25/an-aspect-oriented-approach-programming-to-ios-analytics/)  as an example, we set about [integrating an AOP-like DSL within ARAnalytics](https://github.com/orta/ARAnalytics/pull/74) 
 that would allow you to define all of your analytics in one spot. 
 
-The interface would be simple. When providing your API keys to the vairous
+The interface would be simple. When providing your API keys to the various
 backend services you'd like to use with ARAnalytics, you'd also provide a
-dictionary specifying the calsses you'd like us to "hook into". Whenever a 
+dictionary specifying the classes you'd like us to "hook into". Whenever a 
 selector from an instance of the given class was invoked, we'd execute the 
 analytics event specified in the dictionary. 
 
 Since Objective-C has a dynamic runtime, we could have swizzled the instance 
 methods on the classes you specified in the dictionary. This gets a little 
-tricky and represents a lot of work for us. We could swizzle the instance
-methods on the classes in question, but wrapping parameters of variable types
-and in various numbers becomes a chore. If we didn't get it done perfectly, 
-we'd risk introducing bugs into the entire application. 
+tricky and represents a lot of work for us. We could directly swizzle the 
+instance methods on the classes in question, but wrapping parameters of variable 
+types and in various numbers becomes a chore. If we didn't get it done 
+perfectly, we'd risk introducing bugs into the entire application. 
 
-I wrote a proof-of-concept using [ReactiveCocoa](http://reactivecocoa.io). It
-worked, but was a little hacky since it involved the swizzling of `alloc`. 
-ReactiveCocoa is a large framework to be included just for the sake of 
+I wrote a proof-of-concept of analytics using AOP with [ReactiveCocoa](http://reactivecocoa.io). 
+It worked, but was a little hacky since it involved the swizzling of `alloc`. 
+ReactiveCocoa is also a large framework to be included just for the sake of 
 analytics. Additionally, its interface exposed ReactiveCocoa's `RACTuple` class, 
 which smells like a leaky abstraction. 
 
@@ -94,7 +94,8 @@ or `ARAnalytics/DSL` to your podfile, specifying a version of at least 2.6. Run
 
 Since all of your analytics are going to be specified in one spot, and that spot
 is going to get rather large, I'd recommend creating an Objective-C category on
-your app delegate to set up all of your analytics. 
+your app delegate to set up all of your analytics. Then you can call this 
+`setupAnalytics` method when your app launches. 
 
 ``` objc
 
@@ -200,7 +201,7 @@ have every view controller track its page view with ARAnalytics.
 @{
 	ARAnalyticsTrackedScreens: @[
 		@{
-			ARAnalyticsClass: MyViewController.class,
+			ARAnalyticsClass: UIViewController.class,
 			ARAnalyticsDetails: @[ // default selector on iOS is viewDidAppear:
 				@{
 					ARAnalyticsPageNameKeyPath: @"title"
@@ -226,7 +227,7 @@ analytics – any time you have a behaviour that's being exhibited in several
 abstractions in your code, you should consider if using AOP to replace that
 behaviour might make for cleaner code and more cohesive abstractions. 
 
-Additionally, I got to make my first significant contribution to open source at
+Finally, I got to make my first significant contribution to open source at
 Artsy. It was awesome to be able to collaborate with Pete and Orta on this 
 project, as well as receive feedback from developers who are already using 
 ARAnalytics. 
