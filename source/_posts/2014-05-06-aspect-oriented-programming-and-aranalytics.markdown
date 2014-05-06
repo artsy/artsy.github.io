@@ -41,12 +41,12 @@ our definition of a view controller – the button handler just happens to be a
 convenient place to put the tracking code. Also consider that *every single* 
 button handler is going to have to have similar code implemented. 
 
-<!-- more -->
-
 ## There has to be a better way. 
 
+<!-- more -->
+
 [Pete Steinberger](http://twitter.com/steipete) and [Orta Therox](http://twitter.com/orta)
-where talking and the topic of [Aspect-Oriented Programming](http://en.wikipedia.org/wiki/Aspect-oriented_programming),
+were talking and the topic of [Aspect-Oriented Programming](http://en.wikipedia.org/wiki/Aspect-oriented_programming),
 specifically in the context of analytics. AOP takes a look at the different 
 *conerns* of an application – logical, cohesive units of functionality. While 
 most programming paradigms, including those used with Objective-C, group and
@@ -177,7 +177,7 @@ invoked and with what properties they are sent with. Let's take a look.
                     ARAnalyticsShouldFire: ^BOOL(MyViewController *controller, NSArray *parameters) {
                         return /* selective disable firing of analytics */;
                     }
-				}
+                }
 			]
 		}
 	]
