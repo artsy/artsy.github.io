@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "Testing Multiple Applications"
+title: "Continuous integration for service-oriented architectures"
 date: 2014-05-12 10:50
 comments: true
 categories: [Testing, Rspec, Continuous Integration, SOA]
@@ -275,15 +275,12 @@ Lo and behold, our entire "suite" now passes:
 2 examples, 0 failures
 ```
 
-That's it. This structure has accommodated dozens of test scenarios. We've organized helpers into modules under `spec/support`, and added database- and cache-clearing between tests. The suite is built nightly against the latest versions of our codebases, and has caught a few significant bugs.
+This basic structure has accommodated dozens of test scenarios. We've extended it with database- and cache-clearing between tests, and organized helpers into modules under `spec/support`. The suite is built nightly against the latest versions of our codebases, and has caught a few significant bugs.
 
-A caveat
----
-
-With so many layers and dependencies involved, there are often spurious failures. Some of the things that help include:
+A caveat: with so many layers and dependencies involved, there are often spurious failures. We've picked up a few practices that help:
 
 * [Automatic retries](http://artsy.github.io/blog/2012/05/15/how-to-organize-over-3000-rspec-specs-and-retry-test-failures/)
 * [Quarantine for problematic tests](http://artsy.github.io/blog/2014/01/30/isolating-spurious-and-nondeterministic-tests/)
 * [Failure screenshots](https://github.com/mattheworiordan/capybara-screenshot)
 
-If this still interests you, you can [grab the example code](https://github.com/joeyAghion/multiapp_example-tests).
+You can [grab the example code](https://github.com/joeyAghion/multiapp_example-tests). And make sure to let us know in the comments how _you_ approach testing across applications.
