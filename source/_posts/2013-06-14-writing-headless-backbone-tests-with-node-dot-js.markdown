@@ -3,7 +3,7 @@ layout: post
 title: "Writing Headless Backbone Tests With Node.js"
 date: 2013-06-14 17:48
 comments: true
-categories: [Javascript, Backbone.js, Node.js]
+categories: [Javascript, Backbone.js, Node.js, testing]
 ---
 
 ## TL;DR

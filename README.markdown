@@ -1,4 +1,4 @@
-The dev blog is at [http://artsy.github.com](artsy.github.com) and is powered by [Octopress](http://octopress.org/).
+The dev blog is at [http://artsy.github.com](http://artsy.github.com) and is powered by [Octopress](http://octopress.org/).
 
 Setup
 -----
