@@ -1,8 +1,9 @@
 ---
-layout: post
+layout: full_width_post
 title: "Testing Core Data Migrations"
 date: 2014-06-11 10:50
-comments: true
+comments: false
+sharing: false
 categories: [Testing, Objc, Cocoa]
 author: Orta
 github-url: https://github.com/orta
