@@ -11,7 +11,7 @@ twitter-url: http://twitter.com/orta
 blog-url: http://orta.github.io
 ---
 
-I'm the kind of guy who thinks better tooling means better outcomes. Whilst I don't believe in going out and buying the best until you're sure you'll be using it, if the best isn't available I guess it becomes time to build it yourself. It's this attitude that lead to my work on [CocoaDocs.org](http://cocoadocs.org), and then to [CocoaPods.org](http://cocoapods.org) & its documentation.
+I'm the kind of guy who thinks better tooling means better outcomes. But when good tooling isn't available, it's time to build it yourself. It's this attitude that lead to my work on [CocoaDocs.org](http://cocoadocs.org), and then to [CocoaPods.org](http://cocoapods.org) & its documentation.
 
 We've been trying to apply this to testing, and in order to pull this off I've had to extend Xcode to show off the results of failing tests in a more visual way. I built [Snapshots for Xcode](https://github.com/orta/snapshots).  Let's go through the process of building an Xcode plugin so you can do this too. Screw stability.
 
