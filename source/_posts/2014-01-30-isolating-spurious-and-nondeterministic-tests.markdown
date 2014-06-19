@@ -8,6 +8,7 @@ author: Joey Aghion
 github-url: https://github.com/joeyAghion
 twitter-url: http://twitter.com/joeyAghion
 blog-url: http://joey.aghion.com
+google-url: https://plus.google.com/+JoeyAghion
 ---
 
 Testing is a critical part of our workflow at [Artsy](https://artsy.net). It gives us confidence to make regular, aggressive enhancements. But anyone who has worked with a large, complex test suite has struggled with occasional failures that are difficult to reproduce or fix.
