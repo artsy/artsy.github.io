@@ -8,6 +8,7 @@ author: Joey Aghion
 github-url: https://github.com/joeyAghion
 twitter-url: http://twitter.com/joeyAghion
 blog-url: http://joey.aghion.com
+google-url: https://plus.google.com/+JoeyAghion
 ---
 
 Whatever you have against monolithic architectures, at least they're easy to test. And when those tests succeed, you can be reasonably confident the live app will work the same way.
