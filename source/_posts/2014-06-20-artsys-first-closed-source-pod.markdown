@@ -11,7 +11,7 @@ twitter-url: http://twitter.com/orta
 blog-url: http://orta.github.io
 ---
 
-When I joined Artsy, [dB](http://code.dblock.org) told me this: _Open source as default._
+When I joined Artsy, [dB](http://code.dblock.org) pitched me this idea: _Open source as default._
 
 I took this to heart. I genuinely believe the idea behind the philosophy. It's cool that our real product isn't our implementations on the web or native but the data which powers it - [the Art Genome Project](https://artsy.net/theartgenomeproject). Similarly, I spend a bunch of time [on](https://github.com/AshFurrow/ARCollectionViewMasonryLayout) [open](https://github.com/dblock/ARASCIISwizzle) [sourcing](https://github.com/dblock/ios-snapshot-test-case-expecta) [solid](https://github.com/dblock/ARTiledImageView) [abstractions](https://github.com/dstnbrkr/DRBOperationTree) [from](https://github.com/orta/ORSimulatorKeyboardAccessor) [our](https://github.com/orta/ORStackView) [apps](https://github.com/orta/ARAnalytics), always taking the opinion if something is used in more than one place, it should be open sourced.
 
