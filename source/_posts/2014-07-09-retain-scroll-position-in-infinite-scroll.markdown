@@ -6,28 +6,14 @@ comments: true
 categories: 
 ---
 
-<!---
-References:
-https://news.ycombinator.com/item?id=7314965
-http://www.slideshare.net/danmckinley/design-for-continuous-experimentation
-http://blog.codinghorror.com/the-end-of-pagination/
-http://eviltrout.com/2013/02/16/infinite-scrolling-that-works.html
-
-XKCD image
-
-Contentious problem that has caused people to abandon infinite scroll
-
-Introduce scroll-frame
-
-GIF in action
-
-We use it in all of our filtering UIs
-
-Main use case of click item to detail page > click back button confused users.
-
-Looking toward sites like pinterest a clever little solution became clear: What if the next page opened up in a modal.
--->
-
 ![XKCD Infinite Scroll Comic](https://camo.githubusercontent.com/4b7e6aefa00b96ba2804b235aaaa811bbb893c4e/687474703a2f2f7777772e6578706c61696e786b63642e636f6d2f77696b692f696d616765732f352f35362f696e66696e6974655f7363726f6c6c696e672e706e67)
 
-Infinite scroll can be a contentious topic. Just look at [this hacker news thread](https://news.ycombinator.com/item?id=7314965) full of comments lamenting the usability of infinite scroll. At Artsy we've found it to be a useful interface in many portions of our site such as our filtering UIs.
+Although [some find infinite scroll to be a contentious topic]([these hacker news commecnts](https://news.ycombinator.com/item?id=7314965) at Artsy we've found it to be a useful element in many portions of our site such as [filtering](https://artsy.net/browse/artworks?medium=prints&price_range=-1%3A1000). However, we've run into a common and painful usability issue with infinite scroll. That is clicking on an item redirects to the next page, losing your scroll position, and losing your place when going back. To solve this we have come up with a clever little solution using an iframe.
+
+<!-- more -->
+
+We're pleased to announce we've open sourced this solution into [scrollFrame](https://github.com/artsy/scroll-frame).
+
+scrollFrame borrows from sites like Pinterest that avoid this problem by opening the next page in a modal. Only instead of having to build your entire page client-side, scrollFrame will intercept your click and open the next page in an iframe that sits on top of your current page and covers your viewport (acting as a sort of modal that doesn't look like a modal). scrollFrame will then hook into the [HTML5 history API](https://developer.mozilla.org/en-US/docs/Web/Guide/API/DOM/Manipulating_the_browser_history) to remove the iframe modal on back button and keep your URL up to date. [See it in action on our browse page!](https://artsy.net/browse)
+
+scrollFrame only solves this specific problem with infinite scroll but we've gotten a lot of millage out of it and we hope you will too!
