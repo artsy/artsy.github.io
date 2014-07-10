@@ -16,4 +16,4 @@ We're pleased to announce we've open sourced this solution into [scrollFrame](ht
 
 scrollFrame borrows from sites like Pinterest that avoid this problem by opening the next page in a modal. Only instead of having to build your entire page client-side, scrollFrame will intercept your click and open the next page in an iframe that sits on top of your current page and covers your viewport (acting as a sort of modal that doesn't look like a modal). scrollFrame will then hook into the [HTML5 history API](https://developer.mozilla.org/en-US/docs/Web/Guide/API/DOM/Manipulating_the_browser_history) to remove the iframe modal on back button and keep your URL up to date. [See it in action on our browse page!](https://artsy.net/browse)
 
-scrollFrame only solves this specific problem with infinite scroll but we've gotten a lot of millage out of it and we hope you will too!
+scrollFrame only solves this specific problem with infinite scroll but we've gotten a lot of mileage out of it and we hope you will too!
