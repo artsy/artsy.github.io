@@ -9,7 +9,7 @@ github-url: https://www.github.com/craigspaeth
 twitter-url: http://twitter.com/craigspaeth
 ---
 
-![XKCD Infinite Scroll Comic](https://camo.githubusercontent.com/4b7e6aefa00b96ba2804b235aaaa811bbb893c4e/687474703a2f2f7777772e6578706c61696e786b63642e636f6d2f77696b692f696d616765732f352f35362f696e66696e6974655f7363726f6c6c696e672e706e67)
+![Maybe we should give up on the whole idea of a 'back' button. 'Show me that thing I was looking at a moment ago' might just be too complicated an idea for the modern web.](https://camo.githubusercontent.com/4b7e6aefa00b96ba2804b235aaaa811bbb893c4e/687474703a2f2f7777772e6578706c61696e786b63642e636f6d2f77696b692f696d616765732f352f35362f696e66696e6974655f7363726f6c6c696e672e706e67)
 
 Although [some find infinite scroll to be a contentious topic](https://news.ycombinator.com/item?id=7314965) at Artsy we've found it to be a useful element in many portions of our site such as [filtering](https://artsy.net/browse/artworks?medium=prints&price_range=-1%3A1000). However, we've run into a common and painful usability issue with infinite scroll. That is clicking on an item redirects to the next page, losing your scroll position, and losing your place when going back. To solve this we have come up with a clever little solution using an iframe.
 
