@@ -3,7 +3,10 @@ layout: post
 title: "Retain scroll position in infinite scroll"
 date: 2014-07-09 17:29
 comments: true
-categories: 
+categories: [Infinite, Infinite Scroll, Iframe, Modal, Scroll Position, Retain Scroll Position]
+author: Craig Spaeth
+github-url: https://www.github.com/craigspaeth
+twitter-url: http://twitter.com/craigspaeth
 ---
 
 ![XKCD Infinite Scroll Comic](https://camo.githubusercontent.com/4b7e6aefa00b96ba2804b235aaaa811bbb893c4e/687474703a2f2f7777772e6578706c61696e786b63642e636f6d2f77696b692f696d616765732f352f35362f696e66696e6974655f7363726f6c6c696e672e706e67)
