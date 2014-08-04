@@ -4,7 +4,7 @@
   <title><![CDATA[Category: Continuous Integration | Artsy Engineering]]></title>
   <link href="http://artsy.github.io/blog/categories/continuous-integration/atom.xml" rel="self"/>
   <link href="http://artsy.github.io/"/>
-  <updated>2014-04-24T11:40:45-04:00</updated>
+  <updated>2014-08-04T12:18:09+02:00</updated>
   <id>http://artsy.github.io/</id>
   <author>
     <name><![CDATA[Artsy]]></name>
@@ -14,9 +14,375 @@
 
   
   <entry>
+    <title type="html"><![CDATA[Taking a Snapshot with Second Curtain]]></title>
+    <link href="http://artsy.github.io/blog/2014/08/05/taking-a-snapshot-with-second-curtain/"/>
+    <updated>2014-08-05T11:46:00+02:00</updated>
+    <id>http://artsy.github.io/blog/2014/08/05/taking-a-snapshot-with-second-curtain</id>
+    <content type="html"><![CDATA[<p>At Artsy, we try hard to <a href="https://speakerdeck.com/orta/getting-eigen-out?slide=35">test</a>
+our iOS applications to ensure that we avoid regressions and have a clearly
+defined spec of how our apps should look and behave. One of the core pieces of
+our testing setup is <a href="https://github.com/facebook/ios-snapshot-test-case">FBSnapshotTestCase</a>,
+a library written by Facebook to compare views at runtime with images of those
+views that are known to be correct. If the images differ, the test fails. We
+also use <a href="https://travis-ci.org">Travis</a> for continuous integration.</p>
+
+<p>Lately, we've been noticing a friction between the developers on the iOS team
+and the tools we're using to test our apps: while Travis allows us to easily
+access the logs of test runs, it can only indicate that a snapshot test failed,
+not why it failed. That's because the images that are compared are locked on
+Travis' machine – we cannot access those images, so we can't see the
+differences. This is <em>really</em> promblematic when the tests pass locally but fail
+only on Travis.</p>
+
+<!-- more -->
+
+
+<p>A few weeks ago, <a href="http://twitter.com/orta">Orta</a> and I were discussing this
+problem and we came up with a potential solution. Since the images were stored
+on disk on Travis' machine, why not just upload them somewhere we <em>can</em> see
+them? Like an S3 bucket. We could even generate a basic HTML page showing you
+the different test failures.</p>
+
+<p>Time passed and, later on, I had tests passing locally but failing on Travis.
+I saw an opprtunity to build something new. I'm not a proficient Ruby developer,
+but I enjoy learning new things, so I decided to create a Ruby gem that could
+fit within our existing testing pipeline. A lot of the structure for the code
+came from an existing gem we already use with Travis, <a href="https://github.com/supermarin/xcpretty">xcpretty</a>.
+With an example of how gems that support iOS testing are written, I was on my
+way to creating my own.</p>
+
+<p>At first, things were very difficult. While I had contributed small patches to
+existing Ruby projects before, I had never created a brand new one from scratch.
+The existing <a href="http://guides.rubygems.org/make-your-own-gem/">guides</a> were very
+helpful, and I found help from the CocoaPods developers when I had questions
+about things like the arcane semantics of Ruby's <code>require</code> syntax.</p>
+
+<p>Eventually, I had a working proof-of-concept. Everything seemed ready to go, and
+I prepared to incorporate my new tool, which I called <a href="https://github.com/AshFurrow/second_curtain">Second Curtain</a>,
+into my pull request on the Artsy repo. But there was a problem.</p>
+
+<p>Second Curtain relies on environment variables to get access to the S3 bucket
+where it stores the images. I planned on using Travis' system to <a href="http://docs.travis-ci.com/user/encryption-keys/">encrypt</a>
+those credentials. It turns out, for very good reasons, encrypted environment
+variables are not available on pull requests created on forks of repositories.
+This is a problem because of the way that <a href="http://artsy.github.io/blog/2012/01/29/how-art-dot-sy-uses-github-to-build-art-dot-sy/">Artsy uses GitHub</a>.
+While it's not a problem for a closed-source repository to have (restrictive)
+access to an S3 bucket, it would be irresponsible to expose S3 credentials for
+an open-source project. I'm <a href="https://github.com/AshFurrow/second_curtain/issues/5">working</a>
+on a solution.</p>
+
+<p>In the end, I got Second Curtain to work with Artsy's iOS repository and I
+discovered the discrepency between the two images: due to a timezone difference
+between my computer and Travis', a date was being formatted differently. Not a
+difficult thing to fix, but not something I would have ever been able to
+discover had I not been able to see the images side-by-side.</p>
+
+<p>So after all that, one line of Objective-C was changed and the tests passed – my
+pull request was merged. I learnt a lot about how Ruby developers structure
+their code and what tools they use to write software. While I'm happy to return
+to iOS apps for a while, it was a great experience and I'm hoping to bring some
+of the ideas I discovered writing Ruby back to Objective-C.</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Continuous integration for service-oriented architectures]]></title>
+    <link href="http://artsy.github.io/blog/2014/05/12/continuous-integration-for-service-oriented-architectures/"/>
+    <updated>2014-05-12T10:50:00+02:00</updated>
+    <id>http://artsy.github.io/blog/2014/05/12/continuous-integration-for-service-oriented-architectures</id>
+    <content type="html"><![CDATA[<p>Whatever you have against monolithic architectures, at least they're easy to test. And when those tests succeed, you can be reasonably confident the live app will work the same way.</p>
+
+<p>Artsy began as one such monolithic app, but we've been refactoring into an ecosystem of related APIs and sites. Today, when you search for <a href="https://artsy.net/gene/cultural-commentary">"cultural commentary"</a> or visit <a href="https://artsy.net/artist/robert-longo">Robert Longo</a> on <a href="https://artsy.net">artsy.net</a>, the page is rendered by a web app, sources data from an API, retrieves recommendations from a separate service, tracks trends in another, and records analytics in yet another.</p>
+
+<p>This was a boost for developer productivity and scaling, but eviscerated the value of our tests. We repeatedly encountered bugs that were failings of <em>the interaction between codebases</em> rather than failings of individual ones. Test libraries and tools typically concern themselves with one isolated app. When you have services that consume services that consume services, those isolated tests (with their stubs of everything else) don't necessarily reflect production's reality.</p>
+
+<p>So how should we develop our small, focused apps (or <a href="http://en.wikipedia.org/wiki/Service-oriented_architecture">service-oriented architecture</a>, or <a href="http://martinfowler.com/articles/microservices.html">microservices</a>...) with confidence? We set out to build a dedicated acceptance test suite that would run tests across multiple services, configuring and integrating them in a way that closely matches the production environment.</p>
+
+<!-- more -->
+
+
+<h2>The code</h2>
+
+<p>We'll take the simplest example possible of 2 related applications: a trivial Ruby API serving a Node.js-based web app. (You can also go directly to <a href="https://github.com/joeyAghion/multiapp_example-tests">the source</a>.)</p>
+
+<p><a href="http://david.heinemeierhansson.com/2014/tdd-is-dead-long-live-testing.html">Recent</a> <a href="http://blog.8thlight.com/uncle-bob/2014/04/25/MonogamousTDD.html">debates</a> <a href="https://news.ycombinator.com/item?id=7659251">aside</a>, I like to start with a test:</p>
+
+<p>```ruby
+feature "home", js: true do</p>
+
+<p>  scenario "welcomes visitor" do
+    visit "/"
+    expect(page).to have_content("Browse products")
+  end
+end
+```</p>
+
+<p>We're using the popular [and familiar] <a href="https://github.com/jnicklas/capybara">Capybara</a> with <a href="https://relishapp.com/rspec">RSpec</a> and <a href="http://docs.seleniumhq.org/">Selenium</a>. Naturally, our test fails right away:</p>
+
+<p>```bash
+$ bundle exec rspec</p>
+
+<h1>...</h1>
+
+<pre><code> Failure/Error: visit "/"
+ Selenium::WebDriver::Error::UnknownError:
+   Target URL / is not well-formed.
+</code></pre>
+
+<pre><code>
+There are a few steps to getting our projects installed and running as part of the test suite. First, we'll add git submodules in the `/api` and `/web` subdirectories that [track the master branch](http://stackoverflow.com/questions/9189575/git-submodule-tracking-latest) of each project.
+
+```bash
+git submodule add -b master git@github.com:joeyAghion/multiapp_example-api.git api
+git submodule add -b master git@github.com:joeyAghion/multiapp_example-web.git web
+</code></pre>
+
+<p>Next, create Rake tasks to install prerequisites for each project.</p>
+
+<p>```ruby</p>
+
+<h1>Rakefile</h1>
+
+<p>require 'childprocess'
+require 'rspec/core/rake_task'</p>
+
+<p>RSpec::Core::RakeTask.new(:spec)</p>
+
+<p>task :ci => ['checkout', 'install', 'spec']</p>
+
+<p>task :checkout do
+  sh %{git submodule update --remote --init} do |ok, res|
+    raise "Submodule update failed with status #{res.exitstatus}" unless ok
+  end
+end</p>
+
+<p>task :install => ['api:install', 'web:install']</p>
+
+<p>namespace :api do
+  task :install do
+    Bundler.with_clean_env do
+      proc = ChildProcess.build('bundle', 'install')
+      proc.io.inherit!
+      proc.cwd = './api'
+      proc.start
+      proc.wait
+      raise "bundle install exited with status #{proc.exit_code}" unless proc.exit_code == 0
+    end
+  end
+end</p>
+
+<p>namespace :web do
+  task :install do
+    proc = ChildProcess.build('npm', 'install')
+    proc.io.inherit!
+    proc.cwd = './web'
+    proc.start
+    proc.wait
+    raise "npm install existed with status #{proc.exit_code}" unless proc.exit_code == 0
+  end
+end
+```</p>
+
+<p>The new <code>checkout</code> and <code>install</code> tasks make sure we have the latest code and all prerequisites installed. Note how we use <code>Bundler.with_clean_env</code> to isolate the API (which has its own Gemfile and bundler environment) from the test suite.</p>
+
+<p>Now that the API and web apps are set up, we'll use RSpec's <code>before(:suite)</code> and <code>after(:suite)</code> hooks to start and stop them around each test run.</p>
+
+<p>```ruby</p>
+
+<h1>spec/spec_helper.rb</h1>
+
+<p>require 'capybara/rspec'
+require 'childprocess'</p>
+
+<p>API_PORT = 7000
+WEB_PORT = 7001</p>
+
+<p>Capybara.configure do |config|
+  config.current_driver = :selenium
+  config.run_server = false
+  config.app_host = "http://localhost:#{WEB_PORT}"
+end</p>
+
+<p>RSpec.configure do |config|
+  # ...
+  config.before(:suite) do
+    start_api
+    start_web
+  end</p>
+
+<p>  config.after(:suite) do
+    stop_api
+    stop_web
+  end
+end</p>
+
+<p>def start_api
+  $stderr.puts "Starting API..."
+  Bundler.with_clean_env do
+    $api = ChildProcess.build('bundle', 'exec', 'ruby', 'app.rb')
+    $api.cwd = './api'
+    $api.io.inherit!
+    $api.environment['PORT'] = API_PORT
+    $api.start
+    $stderr.puts "Waiting for API to start listening..."
+    sleep(1) while !listening_on?(API_PORT) &amp;&amp; $api.alive?
+  end
+end</p>
+
+<p>def stop_api
+  $stderr.puts "Stopping API..."
+  $api.stop
+end</p>
+
+<p>def start_web
+  $stderr.puts "Starting web..."
+  $web = ChildProcess.build('node', 'app.js')
+  $web.cwd = './web'
+  $web.io.inherit!
+  $web.environment['API_URL'] = "http://localhost:#{API_PORT}"
+  $web.environment['PORT'] = WEB_PORT
+  $web.start
+  $stderr.puts "Waiting for web to start listening..."
+  sleep(1) while !listening_on?(WEB_PORT) &amp;&amp; $web.alive?
+end</p>
+
+<p>def stop_web
+  $stderr.puts "Stopping web..."
+  $web.stop
+end</p>
+
+<p>def listening_on?(port)
+  system("netstat -an | grep #{port} | grep LISTEN")
+end
+```</p>
+
+<p>Running <code>rake spec</code> now starts up and waits for both apps, runs our test, and...</p>
+
+<pre><code>Starting API...
+Waiting for API to start listening...
+# ...
+Starting web...
+Waiting for web to start listening...
+# ...
+home
+  welcomes visitor
+Stopping API...
+# ...
+Stopping web...
+
+Finished in 4.67 seconds
+1 example, 0 failures
+</code></pre>
+
+<p>Success!</p>
+
+<p>Well, sort of. Our test of the home page doesn't even depend on both systems. Let's try a more meaningful test, listing products from the API.</p>
+
+<p>```ruby
+feature "shop", js: true do</p>
+
+<p>  scenario "list widgets" do
+    visit "/"
+    click_link "Browse products"
+    expect(page).to have_content("Foo Widget")
+  end
+end
+```</p>
+
+<p>Will it work?</p>
+
+<p>```bash
+Failures:</p>
+
+<p>  1) shop list widgets
+     Failure/Error: expect(page).to have_content("Foo Widget")
+       expected to find text "Foo Widget" in ""
+     # ./spec/shop_spec.rb:8:in `block (2 levels) in <top (required)>'
+```</p>
+
+<p>The web app isn't authenticated to use the API! This brings up a more general question:</p>
+
+<h2>How to bootstrap test data</h2>
+
+<p>Most testing frameworks offer fixtures or direct access to the database. Because the API runs in a separate process, things are a little more difficult. We opt for 1 of 2 approaches, depending on the context:</p>
+
+<ul>
+<li><strong>Insert data directly into the API's database.</strong> We tend to do this only as a last resort, because tests would presume knowledge of the API's implementation.</li>
+<li><strong>Perform test set-up via the API.</strong> Slightly nicer, and closer to real-life clients. (However, the API must be fairly complete.)</li>
+</ul>
+
+
+<p>In practice, we "cheat" and use direct database-insertion to initially bootstrap an API client application, then perform further test set-up through the API. You should choose what's most convenient.</p>
+
+<p>Our simple example will register the web application as an API client, then pass a key via basic authentication. We'll have to modify the <code>start_web</code> helper:</p>
+
+<p>```ruby
+def start_web
+  $stderr.puts "Starting web..."
+  $web = ChildProcess.build('node', 'app.js')
+  $web.cwd = './web'
+  $web.io.inherit!
+  $api_base_url = "http://#{api_client['key']}:@localhost:#{API_PORT}"
+  $web.environment['API_URL'] = $api_base_url
+  $web.environment['PORT'] = WEB_PORT
+  $web.start
+  $stderr.puts "Waiting for web to start listening..."
+  sleep(1) while !listening_on?(WEB_PORT) &amp;&amp; $web.alive?
+end</p>
+
+<p>def api_client
+  $api_client ||= begin
+    response = Net::HTTP.post_form(URI("http://localhost:#{API_PORT}/api/clients"), {})
+    JSON.parse(response.body)
+  end
+end
+```</p>
+
+<p>And the test will need to set up the data it expects to find listed:</p>
+
+<p>```ruby
+feature "shop", js: true do</p>
+
+<p>  scenario "list widgets" do
+    create_widget(name: 'Foo Widget', price_cents: 100_00)
+    visit "/"
+    click_link "Browse products"
+    expect(page).to have_content("Foo Widget")
+  end
+end</p>
+
+<h1>spec/spec_helper.rb</h1>
+
+<p>def create_widget(params = {})
+  Net::HTTP.post_form(URI("#{$api_base_url}/api/widgets"), params)
+end
+```</p>
+
+<p>Lo and behold, our entire "suite" now passes:</p>
+
+<p><code>bash
+2 examples, 0 failures
+</code></p>
+
+<p>This basic structure has accommodated dozens of test scenarios. We've extended it with database- and cache-clearing between tests, and organized helpers into modules under <code>spec/support</code>. The suite is built nightly against the latest versions of our codebases, and has caught a few significant bugs.</p>
+
+<p>A caveat: with so many layers and dependencies involved, there are often spurious failures. We've picked up a few practices that help:</p>
+
+<ul>
+<li><a href="http://artsy.github.io/blog/2012/05/15/how-to-organize-over-3000-rspec-specs-and-retry-test-failures/">Automatic retries</a></li>
+<li><a href="http://artsy.github.io/blog/2014/01/30/isolating-spurious-and-nondeterministic-tests/">Quarantine for problematic tests</a></li>
+<li><a href="https://github.com/mattheworiordan/capybara-screenshot">Failure screenshots</a></li>
+</ul>
+
+
+<p>You can <a href="https://github.com/joeyAghion/multiapp_example-tests">grab the example code</a>. And make sure to let us know in the comments how <em>you</em> approach testing across applications.</p>
+]]></content>
+  </entry>
+  
+  <entry>
     <title type="html"><![CDATA[How to Run RSpec Test Suites in Parallel with JenkinsCI Build Flow]]></title>
     <link href="http://artsy.github.io/blog/2012/10/09/how-to-run-rspec-test-suites-in-parallel-with-jenkins-ci-build-flow/"/>
-    <updated>2012-10-09T21:21:00-04:00</updated>
+    <updated>2012-10-09T21:21:00+02:00</updated>
     <id>http://artsy.github.io/blog/2012/10/09/how-to-run-rspec-test-suites-in-parallel-with-jenkins-ci-build-flow</id>
     <content type="html"><![CDATA[<p>We now have over 4700 RSpec examples in one of our projects. They are stable, using the techniques described in an <a href="/blog/2012/02/03/reliably-testing-asynchronous-ui-w-slash-rspec-and-capybara/">earlier post</a> and organized in <a href="/blog/2012/05/15/how-to-organize-over-3000-rspec-specs-and-retry-test-failures/">suites</a>. But they now take almost 3 hours to run, which is clearly unacceptable.</p>
 
@@ -126,7 +492,7 @@ git push origin -f $GIT_BRANCH:${GIT_BRANCH/%-ci/}-succeeded
   <entry>
     <title type="html"><![CDATA[On-Demand Jenkins Slaves with Amazon EC2]]></title>
     <link href="http://artsy.github.io/blog/2012/07/10/on-demand-jenkins-slaves-with-amazon-ec2/"/>
-    <updated>2012-07-10T13:30:00-04:00</updated>
+    <updated>2012-07-10T13:30:00+02:00</updated>
     <id>http://artsy.github.io/blog/2012/07/10/on-demand-jenkins-slaves-with-amazon-ec2</id>
     <content type="html"><![CDATA[<p>The <a href="http://artsy.net">Artsy</a> team faithfully uses <a href="http://jenkins-ci.org">Jenkins</a> for continuous integration. <a href="http://artsy.github.com/blog/2012/05/27/using-jenkins-for-ruby-and-ruby-on-rails-teams/">As we've described before</a>, our Jenkins master and 8 slaves run on Linode. This arrangement has at least a few drawbacks:</p>
 
@@ -160,11 +526,11 @@ git push origin -f $GIT_BRANCH:${GIT_BRANCH/%-ci/}-succeeded
 
 <p>Next we installed the Amazon EC2 Plugin on our Jenkins master, and entered the following configuration arguments for the plugin. (Replace the AMI ID with your own, the result of Step 4 above.)</p>
 
-<p><img src="/images/2012-07-10-on-demand-jenkins-slaves-with-amazon-ec2/ec2-plugin-config.png" title="[Jenkins EC2 Plugin configuration]" ></p>
+<p>{% img /images/2012-07-10-on-demand-jenkins-slaves-with-amazon-ec2/ec2-plugin-config.png [Jenkins EC2 Plugin configuration] %}</p>
 
 <p>New build slaves began spawning immediately in response to job demand! Our new "Computers" page on Jenkins looks like this:</p>
 
-<p><img src="/images/2012-07-10-on-demand-jenkins-slaves-with-amazon-ec2/computer-list.png" title="[Jenkins computer list]" ></p>
+<p>{% img /images/2012-07-10-on-demand-jenkins-slaves-with-amazon-ec2/computer-list.png [Jenkins computer list] %}</p>
 
 <p>We have the option of provisioning a new build slave via a single click, but so far, this hasn't been necessary, since slaves have automatically scaled up and down with demand. We average around 4-8 build slaves during the day, and 0-1 overnight and on weekends.</p>
 

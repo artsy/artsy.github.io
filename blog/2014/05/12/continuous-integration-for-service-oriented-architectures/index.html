@@ -1,0 +1,738 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Continuous integration for service-oriented architectures - Artsy Engineering</title>
+  <meta name="author" content="Artsy">
+
+  
+  <meta name="description" content="Whatever you have against monolithic architectures, at least they&#8217;re easy to test. And when those tests succeed, you can be reasonably &hellip;">
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://artsy.github.io/blog/2014/05/12/continuous-integration-for-service-oriented-architectures">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <script src="/javascripts/modernizr-2.0.js"></script>
+  <script src="/javascripts/ender.js"></script>
+  <script src="/javascripts/octopress.js" type="text/javascript"></script>
+  <link href="/atom.xml" rel="alternate" title="Artsy Engineering" type="application/atom+xml">
+  <!--[if IE 8]>
+<link href="/stylesheets/custom/ie_font.css" type="text/css">
+<![endif]-->
+
+<link rel="author" href="https://plus.google.com/+JoeyAghion" />
+
+
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-12450662-3']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+
+<body>
+  
+  <a href="/">
+    <h1 id="lrg-mark">
+      <span>Artsy</span>
+    </h1>
+  </a>
+  
+  <header id="banner"><hgroup>
+  <div id="header">
+    <h2>Inspiration from the engineering team at <a href="http://artsy.net">Artsy</a> — A new way to discover fine art.</h2>
+  </div>
+</hgroup>
+
+</header>
+  
+  <div id="main">
+    <div id="mobile_search">
+      <form action="http://google.com/search" method="get">
+        <input type="hidden" name="q" value="site:artsy.github.io" />
+        <input class="search" type="text" name="q" results="0" placeholder="Search" />
+      </form>
+    </div>
+    <div id="content">
+      <div>
+<article class="hentry" role="article">
+  
+  <header>
+    
+    <a href="">
+      <div class="date">
+
+
+
+
+  
+<time datetime="2014-05-12T10:50:00+02:00" pubdate>05/12/14</time></div>
+    
+    
+      <h1 class="entry-title">Continuous Integration for Service-oriented Architectures</h1>
+    
+    </a>
+    
+      <p class="meta">
+        
+      </p>
+    
+  </header>
+
+
+<div class="entry-content"><p>Whatever you have against monolithic architectures, at least they&#8217;re easy to test. And when those tests succeed, you can be reasonably confident the live app will work the same way.</p>
+
+<p>Artsy began as one such monolithic app, but we&#8217;ve been refactoring into an ecosystem of related APIs and sites. Today, when you search for <a href="https://artsy.net/gene/cultural-commentary">&#8220;cultural commentary&#8221;</a> or visit <a href="https://artsy.net/artist/robert-longo">Robert Longo</a> on <a href="https://artsy.net">artsy.net</a>, the page is rendered by a web app, sources data from an API, retrieves recommendations from a separate service, tracks trends in another, and records analytics in yet another.</p>
+
+<p>This was a boost for developer productivity and scaling, but eviscerated the value of our tests. We repeatedly encountered bugs that were failings of <em>the interaction between codebases</em> rather than failings of individual ones. Test libraries and tools typically concern themselves with one isolated app. When you have services that consume services that consume services, those isolated tests (with their stubs of everything else) don&#8217;t necessarily reflect production&#8217;s reality.</p>
+
+<p>So how should we develop our small, focused apps (or <a href="http://en.wikipedia.org/wiki/Service-oriented_architecture">service-oriented architecture</a>, or <a href="http://martinfowler.com/articles/microservices.html">microservices</a>&#8230;) with confidence? We set out to build a dedicated acceptance test suite that would run tests across multiple services, configuring and integrating them in a way that closely matches the production environment.</p>
+
+<!-- more -->
+
+
+<h2>The code</h2>
+
+<p>We&#8217;ll take the simplest example possible of 2 related applications: a trivial Ruby API serving a Node.js-based web app. (You can also go directly to <a href="https://github.com/joeyAghion/multiapp_example-tests">the source</a>.)</p>
+
+<p><a href="http://david.heinemeierhansson.com/2014/tdd-is-dead-long-live-testing.html">Recent</a> <a href="http://blog.8thlight.com/uncle-bob/2014/04/25/MonogamousTDD.html">debates</a> <a href="https://news.ycombinator.com/item?id=7659251">aside</a>, I like to start with a test:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">feature</span> <span class="s2">&quot;home&quot;</span><span class="p">,</span> <span class="ss">js</span><span class="p">:</span> <span class="kp">true</span> <span class="k">do</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="n">scenario</span> <span class="s2">&quot;welcomes visitor&quot;</span> <span class="k">do</span>
+</span><span class='line'>    <span class="n">visit</span> <span class="s2">&quot;/&quot;</span>
+</span><span class='line'>    <span class="n">expect</span><span class="p">(</span><span class="n">page</span><span class="p">)</span><span class="o">.</span><span class="n">to</span> <span class="n">have_content</span><span class="p">(</span><span class="s2">&quot;Browse products&quot;</span><span class="p">)</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>We&#8217;re using the popular [and familiar] <a href="https://github.com/jnicklas/capybara">Capybara</a> with <a href="https://relishapp.com/rspec">RSpec</a> and <a href="http://docs.seleniumhq.org/">Selenium</a>. Naturally, our test fails right away:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nv">$ </span>bundle <span class="nb">exec </span>rspec
+</span><span class='line'><span class="c"># ...</span>
+</span><span class='line'>     Failure/Error: visit <span class="s2">&quot;/&quot;</span>
+</span><span class='line'>     Selenium::WebDriver::Error::UnknownError:
+</span><span class='line'>       Target URL / is not well-formed.
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>There are a few steps to getting our projects installed and running as part of the test suite. First, we&#8217;ll add git submodules in the <code>/api</code> and <code>/web</code> subdirectories that <a href="http://stackoverflow.com/questions/9189575/git-submodule-tracking-latest">track the master branch</a> of each project.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>git submodule add -b master git@github.com:joeyAghion/multiapp_example-api.git api
+</span><span class='line'>git submodule add -b master git@github.com:joeyAghion/multiapp_example-web.git web
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Next, create Rake tasks to install prerequisites for each project.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+<span class='line-number'>38</span>
+<span class='line-number'>39</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="c1"># Rakefile</span>
+</span><span class='line'><span class="nb">require</span> <span class="s1">&#39;childprocess&#39;</span>
+</span><span class='line'><span class="nb">require</span> <span class="s1">&#39;rspec/core/rake_task&#39;</span>
+</span><span class='line'>
+</span><span class='line'><span class="ss">RSpec</span><span class="p">:</span><span class="ss">:Core</span><span class="o">::</span><span class="no">RakeTask</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="ss">:spec</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">task</span> <span class="ss">:ci</span> <span class="o">=&gt;</span> <span class="o">[</span><span class="s1">&#39;checkout&#39;</span><span class="p">,</span> <span class="s1">&#39;install&#39;</span><span class="p">,</span> <span class="s1">&#39;spec&#39;</span><span class="o">]</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">task</span> <span class="ss">:checkout</span> <span class="k">do</span>
+</span><span class='line'>  <span class="n">sh</span> <span class="sx">%{git submodule update --remote --init}</span> <span class="k">do</span> <span class="o">|</span><span class="n">ok</span><span class="p">,</span> <span class="n">res</span><span class="o">|</span>
+</span><span class='line'>    <span class="k">raise</span> <span class="s2">&quot;Submodule update failed with status </span><span class="si">#{</span><span class="n">res</span><span class="o">.</span><span class="n">exitstatus</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">unless</span> <span class="n">ok</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">task</span> <span class="ss">:install</span> <span class="o">=&gt;</span> <span class="o">[</span><span class="s1">&#39;api:install&#39;</span><span class="p">,</span> <span class="s1">&#39;web:install&#39;</span><span class="o">]</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">namespace</span> <span class="ss">:api</span> <span class="k">do</span>
+</span><span class='line'>  <span class="n">task</span> <span class="ss">:install</span> <span class="k">do</span>
+</span><span class='line'>    <span class="no">Bundler</span><span class="o">.</span><span class="n">with_clean_env</span> <span class="k">do</span>
+</span><span class='line'>      <span class="nb">proc</span> <span class="o">=</span> <span class="no">ChildProcess</span><span class="o">.</span><span class="n">build</span><span class="p">(</span><span class="s1">&#39;bundle&#39;</span><span class="p">,</span> <span class="s1">&#39;install&#39;</span><span class="p">)</span>
+</span><span class='line'>      <span class="nb">proc</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">inherit!</span>
+</span><span class='line'>      <span class="nb">proc</span><span class="o">.</span><span class="n">cwd</span> <span class="o">=</span> <span class="s1">&#39;./api&#39;</span>
+</span><span class='line'>      <span class="nb">proc</span><span class="o">.</span><span class="n">start</span>
+</span><span class='line'>      <span class="nb">proc</span><span class="o">.</span><span class="n">wait</span>
+</span><span class='line'>      <span class="k">raise</span> <span class="s2">&quot;bundle install exited with status </span><span class="si">#{</span><span class="nb">proc</span><span class="o">.</span><span class="n">exit_code</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">unless</span> <span class="nb">proc</span><span class="o">.</span><span class="n">exit_code</span> <span class="o">==</span> <span class="mi">0</span>
+</span><span class='line'>    <span class="k">end</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">namespace</span> <span class="ss">:web</span> <span class="k">do</span>
+</span><span class='line'>  <span class="n">task</span> <span class="ss">:install</span> <span class="k">do</span>
+</span><span class='line'>    <span class="nb">proc</span> <span class="o">=</span> <span class="no">ChildProcess</span><span class="o">.</span><span class="n">build</span><span class="p">(</span><span class="s1">&#39;npm&#39;</span><span class="p">,</span> <span class="s1">&#39;install&#39;</span><span class="p">)</span>
+</span><span class='line'>    <span class="nb">proc</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">inherit!</span>
+</span><span class='line'>    <span class="nb">proc</span><span class="o">.</span><span class="n">cwd</span> <span class="o">=</span> <span class="s1">&#39;./web&#39;</span>
+</span><span class='line'>    <span class="nb">proc</span><span class="o">.</span><span class="n">start</span>
+</span><span class='line'>    <span class="nb">proc</span><span class="o">.</span><span class="n">wait</span>
+</span><span class='line'>    <span class="k">raise</span> <span class="s2">&quot;npm install existed with status </span><span class="si">#{</span><span class="nb">proc</span><span class="o">.</span><span class="n">exit_code</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">unless</span> <span class="nb">proc</span><span class="o">.</span><span class="n">exit_code</span> <span class="o">==</span> <span class="mi">0</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>The new <code>checkout</code> and <code>install</code> tasks make sure we have the latest code and all prerequisites installed. Note how we use <code>Bundler.with_clean_env</code> to isolate the API (which has its own Gemfile and bundler environment) from the test suite.</p>
+
+<p>Now that the API and web apps are set up, we&#8217;ll use RSpec&#8217;s <code>before(:suite)</code> and <code>after(:suite)</code> hooks to start and stop them around each test run.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+<span class='line-number'>38</span>
+<span class='line-number'>39</span>
+<span class='line-number'>40</span>
+<span class='line-number'>41</span>
+<span class='line-number'>42</span>
+<span class='line-number'>43</span>
+<span class='line-number'>44</span>
+<span class='line-number'>45</span>
+<span class='line-number'>46</span>
+<span class='line-number'>47</span>
+<span class='line-number'>48</span>
+<span class='line-number'>49</span>
+<span class='line-number'>50</span>
+<span class='line-number'>51</span>
+<span class='line-number'>52</span>
+<span class='line-number'>53</span>
+<span class='line-number'>54</span>
+<span class='line-number'>55</span>
+<span class='line-number'>56</span>
+<span class='line-number'>57</span>
+<span class='line-number'>58</span>
+<span class='line-number'>59</span>
+<span class='line-number'>60</span>
+<span class='line-number'>61</span>
+<span class='line-number'>62</span>
+<span class='line-number'>63</span>
+<span class='line-number'>64</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="c1"># spec/spec_helper.rb</span>
+</span><span class='line'><span class="nb">require</span> <span class="s1">&#39;capybara/rspec&#39;</span>
+</span><span class='line'><span class="nb">require</span> <span class="s1">&#39;childprocess&#39;</span>
+</span><span class='line'>
+</span><span class='line'><span class="no">API_PORT</span> <span class="o">=</span> <span class="mi">7000</span>
+</span><span class='line'><span class="no">WEB_PORT</span> <span class="o">=</span> <span class="mi">7001</span>
+</span><span class='line'>
+</span><span class='line'><span class="no">Capybara</span><span class="o">.</span><span class="n">configure</span> <span class="k">do</span> <span class="o">|</span><span class="n">config</span><span class="o">|</span>
+</span><span class='line'>  <span class="n">config</span><span class="o">.</span><span class="n">current_driver</span> <span class="o">=</span> <span class="ss">:selenium</span>
+</span><span class='line'>  <span class="n">config</span><span class="o">.</span><span class="n">run_server</span> <span class="o">=</span> <span class="kp">false</span>
+</span><span class='line'>  <span class="n">config</span><span class="o">.</span><span class="n">app_host</span> <span class="o">=</span> <span class="s2">&quot;http://localhost:</span><span class="si">#{</span><span class="no">WEB_PORT</span><span class="si">}</span><span class="s2">&quot;</span>
+</span><span class='line'><span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'><span class="no">RSpec</span><span class="o">.</span><span class="n">configure</span> <span class="k">do</span> <span class="o">|</span><span class="n">config</span><span class="o">|</span>
+</span><span class='line'>  <span class="c1"># ...</span>
+</span><span class='line'>  <span class="n">config</span><span class="o">.</span><span class="n">before</span><span class="p">(</span><span class="ss">:suite</span><span class="p">)</span> <span class="k">do</span>
+</span><span class='line'>    <span class="n">start_api</span>
+</span><span class='line'>    <span class="n">start_web</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="n">config</span><span class="o">.</span><span class="n">after</span><span class="p">(</span><span class="ss">:suite</span><span class="p">)</span> <span class="k">do</span>
+</span><span class='line'>    <span class="n">stop_api</span>
+</span><span class='line'>    <span class="n">stop_web</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">def</span> <span class="nf">start_api</span>
+</span><span class='line'>  <span class="vg">$stderr</span><span class="o">.</span><span class="n">puts</span> <span class="s2">&quot;Starting API...&quot;</span>
+</span><span class='line'>  <span class="no">Bundler</span><span class="o">.</span><span class="n">with_clean_env</span> <span class="k">do</span>
+</span><span class='line'>    <span class="vg">$api</span> <span class="o">=</span> <span class="no">ChildProcess</span><span class="o">.</span><span class="n">build</span><span class="p">(</span><span class="s1">&#39;bundle&#39;</span><span class="p">,</span> <span class="s1">&#39;exec&#39;</span><span class="p">,</span> <span class="s1">&#39;ruby&#39;</span><span class="p">,</span> <span class="s1">&#39;app.rb&#39;</span><span class="p">)</span>
+</span><span class='line'>    <span class="vg">$api</span><span class="o">.</span><span class="n">cwd</span> <span class="o">=</span> <span class="s1">&#39;./api&#39;</span>
+</span><span class='line'>    <span class="vg">$api</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">inherit!</span>
+</span><span class='line'>    <span class="vg">$api</span><span class="o">.</span><span class="n">environment</span><span class="o">[</span><span class="s1">&#39;PORT&#39;</span><span class="o">]</span> <span class="o">=</span> <span class="no">API_PORT</span>
+</span><span class='line'>    <span class="vg">$api</span><span class="o">.</span><span class="n">start</span>
+</span><span class='line'>    <span class="vg">$stderr</span><span class="o">.</span><span class="n">puts</span> <span class="s2">&quot;Waiting for API to start listening...&quot;</span>
+</span><span class='line'>    <span class="nb">sleep</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span> <span class="k">while</span> <span class="o">!</span><span class="n">listening_on?</span><span class="p">(</span><span class="no">API_PORT</span><span class="p">)</span> <span class="o">&amp;&amp;</span> <span class="vg">$api</span><span class="o">.</span><span class="n">alive?</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">def</span> <span class="nf">stop_api</span>
+</span><span class='line'>  <span class="vg">$stderr</span><span class="o">.</span><span class="n">puts</span> <span class="s2">&quot;Stopping API...&quot;</span>
+</span><span class='line'>  <span class="vg">$api</span><span class="o">.</span><span class="n">stop</span>
+</span><span class='line'><span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">def</span> <span class="nf">start_web</span>
+</span><span class='line'>  <span class="vg">$stderr</span><span class="o">.</span><span class="n">puts</span> <span class="s2">&quot;Starting web...&quot;</span>
+</span><span class='line'>  <span class="vg">$web</span> <span class="o">=</span> <span class="no">ChildProcess</span><span class="o">.</span><span class="n">build</span><span class="p">(</span><span class="s1">&#39;node&#39;</span><span class="p">,</span> <span class="s1">&#39;app.js&#39;</span><span class="p">)</span>
+</span><span class='line'>  <span class="vg">$web</span><span class="o">.</span><span class="n">cwd</span> <span class="o">=</span> <span class="s1">&#39;./web&#39;</span>
+</span><span class='line'>  <span class="vg">$web</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">inherit!</span>
+</span><span class='line'>  <span class="vg">$web</span><span class="o">.</span><span class="n">environment</span><span class="o">[</span><span class="s1">&#39;API_URL&#39;</span><span class="o">]</span> <span class="o">=</span> <span class="s2">&quot;http://localhost:</span><span class="si">#{</span><span class="no">API_PORT</span><span class="si">}</span><span class="s2">&quot;</span>
+</span><span class='line'>  <span class="vg">$web</span><span class="o">.</span><span class="n">environment</span><span class="o">[</span><span class="s1">&#39;PORT&#39;</span><span class="o">]</span> <span class="o">=</span> <span class="no">WEB_PORT</span>
+</span><span class='line'>  <span class="vg">$web</span><span class="o">.</span><span class="n">start</span>
+</span><span class='line'>  <span class="vg">$stderr</span><span class="o">.</span><span class="n">puts</span> <span class="s2">&quot;Waiting for web to start listening...&quot;</span>
+</span><span class='line'>  <span class="nb">sleep</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span> <span class="k">while</span> <span class="o">!</span><span class="n">listening_on?</span><span class="p">(</span><span class="no">WEB_PORT</span><span class="p">)</span> <span class="o">&amp;&amp;</span> <span class="vg">$web</span><span class="o">.</span><span class="n">alive?</span>
+</span><span class='line'><span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">def</span> <span class="nf">stop_web</span>
+</span><span class='line'>  <span class="vg">$stderr</span><span class="o">.</span><span class="n">puts</span> <span class="s2">&quot;Stopping web...&quot;</span>
+</span><span class='line'>  <span class="vg">$web</span><span class="o">.</span><span class="n">stop</span>
+</span><span class='line'><span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">def</span> <span class="nf">listening_on?</span><span class="p">(</span><span class="n">port</span><span class="p">)</span>
+</span><span class='line'>  <span class="nb">system</span><span class="p">(</span><span class="s2">&quot;netstat -an | grep </span><span class="si">#{</span><span class="n">port</span><span class="si">}</span><span class="s2"> | grep LISTEN&quot;</span><span class="p">)</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Running <code>rake spec</code> now starts up and waits for both apps, runs our test, and&#8230;</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="no">Starting</span> <span class="no">API</span><span class="o">.</span><span class="n">.</span><span class="o">.</span>
+</span><span class='line'><span class="no">Waiting</span> <span class="k">for</span> <span class="no">API</span> <span class="n">to</span> <span class="n">start</span> <span class="n">listening</span><span class="o">.</span><span class="n">.</span><span class="o">.</span>
+</span><span class='line'><span class="c1"># ...</span>
+</span><span class='line'><span class="no">Starting</span> <span class="n">web</span><span class="o">.</span><span class="n">.</span><span class="o">.</span>
+</span><span class='line'><span class="no">Waiting</span> <span class="k">for</span> <span class="n">web</span> <span class="n">to</span> <span class="n">start</span> <span class="n">listening</span><span class="o">.</span><span class="n">.</span><span class="o">.</span>
+</span><span class='line'><span class="c1"># ...</span>
+</span><span class='line'><span class="n">home</span>
+</span><span class='line'>  <span class="n">welcomes</span> <span class="n">visitor</span>
+</span><span class='line'><span class="no">Stopping</span> <span class="no">API</span><span class="o">.</span><span class="n">.</span><span class="o">.</span>
+</span><span class='line'><span class="c1"># ...</span>
+</span><span class='line'><span class="no">Stopping</span> <span class="n">web</span><span class="o">.</span><span class="n">.</span><span class="o">.</span>
+</span><span class='line'>
+</span><span class='line'><span class="no">Finished</span> <span class="k">in</span> <span class="mi">4</span><span class="o">.</span><span class="mi">67</span> <span class="n">seconds</span>
+</span><span class='line'><span class="mi">1</span> <span class="n">example</span><span class="p">,</span> <span class="mi">0</span> <span class="n">failures</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Success!</p>
+
+<p>Well, sort of. Our test of the home page doesn&#8217;t even depend on both systems. Let&#8217;s try a more meaningful test, listing products from the API.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">feature</span> <span class="s2">&quot;shop&quot;</span><span class="p">,</span> <span class="ss">js</span><span class="p">:</span> <span class="kp">true</span> <span class="k">do</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="n">scenario</span> <span class="s2">&quot;list widgets&quot;</span> <span class="k">do</span>
+</span><span class='line'>    <span class="n">visit</span> <span class="s2">&quot;/&quot;</span>
+</span><span class='line'>    <span class="n">click_link</span> <span class="s2">&quot;Browse products&quot;</span>
+</span><span class='line'>    <span class="n">expect</span><span class="p">(</span><span class="n">page</span><span class="p">)</span><span class="o">.</span><span class="n">to</span> <span class="n">have_content</span><span class="p">(</span><span class="s2">&quot;Foo Widget&quot;</span><span class="p">)</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Will it work?</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>Failures:
+</span><span class='line'>
+</span><span class='line'>  1<span class="o">)</span> shop list widgets
+</span><span class='line'>     Failure/Error: expect<span class="o">(</span>page<span class="o">)</span>.to have_content<span class="o">(</span><span class="s2">&quot;Foo Widget&quot;</span><span class="o">)</span>
+</span><span class='line'>       expected to find text <span class="s2">&quot;Foo Widget&quot;</span> in <span class="s2">&quot;&quot;</span>
+</span><span class='line'>     <span class="c"># ./spec/shop_spec.rb:8:in `block (2 levels) in &lt;top (required)&gt;&#39;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>The web app isn&#8217;t authenticated to use the API! This brings up a more general question:</p>
+
+<h2>How to bootstrap test data</h2>
+
+<p>Most testing frameworks offer fixtures or direct access to the database. Because the API runs in a separate process, things are a little more difficult. We opt for 1 of 2 approaches, depending on the context:</p>
+
+<ul>
+<li><strong>Insert data directly into the API&#8217;s database.</strong> We tend to do this only as a last resort, because tests would presume knowledge of the API&#8217;s implementation.</li>
+<li><strong>Perform test set-up via the API.</strong> Slightly nicer, and closer to real-life clients. (However, the API must be fairly complete.)</li>
+</ul>
+
+
+<p>In practice, we &#8220;cheat&#8221; and use direct database-insertion to initially bootstrap an API client application, then perform further test set-up through the API. You should choose what&#8217;s most convenient.</p>
+
+<p>Our simple example will register the web application as an API client, then pass a key via basic authentication. We&#8217;ll have to modify the <code>start_web</code> helper:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">def</span> <span class="nf">start_web</span>
+</span><span class='line'>  <span class="vg">$stderr</span><span class="o">.</span><span class="n">puts</span> <span class="s2">&quot;Starting web...&quot;</span>
+</span><span class='line'>  <span class="vg">$web</span> <span class="o">=</span> <span class="no">ChildProcess</span><span class="o">.</span><span class="n">build</span><span class="p">(</span><span class="s1">&#39;node&#39;</span><span class="p">,</span> <span class="s1">&#39;app.js&#39;</span><span class="p">)</span>
+</span><span class='line'>  <span class="vg">$web</span><span class="o">.</span><span class="n">cwd</span> <span class="o">=</span> <span class="s1">&#39;./web&#39;</span>
+</span><span class='line'>  <span class="vg">$web</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">inherit!</span>
+</span><span class='line'>  <span class="vg">$api_base_url</span> <span class="o">=</span> <span class="s2">&quot;http://</span><span class="si">#{</span><span class="n">api_client</span><span class="o">[</span><span class="s1">&#39;key&#39;</span><span class="o">]</span><span class="si">}</span><span class="s2">:@localhost:</span><span class="si">#{</span><span class="no">API_PORT</span><span class="si">}</span><span class="s2">&quot;</span>
+</span><span class='line'>  <span class="vg">$web</span><span class="o">.</span><span class="n">environment</span><span class="o">[</span><span class="s1">&#39;API_URL&#39;</span><span class="o">]</span> <span class="o">=</span> <span class="vg">$api_base_url</span>
+</span><span class='line'>  <span class="vg">$web</span><span class="o">.</span><span class="n">environment</span><span class="o">[</span><span class="s1">&#39;PORT&#39;</span><span class="o">]</span> <span class="o">=</span> <span class="no">WEB_PORT</span>
+</span><span class='line'>  <span class="vg">$web</span><span class="o">.</span><span class="n">start</span>
+</span><span class='line'>  <span class="vg">$stderr</span><span class="o">.</span><span class="n">puts</span> <span class="s2">&quot;Waiting for web to start listening...&quot;</span>
+</span><span class='line'>  <span class="nb">sleep</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span> <span class="k">while</span> <span class="o">!</span><span class="n">listening_on?</span><span class="p">(</span><span class="no">WEB_PORT</span><span class="p">)</span> <span class="o">&amp;&amp;</span> <span class="vg">$web</span><span class="o">.</span><span class="n">alive?</span>
+</span><span class='line'><span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">def</span> <span class="nf">api_client</span>
+</span><span class='line'>  <span class="vg">$api_client</span> <span class="o">||=</span> <span class="k">begin</span>
+</span><span class='line'>    <span class="n">response</span> <span class="o">=</span> <span class="ss">Net</span><span class="p">:</span><span class="ss">:HTTP</span><span class="o">.</span><span class="n">post_form</span><span class="p">(</span><span class="no">URI</span><span class="p">(</span><span class="s2">&quot;http://localhost:</span><span class="si">#{</span><span class="no">API_PORT</span><span class="si">}</span><span class="s2">/api/clients&quot;</span><span class="p">),</span> <span class="p">{})</span>
+</span><span class='line'>    <span class="no">JSON</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">body</span><span class="p">)</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>And the test will need to set up the data it expects to find listed:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">feature</span> <span class="s2">&quot;shop&quot;</span><span class="p">,</span> <span class="ss">js</span><span class="p">:</span> <span class="kp">true</span> <span class="k">do</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="n">scenario</span> <span class="s2">&quot;list widgets&quot;</span> <span class="k">do</span>
+</span><span class='line'>    <span class="n">create_widget</span><span class="p">(</span><span class="nb">name</span><span class="p">:</span> <span class="s1">&#39;Foo Widget&#39;</span><span class="p">,</span> <span class="n">price_cents</span><span class="p">:</span> <span class="mi">100_00</span><span class="p">)</span>
+</span><span class='line'>    <span class="n">visit</span> <span class="s2">&quot;/&quot;</span>
+</span><span class='line'>    <span class="n">click_link</span> <span class="s2">&quot;Browse products&quot;</span>
+</span><span class='line'>    <span class="n">expect</span><span class="p">(</span><span class="n">page</span><span class="p">)</span><span class="o">.</span><span class="n">to</span> <span class="n">have_content</span><span class="p">(</span><span class="s2">&quot;Foo Widget&quot;</span><span class="p">)</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1"># spec/spec_helper.rb</span>
+</span><span class='line'><span class="k">def</span> <span class="nf">create_widget</span><span class="p">(</span><span class="n">params</span> <span class="o">=</span> <span class="p">{})</span>
+</span><span class='line'>  <span class="ss">Net</span><span class="p">:</span><span class="ss">:HTTP</span><span class="o">.</span><span class="n">post_form</span><span class="p">(</span><span class="no">URI</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">#{</span><span class="vg">$api_base_url</span><span class="si">}</span><span class="s2">/api/widgets&quot;</span><span class="p">),</span> <span class="n">params</span><span class="p">)</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Lo and behold, our entire &#8220;suite&#8221; now passes:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>2 examples, 0 failures
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>This basic structure has accommodated dozens of test scenarios. We&#8217;ve extended it with database- and cache-clearing between tests, and organized helpers into modules under <code>spec/support</code>. The suite is built nightly against the latest versions of our codebases, and has caught a few significant bugs.</p>
+
+<p>A caveat: with so many layers and dependencies involved, there are often spurious failures. We&#8217;ve picked up a few practices that help:</p>
+
+<ul>
+<li><a href="http://artsy.github.io/blog/2012/05/15/how-to-organize-over-3000-rspec-specs-and-retry-test-failures/">Automatic retries</a></li>
+<li><a href="http://artsy.github.io/blog/2014/01/30/isolating-spurious-and-nondeterministic-tests/">Quarantine for problematic tests</a></li>
+<li><a href="https://github.com/mattheworiordan/capybara-screenshot">Failure screenshots</a></li>
+</ul>
+
+
+<p>You can <a href="https://github.com/joeyAghion/multiapp_example-tests">grab the example code</a>. And make sure to let us know in the comments how <em>you</em> approach testing across applications.</p>
+</div>
+
+
+  <footer>
+    <div class="meta">
+      
+  
+
+
+
+  <span class="byline author vcard">
+    Posted by 
+    <span class="fn">
+      Joey Aghion
+    </span>
+    
+    
+    
+    
+      (
+      
+      <span class="fn">
+        <a href="http://joey.aghion.com">blog</a>
+      </span>
+      
+      
+      <span class="fn">
+        <a href="https://github.com/joeyAghion">github</a>
+      </span>
+      
+      
+      <span class="fn">
+        <a href="http://twitter.com/joeyAghion">twitter</a>
+      </span>
+      
+      )
+    
+    
+  </span>
+
+
+    </div>
+    <div class="meta">
+      Categories: 
+
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/continuous-integration/'>Continuous Integration</a>, <a class='category' href='/blog/categories/rspec/'>Rspec</a>, <a class='category' href='/blog/categories/soa/'>SOA</a>, <a class='category' href='/blog/categories/testing/'>Testing</a>
+  
+</span>
+
+
+    </div>
+
+    
+      <div class="sharing">
+  
+  <a href="http://twitter.com/share" class="twitter-share-button" data-url="http://artsy.github.io/blog/2014/05/12/continuous-integration-for-service-oriented-architectures/" data-via="artsy" data-counturl="http://artsy.github.io/blog/2014/05/12/continuous-integration-for-service-oriented-architectures/" >Tweet</a>
+  
+  
+  
+</div>
+
+    
+    <p class="meta">
+      
+        <a class="basic-alignment left" href="/blog/2014/04/24/generating-notifications-and-personalized-emails-efficiently/" title="Previous Post: Generating Notifications and Personalized Emails Efficiently">&laquo; Generating Notifications and Personalized Emails Efficiently</a>
+      
+      
+        <a class="basic-alignment right" href="/blog/2014/06/11/testing-core-data-migrations/" title="next Post: Testing Core Data Migrations">Testing Core Data Migrations &raquo;</a>
+      
+    </p>
+  </footer>
+</article>
+
+  <section>
+    <h1>Comments</h1>
+    <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</div>
+  </section>
+
+</div>
+    </div>
+    <div id="sidebar">
+      
+  
+    <section>
+  <h1>Info</h1>
+  <ul>
+    <li> <a href="/about">About Us</a></li>
+    <li> <a href="/open-source">Artsy Open-Source</a></li>
+    <li> <a href="http://artsy.net/job/developer">Join the Artsy Engineering Team</a></li>
+  </ul>
+</section>
+<section id="recent_posts_section">
+  <h1>Recent Posts</h1>
+  <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/2014/08/05/taking-a-snapshot-with-second-curtain/">Taking a Snapshot with Second Curtain</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2014/07/09/retain-scroll-position-in-infinite-scroll/">Retain scroll position in infinite scroll</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2014/06/20/artsys-first-closed-source-pod/">Artsy's first closed source Pod</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2014/06/17/building-the-xcode-plugin-snapshots/">Building the Xcode Plugin Snapshots</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2014/06/11/testing-core-data-migrations/">Testing Core Data Migrations</a>
+      </li>
+    
+  </ul>
+  <a class="archive_link" href="/blog/archives">Blog Archive</a>
+</section>
+<section>
+  <h1>Search</h1>
+  <form action="http://google.com/search" method="get">
+    <input type="hidden" name="q" value="site:artsy.github.io" />
+    <input class="search" type="text" name="q" results="0" />
+  </form>
+</section>
+  
+
+
+    </div>
+  </div>
+  <footer id="main_footer"><p>
+  Copyright &copy; 2014 - Artsy -
+  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+  
+
+<script type="text/javascript">
+      var disqus_shortname = 'artsy';
+      
+        
+        // var disqus_developer = 1;
+        var disqus_identifier = 'http://artsy.github.io/blog/2014/05/12/continuous-integration-for-service-oriented-architectures/';
+        var disqus_url = 'http://artsy.github.io/blog/2014/05/12/continuous-integration-for-service-oriented-architectures/';
+        var disqus_script = 'embed.js';
+      
+    (function () {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = 'http://' + disqus_shortname + '.disqus.com/' + disqus_script;
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    }());
+</script>
+
+
+
+
+
+
+
+  <script type="text/javascript">
+    (function(){
+      var twitterWidgets = document.createElement('script');
+      twitterWidgets.type = 'text/javascript';
+      twitterWidgets.async = true;
+      twitterWidgets.src = 'http://platform.twitter.com/widgets.js';
+      document.getElementsByTagName('head')[0].appendChild(twitterWidgets);
+    })();
+  </script>
+
+
+
+
+
+</body>
+</html>
