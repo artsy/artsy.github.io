@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Aspect-Oriented Programming and ARAnalytics"
-date: 2014-05-06 14:52
+date: 2014-08-04 14:52
 comments: true
 categories: [iOS,Analytics,ARAnalytics]
 author: Ash Furrow
@@ -218,6 +218,18 @@ have every view controller track its page view with ARAnalytics.
 This code will track a page view with the title the same as the view 
 controller's `title` property, but just like with events you can provide 
 fine-grained handling. 
+
+## Some Limitations
+
+There is a [limitation](https://github.com/steipete/Aspects/issues/11) on 
+Aspects that wasn't fully understood until we used the new AOP approach to 
+analytics in the Artsy app. Selectors can only be "hooked into" once per class 
+hierarchy. That  means that you cannot create a tracked events for two 
+difference view controllers, both on the `viewWillAppear:` selector. This is a 
+temporary limitation while the Aspects library is being worked on. In the mean 
+time, you are free to use the [original implementation](https://github.com/orta/ARAnalytics/tree/ashfurrow-temporary-dsl-fix)
+with ReactiveCocoa, which doesn't have this limitation and which we are using 
+currently. 
 
 ## What we Learnt
 
