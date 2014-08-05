@@ -62,6 +62,14 @@ access to an S3 bucket, it would be irresponsible to expose S3 credentials for
 an open-source project. I'm [working](https://github.com/AshFurrow/second_curtain/issues/5)
 on a solution. 
 
+Orta helped with the design aspect of the tool; while uploading the images was
+sufficient, we could make the process of seeing the differences between the two
+images even easier. He created a [HTML page](https://eigen-ci.s3.amazonaws.com/snapshots/2014-08-04--15-47/index.html)
+that would allow developers to see the before-and-after versions by moving their
+mouse cursor over the different images. 
+
+![Image Diff](http://static.ashfurrow.com/github/second_curtain.png)
+
 In the end, I got Second Curtain to work with Artsy's iOS repository and I 
 discovered the discrepency between the two images: due to a timezone difference 
 between my computer and Travis', a date was being formatted differently. Not a 
