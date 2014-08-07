@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Taking a Snapshot with Second Curtain"
-date: 2014-08-05 11:46
+date: 2014-08-07 11:46
 comments: true
 categories: [iOS, Continuous Integration, Travis, Testing]
 author: Ash Furrow
