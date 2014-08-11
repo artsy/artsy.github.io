@@ -31,7 +31,7 @@ If you don't know the syntax for Make, essentially if it's on the same line you'
 
 This is the [Artsy Folio](http://orta.io/#folio-header-unit) Makefile in full:
 
-```
+``` make
 # Constants
 
 WORKSPACE = Artsy Folio.xcworkspace
@@ -151,7 +151,7 @@ distribute:
 
 That gives you a sense of the commands that you can run from the terminal in our projects, next we need to look at the `.travis.yml` file.
 
-```yaml
+``` make
 language: objective-c
 cache:
   - bundler
@@ -179,7 +179,7 @@ script:
 This is nice and simple. It was built to use multiple travis build steps. This makes the CI output a lot more readable as an end user. Travis will by default collapse the shell output for different build stages leaving only the `script` stage defaulting to being exposed. Here is an example of what you see on a failing test:
 
 <center>
-![Travis CI Failure](/images/2014-08-08-CocoaPods-Caching/failing_travis_screenshot.png)
+<img src="/images/2014-08-08-CocoaPods-Caching/failing_travis_screenshot.png" alt='Travis CI Failure'>
 </center>
 
 We use a gem with a binary in [second_curtain](https://github.com/AshFurrow/second_curtain/), and this came with bundler caching issues in Travis. The solution was to ignore bundler and run `gem install second_curtain` each time. To increase the speed we also ensured that documentation is not being generated. If you are interested in what's going on with the `.netrc`, read my blog post on [Artsy's first Closed Source Pod](http://artsy.github.io/blog/2014/06/20/artsys-first-closed-source-pod/).
