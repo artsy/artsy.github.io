@@ -4,7 +4,7 @@ title: "Artsy's first closed source Pod"
 date: 2014-06-20 17:53
 comments: false
 sharing: false
-categories: [Testing, Objc, Cocoa, Xcode, Plugins]
+categories: [Testing, Objc, Cocoa, Xcode, Plugins, iOS]
 author: Orta
 github-url: https://github.com/orta
 twitter-url: http://twitter.com/orta
@@ -25,9 +25,9 @@ I was modernizing a section of [Folio](http://orta.github.io/#folio-header-unit)
 
 ## The solution
 
-I didn't want to put it on the public CocoaPods Spec Repo, because it's not very relevant to the larger community, but in keeping with our philosophy of "open source by default," I definitely wanted to publish it as an example for others. The most elegant answer was to create our own [public Specs Repo](https://github.com/artsy/specs), which serves as a good reference when people want to know what a private specs repo looks like. 
+I didn't want to put it on the public CocoaPods Spec Repo, because it's not very relevant to the larger community, but in keeping with our philosophy of "open source by default," I definitely wanted to publish it as an example for others. The most elegant answer was to create our own [public Specs Repo](https://github.com/artsy/specs), which serves as a good reference when people want to know what a private specs repo looks like.
 
-Like anyone who has tried to modularize a pretty large code-base, it turns out a lot of things were connected together. I couldn't just build my [Artsy+UILabels](http://github.com/Artsy/Artsy-UILabels) repo and put everything in there. Instead I had to also build Artsy+UIFonts and [Artsy+UIColors](http://github.com/Artsy/Artsy-UIColors). 
+Like anyone who has tried to modularize a pretty large code-base, it turns out a lot of things were connected together. I couldn't just build my [Artsy+UILabels](http://github.com/Artsy/Artsy-UILabels) repo and put everything in there. Instead I had to also build Artsy+UIFonts and [Artsy+UIColors](http://github.com/Artsy/Artsy-UIColors).
 
 One of the good things about having to build three libraries is that I became very familiar with `pod lib create`. This is a command for building the scaffolding around a CocoaPod, making it much easier to create something fast. We had been holding off doing a [big update](https://github.com/CocoaPods/pod-template/pull/33) to the command because no-one knew what WWDC would bring. Now we know, so I've worked on a new version of the command that programmatically manipulates an example project via [xcodeproj](https://github.com/CocoaPods/Xcodeproj). I've used it in creating all of these libraries. Expect to see it on the CocoaPods blog soon.
 

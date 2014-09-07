@@ -4,7 +4,7 @@ title: "Building the Xcode Plugin Snapshots"
 date: 2014-06-17 10:50
 comments: false
 sharing: false
-categories: [Testing, Objc, Cocoa, Xcode, Plugins]
+categories: [Testing, Objc, Cocoa, Xcode, Plugins, iOS]
 author: Orta
 github-url: https://github.com/orta
 twitter-url: http://twitter.com/orta

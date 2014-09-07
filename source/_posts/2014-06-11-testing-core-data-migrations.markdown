@@ -4,14 +4,14 @@ title: "Testing Core Data Migrations"
 date: 2014-06-11 10:50
 comments: false
 sharing: false
-categories: [Testing, Objc, Cocoa]
+categories: [Testing, Objc, Cocoa, iOS]
 author: Orta
 github-url: https://github.com/orta
 twitter-url: http://twitter.com/orta
 blog-url: http://orta.github.io
 ---
 
-The first time I released a patch release for [Artsy Folio](http://orta.github.io/#folio-header-unit) it crashed instantly, on every install. Turns out I didn't understand Core Data migrations, now a few years on I grok it better but I've still lived with the memories of that dark dark day. Because of this I've had an informal rule of testing migrations with all the old build of Folio [using chairs](http://artsy.github.io/blog/2013/03/29/musical-chairs/) the day before submitting to the app store. 
+The first time I released a patch release for [Artsy Folio](http://orta.github.io/#folio-header-unit) it crashed instantly, on every install. Turns out I didn't understand Core Data migrations, now a few years on I grok it better but I've still lived with the memories of that dark dark day. Because of this I've had an informal rule of testing migrations with all the old build of Folio [using chairs](http://artsy.github.io/blog/2013/03/29/musical-chairs/) the day before submitting to the app store.
 
 This time round, I've made vast changes to the Core Data models but skipped the manual work. Here's how:
 
@@ -51,7 +51,7 @@ static NSManagedObjectContext *mainManagedObjectContext = nil;
     return [[NSManagedObjectModel alloc] initWithContentsOfURL:modelURL];
 }
 
-+ (NSPersistentStoreCoordinator *)persistentStoreCoordinator 
++ (NSPersistentStoreCoordinator *)persistentStoreCoordinator
 {
     if (persistentStoreCoordinator != nil) return persistentStoreCoordinator;
 
@@ -66,7 +66,7 @@ static NSManagedObjectContext *mainManagedObjectContext = nil;
     return persistentStoreCoordinator;
 }
 
-+ (NSManagedObjectContext *)mainManagedObjectContext 
++ (NSManagedObjectContext *)mainManagedObjectContext
 {
     if (ARRunningUnitTests) {
         @throw [NSException exceptionWithName:@"ARCoreDataError" reason:@"Nope - you should be using a stubbed context somewhere." userInfo:nil];
@@ -79,7 +79,7 @@ static NSManagedObjectContext *mainManagedObjectContext = nil;
 }
 
 
-+ (NSManagedObjectContext *)newManagedObjectContext 
++ (NSManagedObjectContext *)newManagedObjectContext
 {
     NSManagedObjectContext *context = nil;
     NSURL *storeURL = [NSURL fileURLWithPath:[ARFileUtils coreDataStorePath]];
@@ -97,7 +97,7 @@ static NSManagedObjectContext *mainManagedObjectContext = nil;
 
     NSError *error = nil;
     NSManagedObjectModel *model = [CoreDataManager managedObjectModel];
-    
+
     persistentStoreCoordinator = [[NSPersistentStoreCoordinator alloc] initWithManagedObjectModel:model];
     [persistentStoreCoordinator addPersistentStoreWithType:NSInMemoryStoreType configuration:nil URL:nil options:options error:&error];
 
@@ -115,10 +115,10 @@ This meant it was very easy to quickly make tests that look like:
 ```objc
     it(@"shows sync info when there are no CMS albums", ^{
         NSManagedObjectContext *context = [CoreDataManager stubbedManagedObjectContext];
-        
+
         ARAddAlbumThatIsEditableInContext(YES, context);
         ARAddAlbumThatIsEditableInContext(NO, context);
-        
+
         ARAddToAlbumViewController *controller = [[ARAddToAlbumViewController alloc] initWithManagedObjectContext:context];
         controller.view.frame = (CGRect){ CGPointZero, [controller preferredContentSize]};
         expect(controller.view).to.haveValidSnapshot();
