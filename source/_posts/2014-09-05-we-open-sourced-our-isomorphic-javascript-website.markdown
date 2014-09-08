@@ -11,17 +11,17 @@ twitter-url: http://twitter.com/artsy
 
 ![May The Force be With You](/images/2014-09-05-we-open-sourced-our-isomorphic-javascript-website/force.png)
 
-At Artsy we've been in the process of re-writing our entire web front-end to move off Rails and on to a [Node.js](http://nodejs.org/) stack that shares Javascript code and rendering between the server and client, otherwise known as [Isomorphic Javascript](http://nerds.airbnb.com/isomorphic-JavaScript-future-web-apps/). We've successfully fully migrated to this new stack and not only have we open sourced our boilerplate, [Ezel](http://ezeljs.com),  but we've gone a step further.
+Today we're happy to annouce we've open sourced the entire Artsy.net web app, [Force](https://github.com/artsy/force-public).
 
-Today we're happy to announce the entire Artsy.net desktop web app, [Force](https://github.com/artsy/force-public), is completely open source!
+Over the past few months, we've rewritten our entire web front-end to move off Rails and on to a [Node.js](http://nodejs.org/) stack that shares Javascript code and rendering between the server and client, otherwise known as [Isomorphic Javascript](http://nerds.airbnb.com/isomorphic-JavaScript-future-web-apps/). After migrating to this new stack, we opensourced our boilerplate, [Ezel](http://ezeljs.com), and have now gone a step further and open sourced Artsy.net.
 
 <!-- more -->
 
-Hopefully this serves as an example of how we structured a large [Ezel](http://ezeljs.com) project. Unfortunately due to image licensing issues we cannot open up the Artsy API and therefore this repo currently can't serve as an actual runnable clone of our website. However, we'll continue to merge our production code into it and if you have any questions feel free to hit us up on twitter: [@craigspaeth](https://twitter.com/craigspaeth), [@dzucconi](https://twitter.com/dzucconi), [@zamiang](https://twitter.com/zamiang).
-
-## We learned a couple things
+## Isomorphic vs Monlithic
 
 Our transition to an isomorphic Javascript stack has been very successful albeit with some speed bumps. If you're interested in the details we've written [a blog post](http://artsy.github.io/blog/2013/11/30/rendering-on-the-server-and-client-in-node-dot-js/), given a talk at [Node on the Road](https://www.joyent.com/developers/videos/node-js-on-the-road-nyc-craig-spaeth-brennan-moore) (slides [here](http://www.slideshare.net/craigspaeth/artsy-node-on-the-roady-slides)), and another more extensive talk at [this meetup](http://www.hakkalabs.co/articles/monolithic-to-distributed-how-artsy-transitioned-from-ruby-on-rails-to-node-js-and-isomorphic-javascript#).
+
+In short, moving to a couple of Node servers on Heroku, we cut our pageload in half and our tests take about 5 minutes (down from 5 hours). Performance numbers aside, our real win was dramatically improved development speed due to some architecture decisions we made.
 
 ## Modularity
 
@@ -39,10 +39,12 @@ We're so convinced this encapsulation is important that we've updated Ezel to [u
 
 ![Ocotcat](/images/2014-09-05-we-open-sourced-our-isomorphic-javascript-website/octocat.jpg)
 
-Even though Force isn't a library that can be leveraged by the community at large, we're hoping it serves as a nice reference for how we structure some of our apps. Unless there's something sensitive like licensed fonts, or API keys/secrets checked into the repo there's no reason we need to privatize our code. We'll even open source Artsy app-specific modules like [these backbone mixins](https://github.com/artsy/artsy-backbone-mixins) [this Artsy API authentication library](https://github.com/artsy/artsy-passport), or [this module](https://github.com/artsy/backbone-cache-sync) we use to cache server-side Backbone requests.
+Even though Force isn't a library, we have opensoured many of its componets and libraries. Before open sourcing Force, we open sourced app-specific modules such as [these backbone mixins](https://github.com/artsy/artsy-backbone-mixins) [this Artsy API authentication library](https://github.com/artsy/artsy-passport), or [this module](https://github.com/artsy/backbone-cache-sync) we use to cache server-side Backbone requests.
 
-To make Force open source we needed to privatize our configuration defaults so as to not expose sensitive keys/secrets it in our public repo. To do this we wrote a .env file and uploaded it as a private gist that gets downloaded when setting up. We wanted to spread this open-source-by-default culture so we decided to update Ezel's configuration to be able to use a .env file in this way as well. This makes it easy to privatize your sensitive config data and allow the rest of your app code to be open source. You can read more about this in Ezel's [Build Scripts & Configuration docs](https://github.com/artsy/ezel#build-scripts--configuration).
+Opensourcing Force was pretty straighforward but we needed to make our sensitive keys/secrets private while not complicating development. To do this we wrote a .env file and uploaded it as a private gist that gets downloaded when setting up the app. We wanted to spread this open-source-by-default culture so we decided to update Ezel's configuration to be able to use a .env file in this way as well. This makes it easy keep your sensitive configuration data private while allowing the rest of your app code to be open source. You can read more about this in Ezel's [Build Scripts & Configuration docs](https://github.com/artsy/ezel#build-scripts--configuration).
 
 ## Spreading The Love
+
+Force serves as an example of how we structured a large [Ezel](http://ezeljs.com) project and contains the full commit history of its construction. Unfortunately, due to image licensing issues, we cannot open up the Artsy API and therefore this repository can't serve as a runnable clone of our website. However, we will continue to merge our production code into it. If you have any questions feel free to hit us up on twitter: [@craigspaeth](https://twitter.com/craigspaeth), [@dzucconi](https://twitter.com/dzucconi), [@zamiang](https://twitter.com/zamiang).
 
 We're excited to continue pushing open source at Artsy. For more exciting open source projects take a look at [our Github profile](https://github.com/artsy).
