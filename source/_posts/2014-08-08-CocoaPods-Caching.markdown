@@ -16,7 +16,7 @@ As [Ash said earlier](http://artsy.github.io/blog/2014/08/07/taking-a-snapshot-w
 
 First and foremost, this only works if you are paying for Travis CI.
 
-Travis CI recently merged in support for [Caching of CocoaPods](http://docs.travis-ci.com/user/caching/) - this is great! By using this, we've reduced our build times from an average of about 10 minutes, to about 7 minutes. It works by using your `Podfile.lock` as a key to cache your `Pods` directory, if the lock hasn't changed then there's no need to update the Cache and so `pod install` is not called on your project. This caused me an issue as the `[Project].xcworkspace` file that CocoaPods generates was not in source control, and the app wouldn't build.
+Travis CI recently merged in support for [Caching of CocoaPods](http://docs.travis-ci.com/user/caching/) - this is great! By using this, we've reduced our build times from an average of about 10 minutes, to about 7 minutes. It works by using your `Podfile.lock` as a key to cache your `Pods` directory, if the lock hasn't changed then there's no need to update the Cache and so `pod install` is not called on your project. This caused me an issue as the `[Project].xcworkspace` file that CocoaPods generates was not in source control, and the app wouldn't build. Useful note, if you're using [development pods](http://guides.cocoapods.org/syntax/podfile.html#pod) in your build you probably shouldn't use this as your Pods directory can get out of sync with the cached version. 
 
 We use a [Makefile](https://github.com/artsy/eidolon/blob/master/Makefile) to separate the tasks required to build, test and deploy an app. The general structure of our Makefile is:
 
