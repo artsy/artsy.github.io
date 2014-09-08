@@ -3,7 +3,7 @@ layout: post
 title: "We open sourced our Isomorphic Javascript website"
 date: 2014-09-05 15:09
 comments: true
-categories: [Isomorphic, JavaScript, Node.js, Shared, Ezel, Open Source, ]
+categories: [Isomorphic, JavaScript, Node.js, Shared, Ezel, Open Source]
 author: Craig Spaeth & Brennan Moore
 github-url: https://www.github.com/artsy
 twitter-url: http://twitter.com/artsy
