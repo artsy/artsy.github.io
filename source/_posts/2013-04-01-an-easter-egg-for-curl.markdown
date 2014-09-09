@@ -15,7 +15,7 @@ Let's implement an Easter egg that requires [curl](http://curl.haxx.se/) and is 
 We accept access tokens on our API endpoints. These can come from an `access_token` query string parameter.
 
 ```
-curl http://artsy.net/api/v1/system/up?access_token=invalid -v
+curl https://api.artsy.net/api/v1/system/up?access_token=invalid -v
 
 < HTTP/1.1 401 Unauthorized
 < Content-Type: application/json
@@ -27,7 +27,7 @@ curl http://artsy.net/api/v1/system/up?access_token=invalid -v
 So far, so good. Now try this:
 
 ```
-curl http://artsy.net/api/v1/system/up?access_token=10013 -v
+curl https://api.artsy.net/api/v1/system/up?access_token=10013 -v
 
 < HTTP/1.1 401 Broadway
 < Content-Type: application/json
@@ -133,7 +133,7 @@ end
 
 ### More Eggs?
 
-Check out [artsy.net/humans.txt](http://artsy.net/humans.txt) for more Easter eggs and please feel free to email me at **db[at]artsy[dot]net** if you want to come visit or [work here](http://artsy.net/jobs).
+Check out [artsy.net/humans.txt](https://api.artsy.net/humans.txt) for more Easter eggs and please feel free to email me at **db[at]artsy[dot]net** if you want to come visit or [work here](https://artsy.net/jobs).
 
 
 

@@ -9,11 +9,11 @@ github-url: https://www.github.com/dblock
 twitter-url: http://twitter.com/dblockdotorg
 blog-url: http://code.dblock.org
 ---
-At Artsy Engineering we encourage a culture of experimentation with something called *labs*. 
+At Artsy Engineering we encourage a culture of experimentation with something called *labs*.
 
 A new feature released into production is usually only turned on for a handful of users. We get feedback from our own team and a tiny group of early adopters, iterate, fix bugs, toss failed experiments and work on promoting complete, well behaved features to all users. The labs infrastructure gives us a chance to sleep on an idea and polish details. It also allows us to make progress continuously and flip a switch on the very last day.
 
-My favorite labs features push our collective imagination and give birth to productive brainstorms around coffee at a popular startup hangout around the corner from our Manhattan office. But the team's favorite labs are, by far, those that ship as easter eggs. These are fun and sometimes useful features that don't make much business sense. So, before I explain our rudimentary labs system, I want to invite you to our easter egg hunt. Check out [http://artsy.net/humans.txt](http://artsy.net/humans.txt) for instructions.
+My favorite labs features push our collective imagination and give birth to productive brainstorms around coffee at a popular startup hangout around the corner from our Manhattan office. But the team's favorite labs are, by far, those that ship as easter eggs. These are fun and sometimes useful features that don't make much business sense. So, before I explain our rudimentary labs system, I want to invite you to our easter egg hunt. Check out [https://artsy.net/humans.txt](https://artsy.net/humans.txt) for instructions.
 
 <!-- more -->
 
@@ -35,7 +35,7 @@ You can enable and disable a lab feature for a given user.
 class User
   references_and_referenced_in_many :lab_features
 
-  def enable_lab_feature!(feature)  
+  def enable_lab_feature!(feature)
     lab_features.push(feature) unless lab_features.member?(feature)
     save!
   end
@@ -51,7 +51,7 @@ class User
 end
 ```
 
-In Ruby, we check whether the user has a lab with `lab_feature_enabled?`. In JavaScript, we return the lab features in a Backbone.js collection and check for the same. 
+In Ruby, we check whether the user has a lab with `lab_feature_enabled?`. In JavaScript, we return the lab features in a Backbone.js collection and check for the same.
 
 ``` coffeescript app/coffeescripts/models/user.coffee
 class App.Models.CurrentUser extends Backbone.Model

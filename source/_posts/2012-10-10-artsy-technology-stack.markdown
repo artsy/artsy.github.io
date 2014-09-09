@@ -22,9 +22,9 @@ In this post I'll go in depth in our current system architecture and tell you th
 Early Prototypes
 ----------------
 
-Artsy early prototypes in 2010 consisted of a combination of PHP and Java web services running on JBoss and backed by a MySQL database. The system had more similarities with a large transactional banking application than a consumer website. 
+Artsy early prototypes in 2010 consisted of a combination of PHP and Java web services running on JBoss and backed by a MySQL database. The system had more similarities with a large transactional banking application than a consumer website.
 
-In early 2011 we rebooted the project on Ruby on Rails. RDBMS storage was replaced with NoSQL MongoDB. A [video](http://www.10gen.com/presentations/MongoNYC-2012/Using-MongoDB-to-Build-Artsy) was recorded at MongoNYC 2012 that goes in depth into this specific choice. 
+In early 2011 we rebooted the project on Ruby on Rails. RDBMS storage was replaced with NoSQL MongoDB. A [video](http://www.10gen.com/presentations/MongoNYC-2012/Using-MongoDB-to-Build-Artsy) was recorded at MongoNYC 2012 that goes in depth into this specific choice.
 
 Artsy Architecture Today
 -------------------------
@@ -39,7 +39,7 @@ The Artsy website is a responsive [Backbone.js](http://backbonejs.org/) applicat
 Core API
 --------
 
-The website talks to the nervous system of Artsy, a RESTful API built in Ruby and [Grape](https://github.com/intridea/grape). While it's not currently available for 3rd party applications for various image rights-related reasons, you can play with it [here](http://artsy.net/api/v1/explorer).
+The website talks to the nervous system of Artsy, a RESTful API built in Ruby and [Grape](https://github.com/intridea/grape).
 
 In the early days we did a ton of domain-driven design and spent a lot of time modeling concepts such as *artist* or *artwork*. The API has read and write behavior for all our domain concepts. Probably 70% of it is pure CRUD doing [Mongoid](http://mongoid.org/) queries with a layer of access control in [CanCan](https://github.com/ryanb/cancan) and cache partitioning and binding using [Garner](http://confreaks.com/videos/986-goruco2012-from-zero-to-api-cache-w-grape-mongodb-in-10-minutes).
 

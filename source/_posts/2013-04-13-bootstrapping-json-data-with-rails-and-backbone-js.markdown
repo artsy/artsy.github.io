@@ -14,7 +14,7 @@ The [artsy.net website](http://artsy.net) is a Backbone.js application that talk
 
 Building this kind of one-page apps allows for clean separation between the presentation and API layers. The downside is that it will slow page render times - fetching data after page load means waiting for an AJAX request to complete before displaying anything.
 
-There're many solutions to this problem, all involving some kind of server-side rendering. You could, for example, share views and JavaScript between client and server. This would be a major paradigm shift for a large application like ours and not something we could possibly maneuver in a short amount of time. 
+There're many solutions to this problem, all involving some kind of server-side rendering. You could, for example, share views and JavaScript between client and server. This would be a major paradigm shift for a large application like ours and not something we could possibly maneuver in a short amount of time.
 
 Without changing the entire architecture of the system, how can we bootstrap JSON data server-side and avoid the data roundtrip on every page load?
 
@@ -59,7 +59,7 @@ class App.Collections.Artists extends Backbone.Collection
 
 ### Fetching Data
 
-A view requires data before it can be rendered. For example, navigating to [artsy.net/artist/hendrik-kerstens](http://artsy.net/artist/hendrik-kerstens) (a Dutch photographer who obsessively took pictures of his daughter in all kinds of artificial setups for 20 years) will call the following.
+A view requires data before it can be rendered. For example, navigating to [artsy.net/artist/hendrik-kerstens](https://artsy.net/artist/hendrik-kerstens) (a Dutch photographer who obsessively took pictures of his daughter in all kinds of artificial setups for 20 years) will call the following.
 
 ``` coffeescript
 class App.Views.ArtistView extends Backbone.View
