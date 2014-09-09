@@ -147,6 +147,11 @@ The [Artsy Developer website](http://developers.artsy.net), a Rails app that tal
 
 A boilerplate for Backbone projects that share code server/client and scale through modular architecture.
 
+[force](https://github.com/artsy/force-public)
+----------------------------------------------
+
+The [Artsy.net](https://artsy.net) frontend. This application renders the html and provides rich interaction for artsy.net.
+
 [artsy-2013](https://github.com/artsy/artsy-2013)
 -------------------------------------------------
 
