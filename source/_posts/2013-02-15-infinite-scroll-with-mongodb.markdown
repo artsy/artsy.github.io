@@ -10,7 +10,7 @@ twitter-url: http://twitter.com/dblockdotorg
 blog-url: http://code.dblock.org
 ---
 
-An infinite scroll can be a beautiful and functional way to present feed data. You can see ours on the [homepage of artsy.net](http://artsy.net/). It works by fetching a few items from the API, then fetching some more items as the user scrolls down the feed. Each API call returns the items along with a "cursor", which marks the position of the last item retrieved. Subsequent API calls include the cursor in the query string and the iteration resumes from there.
+An infinite scroll can be a beautiful and functional way to present feed data. You can see ours on the [homepage of artsy.net](https://artsy.net/). It works by fetching a few items from the API, then fetching some more items as the user scrolls down the feed. Each API call returns the items along with a "cursor", which marks the position of the last item retrieved. Subsequent API calls include the cursor in the query string and the iteration resumes from there.
 
 Why use a cursor and not standard pagination? Because inserting an item on top of the feed would shift the existing items down, causing the API to return a duplicate item on the page boundary. Removing an item from the top of the feed would pull the remaining items up, causing an item to be missed in the next request on the page boundary.
 

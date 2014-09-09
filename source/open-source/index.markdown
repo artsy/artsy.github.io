@@ -115,10 +115,12 @@ Easy maintenance of collections of processed data in MongoDB with the Mongoid OD
 
 [mongoid-shell](https://github.com/dblock/mongoid-shell)
 --------------------------------------------------------
+
 Create MongoDB command-lines from Mongoid configuration.
 
 [mongoid-scroll](https://github.com/dblock/mongoid-scroll)
 --------------------------------------------------------------
+
 Mongoid extension that enables infinite scrolling with MongoDB.
 
 [forgetsy](https://github.com/cavvia/forgetsy)
@@ -130,6 +132,11 @@ Forgetsy is a highly scalable trending library using [Forget Table](http://word.
 
 Slice deep-zoom images for [OpenSeaDragon](http://openseadragon.github.io/) or [ARTiledImageView](https://github.com/dblock/ARTiledImageView).
 
+[doppler](https://github.com/artsy/doppler)
+-------------------------------------------
+
+The [Artsy Developer website](http://developers.artsy.net), a Rails app that talks to the Artsy public API.
+
 
 # &nbsp;
 <h1 id="javascript">Javascript<h1>
@@ -139,6 +146,11 @@ Slice deep-zoom images for [OpenSeaDragon](http://openseadragon.github.io/) or [
 -------------------------------------
 
 A boilerplate for Backbone projects that share code server/client and scale through modular architecture.
+
+[force](https://github.com/artsy/force-public)
+----------------------------------------------
+
+The [Artsy.net](https://artsy.net) frontend. This application renders the html and provides rich interaction for artsy.net.
 
 [artsy-2013](https://github.com/artsy/artsy-2013)
 -------------------------------------------------

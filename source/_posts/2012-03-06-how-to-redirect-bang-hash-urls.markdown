@@ -11,7 +11,7 @@ blog-url: http://code.dblock.org
 ---
 Sometimes you type a hash-bang URL too fast, bang first.
 
-Consider `http://artsy.net/!#/log_in`. Rails will receive `/!` as the file path, resulting in a 404, File Not Found error. The part of the URL after the hash is a position within the page and is never sent to the web server.
+Consider `https://artsy.net/!#/log_in`. Rails will receive `/!` as the file path, resulting in a 404, File Not Found error. The part of the URL after the hash is a position within the page and is never sent to the web server.
 
 It's actually pretty easy to handle this scenario and redirect to the corresponding hash-bang URL.
 
@@ -52,5 +52,3 @@ The layout can have the piece of JavaScript that redirects to the corresponding 
     :javascript
       window.location = '/#!' + window.location.hash.substring(1)
 ```
-
-You can try this on <a href="http://artsy.net/!#/log_in" target="_blank">http://artsy.net/!#/log_in</a>. Watch it flip the bang-hash into a hash-bang and redirect to our login page. The redirect page could also be a good place to put an easter egg ;)

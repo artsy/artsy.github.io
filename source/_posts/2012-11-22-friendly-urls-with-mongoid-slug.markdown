@@ -9,7 +9,7 @@ github-url: https://www.github.com/dblock
 twitter-url: http://twitter.com/dblockdotorg
 blog-url: http://code.dblock.org
 ---
-All Artsy URLs shared publicly are humanly readable. For example, you'll find all Barbara Kruger's works at [artsy.net/artist/barbara-kruger](http://artsy.net/artist/barbara-kruger) and a post by Hyperallergic entitled "Superfluous Men Can't Get No Satisfaction" at [artsy.net/hyperallergic/post/superfluous-men-cant-get-no-satisfaction](http://artsy.net/hyperallergic/post/superfluous-men-cant-get-no-satisfaction). This is a lot prettier than having `id=42` in the browser's address and is a big improvement for SEO.
+All Artsy URLs shared publicly are humanly readable. For example, you'll find all Barbara Kruger's works at [artsy.net/artist/barbara-kruger](https://artsy.net/artist/barbara-kruger) and a post by Hyperallergic entitled "Superfluous Men Can't Get No Satisfaction" at artsy.net/hyperallergic/post/superfluous-men-cant-get-no-satisfaction. This is a lot prettier than having `id=42` in the browser's address and is a big improvement for SEO.
 
 <img src="/images/2012-11-22-friendly-urls-with-mongoid-slug/barbara-kruger.png">
 
@@ -54,7 +54,7 @@ user.posts.find("47cc67093475061e3d95369d")
 user.posts.find("superfluous-men-cant-get-no-satisfaction")
 ```
 
-Mongoid-slug is smart enough to figure out whether you're querying by a `Moped::BSON::ObjectId` or a slug. Performance-wise the lookup by slug is cheap: mongoid_slug ensures an index on `_slugs`. This all works, of course, because MongoDB builds a B-tree index atop all elements in each `_slugs` array. 
+Mongoid-slug is smart enough to figure out whether you're querying by a `Moped::BSON::ObjectId` or a slug. Performance-wise the lookup by slug is cheap: mongoid_slug ensures an index on `_slugs`. This all works, of course, because MongoDB builds a B-tree index atop all elements in each `_slugs` array.
 
 The `find` method will naturally respect Mongoid's `raise_not_found_error` option and either raise `Mongoid::Errors::DocumentNotFound` or return `nil` in the case the document cannot be found.
 
@@ -91,7 +91,7 @@ International Slugs
 
 We have a large international audience with names and posts in all kinds of languages. An escaped UTF-8 URL would be much worse than a BSON ObjectId. Fortunately, mongoid-slug uses [stringex](https://github.com/rsl/stringex) under the hood. This gem defines `to_url` and rewrites special symbols and transliterates strings from many languages into English. Here're some examples of generated slugs.
 
-``` ruby 
+``` ruby
 "ITCZ 1 (21°17ʼ51.78”N / 89°35ʼ28.18”O / 26-04-08 / 09:00 am)".to_url
 # => itcz-1-21-degrees-17-51-dot-78-n-slash-89-degrees-35-28-dot-18-o-slash-26-04-08-slash-09-00-am
 

@@ -10,20 +10,20 @@ twitter-url: http://twitter.com/greims
 blog-url: http://shortforgilbert.com
 ---
 
-> The only constant is change, continuing change, inevitable change, that is the dominant factor in society 
-> [and web apps!] today. No sensible decision can be made any longer without taking into account not only 
+> The only constant is change, continuing change, inevitable change, that is the dominant factor in society
+> [and web apps!] today. No sensible decision can be made any longer without taking into account not only
 > the world as it is, but the world as it will be.
 >
 > &ndash; Isaac Asimov
 
 ## R.I.P #!
 
-It did not take us long to discover we shared the concerns of Twitter's 
-[Dan Webb on hashbang routes](http://danwebb.net/2011/5/28/it-is-about-the-hashbangs), 
+It did not take us long to discover we shared the concerns of Twitter's
+[Dan Webb on hashbang routes](http://danwebb.net/2011/5/28/it-is-about-the-hashbangs),
 but it was almost a year before we were able to remove them from Artsy. Here's how it went down.
 
 Artsy relies on the [Backbone.js](http://documentcloud.github.com/backbone/) framework for our client application
-which offers a solid pushState routing scheme. This includes a seamless hashtag fallback for 
+which offers a solid pushState routing scheme. This includes a seamless hashtag fallback for
 [browsers that don't support the HTML5 History API](http://caniuse.com/#feat=history) (looking at you IE 9).
 
 The pushState routing is optional, but *"the world as it should be"* suggests we say "Yes!" (or true) to pushState.
@@ -35,7 +35,7 @@ Backbone.history.start({ pushState: true })
 
 ### The Client
 
-At Artsy, we had left Backbone out of the loop for most of our internal linking. Our markup href attributes all 
+At Artsy, we had left Backbone out of the loop for most of our internal linking. Our markup href attributes all
 began with '/#!' and expected the browser's default hash behavior to keep the page from refreshing. For a proper
 pushState scheme, the app's internal linking should begin with an absolute route. Backbone.js defaults to '/', but
 this is configurable.
@@ -62,7 +62,7 @@ This link handler is a great place to ensure backward compatibility while #!s ar
 internal links.
 
 ```coffeescript
-# Globally capture clicks. If they are internal and not in the pass 
+# Globally capture clicks. If they are internal and not in the pass
 # through list, route them through Backbone's navigate method.
 $(document).on "click", "a[href^='/']", (event) ->
 
@@ -108,17 +108,17 @@ $ ->
 ### The Server
 
 Now that our app will receive requests to full URLs
-'http://artsy.net/artwork/mattew-abbott-lobby-and-supercomputer'
-instead of 'http://artsy.net/#!/artwork/mattew-abbott-lobby-and-supercomputer',
+'https://artsy.net/artwork/mattew-abbott-lobby-and-supercomputer'
+instead of 'https://artsy.net/#!/artwork/mattew-abbott-lobby-and-supercomputer',
 we need to update our Rails setup.
 
 Below is an excerpt from our Rails application's router.
-Note references to our home and artworks controllers. Both use a `before` filter 
+Note references to our home and artworks controllers. Both use a `before` filter
 to determine a user's authentication state and serve a different layout, with
 unique assets or Backbone applications.
 
-Controllers related to specific models now have the opportunity to 
-bootstrap associated JSON or mark up and we now get expected 404 (file not found) 
+Controllers related to specific models now have the opportunity to
+bootstrap associated JSON or mark up and we now get expected 404 (file not found)
 error behavior without extra work required by a hash routing scheme.
 
 ```ruby
@@ -153,10 +153,10 @@ class App.Routers.Client extends Backbone.Router
 
 ## URLs R 4 Ever
 
-Dan Webb's assertion that [URLs are forever](http://danwebb.net/2011/5/28/it-is-about-the-hashbangs) is correct, 
-but so is Isaac Asimov's statement on change. You can't predict the future. 
+Dan Webb's assertion that [URLs are forever](http://danwebb.net/2011/5/28/it-is-about-the-hashbangs) is correct,
+but so is Isaac Asimov's statement on change. You can't predict the future.
 You make decisions based on the best data you have at the time. We started our app with hashtag routing
-in early 2011 and added the ! around five months later (about the same time Dan Webb wrote his post). 
+in early 2011 and added the ! around five months later (about the same time Dan Webb wrote his post).
 Had we started Artsy today, even six months ago, I'm confident we would have enabled Backbone's pushState routing.
 There's no need to look back. The future is here and its URLs are #! free!
 
