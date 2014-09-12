@@ -84,7 +84,7 @@ end
 
 ## Provide Canonical URLs for Resources
 
-In the past we returned different JSON payloads for a resource when it appeared within a collection vs. when it was retrieved individually. We have also developed solutions such as [mongoid-cached-json](https://github.com/dblock/mongoid-cached-json) to deal with this in a declarative way. However, clients were burdened to merge data. For example, or iOS application had to deal with the fact that different data existed in the local store for the same artwork depending on how a user navigated to it in the app.
+In the past we returned different JSON payloads for a resource when it appeared within a collection vs. when it was retrieved individually. We have also developed solutions such as [mongoid-cached-json](https://github.com/dblock/mongoid-cached-json) to deal with this in a declarative way. However, clients were burdened to merge data. For example, our iOS application had to deal with the fact that different data existed in the local store for the same artwork depending on how a user navigated to it in the app.
 
 With the new API each resource has a canonical, uniquely identifying, "self" link which is used to reference it from other resources. When a client encounters such a link and has already downloaded the resource, it can just swap the data without making an HTTP request. This is only possible because every single URL maps 1:1 with a specific JSON response - there're no two data responses possible for the same URL. The retrieval of such data can be solved by a generic crawler - get a resource, fetch dependent resource links, iterate until you run out of links. Storage is even simpler and doesn't have to know anything about our domain model since it just maps URLs to JSON bodies.
 
