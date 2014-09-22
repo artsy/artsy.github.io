@@ -55,7 +55,7 @@ about.
 Moya has this cool last-minute closure that it invokes to sign requests, so we 
 can sign these requests like this.
 
-```swift
+```
 var endpointsClosure = { (target: ArtsyAPI, method: Moya.Method, parameters: [String: AnyObject]) -> Endpoint<ArtsyAPI> in
         let endpoint: Endpoint<ArtsyAPI> = Endpoint<ArtsyAPI>(URL: url(target), sampleResponse: .Success(200, target.sampleData), method: method, parameters: parameters)
         
@@ -74,7 +74,7 @@ So that's kind of cool.
 Since there is only *one* method for accessing the API, we can easily inject
 the token-checking method there. Something like
 
-```swift
+```
 public func XAppRequest(token: ArtsyAPI, completion: MoyaCompletion) {
     if /* token is valid */ {
         moyaProvider.sharedProvider.request(token, completion: completion)
@@ -95,7 +95,7 @@ OK, so what alternative is there? Well, Moya supports a [ReactiveCocoa](https://
 extension that uses *signals* instead of callback closures. Super-cool. So we
 can rewrite our `XAppRequest` function to be the following. 
 
-```swift
+```
 private func XAppTokenRequest() -> RACSignal {
     // I don't like an extension of a class referencing what is essentially a singleton of that class.
     let newTokenSignal = moyaProvider.request(ArtsyAPI.XApp).filterSuccessfulStatusCodes().mapJSON().doNext({ (response) -> Void in
