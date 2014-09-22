@@ -97,7 +97,6 @@ can rewrite our `XAppRequest` function to be the following.
 
 ```
 private func XAppTokenRequest() -> RACSignal {
-    // I don't like an extension of a class referencing what is essentially a singleton of that class.
     let newTokenSignal = moyaProvider.request(ArtsyAPI.XApp).filterSuccessfulStatusCodes().mapJSON().doNext({ (response) -> Void in
         /* store new token globally */
     }).logError().ignoreValues()
