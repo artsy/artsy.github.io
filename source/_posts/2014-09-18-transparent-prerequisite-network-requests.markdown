@@ -52,6 +52,8 @@ the ten different possible `enum` values. This means you have compile-time
 safety in your networking code, but that's not really what we're here to talk 
 about. 
 
+<!-- more -->
+
 Moya has this cool last-minute closure that it invokes to sign requests, so we 
 can sign these requests like this.
 
