@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Using Pattern Recognition to Automatically Crop Framed Art"
-date: 2014-09-22 10:28
+date: 2014-09-24 10:28
 comments: true
 categories: [OpenCV, Pattern Recognition, Image Processing]
 author: Ilya Kavalerov
