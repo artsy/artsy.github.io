@@ -16,6 +16,8 @@ The [Indianapolis Museum of Art](https://artsy.net/imamuseum) (IMA) recently sha
 
 ![All of these images are open access. For reference, the accession numbers/names. 45-115.tif 45-9-v01.tif 54-4.tif 76-166-1-12b.tif 14-57.tif](http://f.cl.ly/items/2C0e2X1G1R1i1z1Y0M1B/banner.png)
 
+<!-- more -->
+
 *Some samples from the IMA image dataset. The bold green shape indicates the best cropping choice found, and the thin yellow shapes are the alternative cropping choices.*
 
 Our specific goal within this project was to find a rectangle that best contains the artwork within each photo. We want a program that finds a rectangle small enough to exclude the backgrounds, color swatches, and (preferably) frames in the images. At the same time, we want to avoid over-cropping the image and excluding the edges of the artwork, even if the artwork contains regions of flat color similar to the background. We are always searching for a rectangle that contains the artwork, so we need to take care and not be distracted by geometrical artworks like those of [Josef Albers](https://artsy.net/artwork/josef-albers-i-s-lxxb).
