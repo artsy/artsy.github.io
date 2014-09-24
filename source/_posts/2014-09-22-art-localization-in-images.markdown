@@ -1,9 +1,9 @@
 ---
 layout: post
-title: "Art Localization in Images"
+title: "Using Pattern Recognition to Automatically Crop Framed Art"
 date: 2014-09-22 10:28
 comments: true
-categories: [OpenCV, Image Processing]
+categories: [OpenCV, Pattern Recognition, Image Processing]
 author: Ilya Kavalerov
 github-url: https://www.github.com/ilyakava
 twitter-url: http://twitter.com/ilyakava
@@ -12,9 +12,9 @@ blog-url: http://ilyakavalerov.com
 
 ## Introduction
 
-The [Indianapolis Museum of Art](https://artsy.net/imamuseum) (IMA) recently shared thousands of high-resolution images from its permanent collection with Artsy, including 5,000 images that were in an un-cropped state. These images contain color swatches, frames, and diverse backgrounds, as shown below. The clutter in these images made them inappropriate to display to end users, and invited an approach to automatically crop the images. This post explores some fully automated techniques to locate the piece of art within each photo.
+The [Indianapolis Museum of Art](https://artsy.net/imamuseum) (IMA) recently shared thousands of high-resolution images from its permanent collection with Artsy, including 5,000 images that were in an un-cropped state. These images contain color swatches, frames, and diverse backgrounds, as shown below. The clutter in these images made them inappropriate to display to end users, and invited an approach to automatically crop the images. This post explores some fully automated techniques to locate the piece of art within each photo. If you're eager to jump straight to the code that worked best, you'll find the implementation of the 'Rectangular Contour Search' section [here](https://gist.github.com/ilyakava/b2dbca43991d6c668dbb).
 
-![Some samples from the IMA image dataset. The bold green shape indicates the best cropping choice found, and the thin yellow shapes are the alternative cropping choices.](http://f.cl.ly/items/2K2V2s2H2R090W2O1k1r/samples.png)
+![All of these images are open access. For reference, the accession numbers/names. 45-115.tif 45-9-v01.tif 54-4.tif 76-166-1-12b.tif 14-57.tif](http://f.cl.ly/items/2C0e2X1G1R1i1z1Y0M1B/banner.png)
 
 *Some samples from the IMA image dataset. The bold green shape indicates the best cropping choice found, and the thin yellow shapes are the alternative cropping choices.*
 
@@ -110,7 +110,7 @@ cv2.Canny(bw, threshold1 = 0, threshold2 = 50, apertureSize = 3)
 
 #### [Hough Lines](http://docs.opencv.org/master/modules/imgproc/doc/feature_detection.html?highlight=hough#cv2.HoughLines)
 
-The Hough Transform tries to find lines in an image explainable by the linear equation \\(y=mx + b\\). A more convenient way of expressing this equation on an image plane is with: \\( d=xcos(\theta) + ysin(\theta) \\) where a point \\((x,y)\\) is explained by the normal distance from the origin to the line (\\(d\\)) and the angle between that normal line and the x axis (\\(\theta\\)). To search for lines, we:
+The Hough Transform tries to find lines in an image explainable by the linear equation \\(y=mx + b\\). A more convenient way of expressing this equation on an image plane is with: \\(d=xcos(\theta) + ysin(\theta)\\) where a point \\((x,y)\\) is explained by the normal distance from the origin to the line (\\(d\\)) and the angle between that normal line and the x axis (\\(\theta\\)). To search for lines, we:
 
 1. Decide on a resolution for \\(d\\) and \\(\theta\\) that we are interested in.
     - We know that: \\(-image\ diagonal \leq d \leq image\ diagonal\\), and \\(-90 \leq \theta \leq 90\\) in degrees.
@@ -120,7 +120,7 @@ The Hough Transform tries to find lines in an image explainable by the linear eq
     - increment \\(H\\) at every \\(d\\) and \\(\theta\\) pair that creates a line passing through that point
 4. Pick the pairs of \\(d\\) and \\(\theta\\) that have an accumulator value in \\(H\\) above a certain threshold.
 
-![The code used to generate this plot can be found [here](https://gist.github.com/ilyakava/c2ef8aed4ad510ee3987).](http://f.cl.ly/items/3A3i1q3D2i40310J3J2W/hough_by_hand.png)
+![The code used to generate this plot can be found [here](https://gist.github.com/ilyakava/c2ef8aed4ad510ee3987).](http://f.cl.ly/items/0K08010j1Q20070C2h0U/hough_by_hand.png)
 
 *We search for Hough lines on a binary image. In this case we chose the top 22 lines to draw on the final image, their (\\(d\\), \\(\theta\\)) pairs are circled in blue on the accumulator matrix. The code used to generate this plot can be found in full [here](https://gist.github.com/ilyakava/c2ef8aed4ad510ee3987).*
 
@@ -153,17 +153,17 @@ An early attempt at detecting artwork borders consisted of the following steps:
 
 The choice of the Sobel filter was motivated by the great number of artwork images with light and gradual transitions between the artworks and their surrounding mattes, as well as between the paper artworks and their backgrounds. The smoothing in the Sobel filter makes it an edge detector well equipped for gradual borders. The Gaussian blur was used to minimize the interfering details within the artworks. The Canny edge detector was then used to fill in discontinuities in the borders. Finally, Hough lines were found, in the hopes that the most prominent lines would be along the edges of the artwork.
 
-![Corner detection working well. A high contrast background and a lack of geometrical shapes in the artwork led to occasional good performance.](http://f.cl.ly/items/2n110Q3d0q3w3k2q3u0r/corner_good_case.png)
+![Corner detection working well. A high contrast background and a lack of geometrical shapes in the artwork led to occasional good performance. Open access image: 41-88.tif](http://f.cl.ly/items/3C1z3A172C0Y2C0x1F09/corner_good_case2.png)
 
-*Corner detection working well. A high contrast background and a lack of geometrical shapes in the artwork led to occasional good performance.*
+*Corner detection working well. A lack of geometrical shapes in the artwork combined with strong artwork borders led to occasional good performance.*
 
-This method struggled to find Hough lines for discontinuous borders, which were common in our dataset and preprocessing techniques were not able to completely overcome. Often, since the content within the artwork was of much greater contrast than the border between the artwork and background, the most prominent lines were in fact within the artwork.
+Occasionally, the correct corners were found within 4-6 lines. More often, it took 30-50 lines for the correct corners to be identified. This method struggled to find Hough lines for discontinuous borders, which were common in our dataset and preprocessing techniques were not able to completely overcome. Often, since the content within the artwork, or far outside the artwork, was of much greater contrast than the border between the artwork and background, the most prominent lines were in fact within the artwork.
 
 The chief problem with this approach was that once the sensitivity of the search was increased enough to find the correct edges, there were too many lines found overall. It was hard to distinguish the right lines from the wrong lines since the desired border lines were not longer, more horizontal or vertical, nor more common than undesirable lines within the artwork. Distinguishing between the resultant corners of all these lines was also a lost cause since there were often too many alternative corners that interfered with choosing the correct cropping. Searching for correct combinations of corners is futile since it grows \\(\mathcal{O}(n^{4})\\) at worst.
 
-![A high contrast lithograph performs poorly. The green circles show all of the potential corners found from intersection of Hough Lines.](http://f.cl.ly/items/2v151z3j030N3j1h2l2l/corner_hell.png)
+![Corner detection performing poorly. Open access images, accession numbers are top: 10-194-v01.tif, bottom: 11-101.tif](http://f.cl.ly/items/1u070G2u3O2r0Q0n0m32/combo_bad_case.png)
 
-*A high contrast lithograph performs poorly. The green circles show all of the potential corners found from intersection of Hough Lines.*
+*Corner detection performing poorly. The top row shows a case where the content of the image starts to interfere with the border detection (which is even worse for some high contrast lithographs). The bottom row shows a case where lines outside of the artwork dominate the scene. It would be difficult to think of a ranking method that would work for both of these cases. The green circles show all of the potential corners found from intersection of Hough Lines.*
 
 Tweaking preprocessing effects also greatly varied the performance across the dataset in a non-generalized way. A tweak that would improve performance in one set of images would inhibit finding the correct Hough lines in another set.
 
@@ -185,7 +185,7 @@ We went a different direction and instead decided to take advantage of a more sp
     - Proportion of the image's surface area
     - Displacement of the shape from the center of the image
 
-![The Rectangular Contour Search workflow stages in pictures. The code used to generate this figure can be found [here](https://gist.github.com/ilyakava/b2dbca43991d6c668dbb).](http://f.cl.ly/items/0o0N2k0d0s2u2p381G1l/flow.png)
+![The Rectangular Contour Search workflow stages in pictures. The code used to generate this figure can be found [here](https://gist.github.com/ilyakava/b2dbca43991d6c668dbb). Open Access, accession number/filename: 2008-364b_v01.tif](http://f.cl.ly/items/0L2t2z2h3w3O130C2T0s/flow.png)
 
 *The Rectangular Contour Search workflow stages. The code used to generate this figure can be found in full [here](https://gist.github.com/ilyakava/b2dbca43991d6c668dbb).*
 
@@ -195,7 +195,7 @@ Because this method searched for a more specific feature than the Hough lines me
 
 This was the best performing method we tried, and achieved a 85% success rate on our dataset. It also carried the benefit that obvious failures were easy to report. If no rectangles were found (15% of the time with the IMA set) this failure could be recorded in a spreadsheet, rather than generating a result image that needed to be visually inspected.
 
-The code we used is available in full [here](https://gist.github.com/ilyakava/b2dbca43991d6c668dbb).
+The code we used is available in full [here](https://gist.github.com/ilyakava/b2dbca43991d6c668dbb). See the images in this project, as well as others for the [Indianapolis Museum of Art on Artsy](https://artsy.net/imamuseum).
 
 ## Previous Work
 
