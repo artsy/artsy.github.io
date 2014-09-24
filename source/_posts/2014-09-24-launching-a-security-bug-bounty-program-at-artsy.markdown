@@ -18,7 +18,7 @@ In this post I will focus on both technical and non-technical takeaways, and wil
 
 ## Before You Begin
 
-Our security bug bounty program started with an engineer (myself) creating a [document](https://artsy.net/security) on our website, largely inspired from other bug bounty programs. Our staff attorney wanted to review and edit it, something that must definitely be done.
+Our security bug bounty program started with an engineer (myself) creating a [document](https://artsy.net/security) on our website, largely inspired from other bug bounty programs. Our staff attorney wanted to review and edit it, something that definitely needed to be done.
 
 A less evident step was to have a conversation with the finance department about whether or not bounty could be paid to individuals living in countries that may have U.S. sanctions imposed on them (see [What countries do I need to worry about in terms of U.S. sanctions?](http://www.treasury.gov/resource-center/faqs/Sanctions/Pages/answer.aspx)). We also needed to talk about the terms under which reward payments could be made at all - we now require the individual's full name and postal address. Other bounty programs, including [Github's](https://bounty.github.com/), require a [W9](http://www.irs.gov/pub/irs-pdf/fw9.pdf) for U.S. citizens or a [W8_BEN](http://www.irs.gov/pub/irs-pdf/fw8ben.pdf) for non-U.S. citizens before any payment can be made (we may start doing this as well).
 
