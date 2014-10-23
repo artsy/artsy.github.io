@@ -9,7 +9,7 @@ twitter-url: http://twitter.com/zamiang
 categories: [Search]
 ---
 
-Search is a difficult problem -- a really difficult problem. And yet, many small companies still customize their own search service based on [Solr](http://lucene.apache.org/solr/)/[Elastic Search](http://www.elasticsearch.org/). While these services are very apropriate for private data, Google Site Search can be great hosted search service for a public website. It is often not considered because users search on a dedicated site with different intent than they search Google. We found that while this may be true, it is not necessarily a good reason to roll your own search service for your public site. This post is about how, in a week, we switched from Solr to [Google Site Search](https://support.google.com/customsearch/answer/72326?hl=en) and customized it into a fast, [beautiful search service](https://artsy.net/search?q=banksy).
+Search is a difficult problem -- a really difficult problem. And yet, many small companies still customize their own search service based on [Solr](http://lucene.apache.org/solr/)/[Elastic Search](http://www.elasticsearch.org/). While these services are very appropriate for private data, Google Site Search can be great hosted search service for a public website. It is often not considered because users search on a dedicated site with different intent than they search Google. We found that while this may be true, it is not necessarily a good reason to roll your own search service for your public site. This post is about how, in a week, we switched from Solr to [Google Site Search](https://support.google.com/customsearch/answer/72326?hl=en) and customized it into a fast, [beautiful search service](https://artsy.net/search?q=banksy).
 
 {% img screenshot /images/2014-10-23-how-we-customized-google-site-search-at-artsy/photography-site-search.jpg [Search for photography on artsy] %}
 
@@ -39,9 +39,9 @@ First, make sure Google indexes your site. Google Site Search merely searches Go
 
 ### Google Site Search JSON API
 
-The most important next step is to use the [JSON API](https://developers.google.com/custom-search/json-api/v1/overview) instead of letting Google render the results for you. GSS looks like Google Search (with some themeing options). Google-style UI in your site is both conceptually and visually jarring to your users. Your designer may eventually want to move some things around so you might as well just start by rendering the results yourself.
+The most important next step is to use the [JSON API](https://developers.google.com/custom-search/json-api/v1/overview) instead of letting Google render the results for you. GSS looks like Google Search (with some theming options). Google-style UI in your site is both conceptually and visually jarring to your users. Your designer may eventually want to move some things around so you might as well just start by rendering the results yourself.
 
-In addition to these visual issues, GSS displays your page title, description and image intended for search engine result pages. This information should be changed to be more apropriate to people who are already on your site. See below where we compare a customized Google Site Search page with our own rendered version. We make the results more apropriate to Artsy by changing the order of results, cleaning up page titles and using visual layout.
+In addition to these visual issues, GSS displays your page title, description and image intended for search engine result pages. This information should be changed to be more appropriate to people who are already on your site. See below where we compare a customized Google Site Search page with our own rendered version. We make the results more appropriate to Artsy by changing the order of results, cleaning up page titles and using visual layout.
 
 {% img screenshot /images/2014-10-23-how-we-customized-google-site-search-at-artsy/google-site-search.jpg [Customized Google Site Search at Artsy] %}
 
@@ -49,7 +49,7 @@ In addition to these visual issues, GSS displays your page title, description an
 
 The GSS JSON API is not your custom API with a connection to your database but you can make it work like one. You no longer get back nicely structured data allowing you to know if the entity is say, an artist or an artwork. You just get back urls and their meta tags. The key to getting good data out of the GSS API is to use a custom Facebook [Open Graph](http://ogp.me/) implementation (custom og:type) and other custom meta tags.
 
-Note how Banksy appers in a different layout from Articles above. For artist pages, we use a custom OG type called 'artsyinc:artist' which tell us which layout to use when displaying the result. We then include additional data like "og:nationality", "og:birthyear" etc if we need extra information. In addition to improving our layout, this makes Artsy more semantic.
+Note how Banksy appears in a different layout from Articles above. For artist pages, we use a custom OG type called 'artsyinc:artist' which tell us which layout to use when displaying the result. We then include additional data like "og:nationality", "og:birthyear" etc if we need extra information. In addition to improving our layout, this makes Artsy more semantic.
 
 ### Evaluating Search Changes
 
@@ -57,4 +57,4 @@ In addition to doing internal testing and sending to friends, we used [usertesti
 
 ## In Conclusion
 
-Overall we were surprized at how well Google Site Search worked for us, a specialized art site. Given our level of customization it is impossible tell that we use it. We will see how it plays out long term but so far, we have improved the search experience on Artsy while making it more semantic in the process. I only wish we had considered GSS a valid option earlier.
+Overall we were surprised at how well Google Site Search worked for us, a specialized art site. Given our level of customization it is impossible tell that we use it. We will see how it plays out long term but so far, we have improved the search experience on Artsy while making it more semantic in the process. I only wish we had considered GSS a valid option earlier.
