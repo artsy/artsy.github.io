@@ -9,29 +9,29 @@ twitter-url: http://twitter.com/zamiang
 categories: [Search]
 ---
 
-Search is a difficult problem -- a really difficult problem. And yet, many small companies still customize their own search service based on [Solr](http://lucene.apache.org/solr/)/[Elastic Search](http://www.elasticsearch.org/). While these services are very appropriate for private data, Google Site Search can be great hosted search service for a public website. It is often not considered because users search on a dedicated site with different intent than they search Google. We found that while this may be true, it is not necessarily a good reason to roll your own search service for your public site. This post is about how, in a week, we switched from Solr to [Google Site Search](https://support.google.com/customsearch/answer/72326?hl=en) and customized it into a fast, [beautiful search service](https://artsy.net/search?q=banksy).
+This post is about how, in a week, we switched from Solr to [Google Site Search](https://support.google.com/customsearch/answer/72326?hl=en) and customized it into a fast, [beautiful search service](https://artsy.net/search?q=banksy). Search is a difficult problem -- a really difficult problem. For small companies and startups, the common solution to search is to launch a custom search service based on [Solr](http://lucene.apache.org/solr/) or [Elastic Search](http://www.elasticsearch.org/). While these services are very appropriate for private data, we think Google Site Search should be considered in addition to these services for a public website. It is often not considered because users search on a dedicated site with different intent than they search Google. We found that while this may be true, it is not necessarily a good reason to roll your own search service for your public site.
 
-{% img screenshot /images/2014-10-23-how-we-customized-google-site-search-at-artsy/photography-site-search.jpg [Search for photography on artsy] %}
+![Search for photography on artsy](/images/2014-10-23-how-we-customized-google-site-search-at-artsy/photography-site-search.jpg)
 
 <!-- more -->
 
 ## Why Google Site search?
 
-While rolling your own search service has the benefits of infinite customizability, it also takes a great deal of time and effort to build and maintain. Generic services such as Google Site Search, not only may solve your user's search needs but get benefits from their general purpose. Those benefits are difficult to recreate with a site-specific search app with limited content. Google, with its limitless search data, has a sophisticated understanding of user intent and relevance that is difficult to create without significant engineering effort. On Artsy, Google understands that 'koons' refers to 'Jeff Koons' and is not a misspelling of 'deKooning'. It indexes long form content such as user generated posts, and yet knows that 'andy' refers to 'Andy Warhol' and not the user 'Andy' who has never posted. Without knowing the number of inbound link to these pages, it would be difficult to rank our search results so effectively.
+While rolling your own search service has the benefits of infinite customizability, it also takes a great deal of time and effort to build and maintain. Generic services such as Google Site Search, not only may solve your user's search needs, but get benefits from their general purpose. Those benefits are difficult to recreate with a site-specific search app with limited content. Google, with its limitless search data, has a sophisticated understanding of user intent and relevance that is difficult to create without significant engineering effort. On Artsy, Google understands that 'koons' refers to 'Jeff Koons' and is not a misspelling of 'deKooning'. It indexes long form content such as user generated posts, and yet knows that 'andy' refers to 'Andy Warhol' and not the user 'Andy' who has never posted. Without knowing the number of inbound link to these pages, it would be difficult to rank our search results so effectively.
 
-Before looking at Google Site Search, we made many valiant attempts at the great search problem. First, we implemented [full text search in Mongo](https://github.com/artsy/mongoid_fulltext) (before it had full-text search). Eventually that became too slow and we transitioned to use Solr which we tweaked for 3 years. Importantly, we still use Solr for our autocomplete and all admin applications. When trying to deliver a great search results page, we found it difficult to properly weight results across our many entities. The easiest solution we could find was Google Site Search which allows you to remove Google branding, customize weigh results and access their [JSON api](https://developers.google.com/custom-search/json-api/v1/overview). While that may seem perfect and done, it took us about a week of tweaking to get the most out of the GSS API and turn it into an Artsy branded experience.
+Before looking at Google Site Search, we made many valiant attempts at the great search problem. First, we implemented [full text search in Mongo](https://github.com/artsy/mongoid_fulltext) (before it had full-text search). Eventually that became too slow and we transitioned to use Solr which we tweaked for 3 years. Importantly, we still use Solr for our autocomplete and all admin applications. When trying to deliver a great search results page, we found it difficult to properly weigh results across our many entities. The easiest solution we could find was Google Site Search which allows you to remove Google branding, customize weigh results and access their [JSON api](https://developers.google.com/custom-search/json-api/v1/overview). While that may seem perfect and done, it took us about a week of tweaking to get the most out of the GSS API and turn it into an Artsy branded experience.
 
 ## Will Google Site Search work for me?
 
 There are many deal-breaker level tradeoffs to consider when evaluating GSS. But in the end, it works well for Artsy and is so easy to setup and maintain that those tradeoffs may be worth it for you as well. We encountered three big issues when trying to implement GSS.
 
 1.  You can no longer have admin only or user specific search results since you just get back public search results.
-2.  Updates to search results take around a week or two
-3.  The ranking logic is magical and non-inspectable or modifiable
+2.  Updates to search results take around a week or two.
+3.  The ranking logic is magical and non-inspectable or modifiable.
 
-It is important to remember that Google doesn't understand your business. It just wants to provide relevant results to people who come to Google, but people likely come to your site for a different reason. For example, at Artsy, our highest value pages are Artist pages which convert best for our key metrics. Our editorial pages, while nice are our lowest value pages and convert poorly. Google tends to highlight the editorial pages which have many inbound links. We have hacked around this by bumping up artist pages in results but it isn't ideal. In the case of the Banksy result below (one of our top searches), GSS gives a good mix of the artist page, editorial content and related categories.
+It is important to remember that Google doesn't understand your business. It just wants to provide relevant results to people who come to Google, but people likely come to your site for a different reason. For example, at Artsy, our highest value pages are Artist pages which convert best for our key metrics. Our editorial pages, while nice are our lowest value pages and convert poorly. Google tends to highlight the editorial pages which have many inbound links. We have hacked around this by bumping up artist pages in results but it isn't ideal. In the case of the Banksy result below (one of our top searches), GSS gives preferrable set of results. While SOLR give us artists who may be a missspelling of 'Banksy', GSS gives a good mix editorial content about Banksy and related categories.
 
-{% img screenshot /images/2014-10-23-how-we-customized-google-site-search-at-artsy/banksy-site-search.jpg [Search for Banksy on artsy] %}
+![Search for Banksy on artsy](/images/2014-10-23-how-we-customized-google-site-search-at-artsy/banksy-site-search.jpg)
 
 ## Getting the most out of Google Site Search
 
@@ -43,7 +43,7 @@ The most important next step is to use the [JSON API](https://developers.google.
 
 In addition to these visual issues, GSS displays your page title, description and image intended for search engine result pages. This information should be changed to be more appropriate to people who are already on your site. See below where we compare a customized Google Site Search page with our own rendered version. We make the results more appropriate to Artsy by changing the order of results, cleaning up page titles and using visual layout.
 
-{% img screenshot /images/2014-10-23-how-we-customized-google-site-search-at-artsy/google-site-search.jpg [Customized Google Site Search at Artsy] %}
+![Customized Google Site Search at Artsy](/images/2014-10-23-how-we-customized-google-site-search-at-artsy/google-site-search.jpg)
 
 ### Custom Metatags
 
