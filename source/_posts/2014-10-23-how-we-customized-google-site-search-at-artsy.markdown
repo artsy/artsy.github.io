@@ -29,7 +29,7 @@ There are many deal-breaker level tradeoffs to consider when evaluating GSS. But
 2.  Updates to search results take around a week or two.
 3.  The ranking logic is magical and non-inspectable or modifiable.
 
-It is important to remember that Google doesn't understand your business. It just wants to provide relevant results to people who come to Google, but people likely come to your site for a different reason. For example, at Artsy, our highest value pages are Artist pages which convert best for our key metrics. Our editorial pages, while nice are our lowest value pages and convert poorly. Google tends to highlight the editorial pages which have many inbound links. We have hacked around this by bumping up artist pages in results but it isn't ideal. In the case of the Banksy result below (one of our top searches), GSS gives preferable set of results. While SOLR give us artists who may be a misspelling of 'Banksy', GSS gives a good mix editorial content about Banksy and related categories.
+It is important to remember that Google doesn't understand your business. It just wants to provide relevant results to people who come to Google, but people likely come to your site for a different reason. Google's pagerank considers the entire internet of links towards you. This causes some results that are really good globally to be bad for a site specific search. For example, at Artsy, our highest value pages are Artist pages which convert best for our key metrics. Our editorial pages, while nice are our lowest value pages and convert poorly. Google tends to highlight the editorial pages which have many inbound links. We have hacked around this by bumping up artist pages in results but it isn't ideal. Sometimes this works out favorably such as in the Banksy result below (one of our top searches). While SOLR give us artists who may be a misspelling of 'Banksy', GSS gives preferable result set with a mix of editorial content about Banksy and related categories.
 
 ![Search for Banksy on artsy](/images/2014-10-23-how-we-customized-google-site-search-at-artsy/banksy-site-search.jpg)
 
@@ -57,4 +57,6 @@ In addition to doing internal testing and sending to friends, we used [usertesti
 
 ## In Conclusion
 
-Overall we were surprised at how well Google Site Search worked for us, a specialized art site. Given our level of customization it is impossible tell that we use it. We will see how it plays out long term but so far, we have improved the search experience on Artsy while making it more semantic in the process. I only wish we had considered GSS a valid option earlier.
+Overall we were surprised at how well Google Site Search worked for us, a specialized art site. Given our level of customization it is impossible tell that we use it. We will see how well GSS plays out long term but so far, we have improved the search experience on Artsy while making it more semantic in the process. I only wish we had considered GSS a valid option earlier.
+
+If you would like to try out Artsy's public search API, we have a public version [here](https://developers.artsy.net/docs/search). It uses the [google_custom_search_api](https://github.com/wiseleyb/google_custom_search_api) gem which makes GSS trivial to integrate into a Ruby app.
