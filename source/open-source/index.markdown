@@ -286,6 +286,15 @@ Expecta matchers for ios-snapshot-test-case.
 
 Swizzle your iOS project into ASCII art.
 
+[Eidolon](https://github.com/artsy/eidolon)
+-------------------------------------------
+
+ A bidding kiosk for the Artsy auctions platform written in Swift.
+
+[ARCollectionViewMasonryLayout](https://github.com/AshFurrow/ARCollectionViewMasonryLayout)
+-------------------------------------------------------------------------------------------
+
+A UICollectionViewLayout subclass for creating flow-like layouts with dynamic widths or heights.
 
 # &nbsp;
 <h1 id="heroku">Heroku<h1>
