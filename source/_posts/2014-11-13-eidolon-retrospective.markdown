@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Eidolon Retrospective"
-date: 2014-11-12 23:15
+date: 2014-11-13 10:00
 comments: true
 categories: [iOS, Open-Source, mobile]
 author: Ash Furrow
@@ -10,7 +10,7 @@ twitter-url: http://twitter.com/ashfurrow
 blog-url: http://ashfurrow.com/
 ---
 
-Before the Kiosk app (code-named [Eidolon](https://github.com/artsy/eidolon)), the iOS team here at Artsy worked on two main apps: a [consumer-facing iPhone app](http://iphone.artsy.net) and an iPad app used by art galleries. We follow [Artsy’s standard practices](https://artsy.github.io/blog/2012/01/29/how-art-dot-sy-uses-github-to-build-art-dot-sy/) for building our software and use GitHub issues as our conical source for bug reports and feature requests. Many of the components used in our apps are [open source](https://github.com/artsy), but the codebases themselves remain in private repositories. 
+Before the Kiosk app (code-named [Eidolon](https://github.com/artsy/eidolon)), the iOS team here at Artsy worked on two main apps: a [consumer-facing iPhone app](http://iphone.artsy.net) and an iPad app used by art galleries. We follow [Artsy’s standard practices](https://artsy.github.io/blog/2012/01/29/how-art-dot-sy-uses-github-to-build-art-dot-sy/) for building our software and use GitHub issues as our canonical source for bug reports and feature requests. Many of the components used in our apps are [open source](https://github.com/artsy), but the codebases themselves remain in private repositories. 
 
 Initial planning for Eidolon began over the Summer. Our designer Katarina had the main features sketched out. We had a rough scope: the app would be able to list artworks at an auction and allow prospective bidders to learn more about these artworks. The user would be able to register to bid and place bids using the Kiosk, including credit card processing for identity-checking. 
 
@@ -38,7 +38,7 @@ Shortly after Swift’s announcement, [Brian Gesiak](http://twitter.com/modocach
 
 We use continuous integration on our other iOS projects and wanted to do the same for Eidolon. However, our usual CI provider, [Travis](https://travis-ci.org), has historically not supported beta versions of Xcode – our only choice for CI would be Jenkins. With a basic Swift Xcode project in hand, Orta set up Jenkins on a Mac Mini in the Artsy office. This didn’t meet our needs for a few reasons. Primarily, getting the build to work from a command line was difficult with Swift and Xcode 6 – Orta spent quite some time getting it configured. However, we all sorely missed some of the great integrations that Travis provides, particularly with GitHub. During development, we technically did have continuous integration, but it wasn’t leveraged to nearly the degree that it could or should have been. 
 
-A large portion of our tests on our other iOS apps rely on [snapshot tests](https://github.com/facebook/ios-snapshot-test-case) and we use a [set of Expecta matchers for Specta](https://github.com/dblock/ios-snapshot-test-case-expecta) that DB wrote. However, we weren’t using Specta for Eidolon and the matchers we were using wouldn’t work, so I [wrote some new ones](https://github.com/AshFurrow/Nimble-Snapshots). This was great from my perspective, since I didn’t really understand how the under-the-hood of a unit testing framework worked until I wrote the new matchers. It’s been fun and educational to see Quick and Nimble grow as projects.As an early adopter, the Artsy iOS team has been able to provide feedback on its development. This has hopefully helped Quick and Nimble grow in ways that benefitted from real-world use, but by contributing to the project, it also helped us get features we needed faster (you can insert either a “quick” or “swift” pun here as you wish). 
+A large portion of our tests on our other iOS apps rely on [snapshot tests](https://github.com/facebook/ios-snapshot-test-case) and we use a [set of Expecta matchers for Specta](https://github.com/dblock/ios-snapshot-test-case-expecta) that DB wrote. However, we weren’t using Specta for Eidolon and the matchers we were using wouldn’t work, so I [wrote some new ones](https://github.com/AshFurrow/Nimble-Snapshots). This was great from my perspective, since I didn’t really understand how the under-the-hood of a unit testing framework worked until I wrote the new matchers. It’s been fun and educational to see Quick and Nimble grow as projects. As an early adopter, the Artsy iOS team has been able to provide feedback on its development. This has hopefully helped Quick and Nimble grow in ways that benefitted from real-world use, but by contributing to the project, it also helped us get features we needed faster (you can insert either a “quick” or “swift” pun here as you wish). 
 
 ![*click*](/images/2014-11-12-eidolon-retrospective/polaroid.gif)
 
