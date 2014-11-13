@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "Eidolon Retrospective"
+title: "Developing a Bidding Kiosk for iOS in Swift"
 date: 2014-11-13 10:00
 comments: true
 categories: [iOS, Open-Source, mobile]
@@ -10,17 +10,17 @@ twitter-url: http://twitter.com/ashfurrow
 blog-url: http://ashfurrow.com/
 ---
 
-Before the Kiosk app (code-named [Eidolon](https://github.com/artsy/eidolon)), the iOS team here at Artsy worked on two main apps: a [consumer-facing iPhone app](http://iphone.artsy.net) and an iPad app used by art galleries. We follow [Artsy’s standard practices](https://artsy.github.io/blog/2012/01/29/how-art-dot-sy-uses-github-to-build-art-dot-sy/) for building our software and use GitHub issues as our canonical source for bug reports and feature requests. Many of the components used in our apps are [open source](https://github.com/artsy), but the codebases themselves remain in private repositories. 
+In the Summer of 2014, we began developing a bidding kiosk for the Artsy auctions platform (code-named [Eidolon](https://github.com/artsy/eidolon)). Typically, the iOS team here at Artsy worked on two main apps: a [consumer-facing iPhone app](http://iphone.artsy.net) and an iPad app used by art galleries. For Eidolon, we followed [Artsy’s standard practices](https://artsy.github.io/blog/2012/01/29/how-art-dot-sy-uses-github-to-build-art-dot-sy/) for building our software and use GitHub issues as our canonical source for bug reports and feature requests. Many of the components used in our apps are [open source](https://github.com/artsy), but the codebases themselves remain in private repositories. 
 
-Initial planning for Eidolon began over the Summer. Our designer Katarina had the main features sketched out. We had a rough scope: the app would be able to list artworks at an auction and allow prospective bidders to learn more about these artworks. The user would be able to register to bid and place bids using the Kiosk, including credit card processing for identity-checking. 
+Initial planning for Eidolon began over the Summer. Our designer [Katarina](http://twitter.com/katarinabatina) had the main features sketched out. I was scheduled to work on it at first, with [Orta](http://twitter.com/orta) and [Laura](http://twitter.com/1aurabrown) joining me near the end of the project. We had a rough scope: the app would be able to list artworks at an auction and allow prospective bidders to learn more about these artworks. The user would be able to register to bid and place bids using the Kiosk, including credit card processing for identity-checking. 
 
 <!-- more -->
 
 ![Finished Eidolon App](/images/2014-11-12-eidolon-retrospective/listings.png)
 
-Orta and I met some friends over a weekend in Austria and, during our drive across the country, discussed the possibility of developing this new iOS app as a completely open source project. We were both excited about the prospect and had the support from DB to make it open. There were just some technical issues that would have to be addressed to make the Kiosk app an open source reality. For example, how would we restrict access to the app’s API keys?
-
 ## An Idea
+
+Orta and I met some friends over a weekend in Austria and, during our drive across the country, discussed the possibility of developing this new iOS app as a completely open source project. We were both excited about the prospect and had the support from [dB](http://twitter.com/dblockdotorg) to make it open. There were just some technical issues that would have to be addressed to make the Kiosk app an open source reality. For example, how would we restrict access to the app’s API keys? Developing Eidolon in the open would let us share what we've learned, a value at Artsy, and also allow us to easily ask for help from the community.
 
 We were also together in San Francisco for Apple’s announcement of Swift. Following the announcement, there were lots of small pieces of source code published on the Internet that demonstrated some of Swift’s new features, but a large project didn't really exist to show how iOS apps written in Swift don’t have to be moulded by outdated Objective-C traditions. 
 
