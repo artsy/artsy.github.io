@@ -24,7 +24,7 @@ At our first auction, everything went great – no major glitches or crashes. Aw
 
 A few weeks later, on the morning of our second auction, things were no so great. We were having issues with our credit card processor, [CardFlight](https://getcardflight.com) and spent a lot of time on the phone with them sorting out the problem. As a precaution, [Orta](http://twitter.com/orta) pulled of an extraordinary feat of engineering to produce a manual card entry interface in a matter of hours. The card processing was working, but it would’ve been better to be safe than sorry. 
 
-That evening, the auctions team was preparing, and they discovered a problem: *some* of the Kiosks were experiencing a new problem processes cards. That was strange because earlier that day, the first issue was affecting *all* kiosks. Because we had had problems earlier that day with CardFlight, we assumed that this new problem was also on their end. We didn’t have time to debug the problem, but the event itself went fine because we had that manual entry interface. However, we definitely needed to find the cause of the problem later.
+That evening, the auctions team was preparing, and they discovered a problem: *some* of the Kiosks were experiencing a new problem processing cards. That was strange because earlier that day, the first issue was affecting *all* kiosks. Because we had had problems earlier that day with CardFlight, we assumed that this new problem was also on their end. We didn’t have time to debug the problem, but the event itself went fine because we had that manual entry interface. However, we definitely needed to find the cause of the problem later.
 
 Orta tried over the next several days to diagnose the issue, but he couldn’t reproduce it at all. Different code, different build settings, different distribution methods – nothing could reproduce the problem. 
 
@@ -32,7 +32,7 @@ Orta tried over the next several days to diagnose the issue, but he couldn’t r
 
 Eventually, we decided that the issue must have resolved itself somehow and hopefully wouldn’t pop up again. We simply didn’t have time to keep trying to reproduce a phantom bug. 
 
-Fast forward to last night at the third auction facilitated with Eidolon. We get there, and some of the kiosks are exhibiting the same behaviour, even though our tests earlier in the day didn’t show the problem. We tried over and over again: disassembling a problematic kiosk, discovering it worked outside the housing, then reassembling it to see it no longer working. What could the problem be?
+Fast forward to last night at the [third auction](https://artsy.net/feature/ici-benefit-auction-2014) facilitated with Eidolon. We get there, and some of the kiosks are exhibiting the same behaviour, even though our tests earlier in the day didn’t show the problem. We tried over and over again: disassembling a problematic kiosk, discovering it worked outside the housing, then reassembling it to see it no longer working. What could the problem be?
 
 Well, let’s take a look at the kiosks we used last night. 
 
