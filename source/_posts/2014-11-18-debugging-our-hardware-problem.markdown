@@ -59,3 +59,5 @@ After that, the faceplate would slide on without issue and all of the kiosks wor
 As I said earlier, Eidolon is different from typical iOS applications – our experience writing typical apps left us ill-equipped to debug what turned out to be a hardware problem. We learnt that, when reproducing bugs that only happen in production, it’s crucial to reproduce the *physical* context that the bug is occurring in as closely as possible. We also learnt that jumping to the conclusion that CardFlight was responsible for our issues was, while a natural gut reaction, deserved closer scrutiny when later trying to reproduce the problem. 
 
 Our auctions team was happy that we solved the phantom card-swiping problem and our users were none-the-wiser to the hurried use of Allen keys backstage to disassemble and reassmble kiosks. Eidolon, the software that we had poured so much time into, was almost defeated by a errant piece of foam. But we prevailed.
+
+[![dB, Orta, and Ash](/images/2014-11-18-debugging-our-hardware-problem/success.gif)](http://www.thebos.co/p/XUJNAY)
