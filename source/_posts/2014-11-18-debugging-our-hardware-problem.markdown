@@ -1,5 +1,5 @@
 ---
-layout: post
+layout: full_width_post
 title: "Close to the Metal: Debugging Our Hardware Problem"
 date: 2014-11-18 08:33
 comments: true
@@ -60,4 +60,6 @@ As I said earlier, Eidolon is different from typical iOS applications – our ex
 
 Our auctions team was happy that we solved the phantom card-swiping problem and our users were none-the-wiser to the hurried use of Allen keys backstage to disassemble and reassmble kiosks. Eidolon, the software that we had poured so much time into, was almost defeated by a errant piece of foam. But we prevailed.
 
-[![dB, Orta, and Ash](/images/2014-11-18-debugging-our-hardware-problem/success.gif)](http://www.thebos.co/p/XUJNAY)
+<div style="text-align:center;">
+<a href= "http://www.thebos.co/p/XUJNAY"><img src = "/images/2014-11-18-debugging-our-hardware-problem/success.gif"></a>
+</div>
