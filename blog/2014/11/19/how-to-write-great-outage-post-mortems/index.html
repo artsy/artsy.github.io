@@ -1,0 +1,379 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>How to Write Great Outage Post-Mortems - Artsy Engineering</title>
+  <meta name="author" content="Artsy">
+
+  
+  <meta name="description" content="The website is finally back up after crashing hard for 4 hours straight. Recently AWS decided to reboot a few of your servers for a critical update. &hellip;">
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://artsy.github.io/blog/2014/11/19/how-to-write-great-outage-post-mortems">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <script src="/javascripts/modernizr-2.0.js"></script>
+  <script src="/javascripts/ender.js"></script>
+  <script src="/javascripts/octopress.js" type="text/javascript"></script>
+  <link href="/atom.xml" rel="alternate" title="Artsy Engineering" type="application/atom+xml">
+  <!--[if IE 8]>
+<link href="/stylesheets/custom/ie_font.css" type="text/css">
+<![endif]-->
+
+<!--- MathJax Configuration -->
+<script type="text/javascript"
+src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+</script>
+
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-12450662-3']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+
+<body>
+
+  <a href="/">
+    <h1 id="lrg-mark">
+      <span>Artsy</span>
+    </h1>
+  </a>
+
+  <header id="banner"><hgroup>
+  <div id="header">
+    <h2>Inspiration from the engineering team at <a href="https://artsy.net">Artsy</a> — Discover, Research, and Collect the World's Best Art Online.</h2>
+  </div>
+</hgroup>
+
+</header>
+
+  <div id="main">
+    
+      <div id="mobile_search">
+        <form action="https://www.google.com/cse" method="get">
+          <input type="hidden" value="010245880960712892902:tnjd4ryb3ci" name="cx" />
+          <input class="search" type="text" name="q" results="0" placeholder="Search" />
+        </form>
+      </div>
+    
+    <div id="content">
+      <style>
+
+html #main #content {
+  width: 900px;
+}
+
+html  #main #sidebar {
+  display:block;
+  width:900px;
+}
+
+html #main #sidebar section {
+  float:left;
+  width:260px;
+  padding:20px;
+}
+
+html #main_footer {
+  margin-top:40px;
+  margin-bottom:20px;
+  clear:both;
+}
+
+html #main_footer p {
+  padding:10px;
+}
+
+</style>
+
+<div>
+  <article class="hentry" role="article">
+    
+  <header>
+    
+    <a href="">
+      <div class="date">
+
+
+
+
+  
+<time datetime="2014-11-19T12:21:00-05:00" pubdate>11/19/14</time></div>
+    
+    
+      <h1 class="entry-title">How to Write Great Outage Post-Mortems</h1>
+    
+    </a>
+    
+      <p class="meta">
+        
+      </p>
+    
+  </header>
+
+
+<div class="entry-content"><p>The website is finally back up after crashing hard for 4 hours straight.</p>
+
+<p>Recently AWS decided to <a href="http://aws.amazon.com/blogs/aws/ec2-maintenance-update">reboot a few of your servers for a critical update</a>. It didn&#8217;t seem like it was going to be a big deal, except that the schedule was only accommodating if you were in the Pacific Northwest. The first reboot took out a secondary replica of our MongoDB database. Unfortunately <a href="https://github.com/mongoid/moped/issues/321">the driver handled that poorly</a> and spent the first 400ms of every subsequent HTTP request trying to reconnect to the missing instance. That server came back up, but failed to find its storage volumes because of a human mistake in a past migration and the alerts were mistakenly silenced by someone monitoring the system. A few hours later the primary was being stepped down and rebooted, sending the driver into panic over <a href="https://github.com/mongoid/moped/issues/323">another bug</a>. The site went down.</p>
+
+<p>None of this was obvious while it was happening as the rate of automated alerts grew. Engineers communicated to the team that they are actively focusing on bringing the systems back up. This helped to fend off a large amount of instant messages, e-mails, texts and phone calls from various people on the team that were in the middle of demoing something to a very important prospective customer on the other side of the planet. It was also the middle of the night in New York.</p>
+
+<p>Now that all the systems are back up, lets write a detailed outage post-mortem.</p>
+
+<!-- more -->
+
+
+<h2>Whose Job is It?</h2>
+
+<p>In a small or medium-sized company, the most senior engineering manager, CTO, VP or Head of Engineering should be writing an outage post-mortem. It&#8217;s their job and responsibility to acknowledge, understand and explain what happened. Focusing attention away from the individual contributors allows the team to learn from the mistakes and address the root causes in time without the unnecessary stress or pressure during a crisis.</p>
+
+<h2>Recipients</h2>
+
+<p>The post-mortem audience includes customers, direct reports, peers, the company&#8217;s executive team and often investors. The e-mail may be published on your website, and otherwise goes to the entire team. It&#8217;s critical to bcc everyone. This is the equivalent of a locked thread, avoiding washing the laundry in public: one of the worst possible things to see is when a senior manager replies back pointing an individual who made a mistake, definitely not an email you want accidentally sent to the entire company.</p>
+
+<p>I usually begin my e-mails with <em>Team (on the bcc), &#8230;</em>.</p>
+
+<p>I also bcc myself and label the e-mail &#8220;Outages&#8221;, to be able to easily find the incident history next time around.</p>
+
+<p><img src="/images/2014-11-19-how-to-write-great-outage-post-mortems/header.png" alt="header" /></p>
+
+<h2>Outage Email Subject</h2>
+
+<p>Post-mortem subjects should include a date and a duration. This gets right to the point and offers a summary of the impact.</p>
+
+<p><img src="/images/2014-11-19-how-to-write-great-outage-post-mortems/subject.png" alt="subject" /></p>
+
+<h2>Outage Summary</h2>
+
+<p>The outage e-mail begins with a summary, a slightly expanded version of the subject line. Many people won&#8217;t read the details, so include graphs. These should tell the same story as the description of the outage. I use <a href="http://newrelic.com">NewRelic&#8217;s</a>.</p>
+
+<p><img src="/images/2014-11-19-how-to-write-great-outage-post-mortems/summary.png" alt="summary" /></p>
+
+<h2>What Caused the Outage</h2>
+
+<p>Explain what caused the outage on a timeline. Every incident begins with a specific trigger at a specific time, which often causes some unexpected behavior. For example, our servers were rebooted and we expected them to come back up intact, which didn&#8217;t happen. Furthermore, every incident has a root cause: the reboot itself was trigger, however a bug in the driver caused the actual outage. Finally, there&#8217;re consequences to every incident, the most obvious one is that the site goes down.</p>
+
+<p><img src="/images/2014-11-19-how-to-write-great-outage-post-mortems/cause.png" alt="cause" /></p>
+
+<h2>How was the Outage Resolved</h2>
+
+<p>Now that the timeline of the outage is established, we explain what actions took place to resolve it.</p>
+
+<p><img src="/images/2014-11-19-how-to-write-great-outage-post-mortems/resolution.png" alt="resolution" /></p>
+
+<h2>The Post-Mortem</h2>
+
+<p>The post-mortem answers the single most important question of what could have prevented the outage.</p>
+
+<p><img src="/images/2014-11-19-how-to-write-great-outage-post-mortems/post-mortem.png" alt="post-mortem" /></p>
+
+<h2>Outage History</h2>
+
+<p>To most humans that encounter bugs, it may seem like your systems have failures all the time. It&#8217;s important to educate everyone that an outage is much more than a bug and that it hopefully doesn&#8217;t happen frequently. Provide a history of outages, referencing the last one.</p>
+
+<p><img src="/images/2014-11-19-how-to-write-great-outage-post-mortems/history.png" alt="history" /></p>
+
+<h2>Don&#8217;t Bury It</h2>
+
+<p>A few final words. Despite how painful an outage may have been, the worst thing you can do is to bury it and never properly close the incident in a clear and transparent way. Most humans come together in times of crisis and communication around outage post-mortems, in my experience, has always been met with positive energy, understanding comments, constructive suggestions and numerous offers to help.</p>
+</div>
+
+
+    <footer>
+      <div class="meta">
+        
+  
+
+
+
+  <span class="byline author vcard">
+    Posted by 
+    <span class="fn">
+      Daniel Doubrovkine
+    </span>
+    
+    
+    
+    
+      (
+      
+      <span class="fn">
+        <a href="http://code.dblock.org">blog</a>
+      </span>
+      
+      
+      <span class="fn">
+        <a href="https://www.github.com/dblock">github</a>
+      </span>
+      
+      
+      <span class="fn">
+        <a href="http://twitter.com/dblockdotorg">twitter</a>
+      </span>
+      
+      )
+    
+    
+  </span>
+
+
+      </div>
+      <div class="meta">
+        Categories: 
+
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/best-practices/'>Best Practices</a>, <a class='category' href='/blog/categories/devops/'>DevOps</a>
+  
+</span>
+
+
+      </div>
+
+      
+        <div class="sharing">
+  
+  <a href="http://twitter.com/share" class="twitter-share-button" data-url="http://artsy.github.io/blog/2014/11/19/how-to-write-great-outage-post-mortems/" data-via="artsy" data-counturl="http://artsy.github.io/blog/2014/11/19/how-to-write-great-outage-post-mortems/" >Tweet</a>
+  
+  
+  
+</div>
+
+      
+      <p class="meta">
+        
+          <a class="basic-alignment left" href="/blog/2014/11/18/debugging-our-hardware-problem/" title="Previous Post: Close to the Metal: Debugging Our Hardware Problem">&laquo; Close to the Metal: Debugging Our Hardware Problem</a>
+        
+        
+      </p>
+    </footer>
+  </article>
+
+  <section>
+    <h1>Comments</h1>
+    <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</div>
+  </section>
+
+</div>
+    </div>
+    <div id="sidebar">
+      
+  
+    <section>
+  <h1>Info</h1>
+  <ul>
+    <li> <a href="/about">About Us</a></li>
+    <li> <a href="/open-source">Artsy Open-Source</a></li>
+    <li> <a href="https://developers.artsy.net">Artsy Public API</a></li>
+    <li> <a href="https://artsy.net/job/developer">Join the Artsy Engineering Team</a></li>
+  </ul>
+</section>
+<section id="recent_posts_section">
+  <h1>Recent Posts</h1>
+  <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/2014/11/19/how-to-write-great-outage-post-mortems/">How to Write Great Outage Post-Mortems</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2014/11/18/debugging-our-hardware-problem/">Close to the Metal: Debugging Our Hardware Problem</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2014/11/13/eidolon-retrospective/">Developing a Bidding Kiosk for iOS in Swift</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2014/10/23/how-we-customized-google-site-search-at-artsy/">How we customized Google Site Search at Artsy</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2014/09/24/launching-a-security-bug-bounty-program-at-artsy/">Launching a Security Bug Bounty Program at Artsy</a>
+      </li>
+    
+  </ul>
+  <a class="archive_link" href="/blog/archives">Blog Archive</a>
+</section>
+
+<section>
+  <h1>Search</h1>
+  <form action="https://www.google.com/cse" method="get">
+    <input type="hidden" value="010245880960712892902:tnjd4ryb3ci" name="cx" />
+    <input class="search" type="text" name="q" results="0" />
+  </form>
+</section>
+
+
+  
+
+
+    </div>
+  </div>
+  <footer id="main_footer"><p>
+  Copyright &copy; 2014 - Artsy -
+  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+  
+
+<script type="text/javascript">
+      var disqus_shortname = 'artsy';
+      
+        
+        // var disqus_developer = 1;
+        var disqus_identifier = 'http://artsy.github.io/blog/2014/11/19/how-to-write-great-outage-post-mortems/';
+        var disqus_url = 'http://artsy.github.io/blog/2014/11/19/how-to-write-great-outage-post-mortems/';
+        var disqus_script = 'embed.js';
+      
+    (function () {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = 'http://' + disqus_shortname + '.disqus.com/' + disqus_script;
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    }());
+</script>
+
+
+
+
+
+
+
+  <script type="text/javascript">
+    (function(){
+      var twitterWidgets = document.createElement('script');
+      twitterWidgets.type = 'text/javascript';
+      twitterWidgets.async = true;
+      twitterWidgets.src = 'http://platform.twitter.com/widgets.js';
+      document.getElementsByTagName('head')[0].appendChild(twitterWidgets);
+    })();
+  </script>
+
+
+
+
+
+</body>
+</html>
