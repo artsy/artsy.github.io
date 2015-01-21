@@ -9,7 +9,7 @@
   <meta name="author" content="Artsy">
 
   
-  <meta name="description" content="We do a lot of image processing at Artsy. We have tens of thousands of beautiful original high resolution images from our partners and treat them &hellip;">
+  <meta name="description" content="tl;dr - You can write 632 rock solid UI tests with Capybara and RSpec, too. We have exactly 231 integration tests and 401 view tests out of a total &hellip;">
   
 
   <!-- http://t.co/dKP3o1e -->
@@ -79,6 +79,145 @@ src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorM
     <div id="content">
       <div class="blog-index">
   
+  
+  
+    <article>
+      
+  <header>
+    
+    <a href="/blog/2012/02/03/reliably-testing-asynchronous-ui-w-slash-rspec-and-capybara/">
+      <div class="date">
+
+
+
+
+  
+<time datetime="2012-02-03T11:45:00-05:00" pubdate>02/03/12</time></div>
+    
+    
+      <h1 class="entry-title">Reliably Testing Asynchronous UI W/ RSpec and Capybara</h1>
+
+    
+    </a>
+    
+      <p class="meta">
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>tl;dr - You can write 632 rock solid UI tests with Capybara and RSpec, too.</p>
+
+<p><img src="/images/2012-02-03-reliably-testing-asynchronous-ui-w-slash-rspec-and-capybara/jenkins-ci.png" title="[Miami Weather in NYC]" ></p>
+
+<p>We have exactly 231 integration tests and 401 view tests out of a total of 3086 in our core application today. This adds up to 632 tests that exercise UI. The vast majority use <a href="http://rspec.info/">RSpec</a> with <a href="https://github.com/jnicklas/capybara">Capybara</a> and <a href="http://seleniumhq.org/">Selenium</a>. This means that every time the suite runs we set up real data in a local MongoDB and use a real browser to hit a fully running local application, 632 times. The suite currently takes 45 minutes to run headless on a slow Linode, UI tests taking more than half the time.</p>
+
+<p>While the site is in private beta, you can get a glimpse of the complexity of the UI from the <a href="http://artsy.net">splash page</a>. It&#8217;s a rich client-side Javascript application that talks to an API. You can open your browser&#8217;s developer tools and watch a combination of API calls and many asynchronous events.</p>
+
+<p>Keeping the UI tests reliable is notoriously difficult. For the longest time we felt depressed under the Pacific Northwest -like weather of our Jenkins CI and blamed every possible combination of code and infrastructure for the many intermittent failures. We&#8217;ve gone on sprees of marking many such tests &#8220;pending&#8221; too.</p>
+
+<p>We&#8217;ve learned a lot and stabilized our test suite. This is how we do UI testing.</p>
+
+</div>
+  
+  
+    <footer>
+      <a rel="full-article" href="/blog/2012/02/03/reliably-testing-asynchronous-ui-w-slash-rspec-and-capybara/">Read on &rarr;</a>
+    </footer>
+  
+
+
+    </article>
+  
+  
+    <article>
+      
+  <header>
+    
+    <a href="/blog/2012/01/31/beyond-heroku-satellite-delayed-job-workers-on-ec2/">
+      <div class="date">
+
+
+
+
+  
+<time datetime="2012-01-31T11:45:00-05:00" pubdate>01/31/12</time></div>
+    
+    
+      <h1 class="entry-title">Beyond Heroku: &#8220;Satellite&#8221; Delayed Job Workers on EC2</h1>
+
+    
+    </a>
+    
+      <p class="meta">
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>[TL;DR: To supplement Heroku-managed app servers, we launched custom EC2 instances to host Delayed Job worker processes. See the <a href="https://github.com/joeyAghion/satellite_setup">satellite_setup github repo</a> for rake tasks and Chef recipes that make it easy.]</p>
+
+<p><a href="http://artsy.net">Artsy</a> engineers are big users and abusers of <a href="http://heroku.com">Heroku</a>. It&#8217;s a neat abstraction of server resources, so we were conflicted when parts of our application started to bump into Heroku&#8217;s limitations. While we weren&#8217;t eager to start managing additional infrastructure, we found that&#8211;with a few good tools&#8211;we could migrate some components away from Heroku without fragmenting the codebase or over-complicating our development environments.</p>
+
+<p>There are a number of reasons your app might need to go beyond Heroku. It might rely on a locally installed tool (not possible on Heroku&#8217;s locked-down servers), or require heavy file-system usage (limited to <code>tmp/</code> and <code>log/</code>, and not permanent or shared). In our case, the culprit was Heroku&#8217;s 512 MB RAM limit&#8211;reasonable for most web processes, but quickly exceeded by the image-processing tasks of our <a href="https://github.com/collectiveidea/delayed_job">delayed_job</a> workers. We considered building a specialized image-processing service, but decided instead to supplement our web apps with a custom <a href="http://aws.amazon.com/ec2/">EC2</a> instance dedicated to processing background tasks. We call these servers &#8220;satellites.&#8221;</p>
+
+<p>We&#8217;ll walk through the pertinent sections here, but you can find Rake tasks that correspond with these scripts, plus all of the necessary cookbooks, in the <a href="https://github.com/joeyAghion/satellite_setup">satellite_setup github repo</a>. Now, on to the code!</p>
+
+<p>First, generate a key-pair from <a href="https://console.aws.amazon.com/ec2/home?#s=KeyPairs">Amazon&#8217;s AWS Management Console</a>. Then we&#8217;ll use <a href="http://fog.io">Fog</a> to spawn the EC2 instance.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="nb">require</span> <span class="s1">&#39;fog&#39;</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1"># Update these values according to your environment...</span>
+</span><span class='line'><span class="no">S3_ACCESS_KEY_ID</span> <span class="o">=</span> <span class="s1">&#39;XXXXXXXXXXXXXXXXXXXX&#39;</span>
+</span><span class='line'><span class="no">S3_SECRET_ACCESS_KEY</span> <span class="o">=</span> <span class="s1">&#39;xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx&#39;</span>
+</span><span class='line'><span class="no">KEY_NAME</span> <span class="o">=</span> <span class="s1">&#39;satellite_keypair&#39;</span>
+</span><span class='line'><span class="no">KEY_PATH</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">#{</span><span class="no">ENV</span><span class="o">[</span><span class="s1">&#39;HOME&#39;</span><span class="o">]</span><span class="si">}</span><span class="s2">/.ssh/</span><span class="si">#{</span><span class="no">KEY_NAME</span><span class="si">}</span><span class="s2">.pem&quot;</span>
+</span><span class='line'><span class="no">IMAGE_ID</span> <span class="o">=</span> <span class="s1">&#39;ami-c162a9a8&#39;</span>  <span class="c1"># 64-bit Ubuntu 11.10</span>
+</span><span class='line'><span class="no">FLAVOR_ID</span> <span class="o">=</span> <span class="s1">&#39;m1.large&#39;</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">connection</span> <span class="o">=</span> <span class="ss">Fog</span><span class="p">:</span><span class="ss">:Compute</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="ss">provider</span><span class="p">:</span> <span class="s1">&#39;AWS&#39;</span><span class="p">,</span>
+</span><span class='line'>  <span class="n">aws_access_key_id</span><span class="p">:</span> <span class="no">S3_ACCESS_KEY_ID</span><span class="p">,</span>
+</span><span class='line'>  <span class="n">aws_secret_access_key</span><span class="p">:</span> <span class="no">S3_SECRET_ACCESS_KEY</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">server</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="n">servers</span><span class="o">.</span><span class="n">bootstrap</span><span class="p">(</span>
+</span><span class='line'>  <span class="n">key_name</span><span class="p">:</span> <span class="no">KEY_NAME</span><span class="p">,</span>
+</span><span class='line'>  <span class="n">private_key_path</span><span class="p">:</span> <span class="no">KEY_PATH</span><span class="p">,</span>
+</span><span class='line'>  <span class="n">image_id</span><span class="p">:</span> <span class="no">IMAGE_ID</span><span class="p">,</span>
+</span><span class='line'>  <span class="n">flavor_id</span><span class="p">:</span> <span class="no">FLAVOR_ID</span><span class="p">)</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Next, we&#8217;ll do some basic server prep and install our preferred Ruby version.</div>
+  
+  
+    <footer>
+      <a rel="full-article" href="/blog/2012/01/31/beyond-heroku-satellite-delayed-job-workers-on-ec2/">Read on &rarr;</a>
+    </footer>
+  
+
+
+    </article>
   
   
     <article>
@@ -462,6 +601,14 @@ src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorM
   <ul id="recent_posts">
     
       <li class="post">
+        <a href="/blog/2015/01/21/cocoapods-keys-and-CI/">CocoaPods-Keys and CI</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2015/01/04/cocoapods-and-frameworks/">CocoaPods and Frameworks</a>
+      </li>
+    
+      <li class="post">
         <a href="/blog/2014/11/19/how-to-write-great-outage-post-mortems/">How to Write Great Outage Post-Mortems</a>
       </li>
     
@@ -471,14 +618,6 @@ src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorM
     
       <li class="post">
         <a href="/blog/2014/11/13/eidolon-retrospective/">Developing a Bidding Kiosk for iOS in Swift</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/2014/10/23/how-we-customized-google-site-search-at-artsy/">How we customized Google Site Search at Artsy</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/2014/09/24/launching-a-security-bug-bounty-program-at-artsy/">Launching a Security Bug Bounty Program at Artsy</a>
       </li>
     
   </ul>
@@ -500,7 +639,7 @@ src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorM
     </div>
   </div>
   <footer id="main_footer"><p>
-  Copyright &copy; 2014 - Artsy -
+  Copyright &copy; 2015 - Artsy -
   <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
 </p>
 

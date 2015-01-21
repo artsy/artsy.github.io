@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
 
-  <title><![CDATA[Category: Rspec | Artsy Engineering]]></title>
+  <title><![CDATA[Category: RSpec | Artsy Engineering]]></title>
   <link href="http://artsy.github.io/blog/categories/rspec/atom.xml" rel="self"/>
   <link href="http://artsy.github.io/"/>
-  <updated>2014-11-19T11:02:09-05:00</updated>
+  <updated>2015-01-21T15:59:56-05:00</updated>
   <id>http://artsy.github.io/</id>
   <author>
     <name><![CDATA[Artsy]]></name>
@@ -14,296 +14,584 @@
 
   
   <entry>
-    <title type="html"><![CDATA[Continuous integration for service-oriented architectures]]></title>
-    <link href="http://artsy.github.io/blog/2014/05/12/continuous-integration-for-service-oriented-architectures/"/>
-    <updated>2014-05-12T10:50:00-04:00</updated>
-    <id>http://artsy.github.io/blog/2014/05/12/continuous-integration-for-service-oriented-architectures</id>
-    <content type="html"><![CDATA[<p>Whatever you have against monolithic architectures, at least they're easy to test. And when those tests succeed, you can be reasonably confident the live app will work the same way.</p>
+    <title type="html"><![CDATA[Isolating Spurious and Nondeterministic Tests]]></title>
+    <link href="http://artsy.github.io/blog/2014/01/30/isolating-spurious-and-nondeterministic-tests/"/>
+    <updated>2014-01-30T14:42:00-05:00</updated>
+    <id>http://artsy.github.io/blog/2014/01/30/isolating-spurious-and-nondeterministic-tests</id>
+    <content type="html"><![CDATA[<p>Testing is a critical part of our workflow at <a href="https://artsy.net">Artsy</a>. It gives us confidence to make regular, aggressive enhancements. But anyone who has worked with a large, complex test suite has struggled with occasional failures that are difficult to reproduce or fix.</p>
 
-<p>Artsy began as one such monolithic app, but we've been refactoring into an ecosystem of related APIs and sites. Today, when you search for <a href="https://artsy.net/gene/cultural-commentary">"cultural commentary"</a> or visit <a href="https://artsy.net/artist/robert-longo">Robert Longo</a> on <a href="https://artsy.net">artsy.net</a>, the page is rendered by a web app, sources data from an API, retrieves recommendations from a separate service, tracks trends in another, and records analytics in yet another.</p>
+<p>These failures might be due to slight timing differences or lack of proper isolation between tests. Integration tests are particularly thorny, since problems can originate not only in application code, but in the browser, testing tools (e.g., <a href="http://docs.seleniumhq.org/">Selenium</a>), database, network, or external APIs and dependencies.</p>
 
-<p>This was a boost for developer productivity and scaling, but eviscerated the value of our tests. We repeatedly encountered bugs that were failings of <em>the interaction between codebases</em> rather than failings of individual ones. Test libraries and tools typically concern themselves with one isolated app. When you have services that consume services that consume services, those isolated tests (with their stubs of everything else) don't necessarily reflect production's reality.</p>
+<h2>The Quarantine</h2>
 
-<p>So how should we develop our small, focused apps (or <a href="http://en.wikipedia.org/wiki/Service-oriented_architecture">service-oriented architecture</a>, or <a href="http://martinfowler.com/articles/microservices.html">microservices</a>...) with confidence? We set out to build a dedicated acceptance test suite that would run tests across multiple services, configuring and integrating them in a way that closely matches the production environment.</p>
+<p>We've been <a href="http://artsy.github.io/blog/2012/05/15/how-to-organize-over-3000-rspec-specs-and-retry-test-failures/">automatically retrying failed tests</a>, with some success. However, these problems tend to get worse. (If you have 10 tests that each have a 1% chance of failing, roughly 1 in 10 builds will fail. If you have 50, 4 in 10 builds will fail.)</p>
+
+<p>Martin Fowler offers the most compelling thoughts on this topic in <a href="http://martinfowler.com/articles/nonDeterminism.html">Eradicating Non-Determinism in Tests</a>. (Read it, really.) He suggests quarantining problematic tests in a separate suite, so they don't block the build pipeline.</p>
 
 <!-- more -->
 
 
-<h2>The code</h2>
+<h2>Setting it up</h2>
 
-<p>We'll take the simplest example possible of 2 related applications: a trivial Ruby API serving a Node.js-based web app. (You can also go directly to <a href="https://github.com/joeyAghion/multiapp_example-tests">the source</a>.)</p>
+<p>This turned out to be pretty easy to set up, using our preferred tools of <a href="https://relishapp.com/rspec">RSpec</a> and <a href="http://travis-ci.com/">Travis</a>. First, tag a problem test with <code>spurious</code>:</p>
 
-<p><a href="http://david.heinemeierhansson.com/2014/tdd-is-dead-long-live-testing.html">Recent</a> <a href="http://blog.8thlight.com/uncle-bob/2014/04/25/MonogamousTDD.html">debates</a> <a href="https://news.ycombinator.com/item?id=7659251">aside</a>, I like to start with a test:</p>
-
-<p>```ruby
-feature "home", js: true do</p>
-
-<p>  scenario "welcomes visitor" do
-    visit "/"
-    expect(page).to have_content("Browse products")
-  end
+<pre><code>it 'performs tricky browser interaction', spurious: true do
+  ...
 end
-```</p>
-
-<p>We're using the popular [and familiar] <a href="https://github.com/jnicklas/capybara">Capybara</a> with <a href="https://relishapp.com/rspec">RSpec</a> and <a href="http://docs.seleniumhq.org/">Selenium</a>. Naturally, our test fails right away:</p>
-
-<p>```bash
-$ bundle exec rspec</p>
-
-<h1>...</h1>
-
-<pre><code> Failure/Error: visit "/"
- Selenium::WebDriver::Error::UnknownError:
-   Target URL / is not well-formed.
 </code></pre>
 
-<pre><code>
-There are a few steps to getting our projects installed and running as part of the test suite. First, we'll add git submodules in the `/api` and `/web` subdirectories that [track the master branch](http://stackoverflow.com/questions/9189575/git-submodule-tracking-latest) of each project.
+<p>Your continuous integration script can exclude the tagged tests as follows:</p>
 
-```bash
-git submodule add -b master git@github.com:joeyAghion/multiapp_example-api.git api
-git submodule add -b master git@github.com:joeyAghion/multiapp_example-web.git web
+<pre><code>bundle exec rspec --tag ~spurious
 </code></pre>
 
-<p>Next, create Rake tasks to install prerequisites for each project.</p>
+<p>We'd like to be aware of spurious failures, but not allow them to fail the build. In our app's <code>.travis.yml</code> file, this is as simple as adding a script entry that always exits with <code>0</code> status:</p>
 
-<p>```ruby</p>
-
-<h1>Rakefile</h1>
-
-<p>require 'childprocess'
-require 'rspec/core/rake_task'</p>
-
-<p>RSpec::Core::RakeTask.new(:spec)</p>
-
-<p>task :ci => ['checkout', 'install', 'spec']</p>
-
-<p>task :checkout do
-  sh %{git submodule update --remote --init} do |ok, res|
-    raise "Submodule update failed with status #{res.exitstatus}" unless ok
-  end
-end</p>
-
-<p>task :install => ['api:install', 'web:install']</p>
-
-<p>namespace :api do
-  task :install do
-    Bundler.with_clean_env do
-      proc = ChildProcess.build('bundle', 'install')
-      proc.io.inherit!
-      proc.cwd = './api'
-      proc.start
-      proc.wait
-      raise "bundle install exited with status #{proc.exit_code}" unless proc.exit_code == 0
-    end
-  end
-end</p>
-
-<p>namespace :web do
-  task :install do
-    proc = ChildProcess.build('npm', 'install')
-    proc.io.inherit!
-    proc.cwd = './web'
-    proc.start
-    proc.wait
-    raise "npm install existed with status #{proc.exit_code}" unless proc.exit_code == 0
-  end
-end
-```</p>
-
-<p>The new <code>checkout</code> and <code>install</code> tasks make sure we have the latest code and all prerequisites installed. Note how we use <code>Bundler.with_clean_env</code> to isolate the API (which has its own Gemfile and bundler environment) from the test suite.</p>
-
-<p>Now that the API and web apps are set up, we'll use RSpec's <code>before(:suite)</code> and <code>after(:suite)</code> hooks to start and stop them around each test run.</p>
-
-<p>```ruby</p>
-
-<h1>spec/spec_helper.rb</h1>
-
-<p>require 'capybara/rspec'
-require 'childprocess'</p>
-
-<p>API_PORT = 7000
-WEB_PORT = 7001</p>
-
-<p>Capybara.configure do |config|
-  config.current_driver = :selenium
-  config.run_server = false
-  config.app_host = "http://localhost:#{WEB_PORT}"
-end</p>
-
-<p>RSpec.configure do |config|
-  # ...
-  config.before(:suite) do
-    start_api
-    start_web
-  end</p>
-
-<p>  config.after(:suite) do
-    stop_api
-    stop_web
-  end
-end</p>
-
-<p>def start_api
-  $stderr.puts "Starting API..."
-  Bundler.with_clean_env do
-    $api = ChildProcess.build('bundle', 'exec', 'ruby', 'app.rb')
-    $api.cwd = './api'
-    $api.io.inherit!
-    $api.environment['PORT'] = API_PORT
-    $api.start
-    $stderr.puts "Waiting for API to start listening..."
-    sleep(1) while !listening_on?(API_PORT) &amp;&amp; $api.alive?
-  end
-end</p>
-
-<p>def stop_api
-  $stderr.puts "Stopping API..."
-  $api.stop
-end</p>
-
-<p>def start_web
-  $stderr.puts "Starting web..."
-  $web = ChildProcess.build('node', 'app.js')
-  $web.cwd = './web'
-  $web.io.inherit!
-  $web.environment['API_URL'] = "http://localhost:#{API_PORT}"
-  $web.environment['PORT'] = WEB_PORT
-  $web.start
-  $stderr.puts "Waiting for web to start listening..."
-  sleep(1) while !listening_on?(WEB_PORT) &amp;&amp; $web.alive?
-end</p>
-
-<p>def stop_web
-  $stderr.puts "Stopping web..."
-  $web.stop
-end</p>
-
-<p>def listening_on?(port)
-  system("netstat -an | grep #{port} | grep LISTEN")
-end
-```</p>
-
-<p>Running <code>rake spec</code> now starts up and waits for both apps, runs our test, and...</p>
-
-<pre><code>Starting API...
-Waiting for API to start listening...
-# ...
-Starting web...
-Waiting for web to start listening...
-# ...
-home
-  welcomes visitor
-Stopping API...
-# ...
-Stopping web...
-
-Finished in 4.67 seconds
-1 example, 0 failures
+<pre><code>language: ruby
+rvm:
+  - 1.9.3
+script:
+  - "bundle exec rspec --tag ~spurious"
+  - "bundle exec rspec --tag spurious || true"
 </code></pre>
 
-<p>Success!</p>
+<p>We'll see any spurious failures in the build's output, but our pipeline won't be affected.</p>
 
-<p>Well, sort of. Our test of the home page doesn't even depend on both systems. Let's try a more meaningful test, listing products from the API.</p>
+<h2>Bonus: Limiting quarantined tests</h2>
 
-<p>```ruby
-feature "shop", js: true do</p>
+<p>So, what prevents the quarantine from getting larger and larger, while the test suite gets weaker and weaker? Fowler <a href="http://martinfowler.com/articles/nonDeterminism.html#Quarantine">recommends</a> enforcing a limit on the number of quarantined tests (e.g., 8).</p>
 
-<p>  scenario "list widgets" do
-    visit "/"
-    click_link "Browse products"
-    expect(page).to have_content("Foo Widget")
-  end
-end
-```</p>
+<p>We can even trigger a build failure if the limit is exceeded. This <code>.travis.yml</code> writes the spurious suite's abbreviated output to a file, then asserts that the summary mentions no more than "8 examples":</p>
 
-<p>Will it work?</p>
+<pre><code>language: ruby
+rvm:
+  - 1.9.3
+script:
+  - "bundle exec rspec --tag ~spurious"
+  - "bundle exec rspec --tag spurious --format documentation --format progress --out spurious.out || true"
+  - "[[ $(grep -oE '^\d+' spurious.out) -le 8 ]]"
+</code></pre>
 
-<p>```bash
-Failures:</p>
+<h2>Conclusion</h2>
 
-<p>  1) shop list widgets
-     Failure/Error: expect(page).to have_content("Foo Widget")
-       expected to find text "Foo Widget" in ""
-     # ./spec/shop_spec.rb:8:in `block (2 levels) in <top (required)>'
-```</p>
+<p>The quarantine is no excuse to create tests that fail under realistic conditions. It's simply a framework for recognizing and, eventually, fixing or eliminating the problematic tests that inevitably crop up in a complex environment.</p>
 
-<p>The web app isn't authenticated to use the API! This brings up a more general question:</p>
+<p>Hopefully, our experiment is useful to other teams struggling with unreliable builds. Share any feedback in the comments!</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[How to Run RSpec Test Suites in Parallel with JenkinsCI Build Flow]]></title>
+    <link href="http://artsy.github.io/blog/2012/10/09/how-to-run-rspec-test-suites-in-parallel-with-jenkins-ci-build-flow/"/>
+    <updated>2012-10-09T21:21:00-04:00</updated>
+    <id>http://artsy.github.io/blog/2012/10/09/how-to-run-rspec-test-suites-in-parallel-with-jenkins-ci-build-flow</id>
+    <content type="html"><![CDATA[<p>We now have over 4700 RSpec examples in one of our projects. They are stable, using the techniques described in an <a href="/blog/2012/02/03/reliably-testing-asynchronous-ui-w-slash-rspec-and-capybara/">earlier post</a> and organized in <a href="/blog/2012/05/15/how-to-organize-over-3000-rspec-specs-and-retry-test-failures/">suites</a>. But they now take almost 3 hours to run, which is clearly unacceptable.</p>
 
-<h2>How to bootstrap test data</h2>
+<p>To solve this, we have parallelized parts of the process with existing tools, and can turn a build around in just under an hour. This post will dive into our <a href="http://jenkins-ci.org/">Jenkins</a> build flow setup.</p>
 
-<p>Most testing frameworks offer fixtures or direct access to the database. Because the API runs in a separate process, things are a little more difficult. We opt for 1 of 2 approaches, depending on the context:</p>
+<p>To keep things simple, we're going to only build the <code>master</code> branch. When a change is committed on <code>master</code> we're going to push <code>master</code> to a <code>master-ci</code> branch and trigger a distributed build on <code>master-ci</code>. Once all the parts have finished, we'll complete the build by pushing <code>master-ci</code> to <code>master-succeeded</code> and notify the dev team of success or failure.</p>
+
+<p>Here's a diagram of what's going on.</p>
+
+<p><img src="http://artsy.github.io/images/2012-10-09-how-to-run-rspec-test-suites-in-parallel-with-jenkins-ci-build-flow/master-ci.png"></p>
+
+<!-- more -->
+
+
+<h2>Plugins</h2>
+
+<p>Install the <a href="https://wiki.jenkins-ci.org/display/JENKINS/Build+Flow+Plugin">Build Flow</a> and the <a href="https://wiki.jenkins-ci.org/display/JENKINS/Parameterized+Trigger+Plugin">Parameterized Trigger</a> plugin. Grant <code>Anonymous</code> job read permissions in Jenkins system configuration (see <a href="https://issues.jenkins-ci.org/browse/JENKINS-14027">JENKINS-14027</a>).</p>
+
+<p>Create the following Jenkins jobs.</p>
+
+<h2>master-prequel</h2>
+
+<p>A free-style job that connects to the SCM, in our case Git.</p>
 
 <ul>
-<li><strong>Insert data directly into the API's database.</strong> We tend to do this only as a last resort, because tests would presume knowledge of the API's implementation.</li>
-<li><strong>Perform test set-up via the API.</strong> Slightly nicer, and closer to real-life clients. (However, the API must be fairly complete.)</li>
+<li>Set SCM repository URL to your Git repo, eg. <code>git@github.com:spline/reticulator.git</code></li>
+<li>Change the default branch specifier from <code>**</code> to <code>master</code>. We'll be pushing a <code>master-ci</code> branch, which could, in turn, cause more builds if you don't do this.</li>
+<li>Add a post-build action to build another project. Trigger the <code>master</code> project if the build succeeds.</li>
 </ul>
 
 
-<p>In practice, we "cheat" and use direct database-insertion to initially bootstrap an API client application, then perform further test set-up through the API. You should choose what's most convenient.</p>
+<h2>master</h2>
 
-<p>Our simple example will register the web application as an API client, then pass a key via basic authentication. We'll have to modify the <code>start_web</code> helper:</p>
+<p>This is a build-flow job. We'll describe the individual tasks that the flow invokes further. The flow DSL looks as follows.</p>
 
-<p>```ruby
-def start_web
-  $stderr.puts "Starting web..."
-  $web = ChildProcess.build('node', 'app.js')
-  $web.cwd = './web'
-  $web.io.inherit!
-  $api_base_url = "http://#{api_client['key']}:@localhost:#{API_PORT}"
-  $web.environment['API_URL'] = $api_base_url
-  $web.environment['PORT'] = WEB_PORT
-  $web.start
-  $stderr.puts "Waiting for web to start listening..."
-  sleep(1) while !listening_on?(WEB_PORT) &amp;&amp; $web.alive?
-end</p>
-
-<p>def api_client
-  $api_client ||= begin
-    response = Net::HTTP.post_form(URI("http://localhost:#{API_PORT}/api/clients"), {})
-    JSON.parse(response.body)
-  end
-end
-```</p>
-
-<p>And the test will need to set up the data it expects to find listed:</p>
-
-<p>```ruby
-feature "shop", js: true do</p>
-
-<p>  scenario "list widgets" do
-    create_widget(name: 'Foo Widget', price_cents: 100_00)
-    visit "/"
-    click_link "Browse products"
-    expect(page).to have_content("Foo Widget")
-  end
-end</p>
-
-<h1>spec/spec_helper.rb</h1>
-
-<p>def create_widget(params = {})
-  Net::HTTP.post_form(URI("#{$api_base_url}/api/widgets"), params)
-end
-```</p>
-
-<p>Lo and behold, our entire "suite" now passes:</p>
-
-<p><code>bash
-2 examples, 0 failures
+<p><code>ruby
+build("master-ci-init")
+parallel (
+ { build("master-ci-task", tasks: "spec:suite:models:ci") },
+ { build("master-ci-task", tasks: "spec:suite:api:ci") },
+ { build("master-ci-task", tasks: "spec:suite:integration:ci") }
+)
+build("master-ci-succeeded")
 </code></p>
 
-<p>This basic structure has accommodated dozens of test scenarios. We've extended it with database- and cache-clearing between tests, and organized helpers into modules under <code>spec/support</code>. The suite is built nightly against the latest versions of our codebases, and has caught a few significant bugs.</p>
+<p>This is a good place to add an e-mail notification post-build action for every unstable build.</p>
 
-<p>A caveat: with so many layers and dependencies involved, there are often spurious failures. We've picked up a few practices that help:</p>
+<h2>master-ci-init</h2>
+
+<p>A free-style job that creates the <code>master-ci</code> branch from master. It needs to be connected to your SCM and executes the following shell script.</p>
+
+<p>``` bash</p>
+
+<h1>!/bin/bash</h1>
+
+<p>git checkout $GIT_BRANCH
+git push origin -f $GIT_BRANCH:$GIT_BRANCH-ci
+```</p>
+
+<p>Note that we cannot combine this task with <code>master-prequel</code>, because we have to make sure the branch creation runs once under the entire flow, while <code>master-prequel</code> can be run multiple times, once per check-in. Otherwise the <code>master-ci</code> branch could get updated before a <code>master-ci-task</code> runs from a previous flow execution.</p>
+
+<h2>master-ci-task</h2>
+
+<p>A parameterized build that accepts a <code>tasks</code> parameter that the flow will pass in.</p>
+
+<p>Change the default branch specifier to <code>master-ci</code> and execute the following shell script.</p>
+
+<p>``` bash</p>
+
+<h1>!/bin/bash</h1>
+
+<p>bundle install
+bundle exec rake $tasks
+```</p>
+
+<p>This example runs <code>rake $tasks</code>, which we define to be various test suites in our flow DSL. Our test suite setup is described in <a href="/blog/2012/05/15/how-to-organize-over-3000-rspec-specs-and-retry-test-failures/">this post</a>. Your mileage may vary.</p>
+
+<h2>master-ci-succeeded</h2>
+
+<p>This is an optional step. We use this free-style job to tag <code>master-ci</code> as <code>master-succeeded</code> with the following shell script.</p>
+
+<p>``` bash</p>
+
+<h1>!/bin/bash</h1>
+
+<p>git checkout $GIT_BRANCH
+git push origin -f $GIT_BRANCH:${GIT_BRANCH/%-ci/}-succeeded
+```</p>
+
+<p>Our deployment to production will pickup the <code>master-succeeded</code> branch when it's time.</p>
+
+<h2>Improvements?</h2>
+
+<p>I see a few possible improvements here that might require a bit of work.</p>
 
 <ul>
-<li><a href="http://artsy.github.io/blog/2012/05/15/how-to-organize-over-3000-rspec-specs-and-retry-test-failures/">Automatic retries</a></li>
-<li><a href="http://artsy.github.io/blog/2014/01/30/isolating-spurious-and-nondeterministic-tests/">Quarantine for problematic tests</a></li>
-<li><a href="https://github.com/mattheworiordan/capybara-screenshot">Failure screenshots</a></li>
+<li>The ability to split an RSpec suite up across an arbitrary number N sub-jobs and M executors would create an optimal parallel split based on the resources available.</li>
+<li>Passing the value of <code>GIT_BRANCH</code> and <code>GIT_COMMIT</code> across these jobs would enable building any branch and eliminate the need for <code>master-ci-init</code>.</li>
+<li>Build flow could support SCM polling the same way as free-style jobs, avoiding the need for <code>master-prequel</code>. We weren't able to get a stable notification of changes from Github with the Jenkins Github plugin.</li>
 </ul>
 
 
-<p>You can <a href="https://github.com/joeyAghion/multiapp_example-tests">grab the example code</a>. And make sure to let us know in the comments how <em>you</em> approach testing across applications.</p>
+<p>Please suggest further improvements in the comments below!</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Testing with Delayed Jobs]]></title>
+    <link href="http://artsy.github.io/blog/2012/08/16/testing-with-delayed-jobs/"/>
+    <updated>2012-08-16T21:21:00-04:00</updated>
+    <id>http://artsy.github.io/blog/2012/08/16/testing-with-delayed-jobs</id>
+    <content type="html"><![CDATA[<p>A mean bug made it into our production environment. It wasn't caught by our extensive test suite and caused thousands of emails to be sent to a handful of people. The root cause was an unfortunate combination of <a href="https://github.com/plataformatec/devise">Devise</a>, <a href="https://github.com/collectiveidea/delayed_job">DelayedJob</a> and, of course, our own code. It was an easy fix, but nobody ever wants this to happen again.</p>
+
+<p>tl;dr DelayedJob says it's possible to set <code>Delayed::Worker.delay_jobs = false</code> for your tests. Don't do it.</p>
+
+<!-- more -->
+
+
+<p>Consider the following <code>User</code> model that implements various Devise strategies which support some kind of notification.</p>
+
+<p>``` ruby app/models/user.rb
+class User
+  include Mongoid::Document</p>
+
+<p>  devise :database_authenticatable, :registerable, ...</p>
+
+<p>  field :notified_at, type: DateTime
+  after_save :notify!, :if => :notify?</p>
+
+<p>  def notify!
+    super
+    update_attributes!({ notified_at: Time.now.utc })
+  end
+end</p>
+
+<pre><code>We are overriding a black box `notify!` method and updating an attribute with a timestamp of the last notification.
+
+Let's write a test.
+
+``` ruby spec/models/user_spec.rb
+describe User do
+
+  subject { User.new }
+
+  context "notification" do
+
+    it "sends one email" do
+      expect {
+        subject.notify!
+      }.to change(ActionMailer::Base.deliveries, :count).by(1)
+    end
+
+    it "updates notified_at" do
+      expect { 
+        subject.notify!
+      }.to change(subject, :notified_at)
+    end
+
+  end
+
+end
+</code></pre>
+
+<p>All green. But once this code hit production, <code>notify!</code> was called in an infinite loop. How is that possible?</p>
+
+<p>The call to <code>notify!</code> is delayed using DelayedJob in production and is not delayed in test. It does not work under DelayedJob and will create as many delayed notifications as it possibly can until it runs out of stack space.</p>
+
+<p>As a common pattern in Devise, the implementation of <code>notify!</code> relies on an instance variable to signal that a notification has been sent. Setting the instance variable avoids sending the notification twice for multiple calls to <code>save!</code>. Our <code>after_save</code> callback invokes <code>update_attributes!</code>, which causes another <code>notify!</code> call unless <code>notify?</code> returns <code>false</code>. In a test, the call to <code>super</code> inside <code>notify!</code> will execute the notification (setting the instance variable), but will create a delayed job in production (without setting it).</p>
+
+<p>We'll start by bringing our tests closer to a real production environment by leaving <code>Delayed::Worker.delay_jobs = true</code> and making sure our problem is reproduced with a spec. We could call <code>Delayed::Worker.new.work_off</code> for every test that needs to execute a delayed job, but that would be rather tedious. A better approach may be to register an observer that will execute a delayed job every time one is created. This is similar to a production environment where having enough delayed workers almost guarantees a job is picked up immediately after being scheduled.</p>
+
+<p>``` ruby config/initializers/delayed_job_observer.rb
+class DelayedJobObserver &lt; Mongoid::Observer
+  observe Delayed::Job</p>
+
+<p>  class &lt;&lt; self
+    attr_accessor :runs
+  end</p>
+
+<p>  def after_create(delayed_job)
+    delayed_job.invoke_job
+    DelayedJobObserver.runs += 1
+  end
+end</p>
+
+<p>DelayedJobObserver.runs = 0
+```</p>
+
+<p>The complete code, which handles a few more cases, including enabling and disabling the observer, and counting successful runs and errors can be found in <a href="https://gist.github.com/3370052">this gist</a>. Please help us improve it.</p>
+
+<p>We can now test our notification without compromising on the delayed nature of the job and add a test making sure we create a single delayed job from a call to <code>notify!</code>.</p>
+
+<p>``` ruby spec/models/user_spec.rb
+describe User do</p>
+
+<p>  subject { User.new }</p>
+
+<p>  context "notification" do</p>
+
+<pre><code>it "creates one delayed job" do
+  expect {
+    subject.notify!
+  }.to change(DelayedJobObserver, :runs).by(1)
+end
+</code></pre>
+
+<p>  end</p>
+
+<p>end
+```</p>
+
+<p>This test will also run for a long time before failing with a stack overflow error. Our fix was not to call <code>notify!</code> from an <code>after_save</code> callback.</p>
+
+<p>We've suggested that immediate execution using an observer becomes a feature in DelayedJob in <a href="https://github.com/collectiveidea/delayed_job/issues/423">#423</a>. Please add your comments.</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[How to Organize Over 3000 RSpec Specs and Retry Test Failures]]></title>
+    <link href="http://artsy.github.io/blog/2012/05/15/how-to-organize-over-3000-rspec-specs-and-retry-test-failures/"/>
+    <updated>2012-05-15T12:00:00-04:00</updated>
+    <id>http://artsy.github.io/blog/2012/05/15/how-to-organize-over-3000-rspec-specs-and-retry-test-failures</id>
+    <content type="html"><![CDATA[<p>Having over three thousand RSpec tests in a single project has become difficult to manage. We chose to organize these into suites, somewhat mimicking our directory structure. And while we succeeded at making our Capybara integration tests more reliable (see <a href="/blog/2012/02/03/reliably-testing-asynchronous-ui-w-slash-rspec-and-capybara/">Reliably Testing Asynchronous UI with RSpec and Capybara</a>), they continue relying on finicky timeouts. To avoid too many false positives we've put together a system to retry failed tests. We know that a spec that fails twice in a row is definitely not a fluke!</p>
+
+<p>Create a new Rake file in <code>lib/tasks/test_suites.rake</code> and declare an array of test suites.</p>
+
+<p><code>ruby lib/tasks/test_suites.rake
+  SPEC_SUITES = [
+    { :id =&gt; :models, :pattern =&gt; "spec/models/**/*_spec.rb" },
+    { :id =&gt; :controllers, :pattern =&gt; "spec/controllers/**/*_spec.rb" },
+    { :id =&gt; :views, :pattern =&gt; "spec/views/**/*_spec.rb" }
+  ]
+</code></p>
+
+<!-- more -->
+
+
+<p><code>RSpec::Core</code> contains a module called <code>RakeTask</code> that will programmatically create Rake tasks for you.</p>
+
+<p>``` ruby lib/tasks/test_suites.rake
+require 'rspec/core/rake_task'</p>
+
+<p>namespace :test
+  namespace :suite
+    RSpec::Core::RakeTask.new("#{suite[:id]}:run") do |t|
+      t.pattern = suite[:pattern]
+      t.verbose = false
+      t.fail_on_error = false
+    end
+  end
+end
+```</p>
+
+<p>Run <code>rake -T</code> to ensure that the suites have been generated. To execute a suite, run <code>rake test:suite:models:run</code>. Having a test suite will help you separate spec failures and enables other organizations than by directory, potentially allowing you to tag tests across multiple suites.</p>
+
+<p><code>bash
+rake spec:suite:models:run
+rake spec:suite:controllers:run
+rake spec:suite:views:run
+</code></p>
+
+<p>Retrying failed specs has been a long requested feature in RSpec (see <a href="https://github.com/rspec/rspec-core/issues/456">#456</a>). A viable approach has been finally implemented by <a href="https://github.com/antifun">Matt Mitchell</a> in <a href="https://github.com/rspec/rspec-core/pull/596">#596</a>. There're a few issues with that pull request, but two pieces have already been merged that make retrying specs feasible outside of RSpec.</p>
+
+<ul>
+<li><a href="https://github.com/rspec/rspec-core/pull/610">#610</a>:
+A fix for incorrect parsing input files specified via <code>-O</code>.</li>
+<li><a href="https://github.com/rspec/rspec-core/pull/614">#614</a>:
+A fix for making the <code>-e</code> option cumulative, so that one can pass multiple example names to run.</li>
+</ul>
+
+
+<p>Both will appear in the 2.11.0 version of RSpec, in the meantime you have to point your <code>rspec-core</code> dependency to the latest version on Github.</p>
+
+<p><code>ruby Gemfile
+"rspec-core", :git =&gt; "https://github.com/rspec/rspec-core.git"
+</code></p>
+
+<p>Don't forget to run <code>bundle update rspec-core</code>.</p>
+
+<p>The strategy to retry failed specs is to output a file that contains a list of failed ones and to feed that file back to RSpec. The former can be accomplished with a custom logger. Create <code>spec/support/formatters/failures_formatter.rb</code>.</p>
+
+<p>``` ruby spec/support/formatters/failures_formatter.rb
+require 'rspec/core/formatters/base_formatter'</p>
+
+<p>module RSpec
+  module Core
+    module Formatters
+      class FailuresFormatter &lt; BaseFormatter</p>
+
+<pre><code>    # create a file called rspec.failures with a list of failed examples
+    def dump_failures
+      return if failed_examples.empty?
+      f = File.new("rspec.failures", "w+")
+      failed_examples.each do |example|
+        f.puts retry_command(example)
+      end
+      f.close
+    end
+
+    def retry_command(example)
+      example_name = example.full_description.gsub("\"", "\\\"")
+      "-e \"#{example_name}\""
+    end
+
+  end
+end
+</code></pre>
+
+<p>  end
+end
+```</p>
+
+<p>In order to use the formatter, we must tell RSpec to <code>require</code> it with <code>--require</code> and to use it with <code>--format</code>. We don't want to lose our settings in <code>.rspec</code> either - all these options can be combined in the Rake task.</p>
+
+<p><code>ruby lib/tasks/test_suites.rake
+RSpec::Core::RakeTask.new("#{suite[:id]}:run") do |t|
+  t.pattern = suite[:pattern]
+  t.verbose = false
+  t.fail_on_error = false
+  t.spec_opts = [
+    "--require", "#{Rails.root}/spec/support/formatters/failures_formatter.rb",
+    "--format", "RSpec::Core::Formatters::FailuresFormatter",
+    File.read(File.join(Rails.root, ".rspec")).split(/\n+/).map { |l| l.shellsplit }
+  ].flatten
+end
+</code></p>
+
+<p>Once a file is generated, we can feed it back to RSpec in another task, called <code>suite:suite[:id]:retry</code>.</p>
+
+<p><code>ruby lib/tasks/test_suites.rake
+RSpec::Core::RakeTask.new("#{suite[:id]}:retry") do |t|
+  t.pattern = suite[:pattern]
+  t.verbose = false
+  t.fail_on_error = false
+  t.spec_opts = [
+    "-O", File.join(Rails.root, 'rspec.failures'),
+    File.read(File.join(Rails.root, '.rspec')).split(/\n+/).map { |l| l.shellsplit }
+  ].flatten
+end
+</code></p>
+
+<p>Finally, lets combine the two tasks and invoke <code>retry</code> when the <code>run</code> task fails.</p>
+
+<p><code>ruby lib/tasks/test_suites.rake
+task "#{suite[:id]}" do
+  rspec_failures = File.join(Rails.root, 'rspec.failures')
+  FileUtils.rm_f rspec_failures
+  Rake::Task["spec:suite:#{suite[:id]}:run"].execute
+  unless $?.success?
+    puts "[#{Time.now}] Failed, retrying #{File.read(rspec_failures).split(/\n+/).count} failure(s) in spec:suite:#{suite[:id]} ..."
+    Rake::Task["spec:suite:#{suite[:id]}:retry"].execute
+  end
+end
+</code></p>
+
+<p>A complete version of our <code>test_suites.rake</code>, including a <code>spec:suite:all</code> task that executes all specs can be found <a href="https://gist.github.com/2597305">in this gist</a>. Our Jenkins CI runs <code>rake spec:suite:all</code>, with a much improved weather report since we started using this system.</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Reliably Testing Asynchronous UI w/ RSpec and Capybara]]></title>
+    <link href="http://artsy.github.io/blog/2012/02/03/reliably-testing-asynchronous-ui-w-slash-rspec-and-capybara/"/>
+    <updated>2012-02-03T11:45:00-05:00</updated>
+    <id>http://artsy.github.io/blog/2012/02/03/reliably-testing-asynchronous-ui-w-slash-rspec-and-capybara</id>
+    <content type="html"><![CDATA[<p>tl;dr - You can write 632 rock solid UI tests with Capybara and RSpec, too.</p>
+
+<p>{% img /images/2012-02-03-reliably-testing-asynchronous-ui-w-slash-rspec-and-capybara/jenkins-ci.png [Miami Weather in NYC] %}</p>
+
+<p>We have exactly 231 integration tests and 401 view tests out of a total of 3086 in our core application today. This adds up to 632 tests that exercise UI. The vast majority use <a href="http://rspec.info/">RSpec</a> with <a href="https://github.com/jnicklas/capybara">Capybara</a> and <a href="http://seleniumhq.org/">Selenium</a>. This means that every time the suite runs we set up real data in a local MongoDB and use a real browser to hit a fully running local application, 632 times. The suite currently takes 45 minutes to run headless on a slow Linode, UI tests taking more than half the time.</p>
+
+<p>While the site is in private beta, you can get a glimpse of the complexity of the UI from the <a href="http://artsy.net">splash page</a>. It's a rich client-side Javascript application that talks to an API. You can open your browser's developer tools and watch a combination of API calls and many asynchronous events.</p>
+
+<p>Keeping the UI tests reliable is notoriously difficult. For the longest time we felt depressed under the Pacific Northwest -like weather of our Jenkins CI and blamed every possible combination of code and infrastructure for the many intermittent failures. We've gone on sprees of marking many such tests "pending" too.</p>
+
+<p>We've learned a lot and stabilized our test suite. This is how we do UI testing.</p>
+
+<!-- more -->
+
+
+<h2>An Asynchronous Application</h2>
+
+<p>The splash page on <a href="http://artsy.net">Artsy</a> is a <a href="http://documentcloud.github.com/backbone/">Backbone.js</a> application where views fade in and out depending on user actions. It also implements a responsive layout because some elements cannot render on mobile devices or shouldn't depending on the size of your browser.</p>
+
+<p>The application is initialized in a usual Backbone way.</p>
+
+<p><code>coffeescript
+window.Splash =
+  Views: {}
+  Routers: {}
+  Models: {}
+  initialize: -&gt;
+    contentWindow = new @Models.ContentWindow()
+    @router = new @Routers.Client contentWindow
+    new @Views.Responsive contentWindow
+</code></p>
+
+<p>From here, everything is asynchronous. The router will wire up the events and the different views that make up the page will render themselves.</p>
+
+<h2>Testing a Login Form</h2>
+
+<p>When a user clicks on a "Log In" link, he sees the <code>Splash.Views.Login</code> Backbone view. There's no page reload or server roundtrip: the current view is swapped out by the Backbone view coming in. Some CSS animates the transition.</p>
+
+<p>``` coffeescript</p>
+
+<p>class Splash.Routers.Client extends Backbone.Router</p>
+
+<p>  routes:
+    'log_in' : 'log_in'</p>
+
+<p>  log_in: ->
+    Splash.login = new Splash.Views.Login()
+    @navigate 'log_in'</p>
+
+<pre><code>
+The log-in view has two input fields: an e-mail address and password. We can write a Capybara test that enters valid values and ensures that the user logged in by checking for a specific header.
+
+``` ruby
+require 'spec_helper'
+
+feature "Log In" do
+  context "using a browser", :js =&gt; true do
+    scenario "allows a user to login" do
+      user = Fabricate(:user)
+      visit "/"
+      click_link "log_in"
+      fill_in "user[email]", :with =&gt; user.email
+      fill_in "user[password]", :with =&gt; user.password
+      click_button "sign in"
+      find("h1", :visible =&gt; true).text.should == "Login Successful"
+    end
+  end
+end
+</code></pre>
+
+<p>This test works well with Capybara, because it tries to wait for elements to appear on the page. For example, when you use <code>fill_in</code> it attempts to locate an element with the <code>user[email]</code> id, several times, until it times out or until the element is on the page.</p>
+
+<h2>Waiting for Explicit Events</h2>
+
+<p>The above test is "reliable" within some limits. It works as long as all the necessary asynchronous events run within a timeout period. But what if they don't? What if the test hardware is taking a break from flushing to disk? Or waiting on Google Analytics when the network cable is unplugged, which shouldn't affect the outcome of the test? These external issues make this code very brittle, so everyone keeps increasing the default timeout values.</p>
+
+<p>A winning strategy to avoid this is to introduce explicit wait controls inside the tests. These wait <code>Capybara.default_wait_time</code> for a true result and no longer force you to know which method in Capybara waits for a timeout and which doesn't. It effectively breaks up a single wait into multiple waits.</p>
+
+<p>Consider a widget that needs to be saved by making a postback.</p>
+
+<p><code>coffeescript
+@$el.removeClass("saved").addClass('saving')
+@widget.save
+  success: =&gt;
+    @$el.removeClass("saving").addClass("saved")
+</code></p>
+
+<p>When the widget is saved, its element will get a <code>.saved</code> CSS class. The test can wait for it.</p>
+
+<p><code>ruby
+it "saves the widget" do
+  widget_count = Widget.count
+  find("save").click
+  wait_until { find(".saved", visible: true) }
+  Widget.count.should == widget_count + 1
+end
+</code></p>
+
+<h2>There's Just Too Much Going On</h2>
+
+<p>Sometimes, waiting on explicit events is just not practical. You may have many AJAX requests going on at the same time and after those are done, you may still be executing JavaScript that modifies the DOM in meaningful ways. Lets attempt to answer the following two questions:</p>
+
+<ul>
+<li>How can we wait on all remaining AJAX requests to finish?</li>
+<li>How can we wait on all remaining DOM events to finish?</li>
+</ul>
+
+
+<h2>Remaining AJAX Requests</h2>
+
+<p>If you're using jQuery, you can test the number of active connections to a server. The number is zero when all pending AJAX requests have finished. This was an original idea from <a href="http://pivotallabs.com/users/mgehard/blog/articles/1671-waiting-for-jquery-ajax-calls-to-finish-in-cucumber">Pivotal</a>.</p>
+
+<p><code>ruby spec/support/wait_for_ajax_helper.rb
+def wait_for_ajax(timeout = Capybara.default_wait_time)
+  page.wait_until(timeout) do
+    page.evaluate_script 'jQuery.active == 0'
+  end
+end
+</code></p>
+
+<h2>Remaining DOM Events</h2>
+
+<p>This one is a bit tricker. We can leverage the fact that JavaScript engines are updating the UI on a single thread. If you defer an action it will execute after everything else that has been deferred before it. Therefore we can queue an addition of an empty DIV with a new id and finally wait for it. By using a unique ID we allow the waits to stack up nicely in a single spec.</p>
+
+<p><code>ruby spec/support/wait_for_dom_helper_.rb
+def wait_for_dom(timeout = Capybara.default_wait_time)
+  uuid = SecureRandom.uuid
+  page.find("body")
+  page.evaluate_script &lt;&lt;-EOS
+    _.defer(function() {
+      $('body').append("&lt;div id='#{uuid}'&gt;&lt;/div&gt;");
+    });
+  EOS
+  page.find("##{uuid}")
+end
+</code></p>
+
+<p>We do have to make sure that the body element is loaded, first. This allows a <code>wait_for_dom</code> right after we navigate to a page that executes AJAX queries on load.</p>
+
+<h2>Combining Techniques</h2>
+
+<p>With enough attention we were able to explain and fix most spec failures. When implementing Capybara tests we favor explicit waits and use the combination of the two wait functions above when we just want to generically make sure that everything on the page has loaded and is ready for more action.</p>
+
+<p>Finally, integration tests are essential for continuous deployment. They are very much worth the extra development effort.</p>
 ]]></content>
   </entry>
   
