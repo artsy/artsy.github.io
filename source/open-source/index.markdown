@@ -236,10 +236,15 @@ which is a full API explorer solution.
 
 [CocoaDocs](http://cocoadocs.org/) documents every public OSS library in [CocoaPods](http://cocoapods.org/). Artsy pays for hosting.
 
-[musical chairs](https://github.com/orta/chairs)
-------------------------------------------------
+[Eigen](https://github.com/artsy/eigen)
+-------------------------------------------
 
-A gem for swapping iOS simulator states. Saves all the documents, library and cache for the most recently user iOS app into the current folder with a named version. Commands are modelled after git.
+The Artsy iOS app, the Art World in Your Pocket
+
+[Eidolon](https://github.com/artsy/eidolon)
+-------------------------------------------
+
+ A bidding kiosk for the Artsy auctions platform written in Swift.
 
 [ARAnalytics](https://github.com/orta/ARAnalytics)
 --------------------------------------------------
@@ -286,15 +291,16 @@ Expecta matchers for ios-snapshot-test-case.
 
 Swizzle your iOS project into ASCII art.
 
-[Eidolon](https://github.com/artsy/eidolon)
--------------------------------------------
-
- A bidding kiosk for the Artsy auctions platform written in Swift.
-
 [ARCollectionViewMasonryLayout](https://github.com/AshFurrow/ARCollectionViewMasonryLayout)
 -------------------------------------------------------------------------------------------
 
 A UICollectionViewLayout subclass for creating flow-like layouts with dynamic widths or heights.
+
+[musical chairs](https://github.com/orta/chairs)
+------------------------------------------------
+
+A gem for swapping iOS simulator states. Saves all the documents, library and cache for the most recently user iOS app into the current folder with a named version. Commands are modelled after git.
+
 
 # &nbsp;
 <h1 id="heroku">Heroku<h1>
