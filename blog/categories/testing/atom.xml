@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
 
-  <title><![CDATA[Category: Testing | Artsy Engineering]]></title>
+  <title><![CDATA[Category: testing | Artsy Engineering]]></title>
   <link href="http://artsy.github.io/blog/categories/testing/atom.xml" rel="self"/>
   <link href="http://artsy.github.io/"/>
-  <updated>2015-01-21T15:59:56-05:00</updated>
+  <updated>2015-01-22T18:14:45-05:00</updated>
   <id>http://artsy.github.io/</id>
   <author>
     <name><![CDATA[Artsy]]></name>
@@ -14,573 +14,290 @@
 
   
   <entry>
-    <title type="html"><![CDATA[Using CocoaPods Caching with Travis CI]]></title>
-    <link href="http://artsy.github.io/blog/2014/08/08/CocoaPods-Caching/"/>
-    <updated>2014-08-08T11:46:00-04:00</updated>
-    <id>http://artsy.github.io/blog/2014/08/08/CocoaPods-Caching</id>
-    <content type="html"><![CDATA[<p>As <a href="http://artsy.github.io/blog/2014/08/07/taking-a-snapshot-with-second-curtain/">Ash said earlier</a> we like using Continuous Integration. Today I spent a large amount of time migrating us to use the new CocoaPods caching system in Travis CI. To make up for my lost time I'm passing on what I've learned and also showing how we do CI at Artsy with Objective-C apps. If you're interested in how we do it in Swift, you can just check <a href="https://github.com/artsy/eidolon">Eidolon</a>.</p>
+    <title type="html"><![CDATA[Writing Headless Backbone Tests With Node.js]]></title>
+    <link href="http://artsy.github.io/blog/2013/06/14/writing-headless-backbone-tests-with-node-dot-js/"/>
+    <updated>2013-06-14T17:48:00-04:00</updated>
+    <id>http://artsy.github.io/blog/2013/06/14/writing-headless-backbone-tests-with-node-dot-js</id>
+    <content type="html"><![CDATA[<h2>TL;DR</h2>
+
+<p>Write fast, headless, tests for Backbone using Node.js. See this project as an example  <a href="https://github.com/craigspaeth/backbone-headless-testing">https://github.com/craigspaeth/backbone-headless-testing</a>.</p>
+
+<h2>A Brief History</h2>
+
+<p>Artsy is mostly a thick client <a href="http://backbonejs.org/">Backbone</a> app that sits on <a href="http://rubyonrails.org/">Rails</a> and largely depends on <a href="http://jnicklas.github.io/capybara/">Capybara</a> (<a href="http://docs.seleniumhq.org/">Selenium</a> backed bot that clicks around Firefox) for testing it's javascript. This leads to some seriously brittle and slow integration tests. <a href="http://artsy.github.io/blog/2012/02/03/reliably-testing-asynchronous-ui-w-slash-rspec-and-capybara/">Despite being able to wrangle Capybara</a> to do most of our client-side testing, we knew there must be a better way.</p>
+
+<p>When building a CMS app for our gallery partners to manage their Artsy inventory, we built a new Backbone app on top of <a href="http://nodejs.org/">node.js</a>. The result was a headless test suite that runs around 60 times faster.</p>
+
+<p>Let's take a look at how it's done.</p>
 
 <!-- more -->
 
 
-<p>First and foremost, this only works if you are paying for Travis CI.</p>
+<h2>Setting Up The Environment</h2>
 
-<p>Travis CI recently merged in support for <a href="http://docs.travis-ci.com/user/caching/">Caching of CocoaPods</a> - this is great! By using this, we've reduced our build times from an average of about 10 minutes, to about 7 minutes. It works by using your <code>Podfile.lock</code> as a key to cache your <code>Pods</code> directory, if the lock hasn't changed then there's no need to update the Cache and so <code>pod install</code> is not called on your project. This caused me an issue as the <code>[Project].xcworkspace</code> file that CocoaPods generates was not in source control, and the app wouldn't build. Useful note, if you're using <a href="http://guides.cocoapods.org/syntax/podfile.html#pod">development pods</a> in your build you probably shouldn't use this as your Pods directory can get out of sync with the cached version.</p>
+<p>The trick to testing client-side code in node.js is creating an environment that mimics the browser. <a href="https://github.com/tmpvar/jsdom">Jsdom</a> does just that by bringing a pure javascript implementation of the DOM to node.js.</p>
 
-<p>We use a <a href="https://github.com/artsy/eidolon/blob/master/Makefile">Makefile</a> to separate the tasks required to build, test and deploy an app. The general structure of our Makefile is:</p>
+<p><code>javascript
+jsdom.env({
+  html: "&lt;html&gt;&lt;body&gt;&lt;/body&gt;&lt;/html&gt;",
+  done: function(errs, window) {
+    global.window = window;
+    // ...
+    callback();
+  }
+});
+</code></p>
 
-<table>
-<thead>
-<tr>
-<th> Action        </th>
-<th> Reason </th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td> Constants </td>
-<td> A collection of constants that get resued by different make tasks. </td>
-</tr>
-<tr>
-<td> CI Tasks </td>
-<td> Separate commands necessary for running Xcode projects from the terminal. </td>
-</tr>
-<tr>
-<td> Actions </td>
-<td> Commands that manipulate your project state, or maintainance commands. </td>
-</tr>
-<tr>
-<td> Deployment </td>
-<td> Commands to get your app ready for the App Store, or Hockey. </td>
-</tr>
-</tbody>
-</table>
+<p>At this point we've globally exposed the <code>window</code> object of our jsdom browser. However the DOM isn't the only global dependency in most of our client-side code. We'll also need to expose our common libraries like Backbone, Underscore, and jQuery.</p>
 
+<p><code>javascript
+global.window = window;
+global.Backbone = require('../app/javascripts/vendor/backbone.js');
+global.Underscore = require('../app/javascripts/vendor/underscore.js');
+global.jQuery = require('../app/javascripts/vendor/jQuery.js');
+</code></p>
 
-<p>If you don't know the syntax for Make, essentially if it's on the same line you're either setting constants or calling other make commands. If it's on a separate line then you are running a shell command.</p>
+<p>We can simply require Backbone, Underscore, and jQuery like any node module because they follow <a href="http://wiki.CommonJS.org/wiki/Modules/1.1.1">CommonJS</a> convention. However not all libraries are CommonJS compatible, and in this case you might have to expose their attachment to <code>window</code>.</p>
 
-<p>This is the <a href="http://orta.io/#folio-header-unit">Artsy Folio</a> Makefile in full:</p>
+<p><code>javascript
+global.window = window;
+require('../app/javascripts/vendor/zepto.js');
+global.Zepto = window.Zepto;
+</code></p>
 
-<p>``` make</p>
+<p>Finally you probably have a namespace like <code>App</code> which your components attach to.</p>
 
-<h1>Constants</h1>
+<p><code>javascript
+global.window = window;
+// Libraries
+global.Backbone = require('../app/javascripts/vendor/backbone.js');
+global.Underscore = require('../app/javascripts/vendor/underscore.js');
+global.jQuery = require('../app/javascripts/vendor/jQuery.js');
+// Namespace
+global.App = {};
+// We're ready to test some Backbone components
+</code></p>
 
-<p>WORKSPACE = Artsy Folio.xcworkspace
-XCPROJECT = Artsy\ Folio.xcodeproj
-SCHEME = ArtsyFolio
-CONFIGURATION = Beta
-APP_PLIST = Info.plist
-PLIST_BUDDY = /usr/libexec/PlistBuddy
-TARGETED_DEVICE_FAMILY = \"1,2\"</p>
+<p>Try to keep global dependencies to a minimum. This reduces setup/teardown, increases modularity, and makes it easier to test your code.</p>
 
-<p>BUNDLE_VERSION = $(shell $(PLIST_BUDDY) -c "Print CFBundleVersion" $(APP_PLIST))
-GIT_COMMIT = $(shell git log -n1 --format='%h')
-ALPHA_VERSION = $(BUNDLE_VERSION)-$(BUILD_NUMBER)-$(GIT_COMMIT)</p>
+<p>For example, instead of attaching a view to <code>App</code> it might be better to pass that view in to the options of another so you can call <code>this.options.header.doSomething()</code>.</p>
 
-<p>GIT_COMMIT_REV = $(shell git log -n1 --format='%h')
-GIT_COMMIT_SHA = $(shell git log -n1 --format='%H')
-GIT_REMOTE_ORIGIN_URL = $(shell git config --get remote.origin.url)</p>
+<h2>Unit Testing Models</h2>
 
-<p>DATE_MONTH = $(shell date "+%e %h")
-DATE_VERSION = $(shell date "+%Y.%m.%d")</p>
+<p>Because all good javascript guides are based off Todo apps, let's pretend we're testing a Todo model.</p>
 
-<p>CHANGELOG = CHANGELOG.md
-CHANGELOG_SHORT = CHANGELOG_SHORT.md</p>
+<p>``` javascript
+App.Todo = Backbone.Models.extend({</p>
 
-<p>IPA = ArtsyFolio.ipa
-DSYM = ArtsyFolio.app.dSYM.zip</p>
+<p>  urlRoot: '/api/todo',</p>
 
-<h1>Phony tasks are tasks that could potentially have a file with the same name in the current folder</h1>
+<p>  complete: function() {
+    var self = this;
+    $.ajax({
+      url: '/api/todos/' + this.get('id') + '/complete',
+      type: 'PUT',
+      success: function() { self.set({ completed: true }); }
+    });
+  }
+});
+```</p>
 
-<p>.PHONY: build clean test ci</p>
+<p>Let's test that <code>#complete</code> makes the proper API PUT and <code>completed</code> is updated to true. After we setup our jsdom environment we need to stub <code>$.ajax</code> using <a href="http://sinonjs.org/docs/#stubs">sinon</a> as we won't be sending XHRs in node.</p>
 
-<h1>CI Tasks</h1>
+<p>``` javascript
+before(function(done) {
+  jsdom.env({
+    html: "<html><body></body></html>",
+    done: function(errs, window) {
+      global.$ = require('../../app/javascripts/vendor/jquery.js');
+      //...
+    }
+  });
+});</p>
 
-<p>ci: CONFIGURATION = Debug
-ci: pods build</p>
+<p>beforeEach(function(done) {
+  ajaxStub = sinon.stub($, 'ajax');
+  todo = new App.Todo({ title: 'Feed the cat', id: 'feed-the-cat' });
+});
+```</p>
 
-<p>build:
-    set -o pipefail &amp;&amp; xcodebuild -workspace "$(WORKSPACE)" -scheme "$(SCHEME)" -sdk iphonesimulator -destination 'name=iPad Retina' build | xcpretty -c</p>
+<p>Now we can simply assert that <code>$.ajax</code> was called with the right params and completed changed.</p>
 
-<p>clean:
-    xctool -workspace "$(WORKSPACE)" -scheme "$(SCHEME)" -configuration "$(CONFIGURATION)" clean</p>
+<p>``` javascript
+it('PUTs to the API', function() {
+  todo.complete();
+  $.ajax.args[0][0].type.should.equal('PUT');
+  $.ajax.args[0][0].url.should
+    .equal('/api/todos/feed-the-cat/complete');
+});</p>
 
-<p>test:
-    set -o pipefail &amp;&amp; xcodebuild -workspace "$(WORKSPACE)" -scheme "$(SCHEME)" -configuration Debug test -sdk iphonesimulator -destination 'name=iPad Retina' | second_curtain | xcpretty -c --test</p>
+<p>it('updates the item to be completed', function() {
+  todo.set('completed', false);
+  $.ajax.args[0][0].success();
+  todo.get('completed').should.equal(true);
+});
+```</p>
 
-<p>lint:
-    bundle exec fui --path Classes find</p>
+<h2>Unit Testing Views</h2>
 
-<pre><code>bundle exec obcd --path Classes find HeaderStyle
-bundle exec obcd --path "ArtsyFolio Tests" find HeaderStyle
-</code></pre>
+<p>Models are easy to unit test because they're mostly self-contained javascript. However a Backbone view might expect some server-side rendered HTML, use client-side templates, communicate to other views, and so on. This makes it harder to test but manageable given our set up.</p>
 
-<h1>Actions</h1>
+<p>Let's pretend we have a view that renders our todo list inside a server-side rendered element, and uses a client-side template to fill in the actual list items.</p>
 
-<p>ipa:
-    $(PLIST_BUDDY) -c "Set CFBundleDisplayName $(BUNDLE_NAME)" $(APP_PLIST)
-    $(PLIST_BUDDY) -c "Set CFBundleVersion $(DATE_VERSION)" $(APP_PLIST)
-    ipa build --scheme $(SCHEME) --configuration $(CONFIGURATION) -t</p>
+<p>Our DOM might look something like this:</p>
 
-<p>alpha_version:
-    $(PLIST_BUDDY) -c "Set CFBundleVersion $(ALPHA_VERSION)" $(APP_PLIST)</p>
+<p>``` html</p>
 
-<p>change_version_to_date:
-    $(PLIST_BUDDY) -c "Set CFBundleVersion $(DATE_VERSION)" $(APP_PLIST)</p>
+<div id='todos'>
+  <h1>Things I need to do today</h1>
+  <ul class='todos-list'></ul>
+</div>
 
-<p>set_git_properties:
-    $(PLIST_BUDDY) -c "Set GITCommitRev $(GIT_COMMIT_REV)" $(APP_PLIST)
-    $(PLIST_BUDDY) -c "Set GITCommitSha $(GIT_COMMIT_SHA)" $(APP_PLIST)
-    $(PLIST_BUDDY) -c "Set GITRemoteOriginURL $(GIT_REMOTE_ORIGIN_URL)" $(APP_PLIST)</p>
-
-<p>pods: remove_debug_pods
-pods:
-    rm -rf Pods
-    bundle install
-    bundle exec pod install</p>
-
-<p>remove_debug_pods:
-    perl -pi -w -e "s{pod 'Reveal-iOS-SDK'}{}g" Podfile</p>
-
-<p>update_bundle_version:
-    @printf 'What is the new human-readable release version? '; \
-        read HUMAN_VERSION; \
-        $(PLIST_BUDDY) -c "Set CFBundleShortVersionString $$HUMAN_VERSION" $(APP_PLIST)</p>
-
-<p>mogenerate:
-    @printf 'What is the new Core Data version? '; \
-        read CORE_DATA_VERSION; \
-        mogenerator -m "Resources/CoreData/ArtsyPartner.xcdatamodeld/ArtsyFolio v$$CORE_DATA_VERSION.xcdatamodel/" --base-class ARManagedObject --template-path config/mogenerator/artsy --machine-dir Classes/Models/Generated/ --human-dir /tmp/ --template-var arc=true</p>
-
-<h1>Deployment</h1>
-
-<p>deploy: ipa distribute</p>
-
-<p>alpha: BUNDLE_NAME = 'Folio α'
-alpha: NOTIFY = 0
-alpha: alpha_version deploy</p>
-
-<p>appstore: BUNDLE_NAME = 'Artsy Folio'
-appstore: TARGETED_DEVICE_FAMILY = 2
-appstore: remove_debug_pods update_bundle_version set_git_properties change_version_to_date</p>
-
-<p>next: TARGETED_DEVICE_FAMILY = \"1,2\"
-next: update_bundle_version set_git_properties change_version_to_date</p>
-
-<p>distribute:
-  cat $(CHANGELOG) | head -n 50 | awk '{ print } END { print "..." }' > $(CHANGELOG_SHORT)
-  curl \
-   -F status=2 \
-   -F notify=$(NOTIFY) \
-   -F "notes=&lt;$(CHANGELOG_SHORT)" \
-   -F notes_type=1 \
-   -F ipa=@$(IPA) \
-   -F dsym=@$(DSYM) \
-   -H 'X-HockeyAppToken: $(HOCKEYAPP_TOKEN)' \
-   https://rink.hockeyapp.net/api/2/apps/upload \
-   | grep -v "errors"</p>
 
 <pre><code>
-That gives you a sense of the commands that you can run from the terminal in our projects, next we need to look at the `.travis.yml` file.
+and our view might look something like this:
 
-``` make
-language: objective-c
-cache:
-  - bundler
-  - cocoapods
+``` javascript
+App.TodosListView = Backbone.View.extend({
 
-env:
-  - UPLOAD_IOS_SNAPSHOT_BUCKET_NAME=eigen-ci UPLOAD_IOS_SNAPSHOT_BUCKET_PR...
+  el: '#todos',
 
-before_install:
-  - 'echo ''gem: --no-ri --no-rdoc'' &gt; ~/.gemrc'
-  - cp .netrc ~
-  - chmod 600 .netrc
-  - pod repo add artsy https://github.com/artsy/Specs.git
+  template: JST['todos/list_items'],
 
-before_script:
-  - gem install second_curtain
-  - make ci
+  initialize: function() {
+    this.collection.bind('add remove', this.render);
+  },
 
-script:
-  - make test
-  - make lint
+  render: function() {
+    this.$('.todos-list')
+      .html(this.template({ todos: this.collection.models }));
+  }
+})
 </code></pre>
 
-<p>This is nice and simple. It was built to use multiple travis build steps. This makes the CI output a lot more readable as an end user. Travis will by default collapse the shell output for different build stages leaving only the <code>script</code> stage defaulting to being exposed. Here is an example of what you see on a failing test:</p>
-
-<center>
-<img src="http://artsy.github.io/images/2014-08-08-CocoaPods-Caching/failing_travis_screenshot.png" alt='Travis CI Failure'>
-</center>
-
-
-<p>We use a gem with a binary in <a href="https://github.com/AshFurrow/second_curtain/">second_curtain</a>, and this came with bundler caching issues in Travis. The solution was to ignore bundler and run <code>gem install second_curtain</code> each time. To increase the speed we also ensured that documentation is not being generated. If you are interested in what's going on with the <code>.netrc</code>, read my blog post on <a href="http://artsy.github.io/blog/2014/06/20/artsys-first-closed-source-pod/">Artsy's first Closed Source Pod</a>.</p>
-
-<p>We will continue pushing the state of the art in iOS deployment, in building our own tools and using everything available to increase developer happiness. If you're into this we're always looking to hire people with a good open source track record or street smarts. Here's <a href="https://artsy.net/job/mobile-engineer">the jobs page</a>.</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Taking a Snapshot with Second Curtain]]></title>
-    <link href="http://artsy.github.io/blog/2014/08/07/taking-a-snapshot-with-second-curtain/"/>
-    <updated>2014-08-07T11:46:00-04:00</updated>
-    <id>http://artsy.github.io/blog/2014/08/07/taking-a-snapshot-with-second-curtain</id>
-    <content type="html"><![CDATA[<p>At Artsy, we try hard to <a href="https://speakerdeck.com/orta/getting-eigen-out?slide=35">test</a>
-our iOS applications to ensure that we avoid regressions and have a clearly
-defined spec of how our apps should look and behave. One of the core pieces of
-our testing setup is <a href="https://github.com/facebook/ios-snapshot-test-case">FBSnapshotTestCase</a>,
-a library written by Facebook to compare views at runtime with images of those
-views that are known to be correct. If the images differ, the test fails. We
-also use <a href="https://travis-ci.org">Travis</a> for continuous integration.</p>
-
-<p>Lately, we've been noticing a friction between the developers on the iOS team
-and the tools we're using to test our apps: while Travis allows us to easily
-access the logs of test runs, it can only indicate that a snapshot test failed,
-not why it failed. That's because the images that are compared are locked on
-Travis' machine – we cannot access those images, so we can't see the
-differences. This is <em>really</em> promblematic when the tests pass locally but fail
-only on Travis.</p>
-
-<!-- more -->
-
-
-<p>A few weeks ago, <a href="http://twitter.com/orta">Orta</a> and I were discussing this
-problem and we came up with a potential solution. Since the images were stored
-on disk on Travis' machine, why not just upload them somewhere we <em>can</em> see
-them? Like an S3 bucket. We could even generate a basic HTML page showing you
-the different test failures.</p>
-
-<p>Time passed and, later on, I had tests passing locally but failing on Travis.
-I saw an opportunity to build something new. I'm not a proficient Ruby developer,
-but I enjoy learning new things, so I decided to create a Ruby gem that could
-fit within our existing testing pipeline. A lot of the structure for the code
-came from an existing gem we already use with Travis, <a href="https://github.com/supermarin/xcpretty">xcpretty</a>.
-With an example of how gems that support iOS testing are written, I was on my
-way to creating my own.</p>
-
-<p>At first, things were very difficult. While I had contributed small patches to
-existing Ruby projects before, I had never created a brand new one from scratch.
-The existing <a href="http://guides.rubygems.org/make-your-own-gem/">guides</a> were very
-helpful, and I found help from the CocoaPods developers when I had questions
-about things like the arcane semantics of Ruby's <code>require</code> syntax.</p>
-
-<p>Eventually, I had a working proof-of-concept. Everything seemed ready to go, and
-I prepared to incorporate my new tool, which I called <a href="https://github.com/AshFurrow/second_curtain">Second Curtain</a>,
-into my pull request on the Artsy repo. But there was a problem.</p>
-
-<p>Second Curtain relies on environment variables to get access to the S3 bucket
-where it stores the images. I planned on using Travis' system to <a href="http://docs.travis-ci.com/user/encryption-keys/">encrypt</a>
-those credentials. It turns out, for very good reasons, encrypted environment
-variables are not available on pull requests created on forks of repositories.
-This is a problem because of the way that <a href="http://artsy.github.io/blog/2012/01/29/how-art-dot-sy-uses-github-to-build-art-dot-sy/">Artsy uses GitHub</a>.
-While it's not a problem for a closed-source repository to have (restrictive)
-access to an S3 bucket, it would be irresponsible to expose S3 credentials for
-an open-source project. I'm <a href="https://github.com/AshFurrow/second_curtain/issues/5">working</a>
-on a solution.</p>
-
-<p>Orta helped with the design aspect of the tool; while uploading the images was
-sufficient, we could make the process of seeing the differences between the two
-images even easier. He created a <a href="https://eigen-ci.s3.amazonaws.com/snapshots/2014-08-04--15-47/index.html">HTML page</a>
-that would allow developers to see the before-and-after versions by moving their
-mouse cursor over the different images.</p>
-
-<p><img src="http://static.ashfurrow.com/github/second_curtain.png" alt="Image Diff" /></p>
-
-<p>In the end, I got Second Curtain to work with Artsy's iOS repository and I
-discovered the discrepency between the two images: due to a timezone difference
-between my computer and Travis', a date was being formatted differently. Not a
-difficult thing to fix, but not something I would have ever been able to
-discover had I not been able to see the images side-by-side.</p>
-
-<p>So after all that, one line of Objective-C was changed and the tests passed – my
-pull request was merged. I learnt a lot about how Ruby developers structure
-their code and what tools they use to write software. While I'm happy to return
-to iOS apps for a while, it was a great experience and I'm hoping to bring some
-of the ideas I discovered writing Ruby back to Objective-C.</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Artsy's first closed source Pod]]></title>
-    <link href="http://artsy.github.io/blog/2014/06/20/artsys-first-closed-source-pod/"/>
-    <updated>2014-06-20T17:53:00-04:00</updated>
-    <id>http://artsy.github.io/blog/2014/06/20/artsys-first-closed-source-pod</id>
-    <content type="html"><![CDATA[<p>When I joined Artsy, <a href="http://code.dblock.org">dB</a> pitched me this idea: <em>Open source as default.</em></p>
-
-<p>I took this to heart. I genuinely believe the idea behind the philosophy. It's cool that our real product isn't our implementations on the web or native but the data which powers it - <a href="https://artsy.net/theartgenomeproject">the Art Genome Project</a>. Similarly, I spend a bunch of time <a href="https://github.com/AshFurrow/ARCollectionViewMasonryLayout">on</a> <a href="https://github.com/dblock/ARASCIISwizzle">open</a> <a href="https://github.com/dblock/ios-snapshot-test-case-expecta">sourcing</a> <a href="https://github.com/dblock/ARTiledImageView">solid</a> <a href="https://github.com/dstnbrkr/DRBOperationTree">abstractions</a> <a href="https://github.com/orta/ORSimulatorKeyboardAccessor">from</a> <a href="https://github.com/orta/ORStackView">our</a> <a href="https://github.com/orta/ARAnalytics">apps</a>, always taking the opinion if something is used in more than one place, it should be open sourced.</p>
-
-<p>This week I pushed some libraries that were a bit different, read on to find out why.</p>
-
-<!-- more -->
-
-
-<h2>The problem</h2>
-
-<p>I was modernizing a section of <a href="http://orta.github.io/#folio-header-unit">Folio</a> that hasn't changed in 2 years to use custom UILabel subclasses consistent with <a href="https://iphone.artsy.net">the Artsy iOS app</a> and realized I was copying and pasting a large amount of code from one app to the other. This got me thinking about ways to keep this code in one place, as we might start another project which needs these same styles soon.</p>
-
-<h2>The solution</h2>
-
-<p>I didn't want to put it on the public CocoaPods Spec Repo, because it's not very relevant to the larger community, but in keeping with our philosophy of "open source by default," I definitely wanted to publish it as an example for others. The most elegant answer was to create our own <a href="https://github.com/artsy/specs">public Specs Repo</a>, which serves as a good reference when people want to know what a private specs repo looks like.</p>
-
-<p>Like anyone who has tried to modularize a pretty large code-base, it turns out a lot of things were connected together. I couldn't just build my <a href="http://github.com/Artsy/Artsy-UILabels">Artsy+UILabels</a> repo and put everything in there. Instead I had to also build Artsy+UIFonts and <a href="http://github.com/Artsy/Artsy-UIColors">Artsy+UIColors</a>.</p>
-
-<p>One of the good things about having to build three libraries is that I became very familiar with <code>pod lib create</code>. This is a command for building the scaffolding around a CocoaPod, making it much easier to create something fast. We had been holding off doing a <a href="https://github.com/CocoaPods/pod-template/pull/33">big update</a> to the command because no-one knew what WWDC would bring. Now we know, so I've worked on a new version of the command that programmatically manipulates an example project via <a href="https://github.com/CocoaPods/Xcodeproj">xcodeproj</a>. I've used it in creating all of these libraries. Expect to see it on the CocoaPods blog soon.</p>
-
-<h2>Caveat</h2>
-
-<p>I built three libraries, but one of them is unique. I modelled Artsy+UIFonts from <a href="http://kylefuller.co.uk">Kyle Fuller</a>'s <a href="https://github.com/kylef/OpenSans-pod">OpenSans-pod</a>, where the CocoaPod has the font resources and installing it moves them into your project. This is great for a free or open-source font, but would break commercial font licenses. For that reason, we don't have the ability to open source that project. Thus Artsy Mobile's first closed-source library.</p>
-
-<p>This is a great example of how you can build a private specs repo, whilst the public-private aspect is not applicable to most companies. I find it to be a nice halfway house between open source as default, and keeping something internal. For more info on setting up your own private specs repos, <a href="http://guides.cocoapods.org/making/private-cocoapods.html">check the guides</a>.</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Building the Xcode Plugin Snapshots]]></title>
-    <link href="http://artsy.github.io/blog/2014/06/17/building-the-xcode-plugin-snapshots/"/>
-    <updated>2014-06-17T10:50:00-04:00</updated>
-    <id>http://artsy.github.io/blog/2014/06/17/building-the-xcode-plugin-snapshots</id>
-    <content type="html"><![CDATA[<p>I'm the kind of guy who thinks better tooling means better outcomes. But when good tooling isn't available, it's time to build it yourself. It's this attitude that lead to my work on <a href="http://cocoadocs.org">CocoaDocs.org</a>, and then to <a href="http://cocoapods.org">CocoaPods.org</a> &amp; its documentation.</p>
-
-<p>We've been trying to apply this to testing, and in order to pull this off I've had to extend Xcode to show off the results of failing tests in a more visual way. To that end, I've extended Xcode to show the results of failing <a href="https://github.com/facebook/ios-snapshot-test-case">view tests</a> in a more visual way by building <a href="https://github.com/orta/snapshots">Snapshots for Xcode</a>.  Let's go through the process of building an Xcode plugin so you can do this too. Screw stability.</p>
-
-<!-- more -->
-
-
-<h2>Getting started</h2>
-
-<p>Lets start of with some Xcode inception. The nicest way to start working on Xcode plugins is to install <a href="http://alcatraz.io">Alcatraz</a> the Xcode plugin package manager:</p>
-
-<pre><code>curl -fsSL https://raw.github.com/supermarin/Alcatraz/master/Scripts/install.sh | sh
-</code></pre>
-
-<p>From Alcatraz you should have <a href="https://github.com/edwardaux/XcodeExplorer">XcodeExplorer</a> installed. This lets you dig through internal notifications and the Xcode view heriarchy for debugging. Then you'll want <a href="http://delisa.me">Delisa Mason</a>'s <a href="https://github.com/kattrali/Xcode5-Plugin-Template">Xcode 5 Plugin</a> template which also comes from Alcatraz. Now you can create a new project and pick <em>"Xcode 5 Plugin"</em>. This will do a bunch of the boring work around getting set up on a project, though it misses one bit that to me is essential, setting the Scheme Target. Once setup go to the Scheme editor and make it open Xcode as the target.</p>
-
-<p><img src="/images/2014-06-17-building-the-xcode-plugin-snapshots/scheme.png" alt="Go set you target dangit" /></p>
-
-<p>This means that when you do <code>cmd + r</code> on your project it will open a new instance of Xcode with your plugin installed, making the dev cycle for a plugin as simple as a normal OS X app. From here I can't tell you how to build your plugin. It's just normal development, however I can offer some general advice:</p>
-
-<ul>
-<li>When you see a class you don't know, google it, chances are Luis Solano has you covered with <a href="https://github.com/luisobo/Xcode-RuntimeHeaders">Xcode-RuntimeHeaders</a>.</li>
-<li>Use id with fake class interfaces to get around having the headers for Xcode's classes.</li>
-<li>Avoid 3rd party dependencies as much as possible as all plugin classes are in the same runtime.</li>
-<li>A lot of work is done in notifications, so it's easy to hook in to state changes.</li>
-<li>Swizzle as little as possible</li>
-<li>Wrap code you're not 100% on with <code>@try {} @catch {}</code> once it's working to crash elegantly</li>
-<li>Look at the source code of other plugins</li>
-<li>Read <a href="https://github.com/kattrali/Xcode5-Plugin-Template#notes">the notes</a> on the Xcode5 Plugin Template</li>
-</ul>
-
-
-<h2>Releasing</h2>
-
-<p>Next up you want to get it on Alcatraz, this is just a pull request to the <a href="https://github.com/supermarin/alcatraz-packages">alcatraz-packages repo</a>, it's like the old days of CocoaPods! Then you have a plugin, and people will always be using the master HEAD version of your plugin, so be wary around putting unstable code on that branch.</p>
-
-<p>It's easy to forget that if you build apps you have all the tools you need to improve your workflow, one improvement that saves you an hour today could save thousands of human-hours once it's out in the community.</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Testing Core Data Migrations]]></title>
-    <link href="http://artsy.github.io/blog/2014/06/11/testing-core-data-migrations/"/>
-    <updated>2014-06-11T10:50:00-04:00</updated>
-    <id>http://artsy.github.io/blog/2014/06/11/testing-core-data-migrations</id>
-    <content type="html"><![CDATA[<p>The first time I released a patch release for <a href="http://orta.github.io/#folio-header-unit">Artsy Folio</a> it crashed instantly, on every install. Turns out I didn't understand Core Data migrations, now a few years on I grok it better but I've still lived with the memories of that dark dark day. Because of this I've had an informal rule of testing migrations with all the old build of Folio <a href="http://artsy.github.io/blog/2013/03/29/musical-chairs/">using chairs</a> the day before submitting to the app store.</p>
-
-<p>This time round, I've made vast changes to the Core Data models but skipped the manual work. Here's how:</p>
-
-<!-- more -->
-
-
-<p>Context: Folio is a big Core Data app, that now has hundreds of <a href="https://speakerdeck.com/orta/getting-eigen-out?slide=40">tests</a> that I've added in the past 6 month, tests that cover everything from <a href="https://speakerdeck.com/orta/getting-eigen-out?slide=40">the views</a> to simple model checks. It was originally built with a CoreDataManager singleton that contains a reference to a per-thread main managed object context. As I started to apply tests to the app I needed to start creating in-memory managed object contexts for <a href="http://www.bignerdranch.com/blog/dependency-injection-ios/">dependency injection</a>. Making my class (roughly) end up like this:</p>
-
-<p>```objc
-@interface CoreDataManager : NSObject
-+ (NSManagedObjectContext <em>)mainManagedObjectContext;
-+ (NSManagedObjectContext </em>)stubbedManagedObjectContext;
-@end</p>
-
-<pre><code>
-With a simplified implementation of:
-
-```objc
-
-static BOOL ARRunningUnitTests = NO;
-static NSManagedObjectModel *managedObjectModel = nil;
-static NSManagedObjectContext *mainManagedObjectContext = nil;
-
-@implementation CoreDataManager
-
-+ (void)initialize
-{
-    if (self == [CoreDataManager class]) {
-        NSString *XCInjectBundle = [[[NSProcessInfo processInfo] environment] objectForKey:@"XCInjectBundle"];
-        ARRunningUnitTests = [XCInjectBundle hasSuffix:@".xctest"];
-    }
-}
-
-+ (NSManagedObjectModel *)managedObjectModel
-{
-    NSURL *modelURL = [[NSBundle mainBundle] URLForResource:@"ArtsyPartner" withExtension:@"momd"];
-    return [[NSManagedObjectModel alloc] initWithContentsOfURL:modelURL];
-}
-
-+ (NSPersistentStoreCoordinator *)persistentStoreCoordinator
-{
-    if (persistentStoreCoordinator != nil) return persistentStoreCoordinator;
-
-    NSURL *storeURL = [NSURL fileURLWithPath:[ARFileUtils coreDataStorePath]];
-    NSDictionary *options = @{ NSMigratePersistentStoresAutomaticallyOption: @(YES), NSInferMappingModelAutomaticallyOption: @(YES)};
-
-    NSError *error = nil;
-    NSManagedObjectModel *model = [CoreDataManager managedObjectModel];
-    persistentStoreCoordinator = [[NSPersistentStoreCoordinator alloc] initWithManagedObjectModel:model];
-
-    [persistentStoreCoordinator addPersistentStoreWithType:NSSQLiteStoreType configuration:nil URL:storeURL options:options error:&amp;error];
-    return persistentStoreCoordinator;
-}
-
-+ (NSManagedObjectContext *)mainManagedObjectContext
-{
-    if (ARRunningUnitTests) {
-        @throw [NSException exceptionWithName:@"ARCoreDataError" reason:@"Nope - you should be using a stubbed context somewhere." userInfo:nil];
-    }
-
-    if (mainManagedObjectContext == nil) {
-        mainManagedObjectContext = [self newManagedObjectContext];
-    }
-    return mainManagedObjectContext;
-}
-
-
-+ (NSManagedObjectContext *)newManagedObjectContext
-{
-    NSManagedObjectContext *context = nil;
-    NSURL *storeURL = [NSURL fileURLWithPath:[ARFileUtils coreDataStorePath]];
-    NSDictionary *options = @{ NSMigratePersistentStoresAutomaticallyOption: @(YES), NSInferMappingModelAutomaticallyOption: @(YES) };
-
-    NSError *error = nil;
-    NSManagedObjectModel *model = [CoreDataManager managedObjectModel];
-    persistentStoreCoordinator = [[NSPersistentStoreCoordinator alloc] initWithManagedObjectModel:model];
-    return context;
-}
-
-+ (NSManagedObjectContext *)stubbedManagedObjectContext
-{
-    NSDictionary *options = @{ NSMigratePersistentStoresAutomaticallyOption: @(YES), NSInferMappingModelAutomaticallyOption: @(YES) };
-
-    NSError *error = nil;
-    NSManagedObjectModel *model = [CoreDataManager managedObjectModel];
-
-    persistentStoreCoordinator = [[NSPersistentStoreCoordinator alloc] initWithManagedObjectModel:model];
-    [persistentStoreCoordinator addPersistentStoreWithType:NSInMemoryStoreType configuration:nil URL:nil options:options error:&amp;error];
-
-    NSManagedObjectContext *context = [[NSManagedObjectContext alloc] init];
-    context.persistentStoreCoordinator = persistentStoreCoordinator;
-    return context;
-}
-
-@end
-</code></pre>
-
-<p>This meant it was very easy to quickly make tests that look like:</p>
-
-<p>```objc
-    it(@"shows sync info when there are no CMS albums", ^{
-        NSManagedObjectContext *context = [CoreDataManager stubbedManagedObjectContext];</p>
-
-<pre><code>    ARAddAlbumThatIsEditableInContext(YES, context);
-    ARAddAlbumThatIsEditableInContext(NO, context);
-
-    ARAddToAlbumViewController *controller = [[ARAddToAlbumViewController alloc] initWithManagedObjectContext:context];
-    controller.view.frame = (CGRect){ CGPointZero, [controller preferredContentSize]};
-    expect(controller.view).to.haveValidSnapshot();
+<p>We can render the server-side <code>#todos</code> element by compiling the express view into html and injecting it straight in jsdom with our globally exposed jQuery.</p>
+
+<p><code>javascript
+filename = path.resolve(__dirname, '../app/views/index.jade');
+template = fs.readFileSync(filename).toString();
+html = jade.compile(template, { filename: filename })();
+$('html').html(html);
+</code></p>
+
+<p>Next we need to expose our client-side templates. In this case I'm assuming client-side templates are pre-compiled into functions namespaced under a global JST object like in the <a href="http://guides.rubyonrails.org/asset_pipeline.html">Rail's asset pipeline</a> (if you're looking for a node.js tool <a href="https://github.com/craigspaeth/nap">nap</a> is what Artsy uses).</p>
+
+<p>We need to mimic what the JST functions are expecting so that when calling <code>JST['foo/bar']({ foo: 'some-data' })</code> we get back a string of html.</p>
+
+<p><code>javascript
+global.JST = {};
+var filename = path.resolve(
+  __dirname,
+  '../app/javascripts/templates/todos/list.jade'
+);
+JST['todos/list'] = jade.compile(
+  fs.readFileSync(filename).toString(),
+  { filename: filename }
+);
+</code></p>
+
+<p>With our server-side HTML injected and our client-side templates ready to use, all that's needed is to require any other dependent Backbone components. This boilerplate can get pretty repetitive and would be good to wrap up into a helper.</p>
+
+<p>``` javascript
+var clientenv = require('../helpers/clientenv');</p>
+
+<p>before(function(done) {
+  clientenv.setup(function() {
+    global.App.Todo = require('../app/javascripts/models/todo.js');
+    global.App.Todos = require('../app/javascripts/collections/todos.js');
+    done();
+  });
+});</p>
+
+<p>beforeEach(function(done) {
+  var templateFilename = path.resolve(
+        __dirname,
+        '../../views/index.jade'
+      ),
+      html = require('jade').compile(
+        fs.readFileSync(templateFilename).toString(),
+        { filename: templateFilename }
+      )();
+  $('html').html(html);
+  view = new App.TodosListView();
+  done();
+});</p>
+
+<p>it('renders items as they are added', function() {
+  view.collection.add([
+    new App.Todo({ title: 'clean the kitchen' })
+  ]);
+  view.$el.html().should.include('clean the kitchen');
 });
-</code></pre>
+```</p>
 
-<pre><code>
-This made it very cheap conceptually to make a new in-memory context and to be sure that the changes wouldn't affect the development data store. However, once I had this framework in place it became a pretty simple jump to taking the existing sqlite files that I already had around in my [chairs folder](http://artsy.github.io/blog/2013/03/29/musical-chairs/) and make to force a migration from that build to the latest managed object model. Here's the test suite in full:
+<p>With a little bit more work, testing views in node can be almost as easy as testing models.</p>
 
-```objc
-//
-//  ARAppDataMigrations.m
-//  Artsy Folio
-//
-//  Created by Orta on 12/05/2014.
-//  Copyright (c) 2014 http://artsy.net. All rights reserved.
-//
+<h2>Integration Tests</h2>
 
-NSManagedObjectContext *ARContextWithVersionString(NSString *string);
+<p>Although I encourage writing way more unit test coverage as they're faster and less brittle, it is necessary to have integration tests to cover longer scenarios. At Artsy we use some tricks to make integration testing less painful.</p>
 
-SpecBegin(ARAppDataMigrations)
+<h3>Stubbing the API Layer</h3>
 
-__block NSManagedObjectContext *context;
+<p>In Artsy's case we're consuming a JSON API service that already has ample test coverage, so it makes sense to cut off integration at this point and stub our API responses.</p>
 
-it(@"migrates from 1.3", ^{
-    expect(^{
-        context = ARContextWithVersionString(@"1.3");
-    }).toNot.raise(nil);
-    expect(context).to.beTruthy();
-    expect([Artwork countInContext:context error:nil]).to.beGreaterThan(0);
-});
+<p>To do this we can conditionally check which environment we're running in and swap out the API to use a real API or an <a href="http://expressjs.com/">express</a> app serving a stubbed API.</p>
 
-it(@"migrates from  1.3.5", ^{
-    expect(^{
-        context = ARContextWithVersionString(@"1.3.5");
-    }).toNot.raise(nil);
-    expect(context).to.beTruthy();
-    expect([Artwork countInContext:context error:nil]).to.beGreaterThan(0);
-});
-
-it(@"migrates from  1.4", ^{
-    expect(^{
-        context = ARContextWithVersionString(@"1.4");
-    }).toNot.raise(nil);
-    expect(context).to.beTruthy();
-    expect([Artwork countInContext:context error:nil]).to.beGreaterThan(0);
-});
-
-it(@"migrates from  1.6", ^{
-    expect(^{
-        context = ARContextWithVersionString(@"1.4");
-    }).toNot.raise(nil);
-    expect(context).to.beTruthy();
-    expect([Artwork countInContext:context error:nil]).to.beGreaterThan(0);
-});
-
-SpecEnd
-
-NSManagedObjectContext *ARContextWithVersionString(NSString *string) {
-
-    // Allow it to migrate
-    NSDictionary *options = @{
-        NSMigratePersistentStoresAutomaticallyOption: @YES,
-        NSInferMappingModelAutomaticallyOption: @YES
-    };
-
-    // Open up the the _current_ managed object model
-    NSError *error = nil;
-    NSManagedObjectModel *model = [CoreDataManager managedObjectModel];
-    NSPersistentStoreCoordinator *persistentStoreCoordinator = [[NSPersistentStoreCoordinator alloc] initWithManagedObjectModel:model];
-
-    // Get an older Core Data file from fixtures
-    NSString *storeName = [NSString stringWithFormat:@"ArtsyPartner_%@", string];
-    NSURL *storeURL = [[NSBundle bundleForClass:ARAppDataMigrationsSpec.class] URLForResource:storeName withExtension:@"sqlite"];
-
-    // Set the persistent store to be the fixture data
-    if (![persistentStoreCoordinator addPersistentStoreWithType:NSSQLiteStoreType configuration:nil URL:storeURL options:options error:&amp;error]) {
-        NSLog(@"Error creating persistant store: %@", error.localizedDescription);
-        @throw @"Bad store";
-        return nil;
-    }
-
-    // Create a stubbed context, check give it the old data, and it will update itself
-    NSManagedObjectContext *context = [[NSManagedObjectContext alloc] init];
-    context.persistentStoreCoordinator = persistentStoreCoordinator;
-    return context;
+<p><code>javascript
+if(app.get('env') == 'test') {
+  app.set('api url', 'http://localhost:5000');
+  // Create a mock api server in your test helpers
+  // and run it on 5000 in a before block
+} else {
+  app.set('api url', 'http://api.my-app.com');
 }
-</code></pre>
+// Bootstrap in your server-side view so the client app
+// knows where to point
+app.locals.API_URL_ROOT = app.get('api url');
+</code></p>
 
-<p>Nothing too surprising, but I think this is important that these tests are the slowest tests in the app, at a whopping 0.191 seconds. I'm very willing to trade a fraction of a second on every test run to know that I'm not breaking app migrations.</p>
+<p>If our API was hosted on the same server as our client app, or we're proxying API calls because of lack of <a href="http://en.wikipedia.org/wiki/Cross-Origin_Resource_Sharing">CORS</a> support, this could be as easy as swapping out middleware.</p>
+
+<p><code>javascript
+if(app.get('env') == 'test') {
+  app.use('/api', require('./test/helpers/mock_api'));
+} else {
+  app.use('/api', require('./routes/api'));
+}
+</code></p>
+
+<p>This speeds up integration tests and simplifies the stack by not populating a database or booting an API server.</p>
+
+<h3>Headless Integration Tests with Zombie.js</h3>
+
+<p>Selenium has to actually boot up Firefox and poll the UI to wait for things to appear. This disconnect means extra seconds of "wait_util we're sure" time.  <a href="http://zombie.labnotes.org/">Zombie.js</a> is backed by our friend jsdom and alleviates these issues by giving us a fast headless browser that we can programmatically access.</p>
+
+<p>Of course the caveat to headless testing is that you can't visually see how a test is actually failing. Using <code>{ debug: true }</code> in your options will spit every Zombie action to stdout. In most cases this is enough, but sometimes you need to go a step further and actually visualize what the test is doing.</p>
+
+<p>A trick we use is to write tests using the browser's <code>jQuery</code>. This is more familiar than Zombie's DSL and lets you copy and paste test code directly in your browser's console to see if it's actually doing what you want.</p>
+
+<p>.e.g</p>
+
+<p>``` javascript
+Browser.visit('http://localhost:5000', function(err, browser) {
+  var $ = browser.window.$;</p>
+
+<p>  // From here we can run <code>NODE_ENV=test node app.js</code> and copy
+  // this code right into our browser's console.
+  $('#add-todo').val('Foo').change();
+  });
+}
+```</p>
+
+<h2>Conclusion</h2>
+
+<p>Using these techniques has greatly increased productivity and developer happiness for testing client-side code. For an example implementation of this see <a href="https://github.com/craigspaeth/backbone-headless-testing">https://github.com/craigspaeth/backbone-headless-testing</a>.</p>
+
+<p>Looking forward, testing client-side code can be made even better by using a package manager that adds require functionality like <a href="https://github.com/substack/node-browserify">browserify</a>, <a href="https://github.com/component/component">component</a>, or <a href="http://requirejs.org/">require.js</a>. But I've gone far enough for now, maybe in another blog post (leave a comment if you're interested).</p>
 ]]></content>
   </entry>
   
