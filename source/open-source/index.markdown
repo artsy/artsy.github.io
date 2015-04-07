@@ -137,6 +137,16 @@ Slice deep-zoom images for [OpenSeaDragon](http://openseadragon.github.io/) or [
 
 The [Artsy Developer website](http://developers.artsy.net), a Rails app that talks to the Artsy public API.
 
+[actionmailer-text](https://github.com/dblock/actionmailer-text)
+----------------------------------------------------------------
+
+Automatically insert a text/plain part into your HTML multipart e-mails.
+
+[email-example-spec](https://github.com/dblock/email-example-spec)
+------------------------------------------------------------------
+
+Integration testing with e-mail examples.
+
 
 # &nbsp;
 <h1 id="javascript">Javascript<h1>

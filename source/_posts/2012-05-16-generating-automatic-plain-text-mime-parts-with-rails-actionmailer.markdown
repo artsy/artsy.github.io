@@ -11,7 +11,7 @@ blog-url: http://code.dblock.org
 ---
 E-mail is one of the most important ways to engage your users. And every time you touch a user's inbox, it reflects on your brand. But getting email right has become increasing difficult due to the complexities introduced by the thousands of web-based, desktop and mobile mail clients. Email formatting is like the "Hunger Games" where the major players include online services such as GMail, Yahoo, Hotmail or AOL, desktop clients such as Outlook and a myriad mobile devices ranging from iPhone and Android to Blackberry.
 
-To deal with this landscape, the MIME standard allows systems to send e-mail with multiple parts: `plain/text` for business-efficient devices such as the Blackberry, and `text/html` for web-based e-mail readers, such as GMail. Furthermore, `ActionMailer` supports multiple template formats: create an `.html.haml` template along with a `.txt.haml` template to generate both. We also know that `text/plain` email helps deliverability, but we believe a disproportionately small amount of text e-mails are actually read - the vast majority of devices are capable of parsing some HTML. 
+To deal with this landscape, the MIME standard allows systems to send e-mail with multiple parts: `plain/text` for business-efficient devices such as the Blackberry, and `text/html` for web-based e-mail readers, such as GMail. Furthermore, `ActionMailer` supports multiple template formats: create an `.html.haml` template along with a `.txt.haml` template to generate both. We also know that `text/plain` email helps deliverability, but we believe a disproportionately small amount of text e-mails are actually read - the vast majority of devices are capable of parsing some HTML.
 
 Is it possible to avoid having to maintain two separate templates without sacrificing deliverability? How can we inject a `text/plain` part into HTML e-mail that is both useful and "free"?
 
@@ -54,13 +54,13 @@ end
 Once we have all the parts, assemble them, get rid of duplicate text and links, and re-insert into the email as a `text/plain` multipart block.
 
 ``` ruby
-responses.insert 0, { 
-  content_type: "text/plain", 
-  body: body_parts.uniq.join("\n") 
+responses.insert 0, {
+  content_type: "text/plain",
+  body: body_parts.uniq.join("\n")
 }
 parts_order.insert 0, "text/plain"
 ```
 
-The complete code for `ActionMailerWithTextPart` is available in [this gist](https://gist.github.com/2719486) under the MIT license. Inherit your mailers from this class to get automatic `plain/text` fallback.
+This has been extracted into the [actionmailer-text](https://github.com/dblock/actionmailer-text) gem. Include `ActionMailer::Text` in your mailers.
 
 
