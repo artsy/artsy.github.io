@@ -3,7 +3,7 @@ layout: post
 title: "The Culture of Openness in the Artsy Mobile Team"
 date: 2015-03-31 19:07
 comments: true
-categories: [iOS, Open-Source]
+categories: [mobile, Open-Source]
 author: Sarah Scott & Laura Brown
 github-url: https://www.github.com/artsy/mobile
 twitter-url: http://twitter.com/artsyopensource
