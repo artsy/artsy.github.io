@@ -10,7 +10,7 @@ twitter-url: http://twitter.com/sweir27
 ---
 We recently picked up a Rails application that was a few features away from completion. This application allows our [Genome Team](https://www.artsy.net/about/the-art-genome-project) to classify multiple artworks based on visual and art historical characteristics. These characteristics, or "genes", can be added, removed, and changed for any of the artworks on the panel. 
 
-![screenshot](http://cl.ly/image/3T2o2m2m3C1w/Screen%20Shot%202015-04-08%20at%2010.50.02%20AM.png)
+<center><img src='/images/2015-04-08-creating-a-dynamic-single-page-app-for-our-genome-team-using-react/helix_screenshot.png'></center>
 
 Our genomers are masters of efficiency, and over the years we have worked closely with them to tailor a dynamic interface to their specific workflow. 
 
