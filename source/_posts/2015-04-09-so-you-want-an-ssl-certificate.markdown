@@ -1,7 +1,7 @@
 ---
 layout: post
 title: So You Want an SSL Certificate? A Pragmatic Handbook
-date: 2015-04-08
+date: 2015-04-09
 comments: true
 categories: [SSL, DevOps]
 author: Daniel Doubrovkine
