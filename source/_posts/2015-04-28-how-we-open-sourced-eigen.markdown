@@ -1,4 +1,5 @@
 ---
+layout: post
 title: How we Open Source'd Eigen 
 date: 2015-04-28
 comments: no
