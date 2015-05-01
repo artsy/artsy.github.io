@@ -23,7 +23,7 @@ Let's go over the process we went through to get to that point.
 
 <!-- more -->
 
-Credit where credit is due, when we were [working on Eidolon](/blog/2014/11/13/eidolon-retrospective/), our CTO [dB](http://code.dblock.org/) just casually tossed the idea that, really, Eigen should be open source too. Eigen is the code name for the [Artsy iOS app](http://iphone.artsy.net/). This totally threw me for a loop, we were only just getting to a point where we could build an app from scratch in the open. Trying to get a project that had existed for years and had it's own momentum converted would take a lot of thinking about.
+Credit where credit is due, when we were [working on Eidolon](/blog/2014/11/13/eidolon-retrospective/), our CTO [dB](http://code.dblock.org/) just casually tossed the idea that, really, Eigen should be open source too. Eigen is the code name for the [Artsy iOS app](http://iphone.artsy.net/). This totally threw me for a loop, we were only just getting to a point where we could build an app from scratch in the open. Trying to get a project that had existed for years and had its own momentum converted would take a lot of thinking about.
 
 We devoted time at the end of 2014 to understand what the constraints were for getting the app opened. From a purely functional perspective we would have to start with a [drastic decision](https://github.com/artsy/mobile/issues/11) around the repo itself. 
 
