@@ -34,7 +34,7 @@ We test our framework when making new offers by asking candidates what their com
 #### Engineer 1
 
 * Broad knowledge of CS concepts.
-* Can complete well-defined and sub-divided tasks.
+* Can complete well-defined and subdivided tasks.
 * Focuses on learning tools and processes.
 * Pushes code through the entire lifecycle from development to production for the first time.
 * Develops individual contributor skills, including source control, editors or test-driven development.
