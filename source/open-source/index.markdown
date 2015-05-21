@@ -1,6 +1,7 @@
 ---
 layout: page
 title: "Artsy Open Source"
+section: opensource
 comments: false
 sharing: true
 footer: true
