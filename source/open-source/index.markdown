@@ -1,5 +1,5 @@
 ---
-layout: page
+layout: open_source
 title: "Artsy Open Source"
 section: opensource
 comments: false
@@ -7,152 +7,82 @@ sharing: true
 footer: true
 ---
 
-We love open-source at Artsy. We use a ton of it. We've also contributed to numerous projects and created many of our own since early 2011. Below is a list of projects that we have either created or that we are core contributors or maintainers of. Our projects fall mostly into the following categories: [Ruby](#ruby), [Javascript](#javascript), [iOS](#ios) and [Heroku](#heroku).
-
-# &nbsp;
-<h1 id="ruby">Ruby<h1>
-----------------------
-
-[Grape](https://github.com/intridea/grape)
-------------------------------------------
-
-An opinionated micro-framework for creating REST-like APIs in Ruby.
-
-[artsy-ruby-client](https://github.com/artsy/artsy-ruby-client)
----------------------------------------------------------------
-
-A Ruby client for the Artsy API.
-
-[momentum](https://github.com/artsy/momentum)
-----------------------------------------
-
-Shared utilities for managing and deploying OpsWorks apps at Artsy.
-
-[garner](http://github.com/artsy/garner)
-----------------------------------------
-
-Garner is a practical Rack-based cache implementation for RESTful APIs with support for HTTP 304 Not Modified based on time and ETags, model and instance binding and hierarchical invalidation.
-
-To "garner" means to gather data from various sources and to make it readily available in one place, kind-of like a cache!
-
-[spidey](https://github.com/joeyAghion/spidey)
--------------------------------------------------------------
-Spidey provides a bare-bones framework for crawling and scraping web sites. Its goal is to keep boilerplate scraping logic out of your code. The companion [spidey-mongo](https://github.com/joeyAghion/spidey-mongo) gem adds MongoDB as a data store.
-
-[pixmatch](https://github.com/dblock/pixmatch)
-----------------------------------------------
-
-TinEye Pixmatch Ruby client library. [PixMatch](http://ideeinc.com/products/pixmatch/) is a general image matching engine that
-allows you to perform large scale image comparisons for a variety of tasks. PixMatch is delivered as a hosted Web Services API.
-It runs over HTTP using a REST protocol and JSON formatted responses, wrapped by this library.
-
-[gem-licenses](https://github.com/dblock/gem-licenses)
-------------------------------------------------------
-
-A library for generating a list of licensed software from Gemspec. The overwhelming majority of 3rd party licenses require the
-application that uses them to reproduce the license verbatim in an artifact that is installed with the application itself.
-Are you currently copying individual license.txt files "by hand" or are you including license text in your documentation with
-copy/paste? This project aims at improving this situation.
-
-[canonical-emails](https://github.com/dblock/canonical-emails)
---------------------------------------------------------------
-
-Combine email validation and transformations to produce canonical email addresses.
-
-[guard-rack](https://github.com/dblock/guard-rack)
---------------------------------------------------
-
-Want to restart your Rack development with rackup whilst you work? Now you can!
-
-[rspec-rerun](https://github.com/dblock/rspec-rerun)
-----------------------------------------------------
-
-The rspec-rerun gem is a drop-in solution to retry (rerun) failed RSpec examples. It may be useful, for example, with finicky Capybara tests. The strategy to rerun failed specs is to output a file called `rspec.failures` that contains a list of failed examples and to feed that file back to RSpec via `-e`.
-
-[hyperloglog-redis](https://github.com/aaw/hyperloglog-redis)
--------------------------------------------------------------
-This gem is a pure Ruby implementation of the HyperLogLog algorithm for estimating cardinalities of sets observed via a stream of events. A Redis instance is used for storing the counters.
-
-[cartesian-product](https://github.com/aaw/cartesian-product)
--------------------------------------------------------------
-A cartesian product implementation in Ruby that doesn't materialize the product in memory.
-
-[space-saver-redis](https://github.com/aaw/space-saver-redis)
--------------------------------------------------------------
-A pure Ruby implementation of the SpaceSaver algorithm for estimating the top K elements in a data stream.
-
-[mongoid_fulltext](https://github.com/aaw/mongoid_fulltext)
------------------------------------------------------------
-
-A Ruby full-text search implementation for the Mongoid ODM. MongoDB currently has no native full-text search capabilities,
-so this gem is a good fit for cases where you want something a little less than a full-blown indexing service like Solr. The
-mongoid_fulltext gem lets you do a fuzzy string search across relatively short strings, which makes it good for populating
-autocomplete boxes based on the display names of your Rails models but not appropriate for, say, indexing hundreds of thousands
-of HTML documents.
-
-[mongoid-cached-json](https://github.com/dblock/mongoid-cached-json)
---------------------------------------------------------------------
-
-Typical as_json definitions may involve lots of database point queries and method calls. When returning collections of objects, a single call may yield hundreds of database queries that can take seconds. This library mitigates the problem by implementing a module called CachedJson.
-
-CachedJson enables returning multiple JSON formats from a single class and provides some rules for returning embedded or referenced data. It then uses a scheme where fragments of JSON are cached for a particular (class, id) pair containing only the data that doesn't involve references/embedded documents. To get the full JSON for an instance, CachedJson will combine fragments of JSON from the instance with fragments representing the JSON for its references. In the best case, when all of these fragments are cached, this falls through to a few cache lookups followed by a couple Ruby hash merges to create the JSON.
-
-Using Mongoid::CachedJson we were able to cut our JSON API average response time by about a factor of 10.
-
-[mongoid-tag-collectible](https://github.com/dblock/mongoid-tag-collectible)
-----------------------------------------------------------------------------
-
-Easily maintain a collection of Tag instances with aggregate counts from your model's tags.
-
-[delayed_job_shallow_mongoid](https://github.com/joeyAghion/delayed_job_shallow_mongoid)
--------------------------------------------------------------------------------------
-
-Short-circuit serialization of Mongoid model instances when a delayed job is called on them, or when they're passed as arguments to delayed jobs.
-
-[mongoid_collection_snapshot](https://github.com/aaw/mongoid_collection_snapshot)
----------------------------------------------------------------------------------
-
-Easy maintenance of collections of processed data in MongoDB with the Mongoid ODM.
-
-[mongoid-shell](https://github.com/dblock/mongoid-shell)
---------------------------------------------------------
-
-Create MongoDB command-lines from Mongoid configuration.
-
-[mongoid-scroll](https://github.com/dblock/mongoid-scroll)
---------------------------------------------------------------
-
-Mongoid extension that enables infinite scrolling with MongoDB.
-
-[forgetsy](https://github.com/cavvia/forgetsy)
---------------------------------------------------------------
-Forgetsy is a highly scalable trending library using [Forget Table](http://word.bitly.com/post/41284219720/forget-table) data structures, backed by Redis.
-
-[dzt](https://github.com/dblock/dzt)
-------------------------------------
-
-Slice deep-zoom images for [OpenSeaDragon](http://openseadragon.github.io/) or [ARTiledImageView](https://github.com/dblock/ARTiledImageView).
-
-[doppler](https://github.com/artsy/doppler)
--------------------------------------------
-
-The [Artsy Developer website](http://developers.artsy.net), a Rails app that talks to the Artsy public API.
-
-[actionmailer-text](https://github.com/dblock/actionmailer-text)
-----------------------------------------------------------------
-
-Automatically insert a text/plain part into your HTML multipart e-mails.
-
-[email-example-spec](https://github.com/dblock/email-example-spec)
-------------------------------------------------------------------
-
-Integration testing with e-mail examples.
+# We love open source at Artsy. We use a ton of it. We've also contributed to numerous projects and created many of our own projects since early 2011. We maintain a philosophy of keeping our work [Open by Default]("").
 
 
-# &nbsp;
-<h1 id="javascript">Javascript<h1>
-----------------------------------
+<div id="featured" class="open-source-category">
 
+  <div class="open-source-project">
+    <div class = "open-source-featured-image">
+      <img src="/images/open-source-placeholder.png">
+    </div>
+    <div class="open-source-title">
+      <h2><a href="">Force</a></h2>
+    </div>
+    <div class="open-source-description">
+      <p>The Artsy that you know. It is the web front-end for Artsy.net, powering hundreds of thousands of page views and bringing art to the masses at scale.</p>
+      <p>Built on top of Ezel.js it provides a behind the scenes look at a non-trivial node based front-end.</p>
+      <a>artsy.net</a>
+      <a>artsy/force</a>
+    </div>
+    <div class="open-source-updated">
+      <span>Updated at TIME</span>
+    </div>
+  </div>
+
+  <div class="open-source-project">
+    <div class = "open-source-featured-image">
+      <img src="/images/open-source-placeholder.png">
+    </div>
+    <div class="open-source-title">
+      <h2><a href="">Eigen</a></h2>
+    </div>
+    <div class="open-source-description">
+      <p>The Artsy iOS app, the Art World in your Pocket ...</p>
+      <a>iphone.artsy.net</a>
+      <a>artsy/eigen</a>
+    </div>
+    <div class="open-source-updated">
+      <span>Updated at TIME</span>
+    </div>
+  </div>
+
+  <div class="open-source-project">
+    <div class = "open-source-featured-image">
+      <img src="/images/open-source-placeholder.png">
+    </div>
+    <div class="open-source-title">
+      <h2><a href="">Kiosk</a></h2>
+    </div>
+    <div class="open-source-description">
+    <p>The Artsy iOS app, the Art World in your Pocket ...</p>
+    <a>artsy/kiosk</a>
+    </div>
+    <div class="open-source-updated">
+      <span>Updated at TIME</span>
+    </div>
+  </div>
+
+  <div class="open-source-project">
+    <div class = "open-source-featured-image">
+      <img src="/images/open-source-placeholder.png">
+    </div>
+    <div class="open-source-title">
+      <h2><a href="">Grape</a></h2>
+    </div>
+    <div class="open-source-description">
+    <p>The Artsy iOS app, the Art World in your Pocket ...</p>
+    <a>artsy/kiosk</a>
+    </div>
+    <div class="open-source-updated">
+      <span>Updated at TIME</span>
+    </div>
+  </div>
+
+</div>
+
+<!-- <div id="javascript" class="open-source-category">
+ -->
 [ezel](https://github.com/artsy/ezel)
 -------------------------------------
 
@@ -233,8 +163,10 @@ The plugin includes two parts: apiSandbox, which aids in the creation of inline 
 which is a full API explorer solution.
 
 
-# &nbsp;
-<h1 id="ios">iOS<h1>
+</div>
+
+<div id="ios" class="open-source-category">
+
 --------------------
 
 [CocoaPods](https://cocoapods.org)
@@ -312,9 +244,136 @@ A UICollectionViewLayout subclass for creating flow-like layouts with dynamic wi
 
 A gem for swapping iOS simulator states. Saves all the documents, library and cache for the most recently user iOS app into the current folder with a named version. Commands are modelled after git.
 
+</div>
 
-# &nbsp;
-<h1 id="heroku">Heroku<h1>
+<div id="ruby" class="open-source-category">
+
+[artsy-ruby-client](https://github.com/artsy/artsy-ruby-client)
+
+A Ruby client for the Artsy API.
+
+[momentum](https://github.com/artsy/momentum)
+
+Shared utilities for managing and deploying OpsWorks apps at Artsy.
+
+[garner](http://github.com/artsy/garner)
+
+Garner is a practical Rack-based cache implementation for RESTful APIs with support for HTTP 304 Not Modified based on time and ETags, model and instance binding and hierarchical invalidation.
+
+To "garner" means to gather data from various sources and to make it readily available in one place, kind-of like a cache!
+
+[spidey](https://github.com/joeyAghion/spidey)
+
+Spidey provides a bare-bones framework for crawling and scraping web sites. Its goal is to keep boilerplate scraping logic out of your code. The companion [spidey-mongo](https://github.com/joeyAghion/spidey-mongo) gem adds MongoDB as a data store.
+
+[pixmatch](https://github.com/dblock/pixmatch)
+
+TinEye Pixmatch Ruby client library. [PixMatch](http://ideeinc.com/products/pixmatch/) is a general image matching engine that
+allows you to perform large scale image comparisons for a variety of tasks. PixMatch is delivered as a hosted Web Services API.
+It runs over HTTP using a REST protocol and JSON formatted responses, wrapped by this library.
+
+[gem-licenses](https://github.com/dblock/gem-licenses)
+
+A library for generating a list of licensed software from Gemspec. The overwhelming majority of 3rd party licenses require the
+application that uses them to reproduce the license verbatim in an artifact that is installed with the application itself.
+Are you currently copying individual license.txt files "by hand" or are you including license text in your documentation with
+copy/paste? This project aims at improving this situation.
+
+[canonical-emails](https://github.com/dblock/canonical-emails)
+
+Combine email validation and transformations to produce canonical email addresses.
+
+[guard-rack](https://github.com/dblock/guard-rack)
+
+Want to restart your Rack development with rackup whilst you work? Now you can!
+
+[rspec-rerun](https://github.com/dblock/rspec-rerun)
+
+The rspec-rerun gem is a drop-in solution to retry (rerun) failed RSpec examples. It may be useful, for example, with finicky Capybara tests. The strategy to rerun failed specs is to output a file called `rspec.failures` that contains a list of failed examples and to feed that file back to RSpec via `-e`.
+
+[hyperloglog-redis](https://github.com/aaw/hyperloglog-redis)
+
+This gem is a pure Ruby implementation of the HyperLogLog algorithm for estimating cardinalities of sets observed via a stream of events. A Redis instance is used for storing the counters.
+
+[cartesian-product](https://github.com/aaw/cartesian-product)
+
+A cartesian product implementation in Ruby that doesn't materialize the product in memory.
+
+[space-saver-redis](https://github.com/aaw/space-saver-redis)
+
+A pure Ruby implementation of the SpaceSaver algorithm for estimating the top K elements in a data stream.
+
+[mongoid_fulltext](https://github.com/aaw/mongoid_fulltext)
+
+A Ruby full-text search implementation for the Mongoid ODM. MongoDB currently has no native full-text search capabilities,
+so this gem is a good fit for cases where you want something a little less than a full-blown indexing service like Solr. The
+mongoid_fulltext gem lets you do a fuzzy string search across relatively short strings, which makes it good for populating
+autocomplete boxes based on the display names of your Rails models but not appropriate for, say, indexing hundreds of thousands
+of HTML documents.
+
+[mongoid-cached-json](https://github.com/dblock/mongoid-cached-json)
+--------------------------------------------------------------------
+
+Typical as_json definitions may involve lots of database point queries and method calls. When returning collections of objects, a single call may yield hundreds of database queries that can take seconds. This library mitigates the problem by implementing a module called CachedJson.
+
+CachedJson enables returning multiple JSON formats from a single class and provides some rules for returning embedded or referenced data. It then uses a scheme where fragments of JSON are cached for a particular (class, id) pair containing only the data that doesn't involve references/embedded documents. To get the full JSON for an instance, CachedJson will combine fragments of JSON from the instance with fragments representing the JSON for its references. In the best case, when all of these fragments are cached, this falls through to a few cache lookups followed by a couple Ruby hash merges to create the JSON.
+
+Using Mongoid::CachedJson we were able to cut our JSON API average response time by about a factor of 10.
+
+[mongoid-tag-collectible](https://github.com/dblock/mongoid-tag-collectible)
+----------------------------------------------------------------------------
+
+Easily maintain a collection of Tag instances with aggregate counts from your model's tags.
+
+[delayed_job_shallow_mongoid](https://github.com/joeyAghion/delayed_job_shallow_mongoid)
+-------------------------------------------------------------------------------------
+
+Short-circuit serialization of Mongoid model instances when a delayed job is called on them, or when they're passed as arguments to delayed jobs.
+
+[mongoid_collection_snapshot](https://github.com/aaw/mongoid_collection_snapshot)
+---------------------------------------------------------------------------------
+
+Easy maintenance of collections of processed data in MongoDB with the Mongoid ODM.
+
+[mongoid-shell](https://github.com/dblock/mongoid-shell)
+--------------------------------------------------------
+
+Create MongoDB command-lines from Mongoid configuration.
+
+[mongoid-scroll](https://github.com/dblock/mongoid-scroll)
+--------------------------------------------------------------
+
+Mongoid extension that enables infinite scrolling with MongoDB.
+
+[forgetsy](https://github.com/cavvia/forgetsy)
+--------------------------------------------------------------
+Forgetsy is a highly scalable trending library using [Forget Table](http://word.bitly.com/post/41284219720/forget-table) data structures, backed by Redis.
+
+[dzt](https://github.com/dblock/dzt)
+------------------------------------
+
+Slice deep-zoom images for [OpenSeaDragon](http://openseadragon.github.io/) or [ARTiledImageView](https://github.com/dblock/ARTiledImageView).
+
+[doppler](https://github.com/artsy/doppler)
+-------------------------------------------
+
+The [Artsy Developer website](http://developers.artsy.net), a Rails app that talks to the Artsy public API.
+
+[actionmailer-text](https://github.com/dblock/actionmailer-text)
+----------------------------------------------------------------
+
+Automatically insert a text/plain part into your HTML multipart e-mails.
+
+[email-example-spec](https://github.com/dblock/email-example-spec)
+------------------------------------------------------------------
+
+Integration testing with e-mail examples.
+
+
+</div>
+
+<div id="devops" class="open-source-category">
+
 ----------------------
 
 [resque-heroku-scaling-canary](https://github.com/aaw/resque-heroku-scaling-canary)
