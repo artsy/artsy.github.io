@@ -22,7 +22,6 @@ function init() {
             var alpha = 1 - (distanceY / shrinkOn);
             var gradient = "linear-gradient(209deg, rgba(217, 255, 255, "+alpha+"), rgba(252, 255, 246,  "+alpha+") 1300px, white 1900px)";
             body.css("background", gradient);
-
             if (sidebar.length) {
                 sidebar.css("top", '260px');
             }
