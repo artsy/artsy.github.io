@@ -1,5 +1,5 @@
 ---
-layout: full_width_post
+layout: post
 title: "Building the Xcode Plugin Snapshots"
 date: 2014-06-17 10:50
 comments: false
