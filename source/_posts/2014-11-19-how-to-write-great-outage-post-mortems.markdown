@@ -1,5 +1,5 @@
 ---
-layout: full_width_post
+layout: post
 title: How to Write Great Outage Post-Mortems
 date: 2014-11-19 12:21
 comments: true
