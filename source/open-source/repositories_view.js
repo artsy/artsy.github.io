@@ -30,7 +30,7 @@ var RepositoriesView = Backbone.View.extend({
                                       "<div class='open-source-description'>" +
                                         "<%= model.description %>" +
                                         "<div class='open-source-description-link'>" +
-                                        "<a href=<%= model.repository %>><%= model.link %></a>" +
+                                        "<a href='<%= model.repository %>'><%= model.link %></a>" +
                                         "</div>" +
                                       "</div>" +
                                       "<div class='open-source-updated'>" +
