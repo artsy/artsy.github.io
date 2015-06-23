@@ -28,7 +28,7 @@ Our specific goal within this project was to find a rectangle that best contains
 
 ## Background
 
-What follows is a summary of some useful background knowledge for interpreting the output of common image transformations. Included are the corresponding commands in python that rely on the [OpenCV](docs.opencv.org/master/) library which we used in this project.
+What follows is a summary of some useful background knowledge for interpreting the output of common image transformations. Included are the corresponding commands in python that rely on the [OpenCV](http://docs.opencv.org/master/) library which we used in this project.
 
 ### Blur Transformations
 
