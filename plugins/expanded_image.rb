@@ -41,7 +41,7 @@ module Jekyll
         # .entry-content .content-container
         "</div></div>" \
         "<a href='#{@expanded_img["src"]}'><img #{@expanded_img.collect {|k,v| "#{k}=\"#{v}\"" if v}.join(" ")}></a>" \
-        "<div class='meta-container'><header>&nbsp;</header></div><div class='content-container'><div class='entry-content'>" \
+        "<div class='meta-container'><header>&nbsp;</header></div><div class='date-container'>&nbsp;</div><div class='content-container'><div class='entry-content'>" \
       else
         "Error processing input, expected syntax: {% expanded_img [class name(s)] [http[s]:/]/path/to/image [width [height]] [title text | \"title text\" [\"alt text\"]] %}"
       end
