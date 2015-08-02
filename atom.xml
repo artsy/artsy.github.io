@@ -4,7 +4,7 @@
   <title><![CDATA[Artsy Engineering]]></title>
   <link href="http://artsy.github.io/atom.xml" rel="self"/>
   <link href="http://artsy.github.io/"/>
-  <updated>2015-06-17T13:15:51-04:00</updated>
+  <updated>2015-08-02T15:42:28-04:00</updated>
   <id>http://artsy.github.io/</id>
   <author>
     <name><![CDATA[Artsy]]></name>
@@ -12,6 +12,398 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Notorious BUG – The Unbugged Sessions Part 1]]></title>
+    <link href="http://artsy.github.io/blog/2015/07/30/Notorious-BUG-Part-1/"/>
+    <updated>2015-07-30T19:21:00-04:00</updated>
+    <id>http://artsy.github.io/blog/2015/07/30/Notorious-BUG-Part-1</id>
+    <content type="html"><![CDATA[<p>When the odds are stacked against you, your mind is overflowing, and you are ready to just pop, there’s always practical
+debugging tips to help you through a cloudy day.</p>
+
+<p>In this post I’ll take you through a debugging session where I reproduce a crash, for which we were receiving a bunch of
+crash reports, but I was unable to reproduce by just using the application.</p>
+
+<p>It will cover the following topics:</p>
+
+<ul>
+<li>Narrow down the breakpoint to the method invocation where the crash occurs.</li>
+<li>Locate the exact instruction that causes the crash.</li>
+<li>Look at the implementation of the method where the crash occurs.</li>
+<li>Simulate the crash.</li>
+</ul>
+
+
+<!--more-->
+
+
+<h3>The crash report</h3>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>Hardware Model:  iPhone5,2
+</span><span class='line'>OS Version:      iPhone OS 8.1.2 (12B440)
+</span><span class='line'>
+</span><span class='line'>Exception Type:  SIGSEGV
+</span><span class='line'>Exception Codes: SEGV_ACCERR at 0x10
+</span><span class='line'>Crashed Thread:  0
+</span><span class='line'>
+</span><span class='line'>Thread 0 Crashed:
+</span><span class='line'>0   libobjc.A.dylib                      0x33034f46 objc_msgSend + 5
+</span><span class='line'>1   UIKit                                0x28d7e4bd -[UIScrollView _getDelegateZoomView] + 66
+</span><span class='line'>2   UIKit                                0x2599b757 -[UIScrollView _offsetForCenterOfPossibleZoomView:withIncomingBoundsSize:] + 42
+</span><span class='line'>[SNIP]
+</span><span class='line'>7   Artsy                                0x00107087 -[ARArtworkView setUpCallbacks] + 1238
+</span><span class='line'>[SNIP]</span></code></pre></td></tr></table></div></figure>
+
+
+<p><em>This crash report was shortened for clarity sake, you can find the full report
+<a href="https://gist.github.com/alloy/cfaab5b754fdd2c551e0">here</a>.</em></p>
+
+<p>Now, this might not be the toughest nut to crack –if you’ve been doing UIKit development for a while, you may already
+know that <code>UIScrollView</code> does not weakify it’s <code>delegate</code>– but instead of just going by experience and making some
+changes, let’s see if we can’t figure out exactly what’s happening, for the sake of reproducing and confidently making
+the right fix.</p>
+
+<p>The lines near the top of the stack trace tell me that it’s probably a message being sent to some garbage memory, i.e.
+a released object, so that’s where I want to be poking around.</p>
+
+<h3>Getting at often called locations</h3>
+
+<p>So I want to get at the 2nd frame in the stack, but that method and the one at the 3rd frame get invoked <em>a lot</em> while
+navigating to the view I want to debug. There’s many ways to do this, but the simple approach I often take in these
+cases is to set a breakpoint for the last frame in the stack that is <em>unique to the location that I want to get at</em> and
+then keep refining the breakpoints every time I hit one.</p>
+
+<p>In this case that starts off with a breakpoint in
+<a href="https://github.com/artsy/eigen/blob/1.7.0/Artsy/Classes/Views/ARArtworkView.m#L85">our code</a>:</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>(lldb) b -[ARArtworkView setUpCallbacks]
+</span><span class='line'>Breakpoint 1: where = Artsy`-[ARArtworkView setUpCallbacks] + 19 at ARArtworkView.m:101, address = 0x000000010e722853</span></code></pre></td></tr></table></div></figure>
+
+
+<p>With that set I then navigate to the view I want to get at and, once the breakpoint is hit, set the breakpoint for a
+frame that’s even closer to the location I want to get at:</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>Process 74926 stopped
+</span><span class='line'>* thread #1: tid = 0x1b5faf, 0x000000010e722853 Artsy`-[ARArtworkView setUpCallbacks](self=0x00007fc99c95b230, _cmd=0x000000010eb60e58) + 19 at ARArtworkView.m:101, queue = 'com.apple.main-thread', stop reason = breakpoint 1.1
+</span><span class='line'>    frame #0: 0x000000010e722853 Artsy`-[ARArtworkView setUpCallbacks](self=0x00007fc99c95b230, _cmd=0x000000010eb60e58) + 19 at ARArtworkView.m:101
+</span><span class='line'>
+</span><span class='line'>(lldb) b -[UIScrollView _offsetForCenterOfPossibleZoomView:withIncomingBoundsSize:]
+</span><span class='line'>Breakpoint 2: where = UIKit`-[UIScrollView _offsetForCenterOfPossibleZoomView:withIncomingBoundsSize:], address = 0x00000001105c1fb7</span></code></pre></td></tr></table></div></figure>
+
+
+<p>And finally I repeat the process and set the breakpoint that I <em>really</em> want to get to:</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>(lldb) b -[UIScrollView _getDelegateZoomView]
+</span><span class='line'>Breakpoint 3: where = UIKit`-[UIScrollView _getDelegateZoomView], address = 0x00000001105bf8cd</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>Locating the instruction that crashes by looking at the real <em>on-device</em> framework (iPhoneOS SDK)</h3>
+
+<p>By this point, I’m left with the realization that I don’t have a device running iOS 8.1.x anymore –the above was all on
+the simulator– and thus jumping through the code in a debugger on a device is not going to be reliable. Instead, I’m
+going to take a look at the disassembly and (pseudo) decompiled code in <a href="http://www.hopperapp.com">Hopper</a> –a tool I
+highly suggest you go and buy <strong>right now</strong>, it’s ridiculously cheap for the amount of time it will save you–.</p>
+
+<p>To be able to do so, though, I first had to get a copy of UIKit for one of the devices of which we received crash logs.</p>
+
+<ul>
+<li><p><strong>Firmware decryption keys</strong>: keys for many variants are listed
+<a href="https://www.theiphonewiki.com/wiki/Firmware_Keys">here</a>. If the model you need is not listed you’ll have to manually
+figure out the key, which is beyond the scope of this article.</p></li>
+<li><p><strong>Download firmware</strong>: you can find links for all variants on
+<a href="https://www.theiphonewiki.com/wiki/Firmware">this page</a>. I chose iOS 8.1.2 for the 2nd revision of the iPhone 5
+(iPhone 5,2), because the keys to decrypt that are known and it’s one of the devices and OS versions for which we had
+received crash reports.</p></li>
+<li><p><strong>Decrypt image</strong>: there are a bunch of tools that allow you to decrypt firmware images, which are listed
+<a href="https://www.theiphonewiki.com/wiki/Category:Decryption">here</a>. I’m using
+<a href="https://www.theiphonewiki.com/wiki/Dmg_(command">xpwn’s ‘dmg’ tool</a>) which you can get from
+<a href="https://github.com/planetbeing/xpwn/tree/master/dmg">planetbeing’s GitHub repo</a>. Once you’ve got the key from
+<a href="https://www.theiphonewiki.com/wiki/Firmware_Keys">here</a>, or have otherwise manually figured it out, you can decrypt
+the disk image like so:</p></li>
+</ul>
+
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>$ unzip -d iPhone5,2_8.1.2 iPhone5,2_8.1.2_12B440_Restore.ipsw
+</span><span class='line'>$ cd iPhone5,2_8.1.2
+</span><span class='line'>$ /path/to/xpwn/dmg/dmg extract 058-09875-017.dmg decrypted.dmg -k 02e89744a7143b9bac48fd1adc32a8ed6bcf74d428d0861d790153accb96a413e1c3b8d8</span></code></pre></td></tr></table></div></figure>
+
+
+<ul>
+<li><strong>Extract UIKit from shared DYLD cache</strong>: for performance reasons, Apple decided to create one big cache that
+contains all of the commonly used frameworks, including UIKit. To get just UIKit, you’ll need to use any of the tools
+listed <a href="http://iphonedevwiki.net/index.php/Dyld_shared_cache#Cache_extraction">here</a>, I used
+<a href="https://github.com/kennytm/Miscellaneous/downloads">dyld_decache</a>:</li>
+</ul>
+
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>$ open decrypted.dmg
+</span><span class='line'>$ /path/to/dyld_decache-v0.1c -o Extracted -f UIKit /Volumes/SUOkemoTaos12B440.N42OS/System/Library/Caches/com.apple.dyld/dyld_shared_cache_armv7s
+</span><span class='line'>$ ls -l Extracted/System/Library/Frameworks/UIKit.framework/UIKit 
+</span><span class='line'>-rw-r--r--  1 eloy  staff  12142776 Aug  1 10:50 Extracted/System/Library/Frameworks/UIKit.framework/UIKit</span></code></pre></td></tr></table></div></figure>
+
+
+<p>With that out of the way, I can finally load that up in Hopper and look at the instruction. I can get the offset of
+the instruction from the stack frame, specifically the ‘66’ in
+<code>-[UIScrollView _getDelegateZoomView] + 66</code>. This means that the instruction’s address is that of the function it is
+located in <em>plus</em> 66, which, as you can see in the below screenshot, is halfway through the <code>objc_msgSend</code> call:</p>
+
+<p></div></div><a href='http://artsy.github.io/images/2015-07-30-Notorious-BUG-1/Hopper-Disassembled.png'><img src="http://artsy.github.io/images/2015-07-30-Notorious-BUG-1/Hopper-Disassembled.png" title="&#34;The assembly of the `-[UIScrollView _getDelegateZoomView]` method.&#34;" alt="&#34;The assembly of the `-[UIScrollView _getDelegateZoomView]` method.&#34;"></a><div class='meta-container'><header>&nbsp;</header></div><div class='date-container'>&nbsp;</div><div class='content-container'><div class='entry-content'></p>
+
+<p>If you want to get into the details of what these instructions are doing, I suggest you read up on a blog post such as
+<a href="https://www.mikeash.com/pyblog/friday-qa-2011-12-30-disassembling-the-assembly-part-3-arm-edition.html">this article by Mike Ash</a>.
+The important part here is that you can easily see that it’s all related to sending the following message to the scroll
+view’s delegate:</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>[delegate respondsToSelector:@selector(viewForZoomingInScrollView:)]</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Hopper can give us (pseudo) decompiled code for this method, which looks like the following:</p>
+
+<p></div></div><a href='http://artsy.github.io/images/2015-07-30-Notorious-BUG-1/Hopper-Decompiled.png'><img src="http://artsy.github.io/images/2015-07-30-Notorious-BUG-1/Hopper-Decompiled.png" title="&#34;The pseudo-code of the `-[UIScrollView _getDelegateZoomView]` method.&#34;" alt="&#34;The pseudo-code of the `-[UIScrollView _getDelegateZoomView]` method.&#34;"></a><div class='meta-container'><header>&nbsp;</header></div><div class='date-container'>&nbsp;</div><div class='content-container'><div class='entry-content'></p>
+
+<p>Based on that, it’s clear to see that that’s what happens and so it’s the delegate that points to garbage, <code>0x10</code> in
+this crash report to be specific.</p>
+
+<h3>Simulating the crash</h3>
+
+<p>Now that I know what’s happening, it’s time to simulate the crash on the Simulator so that I can confidently make the
+fix for what I think is going wrong.</p>
+
+<p>Based on the above, I now know that, on the Simulator, this crash would occur around the 16th instruction, which is
+where the <code>-respondsToSelector:</code> message gets sent, so I’ll jump to just before it, but <em>after</em> where the <code>delegate</code>
+variable would get set:</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>(lldb) disassemble --frame
+</span><span class='line'>UIKit`-[UIScrollView _getDelegateZoomView]:
+</span><span class='line'>-&gt; 0x1105bf8cd:  pushq  %rbp
+</span><span class='line'>   0x1105bf8ce:  movq   %rsp, %rbp
+</span><span class='line'>   0x1105bf8d1:  pushq  %r15
+</span><span class='line'>   0x1105bf8d3:  pushq  %r14
+</span><span class='line'>   0x1105bf8d5:  pushq  %rbx
+</span><span class='line'>   0x1105bf8d6:  pushq  %rax
+</span><span class='line'>   0x1105bf8d7:  movq   %rdi, %r14
+</span><span class='line'>   0x1105bf8da:  movq   0xd344ef(%rip), %rax      ; UIScrollView._zoomView
+</span><span class='line'>   0x1105bf8e1:  movq   (%r14,%rax), %rbx
+</span><span class='line'>   0x1105bf8e5:  testq  %rbx, %rbx
+</span><span class='line'>   0x1105bf8e8:  jne    0x1105bf97b               ; -[UIScrollView _getDelegateZoomView] + 174
+</span><span class='line'>   0x1105bf8ee:  movq   0xd344c3(%rip), %r15      ; UIScrollView._delegate
+</span><span class='line'>   0x1105bf8f5:  movq   (%r14,%r15), %rdi
+</span><span class='line'>   0x1105bf8f9:  movq   0xd08228(%rip), %rdx      ; "viewForZoomingInScrollView:"
+</span><span class='line'>   0x1105bf900:  movq   0xd02df9(%rip), %rsi      ; "respondsToSelector:"
+</span><span class='line'>   0x1105bf907:  callq  *0xac2783(%rip)           ; (void *)0x0000000111fe1000: objc_msgSend
+</span><span class='line'>[SNIP]
+</span><span class='line'>
+</span><span class='line'>(lldb) step --count 13
+</span><span class='line'>Process 74926 stopped
+</span><span class='line'>* thread #1: tid = 0x1b5faf, 0x00000001105bf8f9 UIKit`-[UIScrollView _getDelegateZoomView] + 44, queue = 'com.apple.main-thread', stop reason = instruction step into
+</span><span class='line'>    frame #0: 0x00000001105bf8f9 UIKit`-[UIScrollView _getDelegateZoomView] + 44
+</span><span class='line'>UIKit`-[UIScrollView _getDelegateZoomView] + 44:
+</span><span class='line'>   0x1105bf8f5:  movq   (%r14,%r15), %rdi
+</span><span class='line'>-&gt; 0x1105bf8f9:  movq   0xd08228(%rip), %rdx      ; "viewForZoomingInScrollView:"
+</span><span class='line'>   0x1105bf900:  movq   0xd02df9(%rip), %rsi      ; "respondsToSelector:"
+</span><span class='line'>   0x1105bf907:  callq  *0xac2783(%rip)           ; (void *)0x0000000111fe1000: objc_msgSend
+</span><span class='line'>   0x1105bf90d:  xorl   %ebx, %ebx</span></code></pre></td></tr></table></div></figure>
+
+
+<p>At this instruction, the object to which the message will be sent has been assigned to the <code>$rdi</code> register, which in my
+case is still the expected and valid object:</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>(lldb) po $rdi
+</span><span class='line'>&lt;ARArtworkViewController: 0x7fc99c9681d0&gt;</span></code></pre></td></tr></table></div></figure>
+
+
+<p>At this point I can just override the register with the garbage shown in the crash report:</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>(lldb) register write rdi 0x10</span></code></pre></td></tr></table></div></figure>
+
+
+<p>And finally continue execution and let the crashing occur:</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>(lldb) bt
+</span><span class='line'>* thread #1: tid = 0x1b5faf, 0x0000000111fe1005 libobjc.A.dylib`objc_msgSend + 5, queue = 'com.apple.main-thread', stop reason = EXC_BAD_ACCESS (code=1, address=0x10)
+</span><span class='line'>  * frame #0: 0x0000000111fe1005 libobjc.A.dylib`objc_msgSend + 5
+</span><span class='line'>    frame #1: 0x00000001105bf90d UIKit`-[UIScrollView _getDelegateZoomView] + 64
+</span><span class='line'>    frame #2: 0x00000001105c1fe9 UIKit`-[UIScrollView _offsetForCenterOfPossibleZoomView:withIncomingBoundsSize:] + 50
+</span><span class='line'>[SNIP]
+</span><span class='line'>    frame #7: 0x000000010e722853 Artsy`-[ARArtworkView setUpCallbacks] + 19
+</span><span class='line'>[SNIP]</span></code></pre></td></tr></table></div></figure>
+
+
+<p>💥</p>
+
+<p>Perfect, an exact replica of the crash report, so now I know with confidence that the problem is that the
+<code>ARArtworkViewController</code> is released by the time that method is called.</p>
+
+<h3>Closing thoughts</h3>
+
+<p>The fix for this crash is simple and not really interesting for this post, as it’s all about the steps I took to arrive
+there. I think these are way more interesting, as you can apply some/all of these in many different situations.</p>
+
+<p>But for completeness sake, the fix is to make sure that <a href="https://github.com/artsy/eigen/blob/356b88d1ff035a9f0aa28f19e42255c7152a88f4/Artsy/View_Controllers/Artwork/ARArtworkViewController.m#L28">the scroll view’s delegate gets nillified</a>
+before the view controller is released and <em>in addition</em> it lead to me figuring out why the scroll view was still even
+alive at that time, which was <a href="https://github.com/artsy/eigen/commit/8db7b1e75563ee2ee7b547223cb02e1e646e7bd8">a block retention-cycle</a>.</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[How To Write Unit Tests Like a Brood Parasite]]></title>
+    <link href="http://artsy.github.io/blog/2015/07/06/how-to-write-unit-tests-like-a-brood-parasite/"/>
+    <updated>2015-07-06T13:54:00-04:00</updated>
+    <id>http://artsy.github.io/blog/2015/07/06/how-to-write-unit-tests-like-a-brood-parasite</id>
+    <content type="html"><![CDATA[<p>To a beginner, <a href="http://ocmock.org/">OCMock</a> looks scary. The syntax is strange, the idea of stubbing seems complicated, and skirting around the need to use it at all times kind of works out for a while.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='objc'><span class='line'><span class="p">[[[</span><span class="n">mock</span> <span class="n">stub</span><span class="p">]</span> <span class="c1">// three brackets!!</span>
+</span><span class='line'>
+</span><span class='line'><span class="p">[</span><span class="n">OCMockObject</span> <span class="n">niceMockForClass</span><span class="o">:</span><span class="n">UINavigationItem</span><span class="p">.</span><span class="n">class</span><span class="p">];</span> <span class="c1">// it has to be told to be nice?</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>All of this can be overwhelming for someone who just wants to write simple unit tests for a particular view controller.</p>
+
+<p>Once you look into the specifics of OCMock, however, things get less terrifying really quickly. It is helpful to compare OCMock’s approach to stubbing to the <a href="https://vimeo.com/60553870">behaviors of certain bird species</a>. As always, the soothing voice of David Attenborough brings clarity and joy to even the most mundane puzzles of life’s journey.</p>
+
+<!-- more -->
+
+
+<hr />
+
+<p>For those who hate birds and videos of them, the cuckoo duck is known for leaving its eggs in the nests of other birds precisely as their unsuspecting victims lay their own. The new host parents cannot differentiate their offspring from those of the duck and inadvertently raise the duck chicks to maturity.</p>
+
+<p>In a similar fashion, OCMock can place trick objects in your <del>nest</del> test code with whichever custom configuration suits your needs. The ‘host’ subject under test can’t differentiate these mock objects from the objects they’ve been written to use, and you can decide exactly how you’d like the mock objects to behave in your testing environment. This was especially helpful for a method I created that relies on information from an asynchronous network request. We’ll call it the <code>DataSource</code> of a <code>StatusMonitor</code> class.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='objc'><span class='line'><span class="k">-</span> <span class="p">(</span><span class="kt">BOOL</span><span class="p">)</span><span class="nf">updatedStatus</span>
+</span><span class='line'><span class="p">{</span>
+</span><span class='line'>  <span class="p">[</span><span class="n">DataSource</span> <span class="n">getNewDataWithNetworkRequest</span><span class="p">];</span>
+</span><span class='line'>  <span class="c1">/// some code that relies on this new data</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>In my view controller, I can use a <code>StatusMonitor</code> to decide whether or not a notification should appear in my view:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+</pre></td><td class='code'><pre><code class='objc'><span class='line'><span class="k">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="nf">viewWillAppear</span>
+</span><span class='line'><span class="p">{</span>  
+</span><span class='line'>  <span class="p">[</span><span class="n">super</span> <span class="n">viewWillAppear</span><span class="p">];</span>
+</span><span class='line'>  
+</span><span class='line'><span class="c1">/// show or hide a notification based on this status</span>
+</span><span class='line'>  <span class="kt">BOOL</span> <span class="n">shouldShowNotification</span> <span class="o">=</span> <span class="p">[</span><span class="n">self</span><span class="p">.</span><span class="n">statusMonitor</span> <span class="n">updatedStatus</span><span class="p">];</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>When I’m writing tests for this view controller, I don’t care about <code>DataSource</code> - I just want to make sure the view controller knows when to show or hide a notification correctly depending on the new value from its StatusMonitor. I’d really like to avoid making any network requests within these kinds of tests. This is where the bird strategy comes in.</p>
+
+<p>In my tests, I can create a decoy <code>StatusMonitor</code> with its corresponding methods using OCMock.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+</pre></td><td class='code'><pre><code class='objc'><span class='line'><span class="n">StatusMonitor</span> <span class="o">*</span><span class="n">statusMonitor</span> <span class="o">=</span> <span class="p">[[</span><span class="n">ARCMSStatusMonitor</span> <span class="n">alloc</span><span class="p">]</span> <span class="n">init</span><span class="p">];</span>
+</span><span class='line'><span class="kt">id</span> <span class="n">mockMonitor</span> <span class="o">=</span> <span class="p">[</span><span class="n">OCMockObject</span> <span class="n">partialMockForObject</span><span class="o">:</span><span class="n">statusMonitor</span><span class="p">];</span>
+</span><span class='line'>
+</span><span class='line'><span class="p">[[[</span><span class="n">mockMonitor</span> <span class="n">stub</span><span class="p">]</span> <span class="n">andReturn</span><span class="o">:</span><span class="err">@</span><span class="nb">YES</span><span class="p">]</span> <span class="n">checkStatus</span><span class="p">];</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<hr />
+
+<p>I can then assign mockMonitor to the <code>statusMonitor</code> property of my view controller under test. In this way, the dependency on a network connection disappears, my view controller is happy, and my test can isolate the functionality I care about. OCMock provides some excellent documentation of what they mean by ‘nice’ and some other interesting things you can do with mock objects <a href="http://ocmock.org/features/">here</a>. For those interested in David Attenborough, birds, or natural history in general, I recommend  <a href="http://www.bbc.co.uk/nature/collections/p0048522">Nature</a>.</p>
+
+<div style="text-align:center;">
+<img src = "http://artsy.github.io/images/2015-07-06-how-to-write-unit-tests-like-a-brood-parasite/attenborough.gif">
+</div>
+
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[An Eigenstate of Mind]]></title>
@@ -1085,7 +1477,7 @@
 
 <blockquote><p>Our team intrinsically believes in the ideas of open source. Though our individual motivations vary — from a conviction in the power of education to a determination to help others see from giants’ shoulders — we all maintain the value of open source.</p></blockquote>
 
-<p>iOS at Artsy is characterized by a culture of open source stewardship. Although our team is small, our contributions to the Cocoa developer community are significant. We hope our article sheds some light on our development and testing practices while also providing a high-level look into our team’s philosophy. If you’d like to learn more, feel free to reach out to us at <a href="&#109;&#97;&#x69;&#108;&#x74;&#x6f;&#x3a;&#109;&#111;&#x62;&#105;&#108;&#101;&#x40;&#97;&#114;&#x74;&#115;&#x79;&#46;&#110;&#101;&#116;">&#109;&#x6f;&#x62;&#105;&#x6c;&#101;&#x40;&#97;&#114;&#x74;&#x73;&#121;&#46;&#110;&#x65;&#116;</a> or <a href="https://twitter.com/artsyopensource">@ArtsyOpenSource</a>.</p>
+<p>iOS at Artsy is characterized by a culture of open source stewardship. Although our team is small, our contributions to the Cocoa developer community are significant. We hope our article sheds some light on our development and testing practices while also providing a high-level look into our team’s philosophy. If you’d like to learn more, feel free to reach out to us at <a href="&#109;&#97;&#105;&#x6c;&#116;&#111;&#x3a;&#109;&#x6f;&#x62;&#105;&#x6c;&#101;&#x40;&#x61;&#114;&#x74;&#x73;&#121;&#46;&#x6e;&#x65;&#116;">&#109;&#111;&#98;&#x69;&#108;&#x65;&#64;&#97;&#x72;&#116;&#x73;&#121;&#46;&#x6e;&#x65;&#116;</a> or <a href="https://twitter.com/artsyopensource">@ArtsyOpenSource</a>.</p>
 ]]></content>
   </entry>
   
@@ -1752,7 +2144,7 @@
 
 <h2>Background</h2>
 
-<p>What follows is a summary of some useful background knowledge for interpreting the output of common image transformations. Included are the corresponding commands in python that rely on the <a href="docs.opencv.org/master/">OpenCV</a> library which we used in this project.</p>
+<p>What follows is a summary of some useful background knowledge for interpreting the output of common image transformations. Included are the corresponding commands in python that rely on the <a href="http://docs.opencv.org/master/">OpenCV</a> library which we used in this project.</p>
 
 <h3>Blur Transformations</h3>
 
@@ -2502,425 +2894,6 @@ hear from you.</p>
 <p>Force serves as an example of how we structured a large <a href="http://ezeljs.com">Ezel</a> project and contains the full commit history of its construction. Unfortunately, due to image licensing issues, we cannot open up the Artsy API and therefore this repository can&#8217;t serve as a runnable clone of our website. However, we will continue to merge our production code into it. If you have any questions feel free to hit us up on twitter: <a href="https://twitter.com/craigspaeth">@craigspaeth</a>, <a href="https://twitter.com/dzucconi">@dzucconi</a>, <a href="https://twitter.com/zamiang">@zamiang</a>.</p>
 
 <p>We&#8217;re excited to continue pushing open source at Artsy. For more exciting open source projects take a look at <a href="https://github.com/artsy">our Github profile</a>.</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Using CocoaPods Caching with Travis CI]]></title>
-    <link href="http://artsy.github.io/blog/2014/08/08/CocoaPods-Caching/"/>
-    <updated>2014-08-08T11:46:00-04:00</updated>
-    <id>http://artsy.github.io/blog/2014/08/08/CocoaPods-Caching</id>
-    <content type="html"><![CDATA[<p>As <a href="http://artsy.github.io/blog/2014/08/07/taking-a-snapshot-with-second-curtain/">Ash said earlier</a> we like using Continuous Integration. Today I spent a large amount of time migrating us to use the new CocoaPods caching system in Travis CI. To make up for my lost time I&#8217;m passing on what I&#8217;ve learned and also showing how we do CI at Artsy with Objective-C apps. If you&#8217;re interested in how we do it in Swift, you can just check <a href="https://github.com/artsy/eidolon">Eidolon</a>.</p>
-
-<!-- more -->
-
-
-<p>First and foremost, this only works if you are paying for Travis CI.</p>
-
-<p>Travis CI recently merged in support for <a href="http://docs.travis-ci.com/user/caching/">Caching of CocoaPods</a> - this is great! By using this, we&#8217;ve reduced our build times from an average of about 10 minutes, to about 7 minutes. It works by using your <code>Podfile.lock</code> as a key to cache your <code>Pods</code> directory, if the lock hasn&#8217;t changed then there&#8217;s no need to update the Cache and so <code>pod install</code> is not called on your project. This caused me an issue as the <code>[Project].xcworkspace</code> file that CocoaPods generates was not in source control, and the app wouldn&#8217;t build. Useful note, if you&#8217;re using <a href="http://guides.cocoapods.org/syntax/podfile.html#pod">development pods</a> in your build you probably shouldn&#8217;t use this as your Pods directory can get out of sync with the cached version.</p>
-
-<p>We use a <a href="https://github.com/artsy/eidolon/blob/master/Makefile">Makefile</a> to separate the tasks required to build, test and deploy an app. The general structure of our Makefile is:</p>
-
-<table>
-<thead>
-<tr>
-<th> Action        </th>
-<th> Reason </th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td> Constants </td>
-<td> A collection of constants that get resued by different make tasks. </td>
-</tr>
-<tr>
-<td> CI Tasks </td>
-<td> Separate commands necessary for running Xcode projects from the terminal. </td>
-</tr>
-<tr>
-<td> Actions </td>
-<td> Commands that manipulate your project state, or maintainance commands. </td>
-</tr>
-<tr>
-<td> Deployment </td>
-<td> Commands to get your app ready for the App Store, or Hockey. </td>
-</tr>
-</tbody>
-</table>
-
-
-<p>If you don&#8217;t know the syntax for Make, essentially if it&#8217;s on the same line you&#8217;re either setting constants or calling other make commands. If it&#8217;s on a separate line then you are running a shell command.</p>
-
-<p>This is the <a href="http://orta.io/#folio-header-unit">Artsy Folio</a> Makefile in full:</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-<span class='line-number'>19</span>
-<span class='line-number'>20</span>
-<span class='line-number'>21</span>
-<span class='line-number'>22</span>
-<span class='line-number'>23</span>
-<span class='line-number'>24</span>
-<span class='line-number'>25</span>
-<span class='line-number'>26</span>
-<span class='line-number'>27</span>
-<span class='line-number'>28</span>
-<span class='line-number'>29</span>
-<span class='line-number'>30</span>
-<span class='line-number'>31</span>
-<span class='line-number'>32</span>
-<span class='line-number'>33</span>
-<span class='line-number'>34</span>
-<span class='line-number'>35</span>
-<span class='line-number'>36</span>
-<span class='line-number'>37</span>
-<span class='line-number'>38</span>
-<span class='line-number'>39</span>
-<span class='line-number'>40</span>
-<span class='line-number'>41</span>
-<span class='line-number'>42</span>
-<span class='line-number'>43</span>
-<span class='line-number'>44</span>
-<span class='line-number'>45</span>
-<span class='line-number'>46</span>
-<span class='line-number'>47</span>
-<span class='line-number'>48</span>
-<span class='line-number'>49</span>
-<span class='line-number'>50</span>
-<span class='line-number'>51</span>
-<span class='line-number'>52</span>
-<span class='line-number'>53</span>
-<span class='line-number'>54</span>
-<span class='line-number'>55</span>
-<span class='line-number'>56</span>
-<span class='line-number'>57</span>
-<span class='line-number'>58</span>
-<span class='line-number'>59</span>
-<span class='line-number'>60</span>
-<span class='line-number'>61</span>
-<span class='line-number'>62</span>
-<span class='line-number'>63</span>
-<span class='line-number'>64</span>
-<span class='line-number'>65</span>
-<span class='line-number'>66</span>
-<span class='line-number'>67</span>
-<span class='line-number'>68</span>
-<span class='line-number'>69</span>
-<span class='line-number'>70</span>
-<span class='line-number'>71</span>
-<span class='line-number'>72</span>
-<span class='line-number'>73</span>
-<span class='line-number'>74</span>
-<span class='line-number'>75</span>
-<span class='line-number'>76</span>
-<span class='line-number'>77</span>
-<span class='line-number'>78</span>
-<span class='line-number'>79</span>
-<span class='line-number'>80</span>
-<span class='line-number'>81</span>
-<span class='line-number'>82</span>
-<span class='line-number'>83</span>
-<span class='line-number'>84</span>
-<span class='line-number'>85</span>
-<span class='line-number'>86</span>
-<span class='line-number'>87</span>
-<span class='line-number'>88</span>
-<span class='line-number'>89</span>
-<span class='line-number'>90</span>
-<span class='line-number'>91</span>
-<span class='line-number'>92</span>
-<span class='line-number'>93</span>
-<span class='line-number'>94</span>
-<span class='line-number'>95</span>
-<span class='line-number'>96</span>
-<span class='line-number'>97</span>
-<span class='line-number'>98</span>
-<span class='line-number'>99</span>
-<span class='line-number'>100</span>
-<span class='line-number'>101</span>
-<span class='line-number'>102</span>
-<span class='line-number'>103</span>
-<span class='line-number'>104</span>
-<span class='line-number'>105</span>
-<span class='line-number'>106</span>
-<span class='line-number'>107</span>
-<span class='line-number'>108</span>
-<span class='line-number'>109</span>
-<span class='line-number'>110</span>
-<span class='line-number'>111</span>
-<span class='line-number'>112</span>
-<span class='line-number'>113</span>
-<span class='line-number'>114</span>
-</pre></td><td class='code'><pre><code class='make'><span class='line'><span class="c"># Constants</span>
-</span><span class='line'>
-</span><span class='line'><span class="nv">WORKSPACE</span> <span class="o">=</span> Artsy Folio.xcworkspace
-</span><span class='line'><span class="nv">XCPROJECT</span> <span class="o">=</span> Artsy<span class="se">\ </span>Folio.xcodeproj
-</span><span class='line'><span class="nv">SCHEME</span> <span class="o">=</span> ArtsyFolio
-</span><span class='line'><span class="nv">CONFIGURATION</span> <span class="o">=</span> Beta
-</span><span class='line'><span class="nv">APP_PLIST</span> <span class="o">=</span> Info.plist
-</span><span class='line'><span class="nv">PLIST_BUDDY</span> <span class="o">=</span> /usr/libexec/PlistBuddy
-</span><span class='line'><span class="nv">TARGETED_DEVICE_FAMILY</span> <span class="o">=</span> <span class="se">\&quot;</span>1,2<span class="se">\&quot;</span>
-</span><span class='line'>
-</span><span class='line'><span class="nv">BUNDLE_VERSION</span> <span class="o">=</span> <span class="k">$(</span>shell <span class="k">$(</span>PLIST_BUDDY<span class="k">)</span> -c <span class="s2">&quot;Print CFBundleVersion&quot;</span> <span class="k">$(</span>APP_PLIST<span class="k">))</span>
-</span><span class='line'><span class="nv">GIT_COMMIT</span> <span class="o">=</span> <span class="k">$(</span>shell git log -n1 --format<span class="o">=</span><span class="s1">&#39;%h&#39;</span><span class="k">)</span>
-</span><span class='line'><span class="nv">ALPHA_VERSION</span> <span class="o">=</span> <span class="k">$(</span>BUNDLE_VERSION<span class="k">)</span>-<span class="k">$(</span>BUILD_NUMBER<span class="k">)</span>-<span class="k">$(</span>GIT_COMMIT<span class="k">)</span>
-</span><span class='line'>
-</span><span class='line'><span class="nv">GIT_COMMIT_REV</span> <span class="o">=</span> <span class="k">$(</span>shell git log -n1 --format<span class="o">=</span><span class="s1">&#39;%h&#39;</span><span class="k">)</span>
-</span><span class='line'><span class="nv">GIT_COMMIT_SHA</span> <span class="o">=</span> <span class="k">$(</span>shell git log -n1 --format<span class="o">=</span><span class="s1">&#39;%H&#39;</span><span class="k">)</span>
-</span><span class='line'><span class="nv">GIT_REMOTE_ORIGIN_URL</span> <span class="o">=</span> <span class="k">$(</span>shell git config --get remote.origin.url<span class="k">)</span>
-</span><span class='line'>
-</span><span class='line'><span class="nv">DATE_MONTH</span> <span class="o">=</span> <span class="k">$(</span>shell date <span class="s2">&quot;+%e %h&quot;</span><span class="k">)</span>
-</span><span class='line'><span class="nv">DATE_VERSION</span> <span class="o">=</span> <span class="k">$(</span>shell date <span class="s2">&quot;+%Y.%m.%d&quot;</span><span class="k">)</span>
-</span><span class='line'>
-</span><span class='line'><span class="nv">CHANGELOG</span> <span class="o">=</span> CHANGELOG.md
-</span><span class='line'><span class="nv">CHANGELOG_SHORT</span> <span class="o">=</span> CHANGELOG_SHORT.md
-</span><span class='line'>
-</span><span class='line'><span class="nv">IPA</span> <span class="o">=</span> ArtsyFolio.ipa
-</span><span class='line'><span class="nv">DSYM</span> <span class="o">=</span> ArtsyFolio.app.dSYM.zip
-</span><span class='line'>
-</span><span class='line'><span class="c"># Phony tasks are tasks that could potentially have a file with the same name in the current folder</span>
-</span><span class='line'><span class="nf">.PHONY</span><span class="o">:</span> <span class="m">build clean test ci</span>
-</span><span class='line'>
-</span><span class='line'><span class="c"># CI Tasks</span>
-</span><span class='line'>
-</span><span class='line'><span class="nf">ci</span><span class="o">:</span> <span class="m">CONFIGURATION = Debug</span>
-</span><span class='line'><span class="nf">ci</span><span class="o">:</span> <span class="m">pods build</span>
-</span><span class='line'>
-</span><span class='line'><span class="nf">build</span><span class="o">:</span>
-</span><span class='line'>  <span class="nb">set</span> -o pipefail <span class="o">&amp;&amp;</span> xcodebuild -workspace <span class="s2">&quot;$(WORKSPACE)&quot;</span> -scheme <span class="s2">&quot;$(SCHEME)&quot;</span> -sdk iphonesimulator -destination <span class="s1">&#39;name=iPad Retina&#39;</span> build | xcpretty -c
-</span><span class='line'>
-</span><span class='line'><span class="nf">clean</span><span class="o">:</span>
-</span><span class='line'>  xctool -workspace <span class="s2">&quot;$(WORKSPACE)&quot;</span> -scheme <span class="s2">&quot;$(SCHEME)&quot;</span> -configuration <span class="s2">&quot;$(CONFIGURATION)&quot;</span> clean
-</span><span class='line'>
-</span><span class='line'><span class="nf">test</span><span class="o">:</span>
-</span><span class='line'>  <span class="nb">set</span> -o pipefail <span class="o">&amp;&amp;</span> xcodebuild -workspace <span class="s2">&quot;$(WORKSPACE)&quot;</span> -scheme <span class="s2">&quot;$(SCHEME)&quot;</span> -configuration Debug <span class="nb">test</span> -sdk iphonesimulator -destination <span class="s1">&#39;name=iPad Retina&#39;</span> | second_curtain | xcpretty -c --test
-</span><span class='line'>
-</span><span class='line'><span class="nf">lint</span><span class="o">:</span>
-</span><span class='line'>  bundle <span class="nb">exec </span>fui --path Classes find
-</span><span class='line'>
-</span><span class='line'>  bundle <span class="nb">exec </span>obcd --path Classes find HeaderStyle
-</span><span class='line'>  bundle <span class="nb">exec </span>obcd --path <span class="s2">&quot;ArtsyFolio Tests&quot;</span> find HeaderStyle
-</span><span class='line'>
-</span><span class='line'><span class="c"># Actions</span>
-</span><span class='line'>
-</span><span class='line'><span class="nf">ipa</span><span class="o">:</span>
-</span><span class='line'>  <span class="k">$(</span>PLIST_BUDDY<span class="k">)</span> -c <span class="s2">&quot;Set CFBundleDisplayName $(BUNDLE_NAME)&quot;</span> <span class="k">$(</span>APP_PLIST<span class="k">)</span>
-</span><span class='line'>  <span class="k">$(</span>PLIST_BUDDY<span class="k">)</span> -c <span class="s2">&quot;Set CFBundleVersion $(DATE_VERSION)&quot;</span> <span class="k">$(</span>APP_PLIST<span class="k">)</span>
-</span><span class='line'>  ipa build --scheme <span class="k">$(</span>SCHEME<span class="k">)</span> --configuration <span class="k">$(</span>CONFIGURATION<span class="k">)</span> -t
-</span><span class='line'>
-</span><span class='line'><span class="nf">alpha_version</span><span class="o">:</span>
-</span><span class='line'>  <span class="k">$(</span>PLIST_BUDDY<span class="k">)</span> -c <span class="s2">&quot;Set CFBundleVersion $(ALPHA_VERSION)&quot;</span> <span class="k">$(</span>APP_PLIST<span class="k">)</span>
-</span><span class='line'>
-</span><span class='line'><span class="nf">change_version_to_date</span><span class="o">:</span>
-</span><span class='line'>  <span class="k">$(</span>PLIST_BUDDY<span class="k">)</span> -c <span class="s2">&quot;Set CFBundleVersion $(DATE_VERSION)&quot;</span> <span class="k">$(</span>APP_PLIST<span class="k">)</span>
-</span><span class='line'>
-</span><span class='line'><span class="nf">set_git_properties</span><span class="o">:</span>
-</span><span class='line'>  <span class="k">$(</span>PLIST_BUDDY<span class="k">)</span> -c <span class="s2">&quot;Set GITCommitRev $(GIT_COMMIT_REV)&quot;</span> <span class="k">$(</span>APP_PLIST<span class="k">)</span>
-</span><span class='line'>  <span class="k">$(</span>PLIST_BUDDY<span class="k">)</span> -c <span class="s2">&quot;Set GITCommitSha $(GIT_COMMIT_SHA)&quot;</span> <span class="k">$(</span>APP_PLIST<span class="k">)</span>
-</span><span class='line'>  <span class="k">$(</span>PLIST_BUDDY<span class="k">)</span> -c <span class="s2">&quot;Set GITRemoteOriginURL $(GIT_REMOTE_ORIGIN_URL)&quot;</span> <span class="k">$(</span>APP_PLIST<span class="k">)</span>
-</span><span class='line'>
-</span><span class='line'><span class="nf">pods</span><span class="o">:</span> <span class="m">remove_debug_pods</span>
-</span><span class='line'><span class="nf">pods</span><span class="o">:</span>
-</span><span class='line'>  rm -rf Pods
-</span><span class='line'>  bundle install
-</span><span class='line'>  bundle <span class="nb">exec </span>pod install
-</span><span class='line'>
-</span><span class='line'><span class="nf">remove_debug_pods</span><span class="o">:</span>
-</span><span class='line'>  perl -pi -w -e <span class="s2">&quot;s{pod &#39;Reveal-iOS-SDK&#39;}{}g&quot;</span> Podfile
-</span><span class='line'>
-</span><span class='line'><span class="nf">update_bundle_version</span><span class="o">:</span>
-</span><span class='line'>  @printf <span class="s1">&#39;What is the new human-readable release version? &#39;</span>; <span class="se">\</span>
-</span><span class='line'>      <span class="nb">read </span>HUMAN_VERSION; <span class="se">\</span>
-</span><span class='line'>      <span class="k">$(</span>PLIST_BUDDY<span class="k">)</span> -c <span class="s2">&quot;Set CFBundleShortVersionString $$HUMAN_VERSION&quot;</span> <span class="k">$(</span>APP_PLIST<span class="k">)</span>
-</span><span class='line'>
-</span><span class='line'><span class="nf">mogenerate</span><span class="o">:</span>
-</span><span class='line'>  @printf <span class="s1">&#39;What is the new Core Data version? &#39;</span>; <span class="se">\</span>
-</span><span class='line'>      <span class="nb">read </span>CORE_DATA_VERSION; <span class="se">\</span>
-</span><span class='line'>      mogenerator -m <span class="s2">&quot;Resources/CoreData/ArtsyPartner.xcdatamodeld/ArtsyFolio v$$CORE_DATA_VERSION.xcdatamodel/&quot;</span> --base-class ARManagedObject --template-path config/mogenerator/artsy --machine-dir Classes/Models/Generated/ --human-dir /tmp/ --template-var <span class="nv">arc</span><span class="o">=</span><span class="nb">true</span>
-</span><span class='line'>
-</span><span class='line'><span class="c"># Deployment</span>
-</span><span class='line'>
-</span><span class='line'><span class="nf">deploy</span><span class="o">:</span> <span class="m">ipa distribute</span>
-</span><span class='line'>
-</span><span class='line'><span class="nf">alpha</span><span class="o">:</span> <span class="m">BUNDLE_NAME = &#39;Folio α&#39;</span>
-</span><span class='line'><span class="nf">alpha</span><span class="o">:</span> <span class="m">NOTIFY = 0</span>
-</span><span class='line'><span class="nf">alpha</span><span class="o">:</span> <span class="m">alpha_version deploy</span>
-</span><span class='line'>
-</span><span class='line'><span class="nf">appstore</span><span class="o">:</span> <span class="m">BUNDLE_NAME = &#39;Artsy Folio&#39;</span>
-</span><span class='line'><span class="nf">appstore</span><span class="o">:</span> <span class="m">TARGETED_DEVICE_FAMILY = 2</span>
-</span><span class='line'><span class="nf">appstore</span><span class="o">:</span> <span class="m">remove_debug_pods update_bundle_version set_git_properties change_version_to_date</span>
-</span><span class='line'>
-</span><span class='line'><span class="nf">next</span><span class="o">:</span> <span class="m">TARGETED_DEVICE_FAMILY = </span>\&quot;<span class="m">1</span><span class="p">,</span><span class="m">2</span>\&quot;
-</span><span class='line'><span class="nf">next</span><span class="o">:</span> <span class="m">update_bundle_version set_git_properties change_version_to_date</span>
-</span><span class='line'>
-</span><span class='line'><span class="nf">distribute</span><span class="o">:</span>
-</span><span class='line'>  cat <span class="k">$(</span>CHANGELOG<span class="k">)</span> | head -n 50 | awk <span class="s1">&#39;{ print } END { print &quot;...&quot; }&#39;</span> &gt; <span class="k">$(</span>CHANGELOG_SHORT<span class="k">)</span>
-</span><span class='line'>  curl <span class="se">\</span>
-</span><span class='line'>   -F <span class="nv">status</span><span class="o">=</span>2 <span class="se">\</span>
-</span><span class='line'>   -F <span class="nv">notify</span><span class="o">=</span><span class="k">$(</span>NOTIFY<span class="k">)</span> <span class="se">\</span>
-</span><span class='line'>   -F <span class="s2">&quot;notes=&lt;$(CHANGELOG_SHORT)&quot;</span> <span class="se">\</span>
-</span><span class='line'>   -F <span class="nv">notes_type</span><span class="o">=</span>1 <span class="se">\</span>
-</span><span class='line'>   -F <span class="nv">ipa</span><span class="o">=</span>@<span class="k">$(</span>IPA<span class="k">)</span> <span class="se">\</span>
-</span><span class='line'>   -F <span class="nv">dsym</span><span class="o">=</span>@<span class="k">$(</span>DSYM<span class="k">)</span> <span class="se">\</span>
-</span><span class='line'>   -H <span class="s1">&#39;X-HockeyAppToken: $(HOCKEYAPP_TOKEN)&#39;</span> <span class="se">\</span>
-</span><span class='line'>   https://rink.hockeyapp.net/api/2/apps/upload <span class="se">\</span>
-</span><span class='line'>   | grep -v <span class="s2">&quot;errors&quot;</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>That gives you a sense of the commands that you can run from the terminal in our projects, next we need to look at the <code>.travis.yml</code> file.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-<span class='line-number'>19</span>
-<span class='line-number'>20</span>
-<span class='line-number'>21</span>
-</pre></td><td class='code'><pre><code class='make'><span class='line'><span class="nf">language</span><span class="o">:</span> <span class="m">objective-c</span>
-</span><span class='line'><span class="nf">cache</span><span class="o">:</span>
-</span><span class='line'>  - bundler
-</span><span class='line'>  - cocoapods
-</span><span class='line'>
-</span><span class='line'><span class="nf">env</span><span class="o">:</span>
-</span><span class='line'>  - <span class="nv">UPLOAD_IOS_SNAPSHOT_BUCKET_NAME</span><span class="o">=</span>eigen-ci UPLOAD_IOS_SNAPSHOT_BUCKET_PR...
-</span><span class='line'>
-</span><span class='line'><span class="nf">before_install</span><span class="o">:</span>
-</span><span class='line'>  - <span class="s1">&#39;echo &#39;&#39;gem: --no-ri --no-rdoc&#39;&#39; &gt; ~/.gemrc&#39;</span>
-</span><span class='line'>  - cp .netrc ~
-</span><span class='line'>  - chmod 600 .netrc
-</span><span class='line'>  - pod repo add artsy https://github.com/artsy/Specs.git
-</span><span class='line'>
-</span><span class='line'><span class="nf">before_script</span><span class="o">:</span>
-</span><span class='line'>  - gem install second_curtain
-</span><span class='line'>  - make ci
-</span><span class='line'>
-</span><span class='line'><span class="nf">script</span><span class="o">:</span>
-</span><span class='line'>  - make <span class="nb">test</span>
-</span><span class='line'>  - make lint
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>This is nice and simple. It was built to use multiple travis build steps. This makes the CI output a lot more readable as an end user. Travis will by default collapse the shell output for different build stages leaving only the <code>script</code> stage defaulting to being exposed. Here is an example of what you see on a failing test:</p>
-
-<center>
-<img src="http://artsy.github.io/images/2014-08-08-CocoaPods-Caching/failing_travis_screenshot.png" alt='Travis CI Failure'>
-</center>
-
-
-<p>We use a gem with a binary in <a href="https://github.com/AshFurrow/second_curtain/">second_curtain</a>, and this came with bundler caching issues in Travis. The solution was to ignore bundler and run <code>gem install second_curtain</code> each time. To increase the speed we also ensured that documentation is not being generated. If you are interested in what&#8217;s going on with the <code>.netrc</code>, read my blog post on <a href="http://artsy.github.io/blog/2014/06/20/artsys-first-closed-source-pod/">Artsy&#8217;s first Closed Source Pod</a>.</p>
-
-<p>We will continue pushing the state of the art in iOS deployment, in building our own tools and using everything available to increase developer happiness. If you&#8217;re into this we&#8217;re always looking to hire people with a good open source track record or street smarts. Here&#8217;s <a href="https://artsy.net/job/mobile-engineer">the jobs page</a>.</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Taking a Snapshot with Second Curtain]]></title>
-    <link href="http://artsy.github.io/blog/2014/08/07/taking-a-snapshot-with-second-curtain/"/>
-    <updated>2014-08-07T11:46:00-04:00</updated>
-    <id>http://artsy.github.io/blog/2014/08/07/taking-a-snapshot-with-second-curtain</id>
-    <content type="html"><![CDATA[<p>At Artsy, we try hard to <a href="https://speakerdeck.com/orta/getting-eigen-out?slide=35">test</a>
-our iOS applications to ensure that we avoid regressions and have a clearly
-defined spec of how our apps should look and behave. One of the core pieces of
-our testing setup is <a href="https://github.com/facebook/ios-snapshot-test-case">FBSnapshotTestCase</a>,
-a library written by Facebook to compare views at runtime with images of those
-views that are known to be correct. If the images differ, the test fails. We
-also use <a href="https://travis-ci.org">Travis</a> for continuous integration.</p>
-
-<p>Lately, we&#8217;ve been noticing a friction between the developers on the iOS team
-and the tools we&#8217;re using to test our apps: while Travis allows us to easily
-access the logs of test runs, it can only indicate that a snapshot test failed,
-not why it failed. That&#8217;s because the images that are compared are locked on
-Travis&#8217; machine – we cannot access those images, so we can&#8217;t see the
-differences. This is <em>really</em> promblematic when the tests pass locally but fail
-only on Travis.</p>
-
-<!-- more -->
-
-
-<p>A few weeks ago, <a href="http://twitter.com/orta">Orta</a> and I were discussing this
-problem and we came up with a potential solution. Since the images were stored
-on disk on Travis&#8217; machine, why not just upload them somewhere we <em>can</em> see
-them? Like an S3 bucket. We could even generate a basic HTML page showing you
-the different test failures.</p>
-
-<p>Time passed and, later on, I had tests passing locally but failing on Travis.
-I saw an opportunity to build something new. I&#8217;m not a proficient Ruby developer,
-but I enjoy learning new things, so I decided to create a Ruby gem that could
-fit within our existing testing pipeline. A lot of the structure for the code
-came from an existing gem we already use with Travis, <a href="https://github.com/supermarin/xcpretty">xcpretty</a>.
-With an example of how gems that support iOS testing are written, I was on my
-way to creating my own.</p>
-
-<p>At first, things were very difficult. While I had contributed small patches to
-existing Ruby projects before, I had never created a brand new one from scratch.
-The existing <a href="http://guides.rubygems.org/make-your-own-gem/">guides</a> were very
-helpful, and I found help from the CocoaPods developers when I had questions
-about things like the arcane semantics of Ruby&#8217;s <code>require</code> syntax.</p>
-
-<p>Eventually, I had a working proof-of-concept. Everything seemed ready to go, and
-I prepared to incorporate my new tool, which I called <a href="https://github.com/AshFurrow/second_curtain">Second Curtain</a>,
-into my pull request on the Artsy repo. But there was a problem.</p>
-
-<p>Second Curtain relies on environment variables to get access to the S3 bucket
-where it stores the images. I planned on using Travis&#8217; system to <a href="http://docs.travis-ci.com/user/encryption-keys/">encrypt</a>
-those credentials. It turns out, for very good reasons, encrypted environment
-variables are not available on pull requests created on forks of repositories.
-This is a problem because of the way that <a href="http://artsy.github.io/blog/2012/01/29/how-art-dot-sy-uses-github-to-build-art-dot-sy/">Artsy uses GitHub</a>.
-While it&#8217;s not a problem for a closed-source repository to have (restrictive)
-access to an S3 bucket, it would be irresponsible to expose S3 credentials for
-an open-source project. I&#8217;m <a href="https://github.com/AshFurrow/second_curtain/issues/5">working</a>
-on a solution.</p>
-
-<p>Orta helped with the design aspect of the tool; while uploading the images was
-sufficient, we could make the process of seeing the differences between the two
-images even easier. He created a <a href="https://eigen-ci.s3.amazonaws.com/snapshots/2014-08-04--15-47/index.html">HTML page</a>
-that would allow developers to see the before-and-after versions by moving their
-mouse cursor over the different images.</p>
-
-<p><img src="http://static.ashfurrow.com/github/second_curtain.png" alt="Image Diff" /></p>
-
-<p>In the end, I got Second Curtain to work with Artsy&#8217;s iOS repository and I
-discovered the discrepency between the two images: due to a timezone difference
-between my computer and Travis&#8217;, a date was being formatted differently. Not a
-difficult thing to fix, but not something I would have ever been able to
-discover had I not been able to see the images side-by-side.</p>
-
-<p>So after all that, one line of Objective-C was changed and the tests passed – my
-pull request was merged. I learnt a lot about how Ruby developers structure
-their code and what tools they use to write software. While I&#8217;m happy to return
-to iOS apps for a while, it was a great experience and I&#8217;m hoping to bring some
-of the ideas I discovered writing Ruby back to Objective-C.</p>
 ]]></content>
   </entry>
   
