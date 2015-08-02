@@ -23,48 +23,7 @@ Let's talk about our final app, [Energy](https://github.com/artsy/energy). Open 
 
 ----------------
 
-![ENERGY](/images/2015-08-01-open-sourcing-eigen/ENERGY.png)
-
-{% expanded_codeblock lang:sh %}
-
-  Hardware Model:  iPhone5,2
-  OS Version:      iPhone OS 8.1.2 (12B440)
-
-  Exception Type:  SIGSEGV
-  Exception Codes: SEGV_ACCERR at 0x10
-  Crashed Thread:  0
-
-  Thread 0 Crashed:
-  0   libobjc.A.dylib                      0x2fa2ff90 lookUpImpOrForward + 48
-  1   libobjc.A.dylib                      0x2fa2ff57 _class_lookupMethodAndLoadCache3 + 32
-  2   libobjc.A.dylib                      0x2fa361d9 _objc_msgSend_uncached + 22
-  3   UIKit                                0x2573f4bd -[UIScrollView _getDelegateZoomView] + 68
-  4   UIKit                                0x2599b757 -[UIScrollView _offsetForCenterOfPossibleZoomView:withIncomingBoundsSize:] + 42
-  5   UIKit                                0x25d22b09 -[UIView _nsis_center:bounds:inEngine:] + 892
-  6   UIKit                                0x257e3e59 -[UIView _applyISEngineLayoutValues] + 120
-  7   UIKit                                0x2570a0ef -[UIView _resizeWithOldSuperviewSize:] + 150
-  8   UIKit                                0x25705b9d -[UIView layoutBelowIfNeeded] + 672
-  9   Artsy                                0x00058087 -[ARArtworkView setUpCallbacks] + 1238
-  10  Artsy                                0x00039da5 -[Artwork onFairUpdate:failure:] + 332
-  11  Artsy                                0x001c9b3f -[KSPromise resolveWithValue:] + 374
-  12  Artsy                                0x001c8ccb -[KSDeferred resolveWithValue:] + 62
-  13  Artsy                                0x00039adf -[Artwork updateFair] + 602
-  14  Artsy                                0x0008a69d +[ArtsyAPI getFairsForArtwork:success:failure:] + 368
-  15  libdispatch.dylib                    0x2ff897bb _dispatch_call_block_and_release + 8
-  16  libdispatch.dylib                    0x2ff897a7 _dispatch_client_callout + 20
-  17  libdispatch.dylib                    0x2ff8cfa3 _dispatch_main_queue_callback_4CF + 718
-  18  CoreFoundation                       0x221f93b1 __CFRUNLOOP_IS_SERVICING_THE_MAIN_DISPATCH_QUEUE__ + 6
-  19  CoreFoundation                       0x221f7ab1 __CFRunLoopRun + 1510
-  20  CoreFoundation                       0x221453c1 CFRunLoopRunSpecific + 476
-  21  CoreFoundation                       0x221451d3 CFRunLoopRunInMode + 106
-  22  GraphicsServices                     0x295430a9 GSEventRunModal + 136
-  23  UIKit                                0x25754fa1 UIApplicationMain + 1440
-  24  Artsy                                0x0001dea3 -[Sale .cxx_destruct] + 194
-  25  libdyld.dylib                        0x2ffa9aaf start + 0
-
-{% endexpanded_codeblock %}
-
-
+![ENERGY](/images/2015-08-01-open-sourcing-energy/ENERGY.png)
 
 Energy is commonly known as [Artsy Folio](http://folio.artsy.net). It's a tool for Artsy's Partners to showcase their artworks on the go, and quickly email them. Here's a beautiful splash showing it in action.
 
@@ -84,17 +43,17 @@ Folio is interesting in that it has competitors. To some extent the Kiosk app do
 
 I commonly get questions about the process of Open Sourcing an app, so here's what happened after I decided it was time. First, I emailed my intent:
 
-{% expanded_img /images/2015-08-01-open-sourcing-eigen/oss-energy-email.png %}
+{% expanded_img /images/2015-08-01-open-sourcing-energy/oss-energy-email.png %}
 
 The concepts I wanted to cover were: "This is a codebase is worthy of art", "We know what we're doing", "This doesn't make it simple for someone to create a business off our product" and "I've managed to get a lot of the source out already." I gave a month or so to ensure that I can have corridor chats with people in order to be certain around opinions. We had some dicsussion in the email thread about ways in which an open source'd Energy would impact the team, and overall the reaction was positive. This wasn't surprising, the non-technical parts of the team are regularly kept up to date on thoughts like this.
 
-After the internal announcement I started looking at the codebase, what should be cleaned up. I don't believe a codebase is ever perfect ( just look at Eigen's [HACKS.md](https://github.com/artsy/eigen/blob/3f29f61f2b96f516e9ecf407818b82911b268694/HACKS.md) ) but one thing I learned from the launch of Eigen is that we need a lot of beginner docs to help people get started. So I went into Energy's [docs](https://github.com/artsy/energy/tree/master/docs) directory and started comparing it to [Eigen](https://github.com/artsy/eigen/tree/master/docs)'s. 
+After the internal announcement I started looking at the codebase, what should be cleaned up. I don't believe a codebase is ever perfect ( just look at Eigen's [HACKS.md](https://raw.githubusercontent.com/artsy/eigen/3f29f61f2b96f516e9ecf407818b82911b268694/HACKS.md) ) but one thing I learned from the launch of Eigen is that we need a lot of beginner docs to help people get started. So I went into Energy's [docs](https://github.com/artsy/energy/tree/master/docs) directory and started comparing it to [Eigen](https://github.com/artsy/eigen/tree/master/docs)'s. 
 
 With the docs ready, we anticipated the repo change as we did [with Eigen](/blog/2015/04/28/how-we-open-sourced-eigen/). This means making sure all loose pull requests were wrapped up. All code comments were audited. Then we used [github-issue-mover](https://github.com/google/github-issue-mover) to migrate important issues to the new repo. Then we deleted the `.git` folder in the app, and `git init` to create a new repo. 
 
 Given that we have three Open source apps now, I wanted to give them a consistent branding when we talk about the apps from the context of the codebase. It's like programming, if you're writing a similar thing 3 times, definitely time to refactor. 
 
-{% expanded_img /images/2015-08-01-open-sourcing-eigen/oss-design-sketch.png %}
+{% expanded_img /images/2015-08-01-open-sourcing-energy/oss-design-sketch.png %}
 
 Finally, I started working on the announcement blog post. Which you're reading. I'll send a pull request for this blog post, then when it's merged. I'll make one more final look over how everything looks, then make the new Energy repo public.
 
@@ -104,8 +63,10 @@ Eigen, the public facing iOS app, allows people to log in with a trial user acco
 
 Energy, however, requires you have a Artsy partner account. So opening it up would mean that an OSS developer hits the login screen and is stuck. In developing this app, I've slowly been creating my own partner gallery account based on my paintings and photography. So now when you set up the app to be ran as an OSS app, it will pre-load a known database of artworks and metadata from my test gallery. 
 
+{% expanded_img /images/2015-08-01-open-sourcing-energy/ios-sim.png %}
+
 Its easy to imagine that open sourcing something is an end-point, but from our perspective it is a journey. We want to make sure that anyone can download this app, learn how and why it's structured and then run through the app with a debugger to get a deeper sense of how everything connects. Just releasing the code would have been underwhelming. Instead we're aiming high.
 
 I think that there is no higher compliment to your team, and your code than opening it to the public. 
 
-You should open source your app.
+You should Open Source your app.
