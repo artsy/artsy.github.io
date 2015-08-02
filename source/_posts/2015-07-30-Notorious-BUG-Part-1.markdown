@@ -3,6 +3,7 @@ layout: post
 title: "Notorious BUG – The Unbugged Sessions Part 1"
 date: 2015-07-30 19:21
 comments: true
+article-class: "expanded-code"
 categories: [Objective C, debugging]
 author: Eloy Durán
 github-url: https://github.com/alloy
@@ -136,7 +137,7 @@ the instruction from the stack frame, specifically the ‘66’ in
 `-[UIScrollView _getDelegateZoomView] + 66`. This means that the instruction’s address is that of the function it is
 located in _plus_ 66, which, as you can see in the below screenshot, is halfway through the `objc_msgSend` call:
 
-{% expanded_img /images/2015-07-30-Notorious-BUG-–-The-Unbugged-Sessions-Part-1/Hopper-Disassembled.png The assembly of the `-[UIScrollView _getDelegateZoomView]` method. %}
+{% expanded_img /images/2015-07-30-Notorious-BUG-1/Hopper-Disassembled.png "The assembly of the `-[UIScrollView _getDelegateZoomView]` method." %}
 
 If you want to get into the details of what these instructions are doing, I suggest you read up on a blog post such as
 [this article by Mike Ash](https://www.mikeash.com/pyblog/friday-qa-2011-12-30-disassembling-the-assembly-part-3-arm-edition.html).
@@ -149,7 +150,7 @@ view’s delegate:
 
 Hopper can give us (pseudo) decompiled code for this method, which looks like the following:
 
-{% expanded_img /images/2015-07-30-Notorious-BUG-–-The-Unbugged-Sessions-Part-1/Hopper-Decompiled.png The pseudo-code of the `-[UIScrollView _getDelegateZoomView]` method. %}
+{% expanded_img /images/2015-07-30-Notorious-BUG-1/Hopper-Decompiled.png "The pseudo-code of the `-[UIScrollView _getDelegateZoomView]` method." %}
 
 Based on that, it’s clear to see that that’s what happens and so it’s the delegate that points to garbage, `0x10` in
 this crash report to be specific.
