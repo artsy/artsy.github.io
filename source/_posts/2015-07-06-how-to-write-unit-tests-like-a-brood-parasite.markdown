@@ -4,6 +4,7 @@ title: "How To Write Unit Tests Like a Brood Parasite"
 date: 2015-07-06 13:54
 comments: true
 author: Sarah Scott
+article-class: "expanded-code"
 github-url: https://www.github.com/sarahscott
 categories: [iOS, ocmock, open source, oss, mobile, beginners, testing]
 ---
