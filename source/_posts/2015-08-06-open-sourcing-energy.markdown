@@ -13,7 +13,7 @@ blog-url: http://orta.io
 
 The Artsy Mobile team is pretty agressive in our stance on [Open Source by Default](http://code.dblock.org/2015/02/09/becoming-open-source-by-default.html). We've talked about it at [conferences](https://www.youtube.com/watch?v=2DvDeEZ0NDw&spfreload=10) [around](https://www.youtube.com/watch?v=SjjvnrqDjpM) [the](https://www.youtube.com/watch?v=zPbLYWmLPow) [world](https://speakerdeck.com/orta/ios-at-artsy), in [renowned magazines](www.objc.io/issues/22-scale/artsy) and on [our blog](http://artsy.github.io/blog/2015/04/28/how-we-open-sourced-eigen/).
 
-It's worth mentioning that we don't just talk externally about Open Source. Internally the entire development team runs talks, explains how GitHub works and what the implications of all our work in the open are. We strive for an open culture in more than just the development team. The development team is just further along in the process.
+It's worth mentioning that we don't just talk externally about Open Source. Internally, the Mobile team team runs talks about Open Source for the rest of the Artsy staff. As well, we discuss the tooling and business implications of having our work in public repos. Artsy strives for an open culture, in this case the development team, on whole, is just further along in the process.
 
 The Open Source app idea started with an experiment in the Summer of 2014, asking "What does a truely Open Source App look like?"  The outcome of that was our Swift Kiosk app, [Eidolon](https://github.com/artsy/eidolon/). Open from day one. We took the knowledge from that, and applied it to our public facing app, [Eigen](https://github.com/artsy/eigen/). Open from day 806. That made 2/3rds of our apps Open Source. 
 
@@ -67,6 +67,6 @@ Energy, however, requires you have a Artsy partner account. So opening it up wou
 
 Its easy to imagine that open sourcing something is an end-point, but from our perspective it is a journey. We want to make sure that anyone can download this app, learn how and why it's structured and then run through the app with a debugger to get a deeper sense of how everything connects. Just releasing the code would have been underwhelming. Instead we're aiming high.
 
-I think that there is no higher compliment to your team, and your code than opening it to the public. 
+I think that there is no higher compliment to your team and your code than opening it to the public. 
 
 You should Open Source your app.
