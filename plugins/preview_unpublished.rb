@@ -31,7 +31,7 @@ module Jekyll
             File.open(".preview-mode", "w") {}
           end
 
-          if post.published && (self.future || post.date <= self.time)
+          if defined? pod.published && post.published && (self.future || post.date <= self.time)
             self.posts << post
             post.categories.each { |c| self.categories[c] << post }
             post.tags.each { |c| self.tags[c] << post }
