@@ -23,7 +23,7 @@ It will cover the following topics:
 * Look at the implementation of the method where the crash occurs.
 * Simulate the crash.
 
-<!--more-->
+<!-- more -->
 
 ### The crash report
 

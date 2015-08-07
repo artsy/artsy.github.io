@@ -27,7 +27,7 @@ I'm going to talk about our final app, [Energy](https://github.com/artsy/energy)
 
 Energy is commonly known as [Artsy Folio](http://folio.artsy.net). It's a tool for Artsy's Partners to showcase their artworks on the go, and quickly email them. Here's a beautiful splash showing it in action.
 
-{% include expanded_img.html url="http://folio.artsy.net/images/cover-bbf6fdf4.jpg" title="Folio overview"%}
+{% expanded_img http://folio.artsy.net/images/cover-bbf6fdf4.jpg Folio overview %}
 
 This app comes from the pre-CocoaPods, pre-ARC, pre-UICollectionView and pre-Auto Layout days. It spent 3 years with no tests, but has come up to over 50% code coverage in the last year. It's testing suite is super fast, given that we learned a lot with Eigen's tests we stuck with five main principals:
 
@@ -43,7 +43,7 @@ Folio is interesting in that it has competitors. To some extent the Kiosk app do
 
 I commonly get questions about the process of Open Sourcing an app, so here's what happened after I decided it was time. First, I emailed my intent:
 
-{% include expanded_img.html url="/images/2015-08-01-open-sourcing-energy/oss-energy-email.png" %}
+{% expanded_img /images/2015-08-01-open-sourcing-energy/oss-energy-email.png %}
 
 The concepts I wanted to cover were: "This is a codebase is worthy of art", "We know what we're doing", "This doesn't make it simple for someone to create a business off our product" and "I've managed to get a lot of the source out already." I gave a month or so to ensure that I could have corridor chats with people, in order to be very certain around opinions. We had some discussions in the email thread about ways in which an open source'd Energy would impact the team, and overall the reaction was positive. This wasn't surprising, the non-technical parts of the team are regularly kept up to date on thoughts like this.
 
@@ -53,7 +53,7 @@ With the docs ready, we anticipated the repo change as we did [with Eigen](/blog
 
 Given that we have three Open source apps now, I wanted to give them a consistent branding when we talk about the apps from the context of the codebase. It's like programming, if you're writing a similar thing 3 times, definitely time to refactor.
 
-{% include expanded_img.html url="/images/2015-08-01-open-sourcing-energy/oss-design-sketch.png" %}
+{% expanded_img /images/2015-08-01-open-sourcing-energy/oss-design-sketch.png %}
 
 Finally, I started working on the announcement blog post. Which you're reading. I'll send a [pull request](https://github.com/artsy/artsy.github.com/pull/119) for this blog post, then when it's merged. I'll make one more final look over how everything looks, then make the new Energy repo public.
 
@@ -63,7 +63,7 @@ Eigen, the public facing iOS app, allows people to log in with a trial user acco
 
 Energy, however, requires you have a Artsy partner account. So opening it up would mean that an OSS developer hits the login screen and is stuck. In developing this app, I've slowly been creating my own partner gallery account based on my paintings and photography. So now when you set up the app to be ran as an OSS app, it will pre-load a known database of artworks and metadata from my test gallery.
 
-{% include expanded_img.html url="/images/2015-08-01-open-sourcing-energy/ios-sim.png" %}
+{% expanded_img /images/2015-08-01-open-sourcing-energy/ios-sim.png %}
 
 Its easy to imagine that Open Sourcing something is an end-point, but from our perspective it is a journey. We want to make sure that anyone can download this app, learn how and why it's structured and then run through the app with a debugger to get a deeper sense of how everything connects. Just releasing the code would have been underwhelming. Instead we're aiming high.
 
