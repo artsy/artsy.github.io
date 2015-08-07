@@ -11,7 +11,7 @@ blog-url: http://orta.io
 
 ---
 
-The Artsy Mobile team is pretty aggressive in our stance on [Open Source by Default](http://code.dblock.org/2015/02/09/becoming-open-source-by-default.html). We've talked about it at [conferences](https://www.youtube.com/watch?v=2DvDeEZ0NDw&spfreload=10) [around](https://www.youtube.com/watch?v=SjjvnrqDjpM) [the](https://www.youtube.com/watch?v=zPbLYWmLPow) [world](https://speakerdeck.com/orta/ios-at-artsy), in [renowned magazines](www.objc.io/issues/22-scale/artsy) and on [our blog](http://artsy.github.io/blog/2015/04/28/how-we-open-sourced-eigen/).
+The Artsy Mobile team is pretty aggressive in our stance on [Open Source by Default](http://code.dblock.org/2015/02/09/becoming-open-source-by-default.html). We've talked about it at [conferences](https://www.youtube.com/watch?v=2DvDeEZ0NDw&spfreload=10) [around](https://www.youtube.com/watch?v=SjjvnrqDjpM) [the](https://www.youtube.com/watch?v=zPbLYWmLPow) [world](https://speakerdeck.com/orta/ios-at-artsy), in [renowned magazines](http://www.objc.io/issues/22-scale/artsy) and on [our blog](http://artsy.github.io/blog/2015/04/28/how-we-open-sourced-eigen/).
 
 It's worth mentioning that we don't just talk externally about Open Source. Internally, the Mobile team runs talks about Open Source for the rest of the Artsy staff. As well, we discuss the tooling and business implications of having our work in public repos. Artsy strives for an open culture, in this case the development team, on the whole, is just further along in the process.
 
