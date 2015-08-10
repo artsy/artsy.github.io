@@ -2,7 +2,7 @@
 # Authors: Orta Therox
 # Description: Easily output longer images
 #
-# Syntax {% expanded_img [class name(s)] [http[s]:/]/path/to/image [width [height]] [title text | "title text" ["alt text"]] %}
+# Syntax {% expanded_img [class name(s)] [http[s]:/]/path/to/image [http[s]:/]/link/for/image [width [height]] [title text | "title text" ["alt text"]] %}
 #
 # Examples:
 # {% expanded_img /images/ninja.png Ninja Attack! %}
@@ -19,12 +19,15 @@ module Jekyll
 
   class ExpandedImageTag < Liquid::Tag
     @expanded_img = nil
+    @link = nil
 
     def initialize(tag_name, markup, tokens)
       attributes = ['class', 'src', 'width', 'height', 'title']
 
-      if markup =~ /(?<class>\S.*\s+)?(?<src>(?:https?:\/\/|\/|\S+\/)\S+)(?:\s+(?<width>\d+))?(?:\s+(?<height>\d+))?(?<title>\s+.+)?/i
+      if markup =~ /(?<class>[^(http|\/images)]\S.*\s+)?(?<src>(?:https?:\/\/|\/|\S+\/)\S+)(?:\s+(?<link>(?:https?:\/\/|\/|\S+\/)\S+))?(?:\s+(?<width>\d+))?(?:\s+(?<height>\d+))?(?<title>\s+.+)?/i
         @expanded_img = attributes.reduce({}) { |img, attr| img[attr] = $~[attr].strip if $~[attr]; img }
+        @link = $~['link'].strip if $~['link']
+
         if /(?:"|')(?<title>[^"']+)?(?:"|')\s+(?:"|')(?<alt>[^"']+)?(?:"|')/ =~ @expanded_img['title']
           @expanded_img['title']  = title
           @expanded_img['alt']    = alt
@@ -40,7 +43,7 @@ module Jekyll
       if @expanded_img
         # .entry-content .content-container
         "</div></div>" \
-        "<a href='#{@expanded_img["src"]}'><img #{@expanded_img.collect {|k,v| "#{k}=\"#{v}\"" if v}.join(" ")}></a>" \
+        "<a href='#{@link or @expanded_img["src"]}'><img #{@expanded_img.collect {|k,v| "#{k}=\"#{v}\"" if v}.join(" ")}></a>" \
         "<div class='meta-container'><header>&nbsp;</header></div><div class='date-container'>&nbsp;</div><div class='content-container'><div class='entry-content'>" \
       else
         "Error processing input, expected syntax: {% expanded_img [class name(s)] [http[s]:/]/path/to/image [width [height]] [title text | \"title text\" [\"alt text\"]] %}"
