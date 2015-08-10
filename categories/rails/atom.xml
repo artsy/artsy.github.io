@@ -1,0 +1,295 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: rails | Artsy Engineering]]></title>
+  <link href="http://artsy.net/categories/rails/atom.xml" rel="self"/>
+  <link href="http://artsy.net/"/>
+  <updated>2015-08-10T14:04:36-04:00</updated>
+  <id>http://artsy.net/</id>
+  <author>
+    <name><![CDATA[]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Presenters and Memoization: Moving Logic out of Templates]]></title>
+    <link href="http://artsy.net/blog/2014/03/18/presenters-and-memoization-moving-logic-out-of-templates/"/>
+    <updated>2014-03-18T17:27:00-04:00</updated>
+    <id>http://artsy.net/blog/2014/03/18/presenters-and-memoization-moving-logic-out-of-templates</id>
+    <content type="html"><![CDATA[<p>When dealing with rendering data for an email, one frequently has to make many database calls to assemble the required data. This can be slow, and depending on how you structure the code that is assembling the data vs rendering the data in a template, it's very easy to be making repeated calls, which can significantly slow down your process. Additionally, whether you are using <a href="http://haml.info/">Haml</a>, <a href="http://mustache.github.io/">Mustache</a>, <a href="http://jade-lang.com/">Jade</a>, or any other templating language, embedding too much logic in the template can making things hard to maintain (especially if some logic lives in the template and some elsewhere in your domain code). Of course some logic in the template (a conditional: should I render this section?, or loops: render this hash of data) is necessary, but I like to keep as much out of there as possible. It's easier to optimize, debug and maintain that logic elsewhere, and also writing complex logic in <a href="https://www.ruby-lang.org">Ruby</a> is much more fun than in a templating language!</p>
+
+<p>In this article I'll present what I've been doing to keep my templates relatively logic-free, and how I make sure I don't repeat any heavy database calls in assembling my data.</p>
+
+<!-- more -->
+
+
+<h2>The Setup - Presenters and Memoization</h2>
+
+<p>First, I'd like to introduce the Presenter pattern, and how this can help clean up your templates. Here are a couple of links about using presenters with <a href="http://rubyonrails.org/">Rails</a> that I've found useful:</p>
+
+<ul>
+<li><a href="http://blog.jayfields.com/2007/03/rails-presenter-pattern.html">Jay Fields' Guide to Presenters</a></li>
+<li><a href="http://www.slideshare.net/mdesjardins/presenters-in-rails">Mike Desjardins' Slideshare Presentation</a></li>
+</ul>
+
+
+<p>Consider the following screenshot of a section of a weekly email that we send our users:</p>
+
+<p><img src="/images/2014-03-18-presenters-and-memoization-moving-logic-out-of-templates/recently_added.png" alt="Example of Recently Added Works" /></p>
+
+<p>This section shows works that have been added that week by artists that you follow. That's clearly going to involve some database calls, and potentially heavy ones at that. Now we'd like to accomplish two things here: we want to make sure that we only make these calls once (no matter what we wind up doing with the data later), and we also would like to make sure that any code or logic that is making these calls and doing any data manipulation is not being done directly in our templates. Keeping this kind of logic out of your template will make it easier to debug, maintain and write.</p>
+
+<p>Let's start by creating a Module to hold the various logic required for this email:</p>
+
+<pre><code class="ruby">class WeeklyEmailPresenter
+  def initialize(user)
+    @user = user
+  end
+end
+</code></pre>
+
+<p>Ok, so far so good. In our mail template rendering/calling code, we can now say:</p>
+
+<pre><code class="ruby">@presenter = WeeklyEmailPresenter.new(user)
+</code></pre>
+
+<p>This will allow us to refer to methods in this class in our mail template. So now let's add a method that will query our database and return a list of artists that this user should be notified about:</p>
+
+<pre><code class="ruby">class WeeklyEmailPresenter
+  def initialize(user)
+    @user = user
+  end
+
+  def recently_added_works
+    # Some really heavy database query
+  end
+end
+</code></pre>
+
+<p>Ok, that was easy. In our HAML template, we can now do:</p>
+
+<pre><code class="haml">-if @presenter.recently_added_works &amp;&amp; @presenter.recently_added_works.any?
+  %table
+    %tr
+      %td
+        -@presenter.recently_added_works.each do |artists|
+          &lt;!-- markup to render each artist with recently added works --&gt;
+</code></pre>
+
+<p>However, take a look at how many times we've referred to <code>@presenter.recently_added_works</code> - 3 times already! And we'll most likely refer to it more elsewhere (perhaps when deriving a subject line, or showing a total count somewhere, etc.). Depending on how you've implemented the method <code>recently_added_works</code>, you may be re-querying the database every time it's referred to! Clearly that's a lot of wasted resources. So, let's look at an easy change that will guarantee we only ever perform the work to assemble this data once. We memoize it:</p>
+
+<pre><code class="ruby">class WeeklyEmailPresenter
+  def initialize(user)
+    @user = user
+  end
+
+  def recently_added_works
+    @recently_added_works ||= build_recently_added_works
+  end
+
+  private
+
+  def build_recently_added_works
+    # Code to do database lookups
+  end
+end
+</code></pre>
+
+<p>All we're doing is moving the actual code that's doing the heavy lifting into a <code>private</code> method (for convention, I like to prefix the name with <code>build_</code>). The public method that we refer to elsewhere in our presenter and template simply calls the appropriate <code>private</code> method. Through using an instance variable combined with conditional assignment, we guarantee that the <code>build_</code> method (our heavy and slow workhorse method) will only be called once, no matter how many times we refer to the public method.</p>
+
+<p>That's it! To summarize, use instance variables in your public methods which is what your templates and other code will use. Those public methods should call private <code>build_</code> methods which actually do all the heavy lifting. This way, you get to easily move logic away from a template and into its own module, and can guarantee that you're not repeating any long-running database queries or other slow data processing.</p>
+
+<p>Hopefully you've found this a useful pattern to follow, please leave any feedback in the comments and <a href="https://github.com/artsy">follow us on Github</a>!</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Bootstrapping JSON Data with Rails and Backbone.js]]></title>
+    <link href="http://artsy.net/blog/2013/04/13/bootstrapping-json-data-with-rails-and-backbone-js/"/>
+    <updated>2013-04-13T12:21:00-04:00</updated>
+    <id>http://artsy.net/blog/2013/04/13/bootstrapping-json-data-with-rails-and-backbone-js</id>
+    <content type="html"><![CDATA[<p>The <a href="http://artsy.net">artsy.net website</a> is a Backbone.js application that talks to a server-side RESTful Grape API sitting on top of a Rails app which serves minimal HTML markup. The latter includes such things as a page title, along with links to JavaScript and stylesheet packages. A page loads, scripts run, data is fetched from the API. The result is merged into a HAMLJS template and rendered client-side.</p>
+
+<p>Building this kind of one-page apps allows for clean separation between the presentation and API layers. The downside is that it will slow page render times - fetching data after page load means waiting for an AJAX request to complete before displaying anything.</p>
+
+<p>There're many solutions to this problem, all involving some kind of server-side rendering. You could, for example, share views and JavaScript between client and server. This would be a major paradigm shift for a large application like ours and not something we could possibly maneuver in a short amount of time.</p>
+
+<p>Without changing the entire architecture of the system, how can we bootstrap JSON data server-side and avoid the data roundtrip on every page load?</p>
+
+<!-- more -->
+
+
+<h3>Model Repository</h3>
+
+<p>First, we need to keep track of our objects on the client. We've implemented a simple data repository. It ensures that the same model is passed around instead of instantiating new models each time. This helps prevent unnecessary trips to the server, and makes sure events are bound to the same model instance.</p>
+
+<pre><code class="coffeescript">App.Repository =
+
+  # Gets a model from the repository or fetches it from the server.
+  getOrFetch: (id, options) -&gt;
+    model = @get(id)
+    if model?
+      options?.success? options, model
+      model
+    else
+      model = new @model({ id: id })
+      model.fetch options
+      @add model
+    model
+
+# Function to extend a collection in to a repository
+App.Repository.extend = (collectionClass) -&gt;
+  collection = new collectionClass
+  repository = _.extend collection, App.Repository
+  repository.collectionClass = collectionClass
+  repository
+</code></pre>
+
+<p>Objects of the same type are stored together in a repository collection.</p>
+
+<pre><code class="coffeescript">class App.Collections.Artists extends Backbone.Collection
+
+  model: App.Models.Artist
+  App.Repositories.Artists = App.Repository.extend @
+</code></pre>
+
+<h3>Fetching Data</h3>
+
+<p>A view requires data before it can be rendered. For example, navigating to <a href="https://artsy.net/artist/hendrik-kerstens">artsy.net/artist/hendrik-kerstens</a> (a Dutch photographer who obsessively took pictures of his daughter in all kinds of artificial setups for 20 years) will call the following.</p>
+
+<pre><code class="coffeescript">class App.Views.ArtistView extends Backbone.View
+
+  render: -&gt;
+
+    App.Repositories.Artists.getOrFetch @options.artistId,
+      success: (artist) =&gt;
+        @$el.html(JST['templates/artist/show']({ artist: artist }))
+</code></pre>
+
+<h3>Bootstrapping Data</h3>
+
+<p>Since our implementation sits on top of a Rails app, we can now bootstrap the data in a server-side Rails view without any JavaScript code changes. The following example lives in <code>app/views/artists/_bootstrap.html.haml</code>.</p>
+
+<pre><code class="javascript">:javascript
+  var json = $.parseJSON("#{j @artist.to_json}")
+  App.Repositories.Artists.add(new App.Models.Artist(json));
+</code></pre>
+
+<p>You must encode JSON data inside a Rails template, otherwise unicode characters like U+2028 become actual line-endings. This has been discussed <a href="http://stackoverflow.com/questions/2965293/javascript-parse-error-on-u2028-unicode-character">here</a> and <a href="http://stackoverflow.com/questions/9691611/print-valid-non-escaped-json-in-a-view-with-rails">here</a>. The <code>j</code> above is an alias for <code>escape_javascript</code>.</p>
+
+<p>The Rails view layout calls <code>yield :javascript</code> and the <code>show.html.haml</code> template includes the bootstrapped data as a partial.</p>
+
+<pre><code class="haml">= content_for :javascript do
+  = render partial: "artists/bootstrap"
+</code></pre>
+
+<p>The generated HTML includes the escaped JSON representation of the artist, which will be parsed client-side when the page loads and inserted into <code>App.Repositories.Artists</code>. The <code>App.Views.ArtistView</code> will no longer need to fetch the data from the server with an AJAX call.</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[How To Redirect Bang Hash Urls]]></title>
+    <link href="http://artsy.net/blog/2012/03/06/how-to-redirect-bang-hash-urls/"/>
+    <updated>2012-03-06T09:02:00-05:00</updated>
+    <id>http://artsy.net/blog/2012/03/06/how-to-redirect-bang-hash-urls</id>
+    <content type="html"><![CDATA[<p>Sometimes you type a hash-bang URL too fast, bang first.</p>
+
+<p>Consider <code>https://artsy.net/!#/log_in</code>. Rails will receive <code>/!</code> as the file path, resulting in a 404, File Not Found error. The part of the URL after the hash is a position within the page and is never sent to the web server.</p>
+
+<p>It's actually pretty easy to handle this scenario and redirect to the corresponding hash-bang URL.</p>
+
+<p>The most straightforward way is to create a file called <code>!.html</code> in your <code>public</code> folder and use JavaScript to rewrite the URL with the bang-hash.</p>
+
+<pre><code class="html public/!.html">&lt;html&gt;
+ &lt;head&gt;
+ &lt;/head&gt;
+ &lt;body&gt;
+  Click &lt;a href="#" onclick="return window.redirect();"&gt;here&lt;/a&gt; if you're not redirected ...
+  &lt;script language="javascript"&gt;
+    window.redirect = function() {
+      window.location = '/#!' + window.location.hash.substring(1)
+      return false;
+    }
+    window.redirect();
+  &lt;/script&gt;
+ &lt;/body&gt;
+&lt;/html&gt;
+</code></pre>
+
+<p>You can also do this inside a controller with a view or layout. Start by trapping the URL in your <code>ApplicationController</code>.</p>
+
+<pre><code class="ruby app/controllers/application_controller.rb">if request.env['PATH_INFO'] == '/!'
+  render layout: "bang_hash"
+  return
+end
+</code></pre>
+
+<p>The layout can have the piece of JavaScript that redirects to the corresponding hash-bang URL.</p>
+
+<pre><code class="ruby app/views/layouts/bang_hash.html.haml">!!!
+- ie_tag(:html) do
+  %body
+    :javascript
+      window.location = '/#!' + window.location.hash.substring(1)
+</code></pre>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[10x Rack and Rails Output Compression with Rack::Deflater]]></title>
+    <link href="http://artsy.net/blog/2012/02/24/10x-rack-and-rails-output-compression-with-rack-deflater/"/>
+    <updated>2012-02-24T16:05:00-05:00</updated>
+    <id>http://artsy.net/blog/2012/02/24/10x-rack-and-rails-output-compression-with-rack-deflater</id>
+    <content type="html"><![CDATA[<p>You can quickly reduce the amount of data transferred from your Rack or Rails application with <a href="https://github.com/rack/rack/blob/master/lib/rack/deflater.rb">Rack::Deflater</a>. Anecdotal evidence shows a reduction from a 50Kb JSON response into about 6Kb. It may be a huge deal for your mobile clients.</p>
+
+<p>For a Rails application, modify config/application.rb or config/environment.rb.</p>
+
+<pre><code class="ruby config/application.rb">Acme::Application.configure do
+  config.middleware.use Rack::Deflater
+end
+</code></pre>
+
+<p>For a Rack application, add the middleware in config.ru.</p>
+
+<pre><code class="ruby config.ru">use Rack::Deflater
+run Acme::Instance
+</code></pre>
+
+<!-- more -->
+
+
+<p>Note that the order of the middleware is very important. For example, we also use Rack::JSONP that adds automatic JSONP support to our API. It must be invoked before Rack::Deflater or it will attempt to wrap compressed content. Rack middleware is executed in reverse order [<a href="http://verboselogging.com/2010/01/20/proper-rack-middleware-ordering">source</a>].</p>
+
+<pre><code class="ruby config/application.rb">  config.middleware.use Rack::Deflater
+  config.middleware.use Rack::JSONP
+</code></pre>
+
+<p>A couple of handy RSpec tests to add to your application. You will need to modify this code with a valid API path and expected response.</p>
+
+<pre><code class="ruby spec/api/rack_deflater_spec.rb">require 'spec_helper'
+
+describe Rack::Deflater do
+  it "produces an identical eTag whether content is deflated or not" do
+    get "/api/acme"
+    response.headers["Content-Encoding"].should be_nil
+    etag = response.headers["Etag"]
+    content_length = response.headers["Content-Length"].to_i
+    get "/api/acme", {}, { "HTTP_ACCEPT_ENCODING" =&gt; "gzip" }
+    response.headers["Etag"].should == etag
+    response.headers["Content-Length"].to_i.should_not == content_length
+    response.headers["Content-Encoding"].should == "gzip"
+  end
+  it "deflates JSONP content" do
+    get "/api/acme?callback=parseResponse", {}, { "HTTP_ACCEPT_ENCODING" =&gt; "deflate" }
+    response.headers["Content-Encoding"].should == "deflate"
+    inflated_response_body = Zlib::Inflate.new(-Zlib::MAX_WBITS).inflate(response.body.to_s)
+    inflated_response_body.should == "parseResponse(...)"
+  end
+end
+</code></pre>
+]]></content>
+  </entry>
+  
+</feed>

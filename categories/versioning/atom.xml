@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: versioning | Artsy Engineering]]></title>
+  <link href="http://artsy.net/categories/versioning/atom.xml" rel="self"/>
+  <link href="http://artsy.net/"/>
+  <updated>2015-08-10T14:04:36-04:00</updated>
+  <id>http://artsy.net/</id>
+  <author>
+    <name><![CDATA[]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Simplifying Model-Level JSON Versioning with Mongoid-Cached-Json]]></title>
+    <link href="http://artsy.net/blog/2012/03/23/simplifying-model-level-json-versioning-with-mongoid-cached-json/"/>
+    <updated>2012-03-23T09:14:00-04:00</updated>
+    <id>http://artsy.net/blog/2012/03/23/simplifying-model-level-json-versioning-with-mongoid-cached-json</id>
+    <content type="html"><![CDATA[<p>Did you know that Netflix has hundreds of API versions, one for each device? Daniel Jacobson's <a href="http://www.slideshare.net/danieljacobson/techniques-for-scaling-the-netflix-api-qcon-sf">Techniques for Scaling the Netflix API</a> at QConSF 2011 explained why they chose this model. And while we don't all build distributed services that supply custom-tailored data to thousands of heterogeneous TVs and set-top boxes, we do have to pay close attention to API versioning from day one.</p>
+
+<p>Versioning is hard. Your data models evolve, but you must maintain backward-compatibility for your public interfaces. While many strategies exist to deal with this problem, we'd like to propose one that requires very little programming effort and that is more declarative in nature.</p>
+
+<p>At Artsy we use <a href="http://github.com/intridea/grape">Grape</a> and implement the "path" versioning strategy from the <a href="http://github.com/intridea/grape/tree/frontier">frontier</a> branch. Our initial v1 API is consumed by our own website and services and lives at <a href="https://artsyapi.com/api/v1">https://artsyapi.com/api/v1</a>. We've also prototyped v2 and by the time v1 is frozen, it should already be in production.</p>
+
+<p>Grape takes care of version-based routing and has a system that lets you split version-based presentation of a model from the model implementation. I find that separation forcefully induced by unnecessary implementation complexity around wanting to return different JSON depending on the API version requested. What if implementing versioning in <code>as_json</code> were super simple?</p>
+
+<p>Consider a Person model returned from a v1 API.</p>
+
+<pre><code class="ruby">class API &lt; Grape::API
+  prefix :api
+  version :v1
+  namespace :person
+    get ":id"
+      Person.find(params[:id]).as_json
+    end
+  end
+end
+</code></pre>
+
+<pre><code class="ruby">class Person
+  include Mongoid::Document
+
+  field :name
+
+  def as_json
+    {
+      name: name
+    }
+  end
+
+end
+</code></pre>
+
+<p>In v2 the model split <code>:name</code> into a <code>:first</code> and <code>:last</code> name and in v3 <code>:name</code> has finally been deprecated. A version v3 Person model would look as follows.</p>
+
+<pre><code class="ruby">class Person
+  include Mongoid::Document
+
+  field :first
+  field :last
+
+  def as_json
+    {
+      first: first,
+      last: last
+    }
+  end
+
+end
+</code></pre>
+
+<p>How can we combine these two implementations and write <code>Person.find(params[:id]).as_json({ :version =&gt; ? })</code>?</p>
+
+<p>In <a href="http://github.com/dblock/mongoid-cached-json">mongoid-cached-json</a> we've introduced a declarative way of versioning JSON. Here's the code for Person v3.</p>
+
+<pre><code class="ruby">class Person
+  include Mongoid::Document
+  include Mongoid::CachedJson
+
+  field :first
+  field :last
+
+  def name
+    [ first, last ].join(" ")
+  end
+
+  json_fields \
+    name: { :versions =&gt; [ :v1, :v2 ] },
+    first: { :versions =&gt; [ :v2, :v3 ] },
+    last: { :versions =&gt; [ :v2, :v3 ] }
+
+end
+</code></pre>
+
+<p>With the <a href="http://github.com/dblock/mongoid-cached-json">mongoid-cached-json</a> gem you also get caching that respects JSON versioning, for free. Read about it <a href="http://artsy.github.com/blog/2012/02/20/caching-model-json-with-mongoid-cached-json/">here</a>.</p>
+]]></content>
+  </entry>
+  
+</feed>

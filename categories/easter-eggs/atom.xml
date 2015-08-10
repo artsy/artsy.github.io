@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: easter eggs | Artsy Engineering]]></title>
+  <link href="http://artsy.net/categories/easter-eggs/atom.xml" rel="self"/>
+  <link href="http://artsy.net/"/>
+  <updated>2015-08-10T14:04:36-04:00</updated>
+  <id>http://artsy.net/</id>
+  <author>
+    <name><![CDATA[]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[An Easter Egg for Curl]]></title>
+    <link href="http://artsy.net/blog/2013/04/01/an-easter-egg-for-curl/"/>
+    <updated>2013-04-01T12:21:00-04:00</updated>
+    <id>http://artsy.net/blog/2013/04/01/an-easter-egg-for-curl</id>
+    <content type="html"><![CDATA[<p>Let's implement an Easter egg that requires <a href="http://curl.haxx.se/">curl</a> and is HTTP-compliant.</p>
+
+<p>We accept access tokens on our API endpoints. These can come from an <code>access_token</code> query string parameter.</p>
+
+<pre><code>curl https://api.artsy.net/api/v1/system/up?access_token=invalid -v
+
+&lt; HTTP/1.1 401 Unauthorized
+&lt; Content-Type: application/json
+&lt; Content-Length: 24
+
+{ "error" : "Unauthorized" }
+</code></pre>
+
+<p>So far, so good. Now try this:</p>
+
+<pre><code>curl https://api.artsy.net/api/v1/system/up?access_token=10013 -v
+
+&lt; HTTP/1.1 401 Broadway
+&lt; Content-Type: application/json
+&lt; Content-Length: 76
+
+{ "error" : "Inspiration from the Engineering team at http://artsy.github.com" }
+</code></pre>
+
+<p>What?! <strong>401 Broadway</strong>? See, our office address is <em>401 Broadway, 10013, New York, NY</em>. We just tried to add a more developer-friendly way to find us in the New York grid. And here's the view from our 25th floor office - that's SOHO right below us and the Empire State Building a bit North.</p>
+
+<p><img src="/images/2013-04-01-an-easter-egg-for-curl/artsy-office-view.jpg" /></p>
+
+<p>Photo by <a href="https://github.com/zamiang">@zamiang</a>.</p>
+
+<p>Easter egg implementation follows.</p>
+
+<!-- more -->
+
+
+<p>Implementing a custom HTTP response is surprisingly hard with most web servers. Changing the text that follows error codes is not something most people need. Our API will have to return a custom error code and some monkey-patching will translate the status message. We use <a href="https://github.com/intridea/grape">grape</a>, which is Rack-based and supports inserting middleware, where we do authentication. We randomly chose the number 2600 for an internal status code.</p>
+
+<pre><code class="ruby api/api_action_dispatch_request.rb">class ApiActionDispatchRequest &lt; ActionDispatch::Request
+
+  def initialize(env)
+    super(env)
+  end
+
+  def [](key)
+    params[key] || headers["X_#{key.to_s.upcase}"]
+  end
+
+end
+</code></pre>
+
+<pre><code class="ruby api/api_auth_middleware.rb">class ApiAuthMiddleware &lt; Grape::Middleware::Base
+
+  def before
+    if access_token == "10013"
+      throw :error,
+        message: 'Inspiration from the Engineering team at http://artsy.github.com',
+        status: 2600
+    else
+      ...
+    end
+  end
+
+  private
+
+    def access_token
+      @access_token ||= request[:access_token]
+    end
+
+    def request
+      @request ||= ApiActionDispatchRequest.new(env)
+    end
+
+end
+</code></pre>
+
+<h3>WEBrick</h3>
+
+<pre><code class="ruby config/initializers/broadway/webrick.rb">module WEBrick
+  class HTTPResponse
+    def status=(status)
+      if status == 2600
+        @status = 401
+        @reason_phrase = "Broadway"
+      else
+        @status = status
+        @reason_phrase = HTTPStatus::reason_phrase(status)
+      end
+    end
+  end
+end
+</code></pre>
+
+<h3>Thin</h3>
+
+<pre><code class="ruby config/initializers/broadway/thin.rb">module Thin
+  class Response
+    def head
+      if @status == 2600
+        "HTTP/1.1 401 Broadway\r\n#{headers_output}\r\n"
+      else
+        "HTTP/1.1 #{@status} #{HTTP_STATUS_CODES[@status.to_i]}\r\n#{headers_output}\r\n"
+      end
+    end
+  end
+end
+</code></pre>
+
+<h3>Unicorn</h3>
+
+<pre><code class="ruby config/initializers/broadway/unicorn.rb">require 'unicorn/http_response'
+module Unicorn::HttpResponse
+  CODES[2600] = '401 Broadway'
+end
+</code></pre>
+
+<h3>More Eggs?</h3>
+
+<p>Check out <a href="https://api.artsy.net/humans.txt">artsy.net/humans.txt</a> for more Easter eggs and please feel free to email me at <strong>db[at]artsy[dot]net</strong> if you want to come visit or <a href="https://artsy.net/jobs">work here</a>.</p>
+]]></content>
+  </entry>
+  
+</feed>
