@@ -2,14 +2,6 @@
 
 desc 'Initial setup'
 task :bootstrap do
-  FileUtils.rm_rf '_gh-pages'
-  puts 'Cloning gh-pages branch...'
-  url = `git ls-remote --get-url origin`
-  puts `git clone #{url.strip} _gh-pages`
-  Dir.chdir('_gh-pages') do
-    puts `git checkout gh-pages`
-  end
-
   puts 'Installing Bundle...'
   puts `bundle install`
 end
