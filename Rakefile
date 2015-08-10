@@ -34,15 +34,15 @@ task :deploy do
   url = `git ls-remote --get-url origin`
   puts `git clone #{url.strip} _gh-pages`
   Dir.chdir('_gh-pages') do
-    puts `git checkout gh-pages`
+    puts `git checkout master`
   end
 
   Dir.chdir('_gh-pages') do
     puts 'Pulling changes from server.'
     puts `git reset --hard`
     puts `git clean -xdf`
-    puts `git checkout gh-pages`
-    puts `git pull origin gh-pages`
+    puts `git checkout master`
+    puts `git pull origin master`
   end
 
   puts 'Building site.'
@@ -50,8 +50,8 @@ task :deploy do
 
   Dir.chdir('_gh-pages') do
     puts 'Pulling changes from server.'
-    puts `git checkout gh-pages`
-    puts `git pull origin gh-pages`
+    puts `git checkout master`
+    puts `git pull origin master`
 
     puts 'Creating a commit for the deploy.'
 
