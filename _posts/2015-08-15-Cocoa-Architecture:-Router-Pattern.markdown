@@ -10,7 +10,7 @@ twitter-url: http://twitter.com/orta
 blog-url: http://orta.io
 ---
 
-I want to talk about a pattern that we've been using for the last few years on the Artsy Mobile team. This pattern pre-dates me joining Artsy by a few weeks, and was introduced into our codebase by Ben Jackson, this was it's first method:
+I want to talk about a pattern that we've been using for the last few years on the Artsy Mobile team. This pattern pre-dates me joining Artsy by a few weeks, and was introduced into our codebase by [Ben Jackson](http://90wpm.com), this was it's first method:
 
 ```objc
   + (NSURL *)newOAuthURLWithUsername:(NSString *)username password:(NSString *)password {
@@ -29,7 +29,7 @@ I want to talk about a pattern that we've been using for the last few years on t
   }
 ```
 
-Yep, that's pre-ARC, pre-Dictionary Literals, memory-managed code. We took this pattern and rolled with it for the next 4 years, this article is about where we took it.
+Yep, that's pre-ARC, pre-Dictionary Literals, memory-managed code. We took this pattern and rolled with it for the next 4 years, this article is about where we taken it.
 
 <!-- more -->
 
@@ -47,7 +47,7 @@ We migrated our networking stack to using AFNetworking `1.0`, and started using 
 
 The pattern evolved when mixed with a [AFHTTPClient](http://cocoadocs.org/docsets/AFNetworking/1.3.4/Classes/AFHTTPClient.html) to act as the base URL resolver, allowing us to easily switch between staging and production environments, and as a central point for hosting all HTTP headers. This meant it was trivial to generate authenticated `NSURLRequest`s.
 
-As it is presently, this pattern is working. We've just wrapped up a new Pod, [Artsy Authentication](https://github.com/artsy/Artsy_Authentication). It's a library that has an `ARRouter` that behaves [exactly like above](https://github.com/artsy/Artsy_Authentication/blob/master/Pod/Classes/ArtsyAuthenticationRouter.h). So it's still seeing use in fresh applications.
+As it is presently, this pattern is working. We've just wrapped up a new Pod, [Artsy Authentication](https://github.com/artsy/Artsy_Authentication). It's a library that has an `ARRouter` that behaves [exactly like above](https://github.com/artsy/Artsy_Authentication/blob/master/Pod/Classes/ArtsyAuthenticationRouter.h). We continue to build new apps with it.
 
 ## Siblings
 
@@ -85,7 +85,7 @@ This was a pretty nice expansion of the pattern, but overall felt a bit over-eng
 
 When we started an entirely fresh application, we noted down all the networking-related pain points felt from Eigen and Energy. The Router pattern was pretty good, but we were finding that we were having problems with the API consuming part of the `NSURLRequest`s. Mainly, a difficulty in testing, an inconsistency in how we would perform networking and that it didn't feel declarative.
 
-Moya was our attempt at fixing this. I won't go into depth on what Moya is, we've [wrote articles](/blog/2014/09/22/transparent-prerequisite-network-requests/) on this already. The part that is interesting is that it obviates a ARRouter by using a collection of Swift enums - forcing developers to include all necessary metadata an an end-point.
+Moya is our attempt at fixing this. I won't go into depth on what Moya is, we've [written articles](/blog/2014/09/22/transparent-prerequisite-network-requests/) on this already. The part that is interesting is that it obviates a ARRouter by using a collection of Swift enums - forcing developers to include all necessary metadata an an end-point.
 
 #### HAL, and API v2
 
