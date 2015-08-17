@@ -10,7 +10,7 @@ twitter-url: http://twitter.com/orta
 blog-url: http://orta.io
 ---
 
-I want to talk about a pattern that we've been using for the last few years on the Artsy Mobile team. This pattern pre-dates me joining Artsy by a few weeks, and was introduced into our codebase by [Ben Jackson](http://90wpm.com), this was it's first method:
+I want to talk about a pattern that we've been using for the last few years on the Artsy Mobile team. This pattern pre-dates me joining Artsy by a few weeks, and was introduced into our codebase by [Ben Jackson](http://90wpm.com), this was the `ARRouter`'s first method:
 
 ```objc
   + (NSURL *)newOAuthURLWithUsername:(NSString *)username password:(NSString *)password {
