@@ -29,7 +29,7 @@ I want to talk about a pattern that we've been using for the last few years on t
   }
 ```
 
-Yep, that's pre-ARC, pre-Dictionary Literals, memory-managed code. We took this pattern and rolled with it for the next 4 years, this article is about where we taken it.
+Yep, that's pre-ARC, pre-Dictionary Literals, memory-managed code. We took this pattern and rolled with it for the next 4 years, this article is about where we've taken it.
 
 Within Eigen, `ARRouter` is one of our [biggest classes](https://github.com/artsy/eigen/blob/904e8abfc11ce6ea4b6e81f0e02684b755a280c3/Artsy/Networking/ARRouter.m), coming in at almost 1,000 lines of code. Whereas in Energy, it sits at a [more reasonable](https://github.com/artsy/energy/blob/e51529250ede359c781042f222d5836eb9e8a979/Classes/Util/App/ARRouter.m) 300 lines. Eidolon does not have an ARRouter, what gives?
 
