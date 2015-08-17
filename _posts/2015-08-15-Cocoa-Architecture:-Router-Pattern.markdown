@@ -89,7 +89,7 @@ Moya is our attempt at fixing this. I won't go into depth on what Moya is, we've
 
 #### HAL, and API v2
 
-The Router pattern relies on the idea that you know all the routes ahead of time, and add support for them as you build out each part of the app. [HAL, a Hypermedia Application Layer](http://stateless.co/hal_specification.html) - can be approximated as being a self describing API. dB has wrote about it on [this blog](/blog/2014/09/12/designing-the-public-artsy-api/).
+The Router pattern relies on the idea that you know all the routes ahead of time, and add support for them as you build out each part of the app. [HAL, a Hypermedia Application Layer](http://stateless.co/hal_specification.html) - can be approximated as being a self describing API. dB. wrote about it in [this blog post](/blog/2014/09/12/designing-the-public-artsy-api/).
 
 This means that you ask the API how to get certain bits of data, and it will describe the ways in which you can access it.
 
