@@ -31,11 +31,11 @@ I want to talk about a pattern that we've been using for the last few years on t
 
 Yep, that's pre-ARC, pre-Dictionary Literals, memory-managed code. We took this pattern and rolled with it for the next 4 years, this article is about where we taken it.
 
+Within Eigen, `ARRouter` is one of our [biggest classes](https://github.com/artsy/eigen/blob/904e8abfc11ce6ea4b6e81f0e02684b755a280c3/Artsy/Networking/ARRouter.m), coming in at almost 1,000 lines of code. Whereas in Energy, it sits at a [more reasonable](https://github.com/artsy/energy/blob/e51529250ede359c781042f222d5836eb9e8a979/Classes/Util/App/ARRouter.m) 300 lines. Eidolon does not have an ARRouter, what gives?
+
 <!-- more -->
 
 ----------------
-
-Within Eigen, `ARRouter` is one of our biggest classes, coming in at almost 1,000 lines of code. Whereas in Energy, it sits at a more reasonable 300 lines. Eidolon does not have an ARRouter, what gives?
 
 ## Pattern Evolution
 
@@ -47,7 +47,7 @@ We migrated our networking stack to using AFNetworking `1.0`, and started using 
 
 The pattern evolved when mixed with a [AFHTTPClient](http://cocoadocs.org/docsets/AFNetworking/1.3.4/Classes/AFHTTPClient.html) to act as the base URL resolver, allowing us to easily switch between staging and production environments, and as a central point for hosting all HTTP headers. This meant it was trivial to generate authenticated `NSURLRequest`s.
 
-As it is presently, this pattern is working. We've just wrapped up a new Pod, [Artsy Authentication](https://github.com/artsy/Artsy_Authentication). It's a library that has an `ARRouter` that behaves [exactly like above](https://github.com/artsy/Artsy_Authentication/blob/master/Pod/Classes/ArtsyAuthenticationRouter.h). We continue to build new apps with it.
+As it is presently, this pattern is working. We've just wrapped up a new Pod, [Artsy Authentication](https://github.com/artsy/Artsy_Authentication). It's a library that has an `ARRouter` that behaves [exactly like above](https://github.com/artsy/Artsy_Authentication/blob/master/Pod/Classes/ArtsyAuthenticationRouter.h). We continue to build new apps with the pattern.
 
 ## Siblings
 
@@ -85,11 +85,11 @@ This was a pretty nice expansion of the pattern, but overall felt a bit over-eng
 
 When we started an entirely fresh application, we noted down all the networking-related pain points felt from Eigen and Energy. The Router pattern was pretty good, but we were finding that we were having problems with the API consuming part of the `NSURLRequest`s. Mainly, a difficulty in testing, an inconsistency in how we would perform networking and that it didn't feel declarative.
 
-Moya is our attempt at fixing this. I won't go into depth on what Moya is, we've [written articles](/blog/2014/09/22/transparent-prerequisite-network-requests/) on this already. The part that is interesting is that it obviates a ARRouter by using a collection of Swift enums - forcing developers to include all necessary metadata an an end-point.
+Moya is our attempt at fixing this. I won't go into depth on what Moya is, we've [written articles](/blog/2014/09/22/transparent-prerequisite-network-requests/) on this already. The part that is interesting is that it obviates an ARRouter by using a collection of Swift enums - forcing developers to include all necessary metadata an an end-point.
 
 #### HAL, and API v2
 
-The Router pattern relies on the idea that you know all the routes ahead of time, and add support for them as you build out each part of the app. [HAL, a Hypermedia Application Layer](http://stateless.co/hal_specification.html) - can be approximated as being a self describing API. We've wrote about it on [this blog](/blog/2014/09/12/designing-the-public-artsy-api/).
+The Router pattern relies on the idea that you know all the routes ahead of time, and add support for them as you build out each part of the app. [HAL, a Hypermedia Application Layer](http://stateless.co/hal_specification.html) - can be approximated as being a self describing API. dB has wrote about it on [this blog](/blog/2014/09/12/designing-the-public-artsy-api/).
 
 This means that you ask the API how to get certain bits of data, and it will describe the ways in which you can access it.
 
@@ -153,12 +153,12 @@ Artsy's future APIs are using this, and the Router pattern is, more or less, tot
 }
 ```
 
-You can see that via the templates, curries and referential urls, that building a network client which traverses the API is possible.
+You can see that via the _links section, curies and self-referential urls, you can build network client which traverses the API without built-in implicit knowledge.
 
-It's a really exciting pattern, and as client developers we can work on improving standard API clients that work on all HAL APIs, instead of something specific to Artsy's API. A lot of the most interesting work in the Cocoa space has been done by Kyle Fuller with [Hyperdrive](https://cocoapods.org/pods/Hyperdrive).
+It's a really exciting pattern, and as client developers, we can work on improving standard API clients that work on all HAL APIs. Instead of something specific to Artsy's API. A lot of the most interesting work in the Cocoa space has been done by Kyle Fuller with [Hyperdrive](https://cocoapods.org/pods/Hyperdrive).
 
 ### Wrap Up
 
 Given that we're not writing applications against the v2 API, yet. The Router pattern is working fine for us at Artsy. It can be a really nice way to abstract out a responsibility that may currently be sitting inside a very large API client that might be worth extracting out.
 
-Let us know what you think, send tweets to  [@ArtsyOpenSource](https://twitter.com/ArtsyOpenSource) on twitter.
+Let us know what you think, send tweets to [@ArtsyOpenSource](https://twitter.com/ArtsyOpenSource) on twitter. Ps. it's pronounced "rooter".
