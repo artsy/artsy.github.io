@@ -30,7 +30,7 @@ task :serve => 'serve:drafts'
 desc 'Deploy the site to the gh_pages branch and push'
 task :deploy do
   FileUtils.rm_rf '_gh-pages'
-  puts 'Cloning gh-pages branch...'
+  puts 'Cloning master branch...'
   url = `git ls-remote --get-url origin`
   puts `git clone #{url.strip} _gh-pages`
   Dir.chdir('_gh-pages') do

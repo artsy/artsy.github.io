@@ -4,7 +4,7 @@
   <title><![CDATA[Category: ios | Artsy Engineering]]></title>
   <link href="http://artsy.net/categories/ios/atom.xml" rel="self"/>
   <link href="http://artsy.net/"/>
-  <updated>2015-08-10T14:04:36-04:00</updated>
+  <updated>2015-08-17T07:42:21-04:00</updated>
   <id>http://artsy.net/</id>
   <author>
     <name><![CDATA[]]></name>
@@ -12,6 +12,164 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Cocoa Architecture: ARRouter]]></title>
+    <link href="http://artsy.net/blog/2015/08/15/Cocoa-Architecture:-Router-Pattern/"/>
+    <updated>2015-08-15T00:00:00-04:00</updated>
+    <id>http://artsy.net/blog/2015/08/15/Cocoa-Architecture:-Router-Pattern</id>
+    <content type="html"><![CDATA[<p>I want to talk about a pattern that we've been using for the last few years on the Artsy Mobile team. This pattern pre-dates me joining Artsy by a few weeks, and was introduced into our codebase by <a href="http://90wpm.com">Ben Jackson</a>, this was it's first method:</p>
+
+<pre><code class="objc">  + (NSURL *)newOAuthURLWithUsername:(NSString *)username password:(NSString *)password {
+      NSDictionary *params = [[NSDictionary alloc] initWithObjectsAndKeys:
+                              username, @"email",
+                              password, @"password",
+                              ARAuthClientID, @"client_id",
+                              ARAuthSecret, @"client_secret",
+                              @"credentials", @"grant_type",
+                              nil];
+      NSString *url_string = [[NSString alloc] initWithFormat:@"%@%@", AROAuthURL, [params queryString]];
+      NSURL *url = [ARRouter newURLWithPath:url_string];
+      [url_string release];
+      [params release];
+      return url;
+  }
+</code></pre>
+
+<p>Yep, that's pre-ARC, pre-Dictionary Literals, memory-managed code. We took this pattern and rolled with it for the next 4 years, this article is about where we taken it.</p>
+
+<!-- more -->
+
+
+<hr />
+
+<p>Within Eigen, <code>ARRouter</code> is one of our biggest classes, coming in at almost 1,000 lines of code. Whereas in Energy, it sits at a more reasonable 300 lines. Eidolon does not have an ARRouter, what gives?</p>
+
+<h2>Pattern Evolution</h2>
+
+<p>We started out with a Router object as being something that can take a model object, and return a <code>NSURL</code> corresponding to a server side end-point.</p>
+
+<p>This worked pretty well, we shipped a 1.0 of Energy with this pattern. However, it become obvious that we were putting a lot of extra knowledge about the type and the parameters of request into classes whose responsibility was not generating a route. For example, user account creation, and user account deletion would use the same <code>NSURL</code> but have different HTTP methods.</p>
+
+<p>We migrated our networking stack to using AFNetworking <code>1.0</code>, and started using CocoaPods instead of manually dragging and dropping code. With this in mind, we improved on the pattern and started returning <code>NSURLRequest</code>s which better encapsulate the server end-point request we were trying to map in the Router.</p>
+
+<p>The pattern evolved when mixed with a <a href="http://cocoadocs.org/docsets/AFNetworking/1.3.4/Classes/AFHTTPClient.html">AFHTTPClient</a> to act as the base URL resolver, allowing us to easily switch between staging and production environments, and as a central point for hosting all HTTP headers. This meant it was trivial to generate authenticated <code>NSURLRequest</code>s.</p>
+
+<p>As it is presently, this pattern is working. We've just wrapped up a new Pod, <a href="https://github.com/artsy/Artsy_Authentication">Artsy Authentication</a>. It's a library that has an <code>ARRouter</code> that behaves <a href="https://github.com/artsy/Artsy_Authentication/blob/master/Pod/Classes/ArtsyAuthenticationRouter.h">exactly like above</a>. We continue to build new apps with it.</p>
+
+<h2>Siblings</h2>
+
+<p>This pattern is standing the test of time, but that doesn't mean we're not actively trying to experiment within the domain. There are three interesting offshoots from our work on <code>ARRouter</code> that are worth talking about.</p>
+
+<h4>Got the Routes like Swagger</h4>
+
+<p>The difference between Eigen's <code>ARRouter</code> and Energy's <code>ARRouter</code> is pretty simple. Eigen's networking scope is an order of magnitude larger. This is a reflection on the varied data that Eigen is interested in, while Energy has a tight scope on specifically Artsy Parter related data.</p>
+
+<p>During the new year of 2015, I explored the <a href="https://github.com/orta/GotTheRoutesLikeSwagger">idea of programmatically generating</a> an <code>ARRouter</code> as a CocoaPod, and then using CocoaPods' subspecs to make it easy to define what collections of end-points you were interested in. This project is based on a standard in which an API is documented, <a href="http://swagger.io">Swagger</a>. This meant as an API consumer, I can generate the types of <code>NSURLRequest</code>s I would require from the API itself. It created files that looked like:</p>
+
+<pre><code class="objc">// Generated by Routes Like Swagger - 31/12/14
+
+@interface ARRouter (User)
+
+/// Retrieve a user by id.
+/// @return URLRequest for /api/v1/user/{id}.{format}
+
+- (NSURLRequest *)getUserWithID:(NSString * )slug;
+
+/// Update an existing user.
+/// @return URLRequest for /api/v1/user/{id}.{format}
+
+- (NSURLRequest *)updateUserWithID:(NSString * )slug;
+
+... [snip] ...
+
+@end
+</code></pre>
+
+<p>This was a pretty nice expansion of the pattern, but overall felt a bit over-engineered and so, it was left as just an experiment.</p>
+
+<h4>Moya</h4>
+
+<p>When we started an entirely fresh application, we noted down all the networking-related pain points felt from Eigen and Energy. The Router pattern was pretty good, but we were finding that we were having problems with the API consuming part of the <code>NSURLRequest</code>s. Mainly, a difficulty in testing, an inconsistency in how we would perform networking and that it didn't feel declarative.</p>
+
+<p>Moya is our attempt at fixing this. I won't go into depth on what Moya is, we've <a href="/blog/2014/09/22/transparent-prerequisite-network-requests/">written articles</a> on this already. The part that is interesting is that it obviates a ARRouter by using a collection of Swift enums - forcing developers to include all necessary metadata an an end-point.</p>
+
+<h4>HAL, and API v2</h4>
+
+<p>The Router pattern relies on the idea that you know all the routes ahead of time, and add support for them as you build out each part of the app. <a href="http://stateless.co/hal_specification.html">HAL, a Hypermedia Application Layer</a> - can be approximated as being a self describing API. We've wrote about it on <a href="/blog/2014/09/12/designing-the-public-artsy-api/">this blog</a>.</p>
+
+<p>This means that you ask the API how to get certain bits of data, and it will describe the ways in which you can access it.</p>
+
+<p>Artsy's future APIs are using this, and the Router pattern is, more or less, totally deprecated in this world. This is what an artwork's JSON data looks like in v2:</p>
+
+<pre><code class="json">{
+  "id": "4d8b92bb4eb68a1b2c00044a",
+  "created_at": "2010-11-15T16:32:38+00:00",
+  "updated_at": "2015-08-16T09:26:26+00:00",
+  "name": "Jeff Koons",
+  "sortable_name": "Koons Jeff",
+  "gender": "male",
+  "birthday": "1955",
+  "hometown": "York, Pennsylvania",
+  "location": "New York, New York",
+  "nationality": "American",
+  "_links": {
+    "curies": [
+      {
+        "name": "image",
+        "href": "https://d32dm0rphc51dk.cloudfront.net/Uqad2mGhbNGhAUgb8bUvIA/{rel}",
+        "templated": true
+      }
+  ],
+  "thumbnail": {
+    "href": "https://d32dm0rphc51dk.cloudfront.net/Uqad2mGhbNGhAUgb8bUvIA/four_thirds.jpg"
+  },
+  "image:self": {
+    "href": "{?image_version}.jpg",
+    "templated": true
+  },
+  "self": {
+    "href": "https://api.artsy.net/api/artists/4d8b92bb4eb68a1b2c00044a"
+  },
+  "permalink": {
+    "href": "http://www.artsy.net/artist/jeff-koons"
+  },
+  "artworks": {
+    "href": "https://api.artsy.net/api/artworks?artist_id=4d8b92bb4eb68a1b2c00044a"
+  },
+  "published_artworks": {
+    "href": "https://api.artsy.net/api/artworks?artist_id=4d8b92bb4eb68a1b2c00044a&amp;published=true"
+  },
+  "similar_artists": {
+    "href": "https://api.artsy.net/api/artists?similar_to_artist_id=4d8b92bb4eb68a1b2c00044a"
+  },
+  "similar_contemporary_artists": {
+    "href": "https://api.artsy.net/api/artists?similar_to_artist_id=4d8b92bb4eb68a1b2c00044a&amp;similarity_type=contemporary"
+  },
+  "genes": {
+    "href": "https://api.artsy.net/api/genes?artist_id=4d8b92bb4eb68a1b2c00044a"
+  }
+  },
+  "image_versions": [
+    "four_thirds",
+    "large",
+    "square",
+    "tall"
+  ]
+}
+</code></pre>
+
+<p>You can see that via the templates, curries and referential urls, that building a network client which traverses the API is possible.</p>
+
+<p>It's a really exciting pattern, and as client developers we can work on improving standard API clients that work on all HAL APIs, instead of something specific to Artsy's API. A lot of the most interesting work in the Cocoa space has been done by Kyle Fuller with <a href="https://cocoapods.org/pods/Hyperdrive">Hyperdrive</a>.</p>
+
+<h3>Wrap Up</h3>
+
+<p>Given that we're not writing applications against the v2 API, yet. The Router pattern is working fine for us at Artsy. It can be a really nice way to abstract out a responsibility that may currently be sitting inside a very large API client that might be worth extracting out.</p>
+
+<p>Let us know what you think, send tweets to  <a href="https://twitter.com/ArtsyOpenSource">@ArtsyOpenSource</a> on twitter.</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Peer Lab]]></title>
@@ -86,6 +244,18 @@
 <p>Whether you're a developer or a company, an expert or a beginner, I highly encourage you to start one of your own.</p>
 
 <p></div></div><a href='https://ortastuff.s3.amazonaws.com/gifs/three-hands.gif'><img src="https://ortastuff.s3.amazonaws.com/gifs/three-hands.gif" width="1280" title="Thumbs Up" ></a><div class='meta-container'><header>&nbsp;</header></div><div class='date-container'>&nbsp;</div><div class='content-container'><div class='entry-content'></p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[On Open Sourcing Energy]]></title>
+    <link href="http://artsy.net/blog/2015/08/10/energy-aftermath/"/>
+    <updated>2015-08-10T10:57:00-04:00</updated>
+    <id>http://artsy.net/blog/2015/08/10/energy-aftermath</id>
+    <content type="html"><![CDATA[<p>Last week we Open Sourced the last Artsy iOS app.</p>
+
+<!-- more -->
+
 ]]></content>
   </entry>
   
@@ -221,136 +391,6 @@ id mockMonitor = [OCMockObject partialMockForObject:statusMonitor];
 <img src = "/images/2015-07-06-how-to-write-unit-tests-like-a-brood-parasite/attenborough.gif">
 </div>
 
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[An Eigenstate of Mind]]></title>
-    <link href="http://artsy.net/blog/2015/06/04/an-eigenstate-of-mind/"/>
-    <updated>2015-06-04T18:00:00-04:00</updated>
-    <id>http://artsy.net/blog/2015/06/04/an-eigenstate-of-mind</id>
-    <content type="html"><![CDATA[<p>Prior to starting at Artsy, I followed a few online tutorials on iOS development. But a simple application demonstrating how to <a href="http://www.raywenderlich.com/85578/first-core-data-app-using-swift">build a todo list</a> didn't illustrate the nuances of a production codebase. Tutorials are an important learning tool for beginners, but can't possibly prepare you for everything you would encounter within an application like Artsy's.</p>
-
-<p>I was lucky to have a mentor at Artsy to help me get started, and I wrote this post to pass along the lessons I learned. This is meant to be a guide for iOS beginners to get to know an open source production codebase. I'll cover the Xcode project organization and where to find things.</p>
-
-<!-- more -->
-
-
-<hr />
-
-<p>Artsy names its GitHub repositories after physics terms. iOS apps all start with the letter 'e', and this one is called <a href="https://github.com/artsy/eigen">eigen</a>. As Artsy's consumer-facing iOS app, users refer to it simply as "Artsy".</p>
-
-<p>Eigen is divided into two projects: one that contains all eigen-specific code, and one that contains reusable libraries. We organize these two components using something called an Xcode workspace.</p>
-
-<p>The first time I opened eigen, the project wouldn't compile because it didn't have access to the components in the other project, the one with the libraries. To make sure that all the components you need are accessible in one place, Xcode organizes these projects under one workspace.</p>
-
-<center><img src="/images/2015-06-04-an-eigenstate-of-mind/structure.png" /></center>
-
-
-<p>The Artsy project contains all the eigen-specific code. It's where you'll find all the classes, models, views, controllers, and resources like images and sounds. It's what makes eigen <em>eigen</em>.</p>
-
-<p>The Pods project is where the open source libraries used by eigen are kept. Artsy uses something called CocoaPods to organize these libraries, but that's beyond the scope of this post. For more information about CocoaPods, check out <a href="https://cocoapods.org/about">their site</a>.</p>
-
-<p>Xcode organizes the different files of the Artsy project into folders. Let's take a look at each one.</p>
-
-<center><img src="/images/2015-06-04-an-eigenstate-of-mind/folders.png" /></center>
-
-
-<p>The <strong>Documentation</strong> folder contains instructions for iOS developers, such as how to started with eigen, how to deploy the application, and its changelog.</p>
-
-<p>Note that documentation isn't always part of the actual Xcode project. Sometimes it lives in the Finder folder, but Xcode doesn't know about it.</p>
-
-<p>The next folder is the <strong>Artsy</strong> folder. This is aptly named since it contains only the code and resources specific to the Artsy iOS app. This is where you would find anything that the user would interact with: the user interface, images, and the inner workings of our app. Most work of our work is done here.</p>
-
-<p>Our automated tests live in the <strong>Artsy Tests</strong> folder. Since we have multiple developers working on this app, automated tests ensure that when someone changes something, the app continues to function as expected.</p>
-
-<p>I find tests reassuring. As a beginner, tests provide peace of mind by letting me know if the changes I make have repercussions elsewhere.</p>
-
-<p>Those are the important folders, but there are a few others you may be curious about.</p>
-
-<p>Artsy has experimented with an Apple Watch extension, but it's nothing we've shipped yet. The Artsy WatchKit folders don't contribute to the rest of the application, and can be ignored. For now.</p>
-
-<p>You'll notice the Frameworks, Products, and Pods folders. All three of them are generated by either Xcode or CocoaPods. They support the app, but a developer doesn't often work with them or their contents.</p>
-
-<hr />
-
-<p>This is a nice introduction to the structure of eigen, but this is only how <em>we</em> do things. Just like how tutorials helping you get started aren't necessarily applicable in the workplace, this guide isn't a applicable to every project.</p>
-
-<p>I hope this makes eigen less intimidating. I had a mentor to walk me through things, and I hope this guide helps you explore the codebase, too. If you have any questions about how we do things, <a href="https://github.com/artsy/eigen/issues/new">get in touch</a>!</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[How we Open Source'd Eigen]]></title>
-    <link href="http://artsy.net/blog/2015/04/28/how-we-open-sourced-eigen/"/>
-    <updated>2015-04-28T00:00:00-04:00</updated>
-    <id>http://artsy.net/blog/2015/04/28/how-we-open-sourced-eigen</id>
-    <content type="html"><![CDATA[<p>It was 95 days ago, and I was sitting before of my computer in NYC. I loaded my terminal, opened <a href="https://taptalk.me">TapTalk</a> on my phone, tapped on my collegue <a href="http://ashfurrow.com">Ash's</a> avatar and held my finger there. I paused, this moment was a long time, it was worth waiting. I switched the camera from my face to the screen with the terminal open.</p>
-
-<p>This moment was probably the most nervous I had been in years. It showed <code>git push origin master</code>. I said "it's happening." I hit return. A new era in the Artsy mobile team had started. A few minutes later, I wrote this tweet:</p>
-
-<center>
-<blockquote class="twitter-tweet" data-cards="hidden" lang="en"><p>We have open source’d the <a href="https://twitter.com/artsy">@Artsy</a> iOS app.&#10;&#10;<a href="https://t.co/c1SWtHmUgy">https://t.co/c1SWtHmUgy</a>&#10;&#10;🎉</p>&mdash; Ørta (@orta) <a href="https://twitter.com/orta/status/558395611754819586">January 22, 2015</a></blockquote>
-</center>
-
-
-<p>Let's go over the process we went through to get to that point.</p>
-
-<!-- more -->
-
-
-<p>Credit where credit is due, when we were <a href="/blog/2014/11/13/eidolon-retrospective/">working on Eidolon</a>, our CTO <a href="http://code.dblock.org/">dB</a> just casually tossed the idea that, really, Eigen should be open source too. Eigen is the code name for the <a href="http://iphone.artsy.net/">Artsy iOS app</a>. This totally threw me for a loop, we were only just getting to a point where we could build an app from scratch in the open. Trying to get a project that had existed for years and had its own momentum converted would take a lot of thinking about.</p>
-
-<p>We devoted time at the end of 2014 to understand what the constraints were for getting the app opened. From a purely functional perspective we would have to start with a <a href="https://github.com/artsy/mobile/issues/11">drastic decision</a> around the repo itself.</p>
-
-<h3>The Repo</h3>
-
-<p><img src="/images/2015-04-28-open-sourcing-your-apps/rise-and-fall.png" alt="Rise And Fall" /></p>
-
-<p>We opted to go for a total repo switch, removing all history. There were a lot of places where keys could have been hiding within the app. To get this done we migrated the existing <code>eigen</code> to <code>eigen-private</code> on github, and did a fresh <code>git init</code>. People who have joined Artsy Mobile post-OSS have never even cloned the <code>eigen-private</code> repo. So I feel good about this call.</p>
-
-<p>We used the last few moments of the private repo to remove all of the default Apple copyright notices. We didn't feel they added anything on top of the git history, and made it feel like the founders of a project were more important than anyone working on improvements.</p>
-
-<p>It wasn't all smooth sailing with respect to the repo switch however. As the switch happened the WatchKit came out, and we had devoted quite a lot of time to building an app in it. Given that you <a href="http://www.elischiff.com/blog/2015/3/24/fear-of-apple">can't predict Apple</a>'s reactions, and you couldn't ship an app with an embedded watch app to the store, we opted to work on a branch from our private repo. <a href="https://github.com/artsy/eigen/pull/302">For months</a>. In the end it was easier to have the two folders next to each other, then copy &amp; paste over all the files and to set all the settings in the Xcode project again.</p>
-
-<p>One of the things that we found a bit sad about the transition to a new repo, is that it's hard to give past contributors recognition for their work. One of the ways we've worked around this is by having a file <a href="https://github.com/artsy/eigen/pull/409">documenting past contributors</a> in our repo.</p>
-
-<h3>Docs</h3>
-
-<p>We had to significantly update our README, and a lot of the process around bootstrapping. We wanted to reduce the friction to actually trying the app as much as possible. It's easy to look at the source on github but to be able to get it up and running quickly should be a really high priority. So our README is based on getting it up and running as an OSS project, not for someone internal who may push betas/releases.</p>
-
-<p>When we opened the repo, there <a href="https://github.com/artsy/eigen/pulls?q=is%3Apr+is%3Aclosed+sort%3Acreated-asc">were a lot</a> of documentation fix PRs - thanks <em>segiddins</em>, <em>neonichu</em> and <em>dkhamsing</em>. They have low barriers to entry, and fun to make for people looking through big projects. We still get them pretty regularly.</p>
-
-<h3>Secrets</h3>
-
-<p>There aren't large sections of the our app that we are keeping secret, though we have discussed ways in which we could. There is however a nice solution to having something different for OSS vs your internal team, API compatible CocoaPods. We <a href="/blog/2014/06/20/artsys-first-closed-source-pod/">do this</a> for our fonts in all apps. We've talked extensively about our <a href="/blog/2015/01/21/cocoapods-keys-and-CI/">tools for keeping</a> API keys secret, so no need to go over that twice.</p>
-
-<p>Other than that we had already been opening any good abstractions as CocoaPods for anyone to use. All our dependencies were packaged outside of the app, we had no crazy internal SDKs or anything worth hiding within the codebase.</p>
-
-<h3>Selling the idea</h3>
-
-<p>It's one thing to think that it's possible, it's another to do it. I'm glad that I am in a position where I can enact change. I felt no resistence in the process. I kept offering potential avenues for someone to stop me, too. I emailed the entire team as I started the process 2 weeks before it happened, I talked to anyone who might write issues or contribute from the design team. As I got further along the process and sent another email out that it was going to happen tomorrow. All I got were 👍 and 🎉s in <a href="https://itunes.apple.com/us/app/gifs/id961850017?l=en&amp;mt=12">GIF</a> form. So I kept moving forwards till that tweet above.</p>
-
-<p>From our dev team's perspective, this is not a brave new world. Our website, <a href="https://github.com/artsy/force-public">force</a>, is open source. Though they operate under different constraints.</p>
-
-<p>From the perspective of Artsy, even though opening our code aligns very strongly with our <a href="/blog/2015/03/31/the-culture-of-openness-artsy-mobile/">values of openness</a>, we are still a company. Opening up our codebase lets our competitors see what we're up to in advance, and <a href="http://code.dblock.org/2015/02/09/becoming-open-source-by-default.html">closed source</a> is still the norm for apps. Opening our code and process is also opening ourselves to criticism.</p>
-
-<h3>Evolution of the team</h3>
-
-<p>3 months on the way we operate has changed. We're a lot more organized, and the Eigen repo is easily the most well run project on the mobile team. It has <a href="https://github.com/artsy/eigen/milestones">active milestones</a>, that represent long term goals and the current sprint. We discuss a lot of the interesting cultural choices publicly on <a href="https://github.com/artsy/eigen/issues/221">issues</a> and in our <a href="https://github.com/artsy/mobile/issues">mobile team repo</a>. Having this app in the open, and the experience of doing so has also improved our workflow on other apps. Eidolon for example now runs with a similar structure.</p>
-
-<p><img src="/images/2015-04-28-open-sourcing-your-apps/sprint-planning-issue.png" alt="Sprint Planning Issue" /></p>
-
-<p>We found that people would use our issue structure to <a href="https://github.com/artsy/eigen/issues/324">ask</a> <a href="https://github.com/artsy/eigen/issues/313">questions</a> about Eigen itself. This was an unexpected positive outcome. It gave us a chance to re-think decisions and try to understand how we came to certain decisions that might not be documented anywhere.</p>
-
-<p>Our culture improved by open sourcing our app. As individuals, it's great to know that our work goes towards helping the larger community and all engineers love having a green profile.</p>
-
-<center>
-<img src="/images/2015-04-28-open-sourcing-your-apps/staying-green.png" alt="Staying Green">
-</center>
-
-
-<p>If you've not explored the idea of open sourcing your app, you should. We're happy to help out - <a href="https://github.com/artsy/mobile/issues/new">create an issue</a>. Or contact me personally, my email is on my <a href="https://github.com/orta">github profile</a>.</p>
 ]]></content>
   </entry>
   
