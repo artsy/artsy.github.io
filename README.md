@@ -4,7 +4,7 @@ The Artsy OSS page and the blog run on top of a default jekyll install. If you'd
 
 ```
   git clone git@github.com:artsy/artsy.github.io.git
-  cd artsy.github.com
+  cd artsy.github.io
   rake bootstrap
 ```
 
