@@ -77,9 +77,27 @@ The pattern was established pretty well by the time it was integrated [into Ener
 * The sharedInstance is [set up](https://github.com/artsy/energy/blob/a35969d232d8309fd2aedaae35f2dbdf6d505004/Classes/Util/App/ARSwitchBoard.m#L20-L31) with some of the other singletons, from that point on it only acts on properties it owns.
 * It deals with setting up entire [view hierarchies](https://github.com/artsy/energy/blob/a35969d232d8309fd2aedaae35f2dbdf6d505004/Classes/Util/App/ARSwitchBoard.m#L229-L259). Not just pushing another view on to a `UINavigationController`.
 
+### Internal Routing
+
+We try to make all view controllers that could represent a URL have two initializers; one that accepts a full model object and another that works off an ID. This means that we can provide as much context as we can initially, but can generate everything at runtime if you've come from a push notification or from another app.
+
+We use an internal routing tool to do the heavy-lifting here, currently this is [JLRoutes](https://cocoapods.org/pods/JLRoutes) which we use to map URLs to blocks and dictionaries.
+
+### Difficulties
+
+With Eigen we're trying to map the whole data-set of Artsy into a single app, which likely an architecture post of it's own. However, one of the issues we're having that really strains this metaphor is ambiguity in the routing system. For us this crops up in two places:
+
+  1. The URL [routing structure](https://github.com/artsy/eigen/pull/534) you're mapping against can change.
+
+  1. When one route could have [many types](https://github.com/artsy/eigen/blob/2eb00a8050a69ab2e05ffeb11a2bbdcbadf9fb7e/Artsy/App/ARSwitchBoard.m#L156) of data.
+
+Handling route a change is something that we ended up building an [API for](https://github.com/artsy/echo/blob/master/app/api/v1/presenters/route_presenter.rb). It provides a JSON package of routes and names, and Eigen updates it's routing internally.
+
+Having one route represent multiple _potential_ view controllers is tricky. We didn't want to introduce asynchronicity to the ARSwitchboard, so we use [polymorphic view controllers](https://github.com/artsy/eigen/blob/2eb00a8050a69ab2e05ffeb11a2bbdcbadf9fb7e/Artsy/View_Controllers/Fair/ARProfileViewController.m#L55-L66). This is a technique where the view controller returned then looks deeper into what it is representing and using child view controllers, embeds the true view controller inside itself.
+
 ### Alternatives
 
-We didn't need an ARSwitchboard in Eidolon. Which, so far always seems to be the exception in these architecture pattern posts. Instead we opted for Apple's [Dependency Injection tool](http://www.objc.io/issues/15-testing/dependency-injection/), Interface Builder + Storyboards. Energy pre-dates Storyboards, and they didn't feel like a good fit for Eigen.
+We didn't need an `ARSwitchboard` in Eidolon. Which, so far always seems to be the exception in these architecture pattern posts. Instead we opted for Apple's [Dependency Injection tool](http://www.objc.io/issues/15-testing/dependency-injection/#which-di-framework-should-i-use), Interface Builder + Storyboards. Energy pre-dates Storyboards, and they didn't feel like a good fit for Eigen.
 
 We found storyboards to be a really good replacement to this pattern when you have an established series of steps in your application. With some well defined connections.
 
