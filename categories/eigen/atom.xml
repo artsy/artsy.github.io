@@ -4,7 +4,7 @@
   <title><![CDATA[Category: eigen | Artsy Engineering]]></title>
   <link href="http://artsy.net/categories/eigen/atom.xml" rel="self"/>
   <link href="http://artsy.net/"/>
-  <updated>2015-08-17T11:29:57-04:00</updated>
+  <updated>2015-08-20T10:18:16-04:00</updated>
   <id>http://artsy.net/</id>
   <author>
     <name><![CDATA[]]></name>
@@ -12,6 +12,111 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Cocoa Architecture: ARSwitchboard]]></title>
+    <link href="http://artsy.net/blog/2015/08/18/Cocoa-Architecture:-Switchboard-Pattern/"/>
+    <updated>2015-08-18T20:00:00-04:00</updated>
+    <id>http://artsy.net/blog/2015/08/18/Cocoa-Architecture:-Switchboard-Pattern</id>
+    <content type="html"><![CDATA[<p>As a part of going through the design patterns we've found in the creation of the Artsy iOS apps, I'd like to introduce the Switchboard pattern. This evolved quite naturally out of <a href="/blog/2015/08/15/Cocoa-Architecture:-Router-Pattern/">ARRouter</a> when applied to generating view controllers instead of API requests.  <!-- more --></p>
+
+<hr />
+
+<h1>Where we started</h1>
+
+<p>In what must be one of my best named commits, <code>b9ff28</code> aka <em>"CREATING THE VOID"</em> introduced an <code>ARSwitchboard</code> to Eigen. Aside from this being the commit where I could finally write <code>[ARVoidViewController theVoid]</code> it added support for tapping an Artwork on the home-screen and going to another view controller.</p>
+
+<p>We knew up-front that we needed to emulate the website's URL schemes, so we needed to come up with a way to support two ways of loading up a view controller. Here's what it looked like:</p>
+
+<pre><code class="objc">@implementation ARSwitchBoard
+
++ (void)setupRouter {
+    artsyHosts = [NSSet setWithObjects:@"art.sy", @"artsyapi.com", @"artsy.net", nil];
+
+    [RCRouter map:@"/artwork/:id" to:self with:@selector(loadArtworkFromURL:)];
+}
+
++ (void)navigateToURL:(NSURL *)url {
+    if([self isInternalURL:url] &amp;&amp; [RCRouter canRespondToRoute:url.path]) {
+        [RCRouter dispatch:url.path];
+    } else {
+//        [self openInternalBrowser:url];
+    }
+}
+
++ (BOOL)isInternalURL:(NSURL *)url {
+    NSString * host = url.host;
+    if(host &amp;&amp; [host hasPrefix:@"www"]) {
+        host = [host substringFromIndex:3];
+    }
+
+    return (host &amp;&amp; [artsyHosts containsObject:host]);
+}
+
+#pragma mark -
+#pragma mark Artworks
+
++ (void)loadAttachmentCollection:(AttachmentCollection *)collection {
+    [[ARVoidViewController theVoid] loadArtworkViewWithAttachmentCollection:collection];
+}
+
++ (void)loadArtwork:(Artwork *)artwork {
+    AttachmentCollection * collection = [AttachmentCollection collectionWithItems:@[artwork] andIndex:0];
+    [self loadAttachmentCollection:collection];
+}
+
++ (void)loadArtworkFromURL:(NSDictionary *)options {
+    [[ARVoidViewController theVoid] loadArtworkViewWithID:options[@"id"]];
+}
+
+@end
+</code></pre>
+
+<p>It shows the pattern's humble origins quite well. The <code>ARSwitchboard</code> provides an API that any object can call, and it will handle presenting the view controller. Offering an API that can either use arbitrary URLs or model objects.</p>
+
+<h2>Where the pattern evolved</h2>
+
+<p>I initially wrote this during my "Class methods look prettier" stage. Our <code>ARSwitchboard</code> has evolved into using instance methods, and it uses a sharedInstance. This makes writing tests for the routing extremely simple for <a href="https://github.com/artsy/energy/blob/master/ArtsyFolio%20Tests/Util/ARSwitchboardTests.m">easy use cases</a>, and possible <a href="https://github.com/artsy/eigen/blob/2eb00a8050a69ab2e05ffeb11a2bbdcbadf9fb7e/Artsy_Tests/App_Tests/ARSwitchBoardTests.m">for the complex</a>.</p>
+
+<p>The pattern was established pretty well by the time it was integrated <a href="https://github.com/artsy/energy/blob/a35969d232d8309fd2aedaae35f2dbdf6d505004/Classes/Util/App/ARSwitchBoard.m">into Energy</a>. Some of it's highlights are:
+- The sharedInstance is <a href="https://github.com/artsy/energy/blob/a35969d232d8309fd2aedaae35f2dbdf6d505004/Classes/Util/App/ARSwitchBoard.m#L20-L31">set up</a> with some of the other singletons, from that point on it only acts on properties it owns.
+- It deals with setting up entire <a href="https://github.com/artsy/energy/blob/a35969d232d8309fd2aedaae35f2dbdf6d505004/Classes/Util/App/ARSwitchBoard.m#L229-L259">view hierarchies</a>. Not just pushing another view on to a <code>UINavigationController</code>.</p>
+
+<h2>Internal Routing</h2>
+
+<p>We try to make all view controllers that could represent a URL have two initializers; one that accepts a full model object and another that works off an ID. This means that we can provide as much context as we can initially, but can generate everything at runtime if you've come from a push notification or from another app.</p>
+
+<p>We use an internal routing tool to do the heavy-lifting here, currently this is <a href="https://cocoapods.org/pods/JLRoutes">JLRoutes</a> which we use to map URLs to blocks and dictionaries.</p>
+
+<h2>Difficulties</h2>
+
+<p>With Eigen we're trying to map the whole data-set of Artsy into a single app, which likely an architecture post of it's own. However, one of the issues we're having that really strains this metaphor is ambiguity in the routing system. For us this crops up in two places:
+- The URL <a href="https://github.com/artsy/eigen/pull/534">routing structure</a> you're mapping against can change.
+- When one route could have <a href="https://github.com/artsy/eigen/blob/2eb00a8050a69ab2e05ffeb11a2bbdcbadf9fb7e/Artsy/App/ARSwitchBoard.m#L156">many types</a> of data.</p>
+
+<p>Handling routes that changes is something we ended up building an <a href="https://github.com/artsy/echo/blob/master/app/api/v1/presenters/route_presenter.rb">API for</a>. It provides a JSON package of routes and names, and Eigen updates its routing internally.</p>
+
+<p>Having one route represent multiple <em>potential</em> view controllers is tricky. We didn't want to introduce asynchronicity to the <code>ARSwitchboard</code>, so we use <a href="https://github.com/artsy/eigen/blob/2eb00a8050a69ab2e05ffeb11a2bbdcbadf9fb7e/Artsy/View_Controllers/Fair/ARProfileViewController.m#L55-L66">polymorphic view controllers</a>. This is a technique where the view controller returned then looks deeper into what it is representing and using child view controllers, embeds the true view controller inside itself.</p>
+
+<h2>Future</h2>
+
+<p>Like all patterns, our <code>ARSwitchboard</code> pattern is evolving. With Eigen we have  a complicated navigation stack, due to supporting app-wide tabs and hosting navigation controllers inside view controllers. This adds additional logic to pretty complicated code when we're dealing with URLs that could be root elements of a tab. So we are planning to eventually move the presentation aspect of the <code>ARSwitchboard</code> into a separate object.</p>
+
+<h2>Alternatives</h2>
+
+<p>We didn't need an <code>ARSwitchboard</code> in Eidolon. Which, so far always seems to be the exception in these architecture pattern posts. Instead we opted for Apple's <a href="http://www.objc.io/issues/15-testing/dependency-injection/#which-di-framework-should-i-use">Dependency Injection tool</a>, Interface Builder + Storyboards. Energy pre-dates Storyboards, and they didn't feel like a good fit for Eigen.</p>
+
+<p>We found storyboards to be a really good replacement to this pattern when you have an established series of steps in your application with some well defined connections.</p>
+
+<p>As an example, our on-boarding process for Eigen probably should have been storyboarded, as it's a series of view controllers pushed incrementally. However given that the rest of Eigen is essentially a web of interconnected view controllers, we'd be abusing the tool.</p>
+
+<h2>Wrap up</h2>
+
+<p>So the Switchboard is a way that we've managed to contain some of the complexity around having web-like abilities to jump between any two view controllers. This pattern makes it easy to stub a switchboard in tests, and to easily test the routing itself.</p>
+
+<p>When I looked through some of the other open source iOS apps to compare the pattern, I couldn't find anything similar. So if you do have something similar, you should probably Open Source your app ;)</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Cocoa Architecture: ARRouter]]></title>
