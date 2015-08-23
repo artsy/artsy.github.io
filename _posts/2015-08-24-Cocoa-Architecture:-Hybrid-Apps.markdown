@@ -25,7 +25,7 @@ I gave the widest possible definition above, so let's dig in as this can be a co
 
 A great example of the furthest to the web-side is [ATOM](https://atom.io), the text editor. It's on the extreme side because all of the user interface is built using HTML + CSS, and almost all of the app is in javascript. The trade-off for them is that they can easy write cross-platform code, that will work reliably with technology that the vast majority of programmers use.
 
-An example of a purely native application would be [Energy](https://github.com/artsy/energy/). It is a hundred thousand plus lines of Objective-C. Yet under the hood, there's definitely some web-tech there. Prior to iOS7 `UILabel`s, `UITextField`s and `UITextField`s [used WebKit for rendering](http://www.objc.io/issues/5-ios7/getting-to-know-textkit/). Not to mention that when a Partner send's an email via Energy, the editor is a `UIWebView`. However, from the app developer's perspective they are creating native interactions that are consistent with the rest of the operating system's behavior.
+An example of a purely native application would be [Energy](https://github.com/artsy/energy/). It's over a hundred thousand plus lines of Objective-C. Yet under the hood, there's definitely some web-tech there. Prior to iOS7 `UILabel`s, `UITextField`s and `UITextField`s [used WebKit for rendering](http://www.objc.io/issues/5-ios7/getting-to-know-textkit/). Not to mention that when a Partner send's an email via Energy, the editor is a `UIWebView`. However, from the app developer's perspective they are creating native interactions that are consistent with the rest of the operating system's behavior.
 
 ### Eigen
 
@@ -35,13 +35,13 @@ That's not impossible, but the mobile team was a fraction of the Artsy developme
 
 So, we opted for building a highly integrated mobile website at the same time, it would use the same design language as the iOS app and can act as a way for Android devices to access Artsy.
 
-### Techniques for doing it well
+### Techniques for Doing It Well
 
 So we'll be talking about our [`ARInteralMobileViewContrller`](https://github.com/artsy/eigen/blob/6bb44a01c1b23fb8e92c645c3091fd33725743c3/Artsy/View_Controllers/Web_Browsing/ARInternalMobileWebViewController.m) - which currently relies on `UIWebView` but is in [the process of](https://github.com/artsy/eigen/pull/606) migrating to `WKWebkit`.
 
 * Scroll like an [iOS app](https://github.com/artsy/eigen/blob/6bb44a01c1b23fb8e92c645c3091fd33725743c3/Artsy/View_Controllers/Web_Browsing/ARExternalWebBrowserViewController.m#L39) by setting the web view's `scrollView.decelerationRate = UIScrollViewDecelerationRateNormal`.
 
-* Use a simple design language to avoid the [uncanny valley](http://tvtropes.org/pmwiki/pmwiki.php/Main/UncannyValley). Using different typographical rules on tabs, buttons or switches makes
+* Use a simple design language to avoid the [uncanny valley](http://tvtropes.org/pmwiki/pmwiki.php/Main/UncannyValley). Care about using the same typographical rules on everything including tabs, buttons and switches.
 
 * Take over navigation. This means pushing a [new view controller](https://github.com/artsy/eigen/blob/6bb44a01c1b23fb8e92c645c3091fd33725743c3/Artsy/View_Controllers/Web_Browsing/ARInternalMobileWebViewController.m#L180) on the navigation stack every time a user intends to change context.
 
@@ -57,8 +57,12 @@ When you choose developer ease over user experience it's important to take into 
 
 * Conforming to the operating system's Human Interface Guidelines is more difficult, as you're relying less on foundations built with this in mind.
 
-* Web tech is slower, and threading APIs are generally poor. A dfficulty here is that you are also complicating the technical stack upon which [your app sits above](https://twitter.com/sandofsky/status/634129798936162308).
+* Web tech is slower, and threading APIs are generally poor. A dfficulty here is that you are also complicating the technical stack upon which your app sits above. I often see Mac apps using a lot of web technologies using far more of my computer's resources than I'd like.
 
-The fact that we were able to ship an app at all was because we could build the most important parts native, then rely on web technologies to cover the rest of the ground.
+### Evolving
 
-The nature of doing it this way comes with trade-offs, ones that we've been willing to make so far.
+One of the most interesting developments this year in the Cocoa world is Facebook's [react-native](https://cocoapods.org/pods/React), a bridge between web technology and native code that doesn't rely on using the [traditional DOM](http://www.quirksmode.org/dom/intro.html) - freeing it from a lot of the common problems found in highly web-based apps.
+
+We're pretty optimistic about it on the mobile team. We're not quite willing to jump head-first into a [pre-1.0 technology](http://artsy.github.io/blog/2014/11/13/eidolon-retrospective/) again, but it shows a lot of promise.
+
+The fact that we were able to ship an app at all was because we could build the parts that meant the most to us native, then rely on web technologies to cover the rest of the ground. Giving us the chance to stand on the shoulders of giants.
