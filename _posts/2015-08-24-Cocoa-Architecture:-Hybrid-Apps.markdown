@@ -25,15 +25,15 @@ I gave the widest possible definition above, so let's dig in as this can be a co
 
 A great example of the furthest to the web-side is [ATOM](https://atom.io), the text editor. It's on the extreme side because all of the user interface is built using HTML + CSS, and almost all of the app is in javascript. The trade-off for them is that they can easy write cross-platform code, that will work reliably with technology that the vast majority of programmers use.
 
-An example of a purely native application would be [Energy](https://github.com/artsy/energy/). It is a hundred thousand plus lines of Objective-C. Yet under the hood, there's definitely some web-tech there. Prior to iOS7 nearly all `UILabel`s, `UITextField`s and `UITextField`s [used WebKit for rendering](http://www.objc.io/issues/5-ios7/getting-to-know-textkit/). Not to mention that when a Partner send's an email via Energy, the editor is a `UIWebView`. However, from the app developer's perspective they are creating native interactions that act consistent with the rest of the operating system.
+An example of a purely native application would be [Energy](https://github.com/artsy/energy/). It is a hundred thousand plus lines of Objective-C. Yet under the hood, there's definitely some web-tech there. Prior to iOS7 `UILabel`s, `UITextField`s and `UITextField`s [used WebKit for rendering](http://www.objc.io/issues/5-ios7/getting-to-know-textkit/). Not to mention that when a Partner send's an email via Energy, the editor is a `UIWebView`. However, from the app developer's perspective they are creating native interactions that are consistent with the rest of the operating system's behavior.
 
 ### Eigen
 
-When we started building Eigen, it was very obvious that we had a Sisyphean task ahead of us. We wanted to take the core ideas of the Artsy website, _The Art World Online_ and convert it into Mobile, _The Art World in Your Pocket_.
+When we started building Eigen, it was very obvious that we had a Sisyphean task ahead of us. We wanted to take the core ideas of the Artsy website, _The Art World Online_, and convert it into Mobile, _The Art World in Your Pocket_.
 
 That's not impossible, but the mobile team was a fraction of the Artsy development team. Any new features added to the website would need a mobile equivalent, and given the speed in which web developer's can ship, we'd need to outnumber them to stand a chance at keeping up.
 
-So, we opted for building a highly integrated mobile website at the same time, it would use the same design language as the iOS app and can act as a way for Android device to access Artsy.
+So, we opted for building a highly integrated mobile website at the same time, it would use the same design language as the iOS app and can act as a way for Android devices to access Artsy.
 
 ### Techniques for doing it well
 
@@ -55,10 +55,10 @@ When you choose developer ease over user experience it's important to take into 
 
 * OS features like [Dynamic Type](https://developer.apple.com/library/ios/documentation/UserExperience/Conceptual/TransitionGuide/AppearanceCustomization.html) are also a no-go.
 
-* Conforming to the Operating System's Human Interface Guidelines is more difficult, as you're relying less on foundations built with this in mind.
+* Conforming to the operating system's Human Interface Guidelines is more difficult, as you're relying less on foundations built with this in mind.
 
 * Web tech is slower, and threading APIs are generally poor. A dfficulty here is that you are also complicating the technical stack upon which [your app sits above](https://twitter.com/sandofsky/status/634129798936162308).
 
 The fact that we were able to ship an app at all was because we could build the most important parts native, then rely on web technologies to cover the rest of the ground.
 
-The nature of doing it this way comes with trade-offs, ones that we've been willing to make so far. 
+The nature of doing it this way comes with trade-offs, ones that we've been willing to make so far.
