@@ -15,8 +15,9 @@ twitter-url: 'http://twitter.com/orta'
 blog-url: 'http://orta.io'
 ---
 
-As a part of going through the design patterns we've found in the creation of the Artsy iOS apps, I'd like to talk a bit about _Hybrid Applications_. A hybrid application refers to an app that uses native code and web content intertwined. Our flagship iOS app, [eigen](https://github.com/artsy/eigen) is a hybrid app, and it seems to get more and more hybrid-y each release. Let's talk a little bit about the pros and cons of this approach. <!-- more -->
+As a part of going through the design patterns we've found in the creation of the Artsy iOS apps, I'd like to talk a bit about _Hybrid Applications_. A hybrid application refers to an app that uses native code and web content intertwined. Our flagship iOS app, [eigen](https://github.com/artsy/eigen) is a hybrid app, and it seems to get more and more hybrid-y each release. Let's talk a little bit about the pros and cons of this approach.
 
+<!-- more -->
 --------------------------------------------------------------------------------
 
 # What is a Hybrid App
@@ -35,16 +36,23 @@ So, we opted for building a highly integrated mobile website at the same time, i
 
 # Techniques for Doing It Well
 So we'll be talking about our [ARInteralMobileViewController](https://github.com/artsy/eigen/blob/6bb44a01c1b23fb8e92c645c3091fd33725743c3/Artsy/View_Controllers/Web_Browsing/ARInternalMobileWebViewController.m) - which currently relies on `UIWebView` but is in [the process of](https://github.com/artsy/eigen/pull/606) migrating to `WKWebkit`.
+
 - Scroll like an [iOS app](https://github.com/artsy/eigen/blob/6bb44a01c1b23fb8e92c645c3091fd33725743c3/Artsy/View_Controllers/Web_Browsing/ARExternalWebBrowserViewController.m#L39) by setting the web view's `scrollView.decelerationRate = UIScrollViewDecelerationRateNormal`.
+
 - Use a simple design language to avoid the [uncanny valley](http://tvtropes.org/pmwiki/pmwiki.php/Main/UncannyValley). Care about using the same [typographical rules](https://github.com/artsy/Artsy-UILabels) on everything including tabs, buttons and switches.
+
 - Take over navigation. This means pushing a [new view controller](https://github.com/artsy/eigen/blob/6bb44a01c1b23fb8e92c645c3091fd33725743c3/Artsy/View_Controllers/Web_Browsing/ARInternalMobileWebViewController.m#L180) on the navigation stack every time a user intends to change context.
+
 - Take over common OS features. We take over [social sharing](https://github.com/artsy/eigen/blob/master/Artsy/View_Controllers/Web_Browsing/ARInternalMobileWebViewController.m#L184-L190)  instead of letting the web site send you to an external page, offering a native share sheet instead.
 
 # Downsides
 When you choose developer ease over user experience it's important to take into consideration some of the downsides.
 - Localisation is difficult. Cocoa offers a great localisation APIs. We can't use them, otherwise half of our app is correctly localised and the rest isn't.
+
 - OS features like [Dynamic Type](https://developer.apple.com/library/ios/documentation/UserExperience/Conceptual/TransitionGuide/AppearanceCustomization.html) are also a no-go.
+
 - Conforming to the operating system's Human Interface Guidelines is more difficult, as you're relying less on foundations built with this in mind.
+
 - Web tech is slower, and threading APIs are generally poor. A difficulty here is that you are also complicating the technical stack upon which your app sits above. When relying on web-tech in a Mac app, it's common for that trade-off to show itself in excessive memory usage over time.
 
 # Evolution

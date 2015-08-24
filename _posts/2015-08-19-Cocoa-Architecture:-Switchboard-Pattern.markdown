@@ -16,8 +16,9 @@ twitter-url: 'http://twitter.com/orta'
 blog-url: 'http://orta.io'
 ---
 
-As a part of going through the design patterns we've found in the creation of the Artsy iOS apps, I'd like to introduce the Switchboard pattern. This evolved quite naturally out of [ARRouter](/blog/2015/08/15/Cocoa-Architecture:-Router-Pattern/) when applied to generating view controllers instead of API requests.  <!-- more -->
+As a part of going through the design patterns we've found in the creation of the Artsy iOS apps, I'd like to introduce the Switchboard pattern. This evolved quite naturally out of [ARRouter](/blog/2015/08/15/Cocoa-Architecture:-Router-Pattern/) when applied to generating view controllers instead of API requests.  
 
+<!-- more -->
 --------------------------------------------------------------------------------
 
 # Where we started
@@ -76,7 +77,9 @@ It shows the pattern's humble origins quite well. The `ARSwitchboard` provides a
 I initially wrote this during my "Class methods look prettier" stage. Our `ARSwitchboard` has evolved into using instance methods, and it uses a sharedInstance. This makes writing tests for the routing extremely simple for [easy use cases](https://github.com/artsy/energy/blob/master/ArtsyFolio%20Tests/Util/ARSwitchboardTests.m), and possible [for the complex](https://github.com/artsy/eigen/blob/2eb00a8050a69ab2e05ffeb11a2bbdcbadf9fb7e/Artsy_Tests/App_Tests/ARSwitchBoardTests.m).
 
 The pattern was established pretty well by the time it was integrated [into Energy](https://github.com/artsy/energy/blob/a35969d232d8309fd2aedaae35f2dbdf6d505004/Classes/Util/App/ARSwitchBoard.m). Some of it's highlights are:
+
 - The sharedInstance is [set up](https://github.com/artsy/energy/blob/a35969d232d8309fd2aedaae35f2dbdf6d505004/Classes/Util/App/ARSwitchBoard.m#L20-L31) with some of the other singletons, from that point on it only acts on properties it owns.
+
 - It deals with setting up entire [view hierarchies](https://github.com/artsy/energy/blob/a35969d232d8309fd2aedaae35f2dbdf6d505004/Classes/Util/App/ARSwitchBoard.m#L229-L259). Not just pushing another view on to a `UINavigationController`.
 
 ## Internal Routing
