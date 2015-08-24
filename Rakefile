@@ -37,8 +37,7 @@ desc 'Deploy the site to the gh_pages branch and push'
 task :deploy do
   FileUtils.rm_rf '_gh-pages'
   puts 'Cloning master branch...'
-  url = `git ls-remote --get-url origin`
-  puts `git clone #{url.strip} _gh-pages`
+  puts `git clone https://github.com/artsy/artsy.github.io.git _gh-pages`
   Dir.chdir('_gh-pages') do
     puts `git checkout master`
   end
