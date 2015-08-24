@@ -6,6 +6,12 @@ task :bootstrap do
   puts `bundle install`
 end
 
+desc 'Builds the site locally'
+task :build do
+  puts 'Building site.'
+  sh 'PRODUCTION="YES" bundle exec jekyll build -d _gh-pages'
+end
+
 # Deprecated, but leaving shortcut in because I'm sure Orta, at least, has this
 # in his muscle-memory.
 task :init => :bootstrap
@@ -45,8 +51,7 @@ task :deploy do
     puts `git pull origin master`
   end
 
-  puts 'Building site.'
-  puts `PRODUCTION="YES" bundle exec jekyll build -d _gh-pages`
+  Rake::Task['build'].invoke
 
   Dir.chdir('_gh-pages') do
     puts 'Pulling changes from server.'
@@ -61,6 +66,29 @@ task :deploy do
 
     puts 'Pushing to github.'
     puts `git push --quiet > /dev/null 2>&1`
+  end
+end
+
+namespace :deploy do
+
+  desc 'Run on Travis only; deploys the site when built on the source branch'
+  task :travis do
+    branch = ENV['TRAVIS_BRANCH'] # Ensure this command is only run on Travis.
+    pull_request = ENV['TRAVIS_PULL_REQUEST'] #Ensure this command is only not run on pull requests
+
+    abort 'Must be run on Travis' unless branch
+
+    if pull_request != 'false'
+      puts 'Skipping deploy for pull request; can only be deployed from source branch.'
+      exit 0
+    end
+
+    if branch != 'source'
+      puts "Skipping deploy for #{ branch }; can only be deployed from source branch."
+      exit 0
+    end
+
+    Rake::Task['deploy'].invoke
   end
 end
 
