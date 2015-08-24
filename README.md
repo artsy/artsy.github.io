@@ -20,10 +20,7 @@ Categories are generated when the ENV var `PRODUCTION` = `"YES"`.
 
 ## Deploying
 
-```
-  rake deploy
-```
-
+Travis CI will automatically deploy when new commits are pushed to the `source` branch, so you shouldn't need to deploy from your local computer. However, if you need to deploy locally, the `rake deploy` command is availble. 
 
 ## Authoring an Article
 
