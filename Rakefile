@@ -71,7 +71,7 @@ end
 
 namespace :deploy do
 
-  desc 'Run on Travis only; deploys the site when built on the master branch'
+  desc 'Run on Travis only; deploys the site when built on the source branch'
   task :travis do
     branch = ENV['TRAVIS_BRANCH'] # Ensure this command is only run on Travis.
     pull_request = ENV['TRAVIS_PULL_REQUEST'] #Ensure this command is only not run on pull requests
@@ -79,12 +79,12 @@ namespace :deploy do
     abort 'Must be run on Travis' unless branch
 
     if pull_request != 'false'
-      puts 'Skipping deploy for pull request; can only be deployed from master branch.'
+      puts 'Skipping deploy for pull request; can only be deployed from source branch.'
       exit 0
     end
 
-    if branch != 'master'
-      puts "Skipping deploy for #{ branch }; can only be deployed from master branch."
+    if branch != 'source'
+      puts "Skipping deploy for #{ branch }; can only be deployed from source branch."
       exit 0
     end
 
