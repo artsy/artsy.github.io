@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: networking | Artsy Engineering]]></title>
+  <link href="http://artsy.net/blog/categories/networking/atom.xml" rel="self"/>
+  <link href="http://artsy.net/"/>
+  <updated>2015-08-24T17:32:17+00:00</updated>
+  <id>http://artsy.net/</id>
+  <author>
+    <name><![CDATA[]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Transparent Prerequisite Network Requests with Swift and ReactiveCocoa]]></title>
+    <link href="http://artsy.net/blog/2014/09/22/transparent-prerequisite-network-requests/"/>
+    <updated>2014-09-22T11:26:00+00:00</updated>
+    <id>http://artsy.net/blog/2014/09/22/transparent-prerequisite-network-requests</id>
+    <content type="html"><![CDATA[<p>Artsy's <a href="http://developers.artsy.net">API</a> requires something called an <a href="https://developers.artsy.net/docs/authentication">XApp
+token</a> in order to perform
+requests. The token comes back with an expiry date, after which the token will
+no longer work. A new token will have to be fetched.</p>
+
+<pre><code class="json">{
+    "xapp_token": "SOME_TOKEN",
+    "expires_in":"2014-09-19T12:22:21.570Z"
+}
+</code></pre>
+
+<p>In our previous iOS apps, tragically written in Objective-C, we have a lot of
+code that looks like the following. <code>getXappTokenWithCompletion:</code> checks to
+make sure that there is a valid token. If there is, it invokes the completion
+block immediately. Otherwise, it fetches a token, sets it in a static variable,
+and then invokes the completion block.</p>
+
+<pre><code class="objc">[ArtsyAPI getXappTokenWithCompletion:^(NSString *xappToken, NSDate *expirationDate) {
+    [ArtsyAPI getSomething:^(NSDictionary *results) {
+       // do something
+    } failure:^(NSError *error) {
+        // handle herror
+    }];
+}];
+</code></pre>
+
+<p>That's kind of ugly. A better approach might be to embed the token-requesting
+logic within the <code>getSomething:</code> method. But that kind of sucks, since we'd have
+to reproduce that logic for <em>every</em> network-accessing method. If we have ten
+methods, that's ten times we need to duplicate that logic.</p>
+
+<p>With our <a href="https://github.com/artsy/eidolon">new app</a> (written in Swift), we're
+using a network abstraction layer we've created called <a href="https://github.com/AshFurrow/Moya">Moya</a>.
+Moya sits on top of <a href="https://github.com/Alamofire/Alamofire">Alamofire</a> and
+provides an abstraction for API endpoints. Instead of having ten different
+network-accessing methods, there is only <em>one</em> method to which you pass one of
+the ten different possible <code>enum</code> values. This means you have compile-time
+safety in your networking code, but that's not really what we're here to talk
+about.</p>
+
+<!-- more -->
+
+
+<p>Moya has this cool last-minute closure that it invokes to sign requests, so we
+can sign these requests like this.</p>
+
+<pre><code>var endpointsClosure = { (target: ArtsyAPI, method: Moya.Method, parameters: [String: AnyObject]) -&gt; Endpoint&lt;ArtsyAPI&gt; in
+        let endpoint: Endpoint&lt;ArtsyAPI&gt; = Endpoint&lt;ArtsyAPI&gt;(URL: url(target), sampleResponse: .Success(200, target.sampleData), method: method, parameters: parameters)
+
+        // Sign all non-XApp token requests
+        switch target {
+        case .XApp:
+            return endpoint
+        default:
+            return endpoint.endpointByAddingHTTPHeaderFields(["X-Xapp-Token": /* global XApp token */])
+        }
+    }
+</code></pre>
+
+<p>So that's kind of cool.</p>
+
+<p>Since there is only <em>one</em> method for accessing the API, we can easily inject
+the token-checking method there. Something like</p>
+
+<pre><code>public func XAppRequest(token: ArtsyAPI, completion: MoyaCompletion) {
+    if /* token is valid */ {
+        moyaProvider.sharedProvider.request(token, completion: completion)
+    } else {
+        moyaProvider.request(ArtsyAPI.XApp, completion: { (data, statusCode, error) -&gt; () in
+            /* store token somewhere */
+            moyaProvider.sharedProvider.request(token, completion: completion)
+        })
+    }
+}
+</code></pre>
+
+<p>That's <em>better</em>, but it's still kind of ugly. We've got duplicated code in
+there, and we're just kind of abstracting away the callback mess; it still
+exists, we just don't see if as often.</p>
+
+<p>OK, so what alternative is there? Well, Moya supports a <a href="https://github.com/ReactiveCocoa/ReactiveCocoa">ReactiveCocoa</a>
+extension that uses <em>signals</em> instead of callback closures. Super-cool. So we
+can rewrite our <code>XAppRequest</code> function to be the following.</p>
+
+<pre><code>private func XAppTokenRequest() -&gt; RACSignal {
+    let newTokenSignal = moyaProvider.request(ArtsyAPI.XApp).filterSuccessfulStatusCodes().mapJSON().doNext({ (response) -&gt; Void in
+        /* store new token globally */
+    }).logError().ignoreValues()
+
+    let validTokenSignal = RACSignal.`return`(/* does the token exist and is valid? */)
+    return RACSignal.`if`(validTokenSignal, then: RACSignal.empty(), `else`: newTokenSignal)
+}
+
+public func XAppRequest(token: ArtsyAPI) -&gt; RACSignal {
+    return XAppTokenRequest().then({ () -&gt; RACSignal! in
+        return moyaProvider.request(token, method: method, parameters: parameters)
+    })
+}
+</code></pre>
+
+<p>Neato. So we have abstracted the "check if there is a valid token and get one if
+there isn't" into its own private method called <code>XAppTokenRequest</code>. If the token
+exists and is valid, then the function returns <code>RACSignal.empty()</code>, a signal
+which completes immediately. Otherwise, we perform a fetch, which completes
+when the XApp token request is finished.</p>
+
+<p>Then we just need to use <code>then</code> on <code>RACSignal</code> to create a new signal that is
+generated once the <code>XAppTokenRequest</code> signal completes. Since the <code>then</code> closure
+is only invoked once the <code>XAppTokenRequest</code> signal completes, the newly created
+request signal will be generated after the token is set, which is ideal.</p>
+
+<p>All the code above is kind of simplified. That's OK, since it's just a proof of
+concept. If you want the full code, it's all available <a href="https://github.com/artsy/eidolon/blob/1804044dfa8b22d9f765a621a5dbde357440146c/Kiosk/App/ArtsyAPI.swift#L87-L112">on GitHub</a>
+and the conversation surrounding this change is in a <a href="https://github.com/artsy/eidolon/pull/29">merged pull request</a>.</p>
+
+<p>If you have run into this problem and have a different solution, we'd love to
+hear from you.</p>
+]]></content>
+  </entry>
+  
+</feed>

@@ -1,0 +1,765 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: mongodb | Artsy Engineering]]></title>
+  <link href="http://artsy.net/blog/categories/mongodb/atom.xml" rel="self"/>
+  <link href="http://artsy.net/"/>
+  <updated>2015-08-24T17:32:17+00:00</updated>
+  <id>http://artsy.net/</id>
+  <author>
+    <name><![CDATA[]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Building an English Auction with MongoDB]]></title>
+    <link href="http://artsy.net/blog/2014/04/17/building-an-english-auction-with-mongodb/"/>
+    <updated>2014-04-17T12:21:00+00:00</updated>
+    <id>http://artsy.net/blog/2014/04/17/building-an-english-auction-with-mongodb</id>
+    <content type="html"><![CDATA[<p>Artsy ran several successful auctions over the past few months. The first, <a href="https://artsy.net/feature/two-x-two">TWO x TWO</a>, raised hundreds of thousands of dollars for amfAR (the AIDS Research foundation), and the Dallas Museum of Art. It was followed by <a href="https://artsy.net/feature/ici-benefit-auction">Independent Curators International</a>, at which Artsy launched on-site auction projection screens, which displayed competing bids coming in online from places around the world, like Oslo and Santa Monica, in realtime. Users could place bids on the website, via the iPhone app or with one of the Artsy representatives in the room carrying an iPad.  All the auction lots sold, and Artsy helped ICI to raise 50% more than its target revenue goal. Other, recent Artsy auctions include <a href="https://artsy.net/feature/public-art-fund-2014-spring-benefit">Public Art Fund</a> and the <a href="https://artsy.net/feature/brooklyn-artists-ball">Brooklyn Artists Ball</a>, benefitting the Brooklyn Museum.</p>
+
+<p><img src="/images/2014-04-17-implementing-bidding-in-an-english-auction-with-mongodb/ici-live-auction.jpg" alt="ICI Auction: Live" /></p>
+
+<p>The domain of auctions is a fascinating one, and includes everything from buying items on eBay to trading livestock and selling investment products on the stock exchange. For those interested in the large spectrum of auctions I highly recommend <a href="http://www.sci.brooklyn.cuny.edu/~parsons/projects/mech-design/publications/bluffers-final.pdf">Auctions and bidding: A guide for computer
+scientists</a> by Simon Parsons (CUNY), Juan A. Rodriguez-Aguilar (CSIC) and Mark Klein (MIT).</p>
+
+<p>At Artsy we implemented a classic English auction with, so called, "book bids". I spent a fair amount of time visiting engineering teams that have built internet auctions, most of which were transactional systems where taking a position on an item involved starting a transaction, running an auction round and committing the changes. In contrast, we chose to deliver a simpler, eventually consistent system on top of MongoDB, in which all data is immutable and where some level of serialization occurs within a single background process.</p>
+
+<p>In this post we'll go over some data modeling and examine the auction engine implementation details.</p>
+
+<!-- more -->
+
+
+<h3>Data Modeling</h3>
+
+<p>In the Artsy platform, an <em>Auction</em> is an specialization of a more general concept of a <em>Sale</em>. A sale typically has an opening and a closing date, during which bidding or purchases can occur. We create a relationship between an artwork and a sale, which, in the case of an auction, includes the opening bid amount. We store all money in cents, and assume the currency to be USD, making it easy to extend the system for other currencies in the future.</p>
+
+<pre><code class="ruby">class SaleArtwork
+  include Mongoid::Document
+
+  field :opening_bid_cents, type: Integer
+
+  belongs_to :artwork, inverse_of: nil
+  belongs_to :sale
+
+  belongs_to :highest_bid, class_name: "Bid", inverse_of: nil
+
+  # Minimum next acceptable bid amount, in cents.
+  def minimum_next_bid_cents
+    return opening_bid_cents if highest_bid.nil? &amp;&amp; opening_bid_cents.present?
+    # calculate using a bid incrementing strategy ...
+  end
+end
+</code></pre>
+
+<p>A user registers to bid and creates a <em>Bidder</em> record.</p>
+
+<pre><code class="ruby">class Bidder
+  include Mongoid::Document
+
+  belongs_to :user
+  belongs_to :sale
+
+  has_many :positions, class_name: 'BidderPosition', inverse_of: :bidder
+end
+</code></pre>
+
+<p>This doesn't just mimic the real world where bidding typically requires registration - the bidder record doesn't belong to the user and contains essential data to identify an individual that is placing a bid. It also solves a very peculiar problem where a user decides to delete their account mid-auction. Finally, a bidder could eventually delegate bidding to an agent through this model's permissions.</p>
+
+<p>A bidder doesn't actually place any bids, but create a <em>Bidder Position</em>, which indicates the highest amount they are willing to pay for a given artwork.</p>
+
+<pre><code class="ruby">class BidderPosition
+  include Mongoid::Document
+
+  field :active, type: Boolean, default: true
+  field :max_bid_amount_cents, type: Integer
+
+  belongs_to :bidder, class_name: 'Bidder', inverse_of: :positions
+  belongs_to :sale_artwork
+  has_many :bids, inverse_of: :position
+
+  scope :active, where(active: true).asc(:max_bid_amount_cents)
+end
+</code></pre>
+
+<p>This is called a "book bid" - before technology took over the auctions world buyers delegated an agent to bid on their behalf after giving them a maximum amount they were willing to part with. Bidder positions belong to a bidder and to the artwork-to-sale relationship. They cannot be changed - if a user wants to increase his maximum bid, he simply creates a new bidder position.</p>
+
+<h3>Bidding Round</h3>
+
+<p>Every time a bidder position is created, a <em>Bidding Round</em> is queued for the item being bid on. We can parallelize execution of these by artwork, however all bidding rounds for the same artwork are serialized.</p>
+
+<pre><code class="ruby">class EnglishAuction
+  # Run multiple rounds of bidding for the given lot, to rest. Return number of bids generated.
+  def self.run!(sale_artwork)
+    return 0 unless sale_artwork.sale &amp;&amp; sale_artwork.sale.biddable?
+
+    round = EnglishAuction::Round.new(sale_artwork)
+    round.run!
+
+    round.bids_generated.size
+  end
+end
+</code></pre>
+
+<p>A bidding round iterates over all active bidder positions in ascending order by dollar value, outbids any bidders below the max bid, and places new bids, as necessary. The entire round algorithm is below.</p>
+
+<pre><code class="ruby"># A bidding round for an English auction.
+class Round
+  attr_accessor :bids_generated
+
+  # @param sale_artwork A relationship between an artwork and a sale.
+  def initialize(sale_artwork)
+    @sale_artwork = sale_artwork
+    @bids_generated = []
+  end
+
+  # Run multiple rounds of bidding, to rest.
+  def run!
+    while (bids = process_more_bids!).any? do
+      @bids_generated += bids
+    end
+  end
+
+  # Run one round of bidding. Return bids.
+  def process_more_bids!
+    @sale_artwork.bidder_positions.active.map do |bidder_position|
+      process_bidder_position!(bidder_position)
+    end.compact
+  end
+
+  # Process a single bid position.
+  # @returns Generated bid, if any.
+  def process_bidder_position!(bidder_position)
+
+    # ignore if current position is highest
+    return nil if bidder_position == @sale_artwork.highest_bid.try(:position)
+
+    # ignore if bidder is already highest
+    return nil if bidder_position.bidder == @sale_artwork.highest_bid.try(:position).try(:bidder)
+
+    # close if below opening bid
+    if bidder_position.max_bid_amount_cents &lt; (@sale_artwork.opening_bid_cents || 1)
+      bidder_position.deactivate! "Bid must be greater than the minimum bid of #{@sale_artwork.opening_bid_cents}."
+      return nil
+    end
+
+    amount_cents = @sale_artwork.minimum_next_bid_cents # opening bid or an increment thereafter
+
+    if bidder_position.max_bid_amount_cents &lt; amount_cents
+      highest_bid_amount = @sale_artwork.highest_bid.try(:amount_cents) || 0
+
+      # if max is between current and increment (or if it's at current, but earlier), bid max anyway
+      # this means that a bidder who placed an identical max bid earlier becomes the highest bidder
+      if bidder_position.max_bid_amount_cents &gt; highest_bid_amount ||
+        (bidder_position.max_bid_amount_cents == highest_bid_amount &amp;&amp; bidder_position.id &lt; @sale_artwork.highest_bid.position.id)
+        amount_cents = bidder_position.max_bid_amount_cents
+      else
+        # outbid, next bid must be at least amount_cents
+        bidder_position.update_attributes! active: false
+        return nil
+      end
+    end
+
+    # place a bid
+    bidder_position.bids.create!(attrs).tap do |bid|
+      @sale_artwork.update_attributes! highest_bid: bid
+    end
+  end
+end
+</code></pre>
+
+<p>One of the interesting aspects of this system is what happens when two users create two identical bidder positions - the earlier one wins and the later one is outbid. In a transactional system we could produce an error message to the second bidder before the position is even created.</p>
+
+<h3>Bidder Notifications</h3>
+
+<p>Notifying upon being "outbid" is straightforward, because a position only enters that state once, but notifying bidders of when they are the current high bidder or when their bid has been increased is trickier. We don't want to generate notifications every time a bid is made (i.e., it's the current high). Rather, we want to allow the round to reach a stable state at which there's only a single active position and then notify the current high and outbid bidders. This happens after each <code>round.run!</code>.</p>
+
+<h3>Beyond Bidding</h3>
+
+<p>Aside of the bidding implementation we've built a whole software ecosystem around auctions. We developed a backend system to manage these. We put up projection screens at the event that list works being auctioned and flash every time a bid is placed. We register users' credit cards and collect their money.</p>
+
+<p>The software part, however, is definitely dwarfed by the amount of logistics and people involved in making one of those auctions a success. We're only trying to make that a bit more efficient. We'll see you at the upcoming BAM Art Auction, SFMOMA Modern Ball or the Whitney Museum Art Party!</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Upgrading to Mongoid 4.x]]></title>
+    <link href="http://artsy.net/blog/2013/11/07/upgrading-to-mongoid4/"/>
+    <updated>2013-11-07T12:34:00+00:00</updated>
+    <id>http://artsy.net/blog/2013/11/07/upgrading-to-mongoid4</id>
+    <content type="html"><![CDATA[<p>I recently went through an exercise of upgrading one of Artsy's largest web projects to the current HEAD of Mongoid 4.x. This is going to be a major release with numerous changes and I wanted to flush out bugs before the final version of the ODM is released. All Mongoid changes currently live on <a href="https://github.com/mongoid/mongoid">master</a>.</p>
+
+<pre><code class="ruby">gem 'mongoid', github: 'mongoid/mongoid'
+</code></pre>
+
+<p>In the process I've worked on making a few gems compatible with Mongoid 4 and learned a couple of things that should help you make this process smooth for your own applications.</p>
+
+<!-- more -->
+
+
+<h2>Moped::BSON::ObjectId</h2>
+
+<p>Moped's BSON implementation has been removed in favor of the MongoDB bson gem 2.0 and higher. All <code>Moped::BSON</code> references must change to <code>BSON</code>. This is rather annoying and forces many libraries to have to fork behavior at runtime.</p>
+
+<pre><code class="ruby">module Mongoid
+  def self.mongoid3?
+    ::Mongoid.const_defined? :Observer # deprecated in Mongoid 4.x
+  end
+
+  def self.mongoid2?
+    ::Mongoid.const_defined? :Contexts # deprecated in Mongoid 3.x
+  end
+end
+</code></pre>
+
+<p>The <code>mongoid2?</code> implementation is borrowed from <a href="https://github.com/pyromaniac/mongoid_orderable">mongoid_orderable</a> and I wrote the <code>mongoid3?</code> version by parsing the CHANGELOG - observers are deprecated in 4.0.</p>
+
+<p>Now, instead of calling <code>Moped::BSON::ObjectId.legal?(id)</code>, you have to do something like this:</p>
+
+<pre><code class="ruby">if Mongoid.mongoid3?
+  Moped::BSON::ObjectId.legal? id
+else
+  BSON::ObjectId.legal? id
+end
+</code></pre>
+
+<p>Furthermore, you can no longer convert a string into a <code>Moped::BSON::ObjectId(id)</code>, you must explicitly call <code>from_string</code>:</p>
+
+<pre><code class="ruby">if Mongoid.mongoid3?
+  Moped::BSON::ObjectId(id)
+else
+  BSON::ObjectId.from_string(id)
+end
+</code></pre>
+
+<p>Libraries should then adjust their dependencies on Mongoid and specify <code>&gt;= 3.0</code>, and maybe <code>&lt; 5.0</code>.</p>
+
+<h2>Testing Against Multiple Mongoid Versions</h2>
+
+<p>The <a href="https://github.com/pyromaniac/mongoid_orderable">mongoid-orderable</a> gem has a neat system for testing against all versions of Mongoid with <a href="https://travis-ci.org/">Travis CI</a>. First, the <em>.travis.yml</em> file declares a test matrix that sets <code>MONGOID_VERSION</code>. Note that Mongoid 3.x or newer doesn't run with Ruby 1.8.x or 1.9.2.</p>
+
+<pre><code class="ruby .travis.yml">rvm:
+  - 1.8.7
+  - 1.9.2
+  - 1.9.3
+  - ruby-head
+
+env:
+  - MONGOID_VERSION=2
+  - MONGOID_VERSION=3
+  - MONGOID_VERSION=4
+
+matrix:
+  exclude:
+    - rvm: 1.8.7
+      env: MONGOID_VERSION=3
+    - rvm: 1.8.7
+      env: MONGOID_VERSION=4
+    - rvm: 1.9.2
+      env: MONGOID_VERSION=3
+    - rvm: 1.9.2
+      env: MONGOID_VERSION=4
+
+services: mongodb
+</code></pre>
+
+<p>The library's <em>Gemfile</em> locks a different version depending on the environment variable, defaulting to 3.x. You can also test against a very specific version, if you must.</p>
+
+<pre><code class="ruby Gemfile">source "http://rubygems.org"
+
+gemspec
+
+case version = ENV['MONGOID_VERSION'] || "~&gt; 3.1"
+when /4/
+  gem "mongoid", :github =&gt; 'mongoid/mongoid'
+when /3/
+  gem "mongoid", "~&gt; 3.1"
+when /2/
+  gem "mongoid", "~&gt; 2.8"
+else
+  gem "mongoid", version
+end
+</code></pre>
+
+<h2>Upgraded Gems</h2>
+
+<p>I used the above method to make a few gems Mongoid 4.x compatible, via the following pull requests.</p>
+
+<ul>
+<li><a href="https://github.com/digitalplaywright/mongoid-slug/pull/146">mongoid-slug</a></li>
+<li><a href="https://github.com/dblock/mongoid-scroll/commit/b67e2867b133cd6bd1b8361ea51409f80ae91ffd">mongoid-scroll</a></li>
+<li><a href="https://github.com/pyromaniac/mongoid_orderable/pull/18">mongoid_orderable</a></li>
+<li><a href="https://github.com/aq1018/mongoid-history/pull/83">mongoid-history</a></li>
+<li><a href="https://github.com/aaw/mongoid_collection_snapshot/pull/5">mongoid_collection_snapshot</a></li>
+<li><a href="https://github.com/joeyAghion/delayed_job_shallow_mongoid/pull/6">delayed_job_shallow_mongoid</a></li>
+</ul>
+
+
+<h2>Upgrading a Rails Project</h2>
+
+<p>If you're using Rails, you're in for upgrading both Mongoid 4.x and Rails to 4.x. This means you will suffer a lot of pain trying to find compatible versions of various interdependent gems. I suggest locking Rails, Mongoid and ActiveSupport to begin with.</p>
+
+<pre><code class="ruby Gemfile">gem 'rails', '4.0.1'
+gem 'activesupport', '4.0.1'
+gem 'mongoid', github: 'mongoid/mongoid'
+</code></pre>
+
+<p>Bulk search &amp; replace <code>Moped::BSON::ObjectId</code> references.</p>
+
+<p>Calls to <code>inc</code>, <code>set</code> and <code>add_to_set</code> now take hashes, eg. <code>artist.inc(likes_count: 1)</code>.</p>
+
+<p>If you're converting Mongoid objects to JSON and seeing data such as <code>{ "$oid" =&gt; "..." }</code> instead of an ID, monkey-patch <code>BSON::ObjectId.as_json</code>. See <a href="https://groups.google.com/forum/#!msg/mongoid/MaXFVw7D_4s/T3sl6Flg428J">this discussion thread</a>.</p>
+
+<pre><code class="ruby config/initializers/bson/object_id.rb">module BSON
+  class ObjectId
+    def as_json(options = {})
+      to_s
+    end
+  end
+end
+</code></pre>
+
+<p>If you're using Warden (including via Devise) and/or rely on session cookies that may contain a user ID, add an implementation for the deprecated <code>Moped::BSON::Document</code>. This will prevent all old cookies from causing a serialization error and logging all those users out.</p>
+
+<pre><code class="ruby config/initializers/bson/">module Moped
+  module BSON
+    ObjectId = ::BSON::ObjectId
+
+    class Document &lt; Hash
+      class &lt;&lt; self
+        def deserialize(io, document = new)
+          __bson_load__(io, document)
+        end
+
+        def serialize(document, io = "")
+          document.__bson_dump__(io)
+        end
+      end
+    end
+  end
+end
+</code></pre>
+
+<h2>Updates</h2>
+
+<p>Please post your updates below and questions to the <a href="https://groups.google.com/forum/#!forum/mongoid">mongoid mailing list</a>. I'll update this post up until Mongoid 4.x ships.</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Infinite Scroll with MongoDB]]></title>
+    <link href="http://artsy.net/blog/2013/02/15/infinite-scroll-with-mongodb/"/>
+    <updated>2013-02-15T21:21:00+00:00</updated>
+    <id>http://artsy.net/blog/2013/02/15/infinite-scroll-with-mongodb</id>
+    <content type="html"><![CDATA[<p>An infinite scroll can be a beautiful and functional way to present feed data. You can see ours on the <a href="https://artsy.net/">homepage of artsy.net</a>. It works by fetching a few items from the API, then fetching some more items as the user scrolls down the feed. Each API call returns the items along with a "cursor", which marks the position of the last item retrieved. Subsequent API calls include the cursor in the query string and the iteration resumes from there.</p>
+
+<p>Why use a cursor and not standard pagination? Because inserting an item on top of the feed would shift the existing items down, causing the API to return a duplicate item on the page boundary. Removing an item from the top of the feed would pull the remaining items up, causing an item to be missed in the next request on the page boundary.</p>
+
+<p>Today we're open-sourcing a small gem called <a href="https://github.com/dblock/mongoid-scroll">mongoid-scroll</a>, which implements this cursor-like behavior for MongoDB using mongoid or moped. Here's how it works.</p>
+
+<!-- more -->
+
+
+<h2>Example</h2>
+
+<p>Define a sample <code>FeedItem</code> model with an index on <code>position</code>. We'll be iterating over our feed, starting with the newest item first.</p>
+
+<pre><code class="ruby">module Feed
+  class Item
+    include Mongoid::Document
+    field :title, type: String
+    field :position, type: Integer
+    index({ position: -1, _id: 1 })
+  end
+end
+</code></pre>
+
+<p>Insert some sample unordered data manufactured with <a href="https://github.com/stympy/faker">faker</a>.</p>
+
+<pre><code class="ruby">total_items = 20
+rands = (0..total_items).to_a.sort { rand }[0..total_items]
+total_items.times do |i|
+  Feed::Item.create! title: Faker::Lorem.sentence, position: rands.pop + 1
+end
+</code></pre>
+
+<p>Iterate over this collection using a cursor, 7 items at a time.</p>
+
+<pre><code class="ruby">next_cursor = nil
+while true
+  current_cursor = next_cursor
+  next_cursor = nil
+  Feed::Item.desc(:position).limit(7).scroll(current_cursor) do |item, cursor|
+    puts "#{item.position}: #{item.title}"
+    next_cursor = cursor
+  end
+  break unless next_cursor
+  # destroy an item, the scroll is not affected
+  Feed::Item.desc(:position).first.destroy
+end
+</code></pre>
+
+<p>The result is, as expected, all 20 items in reverse order.</p>
+
+<pre><code class="text">20: Quae eveniet est a.
+19: Ab voluptatem aut possimus.
+18: Tenetur voluptatem aut modi eos et fugiat ipsa impedit.
+17: Autem enim qui illum ut sed et et pariatur.
+16: Est molestias quidem adipisci culpa non.
+15: Incidunt ad atque minus fuga illum ex earum.
+14: Ullam et cum harum tempore nostrum consequatur.
+13: Porro nostrum laboriosam aperiam blanditiis est.
+12: Facere non a vel est sapiente sit officiis.
+11: Itaque commodi deserunt aut exercitationem aut voluptatem.
+10: Veritatis mollitia libero hic velit quos.
+9: Iste ea dicta ut culpa.
+8: Voluptatibus vel et minima.
+7: Possimus molestiae quis consectetur iusto sed.
+6: Aut fugit omnis incidunt.
+5: Recusandae corrupti est in dolor est commodi aut.
+4: Tenetur veniam ut id.
+3: Voluptas exercitationem eos quia rem quia quas qui quae.
+2: Eveniet repellendus corrupti molestiae molestias qui ullam.
+1: Sapiente impedit iste quos eligendi cupiditate accusantium ad.
+</code></pre>
+
+<p>We've used 4 queries to iterate over this collection.</p>
+
+<h2>First Query</h2>
+
+<p>The first ordered query without an existing cursor uses a <code>limit</code>.</p>
+
+<pre><code class="javascript">db.feed_items.find().sort({ position: -1, _id: -1 }).limit(7)
+</code></pre>
+
+<p>The last item returned has a position of 14 (we scrolled from 20 down to 14, including the boundaries).</p>
+
+<h2>Second and Third Query</h2>
+
+<p>The second ordered query has to fetch any item that comes after 14, including any other item that has the same position further in the same direction as the MongoDB order (there're no duplicates in our example, but it's entirely possible).</p>
+
+<pre><code class="javascript">db.feed_items.find({ "$or" : [
+ { "position" : { "$lt" : 14 }},
+ { "position" : 14, "_id": { "$lt" : ObjectId("511d7c7c3b5552c92400000e") }}
+]}).sort({ position: -1, _id: -1 }).limit(7)
+</code></pre>
+
+<p>Note that we're sorting by <code>_id</code> as well because MongoDB may relocate a document and therefore alter the natural order. See <a href="https://github.com/dblock/mongoid-scroll/commit/3cd75ded93f82adfcb1c17a8b9c98715c536b680">this commit</a> for a test that reproduces this behavior.</p>
+
+<h2>Last Query</h2>
+
+<p>We've chosen to break out of the loop after getting no data back in the 4th iteration. You can check whether the item retrieved is the last one in the collection as an alternative to prevent this fourth empty database query.</p>
+
+<h2>Cursors</h2>
+
+<p>Cursors consist of the item's position and the item's BSON id. The cursor for the item at position 14 is <code>14:511d7c7c3b5552c92400000e</code>. This cursor is parsed to construct the query on subsequent requests or can be supplied as a <code>Mongoid::Scroll::Cursor</code> object.</p>
+
+<h2>Links</h2>
+
+<ul>
+<li><a href="https://github.com/dblock/mongoid-scroll">mongoid-scroll on Github</a></li>
+</ul>
+
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Data Corruption and Concurrent Updates to Embedded Objects with MongoDB]]></title>
+    <link href="http://artsy.net/blog/2013/02/09/data-corruption-and-concurrent-updates-to-embedded-objects-with-mongoid/"/>
+    <updated>2013-02-09T21:21:00+00:00</updated>
+    <id>http://artsy.net/blog/2013/02/09/data-corruption-and-concurrent-updates-to-embedded-objects-with-mongoid</id>
+    <content type="html"><![CDATA[<p>We use <a href="http://www.mongodb.org/">MongoDB</a> at Artsy as our primary data store via the <a href="http://mongoid.org/">Mongoid ODM</a>. Eventually, we started noticing data corruption inside embedded objects at an alarming rate of 2-3 records a day. The number of occurrences increased rapidly with load as our user growth accelerated.</p>
+
+<p>The root cause was not a HN-worthy sensational declaration about how MongoDB trashes data, but our lack of understanding of what can and cannot be concurrently written to the database, neatly hidden behind the object data mapping layer.</p>
+
+<!-- more -->
+
+
+<h3>Data Model</h3>
+
+<p>Consider the following artwork model with embedded images.</p>
+
+<pre><code class="ruby">class Artwork
+  include Mongoid::Document
+  field :title, type: String
+  embeds_many :images
+end
+
+class Image
+  include Mongoid::Document
+  embedded_in :artwork
+  field :filename, type: String
+  field :width, type: Integer  
+  field :height, type: Integer
+end
+</code></pre>
+
+<p>Let's create a few objects and examine the database queries executed when constructing this relationship by setting a <code>DEBUG</code> logger level on the Moped driver used underneath the ODM.</p>
+
+<pre><code class="ruby">Moped.logger = Logger.new($stdout)
+Moped.logger.level = Logger::DEBUG
+
+# db.artworks.insert({ 
+#   _id: ObjectId("510f22c5db8e540aab000001"), 
+#   title: "Mona Lisa" 
+# })
+artwork = Artwork.create!(title: "Mona Lisa")
+
+image1 = Image.new(filename: "framed.jpg")
+
+# db.artworks.update(
+#   { _id: ObjectId("510f22c5db8e540aab000001") },
+#   { $push : 
+#     { images: 
+#       { 
+#         _id: ObjectId("510f22c5db8e540aab000002"), 
+#         filename: "framed.jpg" 
+#       }
+#     }
+#   }
+# )
+artwork.images &lt;&lt; image1
+
+image2 = Image.new(filename: "unframed.jpg")
+# db.artworks.update(
+#   { _id: ObjectId("510f22c5db8e540aab000001") },
+#   { $push : 
+#     { images: 
+#       { 
+#         _id: ObjectId("510f22c5db8e540aab000003"), 
+#         filename: "unframed.jpg" 
+#       }
+#     }
+#   }
+# )
+artwork.images &lt;&lt; image2
+</code></pre>
+
+<p>Here's the artwork data in MongoDB retrieved from a <code>mongo</code> shell:</p>
+
+<pre><code>&gt; db.artworks.findOne()
+{
+  "_id" : ObjectId("510f22c5db8e540aab000001"),
+  "title" : "Mona Lisa",
+  "images" : [
+    {
+      "_id" : ObjectId("510f22c5db8e540aab000002"),
+      "filename" : "framed.jpg"
+    },
+    {
+      "_id" : ObjectId("510f22c5db8e540aab000003"),
+      "filename" : "unframed.jpg"
+    }
+  ]
+}
+</code></pre>
+
+<p>We can modify the attributes of the second image.</p>
+
+<pre><code class="ruby"># db.artworks.update(
+#   { _id: ObjectId("510f22c5db8e540aab000001") }, 
+#   { $set : { "images.1.width" : 30, "images.1.height" : 40 } }
+# )
+image2.update_attributes!(width: 30, height: 40)
+</code></pre>
+
+<p>The image has been updated correctly.</p>
+
+<pre><code>&gt; db.artworks.findOne()
+{
+  "_id" : ObjectId("510f22c5db8e540aab000001"),
+  "title" : "Mona Lisa",
+  "images" : [
+    {
+      "_id" : ObjectId("510f22c5db8e540aab000002"),
+      "filename" : "framed.jpg"
+    },
+    {
+      "_id" : ObjectId("510f22c5db8e540aab000003"),
+      "filename" : "unframed.jpg",
+      "height" : 40,
+      "width" : 30
+    }
+  ]
+}
+</code></pre>
+
+<h3>Incomplete Record Corruption</h3>
+
+<p>Examining the query you will notice that it uses a so-called "positional" operator, <code>images.1.width</code> to update the second record. Imagine what would happen if the first record was deleted from another process immediately before the update. That's right, the update will be performed on a record that doesn't exist, in which case the default MongoDB behavior is to create it!</p>
+
+<p>We can simulate this by loading the object in Ruby, pulling the first record directly from the database and then performing the update.</p>
+
+<pre><code class="ruby">artwork.images &lt;&lt; image2
+
+# pull the first artwork directly from the database
+Artwork.collection.where(_id: artwork.id).update(
+  "$pull" =&gt; { "images" =&gt; { _id: image1.id } })
+
+image2.update_attributes!(width: 30, height: 40)
+</code></pre>
+
+<p>This yields a nasty surprise. We now have two records in the embedded collection, the second one missing an <code>_id</code>.</p>
+
+<pre><code>&gt; db.artworks.findOne()
+{
+  "_id" : ObjectId("510f22c5db8e540aab000001"),
+  "title" : "Mona Lisa",
+  "images" : [
+    {
+      "_id" : ObjectId("510f22c5db8e540aab000003"),
+      "filename" : "unframed.jpg"
+    },
+    {
+      "height" : 40,
+      "width" : 30
+    }
+  ]
+}
+</code></pre>
+
+<p>When reloaded, Mongoid will assign an automatic <code>_id</code> to the second object, the correct height and width, but no filename.</p>
+
+<h3>Null Record Corruption</h3>
+
+<p>A similar scenario can play out by pulling both image records out of the embedded collection and making a positional update. This will create a <code>null</code> record, which is much worse, because Mongoid can't even destroy it, attempting to pull a record with an <code>_id</code> that does not exist.</p>
+
+<pre><code class="ruby">artwork.images &lt;&lt; image2
+
+Artwork.collection.where(_id: artwork.id).update(
+  "$pull" =&gt; { "images" =&gt; { _id: image1.id } })
+Artwork.collection.where(_id: artwork.id).update(
+  "$pull" =&gt; { "images" =&gt; { _id: image2.id } })
+
+image2.update_attributes!(width: 30, height: 40)
+</code></pre>
+
+<pre><code>&gt; db.artworks.findOne()
+{
+  "_id" : ObjectId("510f22c5db8e540aab000001"),
+  "title" : "Mona Lisa"
+  "images" : [
+    null,
+    {
+      "height" : 40,
+      "width" : 30
+    }
+  ],
+}
+</code></pre>
+
+<h3>Solutions</h3>
+
+<p>A first obvious solution is not to use embedded objects or to never modify them. Both <code>$push</code> and <code>$pull</code> are atomic operations, but not the positional update.</p>
+
+<p>A general solution to this problem is to make all update operations transactional. You can take a lock on the parent model by using <a href="https://github.com/afeld/mongoid-locker">mongoid-locker</a>. It works, but can be quite tedious depending on the complexity of your application.</p>
+
+<p>Finally, MongoDB supports something called a "positional operator" for embedded objects. This means you can atomically update a record found by its embedded object's field using a reference to the position of that embedded object. This solves our problem, as long as the object is not embedded below the first level. Mongoid 3.1 (currently HEAD) implements this behavior by default (see <a href="https://github.com/mongoid/mongoid/issues/2545">#2545</a> for details), adjusting the selector to look for the embedded object's <code>_id</code> and replacing the position with a <code>$</code> positional operator.</p>
+
+<pre><code class="ruby"># db.artworks.update(
+#   { 
+#     _id: ObjectId("510f22c5db8e540aab000001"), 
+#     "images._id" : ObjectId("510f22c5db8e540aab000003") 
+#   }, 
+#   { $set : { "images.$.width" : 30, "images.$.height" : 40 }}
+# )
+image2.update_attributes!(width: 30, height: 40)
+</code></pre>
+
+<p>We've been successfully running this in production for a few weeks now, without any more data corruption issues.</p>
+
+<p>While this is a huge step forward, covering all of our application's scenarios, we would like complete native support for atomic updates inside MongoDB at all levels of nesting. Please add your +1 to <a href="https://jira.mongodb.org/browse/SERVER-831">SERVER-831</a>.</p>
+
+<h3>Links</h3>
+
+<ul>
+<li><a href="https://gist.github.com/dblock/4699070">Code to Detect Corrupt Embedded Objects</a></li>
+<li><a href="https://jira.mongodb.org/browse/SERVER-831">MongoDB SERVER-831: Positional Operator Matching Nested Arrays</a></li>
+<li><a href="https://github.com/mongoid/mongoid/issues/2545">Mongoid #2545: Use $ Positional Operator for Updating Embedded Documents</a></li>
+<li><a href="https://github.com/dblock/mongoid/tree/master-issues/spec/dblock">Repro Specs for Mongoid #2545 and Similar</a></li>
+</ul>
+
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Create MongoDB Command-Lines from Mongoid Configuration]]></title>
+    <link href="http://artsy.net/blog/2013/01/31/create-mongodb-command-lines-with-mongo/"/>
+    <updated>2013-01-31T21:21:00+00:00</updated>
+    <id>http://artsy.net/blog/2013/01/31/create-mongodb-command-lines-with-mongo</id>
+    <content type="html"><![CDATA[<p>We use MongoDB as our primary store and have built a healthy amount of automation around various database instances and operational environments. For example, we backup databases to S3 using <code>mongodump</code>, mirror data between instances with <code>mongorestore</code> and often need to open a MongoDB shell with <code>mongo</code> to examine data at the lowest level.</p>
+
+<p>Generating MongoDB command-lines is tedious and error-prone. Introducing a new gem called <a href="https://github.com/dblock/mongoid-shell">mongoid-shell</a> to help with this. The library can generate command-lines for various MongoDB shell tools from your Mongoid configuration.</p>
+
+<p>For example, connect to your production MongoDB instance from a <code>db:production:shell</code> Rake task.</p>
+
+<pre><code class="ruby">namespace :db
+  namespace :production
+    task :shell
+      Mongoid.load! "mongoid.yml", :production
+      system Mongoid::Shell::Commands::Mongo.new.to_s
+    end
+  end
+end
+</code></pre>
+
+<!-- more -->
+
+
+<p>Commands can be created for the current default session or you can pass a session as an argument to a new command.</p>
+
+<pre><code class="ruby"># will use Mongoid.default_session
+Mongoid::Shell::Commands::Mongodump.new
+
+# use a hand-crafted session
+s = Moped::Session.new([ "127.0.0.1:27017" ])
+Mongoid::Shell::Commands::Mongodump.new(session: s)
+</code></pre>
+
+<p>Commands accept parameters. Here's how to backup <code>my_database</code> to <code>/tmp/db_backup</code>.</p>
+
+<pre><code class="ruby">out = File.join(Dir.tmpdir, 'db_backup')
+db = 'my_database'
+dump = Mongoid::Shell::Commands::Mongodump.new(db: db, out: out)
+# mongodump --db my_database --out /tmp/db_backup
+system dump.to_s
+</code></pre>
+
+<p>The mongoid-shell gem currently supports <code>mongo</code>, <code>mongodump</code>, <code>mongorestore</code> and <code>mongostat</code> and various MongoDB configurations, including replica-sets.</p>
+
+<p>Please note that we don't recommend you store passwords for production environments in your <code>mongoid.yml</code>. At Artsy, we set all sensitive values directly on our Heroku instances with <code>heroku config:add</code> and use <a href="https://github.com/dblock/heroku-commander">heroku-commander</a> to retrieve these settings in rake. We also have a bit of convention in our application name, such as "app-staging" and "app-production".</p>
+
+<p>Here's a complete Rake task that dynamically fetches Heroku configuration and opens a MongoDB shell on a production or staging environment.</p>
+
+<pre><code class="ruby">namespace :db do
+  [ :staging, :production ].each do |env|
+    namespace env do
+      task :shell do
+        app = "myapp-#{env}"
+        config = Heroku::Commander.new(app: app).config
+        config.each_pair do |k, v|
+          ENV[k] = v
+        end
+        mongoid_yml = File.join(Rails.root, "config/mongoid.yml")
+        Mongoid.load! mongoid_yml, env
+        system Mongoid::Shell::Commands::Mongo.new.to_s
+      end
+    end
+  end
+end
+</code></pre>
+
+<p>Run <code>rake db:staging:shell</code> or <code>rake db:production:shell</code>, which works as long as you have access to the Heroku app itself. A bonus feature is that the mongoid-shell gem will automatically connect to the primary node of a replica-set.</p>
+
+<pre><code>$ rake db:staging:shell
+ mongo db:10007/app-staging --username user --password ************
+ MongoDB shell version: 2.0.7
+ connecting to: db:10007/app-staging
+ &gt;
+</code></pre>
+]]></content>
+  </entry>
+  
+</feed>

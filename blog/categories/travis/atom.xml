@@ -1,0 +1,365 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: travis | Artsy Engineering]]></title>
+  <link href="http://artsy.net/blog/categories/travis/atom.xml" rel="self"/>
+  <link href="http://artsy.net/"/>
+  <updated>2015-08-24T17:32:17+00:00</updated>
+  <id>http://artsy.net/</id>
+  <author>
+    <name><![CDATA[]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Using CocoaPods Caching with Travis CI]]></title>
+    <link href="http://artsy.net/blog/2014/08/08/CocoaPods-Caching/"/>
+    <updated>2014-08-08T11:46:00+00:00</updated>
+    <id>http://artsy.net/blog/2014/08/08/CocoaPods-Caching</id>
+    <content type="html"><![CDATA[<p>As <a href="http://artsy.github.io/blog/2014/08/07/taking-a-snapshot-with-second-curtain/">Ash said earlier</a> we like using Continuous Integration. Today I spent a large amount of time migrating us to use the new CocoaPods caching system in Travis CI. To make up for my lost time I'm passing on what I've learned and also showing how we do CI at Artsy with Objective-C apps. If you're interested in how we do it in Swift, you can just check <a href="https://github.com/artsy/eidolon">Eidolon</a>.</p>
+
+<!-- more -->
+
+
+<p>First and foremost, this only works if you are paying for Travis CI.</p>
+
+<p>Travis CI recently merged in support for <a href="http://docs.travis-ci.com/user/caching/">Caching of CocoaPods</a> - this is great! By using this, we've reduced our build times from an average of about 10 minutes, to about 7 minutes. It works by using your <code>Podfile.lock</code> as a key to cache your <code>Pods</code> directory, if the lock hasn't changed then there's no need to update the Cache and so <code>pod install</code> is not called on your project. This caused me an issue as the <code>[Project].xcworkspace</code> file that CocoaPods generates was not in source control, and the app wouldn't build. Useful note, if you're using <a href="http://guides.cocoapods.org/syntax/podfile.html#pod">development pods</a> in your build you probably shouldn't use this as your Pods directory can get out of sync with the cached version.</p>
+
+<p>We use a <a href="https://github.com/artsy/eidolon/blob/master/Makefile">Makefile</a> to separate the tasks required to build, test and deploy an app. The general structure of our Makefile is:</p>
+
+<table>
+<thead>
+<tr>
+<th> Action        </th>
+<th> Reason </th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td> Constants </td>
+<td> A collection of constants that get resued by different make tasks. </td>
+</tr>
+<tr>
+<td> CI Tasks </td>
+<td> Separate commands necessary for running Xcode projects from the terminal. </td>
+</tr>
+<tr>
+<td> Actions </td>
+<td> Commands that manipulate your project state, or maintainance commands. </td>
+</tr>
+<tr>
+<td> Deployment </td>
+<td> Commands to get your app ready for the App Store, or Hockey. </td>
+</tr>
+</tbody>
+</table>
+
+
+<p>If you don't know the syntax for Make, essentially if it's on the same line you're either setting constants or calling other make commands. If it's on a separate line then you are running a shell command.</p>
+
+<p>This is the <a href="http://orta.io/#folio-header-unit">Artsy Folio</a> Makefile in full:</p>
+
+<pre><code class="make"># Constants
+
+WORKSPACE = Artsy Folio.xcworkspace
+XCPROJECT = Artsy\ Folio.xcodeproj
+SCHEME = ArtsyFolio
+CONFIGURATION = Beta
+APP_PLIST = Info.plist
+PLIST_BUDDY = /usr/libexec/PlistBuddy
+TARGETED_DEVICE_FAMILY = \"1,2\"
+
+BUNDLE_VERSION = $(shell $(PLIST_BUDDY) -c "Print CFBundleVersion" $(APP_PLIST))
+GIT_COMMIT = $(shell git log -n1 --format='%h')
+ALPHA_VERSION = $(BUNDLE_VERSION)-$(BUILD_NUMBER)-$(GIT_COMMIT)
+
+GIT_COMMIT_REV = $(shell git log -n1 --format='%h')
+GIT_COMMIT_SHA = $(shell git log -n1 --format='%H')
+GIT_REMOTE_ORIGIN_URL = $(shell git config --get remote.origin.url)
+
+DATE_MONTH = $(shell date "+%e %h")
+DATE_VERSION = $(shell date "+%Y.%m.%d")
+
+CHANGELOG = CHANGELOG.md
+CHANGELOG_SHORT = CHANGELOG_SHORT.md
+
+IPA = ArtsyFolio.ipa
+DSYM = ArtsyFolio.app.dSYM.zip
+
+# Phony tasks are tasks that could potentially have a file with the same name in the current folder
+.PHONY: build clean test ci
+
+# CI Tasks
+
+ci: CONFIGURATION = Debug
+ci: pods build
+
+build:
+    set -o pipefail &amp;&amp; xcodebuild -workspace "$(WORKSPACE)" -scheme "$(SCHEME)" -sdk iphonesimulator -destination 'name=iPad Retina' build | xcpretty -c
+
+clean:
+    xctool -workspace "$(WORKSPACE)" -scheme "$(SCHEME)" -configuration "$(CONFIGURATION)" clean
+
+test:
+    set -o pipefail &amp;&amp; xcodebuild -workspace "$(WORKSPACE)" -scheme "$(SCHEME)" -configuration Debug test -sdk iphonesimulator -destination 'name=iPad Retina' | second_curtain | xcpretty -c --test
+
+lint:
+    bundle exec fui --path Classes find
+
+    bundle exec obcd --path Classes find HeaderStyle
+    bundle exec obcd --path "ArtsyFolio Tests" find HeaderStyle
+
+# Actions
+
+ipa:
+    $(PLIST_BUDDY) -c "Set CFBundleDisplayName $(BUNDLE_NAME)" $(APP_PLIST)
+    $(PLIST_BUDDY) -c "Set CFBundleVersion $(DATE_VERSION)" $(APP_PLIST)
+    ipa build --scheme $(SCHEME) --configuration $(CONFIGURATION) -t
+
+alpha_version:
+    $(PLIST_BUDDY) -c "Set CFBundleVersion $(ALPHA_VERSION)" $(APP_PLIST)
+
+change_version_to_date:
+    $(PLIST_BUDDY) -c "Set CFBundleVersion $(DATE_VERSION)" $(APP_PLIST)
+
+set_git_properties:
+    $(PLIST_BUDDY) -c "Set GITCommitRev $(GIT_COMMIT_REV)" $(APP_PLIST)
+    $(PLIST_BUDDY) -c "Set GITCommitSha $(GIT_COMMIT_SHA)" $(APP_PLIST)
+    $(PLIST_BUDDY) -c "Set GITRemoteOriginURL $(GIT_REMOTE_ORIGIN_URL)" $(APP_PLIST)
+
+pods: remove_debug_pods
+pods:
+    rm -rf Pods
+    bundle install
+    bundle exec pod install
+
+remove_debug_pods:
+    perl -pi -w -e "s{pod 'Reveal-iOS-SDK'}{}g" Podfile
+
+update_bundle_version:
+    @printf 'What is the new human-readable release version? '; \
+        read HUMAN_VERSION; \
+        $(PLIST_BUDDY) -c "Set CFBundleShortVersionString $$HUMAN_VERSION" $(APP_PLIST)
+
+mogenerate:
+    @printf 'What is the new Core Data version? '; \
+        read CORE_DATA_VERSION; \
+        mogenerator -m "Resources/CoreData/ArtsyPartner.xcdatamodeld/ArtsyFolio v$$CORE_DATA_VERSION.xcdatamodel/" --base-class ARManagedObject --template-path config/mogenerator/artsy --machine-dir Classes/Models/Generated/ --human-dir /tmp/ --template-var arc=true
+
+# Deployment
+
+deploy: ipa distribute
+
+alpha: BUNDLE_NAME = 'Folio α'
+alpha: NOTIFY = 0
+alpha: alpha_version deploy
+
+appstore: BUNDLE_NAME = 'Artsy Folio'
+appstore: TARGETED_DEVICE_FAMILY = 2
+appstore: remove_debug_pods update_bundle_version set_git_properties change_version_to_date
+
+next: TARGETED_DEVICE_FAMILY = \"1,2\"
+next: update_bundle_version set_git_properties change_version_to_date
+
+distribute:
+  cat $(CHANGELOG) | head -n 50 | awk '{ print } END { print "..." }' &gt; $(CHANGELOG_SHORT)
+  curl \
+   -F status=2 \
+   -F notify=$(NOTIFY) \
+   -F "notes=&lt;$(CHANGELOG_SHORT)" \
+   -F notes_type=1 \
+   -F ipa=@$(IPA) \
+   -F dsym=@$(DSYM) \
+   -H 'X-HockeyAppToken: $(HOCKEYAPP_TOKEN)' \
+   https://rink.hockeyapp.net/api/2/apps/upload \
+   | grep -v "errors"
+</code></pre>
+
+<p>That gives you a sense of the commands that you can run from the terminal in our projects, next we need to look at the <code>.travis.yml</code> file.</p>
+
+<pre><code class="make">language: objective-c
+cache:
+  - bundler
+  - cocoapods
+
+env:
+  - UPLOAD_IOS_SNAPSHOT_BUCKET_NAME=eigen-ci UPLOAD_IOS_SNAPSHOT_BUCKET_PR...
+
+before_install:
+  - 'echo ''gem: --no-ri --no-rdoc'' &gt; ~/.gemrc'
+  - cp .netrc ~
+  - chmod 600 .netrc
+  - pod repo add artsy https://github.com/artsy/Specs.git
+
+before_script:
+  - gem install second_curtain
+  - make ci
+
+script:
+  - make test
+  - make lint
+</code></pre>
+
+<p>This is nice and simple. It was built to use multiple travis build steps. This makes the CI output a lot more readable as an end user. Travis will by default collapse the shell output for different build stages leaving only the <code>script</code> stage defaulting to being exposed. Here is an example of what you see on a failing test:</p>
+
+<center>
+<img src="/images/2014-08-08-CocoaPods-Caching/failing_travis_screenshot.png" alt='Travis CI Failure'>
+</center>
+
+
+<p>We use a gem with a binary in <a href="https://github.com/AshFurrow/second_curtain/">second_curtain</a>, and this came with bundler caching issues in Travis. The solution was to ignore bundler and run <code>gem install second_curtain</code> each time. To increase the speed we also ensured that documentation is not being generated. If you are interested in what's going on with the <code>.netrc</code>, read my blog post on <a href="http://artsy.github.io/blog/2014/06/20/artsys-first-closed-source-pod/">Artsy's first Closed Source Pod</a>.</p>
+
+<p>We will continue pushing the state of the art in iOS deployment, in building our own tools and using everything available to increase developer happiness. If you're into this we're always looking to hire people with a good open source track record or street smarts. Here's <a href="https://artsy.net/job/mobile-engineer">the jobs page</a>.</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Taking a Snapshot with Second Curtain]]></title>
+    <link href="http://artsy.net/blog/2014/08/07/taking-a-snapshot-with-second-curtain/"/>
+    <updated>2014-08-07T11:46:00+00:00</updated>
+    <id>http://artsy.net/blog/2014/08/07/taking-a-snapshot-with-second-curtain</id>
+    <content type="html"><![CDATA[<p>At Artsy, we try hard to <a href="https://speakerdeck.com/orta/getting-eigen-out?slide=35">test</a>
+our iOS applications to ensure that we avoid regressions and have a clearly
+defined spec of how our apps should look and behave. One of the core pieces of
+our testing setup is <a href="https://github.com/facebook/ios-snapshot-test-case">FBSnapshotTestCase</a>,
+a library written by Facebook to compare views at runtime with images of those
+views that are known to be correct. If the images differ, the test fails. We
+also use <a href="https://travis-ci.org">Travis</a> for continuous integration.</p>
+
+<p>Lately, we've been noticing a friction between the developers on the iOS team
+and the tools we're using to test our apps: while Travis allows us to easily
+access the logs of test runs, it can only indicate that a snapshot test failed,
+not why it failed. That's because the images that are compared are locked on
+Travis' machine – we cannot access those images, so we can't see the
+differences. This is <em>really</em> promblematic when the tests pass locally but fail
+only on Travis.</p>
+
+<!-- more -->
+
+
+<p>A few weeks ago, <a href="http://twitter.com/orta">Orta</a> and I were discussing this
+problem and we came up with a potential solution. Since the images were stored
+on disk on Travis' machine, why not just upload them somewhere we <em>can</em> see
+them? Like an S3 bucket. We could even generate a basic HTML page showing you
+the different test failures.</p>
+
+<p>Time passed and, later on, I had tests passing locally but failing on Travis.
+I saw an opportunity to build something new. I'm not a proficient Ruby developer,
+but I enjoy learning new things, so I decided to create a Ruby gem that could
+fit within our existing testing pipeline. A lot of the structure for the code
+came from an existing gem we already use with Travis, <a href="https://github.com/supermarin/xcpretty">xcpretty</a>.
+With an example of how gems that support iOS testing are written, I was on my
+way to creating my own.</p>
+
+<p>At first, things were very difficult. While I had contributed small patches to
+existing Ruby projects before, I had never created a brand new one from scratch.
+The existing <a href="http://guides.rubygems.org/make-your-own-gem/">guides</a> were very
+helpful, and I found help from the CocoaPods developers when I had questions
+about things like the arcane semantics of Ruby's <code>require</code> syntax.</p>
+
+<p>Eventually, I had a working proof-of-concept. Everything seemed ready to go, and
+I prepared to incorporate my new tool, which I called <a href="https://github.com/AshFurrow/second_curtain">Second Curtain</a>,
+into my pull request on the Artsy repo. But there was a problem.</p>
+
+<p>Second Curtain relies on environment variables to get access to the S3 bucket
+where it stores the images. I planned on using Travis' system to <a href="http://docs.travis-ci.com/user/encryption-keys/">encrypt</a>
+those credentials. It turns out, for very good reasons, encrypted environment
+variables are not available on pull requests created on forks of repositories.
+This is a problem because of the way that <a href="http://artsy.github.io/blog/2012/01/29/how-art-dot-sy-uses-github-to-build-art-dot-sy/">Artsy uses GitHub</a>.
+While it's not a problem for a closed-source repository to have (restrictive)
+access to an S3 bucket, it would be irresponsible to expose S3 credentials for
+an open-source project. I'm <a href="https://github.com/AshFurrow/second_curtain/issues/5">working</a>
+on a solution.</p>
+
+<p>Orta helped with the design aspect of the tool; while uploading the images was
+sufficient, we could make the process of seeing the differences between the two
+images even easier. He created a <a href="https://eigen-ci.s3.amazonaws.com/snapshots/2014-08-04--15-47/index.html">HTML page</a>
+that would allow developers to see the before-and-after versions by moving their
+mouse cursor over the different images.</p>
+
+<p><img src="http://static.ashfurrow.com/github/second_curtain.png" alt="Image Diff" /></p>
+
+<p>In the end, I got Second Curtain to work with Artsy's iOS repository and I
+discovered the discrepency between the two images: due to a timezone difference
+between my computer and Travis', a date was being formatted differently. Not a
+difficult thing to fix, but not something I would have ever been able to
+discover had I not been able to see the images side-by-side.</p>
+
+<p>So after all that, one line of Objective-C was changed and the tests passed – my
+pull request was merged. I learnt a lot about how Ruby developers structure
+their code and what tools they use to write software. While I'm happy to return
+to iOS apps for a while, it was a great experience and I'm hoping to bring some
+of the ideas I discovered writing Ruby back to Objective-C.</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Isolating Spurious and Nondeterministic Tests]]></title>
+    <link href="http://artsy.net/blog/2014/01/30/isolating-spurious-and-nondeterministic-tests/"/>
+    <updated>2014-01-30T14:42:00+00:00</updated>
+    <id>http://artsy.net/blog/2014/01/30/isolating-spurious-and-nondeterministic-tests</id>
+    <content type="html"><![CDATA[<p>Testing is a critical part of our workflow at <a href="https://artsy.net">Artsy</a>. It gives us confidence to make regular, aggressive enhancements. But anyone who has worked with a large, complex test suite has struggled with occasional failures that are difficult to reproduce or fix.</p>
+
+<p>These failures might be due to slight timing differences or lack of proper isolation between tests. Integration tests are particularly thorny, since problems can originate not only in application code, but in the browser, testing tools (e.g., <a href="http://docs.seleniumhq.org/">Selenium</a>), database, network, or external APIs and dependencies.</p>
+
+<h2>The Quarantine</h2>
+
+<p>We've been <a href="http://artsy.github.io/blog/2012/05/15/how-to-organize-over-3000-rspec-specs-and-retry-test-failures/">automatically retrying failed tests</a>, with some success. However, these problems tend to get worse. (If you have 10 tests that each have a 1% chance of failing, roughly 1 in 10 builds will fail. If you have 50, 4 in 10 builds will fail.)</p>
+
+<p>Martin Fowler offers the most compelling thoughts on this topic in <a href="http://martinfowler.com/articles/nonDeterminism.html">Eradicating Non-Determinism in Tests</a>. (Read it, really.) He suggests quarantining problematic tests in a separate suite, so they don't block the build pipeline.</p>
+
+<!-- more -->
+
+
+<h2>Setting it up</h2>
+
+<p>This turned out to be pretty easy to set up, using our preferred tools of <a href="https://relishapp.com/rspec">RSpec</a> and <a href="http://travis-ci.com/">Travis</a>. First, tag a problem test with <code>spurious</code>:</p>
+
+<pre><code>it 'performs tricky browser interaction', spurious: true do
+  ...
+end
+</code></pre>
+
+<p>Your continuous integration script can exclude the tagged tests as follows:</p>
+
+<pre><code>bundle exec rspec --tag ~spurious
+</code></pre>
+
+<p>We'd like to be aware of spurious failures, but not allow them to fail the build. In our app's <code>.travis.yml</code> file, this is as simple as adding a script entry that always exits with <code>0</code> status:</p>
+
+<pre><code>language: ruby
+rvm:
+  - 1.9.3
+script:
+  - "bundle exec rspec --tag ~spurious"
+  - "bundle exec rspec --tag spurious || true"
+</code></pre>
+
+<p>We'll see any spurious failures in the build's output, but our pipeline won't be affected.</p>
+
+<h2>Bonus: Limiting quarantined tests</h2>
+
+<p>So, what prevents the quarantine from getting larger and larger, while the test suite gets weaker and weaker? Fowler <a href="http://martinfowler.com/articles/nonDeterminism.html#Quarantine">recommends</a> enforcing a limit on the number of quarantined tests (e.g., 8).</p>
+
+<p>We can even trigger a build failure if the limit is exceeded. This <code>.travis.yml</code> writes the spurious suite's abbreviated output to a file, then asserts that the summary mentions no more than "8 examples":</p>
+
+<pre><code>language: ruby
+rvm:
+  - 1.9.3
+script:
+  - "bundle exec rspec --tag ~spurious"
+  - "bundle exec rspec --tag spurious --format documentation --format progress --out spurious.out || true"
+  - "[[ $(grep -oE '^\d+' spurious.out) -le 8 ]]"
+</code></pre>
+
+<h2>Conclusion</h2>
+
+<p>The quarantine is no excuse to create tests that fail under realistic conditions. It's simply a framework for recognizing and, eventually, fixing or eliminating the problematic tests that inevitably crop up in a complex environment.</p>
+
+<p>Hopefully, our experiment is useful to other teams struggling with unreliable builds. Share any feedback in the comments!</p>
+]]></content>
+  </entry>
+  
+</feed>

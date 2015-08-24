@@ -1,0 +1,215 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: data | Artsy Engineering]]></title>
+  <link href="http://artsy.net/blog/categories/data/atom.xml" rel="self"/>
+  <link href="http://artsy.net/"/>
+  <updated>2015-08-24T17:32:17+00:00</updated>
+  <id>http://artsy.net/</id>
+  <author>
+    <name><![CDATA[]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Detecting trends using Forgetsy]]></title>
+    <link href="http://artsy.net/blog/2014/03/17/detecting-trends-with-forgetsy/"/>
+    <updated>2014-03-17T11:32:00+00:00</updated>
+    <id>http://artsy.net/blog/2014/03/17/detecting-trends-with-forgetsy</id>
+    <content type="html"><![CDATA[<p><img src="/images/2014-03-17-detecting-trends-with-forgetsy/monolith.jpg" alt="Armory Trending Screen" /></p>
+
+<p>As part of our partnership with <a href="https://www.thearmoryshow.com/">The New York Armory Show</a> this year, we installed a number of terminals throughout the fair. These screens used our own real-time data to display an ever shifting set of trending artworks, artists, and booths, to the attendees.</p>
+
+<p>Out of this work, we've open-sourced <a href="https://github.com/cavvia/forgetsy">Forgetsy</a>, a lightweight Ruby trending library. Put simply, Forgetsy implements data structures that forget. Loosely based on Bit.ly's <a href="http://word.bitly.com/post/41284219720/forget-table">Forget Table</a> concept, Forgetsy uses decaying counters to track temporal trends in categorical distributions.</p>
+
+<!-- more -->
+
+
+<h2>Anatomy of a Trend</h2>
+
+<p>To clarify the term 'trend', let's take this graph of cumulative artist searches over time as an example.</p>
+
+<p><img src="/images/2014-03-17-detecting-trends-with-forgetsy/searches.png" alt="Artist Search Graphs" /></p>
+
+<p>On the left-hand side, we see a steepening gradient (denoted by the dashed lines) for Banksy during his residency in New York (Oct 2013), but in contrast a linear rise in searches for Warhol over the same period. We define a 'trend' as this rise in the <em>rate</em> of observations of a particular event over a time period, which we'll call τ.</p>
+
+<p>In Forgetsy, trends are encapsulated by a construct named <em>delta</em>. A <em>delta</em> consists of two sets of counters, each of which implements <a href="https://en.wikipedia.org/wiki/Exponential_decay">exponential decay</a> of the following form.</p>
+
+<p><img src="http://latex.codecogs.com/gif.latex?X_t_1%3DX_t_0%5Ctimes%7Be%5E%7B-%5Clambda%5Ctimes%7Bt%7D%7D%7D" alt="Exponential Decay" /></p>
+
+<p>Where the inverse of the decay rate (λ) is the lifetime of an observation in the set, τ. By normalising one set by a set with half the decay rate (or double the lifetime), we obtain a trending score for each category in a distribution. This score expresses the change in the rate of observations of a category over the lifetime of the set, as a proportion in the range [0,1].</p>
+
+<p>Forgetsy removes the need for manually sliding time windows or explicitly maintaining rolling counts, as observations naturally decay away over time. It's designed for heavy writes and sparse reads, as it implements decay at read time. Each set is implemented as a <a href="http://redis.io/">redis</a> sorted set, and keys are scrubbed when a count is decayed to near zero, providing storage efficiency.</p>
+
+<p>As a result, Forgetsy handles distributions with up to around 10<sup>6</sup> active categories, receiving hundreds of writes per second, without much fuss.</p>
+
+<h2>Usage</h2>
+
+<p>Take a social network in which users can follow each other. You want to track trending users. You construct a delta with a one week lifetime, to capture trends in your follows data over one week periods:</p>
+
+<pre><code class="ruby">follows_delta = Forgetsy::Delta.create('user_follows', t: 1.week)
+</code></pre>
+
+<p>The delta consists of two sets of counters indexed by category identifiers. In this example, the identifiers will be user ids. One set decays over the mean lifetime specified by τ, and another set decays over double the lifetime.</p>
+
+<p>You can now add observations to the delta, in the form of follow events. Each time a user follows another, you increment the followed user id. You can also do this retrospectively:</p>
+
+<pre><code class="ruby">follows_delta.incr('UserFoo', date: 2.weeks.ago)
+follows_delta.incr('UserBar', date: 10.days.ago)
+follows_delta.incr('UserBar', date: 1.week.ago)
+...
+</code></pre>
+
+<p>Providing an explicit date is useful if you are processing data asynchronously. You can also use the <code>incr_by</code> option to increment a counter in batches. You can now consult your follows delta to find your top trending users:</p>
+
+<pre><code class="ruby">puts follows_delta.fetch
+</code></pre>
+
+<p>Will print:</p>
+
+<pre><code class="ruby">{ 'UserFoo' =&gt; 0.789, 'UserBar' =&gt; 0.367 }
+</code></pre>
+
+<p>Each user is given a dimensionless score in the range [0,1] corresponding to the normalised follows delta over the time period. This expresses the proportion of follows gained by the user over the last week compared to double that lifetime.</p>
+
+<p>Optionally fetch the top <em>n</em> users, or an individual user's trending score:</p>
+
+<pre><code class="ruby">follows_delta.fetch(n: 20)
+follows_delta.fetch(bin: 'UserFoo')
+</code></pre>
+
+<p>For more information on usage, check out the <a href="https://github.com/cavvia/forgetsy">github project</a> page.</p>
+
+<h2>In the Wild</h2>
+
+<p>In practice, we use linear, weighted combinations of deltas to produce trending scores for any given domain, such as artists. Forgetsy doesn't provide a server, but we send events to an rpc service that updates the deltas in a streamed manner. These events might include artist follows, artwork favorites, auction lot sales or individual page views.</p>
+
+<p>One requirement we have is lifetime flexibility. Forgetsy lets us stipulate the trending period τ on a delta by delta basis. This allows us to lower the lifetime significantly in a fair context, in which we track trends over just a few hours, contrasted with a general art market context, in which we're interested in trends over weeks and months.</p>
+
+<p>In summary, the delta structures provided by Forgetsy provide you with a simple, scalable, transparent base for a trending algorithm that can be tuned to suit the specific dynamics of the domain in question.</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[How to Start Small with Big Data and Google Analytics]]></title>
+    <link href="http://artsy.net/blog/2012/05/01/how-to-start-small-with-big-data-and-google-analytics/"/>
+    <updated>2012-05-01T20:52:00+00:00</updated>
+    <id>http://artsy.net/blog/2012/05/01/how-to-start-small-with-big-data-and-google-analytics</id>
+    <content type="html"><![CDATA[<p>Why do so many companies write a homegrown pageviews tracking system? Between Google Analytics, Kissmetrics and many others, isn't that a completely solved problem?</p>
+
+<p>These popular solutions lack domain knowledge. They are easily capable of segmenting users by region or browser, but they fail to recognize rules core to your business. Tracking pageviews with a homegrown system becomes your next sprint's goal.</p>
+
+<p>Implementing a hit counter service is quite tricky. This is a write-heavy, asynchronous problem that must minimize impact on page rendering time, while dealing with rapidly growing amounts of data. Is there a middle ground between using Google Analytics and rolling out our own homegrown implementation? How can we use Google Analytics for data collection and inject domain knowledge into gathered data, incrementally, without writing our own service?</p>
+
+<!--more-->
+
+
+<p>Let's write a Rake task that pulls data from Google Analytics. We can run it daily. Start with a Ruby gem called <a href="https://github.com/vigetlabs/garb">Garb</a>.</p>
+
+<pre><code class="ruby">gem "garb", "0.9.1"
+</code></pre>
+
+<p>Garb requires Google Analytics credentials. Those can go into a YAML configuration file, which will use environment settings in production (it's an ERB template, too). We can hardcode the test account values.</p>
+
+<pre><code class="yaml config/google_analytics.yml">defaults: &amp;defaults
+
+development, test:
+  &lt;&lt;: *defaults
+  email: "ga@example.com"
+  password: "password"
+  ua: "UA-12345678-1"
+
+production:
+  &lt;&lt;: *defaults
+  email: &lt;%= ENV['GOOGLE_ANALYTICS_EMAIL'] %&gt;
+  password: &lt;%= ENV['GOOGLE_ANALYTICS_PASSWORD'] %&gt;
+  ua: &lt;%= ENV['GOOGLE_ANALYICS_UA'] %&gt;
+</code></pre>
+
+<p>Establish a Google Analytics session and fetch the profile corresponding to the Google user account with Garb.</p>
+
+<pre><code class="ruby">config = YAML.load(ERB.new(File.new(Rails.root.join("config/google_analytics.yml")).read).result)[Rails.env].symbolize_keys
+Garb::Session.login(config[:email], config[:password])
+profile = Garb::Management::Profile.all.detect { |p| p.web_property_id == config[:ua] }
+raise "missing profile #{config[:ua]} in #{Garb::Management::Profile.all.map(&amp;:web_property_id)}" unless profile
+</code></pre>
+
+<p>Garbs needs a data model to collect pageviews. It extends <code>Garb::Model</code> and defines a set of "metrics" and "dimensions".</p>
+
+<pre><code class="ruby app/models/google_analytics_pageviews.rb">class GoogleAnalyticsPageviews
+  extend Garb::Model
+  metrics :pageviews
+  dimensions :page_path
+end
+</code></pre>
+
+<p>You can play with the <a href="http://ga-dev-tools.appspot.com/explorer/">Google Analytics Query Explorer</a> to see the many possible metrics (such as pageviews) and dimensions (such as requested page path).</p>
+
+<p>By default, Google Analytics lets clients retrieve 1000 records in a single request. To get all records we can add an iterator, called <code>all</code>, that will keep making requests until the server runs out of data. The code for <em>config/initializers/garb_model.rb</em> is <a href="https://gist.github.com/2265877">in this gist</a> and I made a <a href="https://github.com/vigetlabs/garb/pull/116">pull request</a> into Garb if you'd rather merge that onto your fork.</p>
+
+<p>The majority of our pages are in the form of "/model/id", for example "/artwork/leonardo-mona-lisa". We're interested in all pageviews for a given artwork and in pageviews for a given artist, at a given date. We'll store selected Google Analytics data in a <code>GoogleAnalyticsPageviewsRecord</code> model described further.</p>
+
+<pre><code class="ruby">t = Date.today - 1
+GoogleAnalyticsPageviews.all(profile, { :start_date =&gt; t, :end_date =&gt; t }) do |row|
+  model = /^\/#\!\/(?&lt;type&gt;[a-z-]+)\/(?&lt;id&gt;[a-z-]+)$/.match(row.page_path)
+  next unless (model[:type] == "artwork" || model[:type] == "artist")
+  GoogleAnalyticsPageviewsRecord.create!({
+    :model_type =&gt; model[:type],
+    :model_id =&gt; model[:id],
+    :pageviews =&gt; row.pageviews,
+    :dt =&gt; t.strftime("%Y-%m-%d")
+  })
+end
+</code></pre>
+
+<p>Each <code>GoogleAnalyticsPageviewsRecord</code> contains the total pageviews for a given model ID at a given date. We now have a record for each artwork and artist. We can rollup existing data into a set of collections, incrementally. For example, <code>google_analytics_artworks_monthly</code> will contain the monthly hits for each artwork.</p>
+
+<pre><code class="ruby">class GoogleAnalyticsPageviewsRecord
+  include Mongoid::Document
+
+  field :model_type, type: String
+  field :model_id, type: String
+  field :pageviews, type: Integer
+  field :dt, type: Date
+
+  index [
+    [:model_type, Mongo::ASCENDING],
+    [:model_id, Mongo::ASCENDING],
+    [:dt, Mongo::DESCENDING]
+  ], :unique =&gt; true
+
+  after_create :rollup
+
+  def rollup
+    Mongoid.master.collection("google_analytics_#{self.model_type}s_total").update(
+      { :model_id =&gt; self.model_id },
+      { "$inc" =&gt; { "count" =&gt; self.pageviews }}, { :upsert =&gt; true })
+    {
+      :daily =&gt; self.dt.strftime("%Y-%m-%d"),
+      :weekly =&gt; self.dt.beginning_of_week.strftime("%Y-%W"),
+      :monthly =&gt; self.dt.beginning_of_month.strftime("%Y-%m"),
+      :yearly =&gt; self.dt.beginning_of_year.strftime("%Y")
+    }.each_pair do |t, dt|
+      Mongoid.master.collection("google_analytics_#{self.model_type}s_#{t}").update(
+        { :model_id =&gt; self.model_id, :dt =&gt; dt },
+        { "$inc" =&gt; { "count" =&gt; self.pageviews }}, { :upsert =&gt; true })
+    end
+  end
+
+end
+</code></pre>
+
+<p>The rollup lets us query these tables directly. For example, the following query returns a record with the pageviews for the Leonardo's "Mona Lisa" in January 2012.</p>
+
+<pre><code class="ruby">Mongoid.master.collection("google_analytics_artworks_monthly").find_one({
+  :model_type =&gt; "artwork", :model_id =&gt; "leonardo-mona-lisa", :dt =&gt; "2012/01"
+})
+</code></pre>
+
+<p>One of the obvious advantages of pulling Google Analytics data is the low volume of requests and offline processing. We're letting Google Analytics do the hard work of collecting data for us in real time and are consuming its API without the performance or time pressures.</p>
+]]></content>
+  </entry>
+  
+</feed>

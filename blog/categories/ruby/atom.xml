@@ -1,0 +1,661 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: ruby | Artsy Engineering]]></title>
+  <link href="http://artsy.net/blog/categories/ruby/atom.xml" rel="self"/>
+  <link href="http://artsy.net/"/>
+  <updated>2015-08-24T17:32:17+00:00</updated>
+  <id>http://artsy.net/</id>
+  <author>
+    <name><![CDATA[]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Generating Notifications and Personalized Emails Efficiently]]></title>
+    <link href="http://artsy.net/blog/2014/04/24/generating-notifications-and-personalized-emails-efficiently/"/>
+    <updated>2014-04-24T16:00:00+00:00</updated>
+    <id>http://artsy.net/blog/2014/04/24/generating-notifications-and-personalized-emails-efficiently</id>
+    <content type="html"><![CDATA[<p>We recently launched a new personalized email here at <a href="https://artsy.net">Artsy</a> that features content that a given user might find interesting. The goal of this post is to describe how we built a backend system that efficiently generates these e-mails for all our users. I'll talk about the first, naive implementation that had performance problems right away, and how the second implementation (currently in production) solved those issues, and whose behavior at scale is well-defined and understood. I won't go into the details of the design and layout of the mail itself and how we render the content - there are several earlier blog posts that deal with those: <a href="http://artsy.github.io/blog/2014/03/18/presenters-and-memoization-moving-logic-out-of-templates/">Presenters and Memoization</a>, <a href="http://artsy.github.io/blog/2014/03/17/ruby-helper-to-group-artworks-into-a-pinterest-style-layout-for-email/">Pinterest-style Layouts</a> and <a href="http://artsy.github.io/blog/2014/03/17/some-tips-for-email-layout-and-responsiveness/">Email Layouts and Responsiveness</a>.</p>
+
+<p><img src="/images/2014-04-24-generating-notifications-and-personalized-emails-efficiently/percy_example.png" alt="Personalized Email Example" /></p>
+
+<!-- more -->
+
+
+<h3>Deciding What Content to Include</h3>
+
+<p>First, we had to decide what types of personalized content we wanted to feature in our mails. Users can follow artists and galleries, and so this seemed like a great place to start. We'd like to let you know about new artworks that have been uploaded by artists that you follow, as well as new shows that have been added by galleries you follow, or that are exhibiting artists you follow. Since we have location data for our galleries and our users (accomplished thru an onboarding flow, or thru geo-locating their IP address), we also want to include new shows that are opening near you. Additionally, we have a recommendations engine that recommends artworks to users based on their preferences and activity on the site, and we'd like to show some of the latest and best of such recommendations.</p>
+
+<h3>Initial Implementation Ideas</h3>
+
+<p>My first thought was to have an observer (really just some <code>after_save</code> callbacks) that will wait for data to get into a state where a user can be validly notified, and in a background task write these notifications to interested users. Here's how the base setup of our <code>Notification</code> model looked:</p>
+
+<pre><code class="ruby">class Notification
+  include Mongoid::Document
+  include Mongoid::Timestamps
+
+  belongs_to :user
+  belongs_to :notifiable, polymorphic: true, inverse_of: :notifications
+end
+</code></pre>
+
+<p>It's a simple join of the user and the <code>notifiable</code> (the object/action that a user is being notified about).</p>
+
+<p>Then, a specific notification (such as one for published artworks by artists you follow) can inherit from this and look like:</p>
+
+<pre><code class="ruby">class PublishedArtworkNotification &lt; Notification
+  def self.notify!(artwork_id)
+    user_ids = FollowArtist.where(artist: artwork.artist).pluck("user_id")
+    user_ids.each_slice(100) do |uids|
+      PublishedArtworkNotification.delay(queue: :any, priority: 6).create_for_users(artwork_id, uids)
+    end
+  end
+
+  def self.create_for_users(artwork, uids)
+    uids.each do |uid|
+      PublishedArtworkNotification.create!(user_id: uid, notifiable_id: artwork_id, notifiable_type: 'Artwork')
+    end
+  end
+end
+</code></pre>
+
+<p>Then, the <code>after_save</code> hook on an <code>Artwork</code> model is:</p>
+
+<pre><code class="ruby">def delay_notify
+  PublishedArtworkNotification.delay(queue: :any).notify!(self.id) if self.published_changed? &amp;&amp; self.published
+end
+</code></pre>
+
+<p>So, when an artwork is published, we run <code>notify!</code> in the background for the respective notification. That method will pull all interested users (via following the artist), and then spawn off more background processes to write the notifications in batches of 100. We batched these writes to avoid any one background process taking too long (an artist such as <a href="https://artsy.net/artist/andy-warhol">Andy Warhol</a> has around twelve thousand followers currently), and also ran them at a lower priority to avoid blocking other jobs in our queue.</p>
+
+<p>The other types of notifications were all implemented similarly (via an observer on the model, and a specific <code>Notification</code> class inheriting from the base class). We also added some other logic into the base <code>Notification</code> class such as some uniqueness constraints, as well as an ability to mark notifications as 'sent' or 'invalid'. However, we ran into serious performance/scaling issues fairly quickly, and had to re-implement this scheme.</p>
+
+<h3>Performance Bottlenecks</h3>
+
+<p>All of these records were being written to one collection in <a href="https://www.mongodb.org/">MongoDB</a>, and the size of this collection grew quite rapidly. It's size almost immediately dwarfed the size of any of our other collections, and the number of records quickly reached into the tens of millions. This led to problems: writing new notifications started to crawl to a standstill. We had several indices on this collection to aid in querying, and these made the insertion of new notifications very non-performant, and also started to affect overall database performance. Querying against this collection degraded quickly and started to similarly affect database performance. Archiving old records also proved next to impossible. We couldn't simply drop the entire collection, but had to prune records. This similarly was totally non-performant and was adversely affecting database and site performance. We needed to come up with a new implementation for <code>Notification</code>, and addressing these issues was essential.</p>
+
+<h3>Resolving Performance Bottlenecks</h3>
+
+<p>So, we decided on a scheme where each day would result in a new <code>Notifications</code> collection (name keyed on the date), named <code>notifications_20140101</code>, <code>notifications_20140102</code>, etc. Each of these collections would have an <code>_id</code> field that corresponds to a user_id, and an <code>events</code> array (or 'stack' if you will) that records the id's of notified objects, as well as the type of notification. An example of a record in that collection is:</p>
+
+<pre><code class="json">{"_id"=&gt;"5106b619f56337db300001f8", 
+ "events"=&gt;[{"t"=&gt;"NearbyShow", "o"=&gt;"533998b1c9dc24c371000041"}, 
+            {"t"=&gt;"NearbyShow", "o"=&gt;"5345774cc9dc246d580003d0"}, 
+            {"t"=&gt;"NearbyShow", "o"=&gt;"5335af4fa09a67145300028c"}, 
+            {"t"=&gt;"NearbyShow", "o"=&gt;"533f1174a09a67298900007b"}, 
+            {"t"=&gt;"ArtworkPublished", "o"=&gt;"5334647b139b2165160000d8"}]
+}
+</code></pre>
+
+<p>So, here we see all of my notifications for April 22, 2014. On that day, I was notified about 4 shows opening near my location, and one artwork added by an artist I follow. Incidentally, that artwork was a piece by <a href="https://artsy.net/artist/rob-wynne">Rob Wynne</a> entitled <a href="https://artsy.net/artwork/rob-wynne-youre-dreaming">You're Dreaming</a>. The show notifications were for NYC-area shows opening at <a href="https://artsy.net/klein-sun-gallery">Klein Sun Gallery</a>, <a href="https://artsy.net/garis-and-hahn">Garis &amp; Hahn</a>, <a href="https://artsy.net/miyako-yoshinaga-gallery">Miyako Yoshinaga Gallery</a> and <a href="https://artsy.net/dodgegallery">DODGEgallery</a>.</p>
+
+<p>A couple of nice things about this implementation is it limits the size of a collection: any one day's collection will scale directly with the number of users, which seems reasonable. Our earlier implementation scaled with the product of the number of users and amount of content on Artsy, which is clearly problematic. Also, archiving old notifications is as simple as dropping a particular day's collection, which is very performant. However, querying and assembling these notifications is a bit trickier than in the naive implementation, as well as marking which events have already been sent to a user, so as to avoid duplicating any content in between mailings.</p>
+
+<p>Let's see how we rewrite the notification generation in this scheme:</p>
+
+<pre><code class="ruby">module NotificationService
+
+  def self.notify_many!(user_ids, object_id, type)
+    events = events_from(object_id, type)
+    user_ids.each do |user_id|
+      notify_with_events(user_id, events)
+    end
+  end
+
+  private
+
+  def self.notify_with_events(user_id, events)
+    collection.find(_id: user_id).upsert('$push' =&gt; { events: { '$each' =&gt; events } })
+  end
+
+  def self.events_from(object_ids, type)
+    Array(object_ids).map do |object_id|
+      {
+        't' =&gt; type,
+        'o' =&gt; object_id
+      }
+    end
+  end
+
+  # collection storing notifications for the given day
+  def self.collection(date = Date.today)
+    Mongoid.default_session.with(safe: false)[collection_name(date)]
+  end
+
+  def self.collection_name(date)
+    "notifications_#{date.to_s(:number)}"
+  end
+
+end
+</code></pre>
+
+<p>Here's how the <code>after_save</code> callback looks now:</p>
+
+<pre><code class="ruby">def notify_published
+  NotificationService.notify_many!(user_ids, self, 'ArtworkPublished') if self.published_changed? &amp;&amp; self.published
+end
+</code></pre>
+
+<p>Let's take a look at what's going on here. When an artwork is published, we call <code>notify_many!</code> in the <code>NotificationService</code> module. That will determine the correct collection (keyed by the date) using the <code>collection</code> and <code>collection_name</code> helpers. We build our events stack with the <code>events_from</code> helper, and then do an <code>upsert</code> with a <code>$push</code> to either insert or update that user's events for that day. Due to the fast performance of this scheme, we also no longer have to batch notification creation. As a sample benchmark, writing this type of notification to our <a href="https://artsy.net/artist/andy-warhol">Warhol</a> followers takes under 15 seconds.</p>
+
+<p>Ok, so we seem to have solved some of our issues: namely writing and archiving notifications is performant, and we understand the behavior of these collections as the number of users and content on the site grows. Now let's look at how we can query against this scheme in an efficient manner, and also how we can mark events as 'seen' to avoid emailing out duplicates.</p>
+
+<h3>Marking Notifications as Flushed and Retrieving Notifications</h3>
+
+<p>We decided to push a <code>flushed</code> event onto the user's stack after we send out notifications, and analogously, when we are querying a user's notifications, we want to throw away notifications that occur before a <code>flushed</code> event. Here's that method, in our <code>NotificationService</code> module:</p>
+
+<pre><code class="ruby"># Mark all events until this point "seen." Pushes a {flushed: &lt;id&gt;}
+# hash on to events array.
+def self.flush!(user_id, since = Date.today - 7.days)
+  flushed = { 'flushed' =&gt; Moped::BSON::ObjectId.new }
+  collections_since(since).each do |coll|
+    coll.find(_id: user_id).update('$push' =&gt; { events: flushed })
+  end
+  flushed  # return "id" of flushed marker, in case useful later
+end
+
+private
+
+def self.collections_since(date)
+  (date..Date.today).map { |d| collection(d) }
+end
+</code></pre>
+
+<p>Pretty simple. We push the appropriate event onto every collection that was under consideration via the <code>collections_since</code> helper. When we send out a personalized email we accumulate the last 7 day's worth of activity for you, and so after we generate/send a mail for a user, we can simply say <code>NotificationService.flush!(user)</code>. Here's how that day's notifications for me looks after the <code>flushed</code> event:</p>
+
+<pre><code class="json">  {"_id"=&gt;"5106b619f56337db300001f8", 
+   "events"=&gt;[{"t"=&gt;"NearbyShow", "o"=&gt;"5338504e139b21f2a9000362"},
+              {"t"=&gt;"FollowedArtistShow", "o"=&gt;"533ddba3a09a6764f60006b6"}, {"t"=&gt;"NearbyShow", "o"=&gt;"533ddba3a09a6764f60006b6"}, 
+              {"flushed"=&gt;"5352b346b504f5f3690002fe"}]
+  }
+</code></pre>
+
+<p>For the last piece of the puzzle, let's look at how we query against this scheme and compile together all notifications that are applicable for a given user:</p>
+
+<pre><code class="ruby">module NotificationService
+  NOTIFICATION_TYPES = {
+    'FollowedArtistShow' =&gt; PartnerShow,
+    'FollowedPartnerShow' =&gt; PartnerShow,
+    'NearbyShow' =&gt; PartnerShow,
+    'ArtworkPublished' =&gt; Artwork,
+    'ArtworkSuggested' =&gt; Artwork
+  }
+
+  class Notification &lt; Struct.new(:type, :object_id)
+    def object
+      @object ||= NOTIFICATION_TYPES[type].find(object_id)
+    end
+
+    def applicable?
+      object.try(:notifiable?) || false
+    end
+  end
+
+# Return applicable notifications for user since given date.
+def self.get(user_id, since = Date.today - 7.days)
+  collections_since(since)
+    .map { |coll| coll.find(_id: user_id).one }.compact
+    .flat_map { |doc| doc['events'].slice_before { |ev| ev['flushed'] }.to_a.last }
+    .reject { |ev| ev['flushed'] }.uniq
+    .map { |ev| Notification.new(ev['t'], ev['o']) }.select(&amp;:applicable?)
+end
+</code></pre>
+
+<p>We introduce a lite-weight <code>Notification</code> class that will load the object, as well as perform an additional check. We use the previously introduced <code>collections_since</code> helper to retrieve all the notification collections under consideration. We query each and build up an array of all events from a user's stack. We remove events that occurred prior to a <code>flushed</code> event in a given collection and the <code>flushed</code> events themselves. Then we actually load all the objects and return the ones that are still <code>applicable?</code>. That final <code>applicable?</code> check is to allow us to filter out content at run-time that is no longer valid. For example, if an artwork is published and the correct event is written out to users, but before the user can be notified the artwork is unpublished, this can serve as a run-time check to not include that work. <code>def notifiable?</code> can thus be implemented in the <code>Artwork</code> model like so:</p>
+
+<pre><code class="ruby">def notifiable?
+  published?
+end
+</code></pre>
+
+<p>And...that's basically it! Throughout the week as partners are uploading their shows/fair booths/artworks, these records are being opportunistically written to that day's notification collection, in a performant and scalable fashion. Then when we want to send you a personalized email, we pull all your appropriate notifications via the <code>get</code> routine in our <code>NotificationService</code>, and primarily using the technique described in <a href="http://artsy.github.io/blog/2014/03/18/presenters-and-memoization-moving-logic-out-of-templates/">Presenters and Memoization</a> we make sure we cache/memoize all such data. Using the tips in <a href="http://artsy.github.io/blog/2014/03/17/ruby-helper-to-group-artworks-into-a-pinterest-style-layout-for-email/">Pinterest-style Layouts</a> and <a href="http://artsy.github.io/blog/2014/03/17/some-tips-for-email-layout-and-responsiveness/">Email Layouts and Responsiveness</a> we can render this content and support various devices/email clients. We parallelize and batch the generation/sending of our e-mails as well. This whole system, from notification generation to actually emailing users, is running successfully and smoothly in production.</p>
+
+<h3>Next Steps</h3>
+
+<p>I think this type of infrastructure can easily be adapted to serve as a feed on a front-end or other client app. An API to serve up these notifications (AKA feed items) can be built and different feed items can then be rendered or aggregated at load-time. Simple client-side polling can even be set up to alert a user if something has happened that interests them <em>while</em> they're browsing! I think push notifications and other messaging can be handled by this system as well.</p>
+
+<p>I'd love to hear any feedback and thoughts, and hopefully you've found this post informative and interesting. Please leave any feedback in the comments and <a href="https://github.com/artsy">follow us on Github</a>!</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Building an English Auction with MongoDB]]></title>
+    <link href="http://artsy.net/blog/2014/04/17/building-an-english-auction-with-mongodb/"/>
+    <updated>2014-04-17T12:21:00+00:00</updated>
+    <id>http://artsy.net/blog/2014/04/17/building-an-english-auction-with-mongodb</id>
+    <content type="html"><![CDATA[<p>Artsy ran several successful auctions over the past few months. The first, <a href="https://artsy.net/feature/two-x-two">TWO x TWO</a>, raised hundreds of thousands of dollars for amfAR (the AIDS Research foundation), and the Dallas Museum of Art. It was followed by <a href="https://artsy.net/feature/ici-benefit-auction">Independent Curators International</a>, at which Artsy launched on-site auction projection screens, which displayed competing bids coming in online from places around the world, like Oslo and Santa Monica, in realtime. Users could place bids on the website, via the iPhone app or with one of the Artsy representatives in the room carrying an iPad.  All the auction lots sold, and Artsy helped ICI to raise 50% more than its target revenue goal. Other, recent Artsy auctions include <a href="https://artsy.net/feature/public-art-fund-2014-spring-benefit">Public Art Fund</a> and the <a href="https://artsy.net/feature/brooklyn-artists-ball">Brooklyn Artists Ball</a>, benefitting the Brooklyn Museum.</p>
+
+<p><img src="/images/2014-04-17-implementing-bidding-in-an-english-auction-with-mongodb/ici-live-auction.jpg" alt="ICI Auction: Live" /></p>
+
+<p>The domain of auctions is a fascinating one, and includes everything from buying items on eBay to trading livestock and selling investment products on the stock exchange. For those interested in the large spectrum of auctions I highly recommend <a href="http://www.sci.brooklyn.cuny.edu/~parsons/projects/mech-design/publications/bluffers-final.pdf">Auctions and bidding: A guide for computer
+scientists</a> by Simon Parsons (CUNY), Juan A. Rodriguez-Aguilar (CSIC) and Mark Klein (MIT).</p>
+
+<p>At Artsy we implemented a classic English auction with, so called, "book bids". I spent a fair amount of time visiting engineering teams that have built internet auctions, most of which were transactional systems where taking a position on an item involved starting a transaction, running an auction round and committing the changes. In contrast, we chose to deliver a simpler, eventually consistent system on top of MongoDB, in which all data is immutable and where some level of serialization occurs within a single background process.</p>
+
+<p>In this post we'll go over some data modeling and examine the auction engine implementation details.</p>
+
+<!-- more -->
+
+
+<h3>Data Modeling</h3>
+
+<p>In the Artsy platform, an <em>Auction</em> is an specialization of a more general concept of a <em>Sale</em>. A sale typically has an opening and a closing date, during which bidding or purchases can occur. We create a relationship between an artwork and a sale, which, in the case of an auction, includes the opening bid amount. We store all money in cents, and assume the currency to be USD, making it easy to extend the system for other currencies in the future.</p>
+
+<pre><code class="ruby">class SaleArtwork
+  include Mongoid::Document
+
+  field :opening_bid_cents, type: Integer
+
+  belongs_to :artwork, inverse_of: nil
+  belongs_to :sale
+
+  belongs_to :highest_bid, class_name: "Bid", inverse_of: nil
+
+  # Minimum next acceptable bid amount, in cents.
+  def minimum_next_bid_cents
+    return opening_bid_cents if highest_bid.nil? &amp;&amp; opening_bid_cents.present?
+    # calculate using a bid incrementing strategy ...
+  end
+end
+</code></pre>
+
+<p>A user registers to bid and creates a <em>Bidder</em> record.</p>
+
+<pre><code class="ruby">class Bidder
+  include Mongoid::Document
+
+  belongs_to :user
+  belongs_to :sale
+
+  has_many :positions, class_name: 'BidderPosition', inverse_of: :bidder
+end
+</code></pre>
+
+<p>This doesn't just mimic the real world where bidding typically requires registration - the bidder record doesn't belong to the user and contains essential data to identify an individual that is placing a bid. It also solves a very peculiar problem where a user decides to delete their account mid-auction. Finally, a bidder could eventually delegate bidding to an agent through this model's permissions.</p>
+
+<p>A bidder doesn't actually place any bids, but create a <em>Bidder Position</em>, which indicates the highest amount they are willing to pay for a given artwork.</p>
+
+<pre><code class="ruby">class BidderPosition
+  include Mongoid::Document
+
+  field :active, type: Boolean, default: true
+  field :max_bid_amount_cents, type: Integer
+
+  belongs_to :bidder, class_name: 'Bidder', inverse_of: :positions
+  belongs_to :sale_artwork
+  has_many :bids, inverse_of: :position
+
+  scope :active, where(active: true).asc(:max_bid_amount_cents)
+end
+</code></pre>
+
+<p>This is called a "book bid" - before technology took over the auctions world buyers delegated an agent to bid on their behalf after giving them a maximum amount they were willing to part with. Bidder positions belong to a bidder and to the artwork-to-sale relationship. They cannot be changed - if a user wants to increase his maximum bid, he simply creates a new bidder position.</p>
+
+<h3>Bidding Round</h3>
+
+<p>Every time a bidder position is created, a <em>Bidding Round</em> is queued for the item being bid on. We can parallelize execution of these by artwork, however all bidding rounds for the same artwork are serialized.</p>
+
+<pre><code class="ruby">class EnglishAuction
+  # Run multiple rounds of bidding for the given lot, to rest. Return number of bids generated.
+  def self.run!(sale_artwork)
+    return 0 unless sale_artwork.sale &amp;&amp; sale_artwork.sale.biddable?
+
+    round = EnglishAuction::Round.new(sale_artwork)
+    round.run!
+
+    round.bids_generated.size
+  end
+end
+</code></pre>
+
+<p>A bidding round iterates over all active bidder positions in ascending order by dollar value, outbids any bidders below the max bid, and places new bids, as necessary. The entire round algorithm is below.</p>
+
+<pre><code class="ruby"># A bidding round for an English auction.
+class Round
+  attr_accessor :bids_generated
+
+  # @param sale_artwork A relationship between an artwork and a sale.
+  def initialize(sale_artwork)
+    @sale_artwork = sale_artwork
+    @bids_generated = []
+  end
+
+  # Run multiple rounds of bidding, to rest.
+  def run!
+    while (bids = process_more_bids!).any? do
+      @bids_generated += bids
+    end
+  end
+
+  # Run one round of bidding. Return bids.
+  def process_more_bids!
+    @sale_artwork.bidder_positions.active.map do |bidder_position|
+      process_bidder_position!(bidder_position)
+    end.compact
+  end
+
+  # Process a single bid position.
+  # @returns Generated bid, if any.
+  def process_bidder_position!(bidder_position)
+
+    # ignore if current position is highest
+    return nil if bidder_position == @sale_artwork.highest_bid.try(:position)
+
+    # ignore if bidder is already highest
+    return nil if bidder_position.bidder == @sale_artwork.highest_bid.try(:position).try(:bidder)
+
+    # close if below opening bid
+    if bidder_position.max_bid_amount_cents &lt; (@sale_artwork.opening_bid_cents || 1)
+      bidder_position.deactivate! "Bid must be greater than the minimum bid of #{@sale_artwork.opening_bid_cents}."
+      return nil
+    end
+
+    amount_cents = @sale_artwork.minimum_next_bid_cents # opening bid or an increment thereafter
+
+    if bidder_position.max_bid_amount_cents &lt; amount_cents
+      highest_bid_amount = @sale_artwork.highest_bid.try(:amount_cents) || 0
+
+      # if max is between current and increment (or if it's at current, but earlier), bid max anyway
+      # this means that a bidder who placed an identical max bid earlier becomes the highest bidder
+      if bidder_position.max_bid_amount_cents &gt; highest_bid_amount ||
+        (bidder_position.max_bid_amount_cents == highest_bid_amount &amp;&amp; bidder_position.id &lt; @sale_artwork.highest_bid.position.id)
+        amount_cents = bidder_position.max_bid_amount_cents
+      else
+        # outbid, next bid must be at least amount_cents
+        bidder_position.update_attributes! active: false
+        return nil
+      end
+    end
+
+    # place a bid
+    bidder_position.bids.create!(attrs).tap do |bid|
+      @sale_artwork.update_attributes! highest_bid: bid
+    end
+  end
+end
+</code></pre>
+
+<p>One of the interesting aspects of this system is what happens when two users create two identical bidder positions - the earlier one wins and the later one is outbid. In a transactional system we could produce an error message to the second bidder before the position is even created.</p>
+
+<h3>Bidder Notifications</h3>
+
+<p>Notifying upon being "outbid" is straightforward, because a position only enters that state once, but notifying bidders of when they are the current high bidder or when their bid has been increased is trickier. We don't want to generate notifications every time a bid is made (i.e., it's the current high). Rather, we want to allow the round to reach a stable state at which there's only a single active position and then notify the current high and outbid bidders. This happens after each <code>round.run!</code>.</p>
+
+<h3>Beyond Bidding</h3>
+
+<p>Aside of the bidding implementation we've built a whole software ecosystem around auctions. We developed a backend system to manage these. We put up projection screens at the event that list works being auctioned and flash every time a bid is placed. We register users' credit cards and collect their money.</p>
+
+<p>The software part, however, is definitely dwarfed by the amount of logistics and people involved in making one of those auctions a success. We're only trying to make that a bit more efficient. We'll see you at the upcoming BAM Art Auction, SFMOMA Modern Ball or the Whitney Museum Art Party!</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Presenters and Memoization: Moving Logic out of Templates]]></title>
+    <link href="http://artsy.net/blog/2014/03/18/presenters-and-memoization-moving-logic-out-of-templates/"/>
+    <updated>2014-03-18T17:27:00+00:00</updated>
+    <id>http://artsy.net/blog/2014/03/18/presenters-and-memoization-moving-logic-out-of-templates</id>
+    <content type="html"><![CDATA[<p>When dealing with rendering data for an email, one frequently has to make many database calls to assemble the required data. This can be slow, and depending on how you structure the code that is assembling the data vs rendering the data in a template, it's very easy to be making repeated calls, which can significantly slow down your process. Additionally, whether you are using <a href="http://haml.info/">Haml</a>, <a href="http://mustache.github.io/">Mustache</a>, <a href="http://jade-lang.com/">Jade</a>, or any other templating language, embedding too much logic in the template can making things hard to maintain (especially if some logic lives in the template and some elsewhere in your domain code). Of course some logic in the template (a conditional: should I render this section?, or loops: render this hash of data) is necessary, but I like to keep as much out of there as possible. It's easier to optimize, debug and maintain that logic elsewhere, and also writing complex logic in <a href="https://www.ruby-lang.org">Ruby</a> is much more fun than in a templating language!</p>
+
+<p>In this article I'll present what I've been doing to keep my templates relatively logic-free, and how I make sure I don't repeat any heavy database calls in assembling my data.</p>
+
+<!-- more -->
+
+
+<h2>The Setup - Presenters and Memoization</h2>
+
+<p>First, I'd like to introduce the Presenter pattern, and how this can help clean up your templates. Here are a couple of links about using presenters with <a href="http://rubyonrails.org/">Rails</a> that I've found useful:</p>
+
+<ul>
+<li><a href="http://blog.jayfields.com/2007/03/rails-presenter-pattern.html">Jay Fields' Guide to Presenters</a></li>
+<li><a href="http://www.slideshare.net/mdesjardins/presenters-in-rails">Mike Desjardins' Slideshare Presentation</a></li>
+</ul>
+
+
+<p>Consider the following screenshot of a section of a weekly email that we send our users:</p>
+
+<p><img src="/images/2014-03-18-presenters-and-memoization-moving-logic-out-of-templates/recently_added.png" alt="Example of Recently Added Works" /></p>
+
+<p>This section shows works that have been added that week by artists that you follow. That's clearly going to involve some database calls, and potentially heavy ones at that. Now we'd like to accomplish two things here: we want to make sure that we only make these calls once (no matter what we wind up doing with the data later), and we also would like to make sure that any code or logic that is making these calls and doing any data manipulation is not being done directly in our templates. Keeping this kind of logic out of your template will make it easier to debug, maintain and write.</p>
+
+<p>Let's start by creating a Module to hold the various logic required for this email:</p>
+
+<pre><code class="ruby">class WeeklyEmailPresenter
+  def initialize(user)
+    @user = user
+  end
+end
+</code></pre>
+
+<p>Ok, so far so good. In our mail template rendering/calling code, we can now say:</p>
+
+<pre><code class="ruby">@presenter = WeeklyEmailPresenter.new(user)
+</code></pre>
+
+<p>This will allow us to refer to methods in this class in our mail template. So now let's add a method that will query our database and return a list of artists that this user should be notified about:</p>
+
+<pre><code class="ruby">class WeeklyEmailPresenter
+  def initialize(user)
+    @user = user
+  end
+
+  def recently_added_works
+    # Some really heavy database query
+  end
+end
+</code></pre>
+
+<p>Ok, that was easy. In our HAML template, we can now do:</p>
+
+<pre><code class="haml">-if @presenter.recently_added_works &amp;&amp; @presenter.recently_added_works.any?
+  %table
+    %tr
+      %td
+        -@presenter.recently_added_works.each do |artists|
+          &lt;!-- markup to render each artist with recently added works --&gt;
+</code></pre>
+
+<p>However, take a look at how many times we've referred to <code>@presenter.recently_added_works</code> - 3 times already! And we'll most likely refer to it more elsewhere (perhaps when deriving a subject line, or showing a total count somewhere, etc.). Depending on how you've implemented the method <code>recently_added_works</code>, you may be re-querying the database every time it's referred to! Clearly that's a lot of wasted resources. So, let's look at an easy change that will guarantee we only ever perform the work to assemble this data once. We memoize it:</p>
+
+<pre><code class="ruby">class WeeklyEmailPresenter
+  def initialize(user)
+    @user = user
+  end
+
+  def recently_added_works
+    @recently_added_works ||= build_recently_added_works
+  end
+
+  private
+
+  def build_recently_added_works
+    # Code to do database lookups
+  end
+end
+</code></pre>
+
+<p>All we're doing is moving the actual code that's doing the heavy lifting into a <code>private</code> method (for convention, I like to prefix the name with <code>build_</code>). The public method that we refer to elsewhere in our presenter and template simply calls the appropriate <code>private</code> method. Through using an instance variable combined with conditional assignment, we guarantee that the <code>build_</code> method (our heavy and slow workhorse method) will only be called once, no matter how many times we refer to the public method.</p>
+
+<p>That's it! To summarize, use instance variables in your public methods which is what your templates and other code will use. Those public methods should call private <code>build_</code> methods which actually do all the heavy lifting. This way, you get to easily move logic away from a template and into its own module, and can guarantee that you're not repeating any long-running database queries or other slow data processing.</p>
+
+<p>Hopefully you've found this a useful pattern to follow, please leave any feedback in the comments and <a href="https://github.com/artsy">follow us on Github</a>!</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Ruby Helper to Group Artworks into a Pinterest-style Layout for Email]]></title>
+    <link href="http://artsy.net/blog/2014/03/17/ruby-helper-to-group-artworks-into-a-pinterest-style-layout-for-email/"/>
+    <updated>2014-03-17T19:32:00+00:00</updated>
+    <id>http://artsy.net/blog/2014/03/17/ruby-helper-to-group-artworks-into-a-pinterest-style-layout-for-email</id>
+    <content type="html"><![CDATA[<p><img src="/images/2014-03-17-ruby-helper-to-group-artworks-into-a-pinterest-style-layout-for-email/two-column-layout.png" alt="Example of two column layout" /></p>
+
+<p>Something we'd like to do is email our users some suggested artworks as part of their personalized emails. The layout of those suggestions should look something like our newly re-designed <a href="https://artsy.net/browse/artworks?price_range=-1%3A1000000000000">Browse</a> page, with a 'salon' style layout. Here's some simple Ruby code that can group artworks into columns for you, that can then be directly rendered in an email (via <a href="http://haml.info/">Haml</a>, <a href="http://mustache.github.io/">Mustache</a>, <a href="http://jade-lang.com/">Jade</a>, or your templating language of choice.)</p>
+
+<!-- more -->
+
+
+<h2>The code</h2>
+
+<p>First let's look at the code, and then I'll describe it:</p>
+
+<pre><code class="ruby">module ArtworkColumns
+  # Return an array of artworks grouped together in sub arrays by being added to the shortest 'column'
+  # based on a fixed width and aspect ratios.
+  #
+  # @param {Array} artworks The array of artworks to group into columns
+  # @param {Number} num_columns The number of columns to group them into
+  # @param {Number} width The width the images will be displayed at
+  #
+  # @return {Array} An array of artworks grouped into sub arrays by being added to the shortest one.
+  def self.artwork_columns(artworks, num_columns, width)
+    artwork_cols = []
+
+    # Initialize columns
+    num_columns.times do
+      artwork_cols &lt;&lt; []
+    end
+
+    artworks.each do |artwork|
+      add_to_shortest_column!(artwork_cols, artwork, width)
+    end
+
+    artwork_cols
+  end
+
+  private
+
+  # Adds artwork to shortest column
+  def self.add_to_shortest_column!(artwork_cols, artwork, width)
+    min_height = column_height(artwork_cols[0], width)
+    min_column_idx = 0
+
+    artwork_cols.each_with_index do |column, idx|
+      height = column_height(column, width)
+      if height &lt; min_height
+        min_height = height
+        min_column_idx = idx
+      end
+    end
+
+    artwork_cols[min_column_idx] &lt;&lt; artwork
+  end
+
+  # Calculate sum of heights of artworks in column
+  def self.column_height(artwork_col, width)
+    height = 0
+    artwork_col.each do |artwork|
+      if (aspect_ratio = artwork.default_image.aspect_ratio)
+        height += (width / aspect_ratio).floor
+      else
+        height += width
+      end
+    end
+    height
+  end
+</code></pre>
+
+<p>The algorithm is quite simple (original JS idea and implementation courtesy of Artsy's <a href="https://github.com/gib">Gib</a>). The inputs are fairly obvious, an array of artworks to be grouped, the number of columns to group them into, and the width of each column.</p>
+
+<p>We then simply iterate over all our artworks, and add them to whichever column is shortest. This way we end up with several columns that are for the most part equally sized in height, and as they all have different aspect ratios, when they are rendered in a table, you wind up with a nice looking 'dynamic' layout. The height of each column is calculated as the sum of the heights of the artworks in each column. The heights are derived from the inputted widths and aspect ratios of the images.</p>
+
+<p>Here's how you might iterate over the returned column groupings and render a layout similar to the above:</p>
+
+<pre><code class="haml">- artwork_suggestions.each_with_index do |artwork_arr, idx|
+  %td{ id: 'artwork-column', style: "width: 290px;padding-top:20px;text-align:left;" }
+    - artwork_array.each do |artwork|
+      %a{ href: "#{canonical_url}/artwork/#{artwork.slug}?#{@utm_params}" }&lt;
+        %img{ id: 'artwork', src: "#{artwork.default_image.image_url(:large)}", style: "width: 290px;" }
+      %br
+      &lt;!-- additional artwork details, title, artist, etc. --&gt;
+</code></pre>
+
+<p>These few lines of Ruby code have allowed us to move logic out of Haml (yuck!) and into Ruby (yay!) and allow <a href="http://haml.info/">Haml</a> to just focus on rendering the objects passed in (certainly via loops and conditionals, etc.)</p>
+
+<p>That's all for now! In my next post I'll talk about how I use the Presenter pattern and memoization to move even more logic out of templates (and save some database calls while we're at it!)</p>
+
+<p>Thanks again! Post any comments or tips of your own here, and <a href="https://github.com/artsy">follow us on Github</a>!</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Detecting trends using Forgetsy]]></title>
+    <link href="http://artsy.net/blog/2014/03/17/detecting-trends-with-forgetsy/"/>
+    <updated>2014-03-17T11:32:00+00:00</updated>
+    <id>http://artsy.net/blog/2014/03/17/detecting-trends-with-forgetsy</id>
+    <content type="html"><![CDATA[<p><img src="/images/2014-03-17-detecting-trends-with-forgetsy/monolith.jpg" alt="Armory Trending Screen" /></p>
+
+<p>As part of our partnership with <a href="https://www.thearmoryshow.com/">The New York Armory Show</a> this year, we installed a number of terminals throughout the fair. These screens used our own real-time data to display an ever shifting set of trending artworks, artists, and booths, to the attendees.</p>
+
+<p>Out of this work, we've open-sourced <a href="https://github.com/cavvia/forgetsy">Forgetsy</a>, a lightweight Ruby trending library. Put simply, Forgetsy implements data structures that forget. Loosely based on Bit.ly's <a href="http://word.bitly.com/post/41284219720/forget-table">Forget Table</a> concept, Forgetsy uses decaying counters to track temporal trends in categorical distributions.</p>
+
+<!-- more -->
+
+
+<h2>Anatomy of a Trend</h2>
+
+<p>To clarify the term 'trend', let's take this graph of cumulative artist searches over time as an example.</p>
+
+<p><img src="/images/2014-03-17-detecting-trends-with-forgetsy/searches.png" alt="Artist Search Graphs" /></p>
+
+<p>On the left-hand side, we see a steepening gradient (denoted by the dashed lines) for Banksy during his residency in New York (Oct 2013), but in contrast a linear rise in searches for Warhol over the same period. We define a 'trend' as this rise in the <em>rate</em> of observations of a particular event over a time period, which we'll call τ.</p>
+
+<p>In Forgetsy, trends are encapsulated by a construct named <em>delta</em>. A <em>delta</em> consists of two sets of counters, each of which implements <a href="https://en.wikipedia.org/wiki/Exponential_decay">exponential decay</a> of the following form.</p>
+
+<p><img src="http://latex.codecogs.com/gif.latex?X_t_1%3DX_t_0%5Ctimes%7Be%5E%7B-%5Clambda%5Ctimes%7Bt%7D%7D%7D" alt="Exponential Decay" /></p>
+
+<p>Where the inverse of the decay rate (λ) is the lifetime of an observation in the set, τ. By normalising one set by a set with half the decay rate (or double the lifetime), we obtain a trending score for each category in a distribution. This score expresses the change in the rate of observations of a category over the lifetime of the set, as a proportion in the range [0,1].</p>
+
+<p>Forgetsy removes the need for manually sliding time windows or explicitly maintaining rolling counts, as observations naturally decay away over time. It's designed for heavy writes and sparse reads, as it implements decay at read time. Each set is implemented as a <a href="http://redis.io/">redis</a> sorted set, and keys are scrubbed when a count is decayed to near zero, providing storage efficiency.</p>
+
+<p>As a result, Forgetsy handles distributions with up to around 10<sup>6</sup> active categories, receiving hundreds of writes per second, without much fuss.</p>
+
+<h2>Usage</h2>
+
+<p>Take a social network in which users can follow each other. You want to track trending users. You construct a delta with a one week lifetime, to capture trends in your follows data over one week periods:</p>
+
+<pre><code class="ruby">follows_delta = Forgetsy::Delta.create('user_follows', t: 1.week)
+</code></pre>
+
+<p>The delta consists of two sets of counters indexed by category identifiers. In this example, the identifiers will be user ids. One set decays over the mean lifetime specified by τ, and another set decays over double the lifetime.</p>
+
+<p>You can now add observations to the delta, in the form of follow events. Each time a user follows another, you increment the followed user id. You can also do this retrospectively:</p>
+
+<pre><code class="ruby">follows_delta.incr('UserFoo', date: 2.weeks.ago)
+follows_delta.incr('UserBar', date: 10.days.ago)
+follows_delta.incr('UserBar', date: 1.week.ago)
+...
+</code></pre>
+
+<p>Providing an explicit date is useful if you are processing data asynchronously. You can also use the <code>incr_by</code> option to increment a counter in batches. You can now consult your follows delta to find your top trending users:</p>
+
+<pre><code class="ruby">puts follows_delta.fetch
+</code></pre>
+
+<p>Will print:</p>
+
+<pre><code class="ruby">{ 'UserFoo' =&gt; 0.789, 'UserBar' =&gt; 0.367 }
+</code></pre>
+
+<p>Each user is given a dimensionless score in the range [0,1] corresponding to the normalised follows delta over the time period. This expresses the proportion of follows gained by the user over the last week compared to double that lifetime.</p>
+
+<p>Optionally fetch the top <em>n</em> users, or an individual user's trending score:</p>
+
+<pre><code class="ruby">follows_delta.fetch(n: 20)
+follows_delta.fetch(bin: 'UserFoo')
+</code></pre>
+
+<p>For more information on usage, check out the <a href="https://github.com/cavvia/forgetsy">github project</a> page.</p>
+
+<h2>In the Wild</h2>
+
+<p>In practice, we use linear, weighted combinations of deltas to produce trending scores for any given domain, such as artists. Forgetsy doesn't provide a server, but we send events to an rpc service that updates the deltas in a streamed manner. These events might include artist follows, artwork favorites, auction lot sales or individual page views.</p>
+
+<p>One requirement we have is lifetime flexibility. Forgetsy lets us stipulate the trending period τ on a delta by delta basis. This allows us to lower the lifetime significantly in a fair context, in which we track trends over just a few hours, contrasted with a general art market context, in which we're interested in trends over weeks and months.</p>
+
+<p>In summary, the delta structures provided by Forgetsy provide you with a simple, scalable, transparent base for a trending algorithm that can be tuned to suit the specific dynamics of the domain in question.</p>
+]]></content>
+  </entry>
+  
+</feed>

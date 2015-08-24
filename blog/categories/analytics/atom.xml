@@ -1,0 +1,396 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: analytics | Artsy Engineering]]></title>
+  <link href="http://artsy.net/blog/categories/analytics/atom.xml" rel="self"/>
+  <link href="http://artsy.net/"/>
+  <updated>2015-08-24T17:32:17+00:00</updated>
+  <id>http://artsy.net/</id>
+  <author>
+    <name><![CDATA[]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Aspect-Oriented Programming and ARAnalytics]]></title>
+    <link href="http://artsy.net/blog/2014/08/04/aspect-oriented-programming-and-aranalytics/"/>
+    <updated>2014-08-04T14:52:00+00:00</updated>
+    <id>http://artsy.net/blog/2014/08/04/aspect-oriented-programming-and-aranalytics</id>
+    <content type="html"><![CDATA[<p>Analytics are common in iOS applications. They help inform our decisions
+about products. Since analytics are so common, Artsy developed a library called
+<a href="https://github.com/orta/ARAnalytics">ARAnalytics</a>. This library provides a
+single interface to many different backend analytics providers, freeing
+developers from having to write code for each of the providers that they're
+using.</p>
+
+<p>Let's consider a typical view controller on iOS. View controllers on iOS
+represent the glue code between models and views. When a model changes, the view
+controller updates the appearance of the UI. Similarly, when the UI is
+interacted with by the user, the view controller updates the model. This is the
+core of any standard iOS application.</p>
+
+<p>So let's say that a button is pressed. We'll handle that interaction in a
+method called <code>buttonWasPressed:</code>. We'll want to update our model, but also to
+track the analytics event.</p>
+
+<pre><code class="objc">- (void)buttonWasPressed:(id)sender
+{
+    self.model.hearted = YES;
+
+    [ARAnalytics event:@"hearted"];
+}
+</code></pre>
+
+<p>Simple enough, but consider that the analytics tracking code doesn't fall within
+our definition of a view controller – the button handler just happens to be a
+convenient place to put the tracking code. Also consider that <em>every single</em>
+button handler is going to have to have similar code implemented.</p>
+
+<h2>There has to be a better way.</h2>
+
+<!-- more -->
+
+
+<p><a href="http://twitter.com/steipete">Pete Steinberger</a> and <a href="http://twitter.com/orta">Orta Therox</a>
+were talking and the topic of <a href="http://en.wikipedia.org/wiki/Aspect-oriented_programming">Aspect-Oriented Programming</a>,
+specifically in the context of analytics. AOP takes a look at the different
+<em>conerns</em> of an application – logical, cohesive units of functionality. While
+most programming paradigms, including those used with Objective-C, group and
+encapsulate these concerns, there are some concerns that are "cross-cutting"
+because they are involved through several other concerns.</p>
+
+<p>Analytics is such a cross-cutting concern. That makes it a prime target for
+being abstracted away using AOP. Using <a href="http://albertodebortoli.github.io/blog/2014/03/25/an-aspect-oriented-approach-programming-to-ios-analytics/">another blog post</a>  as an example, we set about <a href="https://github.com/orta/ARAnalytics/pull/74">integrating an AOP-like DSL within ARAnalytics</a>
+that would allow you to define all of your analytics in one spot.</p>
+
+<p>The interface would be simple. When providing your API keys to the various
+backend services you'd like to use with ARAnalytics, you'd also provide a
+dictionary specifying the classes you'd like us to "hook into". Whenever a
+selector from an instance of the given class was invoked, we'd execute the
+analytics event specified in the dictionary.</p>
+
+<p>Since Objective-C has a dynamic runtime, we could have swizzled the instance
+methods on the classes you specified in the dictionary. This gets a little
+tricky and represents a lot of work for us. We could directly swizzle the
+instance methods on the classes in question, but wrapping parameters of variable
+types and in various numbers becomes a chore. If we didn't get it done
+perfectly, we'd risk introducing bugs into the entire application.</p>
+
+<p>I wrote a proof-of-concept of analytics using AOP with <a href="http://reactivecocoa.io">ReactiveCocoa</a>.
+It worked, but was a little hacky since it involved the swizzling of <code>alloc</code>.
+ReactiveCocoa is also a large framework to be included just for the sake of
+analytics. Additionally, its interface exposed ReactiveCocoa's <code>RACTuple</code> class,
+which smells like a leaky abstraction.</p>
+
+<h2>What could we do?</h2>
+
+<p>Well, about the same time, Pete Steinberger open sourced a new framework just
+for AOP called <a href="https://github.com/steipete/Aspects">Aspects</a>. Pete did all the
+difficult work of swizzling methods with variable parameter lists, including
+wrapping primitive parameters in values.</p>
+
+<p>Pete and I worked together to get Aspects working with ARAnalytics, removing our
+dependency on ReactiveCocoa.</p>
+
+<h2>How to Use it</h2>
+
+<p>Using ARAnalytics with the new DSL is super-easy. Just add either <code>ARAnalytics</code>
+or <code>ARAnalytics/DSL</code> to your podfile, specifying a version of at least 2.6. Run
+<code>pod install</code> and you're ready to get started.</p>
+
+<p>Since all of your analytics are going to be specified in one spot, and that spot
+is going to get rather large, I'd recommend creating an Objective-C category on
+your app delegate to set up all of your analytics. Then you can call this
+<code>setupAnalytics</code> method when your app launches.</p>
+
+<pre><code class="objc">
+#import "ARAppDelegate.h"
+
+@interface ARAppDelegate (Analytics)
+
+- (void)setupAnalytics;
+
+@end
+</code></pre>
+
+<pre><code class="objc">
+
+#import &lt;ARAnalytics/DSL.h&gt;
+
+@implementation ARAppDelegate (Analytics)
+
+- (void)setupAnalytics
+{
+    [ARAnalytics setupWithAnalytics:@{
+        /* keys */
+    } configuration:
+    @{
+        ARAnalyticsTrackedEvents: @[
+            @{
+                ARAnalyticsClass: MyViewController.class,
+                ARAnalyticsDetails: @[
+                    @{
+                        ARAnalyticsEventName: @"hearted",
+                        ARAnalyticsSelectorName: NSStringFromSelector(@selector(buttonWasPressed:)),
+                    }
+                ]
+            }
+        ]
+    }];
+}
+
+@end
+</code></pre>
+
+<p>Now our <code>buttonWasPressed:</code> method is <em>very</em> straightforward:</p>
+
+<pre><code class="objc">- (void)buttonWasPressed:(id)sender
+{
+    self.model.hearted = YES;
+}
+</code></pre>
+
+<p>The view controller is now <em>only</em> responsible for what it should be responsible
+for: mediating interactions between the view and the model. Awesome! Even
+cooler, we can provide fine-grain control over which analytics events are
+invoked and with what properties they are sent with. Let's take a look.</p>
+
+<pre><code class="objc">[ARAnalytics setupWithAnalytics:@{
+    /* keys */
+} configuration:
+@{
+    ARAnalyticsTrackedEvents: @[
+        @{
+            ARAnalyticsClass: MyViewController.class,
+            ARAnalyticsDetails: @[
+                @{
+                    ARAnalyticsEventName: @"hearted",
+                    ARAnalyticsSelectorName: NSStringFromSelector(@selector(buttonWasPressed:)),
+                    ARAnalyticsEventProperties: ^NSDictionary *(MyViewController *controller, NSArray *parameters) {
+                        UIButton *button = parameters.firstObject;
+                        NSString *buttonTitle = [button titleForState:UIControlStateNormal];
+                        return @{
+                            @"view_title" : controller.title ?: @"",
+                            @"button_title" : buttonTitle ?: @"",
+                        };
+                    },
+                    ARAnalyticsShouldFire: ^BOOL(MyViewController *controller, NSArray *parameters) {
+                        return /* selective disable firing of analytics */;
+                    }
+                }
+            ]
+        }
+    ]
+}];
+
+@end
+</code></pre>
+
+<p>So you see that even though you're defining your analytics once, at application
+startup, you're still able to provide dynamic, per-instance behaviour and event
+properties.</p>
+
+<p>Finally, we've also written support for page views. In a few lines, you can
+have every view controller track its page view with ARAnalytics.</p>
+
+<pre><code class="objc">[ARAnalytics setupWithAnalytics:@{
+    /* keys */
+} configuration:
+@{
+    ARAnalyticsTrackedScreens: @[
+        @{
+            ARAnalyticsClass: UIViewController.class,
+            ARAnalyticsDetails: @[ // default selector on iOS is viewDidAppear:
+                @{
+                    ARAnalyticsPageNameKeyPath: @"title"
+                }
+            ]
+        }
+    ]
+}];
+
+@end
+</code></pre>
+
+<p>This code will track a page view with the title the same as the view
+controller's <code>title</code> property, but just like with events you can provide
+fine-grained handling.</p>
+
+<h2>Some Limitations</h2>
+
+<p>There is a <a href="https://github.com/steipete/Aspects/issues/11">limitation</a> on
+Aspects that wasn't fully understood until we used the new AOP approach to
+analytics in the Artsy app. Selectors can only be "hooked into" once per class
+hierarchy. That  means that you cannot create a tracked events for two
+difference view controllers, both on the <code>viewWillAppear:</code> selector. This is a
+temporary limitation while the Aspects library is being worked on. In the mean
+time, you are free to use the <a href="https://github.com/orta/ARAnalytics/tree/ashfurrow-temporary-dsl-fix">original implementation</a>
+with ReactiveCocoa, which doesn't have this limitation and which we are using
+currently.</p>
+
+<h2>What we Learnt</h2>
+
+<p>AOP is a really cool paradigm that can reduce tight coupling in your code and
+increase your overall level of cohesion. Its applications extend beyond just
+analytics – any time you have a behaviour that's being exhibited in several
+abstractions in your code, you should consider if using AOP to replace that
+behaviour might make for cleaner code and more cohesive abstractions.</p>
+
+<p>Finally, I got to make my first significant contribution to open source at
+Artsy. It was awesome to be able to collaborate with Pete and Orta on this
+project, as well as receive feedback from developers who are already using
+ARAnalytics.</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[ARAnalytics - Analytics for iOS Apps]]></title>
+    <link href="http://artsy.net/blog/2013/04/10/aranalytics/"/>
+    <updated>2013-04-10T17:23:00+00:00</updated>
+    <id>http://artsy.net/blog/2013/04/10/aranalytics</id>
+    <content type="html"><![CDATA[<p>In both my <a href="http://orta.github.com">personal apps</a> and Artsy Folio, I'm always after a deeper understanding of how people use the app. There's three ways to do this: ask users, watch users and track usage. I'd like to talk about the third of these.</p>
+
+<p>We've experimented with quite a lot of analytics tools for the Artsy website, and it seemed fitting to do the same for our mobile app. We wanted the freedom to change the analytics tool without having to change the code, and so <a href="http://github.com/orta/ARAnalytics">ARAnalytics</a> was born.</p>
+
+<!-- more -->
+
+
+<p>ARAnalytics is the adaption of <a href="https://github.com/jkrall/analytical">Analytical</a> and  <a href="http://segmentio.github.com/analytics.js/">Analytics.js</a> to iOS. By using <a href="http://cocoapods.org">Cocoapods</a> it became possible to set up the entire analytics stack with only a few lines of code in your <code>Podfile</code>.</p>
+
+<pre><code class="ruby">  pod "ARAnalytics/Crashlytics"
+  pod "ARAnalytics/Mixpanel"
+</code></pre>
+
+<p>The list of supported libraries is pretty vast ( <em>TestFlight, Mixpanel, Localytics, Flurry, Google Analytics, KISSMetrics, Countly, Crittercism, Bugsnag and Crashlytics</em> ) and the API for <code>ARAnalytics</code> tries to bridge any gaps it can find in the implementations.</p>
+
+<p><code>ARAnalytics</code> simplifies the API to two main parts of tracking; user details and events. User details are things like your internal ID for a user, and custom properties like your app's preferences, whilst events are temporal actions that are triggered based off user actions.</p>
+
+<p>There is another tool worth mentioning and that is <a href="http://cocoadocs.org/dosets/Analytics/0.0.5/">Analytics</a> which is a new port of Analytics.js which does a similar <em>simple API to different analytics providers</em> but works by offloading the work to the server. I think there are advantages and disadvantages to both of these approaches, but I think one or the other should cover nearly all use cases!</p>
+
+<p>ARAnalytics is available on Github at <a href="http://github.com/orta/ARAnalytics">orta/ARAnalytics</a> and documented on <a href="http://cocoadocs.org/docsets/ARAnalytics/1.2/">Cocoadocs</a> (which Artsy proudly sponsors!)</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[How to Start Small with Big Data and Google Analytics]]></title>
+    <link href="http://artsy.net/blog/2012/05/01/how-to-start-small-with-big-data-and-google-analytics/"/>
+    <updated>2012-05-01T20:52:00+00:00</updated>
+    <id>http://artsy.net/blog/2012/05/01/how-to-start-small-with-big-data-and-google-analytics</id>
+    <content type="html"><![CDATA[<p>Why do so many companies write a homegrown pageviews tracking system? Between Google Analytics, Kissmetrics and many others, isn't that a completely solved problem?</p>
+
+<p>These popular solutions lack domain knowledge. They are easily capable of segmenting users by region or browser, but they fail to recognize rules core to your business. Tracking pageviews with a homegrown system becomes your next sprint's goal.</p>
+
+<p>Implementing a hit counter service is quite tricky. This is a write-heavy, asynchronous problem that must minimize impact on page rendering time, while dealing with rapidly growing amounts of data. Is there a middle ground between using Google Analytics and rolling out our own homegrown implementation? How can we use Google Analytics for data collection and inject domain knowledge into gathered data, incrementally, without writing our own service?</p>
+
+<!--more-->
+
+
+<p>Let's write a Rake task that pulls data from Google Analytics. We can run it daily. Start with a Ruby gem called <a href="https://github.com/vigetlabs/garb">Garb</a>.</p>
+
+<pre><code class="ruby">gem "garb", "0.9.1"
+</code></pre>
+
+<p>Garb requires Google Analytics credentials. Those can go into a YAML configuration file, which will use environment settings in production (it's an ERB template, too). We can hardcode the test account values.</p>
+
+<pre><code class="yaml config/google_analytics.yml">defaults: &amp;defaults
+
+development, test:
+  &lt;&lt;: *defaults
+  email: "ga@example.com"
+  password: "password"
+  ua: "UA-12345678-1"
+
+production:
+  &lt;&lt;: *defaults
+  email: &lt;%= ENV['GOOGLE_ANALYTICS_EMAIL'] %&gt;
+  password: &lt;%= ENV['GOOGLE_ANALYTICS_PASSWORD'] %&gt;
+  ua: &lt;%= ENV['GOOGLE_ANALYICS_UA'] %&gt;
+</code></pre>
+
+<p>Establish a Google Analytics session and fetch the profile corresponding to the Google user account with Garb.</p>
+
+<pre><code class="ruby">config = YAML.load(ERB.new(File.new(Rails.root.join("config/google_analytics.yml")).read).result)[Rails.env].symbolize_keys
+Garb::Session.login(config[:email], config[:password])
+profile = Garb::Management::Profile.all.detect { |p| p.web_property_id == config[:ua] }
+raise "missing profile #{config[:ua]} in #{Garb::Management::Profile.all.map(&amp;:web_property_id)}" unless profile
+</code></pre>
+
+<p>Garbs needs a data model to collect pageviews. It extends <code>Garb::Model</code> and defines a set of "metrics" and "dimensions".</p>
+
+<pre><code class="ruby app/models/google_analytics_pageviews.rb">class GoogleAnalyticsPageviews
+  extend Garb::Model
+  metrics :pageviews
+  dimensions :page_path
+end
+</code></pre>
+
+<p>You can play with the <a href="http://ga-dev-tools.appspot.com/explorer/">Google Analytics Query Explorer</a> to see the many possible metrics (such as pageviews) and dimensions (such as requested page path).</p>
+
+<p>By default, Google Analytics lets clients retrieve 1000 records in a single request. To get all records we can add an iterator, called <code>all</code>, that will keep making requests until the server runs out of data. The code for <em>config/initializers/garb_model.rb</em> is <a href="https://gist.github.com/2265877">in this gist</a> and I made a <a href="https://github.com/vigetlabs/garb/pull/116">pull request</a> into Garb if you'd rather merge that onto your fork.</p>
+
+<p>The majority of our pages are in the form of "/model/id", for example "/artwork/leonardo-mona-lisa". We're interested in all pageviews for a given artwork and in pageviews for a given artist, at a given date. We'll store selected Google Analytics data in a <code>GoogleAnalyticsPageviewsRecord</code> model described further.</p>
+
+<pre><code class="ruby">t = Date.today - 1
+GoogleAnalyticsPageviews.all(profile, { :start_date =&gt; t, :end_date =&gt; t }) do |row|
+  model = /^\/#\!\/(?&lt;type&gt;[a-z-]+)\/(?&lt;id&gt;[a-z-]+)$/.match(row.page_path)
+  next unless (model[:type] == "artwork" || model[:type] == "artist")
+  GoogleAnalyticsPageviewsRecord.create!({
+    :model_type =&gt; model[:type],
+    :model_id =&gt; model[:id],
+    :pageviews =&gt; row.pageviews,
+    :dt =&gt; t.strftime("%Y-%m-%d")
+  })
+end
+</code></pre>
+
+<p>Each <code>GoogleAnalyticsPageviewsRecord</code> contains the total pageviews for a given model ID at a given date. We now have a record for each artwork and artist. We can rollup existing data into a set of collections, incrementally. For example, <code>google_analytics_artworks_monthly</code> will contain the monthly hits for each artwork.</p>
+
+<pre><code class="ruby">class GoogleAnalyticsPageviewsRecord
+  include Mongoid::Document
+
+  field :model_type, type: String
+  field :model_id, type: String
+  field :pageviews, type: Integer
+  field :dt, type: Date
+
+  index [
+    [:model_type, Mongo::ASCENDING],
+    [:model_id, Mongo::ASCENDING],
+    [:dt, Mongo::DESCENDING]
+  ], :unique =&gt; true
+
+  after_create :rollup
+
+  def rollup
+    Mongoid.master.collection("google_analytics_#{self.model_type}s_total").update(
+      { :model_id =&gt; self.model_id },
+      { "$inc" =&gt; { "count" =&gt; self.pageviews }}, { :upsert =&gt; true })
+    {
+      :daily =&gt; self.dt.strftime("%Y-%m-%d"),
+      :weekly =&gt; self.dt.beginning_of_week.strftime("%Y-%W"),
+      :monthly =&gt; self.dt.beginning_of_month.strftime("%Y-%m"),
+      :yearly =&gt; self.dt.beginning_of_year.strftime("%Y")
+    }.each_pair do |t, dt|
+      Mongoid.master.collection("google_analytics_#{self.model_type}s_#{t}").update(
+        { :model_id =&gt; self.model_id, :dt =&gt; dt },
+        { "$inc" =&gt; { "count" =&gt; self.pageviews }}, { :upsert =&gt; true })
+    end
+  end
+
+end
+</code></pre>
+
+<p>The rollup lets us query these tables directly. For example, the following query returns a record with the pageviews for the Leonardo's "Mona Lisa" in January 2012.</p>
+
+<pre><code class="ruby">Mongoid.master.collection("google_analytics_artworks_monthly").find_one({
+  :model_type =&gt; "artwork", :model_id =&gt; "leonardo-mona-lisa", :dt =&gt; "2012/01"
+})
+</code></pre>
+
+<p>One of the obvious advantages of pulling Google Analytics data is the low volume of requests and offline processing. We're letting Google Analytics do the hard work of collecting data for us in real time and are consuming its API without the performance or time pressures.</p>
+]]></content>
+  </entry>
+  
+</feed>

@@ -1,0 +1,441 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: testing | Artsy Engineering]]></title>
+  <link href="http://artsy.net/blog/categories/testing/atom.xml" rel="self"/>
+  <link href="http://artsy.net/"/>
+  <updated>2015-08-24T17:32:17+00:00</updated>
+  <id>http://artsy.net/</id>
+  <author>
+    <name><![CDATA[]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[How To Write Unit Tests Like a Brood Parasite]]></title>
+    <link href="http://artsy.net/blog/2015/07/06/how-to-write-unit-tests-like-a-brood-parasite/"/>
+    <updated>2015-07-06T13:54:00+00:00</updated>
+    <id>http://artsy.net/blog/2015/07/06/how-to-write-unit-tests-like-a-brood-parasite</id>
+    <content type="html"><![CDATA[<p>To a beginner, <a href="http://ocmock.org/">OCMock</a> looks scary. The syntax is strange, the idea of stubbing seems complicated, and skirting around the need to use it at all times kind of works out for a while.</p>
+
+<pre><code class="objc">[[[mock stub] // three brackets!!
+
+[OCMockObject niceMockForClass:UINavigationItem.class]; // it has to be told to be nice?
+</code></pre>
+
+<p>All of this can be overwhelming for someone who just wants to write simple unit tests for a particular view controller.</p>
+
+<p>Once you look into the specifics of OCMock, however, things get less terrifying really quickly. It is helpful to compare OCMock’s approach to stubbing to the <a href="https://vimeo.com/60553870">behaviors of certain bird species</a>. As always, the soothing voice of David Attenborough brings clarity and joy to even the most mundane puzzles of life’s journey.</p>
+
+<!-- more -->
+
+
+<hr />
+
+<p>For those who hate birds and videos of them, the cuckoo duck is known for leaving its eggs in the nests of other birds precisely as their unsuspecting victims lay their own. The new host parents cannot differentiate their offspring from those of the duck and inadvertently raise the duck chicks to maturity.</p>
+
+<p>In a similar fashion, OCMock can place trick objects in your <del>nest</del> test code with whichever custom configuration suits your needs. The ‘host’ subject under test can’t differentiate these mock objects from the objects they’ve been written to use, and you can decide exactly how you’d like the mock objects to behave in your testing environment. This was especially helpful for a method I created that relies on information from an asynchronous network request. We’ll call it the <code>DataSource</code> of a <code>StatusMonitor</code> class.</p>
+
+<pre><code class="objc">- (BOOL)updatedStatus
+{
+    [DataSource getNewDataWithNetworkRequest];
+    /// some code that relies on this new data
+}
+</code></pre>
+
+<p>In my view controller, I can use a <code>StatusMonitor</code> to decide whether or not a notification should appear in my view:</p>
+
+<pre><code class="objc">- (void)viewWillAppear
+{   
+    [super viewWillAppear];
+
+/// show or hide a notification based on this status
+    BOOL shouldShowNotification = [self.statusMonitor updatedStatus];
+}
+</code></pre>
+
+<p>When I’m writing tests for this view controller, I don’t care about <code>DataSource</code> - I just want to make sure the view controller knows when to show or hide a notification correctly depending on the new value from its StatusMonitor. I’d really like to avoid making any network requests within these kinds of tests. This is where the bird strategy comes in.</p>
+
+<p>In my tests, I can create a decoy <code>StatusMonitor</code> with its corresponding methods using OCMock.</p>
+
+<pre><code class="objc">StatusMonitor *statusMonitor = [[ARCMSStatusMonitor alloc] init];
+id mockMonitor = [OCMockObject partialMockForObject:statusMonitor];
+
+[[[mockMonitor stub] andReturn:@YES] checkStatus];
+</code></pre>
+
+<hr />
+
+<p>I can then assign mockMonitor to the <code>statusMonitor</code> property of my view controller under test. In this way, the dependency on a network connection disappears, my view controller is happy, and my test can isolate the functionality I care about. OCMock provides some excellent documentation of what they mean by ‘nice’ and some other interesting things you can do with mock objects <a href="http://ocmock.org/features/">here</a>. For those interested in David Attenborough, birds, or natural history in general, I recommend  <a href="http://www.bbc.co.uk/nature/collections/p0048522">Nature</a>.</p>
+
+<div style="text-align:center;">
+<img src = "/images/2015-07-06-how-to-write-unit-tests-like-a-brood-parasite/attenborough.gif">
+</div>
+
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Using CocoaPods Caching with Travis CI]]></title>
+    <link href="http://artsy.net/blog/2014/08/08/CocoaPods-Caching/"/>
+    <updated>2014-08-08T11:46:00+00:00</updated>
+    <id>http://artsy.net/blog/2014/08/08/CocoaPods-Caching</id>
+    <content type="html"><![CDATA[<p>As <a href="http://artsy.github.io/blog/2014/08/07/taking-a-snapshot-with-second-curtain/">Ash said earlier</a> we like using Continuous Integration. Today I spent a large amount of time migrating us to use the new CocoaPods caching system in Travis CI. To make up for my lost time I'm passing on what I've learned and also showing how we do CI at Artsy with Objective-C apps. If you're interested in how we do it in Swift, you can just check <a href="https://github.com/artsy/eidolon">Eidolon</a>.</p>
+
+<!-- more -->
+
+
+<p>First and foremost, this only works if you are paying for Travis CI.</p>
+
+<p>Travis CI recently merged in support for <a href="http://docs.travis-ci.com/user/caching/">Caching of CocoaPods</a> - this is great! By using this, we've reduced our build times from an average of about 10 minutes, to about 7 minutes. It works by using your <code>Podfile.lock</code> as a key to cache your <code>Pods</code> directory, if the lock hasn't changed then there's no need to update the Cache and so <code>pod install</code> is not called on your project. This caused me an issue as the <code>[Project].xcworkspace</code> file that CocoaPods generates was not in source control, and the app wouldn't build. Useful note, if you're using <a href="http://guides.cocoapods.org/syntax/podfile.html#pod">development pods</a> in your build you probably shouldn't use this as your Pods directory can get out of sync with the cached version.</p>
+
+<p>We use a <a href="https://github.com/artsy/eidolon/blob/master/Makefile">Makefile</a> to separate the tasks required to build, test and deploy an app. The general structure of our Makefile is:</p>
+
+<table>
+<thead>
+<tr>
+<th> Action        </th>
+<th> Reason </th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td> Constants </td>
+<td> A collection of constants that get resued by different make tasks. </td>
+</tr>
+<tr>
+<td> CI Tasks </td>
+<td> Separate commands necessary for running Xcode projects from the terminal. </td>
+</tr>
+<tr>
+<td> Actions </td>
+<td> Commands that manipulate your project state, or maintainance commands. </td>
+</tr>
+<tr>
+<td> Deployment </td>
+<td> Commands to get your app ready for the App Store, or Hockey. </td>
+</tr>
+</tbody>
+</table>
+
+
+<p>If you don't know the syntax for Make, essentially if it's on the same line you're either setting constants or calling other make commands. If it's on a separate line then you are running a shell command.</p>
+
+<p>This is the <a href="http://orta.io/#folio-header-unit">Artsy Folio</a> Makefile in full:</p>
+
+<pre><code class="make"># Constants
+
+WORKSPACE = Artsy Folio.xcworkspace
+XCPROJECT = Artsy\ Folio.xcodeproj
+SCHEME = ArtsyFolio
+CONFIGURATION = Beta
+APP_PLIST = Info.plist
+PLIST_BUDDY = /usr/libexec/PlistBuddy
+TARGETED_DEVICE_FAMILY = \"1,2\"
+
+BUNDLE_VERSION = $(shell $(PLIST_BUDDY) -c "Print CFBundleVersion" $(APP_PLIST))
+GIT_COMMIT = $(shell git log -n1 --format='%h')
+ALPHA_VERSION = $(BUNDLE_VERSION)-$(BUILD_NUMBER)-$(GIT_COMMIT)
+
+GIT_COMMIT_REV = $(shell git log -n1 --format='%h')
+GIT_COMMIT_SHA = $(shell git log -n1 --format='%H')
+GIT_REMOTE_ORIGIN_URL = $(shell git config --get remote.origin.url)
+
+DATE_MONTH = $(shell date "+%e %h")
+DATE_VERSION = $(shell date "+%Y.%m.%d")
+
+CHANGELOG = CHANGELOG.md
+CHANGELOG_SHORT = CHANGELOG_SHORT.md
+
+IPA = ArtsyFolio.ipa
+DSYM = ArtsyFolio.app.dSYM.zip
+
+# Phony tasks are tasks that could potentially have a file with the same name in the current folder
+.PHONY: build clean test ci
+
+# CI Tasks
+
+ci: CONFIGURATION = Debug
+ci: pods build
+
+build:
+    set -o pipefail &amp;&amp; xcodebuild -workspace "$(WORKSPACE)" -scheme "$(SCHEME)" -sdk iphonesimulator -destination 'name=iPad Retina' build | xcpretty -c
+
+clean:
+    xctool -workspace "$(WORKSPACE)" -scheme "$(SCHEME)" -configuration "$(CONFIGURATION)" clean
+
+test:
+    set -o pipefail &amp;&amp; xcodebuild -workspace "$(WORKSPACE)" -scheme "$(SCHEME)" -configuration Debug test -sdk iphonesimulator -destination 'name=iPad Retina' | second_curtain | xcpretty -c --test
+
+lint:
+    bundle exec fui --path Classes find
+
+    bundle exec obcd --path Classes find HeaderStyle
+    bundle exec obcd --path "ArtsyFolio Tests" find HeaderStyle
+
+# Actions
+
+ipa:
+    $(PLIST_BUDDY) -c "Set CFBundleDisplayName $(BUNDLE_NAME)" $(APP_PLIST)
+    $(PLIST_BUDDY) -c "Set CFBundleVersion $(DATE_VERSION)" $(APP_PLIST)
+    ipa build --scheme $(SCHEME) --configuration $(CONFIGURATION) -t
+
+alpha_version:
+    $(PLIST_BUDDY) -c "Set CFBundleVersion $(ALPHA_VERSION)" $(APP_PLIST)
+
+change_version_to_date:
+    $(PLIST_BUDDY) -c "Set CFBundleVersion $(DATE_VERSION)" $(APP_PLIST)
+
+set_git_properties:
+    $(PLIST_BUDDY) -c "Set GITCommitRev $(GIT_COMMIT_REV)" $(APP_PLIST)
+    $(PLIST_BUDDY) -c "Set GITCommitSha $(GIT_COMMIT_SHA)" $(APP_PLIST)
+    $(PLIST_BUDDY) -c "Set GITRemoteOriginURL $(GIT_REMOTE_ORIGIN_URL)" $(APP_PLIST)
+
+pods: remove_debug_pods
+pods:
+    rm -rf Pods
+    bundle install
+    bundle exec pod install
+
+remove_debug_pods:
+    perl -pi -w -e "s{pod 'Reveal-iOS-SDK'}{}g" Podfile
+
+update_bundle_version:
+    @printf 'What is the new human-readable release version? '; \
+        read HUMAN_VERSION; \
+        $(PLIST_BUDDY) -c "Set CFBundleShortVersionString $$HUMAN_VERSION" $(APP_PLIST)
+
+mogenerate:
+    @printf 'What is the new Core Data version? '; \
+        read CORE_DATA_VERSION; \
+        mogenerator -m "Resources/CoreData/ArtsyPartner.xcdatamodeld/ArtsyFolio v$$CORE_DATA_VERSION.xcdatamodel/" --base-class ARManagedObject --template-path config/mogenerator/artsy --machine-dir Classes/Models/Generated/ --human-dir /tmp/ --template-var arc=true
+
+# Deployment
+
+deploy: ipa distribute
+
+alpha: BUNDLE_NAME = 'Folio α'
+alpha: NOTIFY = 0
+alpha: alpha_version deploy
+
+appstore: BUNDLE_NAME = 'Artsy Folio'
+appstore: TARGETED_DEVICE_FAMILY = 2
+appstore: remove_debug_pods update_bundle_version set_git_properties change_version_to_date
+
+next: TARGETED_DEVICE_FAMILY = \"1,2\"
+next: update_bundle_version set_git_properties change_version_to_date
+
+distribute:
+  cat $(CHANGELOG) | head -n 50 | awk '{ print } END { print "..." }' &gt; $(CHANGELOG_SHORT)
+  curl \
+   -F status=2 \
+   -F notify=$(NOTIFY) \
+   -F "notes=&lt;$(CHANGELOG_SHORT)" \
+   -F notes_type=1 \
+   -F ipa=@$(IPA) \
+   -F dsym=@$(DSYM) \
+   -H 'X-HockeyAppToken: $(HOCKEYAPP_TOKEN)' \
+   https://rink.hockeyapp.net/api/2/apps/upload \
+   | grep -v "errors"
+</code></pre>
+
+<p>That gives you a sense of the commands that you can run from the terminal in our projects, next we need to look at the <code>.travis.yml</code> file.</p>
+
+<pre><code class="make">language: objective-c
+cache:
+  - bundler
+  - cocoapods
+
+env:
+  - UPLOAD_IOS_SNAPSHOT_BUCKET_NAME=eigen-ci UPLOAD_IOS_SNAPSHOT_BUCKET_PR...
+
+before_install:
+  - 'echo ''gem: --no-ri --no-rdoc'' &gt; ~/.gemrc'
+  - cp .netrc ~
+  - chmod 600 .netrc
+  - pod repo add artsy https://github.com/artsy/Specs.git
+
+before_script:
+  - gem install second_curtain
+  - make ci
+
+script:
+  - make test
+  - make lint
+</code></pre>
+
+<p>This is nice and simple. It was built to use multiple travis build steps. This makes the CI output a lot more readable as an end user. Travis will by default collapse the shell output for different build stages leaving only the <code>script</code> stage defaulting to being exposed. Here is an example of what you see on a failing test:</p>
+
+<center>
+<img src="/images/2014-08-08-CocoaPods-Caching/failing_travis_screenshot.png" alt='Travis CI Failure'>
+</center>
+
+
+<p>We use a gem with a binary in <a href="https://github.com/AshFurrow/second_curtain/">second_curtain</a>, and this came with bundler caching issues in Travis. The solution was to ignore bundler and run <code>gem install second_curtain</code> each time. To increase the speed we also ensured that documentation is not being generated. If you are interested in what's going on with the <code>.netrc</code>, read my blog post on <a href="http://artsy.github.io/blog/2014/06/20/artsys-first-closed-source-pod/">Artsy's first Closed Source Pod</a>.</p>
+
+<p>We will continue pushing the state of the art in iOS deployment, in building our own tools and using everything available to increase developer happiness. If you're into this we're always looking to hire people with a good open source track record or street smarts. Here's <a href="https://artsy.net/job/mobile-engineer">the jobs page</a>.</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Taking a Snapshot with Second Curtain]]></title>
+    <link href="http://artsy.net/blog/2014/08/07/taking-a-snapshot-with-second-curtain/"/>
+    <updated>2014-08-07T11:46:00+00:00</updated>
+    <id>http://artsy.net/blog/2014/08/07/taking-a-snapshot-with-second-curtain</id>
+    <content type="html"><![CDATA[<p>At Artsy, we try hard to <a href="https://speakerdeck.com/orta/getting-eigen-out?slide=35">test</a>
+our iOS applications to ensure that we avoid regressions and have a clearly
+defined spec of how our apps should look and behave. One of the core pieces of
+our testing setup is <a href="https://github.com/facebook/ios-snapshot-test-case">FBSnapshotTestCase</a>,
+a library written by Facebook to compare views at runtime with images of those
+views that are known to be correct. If the images differ, the test fails. We
+also use <a href="https://travis-ci.org">Travis</a> for continuous integration.</p>
+
+<p>Lately, we've been noticing a friction between the developers on the iOS team
+and the tools we're using to test our apps: while Travis allows us to easily
+access the logs of test runs, it can only indicate that a snapshot test failed,
+not why it failed. That's because the images that are compared are locked on
+Travis' machine – we cannot access those images, so we can't see the
+differences. This is <em>really</em> promblematic when the tests pass locally but fail
+only on Travis.</p>
+
+<!-- more -->
+
+
+<p>A few weeks ago, <a href="http://twitter.com/orta">Orta</a> and I were discussing this
+problem and we came up with a potential solution. Since the images were stored
+on disk on Travis' machine, why not just upload them somewhere we <em>can</em> see
+them? Like an S3 bucket. We could even generate a basic HTML page showing you
+the different test failures.</p>
+
+<p>Time passed and, later on, I had tests passing locally but failing on Travis.
+I saw an opportunity to build something new. I'm not a proficient Ruby developer,
+but I enjoy learning new things, so I decided to create a Ruby gem that could
+fit within our existing testing pipeline. A lot of the structure for the code
+came from an existing gem we already use with Travis, <a href="https://github.com/supermarin/xcpretty">xcpretty</a>.
+With an example of how gems that support iOS testing are written, I was on my
+way to creating my own.</p>
+
+<p>At first, things were very difficult. While I had contributed small patches to
+existing Ruby projects before, I had never created a brand new one from scratch.
+The existing <a href="http://guides.rubygems.org/make-your-own-gem/">guides</a> were very
+helpful, and I found help from the CocoaPods developers when I had questions
+about things like the arcane semantics of Ruby's <code>require</code> syntax.</p>
+
+<p>Eventually, I had a working proof-of-concept. Everything seemed ready to go, and
+I prepared to incorporate my new tool, which I called <a href="https://github.com/AshFurrow/second_curtain">Second Curtain</a>,
+into my pull request on the Artsy repo. But there was a problem.</p>
+
+<p>Second Curtain relies on environment variables to get access to the S3 bucket
+where it stores the images. I planned on using Travis' system to <a href="http://docs.travis-ci.com/user/encryption-keys/">encrypt</a>
+those credentials. It turns out, for very good reasons, encrypted environment
+variables are not available on pull requests created on forks of repositories.
+This is a problem because of the way that <a href="http://artsy.github.io/blog/2012/01/29/how-art-dot-sy-uses-github-to-build-art-dot-sy/">Artsy uses GitHub</a>.
+While it's not a problem for a closed-source repository to have (restrictive)
+access to an S3 bucket, it would be irresponsible to expose S3 credentials for
+an open-source project. I'm <a href="https://github.com/AshFurrow/second_curtain/issues/5">working</a>
+on a solution.</p>
+
+<p>Orta helped with the design aspect of the tool; while uploading the images was
+sufficient, we could make the process of seeing the differences between the two
+images even easier. He created a <a href="https://eigen-ci.s3.amazonaws.com/snapshots/2014-08-04--15-47/index.html">HTML page</a>
+that would allow developers to see the before-and-after versions by moving their
+mouse cursor over the different images.</p>
+
+<p><img src="http://static.ashfurrow.com/github/second_curtain.png" alt="Image Diff" /></p>
+
+<p>In the end, I got Second Curtain to work with Artsy's iOS repository and I
+discovered the discrepency between the two images: due to a timezone difference
+between my computer and Travis', a date was being formatted differently. Not a
+difficult thing to fix, but not something I would have ever been able to
+discover had I not been able to see the images side-by-side.</p>
+
+<p>So after all that, one line of Objective-C was changed and the tests passed – my
+pull request was merged. I learnt a lot about how Ruby developers structure
+their code and what tools they use to write software. While I'm happy to return
+to iOS apps for a while, it was a great experience and I'm hoping to bring some
+of the ideas I discovered writing Ruby back to Objective-C.</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Artsy's first closed source Pod]]></title>
+    <link href="http://artsy.net/blog/2014/06/20/artsys-first-closed-source-pod/"/>
+    <updated>2014-06-20T17:53:00+00:00</updated>
+    <id>http://artsy.net/blog/2014/06/20/artsys-first-closed-source-pod</id>
+    <content type="html"><![CDATA[<p>When I joined Artsy, <a href="http://code.dblock.org">dB</a> pitched me this idea: <em>Open source as default.</em></p>
+
+<p>I took this to heart. I genuinely believe the idea behind the philosophy. It's cool that our real product isn't our implementations on the web or native but the data which powers it - <a href="https://artsy.net/theartgenomeproject">the Art Genome Project</a>. Similarly, I spend a bunch of time <a href="https://github.com/AshFurrow/ARCollectionViewMasonryLayout">on</a> <a href="https://github.com/dblock/ARASCIISwizzle">open</a> <a href="https://github.com/dblock/ios-snapshot-test-case-expecta">sourcing</a> <a href="https://github.com/dblock/ARTiledImageView">solid</a> <a href="https://github.com/dstnbrkr/DRBOperationTree">abstractions</a> <a href="https://github.com/orta/ORSimulatorKeyboardAccessor">from</a> <a href="https://github.com/orta/ORStackView">our</a> <a href="https://github.com/orta/ARAnalytics">apps</a>, always taking the opinion if something is used in more than one place, it should be open sourced.</p>
+
+<p>This week I pushed some libraries that were a bit different, read on to find out why.</p>
+
+<!-- more -->
+
+
+<h2>The problem</h2>
+
+<p>I was modernizing a section of <a href="http://orta.github.io/#folio-header-unit">Folio</a> that hasn't changed in 2 years to use custom UILabel subclasses consistent with <a href="https://iphone.artsy.net">the Artsy iOS app</a> and realized I was copying and pasting a large amount of code from one app to the other. This got me thinking about ways to keep this code in one place, as we might start another project which needs these same styles soon.</p>
+
+<h2>The solution</h2>
+
+<p>I didn't want to put it on the public CocoaPods Spec Repo, because it's not very relevant to the larger community, but in keeping with our philosophy of "open source by default," I definitely wanted to publish it as an example for others. The most elegant answer was to create our own <a href="https://github.com/artsy/specs">public Specs Repo</a>, which serves as a good reference when people want to know what a private specs repo looks like.</p>
+
+<p>Like anyone who has tried to modularize a pretty large code-base, it turns out a lot of things were connected together. I couldn't just build my <a href="http://github.com/Artsy/Artsy-UILabels">Artsy+UILabels</a> repo and put everything in there. Instead I had to also build Artsy+UIFonts and <a href="http://github.com/Artsy/Artsy-UIColors">Artsy+UIColors</a>.</p>
+
+<p>One of the good things about having to build three libraries is that I became very familiar with <code>pod lib create</code>. This is a command for building the scaffolding around a CocoaPod, making it much easier to create something fast. We had been holding off doing a <a href="https://github.com/CocoaPods/pod-template/pull/33">big update</a> to the command because no-one knew what WWDC would bring. Now we know, so I've worked on a new version of the command that programmatically manipulates an example project via <a href="https://github.com/CocoaPods/Xcodeproj">xcodeproj</a>. I've used it in creating all of these libraries. Expect to see it on the CocoaPods blog soon.</p>
+
+<h2>Caveat</h2>
+
+<p>I built three libraries, but one of them is unique. I modelled Artsy+UIFonts from <a href="http://kylefuller.co.uk">Kyle Fuller</a>'s <a href="https://github.com/kylef/OpenSans-pod">OpenSans-pod</a>, where the CocoaPod has the font resources and installing it moves them into your project. This is great for a free or open-source font, but would break commercial font licenses. For that reason, we don't have the ability to open source that project. Thus Artsy Mobile's first closed-source library.</p>
+
+<p>This is a great example of how you can build a private specs repo, whilst the public-private aspect is not applicable to most companies. I find it to be a nice halfway house between open source as default, and keeping something internal. For more info on setting up your own private specs repos, <a href="http://guides.cocoapods.org/making/private-cocoapods.html">check the guides</a>.</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Building the Xcode Plugin Snapshots]]></title>
+    <link href="http://artsy.net/blog/2014/06/17/building-the-xcode-plugin-snapshots/"/>
+    <updated>2014-06-17T10:50:00+00:00</updated>
+    <id>http://artsy.net/blog/2014/06/17/building-the-xcode-plugin-snapshots</id>
+    <content type="html"><![CDATA[<p>I'm the kind of guy who thinks better tooling means better outcomes. But when good tooling isn't available, it's time to build it yourself. It's this attitude that lead to my work on <a href="http://cocoadocs.org">CocoaDocs.org</a>, and then to <a href="http://cocoapods.org">CocoaPods.org</a> &amp; its documentation.</p>
+
+<p>We've been trying to apply this to testing, and in order to pull this off I've had to extend Xcode to show off the results of failing tests in a more visual way. To that end, I've extended Xcode to show the results of failing <a href="https://github.com/facebook/ios-snapshot-test-case">view tests</a> in a more visual way by building <a href="https://github.com/orta/snapshots">Snapshots for Xcode</a>.  Let's go through the process of building an Xcode plugin so you can do this too. Screw stability.</p>
+
+<!-- more -->
+
+
+<h2>Getting started</h2>
+
+<p>Lets start of with some Xcode inception. The nicest way to start working on Xcode plugins is to install <a href="http://alcatraz.io">Alcatraz</a> the Xcode plugin package manager:</p>
+
+<pre><code>curl -fsSL https://raw.github.com/supermarin/Alcatraz/master/Scripts/install.sh | sh
+</code></pre>
+
+<p>From Alcatraz you should have <a href="https://github.com/edwardaux/XcodeExplorer">XcodeExplorer</a> installed. This lets you dig through internal notifications and the Xcode view heriarchy for debugging. Then you'll want <a href="http://delisa.me">Delisa Mason</a>'s <a href="https://github.com/kattrali/Xcode5-Plugin-Template">Xcode 5 Plugin</a> template which also comes from Alcatraz. Now you can create a new project and pick <em>"Xcode 5 Plugin"</em>. This will do a bunch of the boring work around getting set up on a project, though it misses one bit that to me is essential, setting the Scheme Target. Once setup go to the Scheme editor and make it open Xcode as the target.</p>
+
+<p><img src="/images/2014-06-17-building-the-xcode-plugin-snapshots/scheme.png" alt="Go set you target dangit" /></p>
+
+<p>This means that when you do <code>cmd + r</code> on your project it will open a new instance of Xcode with your plugin installed, making the dev cycle for a plugin as simple as a normal OS X app. From here I can't tell you how to build your plugin. It's just normal development, however I can offer some general advice:</p>
+
+<ul>
+<li>When you see a class you don't know, google it, chances are Luis Solano has you covered with <a href="https://github.com/luisobo/Xcode-RuntimeHeaders">Xcode-RuntimeHeaders</a>.</li>
+<li>Use id with fake class interfaces to get around having the headers for Xcode's classes.</li>
+<li>Avoid 3rd party dependencies as much as possible as all plugin classes are in the same runtime.</li>
+<li>A lot of work is done in notifications, so it's easy to hook in to state changes.</li>
+<li>Swizzle as little as possible</li>
+<li>Wrap code you're not 100% on with <code>@try {} @catch {}</code> once it's working to crash elegantly</li>
+<li>Look at the source code of other plugins</li>
+<li>Read <a href="https://github.com/kattrali/Xcode5-Plugin-Template#notes">the notes</a> on the Xcode5 Plugin Template</li>
+</ul>
+
+
+<h2>Releasing</h2>
+
+<p>Next up you want to get it on Alcatraz, this is just a pull request to the <a href="https://github.com/supermarin/alcatraz-packages">alcatraz-packages repo</a>, it's like the old days of CocoaPods! Then you have a plugin, and people will always be using the master HEAD version of your plugin, so be wary around putting unstable code on that branch.</p>
+
+<p>It's easy to forget that if you build apps you have all the tools you need to improve your workflow, one improvement that saves you an hour today could save thousands of human-hours once it's out in the community.</p>
+]]></content>
+  </entry>
+  
+</feed>

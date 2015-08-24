@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: ruby on rails | Artsy Engineering]]></title>
+  <link href="http://artsy.net/blog/categories/ruby-on-rails/atom.xml" rel="self"/>
+  <link href="http://artsy.net/"/>
+  <updated>2015-08-24T17:32:17+00:00</updated>
+  <id>http://artsy.net/</id>
+  <author>
+    <name><![CDATA[]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Generating Automatic Plain Text MIME Parts with Rails ActionMailer]]></title>
+    <link href="http://artsy.net/blog/2012/05/16/generating-automatic-plain-text-mime-parts-with-rails-actionmailer/"/>
+    <updated>2012-05-16T20:52:00+00:00</updated>
+    <id>http://artsy.net/blog/2012/05/16/generating-automatic-plain-text-mime-parts-with-rails-actionmailer</id>
+    <content type="html"><![CDATA[<p>E-mail is one of the most important ways to engage your users. And every time you touch a user's inbox, it reflects on your brand. But getting email right has become increasing difficult due to the complexities introduced by the thousands of web-based, desktop and mobile mail clients. Email formatting is like the "Hunger Games" where the major players include online services such as GMail, Yahoo, Hotmail or AOL, desktop clients such as Outlook and a myriad mobile devices ranging from iPhone and Android to Blackberry.</p>
+
+<p>To deal with this landscape, the MIME standard allows systems to send e-mail with multiple parts: <code>plain/text</code> for business-efficient devices such as the Blackberry, and <code>text/html</code> for web-based e-mail readers, such as GMail. Furthermore, <code>ActionMailer</code> supports multiple template formats: create an <code>.html.haml</code> template along with a <code>.txt.haml</code> template to generate both. We also know that <code>text/plain</code> email helps deliverability, but we believe a disproportionately small amount of text e-mails are actually read - the vast majority of devices are capable of parsing some HTML.</p>
+
+<p>Is it possible to avoid having to maintain two separate templates without sacrificing deliverability? How can we inject a <code>text/plain</code> part into HTML e-mail that is both useful and "free"?</p>
+
+<!--more-->
+
+
+<p><code>ActionMailer::Base</code> defines an internal method called <code>collect_responses_and_parts_order</code> (<a href="http://apidock.com/rails/ActionMailer/Base/collect_responses_and_parts_order">#ref</a>), which iterates over templates and renders them. Let's override that method and examine the contents of the generated parts.</p>
+
+<pre><code class="ruby">def collect_responses_and_parts_order(headers)
+    responses, parts_order = super(headers)
+    [responses, parts_order]
+end
+</code></pre>
+
+<p>Each <code>response</code> is a MIME part with its boundary and the <code>parts_order</code> is the order in which the parts appear in the final e-mail. The <a href="http://www.ietf.org/rfc/rfc1341.txt">MIME RFC 1341</a> says that the parts must be generated in the increasing order of preference, ie. <code>text/html</code> content-type part last, provided you want it to be the preferred format of your email.</p>
+
+<p>We can find whether the generated e-mail contains a <code>plain/text</code> part and otherwise generate one.</p>
+
+<pre><code class="ruby">html_part = responses.detect { |response| response[:content_type] == "text/html" }
+text_part = responses.detect { |response| response[:content_type] == "text/plain" }
+if html_part &amp;&amp; ! text_part
+  # generate a text/plain part
+end
+</code></pre>
+
+<p>Generating the text part means stripping all HTML with links preserved. <a href="http://nokogiri.org/">Nokogiri</a> has a very convenient deep <code>traverse</code> iterator.</p>
+
+<pre><code class="ruby">body_parts = []
+Nokogiri::HTML(html_part[:body]).traverse do |node|
+  if node.text? and ! (content = node.content ? node.content.strip : nil).blank?
+    body_parts &lt;&lt; content
+  elsif node.name == "a" &amp;&amp; (href = node.attr("href")) &amp;&amp; href.match(/^https?:/)
+    body_parts &lt;&lt; href
+  end
+end
+</code></pre>
+
+<p>Once we have all the parts, assemble them, get rid of duplicate text and links, and re-insert into the email as a <code>text/plain</code> multipart block.</p>
+
+<pre><code class="ruby">responses.insert 0, {
+  content_type: "text/plain",
+  body: body_parts.uniq.join("\n")
+}
+parts_order.insert 0, "text/plain"
+</code></pre>
+
+<p>This has been extracted into the <a href="https://github.com/dblock/actionmailer-text">actionmailer-text</a> gem. Include <code>ActionMailer::Text</code> in your mailers.</p>
+]]></content>
+  </entry>
+  
+</feed>

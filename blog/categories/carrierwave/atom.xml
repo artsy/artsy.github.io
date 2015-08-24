@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: carrierwave | Artsy Engineering]]></title>
+  <link href="http://artsy.net/blog/categories/carrierwave/atom.xml" rel="self"/>
+  <link href="http://artsy.net/"/>
+  <updated>2015-08-24T17:32:17+00:00</updated>
+  <id>http://artsy.net/</id>
+  <author>
+    <name><![CDATA[]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Delaying CarrierWave Image Processing]]></title>
+    <link href="http://artsy.net/blog/2012/01/31/delaying-carrierwave-image-processing/"/>
+    <updated>2012-01-31T08:31:00+00:00</updated>
+    <id>http://artsy.net/blog/2012/01/31/delaying-carrierwave-image-processing</id>
+    <content type="html"><![CDATA[<p>We do a lot of image processing at Artsy. We have tens of thousands of beautiful original high resolution images from our partners and treat them with care. The files mostly come from professional art photographers, include embedded color profiles and other complicated features that make image processing a big deal.</p>
+
+<p>Once uploaded, these images are converted to JPG, resized into many versions and often resampled. We are using <a href="https://github.com/jnicklas/carrierwave">CarrierWave</a> for this process - our typical image uploader starts like a usual CarrierWave implementation with a few additional features.</p>
+
+<!-- more -->
+
+
+<ul>
+<li>Fallback to a well-known image when an image is missing</li>
+<li>Support for a local development environment, S3 and CloudFront</li>
+<li>Image versioning: replaced images get a new path to bust CloudFront caching</li>
+</ul>
+
+
+<p>Here's the complete source.</p>
+
+<pre><code class="ruby app/models/image_uploader.rb">    class ImageUploader &lt; CarrierWave::Uploader::Base
+
+      include CarrierWave::RMagick
+
+      # default url for a missing image
+      def default_url
+        "/assets/images/shared/missing_image.png"
+      end
+
+      # a local path for development environments w/o S3 or CloudFront
+      def local_path
+        (ENV['CLOUDFRONT_URL'] || ENV['S3_BUCKET']) ? "" : "local/"
+      end
+
+      # complete url to an image version
+      def image_url_format_string
+        "#{self.class.image_url_prefix}/#{self.class.store_path_base(self.model)}:version.jpg"
+      end
+
+      # a whitelist for uploading
+      def extension_white_list
+        %w(jpg jpeg png gif tif tiff bmp)
+      end
+
+      # alternate temporary location for Heroku
+      def cache_dir
+        "#{Rails.root.to_s}/tmp/uploads"
+      end
+
+      # relative path for saving a file
+      def store_path(for_file = filename)
+        "#{local_path}#{self.class.store_path_base(self.model)}#{(version_name || :original).to_s}.jpg"
+      end
+
+      # normalized file name for an image converted to JPG
+      def filename
+        super != nil ? super.split('.').first + '.jpg' : super
+      end
+
+      # a location that includes a version number
+      def self.store_path_base(model)
+        class_name = model.class.name.underscore.pluralize
+        image_version = (model.image_version || 0) &gt; 0 ? "#{model.image_version}/" : ""
+        "#{class_name}/#{model.id.to_s}/#{image_version}"
+      end
+
+      # a url prefix depending on environment settings
+      def self.image_url_prefix
+        if ENV['IMAGES_URL']
+          ENV['IMAGES_URL']
+        elsif ENV['CLOUDFRONT_URL']
+          ENV['CLOUDFRONT_URL']
+        elsif ENV['S3_BUCKET']
+          "http://#{ENV['S3_BUCKET']}.s3.amazonaws.com"
+        else
+          "/local"
+        end
+      end
+
+    end
+</code></pre>
+
+<p>We derive actual uploaders from the <code>ImageUploader</code> class.</p>
+
+<pre><code class="ruby app/models/widget_uploader.rb">    class WidgetUploader &lt; ImageUploader
+
+      process :increment_version
+
+      def increment_version
+        return if self.is_processing_delayed?
+        self.model.image_version = (self.model.image_version.to_i + 1)
+        self.model.image_versions = []
+      end
+
+      version :small, if: :is_processing_delayed? do
+        process :convert =&gt; 'jpg'
+        process :resize_to_limit =&gt; [200, 200]
+        process :quality =&gt; 70
+      end
+
+      version :square, if: :is_processing_delayed? do
+        process :convert =&gt; 'jpg'
+        process :resize_to_fill =&gt; [230, 230]
+        process :quality =&gt; 90
+      end
+    end
+</code></pre>
+
+<p>And the uploader is mounted via <code>mount_uploader</code>.</p>
+
+<pre><code class="ruby">    mount_uploader :image,  WidgetUploader, delayed: true
+</code></pre>
+
+<p>You'll notice a few unusual things here. The versions have an <code>:if</code> condition and there're mentions of <code>is_processing_delayed?</code>. This comes from a small module <a href="https://github.com/joeyAghion/">@joeyAghion</a> wrote called <code>DelayedImageProcessing</code>. It's a much more evolved version designed on top of <a href="http://code.dblock.org/carrierwave-delayjob-processing-of-selected-versions">my earlier idea</a> of delaying some image processing for background jobs.</p>
+
+<p>The reason we want to delay image processing is because it takes a long time. The Heroku HTTP request limit is only 30 seconds, so image upload would regularly timeout. And some of the large images can take up to ten minutes to process - we don't want the user to wait that long.</p>
+
+<p>To use, you will add some code in <code>config/initializers/carrierwave.rb</code> and add <code>DelayedImageProcessing</code> into <code>lib</code>.</p>
+
+<ul>
+<li><a href="https://gist.github.com/1710609#file_delayed_image_processing.rb">lib/delayed_image_processing.rb</a></li>
+<li><a href="https://gist.github.com/1710609#file_carrierwave.rb">config/initializers/carrierwave.rb</a></li>
+</ul>
+
+
+<p>The code above works with Mongoid. You will have to do some work to make this work with other storage.</p>
+]]></content>
+  </entry>
+  
+</feed>
