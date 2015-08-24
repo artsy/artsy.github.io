@@ -47,11 +47,10 @@ So we'll be talking about our [ARInteralMobileViewController](https://github.com
 
 # Downsides
 When you choose developer ease over user experience it's important to take into consideration some of the downsides.
+
 - Localisation is difficult. Cocoa offers a great localisation APIs. We can't use them, otherwise half of our app is correctly localised and the rest isn't.
 
-- OS features like [Dynamic Type](https://developer.apple.com/library/ios/documentation/UserExperience/Conceptual/TransitionGuide/AppearanceCustomization.html) are also a no-go.
-
-- Conforming to the operating system's Human Interface Guidelines is more difficult, as you're relying less on foundations built with this in mind.
+- Conforming to the operating system's Human Interface Guidelines is difficult, as you're relying less on foundations built with this in mind.
 
 - Web tech is slower, and threading APIs are generally poor. A difficulty here is that you are also complicating the technical stack upon which your app sits above. When relying on web-tech in a Mac app, it's common for that trade-off to show itself in excessive memory usage over time.
 
