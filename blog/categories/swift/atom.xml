@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: swift | Artsy Engineering]]></title>
+  <link href="http://artsy.net/blog/categories/swift/atom.xml" rel="self"/>
+  <link href="http://artsy.net/"/>
+  <updated>2015-08-27T20:37:44+00:00</updated>
+  <id>http://artsy.net/</id>
+  <author>
+    <name><![CDATA[]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Swift Trek 2: The Wrath of count()]]></title>
+    <link href="http://artsy.net/blog/2015/08/27/swift-trek-2-the-wrath-of-count/"/>
+    <updated>2015-08-27T05:00:00+00:00</updated>
+    <id>http://artsy.net/blog/2015/08/27/swift-trek-2-the-wrath-of-count</id>
+    <content type="html"><![CDATA[<p>On Tuesday at our mobile practice standup, I mentioned that I was in-between projects and looking for something to do. Orta suggested migrating Eidolon, the Artsy bidding kiosk app, to Swift 2.</p>
+
+<p>Our CI is <a href="https://github.com/artsy/eidolon/pull/466">broken anyway</a>, so now is the perfect opportunity to make changes that would break CI. Additionally, Swift 2 seems to have more-or-less stabilized in the latest betas, so we don't expect many gotchas leading up to the GM. Finally, this is an enterprise-distributed app, so we don't have to worry about submitting to the App Store using betas of Xcode.</p>
+
+<p>So Swift 2 it is!</p>
+
+<!-- more -->
+
+
+<p><img src="http://media1.giphy.com/media/7PzALWNJotBxS/giphy.gif" alt="When your boss tells you that you can use the new Swift version." /></p>
+
+<p>I didn't think it would take long, but Orta was less optimistic. I knew that we would need to start with the dependencies, which was tricky since I was updating to the latest beta (only one day old at this point). Our <a href="https://github.com/artsy/eidolon/commit/b77a9c2add780a52aac2c48b9cd3a5eb257ab003#diff-4a25b996826623c4a3a4910f47f10c30R59">Podfile needed some changes</a>, but a lot of this was work I had done before when initially moving Eidolon to CocoaPods frameworks, then to Swift 1.2.</p>
+
+<p>Dependencies are weird. Different libraries take different approaches to Swift changes, so I had to evaluate each one individually. Usually it was a matter of telling CocoaPods to use the branch that the library was using for Swift 2 support. It took about an hour or two, but I got our dependencies working.</p>
+
+<p><img src="http://i.imgur.com/IO1QU8E.gif" alt="When pod update works." /></p>
+
+<p>Two of our dependencies, <a href="https://github.com/Quick/Quick">Quick</a> and <a href="https://github.com/Quick/Nimble">Nimble</a>, were a breeze to update – even though we were using way out-of-date versions. We're really impressed by the well thought-out foundations of their libraries.</p>
+
+<p>The next thing was getting <em>our own</em> code to work. This was a lot more work than I had anticipated, since the automatic migrator in Xcode didn't work.</p>
+
+<p><img src="http://i.imgur.com/abykDJa.gif" alt="When the Xcode migrator fails." /></p>
+
+<p>No problem – a lot of the time, Xcode's autosuggest worked fine, like adding labels to function calls. But it doesn't catch everything. It turns out that a few hours of manually changing <code>count(array)</code> to <code>array.count</code> etc was a great way to zone out and enjoy a summer afternoon.</p>
+
+<p>After the low-hanging fruit, it was time to move on to the more... esoteric problems. For example, Swift was getting confused by the ambiguity of the <code>&lt;~</code> we use for ReactiveCocoa 2.x bindings, vs the <code>&lt;~</code> operator ReactiveCocoa 3.x uses for bindings. Weird.</p>
+
+<p>I tracked down the problem to precedence. ReactiveCocoa's <code>&lt;~</code> has a <a href="https://github.com/ReactiveCocoa/ReactiveCocoa/blob/5b19af9b2777462e37ead2dfea95e1fea74b7d63/ReactiveCocoa/Swift/Property.swift#L193">precedence of 93</a>. After I changed <a href="https://github.com/ashfurrow/Swift-RAC-Macros/commit/57b041d8a99a3e2a90583709ed7ed91f8ca271b8">ours to match</a>, everything was fine.</p>
+
+<p><img src="http://media3.giphy.com/media/PrAMyghZaYjm/giphy.gif" alt="When your code compiles but you don't know why." /></p>
+
+<p>I noticed a lot of changes surrounding the way Swift handles strings. Apple themselves <a href="https://developer.apple.com/swift/blog/?id=30">have discussed changes</a>, which were fine. I tried to use their <code>.isEmpty</code> property where I could, but I often had to test if a string <em>wasn't</em> empty. <code>!str.isEmpty</code> doesn't really sit well with me, so we used <code>str.isEmpty == false</code>.</p>
+
+<p>However, the problem was further compounded by the changes to <code>UITextField</code>, whose <code>text</code> property now returns an <em>optional</em> string. So there was a lot of this code:</p>
+
+<pre><code class="swift">if (textField.text ?? "").isEmpty == false { ...
+</code></pre>
+
+<p><em>Gross</em>. We've since moved onto <a href="https://github.com/artsy/eidolon/pull/498">something nicer</a>, an experiment with Swift 2's power protocols. The above code can now be written as:</p>
+
+<pre><code class="swift">if textField.text.isNotNilNotEmpty
+</code></pre>
+
+<p>Very neat.</p>
+
+<p><img src="https://38.media.tumblr.com/tumblr_m8mpwh1gTe1qciljio1_500.gif" alt="It works!" /></p>
+
+<p>While Orta and I reviewed the <a href="https://github.com/artsy/eidolon/pull/496">pull request</a>, we noted some things we liked, and some things we didn't like. I <em>really</em> like that UIKit now uses Objective-C generic NSArrays so I don't have to cast so much. I really <em>don't</em> like that libraries, mostly the ones that we maintain, don't use that feature of Objective-C yet. That's now <a href="https://github.com/artsy/mobile/issues/54">on our todo list</a>.</p>
+
+<p><img src="http://media3.giphy.com/media/52VjAeGgj78GY/giphy.gif" alt="When you put it on your todo list." /></p>
+
+<p>I am amazed at how quickly Swift is changing – as a community, we are still seeing new patterns and methodologies emerge. Not all of them will catch on, of course. But what I'm really excited about is that Swift's engineers are building tools that let us do <em>so much</em>. They aren't making architectural decisions for us, but letting us experiment and discover for ourselves what works and what doesn't. The future of iOS development has never felt more exciting.</p>
+]]></content>
+  </entry>
+  
+</feed>
