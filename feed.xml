@@ -5,9 +5,201 @@
     <description></description>
     <link>http://artsy.net/</link>
     <atom:link href="http://artsy.net/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Sun, 06 Sep 2015 19:18:06 +0000</pubDate>
-    <lastBuildDate>Sun, 06 Sep 2015 19:18:06 +0000</lastBuildDate>
+    <pubDate>Mon, 07 Sep 2015 16:22:05 +0000</pubDate>
+    <lastBuildDate>Mon, 07 Sep 2015 16:22:05 +0000</lastBuildDate>
     <generator>Jekyll v2.5.3</generator>
+    
+      <item>
+        <title>Cocoa Architecture: Dropped Design Patterns</title>
+        <description>&lt;p&gt;As a part of going through the design patterns we&#39;ve found in the creation of the Artsy iOS apps, I&#39;d like to talk a bit about some of the patterns that we&#39;ve had and migrated away from. This is not 100% comprehensive, as there has been a lot of time, and a lot of people involved. Instead I&#39;m going to try and give a birds eye view, and zoom in on some things that feel more important overall.&lt;/p&gt;
+
+&lt;p&gt;It&#39;s important to preface that I don&#39;t believe in perfect code, or am I a fan of big re-writes. We can spot a bad pattern, but not do anything about it. We do have apps to ship, not a codebase to make perfect for the sake of technical purity.&lt;/p&gt;
+
+&lt;!-- more --&gt;
+
+
+&lt;hr /&gt;
+
+&lt;h2&gt;NSNotifications as a decoupling method&lt;/h2&gt;
+
+&lt;p&gt;A lot of the initial codebase for eigen relied on using NSNotifications as a way of passing messages throughout the application. There were notifications for user settings changes, download status updates, anything related to authentication and the corresponding different error states and a few app features. These relied on sending global notifications with very little attempts at scoping the relationship between objects.&lt;/p&gt;
+
+&lt;p&gt;NSNotificationCenter notifications are an implementation of the &lt;a href=&quot;https://en.wikipedia.org/wiki/Observer_pattern&quot;&gt;Observer Pattern&lt;/a&gt; in Cocoa. They are a beginner to intermediate programmer&#39;s design paradigm dream. It offers a way to have objects send messages to each other without having to go through any real coupling. As someone just starting on iOS ( I had mostly been a OS X programmer before starting at Artsy ) it was an easy choice to adapt.&lt;/p&gt;
+
+&lt;p&gt;One of the biggest downsides of using NSNotifications are that they make it easy to be lazy as a programmer. It allows you to not think carefully about the relationships between your objects and instead to pretend that they are loosely coupled, when instead they are coupled but via stringly typed notifications.&lt;/p&gt;
+
+&lt;p&gt;Loose-coupling can have it&#39;s place but without being careful there is no scope on what could be listening to any notification. Also de-registering for interest can be a tricky thing &lt;a href=&quot;http://stackoverflow.com/questions/tagged/nsnotification&quot;&gt;to learn&lt;/a&gt; and the default memory-management behavior is about to change ( &lt;a href=&quot;https://developer.apple.com/library/prerelease/mac/releasenotes/Foundation/RN-Foundation/index.html#//apple_ref/doc/uid/TP30000742&quot;&gt;for the better&lt;/a&gt;.)&lt;/p&gt;
+
+&lt;p&gt;We still have a &lt;a href=&quot;https://github.com/artsy/energy/blob/702036664a087db218d3aece8ddddb2441f931c8/Classes/Constants/ARNotifications.h&quot;&gt;lot of notifications&lt;/a&gt; in Energy, however in Eigen and Eidolon there are next to none. We don&#39;t even have a specific file for the constants.&lt;/p&gt;
+
+&lt;h2&gt;#define kARConstant&lt;/h2&gt;
+
+&lt;p&gt;Not much to say here, using &lt;code&gt;#defines&lt;/code&gt; as constants was definitely &lt;a href=&quot;https://github.com/adium/adium/blob/master/Source/AdiumAccounts.m#L24-L30&quot;&gt;in favour&lt;/a&gt; when I learned Objective-C. Likely a throw back from C. Using &lt;code&gt;#defines&lt;/code&gt; as constants would not use on-device memory to store an unchanging value. This is because a &lt;code&gt;#define&lt;/code&gt; uses the pre-compiler to directly change the source code to be the value, whereas using a static constant takes up memory space on the device, which we used to &lt;em&gt;really&lt;/em&gt; care about. It&#39;s likely that a modern copy of LLVM doesn&#39;t assign on device memory unless it needs to, especially for things marked &lt;code&gt;const&lt;/code&gt;. Switching to real variables means you can inspect and use in a debugger and use can rely on the type system better.&lt;/p&gt;
+
+&lt;p&gt;What this means in practice is what when we would have had something &lt;a href=&quot;https://github.com/artsy/eigen/blob/master/Artsy/Views/Table_View_Cells/AdminTableView/ARAnimatedTickView.m#L3&quot;&gt;like&lt;/a&gt;: &lt;code&gt;#define TICK_DIMENSION 32&lt;/code&gt; it should be &lt;a href=&quot;https://github.com/artsy/eigen/blob/master/Artsy/View_Controllers/App_Navigation/ARAppSearchViewController.m#L11&quot;&gt;migrated to&lt;/a&gt; &lt;code&gt;static const NSInteger ARTickViewDimensionSize = 20;&lt;/code&gt;.&lt;/p&gt;
+
+&lt;h2&gt;Sprinkling Analytics&lt;/h2&gt;
+
+&lt;p&gt;We took some of the ideas for &lt;a href=&quot;http://albertodebortoli.github.io/blog/2014/03/25/an-aspect-oriented-approach-programming-to-ios-analytics/&quot;&gt;Aspect oriented programming&lt;/a&gt; with &lt;a href=&quot;https://cocoapods.org/pods/ARAnalytics#user-content-aspect-oriented-dsl&quot;&gt;Analytics&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;Where we used to &lt;a href=&quot;https://github.com/artsy/energy/blob/master/Classes/Controllers/Popovers/Add%20to%20Album/ARAddToAlbumViewController.m#L271-L282&quot;&gt;have this&lt;/a&gt;:&lt;/p&gt;
+
+&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;6&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;7&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;8&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;9&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;10&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;11&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;12&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;13&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;14&lt;/span&gt;
+&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;objc&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;k&quot;&gt;@implementation&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;ARAddToAlbumViewController&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;tableView:&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;UITableView&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;tableView&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;didSelectRowAtIndexPath:&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;NSIndexPath&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;indexPath&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;indexPath&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;row&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;albums&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;count&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;])&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;        &lt;span class=&quot;n&quot;&gt;Album&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;selectedAlbum&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;((&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Album&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;albums&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;indexPath&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;row&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]);&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;        &lt;span class=&quot;n&quot;&gt;ARTickedTableViewCell&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;cell&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ARTickedTableViewCell&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)[&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;tableView&lt;/span&gt; &lt;span class=&quot;nl&quot;&gt;cellForRowAtIndexPath&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;indexPath&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;];&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;        &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;([&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;cell&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;isSelected&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;])&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;            &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ARAnalytics&lt;/span&gt; &lt;span class=&quot;nl&quot;&gt;event&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ARRemoveFromAlbumEvent&lt;/span&gt; &lt;span class=&quot;nl&quot;&gt;withProperties&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;l&quot;&gt;@{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;                &lt;span class=&quot;s&quot;&gt;@&amp;quot;artworks&amp;quot;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;l&quot;&gt;@(&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;artworks&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;count&lt;/span&gt;&lt;span class=&quot;l&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;                &lt;span class=&quot;s&quot;&gt;@&amp;quot;from&amp;quot;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ARNavigationController&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pageID&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;            &lt;span class=&quot;l&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;];&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;            &lt;span class=&quot;p&quot;&gt;[...]&lt;/span&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
+
+
+&lt;p&gt;We would instead build something &lt;a href=&quot;https://github.com/artsy/eigen/blob/master/Artsy/App/ARAppDelegate+Analytics.m#L69&quot;&gt;like this&lt;/a&gt;:&lt;/p&gt;
+
+&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;6&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;7&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;8&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;9&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;10&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;11&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;12&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;13&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;14&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;15&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;16&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;17&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;18&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;19&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;20&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;21&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;22&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;23&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;24&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;25&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;26&lt;/span&gt;
+&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;objc&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;k&quot;&gt;@implementation&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;ARAppDelegate&lt;/span&gt; &lt;span class=&quot;nl&quot;&gt;(Analytics)&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;setupAnalytics&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;n&quot;&gt;ArtsyKeys&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;keys&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ArtsyKeys&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;alloc&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;init&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;];&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;p&quot;&gt;[...]&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ARAnalytics&lt;/span&gt; &lt;span class=&quot;nl&quot;&gt;setupWithAnalytics&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;l&quot;&gt;@{&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[...]&lt;/span&gt; &lt;span class=&quot;l&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;nl&quot;&gt;configuration&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;l&quot;&gt;@{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;        &lt;span class=&quot;nl&quot;&gt;ARAnalyticsTrackedEvents&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;            &lt;span class=&quot;l&quot;&gt;@[&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;                &lt;span class=&quot;l&quot;&gt;@{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;                    &lt;span class=&quot;nl&quot;&gt;ARAnalyticsClass&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ARAddToAlbumViewController&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;class&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;                    &lt;span class=&quot;nl&quot;&gt;ARAnalyticsDetails&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;l&quot;&gt;@[&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;                        &lt;span class=&quot;l&quot;&gt;@{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;                            &lt;span class=&quot;nl&quot;&gt;ARAnalyticsEventName&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ARRemoveFromAlbumEvent&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;                            &lt;span class=&quot;nl&quot;&gt;ARAnalyticsSelectorName&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;NSStringFromSelector&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;@selector&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;tableView&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nl&quot;&gt;didSelectRowAtIndexPath&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:)),&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;                            &lt;span class=&quot;nl&quot;&gt;ARAnalyticsProperties&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;^&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;NSDictionary&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ARAddToAlbumViewController&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;controller&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;NSArray&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;_&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;                                &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;l&quot;&gt;@{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;                                    &lt;span class=&quot;s&quot;&gt;@&amp;quot;artworks&amp;quot;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;l&quot;&gt;@(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;controller&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;artworks&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;count&lt;/span&gt;&lt;span class=&quot;l&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;                                    &lt;span class=&quot;s&quot;&gt;@&amp;quot;from&amp;quot;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ARNavigationController&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pageID&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;],&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;                                &lt;span class=&quot;l&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;                        &lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;                        &lt;span class=&quot;p&quot;&gt;[...]&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;                    &lt;span class=&quot;l&quot;&gt;]&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;                &lt;span class=&quot;l&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;              &lt;span class=&quot;p&quot;&gt;[...]&lt;/span&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
+
+
+&lt;p&gt;This gives us the ability to not sprinkle analytics code around the app in every file. It keeps the responsibilities of objects simpler and we&#39;ve been happy with it in Eigen. We&#39;ve not migrated it into Energy, its dependency on ReactiveCocoa brings too much additional weight. So far we&#39;ve been applying analytics inline, Energy has much less need for individual analytics throughout the application. If you want to learn more about this pattern check out &lt;a href=&quot;http://artsy.github.io/blog/2014/08/04/aspect-oriented-programming-and-aranalytics/&quot;&gt;Aspect-Oriented Programming and ARAnalytics&lt;/a&gt;.&lt;/p&gt;
+
+&lt;h2&gt;Class Methods as the whole API&lt;/h2&gt;
+
+&lt;p&gt;For a very long time, I preferred aesthetics of class based APIs. E.g. using only class methods instead instance methods. I think I still do. However, once you start adding tests to a project then they become a bit of a problem.&lt;/p&gt;
+
+&lt;p&gt;I&#39;m a big fan of the idea of Dependency Injection within tests. This, roughly &lt;em&gt;TL:DR&#39;d&lt;/em&gt;, means passing in any additional context, instead of an object finding the context itself. A common case is a call to &lt;code&gt;NSUserDefaults&lt;/code&gt;. It&#39;s very likely &lt;em&gt;not&lt;/em&gt; the role of your class to know which &lt;code&gt;NSUserDefault&lt;/code&gt;s object you&#39;re working with, but it&#39;s likely that you&#39;re making that decision in the method by doing something like &lt;code&gt;[[NSUserDefaults standardUserDefaults] setObject:reminderID forKey:@&quot;ARReminderID&quot;];&lt;/code&gt;. Using dependency injection would be allowing that object to come from outside that method. If you&#39;re interested in a longer and better, explanation, read this great &lt;a href=&quot;https://www.objc.io/issues/15-testing/dependency-injection/&quot;&gt;objc.io&lt;/a&gt; by &lt;a href=&quot;http://qualitycoding.org/about/&quot;&gt;Jon Reid&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;The problem with a class based API, is that it becomes difficult to inject that object. This doesn&#39;t flow well with writing simple, fast tests. You can use a mocking library to fake the class API, but that feels weird. Mocking should be used for things you don&#39;t control. You control the object if you&#39;re making the API. Having an instance&#39;d object means being able to provide different versions with different behaviors or values, even better if you can reduce the behavior to &lt;a href=&quot;https://github.com/artsy/eigen/blob/e19ac594bf6240d076e8092d9c56e9876c94444e/Artsy/Networking/Network_Models/ARArtistNetworkModel.h&quot;&gt;a protocol&lt;/a&gt;.&lt;/p&gt;
+
+&lt;h2&gt;Objects Sneakily Networking&lt;/h2&gt;
+
+&lt;p&gt;When you have a complicated application, there can be a lot of places you can perform networking. We&#39;ve had it in models, view controllers and views. Basically throwing the idea of purity in MVC out of the system. We started to recognise a pattern in eigen, we were not doing a good job of keeping our networking well abstracted. If you want to see the full story check out the &lt;a href=&quot;https://github.com/Moya/Moya&quot;&gt;moya/Moya README&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;One attempt to at trying to fix this pattern by creating a different type of networking client I&#39;ve just referenced, &lt;a href=&quot;https://github.com/Moya/Moya&quot;&gt;Moya&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;The other was to abstract any networking performed into a separate object. If you&#39;ve heard of Model-View-ViewModel (&lt;a href=&quot;http://www.teehanlax.com/blog/model-view-viewmodel-for-ios/&quot;&gt;MVVM&lt;/a&gt;) then this is a similar premise for networking instead of views. Network Models give us a way to abstract the networking into a set of behaviors. The extra abstraction means that you think &quot;I want the things related to &lt;em&gt;x&lt;/em&gt;&quot; instead of &quot;send a GET to address &lt;em&gt;x&lt;/em&gt; and turn it into &lt;em&gt;y&lt;/em&gt;.&quot;&lt;/p&gt;
+
+&lt;p&gt;Network models also make it extremely easy to swap behavior out in tests. In eigen, we have our asynchronous networking &lt;a href=&quot;https://github.com/artsy/eigen/pull/575&quot;&gt;run synchronously in tests&lt;/a&gt; but we still use the network models to be able to provide &lt;a href=&quot;https://github.com/artsy/eigen/blob/master/Artsy_Tests/View_Controller_Tests/Artist/ARArtistViewControllerTests.m#L29-L40&quot;&gt;whatever data we want to expect&lt;/a&gt; from the server in our tests.&lt;/p&gt;
+
+&lt;h2&gt;Subclassing more than twice&lt;/h2&gt;
+
+&lt;p&gt;As projects evolve it can become very easy to subclass &lt;em&gt;x&lt;/em&gt; in order to provide a &quot;similar but a little bit different&quot; behavior. Perhaps you need to &lt;a href=&quot;https://github.com/artsy/eigen/blob/e19ac594bf6240d076e8092d9c56e9876c94444e/Artsy/View_Controllers/Web_Browsing/ARTopMenuInternalMobileWebViewController.m#L58&quot;&gt;override some methods&lt;/a&gt;, or add a &lt;a href=&quot;https://github.com/artsy/eigen/blob/e19ac594bf6240d076e8092d9c56e9876c94444e/Artsy/View_Controllers/Web_Browsing/AREndOfLineInternalMobileWebViewController.h#L5&quot;&gt;specific behavior&lt;/a&gt;. Like the &lt;a href=&quot;http://ezinearticles.com/?The-Boiled-Frog-Phenomenon&amp;amp;id=932310&quot;&gt;urban myth&lt;/a&gt; of a frog being slowly boiled, you end up with a difficult to understand codebase as expected behavior mutates depending on how deep the hierarchy goes.&lt;/p&gt;
+
+&lt;p&gt;One pattern for handling this is &lt;a href=&quot;http://stackoverflow.com/questions/9710411/ios-grasping-composition&quot;&gt;class composition&lt;/a&gt;. This is the idea that instead of having one object do multiple things, you allow a collection of objects to work together. Providing more space for each object to conform to the Single Responsibility Principal (&lt;a href=&quot;https://en.wikipedia.org/wiki/Single_responsibility_principle&quot;&gt;SRP&lt;/a&gt;.) If you&#39;re interested in this, you may also be interested in the &lt;a href=&quot;https://developer.apple.com/library/ios/documentation/General/Conceptual/CocoaEncyclopedia/ClassClusters/ClassClusters.html&quot;&gt;class clusters&lt;/a&gt; pattern.&lt;/p&gt;
+
+&lt;p&gt;A good example of this comes &lt;a href=&quot;https://github.com/artsy/energy/blob/aa97d90cf37932d4c0f49ea4c4d31f7e491f16a6/Classes/Controllers/Top%20View%20Controller/ARTopViewToolbarController.m&quot;&gt;from Energy&lt;/a&gt;, our root view controller &lt;code&gt;ARTopViewController&lt;/code&gt; used to control its own toolbar items. Over 4 years this became difficult to manage, and a lot of extra code in the view controller. By abstracting out the implementation details of managing the toolbar items into it&#39;s &lt;a href=&quot;https://github.com/artsy/energy/blob/aa97d90cf37932d4c0f49ea4c4d31f7e491f16a6/Classes/Controllers/Top%20View%20Controller/ARTopViewToolbarController.m&quot;&gt;own class&lt;/a&gt; we were able to allow the &lt;code&gt;ARTopViewController&lt;/code&gt; to state what it wanted by not how it was done.&lt;/p&gt;
+
+&lt;h2&gt;Configuration Classes over Inter-Class Communication&lt;/h2&gt;
+
+&lt;p&gt;A one of the most important aspects of Energy is to &lt;a href=&quot;http://folio.artsy.net&quot;&gt;email artworks&lt;/a&gt;. So there is a lot of code around configuring the email you want to send, and then generating HTML from those settings. This started out pretty simple as we had very few app-wide settings. Over time, deciding what we need to show in terms of settings and how they affected the email became very complicated.&lt;/p&gt;
+
+&lt;p&gt;The part that eventually became a strong enough code-smell to warrant a re-write was the view controller which allowed a partner to choose what information to send would pass details individually to an object that would generate the HTML. I found it difficult to write simple tests for the class&#39; behavior. Initially I would mock the email composer, then inspect the methods that were called. This felt wrong, as you shouldn&#39;t really be mocking classes you own. Given the importance of the functionality that classes provide our application, ideas on ways to improve the section of code stayed on my mind for a long time.&lt;/p&gt;
+
+&lt;p&gt;The fix came to me during Justin Searl&#39;s talk &lt;a href=&quot;https://speakerdeck.com/searls/sometimes-a-controller-is-just-a-controller&quot;&gt;Sometimes a Controller is Just a Controller&lt;/a&gt; - specifically slide &lt;a href=&quot;https://speakerdeck.com/searls/sometimes-a-controller-is-just-a-controller?slide=55&quot;&gt;55&lt;/a&gt;. Jon talks about objects that &lt;em&gt;either hold and describe a value or perform useful behavior, never both&lt;/em&gt;.&lt;/p&gt;
+
+&lt;p&gt;I took this advice and re-evaluated the relationship between settings view controller and composer object. Initially settings would configured the composer, afterwards the settings would create a configuration object and the composer would consume it. This made it &lt;em&gt;significantly&lt;/em&gt; easier to write tests for both objects. As they had very obvious inputs and outputs in the form of a &lt;a href=&quot;https://github.com/artsy/energy/blob/aa97d90cf37932d4c0f49ea4c4d31f7e491f16a6/Classes/Util/Emails/AREmailSettings.h&quot;&gt;AREmailSettings&lt;/a&gt;. The &lt;a href=&quot;https://github.com/artsy/energy/blob/aa97d90cf37932d4c0f49ea4c4d31f7e491f16a6/ArtsyFolio%20Tests/Util/AREmailComposerTests.m&quot;&gt;AREmailComposerTests&lt;/a&gt; in particular become much more elegant.&lt;/p&gt;
+
+&lt;h3&gt;Direct use of Responder Chain&lt;/h3&gt;
+
+&lt;p&gt;Before I worked at Artsy, I was a &lt;a href=&quot;http://i.imgur.com/Am9LjED.gif&quot;&gt;Mac developer&lt;/a&gt;, I&#39;ve been doing that since before iOS existed, so this influences my code style. One of the great parts of the Cocoa toolchain is the &lt;a href=&quot;https://developer.apple.com/library/ios/documentation/EventHandling/Conceptual/EventHandlingiPhoneOS/event_delivery_responder_chain/event_delivery_responder_chain.html&quot;&gt;responder chain&lt;/a&gt;, a well documented way of passing methods up a known chain of objects. It solves a common problem with complicated view structures. You could have a button that is generated at runtime deep inside a view hierarchy and you would like the view controller to handle it being tapped. You could use a long chain of delegate methods, or use a &lt;a href=&quot;https://twitter.com/unimp0rtanttech/status/555828778015129600&quot;&gt;private method&lt;/a&gt; to get the reference to the view controller instance. On the Mac usage of the responder chain is a common pattern, on iOS it is used rarely.&lt;/p&gt;
+
+&lt;p&gt;We have this problem with our Artwork view controller in Eigen. There are buttons that are many &lt;a href=&quot;https://speakerdeck.com/orta/ios-at-artsy?slide=38&quot;&gt;stack views deep&lt;/a&gt; that need to pass a message back to the view controller. When we first hit this the issue I immediately used the responder chain, you write a &lt;a href=&quot;https://github.com/artsy/eigen/blob/e19ac594bf6240d076e8092d9c56e9876c94444e/Artsy/Views/Artwork/ARArtworkActionsView.m#L85&quot;&gt;line of code&lt;/a&gt; like: &lt;code&gt;[bidButton addTarget:self action:@selector(tappedBidButton:) forControlEvents:UIControlEventTouchUpInside];&lt;/code&gt; where the &lt;code&gt;self&lt;/code&gt; is referring to the view. This would send the message &lt;code&gt;tappedBidButton:&lt;/code&gt; up the responder chain where it is reacted upon by the &lt;a href=&quot;https://github.com/artsy/eigen/blob/e19ac594bf6240d076e8092d9c56e9876c94444e/Artsy/View_Controllers/Artwork/ARArtworkViewController+ButtonActions.m#L114&quot;&gt;ARArtworkViewController&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;I had to explain the premise of the responder chain to almost everyone touching this area of the code base. This is great in terms of the &lt;a href=&quot;https://xkcd.com/1053/&quot;&gt;&quot;lucky 10,000&quot;&lt;/a&gt; but  means that the pattern is unintuitive to those who have not previously heard of it. There was one more issue, the lack of coupling means that renaming selectors via refactoring can break the chain.&lt;/p&gt;
+
+&lt;p&gt;The way that we reduced the cognitive load was via a protocol, all of the actions that the responder chain will use are mapped inside &lt;a href=&quot;https://github.com/artsy/eigen/blob/e19ac594bf6240d076e8092d9c56e9876c94444e/Artsy/Views/Artwork/ARArtworkActionsView.h#L10-L20&quot;&gt;ARArtworkActionsViewButtonDelegate&lt;/a&gt;-like protocols. It&#39;s a bit of a white-lie given that there is no direct relationship using the protocol in the app, but it makes the relationship more obvious. We use a class extension that &lt;a href=&quot;https://github.com/artsy/eigen/blob/e19ac594bf6240d076e8092d9c56e9876c94444e/Artsy/View_Controllers/Artwork/ARArtworkViewController+ButtonActions.h#L11&quot;&gt;conforms to these types of protocols&lt;/a&gt; to keep the actions all kept in one place.&lt;/p&gt;
+
+&lt;h3&gt;Wrap-up&lt;/h3&gt;
+
+&lt;p&gt;There are many design patterns, and they all come with trade-offs. Over time, our opinions on what is &quot;good code&quot; changes, this is great. It&#39;s important that as developers we understand that being able to change our minds is one of the most vital skills we have in our toolchain. This means being open to opinions outside of your usual sphere of influence and to maybe bring some good ideas from them. It&#39;s great to be passionate about an aspect of how we craft applications, but from my perspective, the best programmers choose pragmatism over idealism.&lt;/p&gt;
+</description>
+        <pubDate>Tue, 01 Sep 2015 00:00:00 +0000</pubDate>
+        <link>http://artsy.net/blog/2015/09/01/Cocoa-Architecture-Dropped-Design-Patterns/</link>
+        <guid isPermaLink="true">http://artsy.net/blog/2015/09/01/Cocoa-Architecture-Dropped-Design-Patterns/</guid>
+        
+        
+        <category>architecture</category>
+        
+        <category>eigen</category>
+        
+        <category>energy</category>
+        
+        <category>ios</category>
+        
+        <category>mobile</category>
+        
+      </item>
     
       <item>
         <title>Swift Trek 2: The Wrath of count()</title>
@@ -1254,94 +1446,6 @@ alive at that time, which was &lt;a href=&quot;https://github.com/artsy/eigen/co
         <category>eigen</category>
         
         <category>ios</category>
-        
-        <category>mobile</category>
-        
-        <category>open source</category>
-        
-        <category>oss</category>
-        
-      </item>
-    
-      <item>
-        <title>How we Open Source&#39;d Eigen</title>
-        <description>&lt;p&gt;It was 95 days ago, and I was sitting before of my computer in NYC. I loaded my terminal, opened &lt;a href=&quot;https://taptalk.me&quot;&gt;TapTalk&lt;/a&gt; on my phone, tapped on my collegue &lt;a href=&quot;http://ashfurrow.com&quot;&gt;Ash&#39;s&lt;/a&gt; avatar and held my finger there. I paused, this moment was a long time, it was worth waiting. I switched the camera from my face to the screen with the terminal open.&lt;/p&gt;
-
-&lt;p&gt;This moment was probably the most nervous I had been in years. It showed &lt;code&gt;git push origin master&lt;/code&gt;. I said &quot;it&#39;s happening.&quot; I hit return. A new era in the Artsy mobile team had started. A few minutes later, I wrote this tweet:&lt;/p&gt;
-
-&lt;center&gt;
-&lt;blockquote class=&quot;twitter-tweet&quot; data-cards=&quot;hidden&quot; lang=&quot;en&quot;&gt;&lt;p&gt;We have open source’d the &lt;a href=&quot;https://twitter.com/artsy&quot;&gt;@Artsy&lt;/a&gt; iOS app.&amp;#10;&amp;#10;&lt;a href=&quot;https://t.co/c1SWtHmUgy&quot;&gt;https://t.co/c1SWtHmUgy&lt;/a&gt;&amp;#10;&amp;#10;🎉&lt;/p&gt;&amp;mdash; Ørta (@orta) &lt;a href=&quot;https://twitter.com/orta/status/558395611754819586&quot;&gt;January 22, 2015&lt;/a&gt;&lt;/blockquote&gt;
-&lt;/center&gt;
-
-
-&lt;p&gt;Let&#39;s go over the process we went through to get to that point.&lt;/p&gt;
-
-&lt;!-- more --&gt;
-
-
-&lt;p&gt;Credit where credit is due, when we were &lt;a href=&quot;/blog/2014/11/13/eidolon-retrospective/&quot;&gt;working on Eidolon&lt;/a&gt;, our CTO &lt;a href=&quot;http://code.dblock.org/&quot;&gt;dB&lt;/a&gt; just casually tossed the idea that, really, Eigen should be open source too. Eigen is the code name for the &lt;a href=&quot;http://iphone.artsy.net/&quot;&gt;Artsy iOS app&lt;/a&gt;. This totally threw me for a loop, we were only just getting to a point where we could build an app from scratch in the open. Trying to get a project that had existed for years and had its own momentum converted would take a lot of thinking about.&lt;/p&gt;
-
-&lt;p&gt;We devoted time at the end of 2014 to understand what the constraints were for getting the app opened. From a purely functional perspective we would have to start with a &lt;a href=&quot;https://github.com/artsy/mobile/issues/11&quot;&gt;drastic decision&lt;/a&gt; around the repo itself.&lt;/p&gt;
-
-&lt;h3&gt;The Repo&lt;/h3&gt;
-
-&lt;p&gt;&lt;img src=&quot;/images/2015-04-28-open-sourcing-your-apps/rise-and-fall.png&quot; alt=&quot;Rise And Fall&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;We opted to go for a total repo switch, removing all history. There were a lot of places where keys could have been hiding within the app. To get this done we migrated the existing &lt;code&gt;eigen&lt;/code&gt; to &lt;code&gt;eigen-private&lt;/code&gt; on github, and did a fresh &lt;code&gt;git init&lt;/code&gt;. People who have joined Artsy Mobile post-OSS have never even cloned the &lt;code&gt;eigen-private&lt;/code&gt; repo. So I feel good about this call.&lt;/p&gt;
-
-&lt;p&gt;We used the last few moments of the private repo to remove all of the default Apple copyright notices. We didn&#39;t feel they added anything on top of the git history, and made it feel like the founders of a project were more important than anyone working on improvements.&lt;/p&gt;
-
-&lt;p&gt;It wasn&#39;t all smooth sailing with respect to the repo switch however. As the switch happened the WatchKit came out, and we had devoted quite a lot of time to building an app in it. Given that you &lt;a href=&quot;http://www.elischiff.com/blog/2015/3/24/fear-of-apple&quot;&gt;can&#39;t predict Apple&lt;/a&gt;&#39;s reactions, and you couldn&#39;t ship an app with an embedded watch app to the store, we opted to work on a branch from our private repo. &lt;a href=&quot;https://github.com/artsy/eigen/pull/302&quot;&gt;For months&lt;/a&gt;. In the end it was easier to have the two folders next to each other, then copy &amp;amp; paste over all the files and to set all the settings in the Xcode project again.&lt;/p&gt;
-
-&lt;p&gt;One of the things that we found a bit sad about the transition to a new repo, is that it&#39;s hard to give past contributors recognition for their work. One of the ways we&#39;ve worked around this is by having a file &lt;a href=&quot;https://github.com/artsy/eigen/pull/409&quot;&gt;documenting past contributors&lt;/a&gt; in our repo.&lt;/p&gt;
-
-&lt;h3&gt;Docs&lt;/h3&gt;
-
-&lt;p&gt;We had to significantly update our README, and a lot of the process around bootstrapping. We wanted to reduce the friction to actually trying the app as much as possible. It&#39;s easy to look at the source on github but to be able to get it up and running quickly should be a really high priority. So our README is based on getting it up and running as an OSS project, not for someone internal who may push betas/releases.&lt;/p&gt;
-
-&lt;p&gt;When we opened the repo, there &lt;a href=&quot;https://github.com/artsy/eigen/pulls?q=is%3Apr+is%3Aclosed+sort%3Acreated-asc&quot;&gt;were a lot&lt;/a&gt; of documentation fix PRs - thanks &lt;em&gt;segiddins&lt;/em&gt;, &lt;em&gt;neonichu&lt;/em&gt; and &lt;em&gt;dkhamsing&lt;/em&gt;. They have low barriers to entry, and fun to make for people looking through big projects. We still get them pretty regularly.&lt;/p&gt;
-
-&lt;h3&gt;Secrets&lt;/h3&gt;
-
-&lt;p&gt;There aren&#39;t large sections of the our app that we are keeping secret, though we have discussed ways in which we could. There is however a nice solution to having something different for OSS vs your internal team, API compatible CocoaPods. We &lt;a href=&quot;/blog/2014/06/20/artsys-first-closed-source-pod/&quot;&gt;do this&lt;/a&gt; for our fonts in all apps. We&#39;ve talked extensively about our &lt;a href=&quot;/blog/2015/01/21/cocoapods-keys-and-CI/&quot;&gt;tools for keeping&lt;/a&gt; API keys secret, so no need to go over that twice.&lt;/p&gt;
-
-&lt;p&gt;Other than that we had already been opening any good abstractions as CocoaPods for anyone to use. All our dependencies were packaged outside of the app, we had no crazy internal SDKs or anything worth hiding within the codebase.&lt;/p&gt;
-
-&lt;h3&gt;Selling the idea&lt;/h3&gt;
-
-&lt;p&gt;It&#39;s one thing to think that it&#39;s possible, it&#39;s another to do it. I&#39;m glad that I am in a position where I can enact change. I felt no resistence in the process. I kept offering potential avenues for someone to stop me, too. I emailed the entire team as I started the process 2 weeks before it happened, I talked to anyone who might write issues or contribute from the design team. As I got further along the process and sent another email out that it was going to happen tomorrow. All I got were 👍 and 🎉s in &lt;a href=&quot;https://itunes.apple.com/us/app/gifs/id961850017?l=en&amp;amp;mt=12&quot;&gt;GIF&lt;/a&gt; form. So I kept moving forwards till that tweet above.&lt;/p&gt;
-
-&lt;p&gt;From our dev team&#39;s perspective, this is not a brave new world. Our website, &lt;a href=&quot;https://github.com/artsy/force-public&quot;&gt;force&lt;/a&gt;, is open source. Though they operate under different constraints.&lt;/p&gt;
-
-&lt;p&gt;From the perspective of Artsy, even though opening our code aligns very strongly with our &lt;a href=&quot;/blog/2015/03/31/the-culture-of-openness-artsy-mobile/&quot;&gt;values of openness&lt;/a&gt;, we are still a company. Opening up our codebase lets our competitors see what we&#39;re up to in advance, and &lt;a href=&quot;http://code.dblock.org/2015/02/09/becoming-open-source-by-default.html&quot;&gt;closed source&lt;/a&gt; is still the norm for apps. Opening our code and process is also opening ourselves to criticism.&lt;/p&gt;
-
-&lt;h3&gt;Evolution of the team&lt;/h3&gt;
-
-&lt;p&gt;3 months on the way we operate has changed. We&#39;re a lot more organized, and the Eigen repo is easily the most well run project on the mobile team. It has &lt;a href=&quot;https://github.com/artsy/eigen/milestones&quot;&gt;active milestones&lt;/a&gt;, that represent long term goals and the current sprint. We discuss a lot of the interesting cultural choices publicly on &lt;a href=&quot;https://github.com/artsy/eigen/issues/221&quot;&gt;issues&lt;/a&gt; and in our &lt;a href=&quot;https://github.com/artsy/mobile/issues&quot;&gt;mobile team repo&lt;/a&gt;. Having this app in the open, and the experience of doing so has also improved our workflow on other apps. Eidolon for example now runs with a similar structure.&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;/images/2015-04-28-open-sourcing-your-apps/sprint-planning-issue.png&quot; alt=&quot;Sprint Planning Issue&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;We found that people would use our issue structure to &lt;a href=&quot;https://github.com/artsy/eigen/issues/324&quot;&gt;ask&lt;/a&gt; &lt;a href=&quot;https://github.com/artsy/eigen/issues/313&quot;&gt;questions&lt;/a&gt; about Eigen itself. This was an unexpected positive outcome. It gave us a chance to re-think decisions and try to understand how we came to certain decisions that might not be documented anywhere.&lt;/p&gt;
-
-&lt;p&gt;Our culture improved by open sourcing our app. As individuals, it&#39;s great to know that our work goes towards helping the larger community and all engineers love having a green profile.&lt;/p&gt;
-
-&lt;center&gt;
-&lt;img src=&quot;/images/2015-04-28-open-sourcing-your-apps/staying-green.png&quot; alt=&quot;Staying Green&quot;&gt;
-&lt;/center&gt;
-
-
-&lt;p&gt;If you&#39;ve not explored the idea of open sourcing your app, you should. We&#39;re happy to help out - &lt;a href=&quot;https://github.com/artsy/mobile/issues/new&quot;&gt;create an issue&lt;/a&gt;. Or contact me personally, my email is on my &lt;a href=&quot;https://github.com/orta&quot;&gt;github profile&lt;/a&gt;.&lt;/p&gt;
-</description>
-        <pubDate>Tue, 28 Apr 2015 00:00:00 +0000</pubDate>
-        <link>http://artsy.net/blog/2015/04/28/how-we-open-sourced-eigen/</link>
-        <guid isPermaLink="true">http://artsy.net/blog/2015/04/28/how-we-open-sourced-eigen/</guid>
-        
-        
-        <category>eigen</category>
-        
-        <category>ios</category>
-        
-        <category>keys</category>
         
         <category>mobile</category>
         
