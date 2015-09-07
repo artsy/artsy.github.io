@@ -24,9 +24,9 @@ It's important to preface that I don't believe in perfect code, or am I a fan of
 
 ## NSNotifications as a decoupling method
 
-A lot of the initial codebase for eigen relied on using NSNotifications as a way of passing messages throughout the application. There were notifications for user settings changes, download status updates, anything related to authentication and the corresponding different error states and a few app features. These relied on sending global notifications with very little attempts at scoping the relationship between objects.
+A lot of the initial codebase for Energy relied on using NSNotifications as a way of passing messages throughout the application. There were notifications for user settings changes, download status updates, anything related to authentication and the corresponding different error states and a few app features. These relied on sending global notifications with very little attempts at scoping the relationship between objects.
 
-NSNotificationCenter notifications are an implementation of the [Observer Pattern](https://en.wikipedia.org/wiki/Observer_pattern) in Cocoa. They are a beginner to intermediate programmer's design paradigm dream. It offers a way to have objects send messages to each other without having to go through any real coupling. As someone just starting on iOS ( I had mostly been a OS X programmer before starting at Artsy ) it was an easy choice to adapt.
+NSNotificationCenter notifications are an implementation of the [Observer Pattern](https://en.wikipedia.org/wiki/Observer_pattern) in Cocoa. They are a beginner to intermediate programmer's design paradigm dream. It offers a way to have objects send messages to each other without having to go through any real coupling. As someone just starting with writing apps for iOS, it was an easy choice to adapt.
 
 One of the biggest downsides of using NSNotifications are that they make it easy to be lazy as a programmer. It allows you to not think carefully about the relationships between your objects and instead to pretend that they are loosely coupled, when instead they are coupled but via stringly typed notifications.
 
