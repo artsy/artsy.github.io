@@ -8,6 +8,7 @@ The Artsy OSS page and the blog run on top of a default jekyll install. If you'd
   git clone git@github.com:artsy/artsy.github.io.git
   cd artsy.github.io
   rake bootstrap
+  rake build
 ```
 
 ## Running the OSS Site / Blog locally
@@ -22,7 +23,7 @@ Categories are generated when the ENV var `PRODUCTION` = `"YES"`.
 
 ## Deploying
 
-Travis CI will automatically deploy when new commits are pushed to the `source` branch, so you shouldn't need to deploy from your local computer. However, if you need to deploy locally, the `rake deploy` command is availble. 
+Travis CI will automatically deploy when new commits are pushed to the `source` branch, so you shouldn't need to deploy from your local computer. However, if you need to deploy locally, the `rake deploy` command is available. 
 
 ## Authoring an Article
 
