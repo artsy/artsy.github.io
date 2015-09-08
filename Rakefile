@@ -70,25 +70,26 @@ end
 
 namespace :deploy do
 
-  desc 'Run on Travis only; deploys the site when built on the source branch'
-  task :travis do
-    branch = ENV['TRAVIS_BRANCH'] # Ensure this command is only run on Travis.
-    pull_request = ENV['TRAVIS_PULL_REQUEST'] #Ensure this command is only not run on pull requests
+  namespace :travis do
+    task :checks do
+      branch = ENV['TRAVIS_BRANCH'] # Ensure this command is only run on Travis.
+      abort 'Must be run on Travis.' unless branch
+      abort "Skipping deploy for non-source branch #{branch}." if branch != 'source'
 
-    abort 'Must be run on Travis' unless branch
-
-    if pull_request != 'false'
-      puts 'Skipping deploy for pull request; can only be deployed from source branch.'
-      exit 0
+      pull_request = ENV['TRAVIS_PULL_REQUEST'] #Ensure this command is only not run on pull requests
+      abort 'Skipping deploy from pull request.' if pull_request != 'false'
     end
 
-    if branch != 'source'
-      puts "Skipping deploy for #{ branch }; can only be deployed from source branch."
-      exit 0
+    task :github_setup do
+      puts `git config --global user.email #{ENV['GIT_EMAIL']}`
+      puts `git config --global user.name #{ENV['GIT_NAME']}`
+      File.open('~/.netrc', 'w') { |f| f.write("machine github.com login #{ENV['GH_TOKEN']}") }
+      puts `chmod 600 ~/.netrc`
     end
-
-    Rake::Task['deploy'].invoke
   end
+
+  desc 'Run on Travis only; deploys the site when built on the source branch'
+  task :travis => ['deploy:travis:checks', 'deploy:travis:github_setup', :deploy]
 end
 
 desc 'Defaults to serve:drafts'
