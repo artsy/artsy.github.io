@@ -83,7 +83,7 @@ namespace :deploy do
     task :github_setup do
       puts `git config --global user.email #{ENV['GIT_EMAIL']}`
       puts `git config --global user.name #{ENV['GIT_NAME']}`
-      File.open('~/.netrc', 'w') { |f| f.write("machine github.com login #{ENV['GH_TOKEN']}") }
+      File.open("#{ENV['HOME']}/.netrc", 'w') { |f| f.write("machine github.com login #{ENV['GH_TOKEN']}") }
       puts `chmod 600 ~/.netrc`
     end
   end
