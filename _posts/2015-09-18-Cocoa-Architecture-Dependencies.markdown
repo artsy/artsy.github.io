@@ -96,9 +96,9 @@ Ideally you're bringing in a dependency for one specific task. Something like [O
 
 #### Community Relationships
 
-The amount of energy you have to put into using certain dependencies, in an engaging way like we do, also means you have to deal with people. This is often the case with OSS, so we’re used to that and quite good at it. Sometimes, however, people and their opinions don’t match, it’s a fact of life, and in these cases it can be worth it to choose to not use a certain dependency, if not strictly needed.
+The amount of energy you have to put into using certain dependencies, in an engaging way like we do, also means you have to interact with external people. This is often the case with OSS, so we’re used to that and quite good at it. Sometimes, however, people and their opinions don’t match, it’s a fact of life, and in these cases it can be worth choosing to not use a certain dependency.
 
-One such example has been ReactiveCocoa. While they are completely in their right to do whatever they feel they need to do, we feel that we’ve wasted energy on supporting their dependencies in CocoaPods that took away from our already constraining time-budget. It consumes and creates energy that we don't want to be associated with, and makes us want to engage less with the community at whole, which is really not something we want. So that, combined with our opinion on the framework itself (as aforementioned) means we’re looking at alternatives.
+One such example has been ReactiveCocoa. While they are free to make whatever decisions they like, we feel that we’ve wasted energy on supporting their dependencies in CocoaPods that took away from our already constraining time-budget. Our interactions consume and creates energy that we don't want to be associated with. This makes us want to engage less with the community at whole, which is really not something we want. So that, combined with our opinion on the framework itself (as aforementioned) means we’re looking at alternatives.
 
 This contrasts sharply with working on Fastlane, where we're willing to take the dependency graph in part because working with [Felix Krause](https://krausefx.com) is such a pleasure. We've sent PRs,  helped out on [documentation](https://github.com/KrauseFx/fastlane/pull/173) and provided advice on how we would/are using Fastlane. I actively feel guilty that we're still not deploying to the App Store using Fastlane because of this relationship.
 
@@ -110,7 +110,7 @@ We spent a good chunk of time over the last 6 months discussing and testing out 
 
 ## Not All Dependencies are Third Party
 
-We ship a lot of our internal code as Pods. The rubric we use for deciding on when to externalise code is "would we want this in more than 2 apps" at the minute. This is an easy choice for libraries as fundamental as a fonts, or colours schemes. It becomes a more nuanced choice when it comes to a class or two, or some functions.
+We ship a lot of our internal code as Pods. The rubric we use for deciding on when to externalise code is "would we want this in more than 2 apps" at the moment. This is an easy choice for libraries as fundamental as a fonts, or colours schemes. It becomes a more nuanced choice when it comes to [a class or two](https://github.com/ashfurrow/Forgeries), or [some functions](https://github.com/orta/ar_dispatch).
 
 Creating a library that gets popular can also turn into an unexpected time-sink, we've been supporting [ARAnalytics](https://cocoapods.org/pods/ARAnalytics) for 4 years now and nearly all features for the last 3 years have come from external developers. Ensuring that they don't break the build, making monthly releases and keeping documentation up to date takes time. [Moya](https://cocoapods.org/pods/Moya) has consumed multiple weekends in a row of our time.
 
