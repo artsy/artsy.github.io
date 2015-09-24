@@ -10,11 +10,11 @@ blog-url: http://ashfurrow.com
 categories: [ios, mvvm, open source, swift, mobile]
 ---
 
-Model View ViewModel has become the default way I write apps on iOS – it makes writing iOS apps a joy. I've written [about it](https://www.objc.io/issues/13-architecture/mvvm/) and [again](http://www.teehanlax.com/blog/model-view-viewmodel-for-ios/) and [again](https://speakerdeck.com/ashfurrow/reactivecocoa-at-mdevcon-2014) and [oh my](https://leanpub.com/iosfrp).
+Model View ViewModel has become the default way I write apps on iOS – it makes writing iOS apps a joy. I've written [about it](https://www.objc.io/issues/13-architecture/mvvm/) [again](http://www.teehanlax.com/blog/model-view-viewmodel-for-ios/) and [again](https://speakerdeck.com/ashfurrow/reactivecocoa-at-mdevcon-2014) and [oh my](https://leanpub.com/iosfrp).
 
 But last Autumn, as our team was all-hands-on-deck to wrap up the [auctions kiosk app](http://artsy.github.io/blog/2014/11/13/eidolon-retrospective/), we chose not to use MVVM. Why not?
 
-We were building a _new app_ in a _new language_ using a _non-Swift FRP framework_. I was also teaching colleagues what they needed to know about ReactiveCocoa to help write the app. We used the MVC pattern because the relative cost of MVVM was too high.
+We were building a _new app_ in a _new language_ using a _non-Swift framework_ for functional reactive programming. I was also teaching colleagues what they needed to know about ReactiveCocoa to help write the app. We used the MVC pattern because the relative cost of MVVM was too high.
 
 "... _was_ ..."
 
@@ -69,7 +69,7 @@ So let's talk about some specific challenges we had.
 
 ## User Interface Structure
 
-Part of our user interface consists of a segment control near the top of the screen. The currently selected segment determines the sort order of the collection view cells, as well as the collection view's layout. We had previously defined an enum to store the titles and sort order corresponding to each segment; the order of the enum cases inferred the order of the buttons in the UI. 
+Part of our user interface consists of a segment control near the top of the screen. The currently selected segment determines the sort order of the collection view cells, as well as the collection view's layout. We had previously defined an enum to store the titles and sort order corresponding to each segmented control; the order of the enum cases implies the order of the controls in the UI. 
 
 ```swift
 enum SwitchValues: Int {
@@ -86,7 +86,7 @@ So where does this enum live in MVVM? Since the logic for sorting models, the bu
 
 However, the decision of which layout for the collection view to use is slightly more nuanced. The layout doesn't affect what data we show the user or how they interact with it; it only affects the visuals how the information is presented. This suggests the logic for deciding layouts might belong in the view controller. 
 
-My solution was to put the enum in the view model, and have the view model expose a signal defining which of the two layouts should be used. Based on the selected segment, the view model decides which layout should be used and sends that value on a signal. The view controller is responsible for mapping that signal into a configured layout, then setting that layout to the collection view. 
+My solution was to put the enum in the view model, and have the view model expose a signal defining which of the two layouts should be used. Based on the selected segment index, the view model decides which layout should be used and sends that value on a signal. The view controller is responsible for mapping that signal into a configured layout, then setting that layout on the collection view. 
 
 ```swift
 // Respond to changes in layout, driven by switch selection.
@@ -226,7 +226,7 @@ Now that the view model and view controller are separate objects, we no longer h
 
 In my opinion, the key benefits of MVVM boil down to the following:
 
-1. Separating the view model from the user interface makes it's easier to test presentation logic.
+1. Separating the view model from the user interface makes it easier to test presentation logic.
 1. Separating the view controller from the presentation logic makes it easier to test the user interface.
 
 ----------------
