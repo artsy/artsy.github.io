@@ -105,3 +105,5 @@ I see a few possible improvements here that might require a bit of work.
 * Build flow could support SCM polling the same way as free-style jobs, avoiding the need for `master-prequel`. We weren't able to get a stable notification of changes from Github with the Jenkins Github plugin.
 
 Please suggest further improvements in the comments below!
+
+(Update: See [Splitting up a large test suite](/blog/2015/09/24/splitting-up-a-large-test-suite/) for a modified approach that splits work approximately evenly among an arbitrary number of sub-jobs.)
