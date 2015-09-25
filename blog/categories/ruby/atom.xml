@@ -4,7 +4,7 @@
   <title><![CDATA[Category: ruby | Artsy Engineering]]></title>
   <link href="http://artsy.github.io/blog/categories/ruby/atom.xml" rel="self"/>
   <link href="http://artsy.github.io/"/>
-  <updated>2015-09-25T15:37:04+00:00</updated>
+  <updated>2015-09-25T16:00:23+00:00</updated>
   <id>http://artsy.github.io/</id>
   <author>
     <name><![CDATA[]]></name>
@@ -12,6 +12,48 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Splitting up a large test suite]]></title>
+    <link href="http://artsy.github.io/blog/2015/09/24/splitting-up-a-large-test-suite/"/>
+    <updated>2015-09-24T22:13:00+00:00</updated>
+    <id>http://artsy.github.io/blog/2015/09/24/splitting-up-a-large-test-suite</id>
+    <content type="html"><![CDATA[<p>A while back, we wrote about <a href="/blog/2012/10/09/how-to-run-rspec-test-suites-in-parallel-with-jenkins-ci-build-flow/">How to Run RSpec Test Suites in Parallel with Jenkins CI Build Flow</a>. A version of that still handles our largest test suite, but over time the initial division of specs became unbalanced. We ended up with some tasks that took twice as long as others. Even worse, in an attempt to rebalance task times, we ended up with awkward file patterns like <code>'spec/api/**/[a-m]*_spec.rb'</code>.</p>
+
+<p>To keep our parallel spec tasks approximately equal in size and to support arbitrary concurrency, we've added a new <code>spec:sliced</code> task:</p>
+
+<!-- more -->
+
+
+<pre><code class="ruby">namespace :spec do
+  task :set_up_spec_files do
+    spec_files = Dir['spec/**/*_spec.rb']
+    @spec_file_digests = Hash[spec_files.map { |f| [f, Zlib.crc32(f)] }]
+  end
+
+  RSpec::Core::RakeTask.new(:sliced, [:index, :concurrency] =&gt; :set_up_spec_files) do |t, args|
+    index = args[:index].to_i
+    concurrency = args[:concurrency].to_i
+    t.pattern = @spec_file_digests.select { |f, d| d % concurrency == index }.keys
+  end
+end
+</code></pre>
+
+<p>As you can see, the <code>set_up_spec_files</code> helper task builds a hash of spec file paths and corresponding checksums. When we invoke the <code>sliced</code> task with <code>index</code> and <code>concurrency</code> values (e.g., <code>0</code> and <code>5</code>), only the spec files with checksums equal to <code>0</code> when mod-ed by <code>5</code> are run. Thus, the Jenkins build flow would look like:</p>
+
+<pre><code class="java">parallel (
+  {build("master-ci-task", tasks: "spec:sliced[0,5]")},
+  {build("master-ci-task", tasks: "spec:sliced[1,5]")},
+  {build("master-ci-task", tasks: "spec:sliced[2,5]")},
+  {build("master-ci-task", tasks: "spec:sliced[3,5]")},
+  {build("master-ci-task", tasks: "spec:sliced[4,5]")}
+)
+build("master-ci-succeeded")
+</code></pre>
+
+<p>Now, spec times <em>might</em> continue to be unbalanced despite files being split up approximately evenly. (For a more thorough approach based on recording spec times, see <a href="https://github.com/ArturT/knapsack">knapsack</a>.) However, this little bit of randomness was a big improvement over our previous approach, and promises to scale in a uniform manner.</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Releasecop Tracks Stale Releases]]></title>
@@ -552,101 +594,6 @@ end
 <p>That's it! To summarize, use instance variables in your public methods which is what your templates and other code will use. Those public methods should call private <code>build_</code> methods which actually do all the heavy lifting. This way, you get to easily move logic away from a template and into its own module, and can guarantee that you're not repeating any long-running database queries or other slow data processing.</p>
 
 <p>Hopefully you've found this a useful pattern to follow, please leave any feedback in the comments and <a href="https://github.com/artsy">follow us on Github</a>!</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Ruby Helper to Group Artworks into a Pinterest-style Layout for Email]]></title>
-    <link href="http://artsy.github.io/blog/2014/03/17/ruby-helper-to-group-artworks-into-a-pinterest-style-layout-for-email/"/>
-    <updated>2014-03-17T19:32:00+00:00</updated>
-    <id>http://artsy.github.io/blog/2014/03/17/ruby-helper-to-group-artworks-into-a-pinterest-style-layout-for-email</id>
-    <content type="html"><![CDATA[<p><img src="/images/2014-03-17-ruby-helper-to-group-artworks-into-a-pinterest-style-layout-for-email/two-column-layout.png" alt="Example of two column layout" /></p>
-
-<p>Something we'd like to do is email our users some suggested artworks as part of their personalized emails. The layout of those suggestions should look something like our newly re-designed <a href="https://artsy.net/browse/artworks?price_range=-1%3A1000000000000">Browse</a> page, with a 'salon' style layout. Here's some simple Ruby code that can group artworks into columns for you, that can then be directly rendered in an email (via <a href="http://haml.info/">Haml</a>, <a href="http://mustache.github.io/">Mustache</a>, <a href="http://jade-lang.com/">Jade</a>, or your templating language of choice.)</p>
-
-<!-- more -->
-
-
-<h2>The code</h2>
-
-<p>First let's look at the code, and then I'll describe it:</p>
-
-<pre><code class="ruby">module ArtworkColumns
-  # Return an array of artworks grouped together in sub arrays by being added to the shortest 'column'
-  # based on a fixed width and aspect ratios.
-  #
-  # @param {Array} artworks The array of artworks to group into columns
-  # @param {Number} num_columns The number of columns to group them into
-  # @param {Number} width The width the images will be displayed at
-  #
-  # @return {Array} An array of artworks grouped into sub arrays by being added to the shortest one.
-  def self.artwork_columns(artworks, num_columns, width)
-    artwork_cols = []
-
-    # Initialize columns
-    num_columns.times do
-      artwork_cols &lt;&lt; []
-    end
-
-    artworks.each do |artwork|
-      add_to_shortest_column!(artwork_cols, artwork, width)
-    end
-
-    artwork_cols
-  end
-
-  private
-
-  # Adds artwork to shortest column
-  def self.add_to_shortest_column!(artwork_cols, artwork, width)
-    min_height = column_height(artwork_cols[0], width)
-    min_column_idx = 0
-
-    artwork_cols.each_with_index do |column, idx|
-      height = column_height(column, width)
-      if height &lt; min_height
-        min_height = height
-        min_column_idx = idx
-      end
-    end
-
-    artwork_cols[min_column_idx] &lt;&lt; artwork
-  end
-
-  # Calculate sum of heights of artworks in column
-  def self.column_height(artwork_col, width)
-    height = 0
-    artwork_col.each do |artwork|
-      if (aspect_ratio = artwork.default_image.aspect_ratio)
-        height += (width / aspect_ratio).floor
-      else
-        height += width
-      end
-    end
-    height
-  end
-</code></pre>
-
-<p>The algorithm is quite simple (original JS idea and implementation courtesy of Artsy's <a href="https://github.com/gib">Gib</a>). The inputs are fairly obvious, an array of artworks to be grouped, the number of columns to group them into, and the width of each column.</p>
-
-<p>We then simply iterate over all our artworks, and add them to whichever column is shortest. This way we end up with several columns that are for the most part equally sized in height, and as they all have different aspect ratios, when they are rendered in a table, you wind up with a nice looking 'dynamic' layout. The height of each column is calculated as the sum of the heights of the artworks in each column. The heights are derived from the inputted widths and aspect ratios of the images.</p>
-
-<p>Here's how you might iterate over the returned column groupings and render a layout similar to the above:</p>
-
-<pre><code class="haml">- artwork_suggestions.each_with_index do |artwork_arr, idx|
-  %td{ id: 'artwork-column', style: "width: 290px;padding-top:20px;text-align:left;" }
-    - artwork_array.each do |artwork|
-      %a{ href: "#{canonical_url}/artwork/#{artwork.slug}?#{@utm_params}" }&lt;
-        %img{ id: 'artwork', src: "#{artwork.default_image.image_url(:large)}", style: "width: 290px;" }
-      %br
-      &lt;!-- additional artwork details, title, artist, etc. --&gt;
-</code></pre>
-
-<p>These few lines of Ruby code have allowed us to move logic out of Haml (yuck!) and into Ruby (yay!) and allow <a href="http://haml.info/">Haml</a> to just focus on rendering the objects passed in (certainly via loops and conditionals, etc.)</p>
-
-<p>That's all for now! In my next post I'll talk about how I use the Presenter pattern and memoization to move even more logic out of templates (and save some database calls while we're at it!)</p>
-
-<p>Thanks again! Post any comments or tips of your own here, and <a href="https://github.com/artsy">follow us on Github</a>!</p>
 ]]></content>
   </entry>
   

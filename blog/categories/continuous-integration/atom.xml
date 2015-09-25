@@ -4,7 +4,7 @@
   <title><![CDATA[Category: continuous integration | Artsy Engineering]]></title>
   <link href="http://artsy.github.io/blog/categories/continuous-integration/atom.xml" rel="self"/>
   <link href="http://artsy.github.io/"/>
-  <updated>2015-09-25T15:37:04+00:00</updated>
+  <updated>2015-09-25T16:00:23+00:00</updated>
   <id>http://artsy.github.io/</id>
   <author>
     <name><![CDATA[]]></name>
@@ -12,6 +12,48 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Splitting up a large test suite]]></title>
+    <link href="http://artsy.github.io/blog/2015/09/24/splitting-up-a-large-test-suite/"/>
+    <updated>2015-09-24T22:13:00+00:00</updated>
+    <id>http://artsy.github.io/blog/2015/09/24/splitting-up-a-large-test-suite</id>
+    <content type="html"><![CDATA[<p>A while back, we wrote about <a href="/blog/2012/10/09/how-to-run-rspec-test-suites-in-parallel-with-jenkins-ci-build-flow/">How to Run RSpec Test Suites in Parallel with Jenkins CI Build Flow</a>. A version of that still handles our largest test suite, but over time the initial division of specs became unbalanced. We ended up with some tasks that took twice as long as others. Even worse, in an attempt to rebalance task times, we ended up with awkward file patterns like <code>'spec/api/**/[a-m]*_spec.rb'</code>.</p>
+
+<p>To keep our parallel spec tasks approximately equal in size and to support arbitrary concurrency, we've added a new <code>spec:sliced</code> task:</p>
+
+<!-- more -->
+
+
+<pre><code class="ruby">namespace :spec do
+  task :set_up_spec_files do
+    spec_files = Dir['spec/**/*_spec.rb']
+    @spec_file_digests = Hash[spec_files.map { |f| [f, Zlib.crc32(f)] }]
+  end
+
+  RSpec::Core::RakeTask.new(:sliced, [:index, :concurrency] =&gt; :set_up_spec_files) do |t, args|
+    index = args[:index].to_i
+    concurrency = args[:concurrency].to_i
+    t.pattern = @spec_file_digests.select { |f, d| d % concurrency == index }.keys
+  end
+end
+</code></pre>
+
+<p>As you can see, the <code>set_up_spec_files</code> helper task builds a hash of spec file paths and corresponding checksums. When we invoke the <code>sliced</code> task with <code>index</code> and <code>concurrency</code> values (e.g., <code>0</code> and <code>5</code>), only the spec files with checksums equal to <code>0</code> when mod-ed by <code>5</code> are run. Thus, the Jenkins build flow would look like:</p>
+
+<pre><code class="java">parallel (
+  {build("master-ci-task", tasks: "spec:sliced[0,5]")},
+  {build("master-ci-task", tasks: "spec:sliced[1,5]")},
+  {build("master-ci-task", tasks: "spec:sliced[2,5]")},
+  {build("master-ci-task", tasks: "spec:sliced[3,5]")},
+  {build("master-ci-task", tasks: "spec:sliced[4,5]")}
+)
+build("master-ci-succeeded")
+</code></pre>
+
+<p>Now, spec times <em>might</em> continue to be unbalanced despite files being split up approximately evenly. (For a more thorough approach based on recording spec times, see <a href="https://github.com/ArturT/knapsack">knapsack</a>.) However, this little bit of randomness was a big improvement over our previous approach, and promises to scale in a uniform manner.</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Releasecop Tracks Stale Releases]]></title>
@@ -639,106 +681,6 @@ end
 
 
 <p>You can <a href="https://github.com/joeyAghion/multiapp_example-tests">grab the example code</a>. And make sure to let us know in the comments how <em>you</em> approach testing across applications.</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[How to Run RSpec Test Suites in Parallel with JenkinsCI Build Flow]]></title>
-    <link href="http://artsy.github.io/blog/2012/10/09/how-to-run-rspec-test-suites-in-parallel-with-jenkins-ci-build-flow/"/>
-    <updated>2012-10-09T21:21:00+00:00</updated>
-    <id>http://artsy.github.io/blog/2012/10/09/how-to-run-rspec-test-suites-in-parallel-with-jenkins-ci-build-flow</id>
-    <content type="html"><![CDATA[<p>We now have over 4700 RSpec examples in one of our projects. They are stable, using the techniques described in an <a href="/blog/2012/02/03/reliably-testing-asynchronous-ui-w-slash-rspec-and-capybara/">earlier post</a> and organized in <a href="/blog/2012/05/15/how-to-organize-over-3000-rspec-specs-and-retry-test-failures/">suites</a>. But they now take almost 3 hours to run, which is clearly unacceptable.</p>
-
-<p>To solve this, we have parallelized parts of the process with existing tools, and can turn a build around in just under an hour. This post will dive into our <a href="http://jenkins-ci.org/">Jenkins</a> build flow setup.</p>
-
-<p>To keep things simple, we're going to only build the <code>master</code> branch. When a change is committed on <code>master</code> we're going to push <code>master</code> to a <code>master-ci</code> branch and trigger a distributed build on <code>master-ci</code>. Once all the parts have finished, we'll complete the build by pushing <code>master-ci</code> to <code>master-succeeded</code> and notify the dev team of success or failure.</p>
-
-<p>Here's a diagram of what's going on.</p>
-
-<p><img src="/images/2012-10-09-how-to-run-rspec-test-suites-in-parallel-with-jenkins-ci-build-flow/master-ci.png"></p>
-
-<!-- more -->
-
-
-<h2>Plugins</h2>
-
-<p>Install the <a href="https://wiki.jenkins-ci.org/display/JENKINS/Build+Flow+Plugin">Build Flow</a> and the <a href="https://wiki.jenkins-ci.org/display/JENKINS/Parameterized+Trigger+Plugin">Parameterized Trigger</a> plugin. Grant <code>Anonymous</code> job read permissions in Jenkins system configuration (see <a href="https://issues.jenkins-ci.org/browse/JENKINS-14027">JENKINS-14027</a>).</p>
-
-<p>Create the following Jenkins jobs.</p>
-
-<h2>master-prequel</h2>
-
-<p>A free-style job that connects to the SCM, in our case Git.</p>
-
-<ul>
-<li>Set SCM repository URL to your Git repo, eg. <code>git@github.com:spline/reticulator.git</code></li>
-<li>Change the default branch specifier from <code>**</code> to <code>master</code>. We'll be pushing a <code>master-ci</code> branch, which could, in turn, cause more builds if you don't do this.</li>
-<li>Add a post-build action to build another project. Trigger the <code>master</code> project if the build succeeds.</li>
-</ul>
-
-
-<h2>master</h2>
-
-<p>This is a build-flow job. We'll describe the individual tasks that the flow invokes further. The flow DSL looks as follows.</p>
-
-<pre><code class="ruby">build("master-ci-init")
-parallel (
- { build("master-ci-task", tasks: "spec:suite:models:ci") },
- { build("master-ci-task", tasks: "spec:suite:api:ci") },
- { build("master-ci-task", tasks: "spec:suite:integration:ci") }
-)
-build("master-ci-succeeded")
-</code></pre>
-
-<p>This is a good place to add an e-mail notification post-build action for every unstable build.</p>
-
-<h2>master-ci-init</h2>
-
-<p>A free-style job that creates the <code>master-ci</code> branch from master. It needs to be connected to your SCM and executes the following shell script.</p>
-
-<pre><code class="bash">#!/bin/bash
-git checkout $GIT_BRANCH
-git push origin -f $GIT_BRANCH:$GIT_BRANCH\-ci
-</code></pre>
-
-<p>Note that we cannot combine this task with <code>master-prequel</code>, because we have to make sure the branch creation runs once under the entire flow, while <code>master-prequel</code> can be run multiple times, once per check-in. Otherwise the <code>master-ci</code> branch could get updated before a <code>master-ci-task</code> runs from a previous flow execution.</p>
-
-<h2>master-ci-task</h2>
-
-<p>A parameterized build that accepts a <code>tasks</code> parameter that the flow will pass in.</p>
-
-<p>Change the default branch specifier to <code>master-ci</code> and execute the following shell script.</p>
-
-<pre><code class="bash">#!/bin/bash
-bundle install
-bundle exec rake $tasks
-</code></pre>
-
-<p>This example runs <code>rake $tasks</code>, which we define to be various test suites in our flow DSL. Our test suite setup is described in <a href="/blog/2012/05/15/how-to-organize-over-3000-rspec-specs-and-retry-test-failures/">this post</a>. Your mileage may vary.</p>
-
-<h2>master-ci-succeeded</h2>
-
-<p>This is an optional step. We use this free-style job to tag <code>master-ci</code> as <code>master-succeeded</code> with the following shell script.</p>
-
-<pre><code class="bash">#!/bin/bash
-git checkout $GIT_BRANCH
-git push origin -f $GIT_BRANCH:${GIT_BRANCH/%-ci/}-succeeded
-</code></pre>
-
-<p>Our deployment to production will pickup the <code>master-succeeded</code> branch when it's time.</p>
-
-<h2>Improvements?</h2>
-
-<p>I see a few possible improvements here that might require a bit of work.</p>
-
-<ul>
-<li>The ability to split an RSpec suite up across an arbitrary number N sub-jobs and M executors would create an optimal parallel split based on the resources available.</li>
-<li>Passing the value of <code>GIT_BRANCH</code> and <code>GIT_COMMIT</code> across these jobs would enable building any branch and eliminate the need for <code>master-ci-init</code>.</li>
-<li>Build flow could support SCM polling the same way as free-style jobs, avoiding the need for <code>master-prequel</code>. We weren't able to get a stable notification of changes from Github with the Jenkins Github plugin.</li>
-</ul>
-
-
-<p>Please suggest further improvements in the comments below!</p>
 ]]></content>
   </entry>
   
