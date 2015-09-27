@@ -65,7 +65,7 @@ We began main work on the project. Orta and I divided the app into two pieces: a
 
 We used [SBConstants](https://github.com/paulsamuels/SBConstants) to have compile-time safety when referring to storyboard identifiers and we used Swift’s operator overloading to make using these constants [really easy](https://github.com/artsy/eidolon/blob/a96763b7ccee9cd35c30079ff4044779d30e999a/Kiosk/App/UIStoryboardSegueExtensions.swift). For example:
 
-```
+```swift
 override func prepareForSegue(segue: UIStoryboardSegue, sender: AnyObject?) {
     if segue == .LoadAdminWebViewController {
         // code goes here
@@ -124,7 +124,7 @@ It is completely possible to write an open source iOS application, though we did
 
 ReactiveCocoa is *really* great at networking. It forced us to use some good abstractions that we might have otherwise cut corners on. Orta describes complex signal mapping to be “too magic.” For example, you can probably figure out what the following line of code does:
 
-```
+```swift
 RAC(self, "artworks") <~ XAppRequest(.Artworks(auctionID)).filterSuccessfulStatusCodes().mapJSON().catch { (error) -> RACSignal! in
     println("Error: \(error)")
     return RACSignal.empty()
