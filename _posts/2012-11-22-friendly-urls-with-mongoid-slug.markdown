@@ -4,10 +4,7 @@ title: Friendly URLs with Mongoid::Slug
 date: 2012-11-22 21:21
 comments: true
 categories: [Ruby,MongoDB,Mongoid,User Experience]
-author: Daniel Doubrovkine
-github-url: https://www.github.com/dblock
-twitter-url: http://twitter.com/dblockdotorg
-blog-url: http://code.dblock.org
+author: db
 ---
 All Artsy URLs shared publicly are humanly readable. For example, you'll find all Barbara Kruger's works at [artsy.net/artist/barbara-kruger](https://artsy.net/artist/barbara-kruger) and a post by Hyperallergic entitled "Superfluous Men Can't Get No Satisfaction" at artsy.net/hyperallergic/post/superfluous-men-cant-get-no-satisfaction. This is a lot prettier than having `id=42` in the browser's address and is a big improvement for SEO.
 

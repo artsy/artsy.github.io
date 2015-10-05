@@ -4,10 +4,7 @@ title: Create MongoDB Command-Lines from Mongoid Configuration
 date: 2013-01-31 21:21
 comments: true
 categories: [Mongoid, MongoDB, Shell, Rake]
-author: Daniel Doubrovkine
-github-url: https://www.github.com/dblock
-twitter-url: http://twitter.com/dblockdotorg
-blog-url: http://code.dblock.org
+author: db
 ---
 
 We use MongoDB as our primary store and have built a healthy amount of automation around various database instances and operational environments. For example, we backup databases to S3 using `mongodump`, mirror data between instances with `mongorestore` and often need to open a MongoDB shell with `mongo` to examine data at the lowest level.

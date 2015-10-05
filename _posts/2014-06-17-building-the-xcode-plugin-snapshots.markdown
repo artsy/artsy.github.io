@@ -5,10 +5,7 @@ date: 2014-06-17 10:50
 comments: false
 sharing: false
 categories: [Testing, Objc, Cocoa, Xcode, Plugins, iOS]
-author: Orta
-github-url: https://github.com/orta
-twitter-url: http://twitter.com/orta
-blog-url: http://orta.github.io
+author: orta
 ---
 
 I'm the kind of guy who thinks better tooling means better outcomes. But when good tooling isn't available, it's time to build it yourself. It's this attitude that lead to my work on [CocoaDocs.org](http://cocoadocs.org), and then to [CocoaPods.org](http://cocoapods.org) & its documentation.

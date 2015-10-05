@@ -3,9 +3,7 @@ layout: post
 title: "The perils of iOS user agent strings"
 date: 2012-10-18 15:19
 comments: true
-author: Brennan Moore
-github-url: https://www.github.com/zamiang
-twitter-url: http://twitter.com/zamiang
+author: brennan
 categories: [iOS, JavaScript, User Agent]
 comments: true
 ---
@@ -35,7 +33,7 @@ iPhone: Mozilla/5.0 (iPhone; U; CPU iPhone OS 4_1 like Mac OS X; en-us) AppleWeb
 # Facebook UIWebView
 iPad: Mozilla/5.0 (iPad; U; CPU iPhone OS 5_1_1 like Mac OS X; en_US) AppleWebKit (KHTML, like Gecko) Mobile [FBAN/FBForIPhone;FBAV/4.1.1;FBBV/4110.0;FBDV/iPad2,1;FBMD/iPad;FBSN/iPhone OS;FBSV/5.1.1;FBSS/1; FBCR/;FBID/tablet;FBLC/en_US;FBSF/1.0]
 iPhone: Mozilla/5.0 (iPhone; U; CPU iPhone OS 5_1_1 like Mac OS X; ru_RU) AppleWebKit (KHTML, like Gecko) Mobile [FBAN/FBForIPhone;FBAV/4.1;FBBV/4100.0;FBDV/iPhone3,1;FBMD/iPhone;FBSN/iPhone OS;FBSV/5.1.1;FBSS/2; tablet;FBLC/en_US]
-``` 
+```
 
 <!-- more -->
 

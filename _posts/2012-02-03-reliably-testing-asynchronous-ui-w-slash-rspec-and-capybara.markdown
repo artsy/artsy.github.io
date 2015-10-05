@@ -4,10 +4,7 @@ title: Reliably Testing Asynchronous UI w/ RSpec and Capybara
 date: 2012-02-03 11:45
 comments: true
 categories: [RSpec, Capybara, Selenium, UI, Testing]
-author: Daniel Doubrovkine
-github-url: https://www.github.com/dblock
-twitter-url: http://twitter.com/dblockdotorg
-blog-url: http://code.dblock.org
+author: db
 ---
 tl;dr - You can write 632 rock solid UI tests with Capybara and RSpec, too.
 

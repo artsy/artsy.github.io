@@ -4,10 +4,7 @@ title: Measuring Performance in Grape APIs with NewRelic RPM
 date: 2012-11-29 21:21
 comments: true
 categories: [Heroku,NewRelic,Grape,performance,ruby]
-author: Daniel Doubrovkine
-github-url: https://www.github.com/dblock
-twitter-url: http://twitter.com/dblockdotorg
-blog-url: http://code.dblock.org
+author: db
 ---
 Knowing how well your API performs in real time is essential to any successful project. That's because you can't fix what you can't measure.
 

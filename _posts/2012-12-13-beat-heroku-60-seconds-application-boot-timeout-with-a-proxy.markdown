@@ -4,10 +4,7 @@ title: Beat Heroku's 60 Seconds Application Boot Timeout with a Proxy
 date: 2012-12-13 21:21
 comments: true
 categories: [Heroku,ruby,em-proxy]
-author: Daniel Doubrovkine
-github-url: https://www.github.com/dblock
-twitter-url: http://twitter.com/dblockdotorg
-blog-url: http://code.dblock.org
+author: db
 ---
 
 <img src="/images/2012-12-13-beat-heroku-60-seconds-application-boot-timeout-with-a-proxy/heroku-logo-light-234x60.png">
@@ -45,6 +42,3 @@ Here's the log output from an application that uses this gem. Notice that Heroku
 ```
 
 You can read more about how we use Heroku at [http://success.heroku.com/artsy](http://success.heroku.com/artsy).
-
-
-

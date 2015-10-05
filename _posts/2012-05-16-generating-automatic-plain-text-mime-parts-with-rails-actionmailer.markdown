@@ -4,10 +4,7 @@ title: Generating Automatic Plain Text MIME Parts with Rails ActionMailer
 date: 2012-05-16 20:52
 comments: true
 categories: [Email, Ruby on Rails, ActionMailer]
-author: Daniel Doubrovkine
-github-url: https://www.github.com/dblock
-twitter-url: http://twitter.com/dblockdotorg
-blog-url: http://code.dblock.org
+author: db
 ---
 E-mail is one of the most important ways to engage your users. And every time you touch a user's inbox, it reflects on your brand. But getting email right has become increasing difficult due to the complexities introduced by the thousands of web-based, desktop and mobile mail clients. Email formatting is like the "Hunger Games" where the major players include online services such as GMail, Yahoo, Hotmail or AOL, desktop clients such as Outlook and a myriad mobile devices ranging from iPhone and Android to Blackberry.
 
@@ -62,5 +59,3 @@ parts_order.insert 0, "text/plain"
 ```
 
 This has been extracted into the [actionmailer-text](https://github.com/dblock/actionmailer-text) gem. Include `ActionMailer::Text` in your mailers.
-
-

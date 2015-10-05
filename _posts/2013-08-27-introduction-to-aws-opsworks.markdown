@@ -4,11 +4,7 @@ title: "Introduction to AWS OpsWorks"
 date: 2013-08-27 12:31
 comments: true
 categories: [AWS, OpsWorks, Heroku, dev-ops]
-author: Joey Aghion
-github-url: https://www.github.com/joeyAghion
-twitter-url: http://twitter.com/joeyAghion
-blog-url: http://joey.aghion.com
-google-url: https://plus.google.com/+JoeyAghion
+author: joey
 ---
 
 OpsWorks is a new service from Amazon that promises to provide high-level tools to manage your EC2-based deployment. From [the announcement](http://aws.typepad.com/aws/2013/02/aws-opsworks-flexible-application-management-in-the-cloud.html):

@@ -4,11 +4,7 @@ title: 'Beyond Heroku: "Satellite" Delayed Job Workers on EC2'
 date: 2012-01-31 11:45
 comments: true
 categories: [Heroku, EC2, Fog, Chef]
-author: Joey Aghion
-github-url: http://github.com/joeyAghion
-twitter-url: http://twitter.com/joeyAghion
-blog-url: http://joey.aghion.com
-google-url: https://plus.google.com/+JoeyAghion
+author: joey
 ---
 
 [TL;DR: To supplement Heroku-managed app servers, we launched custom EC2 instances to host Delayed Job worker processes. See the [satellite_setup github repo](https://github.com/joeyAghion/satellite_setup) for rake tasks and Chef recipes that make it easy.]

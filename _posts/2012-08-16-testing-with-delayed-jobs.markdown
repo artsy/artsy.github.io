@@ -4,10 +4,7 @@ title: Testing with Delayed Jobs
 date: 2012-08-16 21:21
 comments: true
 categories: [RSpec, Testing, DelayedJob]
-author: Daniel Doubrovkine
-github-url: https://www.github.com/dblock
-twitter-url: http://twitter.com/dblockdotorg
-blog-url: http://code.dblock.org
+author: db
 ---
 A mean bug made it into our production environment. It wasn't caught by our extensive test suite and caused thousands of emails to be sent to a handful of people. The root cause was an unfortunate combination of [Devise](https://github.com/plataformatec/devise), [DelayedJob](https://github.com/collectiveidea/delayed_job) and, of course, our own code. It was an easy fix, but nobody ever wants this to happen again.
 
@@ -43,7 +40,7 @@ describe User do
   subject { User.new }
 
   context "notification" do
-    
+
     it "sends one email" do
       expect {
         subject.notify!
@@ -51,7 +48,7 @@ describe User do
     end
 
     it "updates notified_at" do
-      expect { 
+      expect {
         subject.notify!
       }.to change(subject, :notified_at)
     end
@@ -96,7 +93,7 @@ describe User do
   subject { User.new }
 
   context "notification" do
-    
+
     it "creates one delayed job" do
       expect {
         subject.notify!

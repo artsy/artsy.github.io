@@ -3,14 +3,13 @@ layout: post
 title: "An Eigenstate of Mind"
 date: 2015-06-04 18:00
 comments: true
-author: Sarah Scott
-github-url: https://www.github.com/sarahscott
+author: sarahscott
 categories: [iOS, eigen, open source, oss, mobile, beginners]
 ---
 
-Prior to starting at Artsy, I followed a few online tutorials on iOS development. But a simple application demonstrating how to [build a todo list](http://www.raywenderlich.com/85578/first-core-data-app-using-swift) didn't illustrate the nuances of a production codebase. Tutorials are an important learning tool for beginners, but can't possibly prepare you for everything you would encounter within an application like Artsy's. 
+Prior to starting at Artsy, I followed a few online tutorials on iOS development. But a simple application demonstrating how to [build a todo list](http://www.raywenderlich.com/85578/first-core-data-app-using-swift) didn't illustrate the nuances of a production codebase. Tutorials are an important learning tool for beginners, but can't possibly prepare you for everything you would encounter within an application like Artsy's.
 
-I was lucky to have a mentor at Artsy to help me get started, and I wrote this post to pass along the lessons I learned. This is meant to be a guide for iOS beginners to get to know an open source production codebase. I'll cover the Xcode project organization and where to find things. 
+I was lucky to have a mentor at Artsy to help me get started, and I wrote this post to pass along the lessons I learned. This is meant to be a guide for iOS beginners to get to know an open source production codebase. I'll cover the Xcode project organization and where to find things.
 
 <!-- more -->
 
@@ -28,15 +27,15 @@ The Artsy project contains all the eigen-specific code. It's where you'll find a
 
 The Pods project is where the open source libraries used by eigen are kept. Artsy uses something called CocoaPods to organize these libraries, but that's beyond the scope of this post. For more information about CocoaPods, check out [their site](https://cocoapods.org/about).
 
-Xcode organizes the different files of the Artsy project into folders. Let's take a look at each one. 
+Xcode organizes the different files of the Artsy project into folders. Let's take a look at each one.
 
 <center><img src="/images/2015-06-04-an-eigenstate-of-mind/folders.png" /></center>
 
-The **Documentation** folder contains instructions for iOS developers, such as how to started with eigen, how to deploy the application, and its changelog. 
+The **Documentation** folder contains instructions for iOS developers, such as how to started with eigen, how to deploy the application, and its changelog.
 
 Note that documentation isn't always part of the actual Xcode project. Sometimes it lives in the Finder folder, but Xcode doesn't know about it.
 
-The next folder is the **Artsy** folder. This is aptly named since it contains only the code and resources specific to the Artsy iOS app. This is where you would find anything that the user would interact with: the user interface, images, and the inner workings of our app. Most work of our work is done here. 
+The next folder is the **Artsy** folder. This is aptly named since it contains only the code and resources specific to the Artsy iOS app. This is where you would find anything that the user would interact with: the user interface, images, and the inner workings of our app. Most work of our work is done here.
 
 Our automated tests live in the **Artsy Tests** folder. Since we have multiple developers working on this app, automated tests ensure that when someone changes something, the app continues to function as expected.
 
@@ -50,6 +49,6 @@ You'll notice the Frameworks, Products, and Pods folders. All three of them are 
 
 ----------------
 
-This is a nice introduction to the structure of eigen, but this is only how _we_ do things. Just like how tutorials helping you get started aren't necessarily applicable in the workplace, this guide isn't a applicable to every project. 
+This is a nice introduction to the structure of eigen, but this is only how _we_ do things. Just like how tutorials helping you get started aren't necessarily applicable in the workplace, this guide isn't a applicable to every project.
 
 I hope this makes eigen less intimidating. I had a mentor to walk me through things, and I hope this guide helps you explore the codebase, too. If you have any questions about how we do things, [get in touch](https://github.com/artsy/eigen/issues/new)!

@@ -4,10 +4,7 @@ title: Adding API Docs with Grape and Swagger
 date: 2013-06-21 12:21
 comments: true
 categories: [Grape,Mongoid,Swagger]
-author: Daniel Doubrovkine
-github-url: https://www.github.com/dblock
-twitter-url: http://twitter.com/dblockdotorg
-blog-url: http://code.dblock.org
+author: db
 ---
 
 The Artsy website, Partner CMS, mobile tools, and all our hackathon experiments are built on top of a core API. We've put a lot of effort into documenting it internally. But developers don't want to have to grok through code. With [Grape](https://github.com/intridea/grape) and [Swagger](https://developers.helloreverb.com/swagger), adding an API explorer and exposing the API documentation has never been easier.

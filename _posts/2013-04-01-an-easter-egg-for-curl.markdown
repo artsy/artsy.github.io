@@ -4,10 +4,7 @@ title: An Easter Egg for Curl
 date: 2013-04-01 12:21
 comments: true
 categories: [Fun,Easter Eggs]
-author: Daniel Doubrovkine
-github-url: https://www.github.com/dblock
-twitter-url: http://twitter.com/dblockdotorg
-blog-url: http://code.dblock.org
+author: db
 ---
 
 Let's implement an Easter egg that requires [curl](http://curl.haxx.se/) and is HTTP-compliant.
@@ -134,7 +131,3 @@ end
 ### More Eggs?
 
 Check out [artsy.net/humans.txt](https://api.artsy.net/humans.txt) for more Easter eggs and please feel free to email me at **db[at]artsy[dot]net** if you want to come visit or [work here](https://artsy.net/jobs).
-
-
-
-

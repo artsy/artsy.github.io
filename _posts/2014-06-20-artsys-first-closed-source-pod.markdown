@@ -5,10 +5,7 @@ date: 2014-06-20 17:53
 comments: false
 sharing: false
 categories: [Testing, Objc, Cocoa, Xcode, Plugins, iOS]
-author: Orta
-github-url: https://github.com/orta
-twitter-url: http://twitter.com/orta
-blog-url: http://orta.github.io
+author: orta
 ---
 
 When I joined Artsy, [dB](http://code.dblock.org) pitched me this idea: _Open source as default._

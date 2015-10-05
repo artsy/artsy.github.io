@@ -3,11 +3,8 @@ layout: post
 title: On Making It Personal in iOS with Searchbars
 date: 2012-05-11 20:52
 comments: true
-categories: [iOS, UIKIT, Customisation]
-author: orta therox
-github-url: https://www.github.com/orta
-twitter-url: http://twitter.com/orta
-blog-url: http://orta.github.com
+categories: [iOS, UIKIT, Customisation, mobile]
+author: orta
 ---
 
 We make Folio, a pretty kick-ass iPad app that we give away to our partners to showcase their inventory at art fairs. Whilst making it we tried to ensure that all of the application fits in with the [Artsy](http://artsy.net) website aesthetic, and recently the last natively styled control fell to our mighty code hammers. That was the `UISearchBar`.
@@ -47,14 +44,14 @@ So, to look at setting the size we've found it easiest to deal with that in an o
     frame.size.height = ARSearchBarHeight;
     [super setFrame:frame];
 }
-``` 
+```
 
 What does pose a problem though is making sure that the subviews inside the search bar are positioned correctly with respect to the new height, this is amended in `layoutSubviews`. In our case the textfield should take up almost all of the search bar.
 
 ``` objc
 - (void)layoutSubviews {
     [super layoutSubviews];
-    
+
     // resize textfield
     CGRect frame = foundSearchTextField.frame;
     frame.size.height = ViewHeight;
@@ -70,7 +67,7 @@ Next up is that we can't access our `foundSearchField` because it's not been fou
 ``` objc
 - (void)awakeFromNib {
     [super awakeFromNib];
-    
+
     // find textfield in subviews
     for (int i = [self.subviews count] - 1; i >= 0; i--) {
         UIView *subview = [self.subviews objectAtIndex:i];                
@@ -81,20 +78,20 @@ Next up is that we can't access our `foundSearchField` because it's not been fou
 }
 ```
 
-This gives us a textfield, next up we want to stylize it. The perfect place for this is just after finding the textfield that you use to search in. 
+This gives us a textfield, next up we want to stylize it. The perfect place for this is just after finding the textfield that you use to search in.
 
 ``` objc
 - (void)stylizeSearchTextField {
     // Sets the background to a static black by removing the gradient view
     for (int i = [self.subviews count] - 1; i >= 0; i--) {
         UIView *subview = [self.subviews objectAtIndex:i];                
-        
+
         // This is the gradient behind the textfield
         if ([subview.description hasPrefix:@"<UISearchBarBackground"]) {
             [subview removeFromSuperview];
         }
     }
-    
+
     // now change the search textfield itself
     foundSearchTextField.borderStyle = UITextBorderStyleNone;
     foundSearchTextField.backgroundColor = [UIColor whiteColor];
@@ -118,7 +115,7 @@ You might be wondering why we removed the placeholder text? We needed more contr
 }
 
 - (void) searchDisplayControllerWillEndSearch:(UISearchDisplayController *)controller {
-    [searchBar showCancelButton:NO]; 
+    [searchBar showCancelButton:NO];
     [UIView animateWithDuration:0.2 animations:^{
         searchPlaceholderLabel.alpha = 1;
     }];
@@ -138,7 +135,7 @@ The corresponding code for showing and hiding the Cancel button is here. We just
 
 The original Cancel button is something that we choose to keep around, rather than removing it form the view hierarchy, that's so we can have our overlay Cancel button call its method instead of trying to replicate the cancel functionality ourselves.
 
-To keep track of the Cancel button we need to know when its meant to appear, and when its meant to disappear. Because the Cancel button is created at runtime every time a search is started we need to 
+To keep track of the Cancel button we need to know when its meant to appear, and when its meant to disappear. Because the Cancel button is created at runtime every time a search is started we need to
 know when thats happening so we can hide it, we can do that by registering for `UITextFieldTextDidBeginEditingNotification` on the textfield once it's been found. We do this in `awakeFromNib`.
 
 ``` objc
@@ -150,7 +147,7 @@ know when thats happening so we can hide it, we can do that by registering for `
     for (int i = [self.subviews count] - 1; i >= 0; i--) {
         UIView *subview = [self.subviews objectAtIndex:i];                
         if ([subview.class isSubclassOfClass:[UIButton class]]) {
-        	// This is called every time a search is began, 
+        	// This is called every time a search is began,
         	// so make sure to get the right button!
             if (subview.frame.size.height != ViewHeight) {
                 subview.hidden = YES;
@@ -162,15 +159,15 @@ know when thats happening so we can hide it, we can do that by registering for `
 
 Finally we have the styling of the button. I've summed it up here as a lot of it is very application specific.
 
-```objc 
+```objc
 - (void)createButton {
     ARFlatButton *cancelButton = [ARFlatButton buttonWithType:UIButtonTypeCustom];
     [[cancelButton titleLabel] setFont:[UIFont sansSerifFontWithSize:ARFontSansSmall]];
-    
+
     NSString *title = [@"Cancel" uppercaseString];
     [cancelButton setTitle:title forState:UIControlStateNormal];
     [cancelButton setTitle:title forState:UIControlStateHighlighted];
-    
+
     CGRect buttonFrame = cancelButton.frame;
     buttonFrame.origin.y = ViewMargin;
     buttonFrame.size.height = ViewHeight;
@@ -178,7 +175,7 @@ Finally we have the styling of the button. I've summed it up here as a lot of it
     buttonFrame.origin.x = self.frame.size.width - buttonFrame.size.width - ViewMargin + CancelAnimationDistance;
     cancelButton.frame = buttonFrame;
     [cancelButton addTarget:self action:@selector(cancelSearchField) forControlEvents:UIControlEventTouchUpInside];
-    
+
     overlayCancelButton = cancelButton;
     [self addSubview:overlayCancelButton];
     [self bringSubviewToFront:overlayCancelButton];

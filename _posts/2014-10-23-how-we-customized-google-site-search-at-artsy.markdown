@@ -3,9 +3,7 @@ layout: post
 title: "How we customized Google Site Search at Artsy"
 date: 2014-10-23 14:47
 comments: true
-author: Brennan Moore
-github-url: https://www.github.com/zamiang
-twitter-url: http://twitter.com/zamiang
+author: brennan
 categories: [Search]
 ---
 

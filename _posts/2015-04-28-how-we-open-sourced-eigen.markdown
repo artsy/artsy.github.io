@@ -1,13 +1,10 @@
 ---
 layout: post
-title: How we Open Source'd Eigen 
+title: How we Open Source'd Eigen
 date: 2015-04-28
 comments: no
 categories: [ios, mobile, eigen, keys, open source, oss]
-author: Orta Therox
-github-url: https://www.github.com/orta
-twitter-url: http://twitter.com/orta
-blog-url: http://orta.io
+author: orta
 ---
 
 It was 95 days ago, and I was sitting before of my computer in NYC. I loaded my terminal, opened [TapTalk](https://taptalk.me) on my phone, tapped on my collegue [Ash's](http://ashfurrow.com) avatar and held my finger there. I paused, this moment was a long time, it was worth waiting. I switched the camera from my face to the screen with the terminal open.
@@ -25,7 +22,7 @@ Let's go over the process we went through to get to that point.
 
 Credit where credit is due, when we were [working on Eidolon](/blog/2014/11/13/eidolon-retrospective/), our CTO [dB](http://code.dblock.org/) just casually tossed the idea that, really, Eigen should be open source too. Eigen is the code name for the [Artsy iOS app](http://iphone.artsy.net/). This totally threw me for a loop, we were only just getting to a point where we could build an app from scratch in the open. Trying to get a project that had existed for years and had its own momentum converted would take a lot of thinking about.
 
-We devoted time at the end of 2014 to understand what the constraints were for getting the app opened. From a purely functional perspective we would have to start with a [drastic decision](https://github.com/artsy/mobile/issues/11) around the repo itself. 
+We devoted time at the end of 2014 to understand what the constraints were for getting the app opened. From a purely functional perspective we would have to start with a [drastic decision](https://github.com/artsy/mobile/issues/11) around the repo itself.
 
 ### The Repo
 
@@ -35,13 +32,13 @@ We opted to go for a total repo switch, removing all history. There were a lot o
 
 We used the last few moments of the private repo to remove all of the default Apple copyright notices. We didn't feel they added anything on top of the git history, and made it feel like the founders of a project were more important than anyone working on improvements.
 
-It wasn't all smooth sailing with respect to the repo switch however. As the switch happened the WatchKit came out, and we had devoted quite a lot of time to building an app in it. Given that you [can't predict Apple](http://www.elischiff.com/blog/2015/3/24/fear-of-apple)'s reactions, and you couldn't ship an app with an embedded watch app to the store, we opted to work on a branch from our private repo. [For months](https://github.com/artsy/eigen/pull/302). In the end it was easier to have the two folders next to each other, then copy & paste over all the files and to set all the settings in the Xcode project again. 
+It wasn't all smooth sailing with respect to the repo switch however. As the switch happened the WatchKit came out, and we had devoted quite a lot of time to building an app in it. Given that you [can't predict Apple](http://www.elischiff.com/blog/2015/3/24/fear-of-apple)'s reactions, and you couldn't ship an app with an embedded watch app to the store, we opted to work on a branch from our private repo. [For months](https://github.com/artsy/eigen/pull/302). In the end it was easier to have the two folders next to each other, then copy & paste over all the files and to set all the settings in the Xcode project again.
 
 One of the things that we found a bit sad about the transition to a new repo, is that it's hard to give past contributors recognition for their work. One of the ways we've worked around this is by having a file [documenting past contributors](https://github.com/artsy/eigen/pull/409) in our repo.
 
 ### Docs
 
-We had to significantly update our README, and a lot of the process around bootstrapping. We wanted to reduce the friction to actually trying the app as much as possible. It's easy to look at the source on github but to be able to get it up and running quickly should be a really high priority. So our README is based on getting it up and running as an OSS project, not for someone internal who may push betas/releases. 
+We had to significantly update our README, and a lot of the process around bootstrapping. We wanted to reduce the friction to actually trying the app as much as possible. It's easy to look at the source on github but to be able to get it up and running quickly should be a really high priority. So our README is based on getting it up and running as an OSS project, not for someone internal who may push betas/releases.
 
 When we opened the repo, there [were a lot](https://github.com/artsy/eigen/pulls?q=is%3Apr+is%3Aclosed+sort%3Acreated-asc) of documentation fix PRs - thanks *segiddins*, *neonichu* and *dkhamsing*. They have low barriers to entry, and fun to make for people looking through big projects. We still get them pretty regularly.
 
@@ -57,7 +54,7 @@ It's one thing to think that it's possible, it's another to do it. I'm glad that
 
 From our dev team's perspective, this is not a brave new world. Our website, [force](https://github.com/artsy/force-public), is open source. Though they operate under different constraints.
 
-From the perspective of Artsy, even though opening our code aligns very strongly with our [values of openness](/blog/2015/03/31/the-culture-of-openness-artsy-mobile/), we are still a company. Opening up our codebase lets our competitors see what we're up to in advance, and [closed source](http://code.dblock.org/2015/02/09/becoming-open-source-by-default.html) is still the norm for apps. Opening our code and process is also opening ourselves to criticism. 
+From the perspective of Artsy, even though opening our code aligns very strongly with our [values of openness](/blog/2015/03/31/the-culture-of-openness-artsy-mobile/), we are still a company. Opening up our codebase lets our competitors see what we're up to in advance, and [closed source](http://code.dblock.org/2015/02/09/becoming-open-source-by-default.html) is still the norm for apps. Opening our code and process is also opening ourselves to criticism.
 
 
 ### Evolution of the team

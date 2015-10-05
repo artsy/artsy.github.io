@@ -4,6 +4,7 @@ title: "Writing Headless Backbone Tests With Node.js"
 date: 2013-06-14 17:48
 comments: true
 categories: [Javascript, Backbone.js, Node.js, testing]
+author: craig
 ---
 
 ## TL;DR
@@ -29,7 +30,7 @@ jsdom.env({
   html: "<html><body></body></html>",
   done: function(errs, window) {
     global.window = window;
-    // ... 
+    // ...
     callback();
   }
 });
@@ -75,9 +76,9 @@ Because all good javascript guides are based off Todo apps, let's pretend we're 
 
 ``` javascript
 App.Todo = Backbone.Models.extend({
-  
+
   urlRoot: '/api/todo',
-  
+
   complete: function() {
     var self = this;
     $.ajax({
@@ -144,15 +145,15 @@ and our view might look something like this:
 
 ``` javascript
 App.TodosListView = Backbone.View.extend({
-  
+
   el: '#todos',
-  
+
   template: JST['todos/list_items'],
-  
+
   initialize: function() {
     this.collection.bind('add remove', this.render);
   },
-  
+
   render: function() {
     this.$('.todos-list')
       .html(this.template({ todos: this.collection.models }));
@@ -200,7 +201,7 @@ before(function(done) {
 
 beforeEach(function(done) {
   var templateFilename = path.resolve(
-        __dirname, 
+        __dirname,
         '../../views/index.jade'
       ),
       html = require('jade').compile(
@@ -235,7 +236,7 @@ To do this we can conditionally check which environment we're running in and swa
 ``` javascript
 if(app.get('env') == 'test') {
   app.set('api url', 'http://localhost:5000');
-  // Create a mock api server in your test helpers 
+  // Create a mock api server in your test helpers
   // and run it on 5000 in a before block
 } else {
   app.set('api url', 'http://api.my-app.com');
@@ -270,7 +271,7 @@ A trick we use is to write tests using the browser's `jQuery`. This is more fami
 ``` javascript
 Browser.visit('http://localhost:5000', function(err, browser) {
   var $ = browser.window.$;
-  
+
   // From here we can run `NODE_ENV=test node app.js` and copy
   // this code right into our browser's console.
   $('#add-todo').val('Foo').change();

@@ -4,10 +4,7 @@ sharing: false
 title: "Using CocoaPods Caching with Travis CI"
 date: 2014-08-08 11:46
 categories: [iOS, Continuous Integration, Travis, Testing]
-author: Orta Therox
-github-url: https://www.github.com/orta
-twitter-url: http://twitter.com/orta
-blog-url: http://orta.io
+author: orta
 ---
 
 As [Ash said earlier](http://artsy.github.io/blog/2014/08/07/taking-a-snapshot-with-second-curtain/) we like using Continuous Integration. Today I spent a large amount of time migrating us to use the new CocoaPods caching system in Travis CI. To make up for my lost time I'm passing on what I've learned and also showing how we do CI at Artsy with Objective-C apps. If you're interested in how we do it in Swift, you can just check [Eidolon](https://github.com/artsy/eidolon).

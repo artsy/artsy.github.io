@@ -4,10 +4,7 @@ title: Data Corruption and Concurrent Updates to Embedded Objects with MongoDB
 date: 2013-02-09 21:21
 comments: true
 categories: [MongoDB, Mongoid]
-author: Daniel Doubrovkine
-github-url: https://www.github.com/dblock
-twitter-url: http://twitter.com/dblockdotorg
-blog-url: http://code.dblock.org
+author: db
 ---
 
 We use [MongoDB](http://www.mongodb.org/) at Artsy as our primary data store via the [Mongoid ODM](http://mongoid.org/). Eventually, we started noticing data corruption inside embedded objects at an alarming rate of 2-3 records a day. The number of occurrences increased rapidly with load as our user growth accelerated.
@@ -42,9 +39,9 @@ Let's create a few objects and examine the database queries executed when constr
 Moped.logger = Logger.new($stdout)
 Moped.logger.level = Logger::DEBUG
 
-# db.artworks.insert({ 
-#   _id: ObjectId("510f22c5db8e540aab000001"), 
-#   title: "Mona Lisa" 
+# db.artworks.insert({
+#   _id: ObjectId("510f22c5db8e540aab000001"),
+#   title: "Mona Lisa"
 # })
 artwork = Artwork.create!(title: "Mona Lisa")
 
@@ -52,11 +49,11 @@ image1 = Image.new(filename: "framed.jpg")
 
 # db.artworks.update(
 #   { _id: ObjectId("510f22c5db8e540aab000001") },
-#   { $push : 
-#     { images: 
-#       { 
-#         _id: ObjectId("510f22c5db8e540aab000002"), 
-#         filename: "framed.jpg" 
+#   { $push :
+#     { images:
+#       {
+#         _id: ObjectId("510f22c5db8e540aab000002"),
+#         filename: "framed.jpg"
 #       }
 #     }
 #   }
@@ -66,11 +63,11 @@ artwork.images << image1
 image2 = Image.new(filename: "unframed.jpg")
 # db.artworks.update(
 #   { _id: ObjectId("510f22c5db8e540aab000001") },
-#   { $push : 
-#     { images: 
-#       { 
-#         _id: ObjectId("510f22c5db8e540aab000003"), 
-#         filename: "unframed.jpg" 
+#   { $push :
+#     { images:
+#       {
+#         _id: ObjectId("510f22c5db8e540aab000003"),
+#         filename: "unframed.jpg"
 #       }
 #     }
 #   }
@@ -102,7 +99,7 @@ We can modify the attributes of the second image.
 
 ```ruby
 # db.artworks.update(
-#   { _id: ObjectId("510f22c5db8e540aab000001") }, 
+#   { _id: ObjectId("510f22c5db8e540aab000001") },
 #   { $set : { "images.1.width" : 30, "images.1.height" : 40 } }
 # )
 image2.update_attributes!(width: 30, height: 40)
@@ -208,10 +205,10 @@ Finally, MongoDB supports something called a "positional operator" for embedded 
 
 ```ruby
 # db.artworks.update(
-#   { 
-#     _id: ObjectId("510f22c5db8e540aab000001"), 
-#     "images._id" : ObjectId("510f22c5db8e540aab000003") 
-#   }, 
+#   {
+#     _id: ObjectId("510f22c5db8e540aab000001"),
+#     "images._id" : ObjectId("510f22c5db8e540aab000003")
+#   },
 #   { $set : { "images.$.width" : 30, "images.$.height" : 40 }}
 # )
 image2.update_attributes!(width: 30, height: 40)

@@ -2,9 +2,7 @@
 layout: post
 title: "So you want to do a CSS3 3D transform?"
 comments: true
-author: Brennan Moore
-github-url: https://www.github.com/zamiang
-twitter-url: http://twitter.com/zamiang
+author: brennan
 categories: [CSS3, JavaScript]
 comments: true
 ---
@@ -99,7 +97,7 @@ if ( ret and 'webkitPerspective' in docElement.style )
 ```
 
 This creates a div, transforms it, and then checks if it's position
-has changed as expected. It only works in reliably in Safari. 
+has changed as expected. It only works in reliably in Safari.
 It [sometimes works in Chrome](https://github.com/Modernizr/Modernizr/issues/590)
 but throws a false positive in the case of Chrome on Retina MacBook
 Pro as the element does move -- just not in 3D space.
@@ -133,7 +131,7 @@ transforms well:
     match =
       /(chrome)[ \/]([\w.]+)/.exec(ua) or
       /(webkit)[ \/]([\w.]+)/.exec(ua) or
-      /(opera)(?:.*version|)[ \/]([\w.]+)/.exec(ua) or 
+      /(opera)(?:.*version|)[ \/]([\w.]+)/.exec(ua) or
       /(msie) ([\w.]+)/.exec(ua) or
       ua.indexOf("compatible") < 0 and /(mozilla)(?:.*? rv:([\w.]+)|)/.exec( ua ) or
       []
@@ -183,4 +181,3 @@ transforms well:
 
 If you would like to take issue with or improve this code please check
 it out [on Github](https://github.com/zamiang/detect-css3-3D-transform).
-
