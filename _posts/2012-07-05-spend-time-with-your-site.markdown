@@ -4,11 +4,7 @@ title: "Spend Time With Your Site"
 date: 2012-07-05 10:51
 comments: true
 categories: [Heroku, EC2, Product Management]
-author: Joey Aghion
-github-url: https://github.com/joeyAghion
-twitter-url: http://twitter.com/joeyAghion
-blog-url: http://joey.aghion.com
-google-url: https://plus.google.com/+JoeyAghion
+author: joey
 ---
 
 Empathy with end users is critical when developing consumer-facing software. Many go [even](http://innonate.com/2011/03/09/hackers-the-canon-of-consumer-facing-products/) [further](http://www.uie.com/articles/self_design/) and argue that you should _be_ your own user to effectively deliver the best experience.

@@ -4,10 +4,7 @@ title: Simplifying Model-Level JSON Versioning with Mongoid-Cached-Json
 date: 2012-03-23 09:14
 comments: true
 categories: [Mongoid, Caching, API, Versioning]
-author: Daniel Doubrovkine
-github-url: https://www.github.com/dblock
-twitter-url: http://twitter.com/dblockdotorg
-blog-url: http://code.dblock.org
+author: db
 ---
 Did you know that Netflix has hundreds of API versions, one for each device? Daniel Jacobson's [Techniques for Scaling the Netflix API](http://www.slideshare.net/danieljacobson/techniques-for-scaling-the-netflix-api-qcon-sf) at QConSF 2011 explained why they chose this model. And while we don't all build distributed services that supply custom-tailored data to thousands of heterogeneous TVs and set-top boxes, we do have to pay close attention to API versioning from day one.
 

@@ -4,10 +4,7 @@ title: RESTful API Caching with Garner
 date: 2012-05-30 21:21
 comments: true
 categories: [API, REST, Caching, Performance]
-author: Daniel Doubrovkine
-github-url: https://www.github.com/dblock
-twitter-url: http://twitter.com/dblockdotorg
-blog-url: http://code.dblock.org
+author: db
 ---
 Implementing server-side RESTful API caching is hard. In a straightforward API all the expiry decisions can be made automatically based on the URL, but most real world APIs that add requirements around object relationships or user authorization make caching particularly challenging.
 
@@ -183,4 +180,3 @@ An effective cache implementation for a web service combines server-side caching
 ### Links
 
 * [Garner](https://github.com/artsy/garner)
-

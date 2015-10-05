@@ -4,10 +4,7 @@ title: "Aspect-Oriented Programming and ARAnalytics"
 date: 2014-08-04 14:52
 comments: true
 categories: [iOS, Analytics, ARAnalytics]
-author: Ash Furrow
-github-url: https://www.github.com/AshFurrow
-twitter-url: http://twitter.com/ashfurrow
-blog-url: http://ashfurrow.com/
+author: ash
 ---
 
 Analytics are common in iOS applications. They help inform our decisions

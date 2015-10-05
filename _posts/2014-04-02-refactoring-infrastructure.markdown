@@ -4,11 +4,7 @@ title: Refactoring Infrastructure
 date: 2014-04-02 10:32
 comments: true
 categories: [dev-ops]
-author: Joey Aghion
-github-url: https://github.com/joeyAghion
-twitter-url: http://twitter.com/joeyAghion
-blog-url: http://joey.aghion.com
-google-url: https://plus.google.com/+JoeyAghion
+author: joey
 ---
 
 [Refactoring](http://martinfowler.com/books/refactoring.html) usually describes chages to _code_. Specifically, small changes that bring a codebase closer to the desired state. By making these changes incrementally and without modifying the end-to-end behavior, we avoid risk and the intermediate broken states that usually plague large-scale changes. But refactoring need not be limited to code. It's also an effective way to make infrastructure improvements.

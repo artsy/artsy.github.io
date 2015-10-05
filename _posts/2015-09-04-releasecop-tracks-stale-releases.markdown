@@ -3,10 +3,7 @@ layout: post
 title: "Releasecop Tracks Stale Releases"
 date: 2015-09-01 17:30
 comments: true
-author: Joey Aghion
-github-url: https://www.github.com/joeyAghion
-twitter-url: https://twitter.com/joeyAghion
-blog-url: http://joey.aghion.com
+author: joey
 categories: [Ruby, open source, OSS, testing, Continuous Integration, Continuous Deployment, devops, tools]
 ---
 
@@ -63,7 +60,6 @@ Run the `releasecop check [app]` command to report the status of your apps' rele
         95347d1 2015-08-31 Update to delayed_job cookbook that works with Chef 11.10 (Joey Aghion)
     2 project(s) checked. 1 environment(s) out-of-date.
 
-A nightly [Jenkins](https://jenkins-ci.org/) job emails us the results, but a cron job could work equally well. 
+A nightly [Jenkins](https://jenkins-ci.org/) job emails us the results, but a cron job could work equally well.
 
 [Releasecop](https://github.com/joeyAghion/releasecop) reminds us to deploy ready commits and close the loop on in-progress work. We hope you find it useful. (Pull requests are welcome!)
-

@@ -4,9 +4,7 @@ title: "Some Tips for Email Layout and Responsiveness"
 date: 2014-03-17 12:36
 comments: true
 categories: [Email, CSS]
-author: Matt Zikherman
-github-url: https://github.com/mzikherman
-twitter-url: http://twitter.com/mzikherman
+author: matt
 ---
 
 ![Example of Analytics Email](/images/2014-03-17-some-tips-for-email-layout-and-responsiveness/analytics.png)
@@ -144,7 +142,7 @@ The top part (the iPhone pic) is actually two images (the picture, and the App S
 </table>
 ```
 
-I chose to use a separate table to hold this content, where the background image for this table is the picture of the iPhone in hand. That table (with a background of the photo) has two rows, each with one column. The first row which is for the top part of the image, contains the 'Download' white text. That is positioned within the column through padding, which is well supported by most mail clients (as long as it's positive padding that is!) The second row, for the bottom part of the image, is a picture of the 'Download on the App Store' logo, and we chose to put that in an anchor tag and link to the App Store. You could have alternatively made this image a background as well to achieve the same overlay effect, as well as added more overlaid text, etc. 
+I chose to use a separate table to hold this content, where the background image for this table is the picture of the iPhone in hand. That table (with a background of the photo) has two rows, each with one column. The first row which is for the top part of the image, contains the 'Download' white text. That is positioned within the column through padding, which is well supported by most mail clients (as long as it's positive padding that is!) The second row, for the bottom part of the image, is a picture of the 'Download on the App Store' logo, and we chose to put that in an anchor tag and link to the App Store. You could have alternatively made this image a background as well to achieve the same overlay effect, as well as added more overlaid text, etc.
 
 Essentially, to overlay text on images, and images on images - your only option in email is to use background images.
 
@@ -239,8 +237,8 @@ Here's a screenshot of an [isotope](https://github.com/desandro/isotope) or [Pin
 
 * [Premailer](https://github.com/premailer/premailer/) This will enable you to develop CSS in a sane (ie- not inline) way, and then at generation/compile time, inline it for you.
 * [Litmus](http://litmus.com/) Using Litmus's VM's with different OS's and mail clients, you can preview how a sample email will look among all sorts of different configurations. I recommend figuring out what mail clients/browsers/OS's you want to target and making sure you test all your emails here.
-* [Haml](http://haml.info/) (or any templating language of choice). A lot of the blocks of content in our mails are dynamically generated, and Haml's conditionals and looping syntax, as well as 
+* [Haml](http://haml.info/) (or any templating language of choice). A lot of the blocks of content in our mails are dynamically generated, and Haml's conditionals and looping syntax, as well as
 Ruby-style string evaluation has proven invaluable.
 
 -----
-That's all for now! With a lot of trial and error, I've built up a toolbelt of tricks, techniques and hacks I've been using to develop responsive and pretty emails quickly. I think of the limited set of tools at my disposal as a puzzle with which you can still create great looking and responsive layouts to feature your content. Previewing mails using [Inbox Inspector](http://mailchimp.com/features/inbox-inspector/) have enabled me to craft, deploy, and send them to our users with confidence. Post any comments or tips of your own here, and [follow us on Github](https://github.com/artsy)! 
+That's all for now! With a lot of trial and error, I've built up a toolbelt of tricks, techniques and hacks I've been using to develop responsive and pretty emails quickly. I think of the limited set of tools at my disposal as a puzzle with which you can still create great looking and responsive layouts to feature your content. Previewing mails using [Inbox Inspector](http://mailchimp.com/features/inbox-inspector/) have enabled me to craft, deploy, and send them to our users with confidence. Post any comments or tips of your own here, and [follow us on Github](https://github.com/artsy)!

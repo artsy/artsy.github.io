@@ -4,10 +4,7 @@ title: "On Grid Thumbnails"
 date: 2012-09-13 16:40
 comments: true
 categories: [iOS, Objective C, Speed, Retina]
-author: orta therox
-github-url: https://www.github.com/orta
-twitter-url: http://twitter.com/orta
-blog-url: http://orta.github.com
+author: orta
 ---
 
 <img src="/images/2012-09-13-on-grid-thumbnails/grid.jpg">
@@ -32,7 +29,7 @@ Now that we had a way to get an image that was safe to go on a background thread
 - (void)setImageAsyncAtPath:(NSString *)imageAddress forGridCell:(ARImageGridViewCell *)cell {
     NSDictionary *operationOptions = @{@"address": imageAddress, @"cell": cell};
     NSInvocationOperation *operation = [[NSInvocationOperation alloc] initWithTarget:self selector:@selector(asyncLoadImage:) object:operationOptions];
-    
+
     [_operationQueue addOperation:operation];
 }
 ```
@@ -44,7 +41,7 @@ When we had the simplest implementation of `asyncLoadImage` we found that scroll
     @autoreleasepool {
         NSString *address = options[@"address"];
         ARImageGridViewCell *cell = options[@"cell"];
-        
+
         // don't load if it's on a different cell
         if ([cell.imagePath isEqualToString:address]) {
             UIImage *thumbnail = [[UIImage alloc] initImmediateLoadWithContentsOfFile:address];
@@ -59,7 +56,7 @@ When we had the simplest implementation of `asyncLoadImage` we found that scroll
 ```
 
 This meant we could have our UI thread dealing with scrolling, whilst [Grand Central Dispatch](https://developer.apple.com/technologies/mac/core.html) would deal with ensuring the image processing was done asynchronously and as fast as possible.However, this still wasn't enough. We were finding if you scrolled fast enough, you could still see images pop in after the grid cell was visible. For this, we actually went back to the beginning, and made our image pipeline create a _120x120_ thumbnail for each artwork that we use `initImmediateLoadWithContentsOfFile` to load on the UI thread. This is fast enough to smoothly scroll, and is replaced by the higher resolution image practically instantly.
-  
+
 <img src="/images/2012-09-13-on-grid-thumbnails/hover-thumbnails.jpg">
 
 The rest of the story is pretty straightforward. We wrapped all this up within a few days and got out a version of Folio for the Retina iPad, I ended up doing a talk about the issues involved in doing this in [Leeds LSxCafé](http://lsx.co/lsxcafe/), and you got a blog post out of it.

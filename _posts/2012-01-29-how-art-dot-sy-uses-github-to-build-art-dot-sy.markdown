@@ -4,10 +4,7 @@ title: "How Artsy Uses Github to Build Artsy"
 date: 2012-01-29 14:26
 comments: true
 categories: [Tools, Github]
-author: Daniel Doubrovkine
-github-url: https://www.github.com/dblock
-twitter-url: http://twitter.com/dblockdotorg
-blog-url: http://code.dblock.org
+author: db
 ---
 [Zach Holman](http://zachholman.com/) gave a good talk on [How Github uses Github to build Github](http://zachholman.com/talk/how-github-uses-github-to-build-github) at Rubyconf. It was great to hear how similar our own processes are at Artsy, with a few notable differences.
 

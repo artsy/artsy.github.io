@@ -4,10 +4,7 @@ title: Designing the Public Artsy API
 date: 2014-09-12 12:21
 comments: true
 categories: [API, Open-Source]
-author: Daniel Doubrovkine
-github-url: https://www.github.com/dblock
-twitter-url: http://twitter.com/dblockdotorg
-blog-url: http://code.dblock.org
+author: db
 ---
 
 Today we are happy to announce that we're making a new public API generally available, along with over 26,000 artworks from many of our institutional partners.

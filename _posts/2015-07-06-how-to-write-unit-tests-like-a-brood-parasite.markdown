@@ -3,9 +3,8 @@ layout: post
 title: "How To Write Unit Tests Like a Brood Parasite"
 date: 2015-07-06 13:54
 comments: true
-author: Sarah Scott
+author: sarahscott
 article-class: "expanded-code"
-github-url: https://www.github.com/sarahscott
 categories: [iOS, ocmock, open source, oss, mobile, beginners, testing]
 ---
 
@@ -41,9 +40,9 @@ In my view controller, I can use a ```StatusMonitor``` to decide whether or not 
 
 ```objc
 - (void)viewWillAppear
-{	
+{
  	[super viewWillAppear];
-	
+
 /// show or hide a notification based on this status
 	BOOL shouldShowNotification = [self.statusMonitor updatedStatus];
 }
@@ -51,7 +50,7 @@ In my view controller, I can use a ```StatusMonitor``` to decide whether or not 
 
 When I’m writing tests for this view controller, I don’t care about ```DataSource``` - I just want to make sure the view controller knows when to show or hide a notification correctly depending on the new value from its StatusMonitor. I’d really like to avoid making any network requests within these kinds of tests. This is where the bird strategy comes in.
 
-In my tests, I can create a decoy ```StatusMonitor``` with its corresponding methods using OCMock. 
+In my tests, I can create a decoy ```StatusMonitor``` with its corresponding methods using OCMock.
 
 ```objc
 StatusMonitor *statusMonitor = [[ARCMSStatusMonitor alloc] init];

@@ -3,10 +3,7 @@ layout: post
 title: "MVVM in Swift"
 date: 2015-09-24 16:13
 comments: true
-author: Ash Furrow
-github-url: https://www.github.com/ashfurrow
-twitter-url: https://twitter.com/ashfurrow
-blog-url: http://ashfurrow.com
+author: ash
 categories: [ios, mvvm, open source, swift, mobile]
 ---
 
@@ -20,20 +17,20 @@ We were building a _new app_ in a _new language_ using a _non-Swift framework_ f
 
 <!-- more -->
 
-Since then, I've been [pecking away](https://github.com/artsy/eidolon/issues/333) at converting small view controllers away from MVC, to figure out what MVVM on iOS written in Swift might look like. My goal has been getting ready to cut down our behemoth main view controller and create a view model for it. Before the rewrite, it was nearly 600 lines of code and was responsible for: 
+Since then, I've been [pecking away](https://github.com/artsy/eidolon/issues/333) at converting small view controllers away from MVC, to figure out what MVVM on iOS written in Swift might look like. My goal has been getting ready to cut down our behemoth main view controller and create a view model for it. Before the rewrite, it was nearly 600 lines of code and was responsible for:
 
 - networking.
 - syncing auction lot states.
 - user interaction.
 - collection view layouts.
 - image caching.
-- background-thread data processing. 
+- background-thread data processing.
 
 It's quite terrifying now that I think about it!
 
 Well, [finally I was ready](https://github.com/artsy/eidolon/pull/503/files). The view controller is now down to 224 lines, and is responsible for only things like displaying data. Calculating _what_ to display and _when_ to display it is now contained within the view model. In true MVVM form, our view controller doesn't even have direct access to the models it displays!
 
-So what does MVVM in Swift look like? Well, our answer is just that – _our_ answer. Others exist, and they have merits and faults of their own. 
+So what does MVVM in Swift look like? Well, our answer is just that – _our_ answer. Others exist, and they have merits and faults of their own.
 
 I'm not here to preach a definitive definition of MVVM in Swift. Instead, I want to talk about some of the lessons we learnt in the process of building a solution that worked for us.
 
@@ -50,14 +47,14 @@ MVVM, roughly, has the following constraints:
 
 And that's pretty much it. It's not that different from MVC – the key differences are:
 
-- There's a new "view model" class. 
+- There's a new "view model" class.
 - The view controller no longer has access to the model.
 
 ![MVVM Diagram](/images/2015-09-24-mvvm-in-swift/mvvm.png)
 
 Additionally, MVVM on iOS acknowledges the one-to-one relationship between views and view controllers. I tend to think of them as one entity that just happens to be split across a `.swift` file and a Storyboard.
 
-The view model's job is to handle all presentation logic. If a model contains an `NSDate`, the `NSDateFormatter` to format that date would live in the view model. 
+The view model's job is to handle all presentation logic. If a model contains an `NSDate`, the `NSDateFormatter` to format that date would live in the view model.
 
 View models don't have _any_ access to the user interface. You should not even `import UIKit` in a view model. Typically, a view controller observes the view model somehow to know when there's new data to display. This can be done through KVO or FRP.
 
@@ -69,7 +66,7 @@ So let's talk about some specific challenges we had.
 
 ## User Interface Structure
 
-Part of our user interface consists of a segment control near the top of the screen. The currently selected segment determines the sort order of the collection view cells, as well as the collection view's layout. We had previously defined an enum to store the titles and sort order corresponding to each segmented control; the order of the enum cases implies the order of the controls in the UI. 
+Part of our user interface consists of a segment control near the top of the screen. The currently selected segment determines the sort order of the collection view cells, as well as the collection view's layout. We had previously defined an enum to store the titles and sort order corresponding to each segmented control; the order of the enum cases implies the order of the controls in the UI.
 
 ```swift
 enum SwitchValues: Int {
@@ -84,9 +81,9 @@ enum SwitchValues: Int {
 
 So where does this enum live in MVVM? Since the logic for sorting models, the button titles, and the order of the buttons are all pieces of presentation logic, the enum seems like it belongs in the view model.
 
-However, the decision of which layout for the collection view to use is slightly more nuanced. The layout doesn't affect what data we show the user or how they interact with it; it only affects the visuals how the information is presented. This suggests the logic for deciding layouts might belong in the view controller. 
+However, the decision of which layout for the collection view to use is slightly more nuanced. The layout doesn't affect what data we show the user or how they interact with it; it only affects the visuals how the information is presented. This suggests the logic for deciding layouts might belong in the view controller.
 
-My solution was to put the enum in the view model, and have the view model expose a signal defining which of the two layouts should be used. Based on the selected segment index, the view model decides which layout should be used and sends that value on a signal. The view controller is responsible for mapping that signal into a configured layout, then setting that layout on the collection view. 
+My solution was to put the enum in the view model, and have the view model expose a signal defining which of the two layouts should be used. Based on the selected segment index, the view model decides which layout should be used and sends that value on a signal. The view controller is responsible for mapping that signal into a configured layout, then setting that layout on the collection view.
 
 ```swift
 // Respond to changes in layout, driven by switch selection.
@@ -127,7 +124,7 @@ The first option is appealing since it gives your view controller a choice of ho
 
 The second option is what I prefer, and it seems the most "Swift" way of doing things. When we do move away from RAC's Objective-C interface, the view model will replace its `RACSignal` properties with sequences based on Swift generics, which will provide compile-time type-checking 💯
 
-Defining these signals on a view model can be tricky. Swift initializers have [strict rules](http://ashfurrow.com/blog/swift-initializers/) around when properties are assigned. The signals need access to the internal state of the view model, so they need to be created _after_ calling `super.init()`. However, we can't call `super.init()` until all our properties have been assigned to, including the signal properties. 
+Defining these signals on a view model can be tricky. Swift initializers have [strict rules](http://ashfurrow.com/blog/swift-initializers/) around when properties are assigned. The signals need access to the internal state of the view model, so they need to be created _after_ calling `super.init()`. However, we can't call `super.init()` until all our properties have been assigned to, including the signal properties.
 
 It's your standard chicken-and-the-egg problem 🐣
 
@@ -135,20 +132,20 @@ I took the easy way out and used implicitly-unwrapped optionals, defined with `v
 
 ## Handling User Interaction
 
-The next problem I had was presenting details based on user interaction. Users tap a button, which is handled in the view controller, which presents the details. However, the view controller should not have access to the models, so how can it configure the details to present them? 
+The next problem I had was presenting details based on user interaction. Users tap a button, which is handled in the view controller, which presents the details. However, the view controller should not have access to the models, so how can it configure the details to present them?
 
-My solution took advantage of the interchangeability of Swift functions and closures. First I defined a closure type in the view model. 
+My solution took advantage of the interchangeability of Swift functions and closures. First I defined a closure type in the view model.
 
 ```swift
 typealias ShowDetailsClosure = (SaleArtwork) -> Void
 ```
 
-Then I added a property to the view model and a corresponding parameter to the initializer. 
+Then I added a property to the view model and a corresponding parameter to the initializer.
 
 ```swift
 class ListingsViewModel {
     let showDetails: ShowDetailsClosure
-    
+
     init(...
          showDetails: ShowDetailsClosure,
          ...
@@ -162,7 +159,7 @@ func showDetailsForSaleArtworkAtIndexPath(indexPath: NSIndexPath) {
 }
 ```
 
-Nice! So now when the user selects a cell, we can call this function on the view model with the index path that the user selected. The view model decides which model to use, and calls the closure. 
+Nice! So now when the user selects a cell, we can call this function on the view model with the index path that the user selected. The view model decides which model to use, and calls the closure.
 
 The final piece of the puzzle is being clever about creating the view model. We need to pass a closure to its initializer, one that shows the model's details. I defined a function on the view controller that matched the `ShowDetailsClosure` signature.
 
@@ -202,14 +199,14 @@ Earlier I mentioned the lazy closure property in the view controller. This is a 
 ```swift
 lazy var viewModel: ListingsViewModelType = {
     return ListingsViewModel(
-        selectedIndexSignal: self.switchView.selectedIndexSignal, 
-        showDetails: self.showDetailsForSaleArtwork, 
+        selectedIndexSignal: self.switchView.selectedIndexSignal,
+        showDetails: self.showDetailsForSaleArtwork,
         presentModal: self.presentModalForSaleArtwork
     )
 }()
 ```
 
-The `viewModel` property is first accessed by the view controller in `viewDidLoad()`, which means that we can replace the property by a test double any time before that. 
+The `viewModel` property is first accessed by the view controller in `viewDidLoad()`, which means that we can replace the property by a test double any time before that.
 
 The view controller is tested using [snapshots](https://github.com/facebook/ios-snapshot-test-case) to verify the user interface hasn't been inadvertently changed. Testing is straightforward:
 

@@ -4,10 +4,7 @@ title: Bootstrapping JSON Data with Rails and Backbone.js
 date: 2013-04-13 12:21
 comments: true
 categories: [Rails,Backbone.js]
-author: Daniel Doubrovkine
-github-url: https://www.github.com/dblock
-twitter-url: http://twitter.com/dblockdotorg
-blog-url: http://code.dblock.org
+author: db
 ---
 
 The [artsy.net website](http://artsy.net) is a Backbone.js application that talks to a server-side RESTful Grape API sitting on top of a Rails app which serves minimal HTML markup. The latter includes such things as a page title, along with links to JavaScript and stylesheet packages. A page loads, scripts run, data is fetched from the API. The result is merged into a HAMLJS template and rendered client-side.

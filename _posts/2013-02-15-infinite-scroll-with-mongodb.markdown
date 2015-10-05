@@ -4,10 +4,7 @@ title: Infinite Scroll with MongoDB
 date: 2013-02-15 21:21
 comments: true
 categories: [MongoDB, Mongoid]
-author: Daniel Doubrovkine
-github-url: https://www.github.com/dblock
-twitter-url: http://twitter.com/dblockdotorg
-blog-url: http://code.dblock.org
+author: db
 ---
 
 An infinite scroll can be a beautiful and functional way to present feed data. You can see ours on the [homepage of artsy.net](https://artsy.net/). It works by fetching a few items from the API, then fetching some more items as the user scrolls down the feed. Each API call returns the items along with a "cursor", which marks the position of the last item retrieved. Subsequent API calls include the cursor in the query string and the iteration resumes from there.

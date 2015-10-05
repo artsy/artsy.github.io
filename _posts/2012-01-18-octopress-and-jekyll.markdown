@@ -4,10 +4,7 @@ title: "Octopress and Jekyll"
 date: 2012-01-18 23:03
 comments: true
 categories: [Blog, Open-Source]
-author: Daniel Doubrovkine
-github-url: https://www.github.com/dblock
-twitter-url: http://twitter.com/dblockdotorg
-blog-url: http://code.dblock.org
+author: db
 ---
 This blog is powered by static pages.
 
@@ -53,4 +50,3 @@ Here's what Artsy engineers do to get setup (once) and publish a new post.
 (If you're confused by the setup, check out [this post](http://code.dblock.org/octopress-setting-up-a-blog-and-contributing-to-an-existing-one)).
 
 We believe in simple systems and love the opportunity to understand technology in-depth. Everything you see, short of the blog content and styles, is written in Ruby by very smart people. The source is open and free, which helps us learn and make progress, together.
-

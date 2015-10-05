@@ -4,9 +4,7 @@ title: "Presenters and Memoization: Moving Logic out of Templates"
 date: 2014-03-18 17:27
 comments: true
 categories: [Ruby, Rails]
-author: Matt Zikherman
-github-url: https://github.com/mzikherman
-twitter-url: http://twitter.com/mzikherman
+author: matt
 ---
 
 

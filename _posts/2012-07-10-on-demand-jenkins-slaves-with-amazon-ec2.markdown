@@ -4,7 +4,7 @@ title: "On-Demand Jenkins Slaves with Amazon EC2"
 date: 2012-07-10 13:30
 comments: true
 categories: [Jenkins, Testing, Continuous Integration, EC2]
-author: Joey Aghion and Frank Macreery
+author: joeyandfrank
 ---
 
 The [Artsy](http://artsy.net) team faithfully uses [Jenkins](http://jenkins-ci.org) for continuous integration. [As we've described before](http://artsy.github.com/blog/2012/05/27/using-jenkins-for-ruby-and-ruby-on-rails-teams/), our Jenkins master and 8 slaves run on Linode. This arrangement has at least a few drawbacks:
