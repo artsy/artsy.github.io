@@ -4,7 +4,7 @@ title: "We open sourced our Isomorphic Javascript website"
 date: 2014-09-05 15:09
 comments: true
 categories: [Isomorphic, JavaScript, Node.js, Shared, Ezel, Open Source]
-author: craigandbrennan
+author: [craig, brennan]
 ---
 
 ![May The Force be With You](/images/2014-09-05-we-open-sourced-our-isomorphic-javascript-website/force.png)
