@@ -4,10 +4,7 @@ title: So You Want an SSL Certificate? A Pragmatic Handbook
 date: 2015-04-09
 comments: true
 categories: [SSL, DevOps]
-author: Daniel Doubrovkine
-github-url: https://www.github.com/dblock
-twitter-url: http://twitter.com/dblockdotorg
-blog-url: http://code.dblock.org
+author: db
 ---
 Obtaining, reissuing and installing SSL certificates across various pieces of Artsy infrastructure (read about our tech stack [here](/blog/2015/03/23/artsy-technology-stack-2015/)) is a mind-numbing excercise dreaded by every platform engineer. Few people really understand what's going on, installing SSL certificates is right up there in the opaque world of user-unfriendliness, along with onboarding a new iOS developer in an organization with Xcode.
 

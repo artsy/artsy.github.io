@@ -2,11 +2,8 @@
 layout: post
 title: "Musical Chairs"
 date: 2013-03-29 16:38
-categories: [iOS, UIKIT, Customisation]
-author: orta therox
-github-url: https://www.github.com/orta
-twitter-url: http://twitter.com/orta
-blog-url: http://orta.github.com
+categories: [iOS, UIKIT, Customisation, mobile]
+author: orta
 ---
 
  At Artsy we make Artsy Folio. Folio is an awesome portfolio app that shows our gallery and museum partners their artworks in one place, allows them to easily get information about their inventory and to send works by email to their contacts.
@@ -21,6 +18,6 @@ Chairs is a gem you can install via `gem install chairs`. It allows you to stash
 
 The command line interface is based on git, so to bring in the current state you run `chairs pull [name]` and to replace the state you use `chairs push [name]`. The name is just a label so you can remember which version corresponds to that musical chair. You can get a list of these by doing `chairs list`, and delete them with `chairs rm [name]`.
 
-Besides the core functionality, chairs has a little bit of sugar to help you with related tasks. My personal favourite is `chairs open`; this will just open the folder of the most recently used app so you can go and have a snoop around. Amazing for making sure files are where they say they are or for opening your sqlite database in [Base](http://menial.co.uk/base/). 
+Besides the core functionality, chairs has a little bit of sugar to help you with related tasks. My personal favourite is `chairs open`; this will just open the folder of the most recently used app so you can go and have a snoop around. Amazing for making sure files are where they say they are or for opening your sqlite database in [Base](http://menial.co.uk/base/).
 
 So `gem install chairs` or check out the [README](https://github.com/orta/chairs) for some more information.

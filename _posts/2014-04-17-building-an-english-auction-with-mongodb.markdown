@@ -4,10 +4,7 @@ title: Building an English Auction with MongoDB
 date: 2014-04-17 12:21
 comments: true
 categories: [Ruby,Auctions,Bidding,MongoDB]
-author: Daniel Doubrovkine
-github-url: https://www.github.com/dblock
-twitter-url: http://twitter.com/dblockdotorg
-blog-url: http://code.dblock.org
+author: db
 ---
 
 Artsy ran several successful auctions over the past few months. The first, [TWO x TWO](https://artsy.net/feature/two-x-two), raised hundreds of thousands of dollars for amfAR (the AIDS Research foundation), and the Dallas Museum of Art. It was followed by [Independent Curators International](https://artsy.net/feature/ici-benefit-auction), at which Artsy launched on-site auction projection screens, which displayed competing bids coming in online from places around the world, like Oslo and Santa Monica, in realtime. Users could place bids on the website, via the iPhone app or with one of the Artsy representatives in the room carrying an iPad.  All the auction lots sold, and Artsy helped ICI to raise 50% more than its target revenue goal. Other, recent Artsy auctions include [Public Art Fund](https://artsy.net/feature/public-art-fund-2014-spring-benefit) and the [Brooklyn Artists Ball](https://artsy.net/feature/brooklyn-artists-ball), benefitting the Brooklyn Museum.

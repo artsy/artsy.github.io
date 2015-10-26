@@ -4,11 +4,7 @@ title: "Continuous integration for service-oriented architectures"
 date: 2014-05-12 10:50
 comments: true
 categories: [Testing, Rspec, Continuous Integration, SOA]
-author: Joey Aghion
-github-url: https://github.com/joeyAghion
-twitter-url: http://twitter.com/joeyAghion
-blog-url: http://joey.aghion.com
-google-url: https://plus.google.com/+JoeyAghion
+author: joey
 ---
 
 Whatever you have against monolithic architectures, at least they're easy to test. And when those tests succeed, you can be reasonably confident the live app will work the same way.

@@ -4,10 +4,7 @@ title: "Close to the Metal: Debugging Our Hardware Problem"
 date: 2014-11-18 08:33
 comments: true
 categories: [iOS, mobile]
-author: Ash Furrow
-github-url: https://www.github.com/AshFurrow
-twitter-url: http://twitter.com/ashfurrow
-blog-url: http://ashfurrow.com/
+author: ash
 ---
 
 For the past few months, Artsy’s mobile team has been working on [Eidolon](https://github.com/artsy/eidolon), a bidding kiosk for Artsy’s auctions platform. While we’ve written a [retrospective](http://artsy.github.io/blog/2014/11/13/eidolon-retrospective/) on the process of making Eidolon from the software side of things, we didn’t really touch on how our software is being used.

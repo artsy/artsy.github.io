@@ -4,10 +4,7 @@ title: Launching a Security Bug Bounty Program at Artsy
 date: 2014-09-24 12:21
 comments: true
 categories: [Security,Best Practices]
-author: Daniel Doubrovkine
-github-url: https://www.github.com/dblock
-twitter-url: http://twitter.com/dblockdotorg
-blog-url: http://code.dblock.org
+author: db
 ---
 
 Many established companies have bug bounty programs, including a recently publicized [Twitter Bug Bounty](http://www.forbes.com/sites/kashmirhill/2014/09/10/bug-bounty-programs). Some use services, such as [HackerOne](https://hackerone.com) or [BugCrowd](https://bugcrowd.com). In early September 2014 we quietly launched [our own Security Bug Bounty](https://artsy.net/security). Since then we have fixed 14 issues reported by 15 security researchers and paid $750 in bounty. In the process we have learned a ton and wanted to share some things that would have probably done a little bit differently, knowing what we know now.

@@ -3,10 +3,7 @@ layout: post
 title: "Responsive Layouts with CSS3"
 date: 2012-01-17 11:03
 comments: true
-author: Matt McNierney
-github-url: https://www.github.com/mmcnierney14
-twitter-url: http://twitter.com/mmcnierney
-blog-url: http://mattmcnierney.wordpress.com
+author: mattm
 categories: [Design, CSS, HTML5]
 ---
 All of the [SCSS](http://sass-lang.com/) stylesheets used to design this blog compile down to one file (view the source of this page and check out screen.css), and there isn't any JavaScript affecting the layout. But there are really three versions of this page. If you're reading this on a smartphone, what you see is almost entirely different from what you would see if you were reading this in a full screen browser. If you're on a computer, try making this page full screen and slowly resize it to make it smaller. You'll first notice that the Artsy logo disappears just before it would cover the text in the main column. Keep reducing the viewport and eventually the page will snap into a mobile format with the Artsy logo centered at the top, followed by the centered header text and mobile search box all above the index of recent posts.
@@ -30,11 +27,11 @@ But how do you apply different styles to the same elements depending on the size
         display: block;
         height: 92px;
         width: 249px;
-    
+
         span {
           display: none;
         }
-    
+
         @media screen and (min-width: 482px) {
           left: 35px;
           position: fixed;
@@ -57,4 +54,3 @@ The media features `max-width` and `min-width` are a little misleading: they don
 ## Making It Cross-Browser
 
 CSS3 media queries are awesome, but even though all the latest versions of the major browsers support them, it's very likely that a portion of your site's visitors will be using browsers that don't support these new CSS features. Luckily, this problem has already been solved by great people who like to give away things for free. Just include [modernizr.js](https://github.com/Modernizr/Modernizr) on your page, and it will provide a JavaScript fallback for media queries, as well as for many other potentially unsupported CSS3 features.
-

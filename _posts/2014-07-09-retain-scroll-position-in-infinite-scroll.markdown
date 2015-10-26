@@ -4,9 +4,7 @@ title: "Retain scroll position in infinite scroll"
 date: 2014-07-09 17:29
 comments: true
 categories: [Infinite, Infinite Scroll, Iframe, Modal, Scroll Position, Retain Scroll Position]
-author: Craig Spaeth
-github-url: https://www.github.com/craigspaeth
-twitter-url: http://twitter.com/craigspaeth
+author: craig
 ---
 
 ![Maybe we should give up on the whole idea of a 'back' button. 'Show me that thing I was looking at a moment ago' might just be too complicated an idea for the modern web.](https://camo.githubusercontent.com/4b7e6aefa00b96ba2804b235aaaa811bbb893c4e/687474703a2f2f7777772e6578706c61696e786b63642e636f6d2f77696b692f696d616765732f352f35362f696e66696e6974655f7363726f6c6c696e672e706e67)

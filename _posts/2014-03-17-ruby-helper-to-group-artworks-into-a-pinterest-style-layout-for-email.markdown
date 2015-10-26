@@ -4,9 +4,7 @@ title: "Ruby Helper to Group Artworks into a Pinterest-style Layout for Email"
 date: 2014-03-17 19:32
 comments: true
 categories: [Email, CSS, Ruby]
-author: Matt Zikherman
-github-url: https://github.com/mzikherman
-twitter-url: http://twitter.com/mzikherman
+author: matt
 ---
 
 ![Example of two column layout](/images/2014-03-17-ruby-helper-to-group-artworks-into-a-pinterest-style-layout-for-email/two-column-layout.png)

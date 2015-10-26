@@ -4,10 +4,7 @@ title: Using Jenkins for Ruby and Ruby-on-Rails Teams
 date: 2012-05-27 08:15
 comments: true
 categories: [Jenkins, Automation, Testing]
-author: Daniel Doubrovkine
-github-url: https://www.github.com/dblock
-twitter-url: http://twitter.com/dblockdotorg
-blog-url: http://code.dblock.org
+author: db
 ---
 The [Jenkins CI](http://jenkins-ci.org) project has grown tremendously in the past few months. There're now hundreds of plugins and an amazing engaged community. Artsy is a happy user and proud contributor to this effort with the essential [jenkins-ansicolor plugin](https://wiki.jenkins-ci.org/display/JENKINS/AnsiColor+Plugin), eliminating boring console output since 2011.
 

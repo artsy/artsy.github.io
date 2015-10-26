@@ -4,10 +4,7 @@ title: "Delaying CarrierWave Image Processing"
 date: 2012-01-31 08:31
 comments: true
 categories: [CarrierWave, Image Processing]
-author: Daniel Doubrovkine
-github-url: https://www.github.com/dblock
-twitter-url: http://twitter.com/dblockdotorg
-blog-url: http://code.dblock.org
+author: db
 ---
 We do a lot of image processing at Artsy. We have tens of thousands of beautiful original high resolution images from our partners and treat them with care. The files mostly come from professional art photographers, include embedded color profiles and other complicated features that make image processing a big deal.
 

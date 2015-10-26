@@ -4,10 +4,7 @@ title: How to Write Great Outage Post-Mortems
 date: 2014-11-19 12:21
 comments: true
 categories: [Best Practices,DevOps]
-author: Daniel Doubrovkine
-github-url: https://www.github.com/dblock
-twitter-url: http://twitter.com/dblockdotorg
-blog-url: http://code.dblock.org
+author: db
 ---
 
 The website is finally back up after crashing hard for 4 hours straight.

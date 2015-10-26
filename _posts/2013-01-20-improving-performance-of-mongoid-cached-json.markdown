@@ -4,10 +4,7 @@ title: Improving Performance of Mongoid-Cached-Json
 date: 2013-01-20 21:21
 comments: true
 categories: [Mongoid, Caching, API]
-author: Daniel Doubrovkine
-github-url: https://www.github.com/dblock
-twitter-url: http://twitter.com/dblockdotorg
-blog-url: http://code.dblock.org
+author: db
 ---
 
 Last year, we have open-sourced and made extensive use of two Ruby libraries in our API: [mongoid-cached-json](https://github.com/dblock/mongoid-cached-json) and [garner](https://github.com/artsy/garner). Both transform the procedural nightmare of caching and JSON generation into a declarative and easily manageable DSL. It was worth the investment, since our service spends half of its time generating JSON and reading from and writing to Memcached.
@@ -21,7 +18,7 @@ Bulk Reference Resolving with a Local Cache
 
 Consider an array of database model instances, each with numerous references to other objects. It's typical to see such instances reference the same object: for example we have an `Artwork` that references an `Artist`. It's common to see multiple artworks reference the same artist in a collection. Retrieving the artist from cache every time it is referenced is clearly inefficient.
 
-`Mongoid::CachedJson` will now collect all JSON references, then resolve them after suppressing duplicates, in-place within the JSON tree. This significantly reduces the number of cache queries. 
+`Mongoid::CachedJson` will now collect all JSON references, then resolve them after suppressing duplicates, in-place within the JSON tree. This significantly reduces the number of cache queries.
 
 Note, that while this optimization reduces load on the Memcached servers, there's a cost of doing additional work after collecting the entire JSON in Ruby.
 

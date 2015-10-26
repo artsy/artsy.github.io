@@ -4,10 +4,7 @@ title: How To Redirect Bang Hash Urls
 date: 2012-03-06 09:02
 comments: true
 categories: [Rails, JavaScript]
-author: Daniel Doubrovkine
-github-url: https://www.github.com/dblock
-twitter-url: http://twitter.com/dblockdotorg
-blog-url: http://code.dblock.org
+author: db
 ---
 Sometimes you type a hash-bang URL too fast, bang first.
 

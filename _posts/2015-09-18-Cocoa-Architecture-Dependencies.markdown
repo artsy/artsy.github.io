@@ -8,10 +8,7 @@ categories:
   - mobile
   - architecture
   - dependencies
-author: Orta Therox
-github-url: 'https://www.github.com/orta'
-twitter-url: 'http://twitter.com/orta'
-blog-url: 'http://orta.io'
+author: orta
 ---
 
 As a part of going through the design patterns we've found in the creation of the Artsy iOS apps, I'd like to talk a bit about some of
@@ -61,7 +58,7 @@ If I could determine that a project was a good dependency via code - I wouldn't 
 
 We're a pretty versatile bunch of developers, even with our focus on native iOS development. Being able to understand a foreign codebase when debugging a problem, in order to [grok](http://dictionary.reference.com/browse/grok) if a bug lies in our code or a libraries is essential.
 
-Being blocked because you don't understand how to create an assembly trampoline for message passing on 64 bit processors sucks. Relying on someone else to provide a fix in their spare time, is a nice way to strain a relationship. 
+Being blocked because you don't understand how to create an assembly trampoline for message passing on 64 bit processors sucks. Relying on someone else to provide a fix in their spare time, is a nice way to strain a relationship.
 
 There have been times when we've taken over libraries completely, which has worked out well for everyone involved. Examples being [NAMapKit](https://cocoapods.org/pods/NAMapKit) and [Specta](https://cocoapods.org/pods/Specta)/[Expecta](https://cocoapods.org/pods/Expecta). It can be a matter of providing small incremental work on the project, or just being someone with a vision [for the project](http://orta.io/rebase/oss-management/).
 
@@ -124,6 +121,6 @@ We work with external dependencies because we enjoy:
 
 * Working with other people.
 * Making improvements for the entire community, instead of just ourselves.
-* Not having to re-invent the wheel. 
+* Not having to re-invent the wheel.
 
 For us, it's nearly always win-win.

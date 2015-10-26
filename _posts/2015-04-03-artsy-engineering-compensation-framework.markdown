@@ -4,10 +4,7 @@ title: Artsy's Engineering Compensation Framework
 date: 2015-04-03
 comments: true
 categories: [Team, Money]
-author: Daniel Doubrovkine
-github-url: https://www.github.com/dblock
-twitter-url: http://twitter.com/dblockdotorg
-blog-url: http://code.dblock.org
+author: db
 ---
 Fair compensation is an important part of cultivating and growing engineers, and determining how much money someone is going to make is often more art than science, especially in young start-ups. We wanted this to be a collaborative process and not an adversarial one, and as our engineering team grew past 20 members it became important to think about compensation more systematically.
 

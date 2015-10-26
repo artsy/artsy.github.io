@@ -4,9 +4,7 @@ title: "The Culture of Openness in the Artsy Mobile Team"
 date: 2015-03-31 19:07
 comments: true
 categories: [mobile, Open-Source]
-author: Sarah Scott & Laura Brown
-github-url: https://www.github.com/artsy/mobile
-twitter-url: http://twitter.com/artsyopensource
+author: [sarahscott, laura]
 ---
 
 Recently, the Artsy Mobile team had the pleasure of working together on [an article](http://www.objc.io/issue-22/artsy.html) for [objc.io](http://www.objc.io), an online publication dedicated to in-depth articles about iOS and OS X development. Each monthly issue consists of several articles centered around a theme—past issues include [Testing](http://www.objc.io/issue-15/), [Animations](http://www.objc.io/issue-12/) and [Swift](http://www.objc.io/issue-16/). objc.io’s latest issue, [iOS at Scale](http://www.objc.io/issue-22), features articles by a handful of developers about how they approach iOS development at their respective companies. Our contribution to the issue is a collaboratively-written article by and about Artsy’s Mobile team from the angle of Artsy's focus on the core value of openness that is foundational to how we (and the greater Artsy team) work.

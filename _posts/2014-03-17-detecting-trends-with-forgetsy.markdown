@@ -4,10 +4,7 @@ title: "Detecting trends using Forgetsy"
 date: 2014-03-17 11:32
 comments: true
 categories: [Ruby,Data,Redis]
-author: Anil Bawa-Cavia
-github-url: https://github.com/cavvia
-twitter-url: http://twitter.com/cavvia
-blog-url: http://cavvia.net
+author: anil
 ---
 
 ![Armory Trending Screen](/images/2014-03-17-detecting-trends-with-forgetsy/monolith.jpg)

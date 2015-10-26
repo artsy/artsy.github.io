@@ -4,9 +4,7 @@ title: "Rendering on the Server and Client in Node.js"
 date: 2013-11-30 22:38
 comments: true
 categories: [Browserify, Isomorphic, JavaScript, Node.js, Shared, Architecture, Ezel]
-author: Craig Spaeth
-github-url: https://www.github.com/craigspaeth
-twitter-url: http://twitter.com/craigspaeth
+author: craig 
 ---
 
 ![Diagram of Shared Server/Client Architecture](/images/2013-12-18-rendering-on-the-server-and-client-in-node-dot-js/isomorphic.png)
@@ -190,4 +188,4 @@ It's also worth noting, to avoid CSS spaghetti we followed a simple convention o
 
 With this new architecture and set of Node tools we've seen enormous benefits compared to the pains of developing Backbone in a monolithic project with lacking JavaScript tools. Our mobile web experience is much better, we can render more content on the server for SEO and faster page loads, our test/build/deploy cycles went from hours to minutes, our developer on-boarding time went from days to minutes, and overall developer happiness has significantly improved.
 
-It's an exciting time to be developing JavaScript apps and we will continue to open source our efforts wherever possible. Thanks and [follow us on Github](https://github.com/artsy)! 
+It's an exciting time to be developing JavaScript apps and we will continue to open source our efforts wherever possible. Thanks and [follow us on Github](https://github.com/artsy)!
