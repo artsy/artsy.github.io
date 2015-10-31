@@ -4,9 +4,7 @@ title: "Generating Notifications and Personalized Emails Efficiently"
 date: 2014-04-24 16:00
 comments: true
 categories: [Ruby, Email, CSS, HTML]
-author: Matt Zikherman
-github-url: https://github.com/mzikherman
-twitter-url: http://twitter.com/mzikherman
+author: matt
 ---
 
 We recently launched a new personalized email here at [Artsy](https://artsy.net) that features content that a given user might find interesting. The goal of this post is to describe how we built a backend system that efficiently generates these e-mails for all our users. I'll talk about the first, naive implementation that had performance problems right away, and how the second implementation (currently in production) solved those issues, and whose behavior at scale is well-defined and understood. I won't go into the details of the design and layout of the mail itself and how we render the content - there are several earlier blog posts that deal with those: [Presenters and Memoization](http://artsy.github.io/blog/2014/03/18/presenters-and-memoization-moving-logic-out-of-templates/), [Pinterest-style Layouts](http://artsy.github.io/blog/2014/03/17/ruby-helper-to-group-artworks-into-a-pinterest-style-layout-for-email/) and [Email Layouts and Responsiveness](http://artsy.github.io/blog/2014/03/17/some-tips-for-email-layout-and-responsiveness/).
@@ -75,18 +73,18 @@ All of these records were being written to one collection in [MongoDB](https://w
 So, we decided on a scheme where each day would result in a new ```Notifications``` collection (name keyed on the date), named ```notifications_20140101```, ```notifications_20140102```, etc. Each of these collections would have an ```_id``` field that corresponds to a user_id, and an ```events``` array (or 'stack' if you will) that records the id's of notified objects, as well as the type of notification. An example of a record in that collection is:
 
 ``` json
-{"_id"=>"5106b619f56337db300001f8", 
- "events"=>[{"t"=>"NearbyShow", "o"=>"533998b1c9dc24c371000041"}, 
-            {"t"=>"NearbyShow", "o"=>"5345774cc9dc246d580003d0"}, 
-            {"t"=>"NearbyShow", "o"=>"5335af4fa09a67145300028c"}, 
-            {"t"=>"NearbyShow", "o"=>"533f1174a09a67298900007b"}, 
+{"_id"=>"5106b619f56337db300001f8",
+ "events"=>[{"t"=>"NearbyShow", "o"=>"533998b1c9dc24c371000041"},
+            {"t"=>"NearbyShow", "o"=>"5345774cc9dc246d580003d0"},
+            {"t"=>"NearbyShow", "o"=>"5335af4fa09a67145300028c"},
+            {"t"=>"NearbyShow", "o"=>"533f1174a09a67298900007b"},
             {"t"=>"ArtworkPublished", "o"=>"5334647b139b2165160000d8"}]
 }
 ```
 
-So, here we see all of my notifications for April 22, 2014. On that day, I was notified about 4 shows opening near my location, and one artwork added by an artist I follow. Incidentally, that artwork was a piece by [Rob Wynne](https://artsy.net/artist/rob-wynne) entitled [You're Dreaming](https://artsy.net/artwork/rob-wynne-youre-dreaming). The show notifications were for NYC-area shows opening at [Klein Sun Gallery](https://artsy.net/klein-sun-gallery), [Garis & Hahn](https://artsy.net/garis-and-hahn), [Miyako Yoshinaga Gallery](https://artsy.net/miyako-yoshinaga-gallery) and [DODGEgallery](https://artsy.net/dodgegallery). 
+So, here we see all of my notifications for April 22, 2014. On that day, I was notified about 4 shows opening near my location, and one artwork added by an artist I follow. Incidentally, that artwork was a piece by [Rob Wynne](https://artsy.net/artist/rob-wynne) entitled [You're Dreaming](https://artsy.net/artwork/rob-wynne-youre-dreaming). The show notifications were for NYC-area shows opening at [Klein Sun Gallery](https://artsy.net/klein-sun-gallery), [Garis & Hahn](https://artsy.net/garis-and-hahn), [Miyako Yoshinaga Gallery](https://artsy.net/miyako-yoshinaga-gallery) and [DODGEgallery](https://artsy.net/dodgegallery).
 
-A couple of nice things about this implementation is it limits the size of a collection: any one day's collection will scale directly with the number of users, which seems reasonable. Our earlier implementation scaled with the product of the number of users and amount of content on Artsy, which is clearly problematic. Also, archiving old notifications is as simple as dropping a particular day's collection, which is very performant. However, querying and assembling these notifications is a bit trickier than in the naive implementation, as well as marking which events have already been sent to a user, so as to avoid duplicating any content in between mailings. 
+A couple of nice things about this implementation is it limits the size of a collection: any one day's collection will scale directly with the number of users, which seems reasonable. Our earlier implementation scaled with the product of the number of users and amount of content on Artsy, which is clearly problematic. Also, archiving old notifications is as simple as dropping a particular day's collection, which is very performant. However, querying and assembling these notifications is a bit trickier than in the naive implementation, as well as marking which events have already been sent to a user, so as to avoid duplicating any content in between mailings.
 
 Let's see how we rewrite the notification generation in this scheme:
 
@@ -164,9 +162,9 @@ end
 Pretty simple. We push the appropriate event onto every collection that was under consideration via the ```collections_since``` helper. When we send out a personalized email we accumulate the last 7 day's worth of activity for you, and so after we generate/send a mail for a user, we can simply say ```NotificationService.flush!(user)```. Here's how that day's notifications for me looks after the ```flushed``` event:
 
 ``` json
-  {"_id"=>"5106b619f56337db300001f8", 
+  {"_id"=>"5106b619f56337db300001f8",
    "events"=>[{"t"=>"NearbyShow", "o"=>"5338504e139b21f2a9000362"},
-              {"t"=>"FollowedArtistShow", "o"=>"533ddba3a09a6764f60006b6"}, {"t"=>"NearbyShow", "o"=>"533ddba3a09a6764f60006b6"}, 
+              {"t"=>"FollowedArtistShow", "o"=>"533ddba3a09a6764f60006b6"}, {"t"=>"NearbyShow", "o"=>"533ddba3a09a6764f60006b6"},
               {"flushed"=>"5352b346b504f5f3690002fe"}]
   }
 ```

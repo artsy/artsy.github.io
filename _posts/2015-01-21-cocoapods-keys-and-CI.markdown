@@ -4,10 +4,7 @@ title: "CocoaPods-Keys and CI"
 date: 2015-01-21 16:43
 comments: true
 categories: [iOS, mobile]
-author: Orta
-github-url: https://www.github.com/orta
-twitter-url: http://twitter.com/orta
-blog-url: http://orta.io/
+author: orta
 ---
 
 We built CocoaPods-Keys as a way to remove API keys and secrets from our source code. We use it to open up our code to the pubic, without leaking private details. One of the cool things about doing it this way was that we could all use different API keys stashed away in each developers Keychain.
@@ -39,7 +36,7 @@ Before the CI runs `pod install` you will want ensure you have already set the k
 
 ```
 
-This will set up the keys beforehand with the right target name. 
+This will set up the keys beforehand with the right target name.
 
 
 ## The fully featured way
@@ -48,7 +45,7 @@ If you need to have full access to an API with secret keys, we recommend using t
 
 To get started on Travis CI you will need to install the travis gem, and go through the [Environment Variables](http://docs.travis-ci.com/user/environment-variables/) section of their documentation. Notably the [Secure Variables](http://docs.travis-ci.com/user/environment-variables/#Secure-Variables) section. In a gist, you run `travis encrypt ARTSYAPICLIENTSECRET=super_secret_yo` and it gives you the secure string.
 
-You can then use the new keys in your `before:` section: 
+You can then use the new keys in your `before:` section:
 
 ```
 	bundle exec pod keys set ArtsyAPIClientSecret $ARTSYAPICLIENTSECRET Eidolon

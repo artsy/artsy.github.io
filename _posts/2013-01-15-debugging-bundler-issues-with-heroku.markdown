@@ -4,10 +4,7 @@ title: Debugging Bundler Issues on Heroku
 date: 2013-01-15 21:21
 comments: true
 categories: [Heroku,ruby,bundler]
-author: Daniel Doubrovkine
-github-url: https://www.github.com/dblock
-twitter-url: http://twitter.com/dblockdotorg
-blog-url: http://code.dblock.org
+author: db
 ---
 
 A few days ago we have started seeing the Heroku deployments of one of our applications randomly hang during `bundle install`. The problem worsened with time and we were not able to do a deployment for days.
@@ -104,7 +101,7 @@ This hung with my Gemfile the same way as on Heroku.
 Bundler Dependency Resolver
 ---------------------------
 
-So what is bundler doing? 
+So what is bundler doing?
 
 Bundler runs the gem dependency resolver, which is described in detail in [Pat Shaughnessy's blog post](http://patshaughnessy.net/2011/9/24/how-does-bundler-bundle). The post suggests running `DEBUG_RESOLVER=1 bundle install`, which produced a mountain of output that isn't very helpful.
 

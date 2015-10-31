@@ -5,10 +5,7 @@ date: 2014-06-11 10:50
 comments: false
 sharing: false
 categories: [Testing, Objc, Cocoa, iOS]
-author: Orta
-github-url: https://github.com/orta
-twitter-url: http://twitter.com/orta
-blog-url: http://orta.github.io
+author: orta
 ---
 
 The first time I released a patch release for [Artsy Folio](http://orta.github.io/#folio-header-unit) it crashed instantly, on every install. Turns out I didn't understand Core Data migrations, now a few years on I grok it better but I've still lived with the memories of that dark dark day. Because of this I've had an informal rule of testing migrations with all the old build of Folio [using chairs](http://artsy.github.io/blog/2013/03/29/musical-chairs/) the day before submitting to the app store.

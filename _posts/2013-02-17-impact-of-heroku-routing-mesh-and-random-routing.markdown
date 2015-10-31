@@ -4,13 +4,10 @@ title: The Impact of Heroku's Routing Mesh and Random Routing
 date: 2013-02-17 12:21
 comments: true
 categories: [Heroku]
-author: Daniel Doubrovkine
-github-url: https://www.github.com/dblock
-twitter-url: http://twitter.com/dblockdotorg
-blog-url: http://code.dblock.org
+author: db
 ---
 
-The [Heroku's Ugly Secret](http://rapgenius.com/James-somers-herokus-ugly-secret-lyrics) blog post went viral last week. I [wrote](http://code.dblock.org/in-defense-of-heroku) in defense of Heroku, which has now responded with an official [Routing Performance Update](https://blog.heroku.com/archives/2013/2/16/routing_performance_update/). 
+The [Heroku's Ugly Secret](http://rapgenius.com/James-somers-herokus-ugly-secret-lyrics) blog post went viral last week. I [wrote](http://code.dblock.org/in-defense-of-heroku) in defense of Heroku, which has now responded with an official [Routing Performance Update](https://blog.heroku.com/archives/2013/2/16/routing_performance_update/).
 
 Random request queuing has been discussed in the past in [Tim Watson's post](http://tiwatson.com/blog/2011-2-17-heroku-no-longer-using-a-global-request-queue) based on a [response](https://groups.google.com/forum/?fromgroups=#!msg/heroku/8eOosLC5nrw/Xy2j7GapebIJ) by Heroku's Adam Wiggins. While the documentation may not have been accurate or even somewhat misleading, we, at Artsy, understood the strategy and the limitations of the routing mesh for quite sometime. Therefore, we have been making continuous efforts to improve our application's performance and reduce the negative impact of random routing inside the routing mesh over the past few months.
 
@@ -76,9 +73,9 @@ It's important to note that since the `X-Request-Start` header is inserted by th
 
 ### What About Dumb Routing?
 
-One of the basic issues with one-request-at-a-time web servers and random routing is how single-threaded web servers accept connections. It sounds technically feasible that the web server could report back to the router that it's currently processing a request and have the router pick another dyno, but there're two non-trivial difficulties with implementing this. 
+One of the basic issues with one-request-at-a-time web servers and random routing is how single-threaded web servers accept connections. It sounds technically feasible that the web server could report back to the router that it's currently processing a request and have the router pick another dyno, but there're two non-trivial difficulties with implementing this.
 
-The first is that it would require cooperation from the Heroku router, as currently, closing a TCP socket would cause it to return a 503 to the client. 
+The first is that it would require cooperation from the Heroku router, as currently, closing a TCP socket would cause it to return a 503 to the client.
 
 The second is in the way EventMachine accepts requests in a single-threaded scenario: a request will block the EventMachine reactor, and only once it has unblocked the reactor, will it accept more requests. Those requests will sit in the TCP queue for the duration of the long request, defeating the whole concept.
 

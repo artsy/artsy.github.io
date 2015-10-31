@@ -4,10 +4,7 @@ title: Normalizing GMail E-Mail Addresses with CanonicalEmails
 date: 2013-06-23 12:21
 comments: true
 categories: [Ruby,Email]
-author: Daniel Doubrovkine
-github-url: https://www.github.com/dblock
-twitter-url: http://twitter.com/dblockdotorg
-blog-url: http://code.dblock.org
+author: db
 ---
 A whopping 49% of Artsy users have "gmail.com" email addresses. The next domain name, "hotmail.com", doesn't even come close, with only 6%.
 
@@ -104,15 +101,15 @@ Raw output for our top 10.
 
 ```
 [
-  { "gmail.com" => 0.49 }, 
+  { "gmail.com" => 0.49 },
   { "hotmail.com" => 0.06 },
-  { "yahoo.com" => 0.057 }, 
-  { "aol.com" => 0.017 }, 
-  { "me.com" => 0.015 }, 
-  { "mac.com" => 0.012 }, 
-  { "comcast.net" => 0.008 }, 
-  { "msn.com" => 0.003 }, 
-  { "mail.ru" => 0.003 }, 
+  { "yahoo.com" => 0.057 },
+  { "aol.com" => 0.017 },
+  { "me.com" => 0.015 },
+  { "mac.com" => 0.012 },
+  { "comcast.net" => 0.008 },
+  { "msn.com" => 0.003 },
+  { "mail.ru" => 0.003 },
   { "verizon.net" => 0.003 }
 ]
 ```

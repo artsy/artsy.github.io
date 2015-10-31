@@ -4,11 +4,7 @@ title: "Open Sourcing Energy"
 date: 2015-08-06 13:54
 comments: false
 categories: [ios, mobile, energy, open source, oss]
-author: Orta Therox
-github-url: https://www.github.com/orta
-twitter-url: http://twitter.com/orta
-blog-url: http://orta.io
-
+author: orta
 ---
 
 The Artsy Mobile team is pretty aggressive in our stance on [Open Source by Default](http://code.dblock.org/2015/02/09/becoming-open-source-by-default.html). We've talked about it at [conferences](https://www.youtube.com/watch?v=2DvDeEZ0NDw&spfreload=10) [around](https://www.youtube.com/watch?v=SjjvnrqDjpM) [the](https://www.youtube.com/watch?v=zPbLYWmLPow) [world](https://speakerdeck.com/orta/ios-at-artsy), in [renowned magazines](http://www.objc.io/issues/22-scale/artsy) and on [our blog](http://artsy.github.io/blog/2015/04/28/how-we-open-sourced-eigen/).

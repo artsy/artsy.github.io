@@ -5,9 +5,7 @@ date: 2015-07-30 19:21
 comments: true
 article-class: "expanded-code"
 categories: [Objective C, debugging]
-author: Eloy Durán
-github-url: https://github.com/alloy
-twitter-url: http://twitter.com/alloy
+author: eloy
 ---
 
 When the odds are stacked against you, your mind is overflowing, and you are ready to just pop, there’s always practical

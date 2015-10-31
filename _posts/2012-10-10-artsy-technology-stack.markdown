@@ -4,10 +4,7 @@ title: Artsy's Technology Stack
 date: 2012-10-10 21:21
 comments: true
 categories: [Technology]
-author: Daniel Doubrovkine
-github-url: https://www.github.com/dblock
-twitter-url: http://twitter.com/dblockdotorg
-blog-url: http://code.dblock.org
+author: db
 ---
 The public launch of Artsy via the [New York Times](http://www.nytimes.com/2012/10/09/arts/design/artsy-is-mapping-the-world-of-art-on-the-web.html) is a good opportunity to describe our current technology stack.
 

@@ -4,10 +4,7 @@ title: Upgrading to Mongoid 4.x
 date: 2013-11-07 12:34
 comments: true
 categories: [MongoDB, Mongoid]
-author: Daniel Doubrovkine
-github-url: https://www.github.com/dblock
-twitter-url: http://twitter.com/dblockdotorg
-blog-url: http://code.dblock.org
+author: db
 ---
 
 I recently went through an exercise of upgrading one of Artsy's largest web projects to the current HEAD of Mongoid 4.x. This is going to be a major release with numerous changes and I wanted to flush out bugs before the final version of the ODM is released. All Mongoid changes currently live on [master](https://github.com/mongoid/mongoid).
@@ -176,4 +173,3 @@ Updates
 -------
 
 Please post your updates below and questions to the [mongoid mailing list](https://groups.google.com/forum/#!forum/mongoid). I'll update this post up until Mongoid 4.x ships.
-

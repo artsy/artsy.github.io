@@ -3,10 +3,7 @@ layout: post
 title: "CSS Trick: Adjusting Text Underlines"
 date: 2012-04-10 16:32
 comments: true
-author: Craig Spaeth
-github-url: https://www.github.com/craigspaeth
-twitter-url: http://twitter.com/craigspaeth
-blog-url: http://craigspaeth.tumblr.com
+author: craig
 categories: [Design, CSS]
 ---
 

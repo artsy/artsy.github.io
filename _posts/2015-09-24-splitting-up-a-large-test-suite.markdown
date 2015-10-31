@@ -3,10 +3,7 @@ layout: post
 title: "Splitting up a large test suite"
 date: 2015-09-24 22:13
 comments: true
-author: Joey Aghion
-github-url: https://www.github.com/joeyAghion
-twitter-url: https://twitter.com/joeyAghion
-blog-url: http://joey.aghion.com
+author: joey
 categories: [Ruby, testing, Continuous Integration, Rspec]
 ---
 
@@ -45,4 +42,3 @@ build("master-ci-succeeded")
 ```
 
 Now, spec times _might_ continue to be unbalanced despite files being split up approximately evenly. (For a more thorough approach based on recording spec times, see [knapsack](https://github.com/ArturT/knapsack).) However, this little bit of randomness was a big improvement over our previous approach, and promises to scale in a uniform manner.
-

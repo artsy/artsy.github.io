@@ -2,12 +2,9 @@
 layout: post
 title: "Replacing #! Routes with PushState Using Backbone.js"
 date: 2012-06-25 11:35
-author: Gilbert Reimschüssel (gib)
 comments: true
 categories: [Hashbang, PushState, ThickClient, JavaScript, Backbone.js]
-github-url: https://www.github.com/gib
-twitter-url: http://twitter.com/greims
-blog-url: http://shortforgilbert.com
+author: gib
 ---
 
 > The only constant is change, continuing change, inevitable change, that is the dominant factor in society

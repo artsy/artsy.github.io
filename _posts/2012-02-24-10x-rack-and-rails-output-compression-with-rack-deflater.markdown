@@ -4,10 +4,7 @@ title: 10x Rack and Rails Output Compression with Rack::Deflater
 date: 2012-02-24 16:05
 comments: true
 categories: [Rack, Rails, Performance, API]
-author: Daniel Doubrovkine
-github-url: https://www.github.com/dblock
-twitter-url: http://twitter.com/dblockdotorg
-blog-url: http://code.dblock.org
+author: db
 ---
 You can quickly reduce the amount of data transferred from your Rack or Rails application with [Rack::Deflater](https://github.com/rack/rack/blob/master/lib/rack/deflater.rb). Anecdotal evidence shows a reduction from a 50Kb JSON response into about 6Kb. It may be a huge deal for your mobile clients.
 

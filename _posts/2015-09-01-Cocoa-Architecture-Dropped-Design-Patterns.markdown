@@ -9,10 +9,7 @@ categories:
   - architecture
   - eigen
   - energy
-author: Orta Therox
-github-url: 'https://www.github.com/orta'
-twitter-url: 'http://twitter.com/orta'
-blog-url: 'http://orta.io'
+author: orta
 ---
 
 As a part of going through the design patterns we've found in the creation of the Artsy iOS apps, I'd like to talk a bit about some of the patterns that we've had and migrated away from. This is not 100% comprehensive, as there has been a lot of time, and a lot of people involved. Instead I'm going to try and give a birds eye view, and zoom in on some things that feel more important overall.

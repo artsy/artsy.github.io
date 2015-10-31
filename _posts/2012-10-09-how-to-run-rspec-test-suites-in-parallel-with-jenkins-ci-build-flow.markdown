@@ -4,10 +4,7 @@ title: How to Run RSpec Test Suites in Parallel with JenkinsCI Build Flow
 date: 2012-10-09 21:21
 comments: true
 categories: [Continuous Integration, Testing, RSpec]
-author: Daniel Doubrovkine
-github-url: https://www.github.com/dblock
-twitter-url: http://twitter.com/dblockdotorg
-blog-url: http://code.dblock.org
+author: db
 ---
 We now have over 4700 RSpec examples in one of our projects. They are stable, using the techniques described in an [earlier post](/blog/2012/02/03/reliably-testing-asynchronous-ui-w-slash-rspec-and-capybara/) and organized in [suites](/blog/2012/05/15/how-to-organize-over-3000-rspec-specs-and-retry-test-failures/). But they now take almost 3 hours to run, which is clearly unacceptable.
 
@@ -31,7 +28,7 @@ Create the following Jenkins jobs.
 master-prequel
 --------------
 
-A free-style job that connects to the SCM, in our case Git. 
+A free-style job that connects to the SCM, in our case Git.
 
 * Set SCM repository URL to your Git repo, eg. `git@github.com:spline/reticulator.git`
 * Change the default branch specifier from `**` to `master`. We'll be pushing a `master-ci` branch, which could, in turn, cause more builds if you don't do this.

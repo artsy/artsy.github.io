@@ -4,10 +4,7 @@ title: How to Organize Over 3000 RSpec Specs and Retry Test Failures
 date: 2012-05-15 12:00
 comments: true
 categories: [RSpec, Testing]
-author: Daniel Doubrovkine
-github-url: https://www.github.com/dblock
-twitter-url: http://twitter.com/dblockdotorg
-blog-url: http://code.dblock.org
+author: db
 ---
 Having over three thousand RSpec tests in a single project has become difficult to manage. We chose to organize these into suites, somewhat mimicking our directory structure. And while we succeeded at making our Capybara integration tests more reliable (see [Reliably Testing Asynchronous UI with RSpec and Capybara](/blog/2012/02/03/reliably-testing-asynchronous-ui-w-slash-rspec-and-capybara/)), they continue relying on finicky timeouts. To avoid too many false positives we've put together a system to retry failed tests. We know that a spec that fails twice in a row is definitely not a fluke!
 
@@ -69,7 +66,7 @@ module RSpec
   module Core
     module Formatters
       class FailuresFormatter < BaseFormatter
-        
+
         # create a file called rspec.failures with a list of failed examples
         def dump_failures
           return if failed_examples.empty?
@@ -84,7 +81,7 @@ module RSpec
           example_name = example.full_description.gsub("\"", "\\\"")
           "-e \"#{example_name}\""
         end
-        
+
       end
     end
   end

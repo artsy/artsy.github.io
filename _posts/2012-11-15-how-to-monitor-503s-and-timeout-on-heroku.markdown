@@ -4,10 +4,7 @@ title: How to Monitor 503s and Timeout Requests on Heroku
 date: 2012-11-15 21:21
 comments: true
 categories: [Heroku,Rack,Grape]
-author: Daniel Doubrovkine
-github-url: https://www.github.com/dblock
-twitter-url: http://twitter.com/dblockdotorg
-blog-url: http://code.dblock.org
+author: db
 ---
 We have recently started hitting an unusually high number of "503: Service Unavailable" errors with one of our applications on Heroku. What are these? How can we monitor their quantity and frequency? What's the fix?
 

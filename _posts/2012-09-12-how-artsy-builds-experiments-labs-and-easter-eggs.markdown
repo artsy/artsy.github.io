@@ -4,10 +4,7 @@ title: How Artsy Builds Labs, Experiments and Easter Eggs
 date: 2012-09-12 21:21
 comments: true
 categories: [Fun, Experiments, Programming]
-author: Daniel Doubrovkine
-github-url: https://www.github.com/dblock
-twitter-url: http://twitter.com/dblockdotorg
-blog-url: http://code.dblock.org
+author: db
 ---
 At Artsy Engineering we encourage a culture of experimentation with something called *labs*.
 
@@ -77,4 +74,3 @@ end
 ```
 
 This "system" is super simple. I encourage you to think more in terms of experiments or labs - it helped us foster a culture of innovation, tremendously reduced risk of catastrophic failures, and, because anyone can push anything into labs at any time, removed the unnecessary discussions around whether an idea is worthy of an implementation at all.
-

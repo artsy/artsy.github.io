@@ -4,10 +4,7 @@ title: "Cocoa Architecture: ARRouter"
 date: 2015-08-15
 comments: false
 categories: [ios, mobile, architecture, energy, eigen, eidolon, hal]
-author: Orta Therox
-github-url: https://www.github.com/orta
-twitter-url: http://twitter.com/orta
-blog-url: http://orta.io
+author: orta
 ---
 
 I want to talk about a pattern that we've been using for the last few years on the Artsy Mobile team. This pattern pre-dates me joining Artsy by a few weeks, and was introduced into our codebase by [Ben Jackson](http://90wpm.com), this was the `ARRouter`'s first method:

@@ -4,10 +4,7 @@ title: On Our Objective-C Code Standards
 date: 2012-08-14 14:23
 comments: true
 categories: [iOS, Objective C, Standards]
-author: orta therox
-github-url: https://www.github.com/orta
-twitter-url: http://twitter.com/orta
-blog-url: http://orta.github.com
+author: orta
 ---
 
 With the release of Xcode 4.4 I've taken a look back at our existing code standards and tried to come up with something that is cleaner and more elegant. Here are a few of the ideas I've been using to modernize the codebase.
@@ -18,7 +15,7 @@ First to get chopped by the deletion button are private method declarations. Aft
 
 <!--more-->
 
-Occasionally it's necessary for subclass to know about private methods defined by its superclass, so we use a shared category to let them know what they respond to. Like Apple, we also quit using `@private` in header files. 
+Occasionally it's necessary for subclass to know about private methods defined by its superclass, so we use a shared category to let them know what they respond to. Like Apple, we also quit using `@private` in header files.
 
 Ivars now should go in class extensions, and be prefixed by an underscore. Apple advises that you don't use method names with underscores but encourage underscored variable names. This also can free up method parameters from having ugly names such as anArtwork or aString.
 
@@ -50,7 +47,7 @@ With modern versions of Xcode, it doesn't matter that your IBOutlets are defined
 
 These decisions have come from internal discussions and from watching many WWDC sessions on the topic. We highly recommend watching the following [WWDC sessions](https://developer.apple.com/wwdc/).
 
-  [WWDC 2011](https://developer.apple.com/videos/wwdc/2011/): 105 Polishing Your App, 112 Writing Easy To Change Code and 322 - Objective-C Advancements in Depth. 
+  [WWDC 2011](https://developer.apple.com/videos/wwdc/2011/): 105 Polishing Your App, 112 Writing Easy To Change Code and 322 - Objective-C Advancements in Depth.
 
 
   [WWDC 2012](https://developer.apple.com/videos/wwdc/2012/): 405 Modern Objective-C and 413 Migrating to Modern Objective-C

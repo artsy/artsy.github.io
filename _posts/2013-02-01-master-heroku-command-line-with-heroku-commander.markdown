@@ -4,10 +4,7 @@ title: Master the Heroku CLI with Heroku Commander
 date: 2013-02-01 21:21
 comments: true
 categories: [Heroku, Shell, Rake]
-author: Daniel Doubrovkine
-github-url: https://www.github.com/dblock
-twitter-url: http://twitter.com/dblockdotorg
-blog-url: http://code.dblock.org
+author: db
 ---
 
 <img src="/images/2013-02-01-master-heroku-command-line-with-heroku-commander/heroku-commander.png">
@@ -74,4 +71,3 @@ This calls `(heroku detached:run ls -r -1 2>&1; echo rc=\\$?)`, parses the outpu
 ### More Examples
 
 There're more working examples [here](https://github.com/dblock/heroku-commander/tree/master/examples).
-

@@ -4,10 +4,7 @@ title: How to Start Small with Big Data and Google Analytics
 date: 2012-05-01 20:52
 comments: true
 categories: [Analytics, Data]
-author: Daniel Doubrovkine
-github-url: https://www.github.com/dblock
-twitter-url: http://twitter.com/dblockdotorg
-blog-url: http://code.dblock.org
+author: db
 ---
 Why do so many companies write a homegrown pageviews tracking system? Between Google Analytics, Kissmetrics and many others, isn't that a completely solved problem?
 
@@ -96,9 +93,9 @@ class GoogleAnalyticsPageviewsRecord
     [:model_id, Mongo::ASCENDING],
     [:dt, Mongo::DESCENDING]
   ], :unique => true
-  
+
   after_create :rollup
-  
+
   def rollup
     Mongoid.master.collection("google_analytics_#{self.model_type}s_total").update(
       { :model_id => self.model_id },
@@ -114,7 +111,7 @@ class GoogleAnalyticsPageviewsRecord
         { "$inc" => { "count" => self.pageviews }}, { :upsert => true })
     end
   end
-  
+
 end
 ```
 
