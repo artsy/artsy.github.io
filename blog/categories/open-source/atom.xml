@@ -4,7 +4,7 @@
   <title><![CDATA[Category: open source | Artsy Engineering]]></title>
   <link href="http://artsy.github.io/blog/categories/open-source/atom.xml" rel="self"/>
   <link href="http://artsy.github.io/"/>
-  <updated>2015-11-05T22:27:04+00:00</updated>
+  <updated>2015-11-13T17:23:14+00:00</updated>
   <id>http://artsy.github.io/</id>
   <author>
     <name><![CDATA[]]></name>
@@ -12,6 +12,67 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Using OCR To Fix a Hilarious Big]]></title>
+    <link href="http://artsy.github.io/blog/2015/11/05/Using-OCR-To-Fix-A-Hilarious-Bug/"/>
+    <updated>2015-11-05T00:00:00+00:00</updated>
+    <id>http://artsy.github.io/blog/2015/11/05/Using-OCR-To-Fix-A-Hilarious-Bug</id>
+    <content type="html"><![CDATA[<p>For a little while, we would get very strange bug reports. People would complain that artist thumbnails (viewed in several different contexts across the web and our iOS apps) would not be an image of the artist's work, but rather text, which had inexplicably become an actual JPG. This wasn't just text appearing in a <code>div</code> that should contain an <code>img</code> or something like that, these were actual JPG's that were pictures of text.</p>
+
+<p>We would fix these as they came up, chalking the strangeness up to some relic of an old image processing pipeline, data being migrated, etc.</p>
+
+<p>However, the reports kept coming in. This blog post is about how we diagnosed this actual bug, and how we used a simple Ruby script and OCR to help us detect and fix the existing images.</p>
+
+<!-- more -->
+
+
+<p>Here's an example of a bug report where the thumbnail for <a href="https://www.artsy.net/artist/marina-abramovic-1">Marina Abramović</a> became the text of her bio.</p>
+
+<p><img src="/images/2015-11-12-hilarious-bug/search.png" alt="Bad Search" /></p>
+
+<p>Here's one from our <a href="https://github.com/artsy/eigen">iOS app</a> showing that thumbnails for related artists are set to their bios as well.</p>
+
+<p><img src="/images/2015-11-12-hilarious-bug/eigen.png" alt="Bad Related Artists" /></p>
+
+<p>Weird right? We eventually tracked down what was going on, and it's actually perfectly summarized in <a href="https://github.com/blueimp/jQuery-File-Upload/pull/3356">this issue</a>. We immediately suspected something with <code>pasteZone</code>, and the bug was easy to reproduce - have an image in your clipboard and paste anywhere on the page.</p>
+
+<p>We have an admin panel that allows some metadata about an artist to be edited. This includes their bio, as well as a place to upload a representative image as their 'cover thumbnail'.</p>
+
+<p>As the issue describes, we had some text input fields, as well as a file upload form using <a href="https://github.com/blueimp/jQuery-File-Upload">Blueimp's jQuery File Upload</a>. When you don't specify a <code>pasteZone</code> it defaults to the entire document. This means that a paste event anywhere on the page will trigger that event.</p>
+
+<p>Our editorial team was using Microsoft Excel and Word to organize some data about the artist, including bios. When ready, a team member would copy and paste the bio into the bio input text field. This would also immediately fire the event for the image upload, which now automagically became an actual picture of the text of the bio. Our API and image processing pipeline would happily accept that, leading to the incredibly bizarre bug reports.</p>
+
+<p>My immediate fix was to specify and scope <code>pasteZone</code> (and similarly, <code>dropZone</code>) to the element the file upload widget was bound to. That would prevent the problem from happening again. Taking a quick look art some random samples of artists, it looked like potentially thousands of records might have been affected and I became interested in a programmatic way to detect these images. A manual approach would have been very cumbersome.</p>
+
+<p>Since the images were that of text, I decided to use OCR to remove artist thumbnails that it determined had 'too much text'. This may have unset valid covers from artists that use lots of text in their work, such as <a href="https://www.artsy.net/artist/joseph-kosuth">Joseph Kosuth</a>. However, this was safe to do since we have some custom logic to fall back to an image of an iconic artwork by the artist in the case of a missing thumbnail.</p>
+
+<p>To get OCR functionality in Ruby, I decided to use <a href="https://github.com/tesseract-ocr/tesseract">Tesseract</a>, a great OSS library. Once I had it installed, I used a <a href="https://github.com/meh/ruby-tesseract-ocr">ruby wrapper</a> to make using it easier.</p>
+
+<p>The script eventually turned into something like:</p>
+
+<pre><code class="ruby"># initialize and configure Tesseract
+engine = Tesseract::Engine.new do |config|
+  config.language  = :eng
+  config.blacklist = '|'
+end
+
+# iterate over artists and pull their thumbnails
+# given the URL to a publicly accessible image at img
+
+text = engine.text_for(img)
+text = text.gsub(/[^a-z ]/i, '').gsub(' ', '')
+if text.length &gt; 30
+  puts "Found problematic artist #{artist_doc['last']}"
+  # ...
+end
+</code></pre>
+
+<p>So all we do is find all the text in an image, and then remove any garbage characters or artificats from the OCR analysis, and then use 30 as an arbitrary cutoff to determine if an image was problematic. If the image had more than 30 characters as detected by the OCR library, we wound up unsetting it from the artist.</p>
+
+<p>The additional logic to set artist covers from their iconic artworks was already in place, and I ran this script in production, identifying and unsetting over 1000 problematic thumbnails. And we haven't gotten any new reports of this bug since then :)</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[MVVM in Swift]]></title>
@@ -460,77 +521,6 @@ gravity...
 <p>Whether you're a developer or a company, an expert or a beginner, I highly encourage you to start one of your own.</p>
 
 <p></div></div><a href='https://ortastuff.s3.amazonaws.com/gifs/three-hands.gif'><img src="https://ortastuff.s3.amazonaws.com/gifs/three-hands.gif" width="1280" title="Thumbs Up" ></a><div class='meta-container'><header>&nbsp;</header></div><div class='date-container'>&nbsp;</div><div class='content-container'><div class='entry-content'></p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Open Sourcing Energy]]></title>
-    <link href="http://artsy.github.io/blog/2015/08/06/open-sourcing-energy/"/>
-    <updated>2015-08-06T13:54:00+00:00</updated>
-    <id>http://artsy.github.io/blog/2015/08/06/open-sourcing-energy</id>
-    <content type="html"><![CDATA[<p>The Artsy Mobile team is pretty aggressive in our stance on <a href="http://code.dblock.org/2015/02/09/becoming-open-source-by-default.html">Open Source by Default</a>. We've talked about it at <a href="https://www.youtube.com/watch?v=2DvDeEZ0NDw&amp;spfreload=10">conferences</a> <a href="https://www.youtube.com/watch?v=SjjvnrqDjpM">around</a> <a href="https://www.youtube.com/watch?v=zPbLYWmLPow">the</a> <a href="https://speakerdeck.com/orta/ios-at-artsy">world</a>, in <a href="http://www.objc.io/issues/22-scale/artsy">renowned magazines</a> and on <a href="http://artsy.github.io/blog/2015/04/28/how-we-open-sourced-eigen/">our blog</a>.</p>
-
-<p>It's worth mentioning that we don't just talk externally about Open Source. Internally, the Mobile team runs talks about Open Source for the rest of the Artsy staff. As well, we discuss the tooling and business implications of having our work in public repos. Artsy strives for an open culture, in this case the development team, on the whole, is just further along in the process.</p>
-
-<p>The Open Source app idea started with an experiment in the Summer of 2014, asking, "What does a truly Open Source App look like?" The outcome of that was our Swift Kiosk app, <a href="https://github.com/artsy/eidolon/">Eidolon</a>. Open from day one. We took the knowledge from that and applied it to our public facing app, <a href="https://github.com/artsy/eigen/">Eigen</a>. Open from day 806. That made 2/3rds of our apps Open Source.</p>
-
-<p>I'm going to talk about our final app, <a href="https://github.com/artsy/energy">Energy</a>. Open from day 1433 and ~3500 commits.</p>
-
-<!-- more -->
-
-
-<hr />
-
-<p><img src="/images/2015-08-01-open-sourcing-energy/ENERGY.png" alt="ENERGY" /></p>
-
-<p>Energy is commonly known as <a href="http://folio.artsy.net">Artsy Folio</a>. It's a tool for Artsy's Partners to showcase their artworks on the go, and quickly email them. Here's a beautiful splash showing it in action.</p>
-
-<p></div></div><a href='http://folio.artsy.net/images/cover-bbf6fdf4.jpg'><img src="http://folio.artsy.net/images/cover-bbf6fdf4.jpg" title="Folio overview" ></a><div class='meta-container'><header>&nbsp;</header></div><div class='date-container'>&nbsp;</div><div class='content-container'><div class='entry-content'></p>
-
-<p>This app comes from the pre-CocoaPods, pre-ARC, pre-UICollectionView and pre-Auto Layout days. It spent 3 years with no tests, but has come up to over 50% code coverage in the last year. It's testing suite is super fast, given that we learned a lot with Eigen's tests we stuck with five main principals:</p>
-
-<ul>
-<li>No un-stubbed HTTP requests.</li>
-<li>Avoid <code>will</code>s in a test as much as possible.</li>
-<li>Never allow access to the main Core Data instance in tests</li>
-<li>Dependency Inject anything</li>
-<li>Use snapshots to test view controller states</li>
-</ul>
-
-
-<h3>On Opening Folio</h3>
-
-<p>Folio is interesting in that it has competitors. To some extent the Kiosk app does too, but the cost of entry there is really high in comparison. Folio on the other hand, has a handful of competing businesses who exist to <em>only</em> build a Gallery/Museum/Collector portfolio app. In opening the code for Folio, we're not making it easy for people to copy and paste our business, it's very directly tied to Artsy's APIs and <a href="http://www.dylanfareed.com/projects/artsy-cms/">CMS</a>.</p>
-
-<p>I commonly get questions about the process of Open Sourcing an app, so here's what happened after I decided it was time. First, I emailed my intent:</p>
-
-<p></div></div><a href='/images/2015-08-01-open-sourcing-energy/oss-energy-email.png'><img src="/images/2015-08-01-open-sourcing-energy/oss-energy-email.png"></a><div class='meta-container'><header>&nbsp;</header></div><div class='date-container'>&nbsp;</div><div class='content-container'><div class='entry-content'></p>
-
-<p>The concepts I wanted to cover were: "This is a codebase is worthy of art", "We know what we're doing", "This doesn't make it simple for someone to create a business off our product" and "I've managed to get a lot of the source out already." I gave a month or so to ensure that I could have corridor chats with people, in order to be very certain around opinions. We had some discussions in the email thread about ways in which an open source'd Energy would impact the team, and overall the reaction was positive. This wasn't surprising, the non-technical parts of the team are regularly kept up to date on thoughts like this.</p>
-
-<p>After the internal announcement I started looking at the codebase, what should be cleaned up. I don't believe a codebase is ever perfect ( just look at Eigen's <a href="https://raw.githubusercontent.com/artsy/eigen/3f29f61f2b96f516e9ecf407818b82911b268694/HACKS.md">HACKS.md</a> ) but one thing I learned from the launch of Eigen is that we need a lot of beginner docs to help people get started. So I went into Energy's <a href="https://github.com/artsy/energy/tree/master/docs">docs</a> directory and started comparing it to <a href="https://github.com/artsy/eigen/tree/master/docs">Eigen</a>'s.</p>
-
-<p>With the docs ready, we anticipated the repo change as we did <a href="/blog/2015/04/28/how-we-open-sourced-eigen/">with Eigen</a>. This means making sure all loose pull requests were wrapped up. All code comments were audited. Then we used <a href="https://github.com/google/github-issue-mover">github-issue-mover</a> to migrate important issues to the new repo. Then we deleted the <code>.git</code> folder in the app, and <code>git init</code> to create a new repo.</p>
-
-<p>Given that we have three Open source apps now, I wanted to give them a consistent branding when we talk about the apps from the context of the codebase. It's like programming, if you're writing a similar thing 3 times, definitely time to refactor.</p>
-
-<p></div></div><a href='/images/2015-08-01-open-sourcing-energy/oss-design-sketch.png'><img src="/images/2015-08-01-open-sourcing-energy/oss-design-sketch.png"></a><div class='meta-container'><header>&nbsp;</header></div><div class='date-container'>&nbsp;</div><div class='content-container'><div class='entry-content'></p>
-
-<p>Finally, I started working on the announcement blog post. Which you're reading. I'll send a <a href="https://github.com/artsy/artsy.github.com/pull/119">pull request</a> for this blog post, then when it's merged. I'll make one more final look over how everything looks, then make the new Energy repo public.</p>
-
-<h3>On more than just Opening Source</h3>
-
-<p>Eigen, the public facing iOS app, allows people to log in with a trial user account. We also have a known API Key + Secret for the <a href="https://github.com/artsy/eigen/blob/master/Makefile#L41-L42">OSS app</a>. With this, any developer can run a few commands and have a working application to play around in. This makes it easy to look around and see how things are done.</p>
-
-<p>Energy, however, requires you have a Artsy partner account. So opening it up would mean that an OSS developer hits the login screen and is stuck. In developing this app, I've slowly been creating my own partner gallery account based on my paintings and photography. So now when you set up the app to be ran as an OSS app, it will pre-load a known database of artworks and metadata from my test gallery.</p>
-
-<p></div></div><a href='/images/2015-08-01-open-sourcing-energy/ios-sim.png'><img src="/images/2015-08-01-open-sourcing-energy/ios-sim.png"></a><div class='meta-container'><header>&nbsp;</header></div><div class='date-container'>&nbsp;</div><div class='content-container'><div class='entry-content'></p>
-
-<p>Its easy to imagine that Open Sourcing something is an end-point, but from our perspective it is a journey. We want to make sure that anyone can download this app, learn how and why it's structured and then run through the app with a debugger to get a deeper sense of how everything connects. Just releasing the code would have been underwhelming. Instead we're aiming high.</p>
-
-<p>I think that there is no higher compliment to your team and your code than opening it to the public.</p>
-
-<p>You should Open Source your app.</p>
 ]]></content>
   </entry>
   

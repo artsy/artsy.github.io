@@ -4,7 +4,7 @@
   <title><![CDATA[Category: ruby | Artsy Engineering]]></title>
   <link href="http://artsy.github.io/blog/categories/ruby/atom.xml" rel="self"/>
   <link href="http://artsy.github.io/"/>
-  <updated>2015-11-05T22:27:04+00:00</updated>
+  <updated>2015-11-13T17:23:14+00:00</updated>
   <id>http://artsy.github.io/</id>
   <author>
     <name><![CDATA[]]></name>
@@ -12,6 +12,67 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Using OCR To Fix a Hilarious Big]]></title>
+    <link href="http://artsy.github.io/blog/2015/11/05/Using-OCR-To-Fix-A-Hilarious-Bug/"/>
+    <updated>2015-11-05T00:00:00+00:00</updated>
+    <id>http://artsy.github.io/blog/2015/11/05/Using-OCR-To-Fix-A-Hilarious-Bug</id>
+    <content type="html"><![CDATA[<p>For a little while, we would get very strange bug reports. People would complain that artist thumbnails (viewed in several different contexts across the web and our iOS apps) would not be an image of the artist's work, but rather text, which had inexplicably become an actual JPG. This wasn't just text appearing in a <code>div</code> that should contain an <code>img</code> or something like that, these were actual JPG's that were pictures of text.</p>
+
+<p>We would fix these as they came up, chalking the strangeness up to some relic of an old image processing pipeline, data being migrated, etc.</p>
+
+<p>However, the reports kept coming in. This blog post is about how we diagnosed this actual bug, and how we used a simple Ruby script and OCR to help us detect and fix the existing images.</p>
+
+<!-- more -->
+
+
+<p>Here's an example of a bug report where the thumbnail for <a href="https://www.artsy.net/artist/marina-abramovic-1">Marina Abramović</a> became the text of her bio.</p>
+
+<p><img src="/images/2015-11-12-hilarious-bug/search.png" alt="Bad Search" /></p>
+
+<p>Here's one from our <a href="https://github.com/artsy/eigen">iOS app</a> showing that thumbnails for related artists are set to their bios as well.</p>
+
+<p><img src="/images/2015-11-12-hilarious-bug/eigen.png" alt="Bad Related Artists" /></p>
+
+<p>Weird right? We eventually tracked down what was going on, and it's actually perfectly summarized in <a href="https://github.com/blueimp/jQuery-File-Upload/pull/3356">this issue</a>. We immediately suspected something with <code>pasteZone</code>, and the bug was easy to reproduce - have an image in your clipboard and paste anywhere on the page.</p>
+
+<p>We have an admin panel that allows some metadata about an artist to be edited. This includes their bio, as well as a place to upload a representative image as their 'cover thumbnail'.</p>
+
+<p>As the issue describes, we had some text input fields, as well as a file upload form using <a href="https://github.com/blueimp/jQuery-File-Upload">Blueimp's jQuery File Upload</a>. When you don't specify a <code>pasteZone</code> it defaults to the entire document. This means that a paste event anywhere on the page will trigger that event.</p>
+
+<p>Our editorial team was using Microsoft Excel and Word to organize some data about the artist, including bios. When ready, a team member would copy and paste the bio into the bio input text field. This would also immediately fire the event for the image upload, which now automagically became an actual picture of the text of the bio. Our API and image processing pipeline would happily accept that, leading to the incredibly bizarre bug reports.</p>
+
+<p>My immediate fix was to specify and scope <code>pasteZone</code> (and similarly, <code>dropZone</code>) to the element the file upload widget was bound to. That would prevent the problem from happening again. Taking a quick look art some random samples of artists, it looked like potentially thousands of records might have been affected and I became interested in a programmatic way to detect these images. A manual approach would have been very cumbersome.</p>
+
+<p>Since the images were that of text, I decided to use OCR to remove artist thumbnails that it determined had 'too much text'. This may have unset valid covers from artists that use lots of text in their work, such as <a href="https://www.artsy.net/artist/joseph-kosuth">Joseph Kosuth</a>. However, this was safe to do since we have some custom logic to fall back to an image of an iconic artwork by the artist in the case of a missing thumbnail.</p>
+
+<p>To get OCR functionality in Ruby, I decided to use <a href="https://github.com/tesseract-ocr/tesseract">Tesseract</a>, a great OSS library. Once I had it installed, I used a <a href="https://github.com/meh/ruby-tesseract-ocr">ruby wrapper</a> to make using it easier.</p>
+
+<p>The script eventually turned into something like:</p>
+
+<pre><code class="ruby"># initialize and configure Tesseract
+engine = Tesseract::Engine.new do |config|
+  config.language  = :eng
+  config.blacklist = '|'
+end
+
+# iterate over artists and pull their thumbnails
+# given the URL to a publicly accessible image at img
+
+text = engine.text_for(img)
+text = text.gsub(/[^a-z ]/i, '').gsub(' ', '')
+if text.length &gt; 30
+  puts "Found problematic artist #{artist_doc['last']}"
+  # ...
+end
+</code></pre>
+
+<p>So all we do is find all the text in an image, and then remove any garbage characters or artificats from the OCR analysis, and then use 30 as an arbitrary cutoff to determine if an image was problematic. If the image had more than 30 characters as detected by the OCR library, we wound up unsetting it from the artist.</p>
+
+<p>The additional logic to set artist covers from their iconic artworks was already in place, and I ran this script in production, identifying and unsetting over 1000 problematic thumbnails. And we haven't gotten any new reports of this bug since then :)</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Splitting up a large test suite]]></title>
@@ -502,98 +563,6 @@ end
 <p>Aside of the bidding implementation we've built a whole software ecosystem around auctions. We developed a backend system to manage these. We put up projection screens at the event that list works being auctioned and flash every time a bid is placed. We register users' credit cards and collect their money.</p>
 
 <p>The software part, however, is definitely dwarfed by the amount of logistics and people involved in making one of those auctions a success. We're only trying to make that a bit more efficient. We'll see you at the upcoming BAM Art Auction, SFMOMA Modern Ball or the Whitney Museum Art Party!</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Presenters and Memoization: Moving Logic out of Templates]]></title>
-    <link href="http://artsy.github.io/blog/2014/03/18/presenters-and-memoization-moving-logic-out-of-templates/"/>
-    <updated>2014-03-18T17:27:00+00:00</updated>
-    <id>http://artsy.github.io/blog/2014/03/18/presenters-and-memoization-moving-logic-out-of-templates</id>
-    <content type="html"><![CDATA[<p>When dealing with rendering data for an email, one frequently has to make many database calls to assemble the required data. This can be slow, and depending on how you structure the code that is assembling the data vs rendering the data in a template, it's very easy to be making repeated calls, which can significantly slow down your process. Additionally, whether you are using <a href="http://haml.info/">Haml</a>, <a href="http://mustache.github.io/">Mustache</a>, <a href="http://jade-lang.com/">Jade</a>, or any other templating language, embedding too much logic in the template can making things hard to maintain (especially if some logic lives in the template and some elsewhere in your domain code). Of course some logic in the template (a conditional: should I render this section?, or loops: render this hash of data) is necessary, but I like to keep as much out of there as possible. It's easier to optimize, debug and maintain that logic elsewhere, and also writing complex logic in <a href="https://www.ruby-lang.org">Ruby</a> is much more fun than in a templating language!</p>
-
-<p>In this article I'll present what I've been doing to keep my templates relatively logic-free, and how I make sure I don't repeat any heavy database calls in assembling my data.</p>
-
-<!-- more -->
-
-
-<h2>The Setup - Presenters and Memoization</h2>
-
-<p>First, I'd like to introduce the Presenter pattern, and how this can help clean up your templates. Here are a couple of links about using presenters with <a href="http://rubyonrails.org/">Rails</a> that I've found useful:</p>
-
-<ul>
-<li><a href="http://blog.jayfields.com/2007/03/rails-presenter-pattern.html">Jay Fields' Guide to Presenters</a></li>
-<li><a href="http://www.slideshare.net/mdesjardins/presenters-in-rails">Mike Desjardins' Slideshare Presentation</a></li>
-</ul>
-
-
-<p>Consider the following screenshot of a section of a weekly email that we send our users:</p>
-
-<p><img src="/images/2014-03-18-presenters-and-memoization-moving-logic-out-of-templates/recently_added.png" alt="Example of Recently Added Works" /></p>
-
-<p>This section shows works that have been added that week by artists that you follow. That's clearly going to involve some database calls, and potentially heavy ones at that. Now we'd like to accomplish two things here: we want to make sure that we only make these calls once (no matter what we wind up doing with the data later), and we also would like to make sure that any code or logic that is making these calls and doing any data manipulation is not being done directly in our templates. Keeping this kind of logic out of your template will make it easier to debug, maintain and write.</p>
-
-<p>Let's start by creating a Module to hold the various logic required for this email:</p>
-
-<pre><code class="ruby">class WeeklyEmailPresenter
-  def initialize(user)
-    @user = user
-  end
-end
-</code></pre>
-
-<p>Ok, so far so good. In our mail template rendering/calling code, we can now say:</p>
-
-<pre><code class="ruby">@presenter = WeeklyEmailPresenter.new(user)
-</code></pre>
-
-<p>This will allow us to refer to methods in this class in our mail template. So now let's add a method that will query our database and return a list of artists that this user should be notified about:</p>
-
-<pre><code class="ruby">class WeeklyEmailPresenter
-  def initialize(user)
-    @user = user
-  end
-
-  def recently_added_works
-    # Some really heavy database query
-  end
-end
-</code></pre>
-
-<p>Ok, that was easy. In our HAML template, we can now do:</p>
-
-<pre><code class="haml">-if @presenter.recently_added_works &amp;&amp; @presenter.recently_added_works.any?
-  %table
-    %tr
-      %td
-        -@presenter.recently_added_works.each do |artists|
-          &lt;!-- markup to render each artist with recently added works --&gt;
-</code></pre>
-
-<p>However, take a look at how many times we've referred to <code>@presenter.recently_added_works</code> - 3 times already! And we'll most likely refer to it more elsewhere (perhaps when deriving a subject line, or showing a total count somewhere, etc.). Depending on how you've implemented the method <code>recently_added_works</code>, you may be re-querying the database every time it's referred to! Clearly that's a lot of wasted resources. So, let's look at an easy change that will guarantee we only ever perform the work to assemble this data once. We memoize it:</p>
-
-<pre><code class="ruby">class WeeklyEmailPresenter
-  def initialize(user)
-    @user = user
-  end
-
-  def recently_added_works
-    @recently_added_works ||= build_recently_added_works
-  end
-
-  private
-
-  def build_recently_added_works
-    # Code to do database lookups
-  end
-end
-</code></pre>
-
-<p>All we're doing is moving the actual code that's doing the heavy lifting into a <code>private</code> method (for convention, I like to prefix the name with <code>build_</code>). The public method that we refer to elsewhere in our presenter and template simply calls the appropriate <code>private</code> method. Through using an instance variable combined with conditional assignment, we guarantee that the <code>build_</code> method (our heavy and slow workhorse method) will only be called once, no matter how many times we refer to the public method.</p>
-
-<p>That's it! To summarize, use instance variables in your public methods which is what your templates and other code will use. Those public methods should call private <code>build_</code> methods which actually do all the heavy lifting. This way, you get to easily move logic away from a template and into its own module, and can guarantee that you're not repeating any long-running database queries or other slow data processing.</p>
-
-<p>Hopefully you've found this a useful pattern to follow, please leave any feedback in the comments and <a href="https://github.com/artsy">follow us on Github</a>!</p>
 ]]></content>
   </entry>
   
