@@ -23,7 +23,7 @@ Here's one from our [iOS app](https://github.com/artsy/eigen) showing that thumb
 
 ![Bad Related Artists](/images/2015-11-12-hilarious-bug/eigen.png)
 
-Weird right? We eventually tracked down what was going on, and it's actually perfectly summarized in [this issue](https://github.com/blueimp/jQuery-File-Upload/pull/3356). We immediately suspected something with `pasteZone`, and the bug was easy to reproduce - have an image in your clipboard and paste anywhere on the page.
+Weird right? We eventually tracked down what was going on, and it's actually perfectly summarized in [this issue](https://github.com/blueimp/jQuery-File-Upload/pull/3356). When someone copies text from Excel, it also generates an image of that cell or cells, and puts it into the clipboard. We immediately suspected something with `pasteZone`, and the bug was easy to reproduce - have an image in your clipboard and paste anywhere on the page.
 
 We have an admin panel that allows some metadata about an artist to be edited. This includes their bio, as well as a place to upload a representative image as their 'cover thumbnail'.
 
@@ -57,6 +57,6 @@ if text.length > 30
 end
 ```
 
-So all we do is find all the text in an image, and then remove any garbage characters or artificats from the OCR analysis, and then use 30 as an arbitrary cutoff to determine if an image was problematic. If the image had more than 30 characters as detected by the OCR library, we wound up unsetting it from the artist.
+So all we do is find all the text in an image, and then remove any garbage characters or artifacts from the OCR analysis, and then use 30 as an arbitrary cutoff to determine if an image was problematic. If the image had more than 30 characters as detected by the OCR library, we wound up unsetting it from the artist.
 
 The additional logic to set artist covers from their iconic artworks was already in place, and I ran this script in production, identifying and unsetting over 1000 problematic thumbnails. And we haven't gotten any new reports of this bug since then :)
