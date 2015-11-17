@@ -1,6 +1,6 @@
 ---
 layout: post
-title: 'Using OCR To Fix a Hilarious Big'
+title: 'Using OCR To Fix a Hilarious Bug'
 date: 2015-11-05T00:00:00.000Z
 comments: false
 categories: [Ruby, open source, OSS, debugging]
