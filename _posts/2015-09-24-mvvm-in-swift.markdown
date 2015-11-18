@@ -115,7 +115,7 @@ RAC(self, "cellIdentifier") <~ viewModel.gridSelectedSignal.map { gridSelected -
 
 ## Structuring a View Model
 
-The most common question from iOS developers about MVVM and FRP concerns how the view model exposes data to the view controller. The view controller needs to be notified about changes to the underlying model, but what mechanism to we use to do this? There are two options:
+The most common question from iOS developers about MVVM and FRP concerns how the view model exposes data to the view controller. The view controller needs to be notified about changes to the underlying model, but what mechanism do we use to do this? There are two options:
 
 1. Use (dynamic) properties on the view model, which can be observed using KVO (or wrapped in a signal/sequence using FRP).
 1. Use signals/sequences/futures as properties on the view model, which can be consumed by their corresponding async frameworks.
