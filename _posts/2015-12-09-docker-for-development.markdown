@@ -1,6 +1,6 @@
 ---
 layout: post
-title: Using Docker for Development
+title: Using Docker and Dusty for Development
 date: 2015-12-09T00:00:00.000Z
 comments: false
 categories: [Docker, development]
@@ -14,15 +14,15 @@ When I first proposed using Docker for development, and began doing my work that
 
 <!-- more -->
 
-At Artsy, our main API aka Gravity uses MongoDB, Solr, Elasticsearch, and memcached. In development, we use [Mailcatcher](http://mailcatcher.me/) so we can view emails. When a new software engineer starts, that person studies a big Getting Started document, and spends most of a day to get everything installed and configured. Not only do they need to get the software installed, figuring out all of the environment variables that need to be set up can take some time too. While we have good documentation, it is still a tedious process. 
+At Artsy, our main API aka Gravity uses MongoDB, Solr, Elasticsearch, and memcached. In development, we use [Mailcatcher](http://mailcatcher.me/) so we can view emails. When a new software engineer starts, that person studies a big Getting Started document, and spends most of a day to get everything installed and configured. Not only do they need to get the software installed, figuring out all of the environment variables that need to be set up can take some time too. While we have good documentation, it is still a tedious and repetitive process that takes up the time of our new employee, and more experienced developers who need to answer questions.
 
-For our applications (including Gravity) which have been dockerized, getting set up consists of a one-time install of [Docker Toolbox](https://www.docker.com/docker-toolbox) followed by running 
+Now that Gravity has been dockerized, getting set up consists of a one-time install of [Docker Toolbox](https://www.docker.com/docker-toolbox) followed by running 
 
 ```bash
 docker-compose build && docker-compose up
 ```
 
-in the root directory of the checked-out Gravity repo. Here is a simplified version of our [docker-compose](https://docs.docker.com/compose/) setup. Because we run a web server and a delayed_job process, `docker-compose.yml` uses a `common.yml` file for shared setup:
+in the root directory of the checked-out repo. Here is a simplified version of our [docker-compose](https://docs.docker.com/compose/) setup. Because we run a web server and a delayed_job process, `docker-compose.yml` uses a `common.yml` file for shared setup:
 
 ```yaml
 gravity:
@@ -126,9 +126,13 @@ and add this line to `common.yml`:
 REDIS_URL: redis://redis
 ```
 
-For development which involves multiple applications in separate git repositories, we use [Dusty](http://dusty.gc.com/), which was created by [GameChanger](https://gc.com/). Some of the advantages of using Dusty include the use of `rsync` so that performance is better, and a built-in nginx proxy along with modifications to your `/etc/hosts` file so that you can more easily connect to your applications. The shared volumes approach with the `volumes:` directive can be rather slow with the default Docker Toolbox setup using VirtualBox.
+The next time someone runs `docker-compose up`, this will cause a one-time download of a redis image, and then it brings up the additional sidekiq service.
 
-With Dusty, you set up services, apps, and bundles of apps with YAML files. Our MongoDB service is defined as:
+For development which involves multiple applications in separate git repositories, we use [Dusty](http://dusty.gc.com/), which was created by [GameChanger](https://gc.com/). Some of the advantages of using Dusty include the use of `rsync` (which performs much better than shared volumes in VirtualBox), and a built-in nginx proxy along with modifications to your `/etc/hosts` file so that you can more easily connect to your applications.
+
+With Dusty, you set up services, apps, and bundles of apps with YAML files. Here is a repo with [sample Dusty specs](https://github.com/gamechanger/dusty-example-specs).
+
+Our MongoDB service is defined as:
 
 ```yaml
 # services/mongo2.yml
@@ -142,7 +146,7 @@ ports:
 
 It's not necessary to expose the ports, but in case we want to connect directly to the MongoDB instance with the `mongo` command without shelling into a container, we need it to be available on our Docker VM's IP address.
 
-Our Gravity app's YAML file is:
+Our Gravity app's Dusty YAML file is:
 
 ```yaml
 # apps/gravity.yml
@@ -186,6 +190,8 @@ commands:
   - rails s -b 0.0.0.0 -p 80
 ```
 
+The `depends:` configuration is similar to the [links](https://docs.docker.com/compose/compose-file/#links) functionality of docker-compose. It makes sure that those applications (as defined in `apps/*.yml`) are running, and sets up `/etc/hosts` in the containers to allow your applications to refer to other services using their hostnames.
+
 For now, Dusty doesn't have a way of sharing common setup like `common.yml` above, so there are similar configurations for our Sidekiq and Delayed Job workers.
 
 Dusty uses bundles for clusters of applications that need to work together. An example bundle, for a CMS application that needs many APIs, is:
@@ -208,7 +214,7 @@ dusty bundles activate volt
 dusty up
 ```
 
-As we have added new services over time, using Docker and Dusty to bring clusters of apps together has made it much easier for developers to work on projects without having to spend time on installations and configuration. Having configuration in code means that we need less documentation, and fewer documentation updates, for how a given application is configured and its dependencies.
+As we have added new services over time, using Docker and Dusty to bring clusters of apps together has made it much easier for developers to work on projects without having to spend time on installation and configuration. Having Docker configuration in the repo also serves as good (and up-to-date) documentation of how a given application is configured and its dependencies. It is also much less resource-intensive compared to using virtual machines configured with Vagrant or another provisioning tool. All of our Docker applications and services can run in a single VM. If you are developing on Linux, you don't even need a VM!
 
 We are also starting to use Docker to run integrated testing across multiple applications using Selenium. That will be covered in a future blog post.
 
