@@ -128,7 +128,7 @@ REDIS_URL: redis://redis
 
 The next time someone runs `docker-compose up`, this will cause a one-time download of a redis image, and then it brings up the additional sidekiq service.
 
-For development which involves multiple applications in separate git repositories, we use [Dusty](http://dusty.gc.com/), which was created by [GameChanger](https://gc.com/). Some of the advantages of using Dusty include the use of `rsync` (which performs much better than shared volumes in VirtualBox), and a built-in nginx proxy along with modifications to your `/etc/hosts` file so that you can more easily connect to your applications.
+For development which involves multiple applications in separate git repositories, we use [Dusty](http://dusty.gc.com/), which was created by [GameChanger](https://gc.com/). Some of the advantages of using Dusty include the use of NFS (which performs much better than shared volumes in VirtualBox), and a built-in nginx proxy along with modifications to your `/etc/hosts` file so that you can more easily connect to your applications.
 
 With Dusty, you set up services, apps, and bundles of apps with YAML files. Here is a repo with [sample Dusty specs](https://github.com/gamechanger/dusty-example-specs).
 
