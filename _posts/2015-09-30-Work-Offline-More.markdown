@@ -19,7 +19,7 @@ I _always_ optimise to work offline on every iOS project. Here's some tips on ho
 
 Eigen, our biggest app, has a complicated relationship with our API. There are too many networking calls to effectively stub for development in the app, this I know because I wrote [the PR](https://github.com/artsy/eigen/pull/575) forcing us to stub all networking in tests.
 
-I found a great workaround though, there is a tool for storing an entire networking session, so that you can use it again and get determinate results called [VCRURLConnection](http://cocoapods.org/pods/VCRURLConnection). This is normally done in tests but it can easily be used in your app code instead.
+I found a great workaround though: there is a tool for storing an entire networking session, so that you can use it again and get determinate results called [VCRURLConnection](http://cocoapods.org/pods/VCRURLConnection). This is normally done in tests but it can easily be used in your app code instead.
 
 We already had an admin panel within our app. So I added the ability to start [saving the networking session](https://github.com/artsy/eigen/blob/06aeb6f7ce4b95155729aa37c36fddc54767931f/Artsy/View_Controllers/Admin/ARAdminSettingsViewController.m#L171-L206).
 
@@ -29,11 +29,11 @@ When you hit save, every networking request is saved into memory, and then once 
 
 ### The "requires some work, but is worth it" way
 
-[Moya](https://github.com/Moya/Moya) is a networking client we created where stubbed data is a first-class citizen. This means converting your apps networking from "uses the API" to "uses the [locally stored stubbed examples](https://github.com/artsy/eidolon/blob/master/Kiosk/App/StubResponses.m)." Is a quick change in your apps code.
+[Moya](https://github.com/Moya/Moya) is a networking client we created where stubbed data is a first-class citizen. This means converting your app's networking from "uses the API" to "uses the [locally stored stubbed examples](https://github.com/artsy/eidolon/blob/master/Kiosk/App/StubResponses.m)." Is a quick change in your apps code.
 
 ### The "let's just get it done" way
 
-When I was working offline on the coach, I took a technique we use for testing and applied it to our application code. We use an abstraction called network models that separate what you want vs the API to get it. In the case of Emergence I created [requests](https://github.com/artsy/Emergence/blob/18e501a4d6925ea5fb0f35174a6c0c3c96f70533/Emergence/Contexts/Presenting%20a%20Show/ShowNetworkingModel.swift) that would pass along stubbed models instead of doing the real work.
+When I was working offline on the coach, I took a technique we use for testing and applied it to our application code. We use an abstraction called network models that separates what you want vs. what the API does to get it. In the case of Emergence I created [requests](https://github.com/artsy/Emergence/blob/18e501a4d6925ea5fb0f35174a6c0c3c96f70533/Emergence/Contexts/Presenting%20a%20Show/ShowNetworkingModel.swift) that would pass along stubbed models instead of doing the real work.
 
 It's nothing fancy, but I didn't need too much to work with at this point. It's enough to start building, which is what counts, you can go and test properly once you're online.
 
@@ -41,7 +41,7 @@ It's nothing fancy, but I didn't need too much to work with at this point. It's 
 
 I don't use 3G on my phone, I rely entirely on Wi-Fi for internet access, and don't particularly have a problem with the lack of connection. The outside world is distracting enough. Being able to work offline means I can shut the world out for a while and just focus on getting something done.
 
-It's possible to not just have less distractions, but to be able to work faster. `VCRURLConnection` and using stubs are faster than normal networking, so you can iterate faster on your app too.
+It's possible to not just have less distractions, but to be able to work faster. `VCRURLConnection` and using stubs are faster than normal networking, so you can iterate faster on your app, too.
 
 True to my word, I'm writing this blog post offline, I have 7 hours and 23 more minutes before the plane lands in JFK.
 
