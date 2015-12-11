@@ -9,7 +9,7 @@ author: orta
 
 As a part of our internal Lunch and Learn series, I  gave a talk to our developers with an overview of the different types of source code licenses available.
 
-We always recommend MIT within Artsy, but understanding what the other ones are and why we made the choices we have done is valuable.
+We always recommend MIT within Artsy, but understanding what the other ones are and [why we made](http://artsy.github.io/blog/2012/01/29/how-art-dot-sy-uses-github-to-build-art-dot-sy/) the choices we have done is valuable.
 
 Jump [to YouTube](https://www.youtube.com/watch?v=0r7JcN3Q_LY) for the video, or click more for a smaller inline preview, as well as all of the speakers notes.
 
@@ -28,14 +28,13 @@ Recommendation for further reading:
 
 We'll talk about 3 types of licenses:
 
-- Permissive: MIT/BSD - Jquery/ Rails/ Artsy OSS
-- Mostly Permissive: Apache, Mozilla - SVN / Firefox
-- Copyleft / Viral - Git/ Linux/ Wordpress
-
+- Permissive: MIT/BSD, used by jQuery, Rails, Artsy OSS
+- Mostly Permissive: Apache/Mozzila, used by SVN, Firefox
+- Copyleft: GPL, used by Git, Linux, Wordpress
 
 ### Common Components
 
-All Share one important thing:
+All share one important thing:
 
   * YOU MAY USE THIS
   * NO WARRANTY
@@ -43,30 +42,32 @@ All Share one important thing:
 
 Which is basically the crux of how we can all actually use and write OSS without ending up bankrupt. E.g. when a major component of your infrastructure "fails" - it's not the fault of the author. Example: [Shellshock](https://en.wikipedia.org/wiki/Shellshock_(software_bug)) - no-one tried suing the maintainers of Bash.
 
-### Public Domain
+### License Free
 
-By not including a license you are specifically letting your code only applying copyright to the code. All code is the copyright of someone. Copyright is, err, complex. Roughly speaking though, there is no contract between you and someone using your code. This means _all_ of the power is in favour of the library author. A library consumer would need to email the author and ask for permission on a case by case basis, even then there is nothing stopping a developer revoking the ability for you to use their library after the fact. It's also different depending on the country the library author is in. However in the end PD is not a license, so add one.
+By choosing to not include a license, you only applying your copyright to the code. All code is the copyright of someone, because creation of anything is covered by copyright. Copyright is, err, complex. Roughly speaking though, there is no contract between you and someone using your code. This means _all_ of the power is in favour of the library author. A library consumer would need to email the author and ask for permission on a case by case basis, even then there is nothing stopping a developer revoking the ability for you to use their library after the fact. It's also different depending on the country the library author is in. However in the end the default copyright is not a license, so add one.
 
 
 [This is basically the default license for code. ](http://blog.codinghorror.com/pick-a-license-any-license/)
 
 This means that code on a blog could not be safe to use unless they've declared its license, whereas for something like stack overflow all of the contents there are licensed under the Creative Commons. Which I'll talk about later.
 
-Just uploading some code to GitHub actually does put it under a license of sort, which includes the ability for someone to fork and view the code. It's explicit in the GitHub T&C, they could've the features without it. Other than that though, you offer no contract with the library user.
+Just uploading some code to GitHub actually does put it under a license of sort, which includes the ability for someone to fork and view the code. It's explicit in the GitHub T&C, they could not have those features without it. Other than that though, you offer no contract with the library user.
 
 ### OSI
 
-So when we say Open Source license, we are talking about licenses that come from the Open Source Initiative. They are a pragmatic group who say whether a license should be classed as 'open source' or not. A bit weird, but they generally just debate a lot of the legal stuff in these licenses and try to find holes so that everyone is protected. It's basically a seal of approval. There are very few licenses that are not OSI approved, the one you might know is the WTFPL - which is basically public domain anyway.
+So when we say Open Source license, we are talking about licenses that come from the Open Source Initiative. They are a pragmatic group who say whether a license should be classed as 'open source' or not. A bit weird, but they generally just debate a lot of the legal stuff in these licenses and try to find holes so that everyone is protected. It's basically a seal of approval. There are very few licenses that are not OSI approved, the one you might know is the WTFPL - which is basically default copyright anyway.
 
 On the mobile team we requested that dependencies of ours convert from WTFPL so that we don’t have the issue mention about the public domain, we as Artsy have little protection against the library authors future wishes.
 
 ### Permissive
 
-What you think of as open source is the modern day permissive license. It says that this code is out there, that someone cannot say that you wrote their product because of your library and some have different opinions around ways in which to provide attribution back to the author.
+What you think of as open source is the modern day permissive license.
 
 These are the least restrictive, and are considered "business friendly." They apply very little rules between author and library consumer.
 
 People use permissive licenses because conceptually they allow the most programmer freedom to use, change and improve a library.
+
+They also protect the author, in the sense that a consumer cannot claim that the author created the product the consumer made. They protect the author from liability.
 
 #### The one thing
 
@@ -83,11 +84,11 @@ https://news.ycombinator.com/item?id=10024377
 
 ### Patently Permissive
 
-Moving up in terms father strength of the contract, there is the permissive+patent libraries. These allow library authors to have patents on the software. This can make it more business friendly.
+Moving up in terms WRT strength of the contract, there is the permissive+patent libraries. These allow library authors to have patents on the software. This can make it more business friendly, depending on the business goals. The most common are Apache and the Mozilla Public License.
 
 ### Viral
 
-The GPL, and it's crew. Roughly speaking, they say that if you want to include any GPL'd code in your projects, you need to make your entire project GPL. There is an important distinction in the GPL in that version 2, and version 3 differ in important ways. The one that I think is most important is that GPL 3 allows sublicensing. This means that you can say "I can give Artsy a license for this code under BSD terms", allowing for some flexibility in how you apply the license.  It also
+The GPL, and it's crew. Roughly speaking, they say that if you want to include any GPL'd code in your projects, you need to make your entire project GPL. There is an important distinction in the GPL in that version 2, and version 3 differ in important ways. The one that I think is most important is that GPL 3 allows sub-licensing. This means that you can say "I can give Artsy a license for this code under BSD terms", allowing for some flexibility in how you apply the license.
 
 It's considered viral because if you have any GPL code anywhere, then everything becomes GPL.  Rule of thumb is to avoid this license, however I'd like to offer a reason why Artsy might ship GPL code.
 
@@ -98,6 +99,8 @@ Generally though we don’t need to do this because we have the ability to revok
 ### Creative Commons
 
 So, the Creative Commons is a license on content like videos, images and corpuses of text. They are not OSI approved, and [actively recommend](https://wiki.creativecommons.org/wiki/Frequently_Asked_Questions#Can_I_use_a_Creative_Commons_license_for_software.3F) that people use an OSI license for code. This is because software licenses have more to care about: distribution, compilation  and working with other license / patents. Things that you don't have to deal with WRT other types of content.
+
+All CC-licensed code requires attribution of [some sort](http://blog.stackoverflow.com/2009/06/attribution-required/).
 
 In CocoaPods all the design assets are released under CC, but all the code is BSD.
 
