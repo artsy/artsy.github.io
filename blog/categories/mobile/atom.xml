@@ -4,7 +4,7 @@
   <title><![CDATA[Category: mobile | Artsy Engineering]]></title>
   <link href="http://artsy.github.io/blog/categories/mobile/atom.xml" rel="self"/>
   <link href="http://artsy.github.io/"/>
-  <updated>2015-12-14T20:06:34+00:00</updated>
+  <updated>2015-12-15T18:22:37+00:00</updated>
   <id>http://artsy.github.io/</id>
   <author>
     <name><![CDATA[]]></name>
@@ -12,6 +12,52 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Automating TestFlight Deploys using Fastlane]]></title>
+    <link href="http://artsy.github.io/blog/2015/12/15/Automating-Testflight-Deploys/"/>
+    <updated>2015-12-15T00:00:00+00:00</updated>
+    <id>http://artsy.github.io/blog/2015/12/15/Automating-Testflight-Deploys</id>
+    <content type="html"><![CDATA[<p>I've been a really <a href="http://artsy.github.io/blog/2015/09/18/Cocoa-Architecture-Dependencies/">strong supporter</a> of the <a href="https://fastlane.tools">fastlane</a> toolset. I think it fixes a lot of common developer problems, in a space that Apple doesn't really touch. The command line.</p>
+
+<p>We've added hints of fastlane to our apps at different rates, <a href="https://github.com/artsy/eidolon/">Eidolon</a> uses fastlane for everything but <a href="https://github.com/artsy/eigen/">Eigen</a>/<a href="https://github.com/artsy/energy">Energy</a>/<a href="https://github.com/artsy/emergence">Emergence</a> have been pretty slow on the uptake, though they have more complicated setups, being App Store apps.</p>
+
+<p>When <a href="https://krausefx.com/">Felix</a> announced <a href="https://krausefx.com/blog/introducing-match-a-new-approach-to-code-signing">match</a> this week, I felt like he tackled a problem we face in our <a href="http://artsy.net/job/mobile-engineer">small dev team</a>. I integrated this, only to find that it could also fix my problems with deployment. The rest of this post goes into the "how I did this." You can also cheat and look at the <a href="https://github.com/artsy/eigen/compare/d06270882aadec8f03927455a5229b53dd0a73c8...9eaf9082ebdcdf75f12ad2804260587e01526f2d">commits</a> directly.</p>
+
+<!-- more -->
+
+
+<p>First up, a TLDR for <a href="https://github.com/fastlane/match">match</a>. <em>match is a tool that keeps all of your code-signing setup in a private git repo.</em> We currently keep them in a shared 1Password vault. By switching to using a private git repo we can can use our existing GitHub authentication for CI to provide access to the certificates for signing on circle.</p>
+
+<p>We use a <a href="https://github.com/artsy/eigen/blob/master/Makefile">Makefile</a>, I know that fastlane provides an awesome tool in the form of <a href="https://github.com/fastlane/fastlane#features">fastlane lanes</a> - but we're pretty happy with a Makefile, they're the simplest tool that does what we need.</p>
+
+<p>I wanted to lower the barrier for us shipping betas, so I opted to add another build step in the CI process. This step checks what branch is it, and if it's the beta branch, grab the certs, then deploy.</p>
+
+<pre><code class="sh">deploy_if_beta_branch:
+    if [ "$(LOCAL_BRANCH)" == "beta" ]; then make certs; make ipa; make distribute; fi
+</code></pre>
+
+<p><code>make certs</code> is really simple, it runs: <code>bundle exec match appstore --readonly</code> which and pulls metadata from a <a href="https://github.com/artsy/eigen/blob/9eaf9082ebdcdf75f12ad2804260587e01526f2d/fastlane/Matchfile">Matchfile</a>. This means we can sign app store builds on CI.</p>
+
+<p>If you don't know what the <code>bundle exec</code> prefix is, I'd recommend reading my guide on the CocoaPods website for <a href="https://guides.cocoapods.org/using/a-gemfile.html">Gemfile</a>s.</p>
+
+<p>The next step is generating an ipa, we do this with <a href="https://github.com/fastlane/gym">gym</a> via <code>make ipa</code> which looks like this:</p>
+
+<pre><code class="sh">ipa: set_git_properties change_version_to_date
+    bundle exec gym
+</code></pre>
+
+<p>It executes some make tasks to ensure we know what git commit each build is, and we use the date to provide a faux-<a href="http://semver.org">semver</a> for apps.</p>
+
+<p>Gym will build our app, according to our <a href="https://github.com/artsy/eigen/blob/9eaf9082ebdcdf75f12ad2804260587e01526f2d/fastlane/GymFile">Gymfile</a>. Nothing too surprising in there. It will output an <a href="http://apple.stackexchange.com/questions/26550/what-does-ipa-stand-for">ipa</a> and a <a href="http://stackoverflow.com/questions/3656391/whats-the-dsym-and-how-to-use-it-ios-sdk">dsym</a> that <code>make distribute</code> can handle.</p>
+
+<p><code>make distribute</code> is a pretty easy one, we generate a CHANGELOG via Ruby, then run the command <code>bundle exec pilot upload -i build/Artsy.ipa</code>, it will ship it to iTunes Connect after configuration from the <a href="https://github.com/artsy/eigen/blob/9eaf9082ebdcdf75f12ad2804260587e01526f2d/fastlane/AppFile">Appfile</a>. This is great, but it goes one better. It will, by default, run a synchronous check for whether the App has finished processing.</p>
+
+<p></div></div><a href='/images/2015-12-15-Automating-Testflight-Deploys/ci-itunes-screenshot.png'><img src="/images/2015-12-15-Automating-Testflight-Deploys/ci-itunes-screenshot.png"></a><div class='meta-container'><header>&nbsp;</header></div><div class='date-container'>&nbsp;</div><div class='content-container'><div class='entry-content'></p>
+
+<p>This is awesome. I'd like to add a Slack message to tell us that it's shipped too, which would be much easier if we used a <a href="https://github.com/fastlane/fastlane/tree/master/docs#after_all-block">Fastfile</a>. We've not entirely moved all of our apps to TestFlight, this is our first experiment in the space, we've been really happy with Hockey, and still are. However, without trying new things we'll never be able to know what we should consider internal best practices.</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Licenses for OSS Code]]></title>
@@ -366,249 +412,6 @@ func ==&lt;T: Equatable&gt;(lhs: Expectation&lt;Observable&lt;T&gt;&gt;, rhs: T?
 <p>I'm going to use the rest of this time to try ship something hard.</p>
 
 <p><code>&lt;edit&gt;</code>I built this: <a href="https://github.com/artsy/energy/pull/86">artsy/energy/pull/86</a>. <code>&lt;/edit&gt;</code></p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[MVVM in Swift]]></title>
-    <link href="http://artsy.github.io/blog/2015/09/24/mvvm-in-swift/"/>
-    <updated>2015-09-24T16:13:00+00:00</updated>
-    <id>http://artsy.github.io/blog/2015/09/24/mvvm-in-swift</id>
-    <content type="html"><![CDATA[<p>Model View ViewModel has become the default way I write apps on iOS – it makes writing iOS apps a joy. I've written <a href="https://www.objc.io/issues/13-architecture/mvvm/">about it</a> <a href="http://www.teehanlax.com/blog/model-view-viewmodel-for-ios/">again</a> and <a href="https://speakerdeck.com/ashfurrow/reactivecocoa-at-mdevcon-2014">again</a> and <a href="https://leanpub.com/iosfrp">oh my</a>.</p>
-
-<p>But last Autumn, as our team was all-hands-on-deck to wrap up the <a href="http://artsy.github.io/blog/2014/11/13/eidolon-retrospective/">auctions kiosk app</a>, we chose not to use MVVM. Why not?</p>
-
-<p>We were building a <em>new app</em> in a <em>new language</em> using a <em>non-Swift framework</em> for functional reactive programming. I was also teaching colleagues what they needed to know about ReactiveCocoa to help write the app. We used the MVC pattern because the relative cost of MVVM was too high.</p>
-
-<p>"... <em>was</em> ..."</p>
-
-<!-- more -->
-
-
-<p>Since then, I've been <a href="https://github.com/artsy/eidolon/issues/333">pecking away</a> at converting small view controllers away from MVC, to figure out what MVVM on iOS written in Swift might look like. My goal has been getting ready to cut down our behemoth main view controller and create a view model for it. Before the rewrite, it was nearly 600 lines of code and was responsible for:</p>
-
-<ul>
-<li>networking.</li>
-<li>syncing auction lot states.</li>
-<li>user interaction.</li>
-<li>collection view layouts.</li>
-<li>image caching.</li>
-<li>background-thread data processing.</li>
-</ul>
-
-
-<p>It's quite terrifying now that I think about it!</p>
-
-<p>Well, <a href="https://github.com/artsy/eidolon/pull/503/files">finally I was ready</a>. The view controller is now down to 224 lines, and is responsible for only things like displaying data. Calculating <em>what</em> to display and <em>when</em> to display it is now contained within the view model. In true MVVM form, our view controller doesn't even have direct access to the models it displays!</p>
-
-<p>So what does MVVM in Swift look like? Well, our answer is just that – <em>our</em> answer. Others exist, and they have merits and faults of their own.</p>
-
-<p>I'm not here to preach a definitive definition of MVVM in Swift. Instead, I want to talk about some of the lessons we learnt in the process of building a solution that worked for us.</p>
-
-<hr />
-
-<p>Programming boils down to getting certain bits of code to communicate with other bits in an intelligent way. Software <em>patterns</em> are ways of constraining programmers to make it easier to program.</p>
-
-<p>MVVM, roughly, has the following constraints:</p>
-
-<ul>
-<li>Models don't talk to anybody (same as MVC).</li>
-<li>View models only talk to models.</li>
-<li>View controllers can't talk to models directly; they only interact with view models and views.</li>
-<li>Views only talk to the view <em>controllers</em>, notifying them of interaction events (same as MVC).</li>
-</ul>
-
-
-<p>And that's pretty much it. It's not that different from MVC – the key differences are:</p>
-
-<ul>
-<li>There's a new "view model" class.</li>
-<li>The view controller no longer has access to the model.</li>
-</ul>
-
-
-<p><img src="/images/2015-09-24-mvvm-in-swift/mvvm.png" alt="MVVM Diagram" /></p>
-
-<p>Additionally, MVVM on iOS acknowledges the one-to-one relationship between views and view controllers. I tend to think of them as one entity that just happens to be split across a <code>.swift</code> file and a Storyboard.</p>
-
-<p>The view model's job is to handle all presentation logic. If a model contains an <code>NSDate</code>, the <code>NSDateFormatter</code> to format that date would live in the view model.</p>
-
-<p>View models don't have <em>any</em> access to the user interface. You should not even <code>import UIKit</code> in a view model. Typically, a view controller observes the view model somehow to know when there's new data to display. This can be done through KVO or FRP.</p>
-
-<p>MVVM and MVC share a common weakness: neither defines where the network logic of an app should go. I've put it in the view model for now, but I plan on separating it out into its own object soon. That object will be owned by the view model.</p>
-
-<hr />
-
-<p>So let's talk about some specific challenges we had.</p>
-
-<h2>User Interface Structure</h2>
-
-<p>Part of our user interface consists of a segment control near the top of the screen. The currently selected segment determines the sort order of the collection view cells, as well as the collection view's layout. We had previously defined an enum to store the titles and sort order corresponding to each segmented control; the order of the enum cases implies the order of the controls in the UI.</p>
-
-<pre><code class="swift">enum SwitchValues: Int {
-    case Grid = 0
-    case LeastBids
-    case MostBids
-    case HighestCurrentBid
-    case LowestCurrentBid
-    case Alphabetical
-}
-</code></pre>
-
-<p>So where does this enum live in MVVM? Since the logic for sorting models, the button titles, and the order of the buttons are all pieces of presentation logic, the enum seems like it belongs in the view model.</p>
-
-<p>However, the decision of which layout for the collection view to use is slightly more nuanced. The layout doesn't affect what data we show the user or how they interact with it; it only affects the visuals how the information is presented. This suggests the logic for deciding layouts might belong in the view controller.</p>
-
-<p>My solution was to put the enum in the view model, and have the view model expose a signal defining which of the two layouts should be used. Based on the selected segment index, the view model decides which layout should be used and sends that value on a signal. The view controller is responsible for mapping that signal into a configured layout, then setting that layout on the collection view.</p>
-
-<pre><code class="swift">// Respond to changes in layout, driven by switch selection.
-viewModel.gridSelectedSignal.map { [weak self] (gridSelected) -&gt; AnyObject! in
-    switch gridSelected as? Bool {
-    case .Some(true):
-        return ListingsViewController.masonryLayout()
-    default:
-        return ListingsViewController.tableLayout(CGRectGetWidth(self?.switchView.frame ?? CGRectZero))
-    }
-}.subscribeNext { [weak self] layout -&gt; Void in
-    self?.collectionView.setCollectionViewLayout(layout as! UICollectionViewLayout, animated: false)
-}
-</code></pre>
-
-<p>The view controller also uses this signal to define which cell reuse identifier should be used.</p>
-
-<pre><code class="swift">// Map switch selection to cell reuse identifier.
-RAC(self, "cellIdentifier") &lt;~ viewModel.gridSelectedSignal.map { gridSelected -&gt; AnyObject! in
-    switch gridSelected as? Bool {
-    case .Some(true):
-        return MasonryCellIdentifier
-    default:
-        return TableCellIdentifier
-    }
-}
-</code></pre>
-
-<h2>Structuring a View Model</h2>
-
-<p>The most common question from iOS developers about MVVM and FRP concerns how the view model exposes data to the view controller. The view controller needs to be notified about changes to the underlying model, but what mechanism do we use to do this? There are two options:</p>
-
-<ol>
-<li>Use (dynamic) properties on the view model, which can be observed using KVO (or wrapped in a signal/sequence using FRP).</li>
-<li>Use signals/sequences/futures as properties on the view model, which can be consumed by their corresponding async frameworks.</li>
-</ol>
-
-
-<p>The first option is appealing since it gives your view controller a choice of how to observe the properties. However, I'd recommend against it; Swift doesn't have type-checking on KVO (you need to cast from <code>AnyObject!</code> a lot).</p>
-
-<p>The second option is what I prefer, and it seems the most "Swift" way of doing things. When we do move away from RAC's Objective-C interface, the view model will replace its <code>RACSignal</code> properties with sequences based on Swift generics, which will provide compile-time type-checking 💯</p>
-
-<p>Defining these signals on a view model can be tricky. Swift initializers have <a href="http://ashfurrow.com/blog/swift-initializers/">strict rules</a> around when properties are assigned. The signals need access to the internal state of the view model, so they need to be created <em>after</em> calling <code>super.init()</code>. However, we can't call <code>super.init()</code> until all our properties have been assigned to, including the signal properties.</p>
-
-<p>It's your standard chicken-and-the-egg problem 🐣</p>
-
-<p>I took the easy way out and used implicitly-unwrapped optionals, defined with <code>var</code>, which can be assigned to <em>after</em> the call to <code>super.init()</code>. It's not a perfect solution. We could instead use <code>lazy var</code> properties assigned to self-evaluating closures, or just use computed properties. I'm hoping to explore other options when we move away from RAC 2's Objective-C API.</p>
-
-<h2>Handling User Interaction</h2>
-
-<p>The next problem I had was presenting details based on user interaction. Users tap a button, which is handled in the view controller, which presents the details. However, the view controller should not have access to the models, so how can it configure the details to present them?</p>
-
-<p>My solution took advantage of the interchangeability of Swift functions and closures. First I defined a closure type in the view model.</p>
-
-<pre><code class="swift">typealias ShowDetailsClosure = (SaleArtwork) -&gt; Void
-</code></pre>
-
-<p>Then I added a property to the view model and a corresponding parameter to the initializer.</p>
-
-<pre><code class="swift">class ListingsViewModel {
-    let showDetails: ShowDetailsClosure
-
-    init(...
-         showDetails: ShowDetailsClosure,
-         ...
-</code></pre>
-
-<p>Next I need to actually call the closure. I defined a function on the view model that the view controller can invoke, passing in the context that's necessary to decide which model's details should be presented. This context is just an index path.</p>
-
-<pre><code class="swift">func showDetailsForSaleArtworkAtIndexPath(indexPath: NSIndexPath) {
-    showDetails(sortedSaleArtworks[indexPath.item])
-}
-</code></pre>
-
-<p>Nice! So now when the user selects a cell, we can call this function on the view model with the index path that the user selected. The view model decides which model to use, and calls the closure.</p>
-
-<p>The final piece of the puzzle is being clever about creating the view model. We need to pass a closure to its initializer, one that shows the model's details. I defined a function on the view controller that matched the <code>ShowDetailsClosure</code> signature.</p>
-
-<pre><code class="swift">func showDetailsForSaleArtwork(saleArtwork: SaleArtwork) {
-    performSegueWithIdentifier(SegueIdentifier.ShowSaleArtworkDetails.rawValue, sender: saleArtwork)
-}
-</code></pre>
-
-<p>And then use lazy loading (discussed below) to call the view model's initializer. I pass in a reference to the above function as the closure parameter.</p>
-
-<pre><code class="swift">lazy var viewModel: ListingsViewModelType = {
-    return ListingsViewModel(..., showDetails: self.showDetailsForSaleArtwork, ...)
-}()
-</code></pre>
-
-<p>So let's review what happens when a user makes a selection.</p>
-
-<p></div></div><a href='/images/2015-09-24-mvvm-in-swift/selection.png'><img src="/images/2015-09-24-mvvm-in-swift/selection.png" title="Selection diagram" ></a><div class='meta-container'><header>&nbsp;</header></div><div class='date-container'>&nbsp;</div><div class='content-container'><div class='entry-content'></p>
-
-<p>Here are the steps:</p>
-
-<ol>
-<li>User taps a cell.</li>
-<li>A callback on the view controller is invoked with the selected index path.</li>
-<li>The view controller tells the view model which index path was selected.</li>
-<li>The view model looks up the corresponding model.</li>
-<li>The view model invokes the <code>showDetails</code> closure given to it when it was initialized.</li>
-<li>The <code>showDetails</code> "closure" performs a segue with the model.</li>
-</ol>
-
-
-<p>It's not an ideal solution since it still exposes the model to the view controller (even under very strict conditions), but it's a reasonable compromise. As we continue to use more view models, I'm curious to see how this solution scales.</p>
-
-<h2>Testing</h2>
-
-<p>Earlier I mentioned the lazy closure property in the view controller. This is a trick that lets the view controller customize the view model by using references to <code>self</code>.</p>
-
-<pre><code class="swift">lazy var viewModel: ListingsViewModelType = {
-    return ListingsViewModel(
-        selectedIndexSignal: self.switchView.selectedIndexSignal,
-        showDetails: self.showDetailsForSaleArtwork,
-        presentModal: self.presentModalForSaleArtwork
-    )
-}()
-</code></pre>
-
-<p>The <code>viewModel</code> property is first accessed by the view controller in <code>viewDidLoad()</code>, which means that we can replace the property by a test double any time before that.</p>
-
-<p>The view controller is tested using <a href="https://github.com/facebook/ios-snapshot-test-case">snapshots</a> to verify the user interface hasn't been inadvertently changed. Testing is straightforward:</p>
-
-<ol>
-<li>Create a view controller to test.</li>
-<li>Create a stubbed view model, customized for each test.</li>
-<li>Give the view controller the stubbed view model before <code>viewDidLoad()</code> is called.</li>
-<li>Verify the view controller renders correctly.</li>
-</ol>
-
-
-<p>While writing tests, I found it difficult to subclass the existing view model (for stubbing purposes). Since the view model's initializer has side-effects (starting recurring network requests 😬), I can't call <code>super.init()</code>. Instead, I made a <code>ListingsViewModelType</code> protocol. The view controller only interacts with the view model through this protocol – it has no reference to the class itself. Now creating a stubbed view model is as easy as conforming to a protocol.</p>
-
-<p>Seems more "Swift", too.</p>
-
-<p>Now that the view model and view controller are separate objects, we no longer have to test presentation logic in the view controller at all. The view model now takes care of network requests, data processing, etc – this is now all tested <em>independently</em> of the user interface 🎉</p>
-
-<p>In my opinion, the key benefits of MVVM boil down to the following:</p>
-
-<ol>
-<li>Separating the view model from the user interface makes it easier to test presentation logic.</li>
-<li>Separating the view controller from the presentation logic makes it easier to test the user interface.</li>
-</ol>
-
-
-<hr />
-
-<p>This is only a description of what we've come up with so far. As our community and the Swift language continue to evolve, hand-in-hand, we'll re-evaluate our answer to the question of what MVVM with Swift looks like. For now, I'm quite pleased with the step we've taken, and I'm looking forward to continuing to explore programming patterns in Swift.</p>
 ]]></content>
   </entry>
   
