@@ -9,7 +9,7 @@ author: orta
 
 I've been a really [strong supporter](http://artsy.github.io/blog/2015/09/18/Cocoa-Architecture-Dependencies/) of the [fastlane](https://fastlane.tools) toolset. I think it fixes a lot of common developer problems, in a space that Apple doesn't really touch. The command line.
 
-We've added hints of fastlane to our apps at different rates, [Eidolon](https://github.com/artsy/eidolon/) uses fastlane for everything but [Eigen](https://github.com/artsy/eigen/)/[Energy](https://github.com/artsy/energy)/[Emergence](https://github.com/artsy/emergence) have been pretty slow on the uptake.
+We've added hints of fastlane to our apps at different rates, [Eidolon](https://github.com/artsy/eidolon/) uses fastlane for everything but [Eigen](https://github.com/artsy/eigen/)/[Energy](https://github.com/artsy/energy)/[Emergence](https://github.com/artsy/emergence) have been pretty slow on the uptake, though they have more complicated setups, being App Store apps.
 
 When [Felix](https://krausefx.com/) announced [match](https://krausefx.com/blog/introducing-match-a-new-approach-to-code-signing) this week, I felt like he tackled a problem we face in our [small dev team](http://artsy.net/job/mobile-engineer). I integrated this, only to find that it could also fix my problems with deployment. The rest of this post goes into the "how I did this." You can also cheat and look at the [commits](https://github.com/artsy/eigen/compare/d06270882aadec8f03927455a5229b53dd0a73c8...9eaf9082ebdcdf75f12ad2804260587e01526f2d) directly.
 
