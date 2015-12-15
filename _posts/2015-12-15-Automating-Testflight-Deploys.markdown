@@ -45,4 +45,4 @@ Gym will build our app, according to our [Gymfile](https://github.com/artsy/eige
 
 {% expanded_img /images/2015-12-15-Automating-Testflight-Deploys/ci-itunes-screenshot.png %}
 
-This is awesome. I'd like to add a Slack message to tell us that it's shipped too. We've not entirely moved all of our apps to TestFlight, this is our first experiment in the space, we've been really happy with Hockey, and still are. However, without trying new things we'll never be able to know what we should consider internal best practices.
+This is awesome. I'd like to add a Slack message to tell us that it's shipped too, which would be much easier if we used a [Fastfile](https://github.com/fastlane/fastlane/tree/master/docs#after_all-block). We've not entirely moved all of our apps to TestFlight, this is our first experiment in the space, we've been really happy with Hockey, and still are. However, without trying new things we'll never be able to know what we should consider internal best practices.
