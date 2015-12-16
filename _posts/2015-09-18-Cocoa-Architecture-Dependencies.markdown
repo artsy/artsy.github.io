@@ -36,7 +36,7 @@ Thinking on the largest macro scope, I think these are our biggest dependencies:
 
 Some of these are mandatory, mainly Xcode and the iOS SDK. Talk to someone at Facebook however and they'll tell you even that can become a [much weaker dependency](http://facebook.github.io/react-native/) than you'd think. For us though, we still create native apps that eventually get built via `xcodebuild` either via Xcode/AppCode/Vim as a part of our individual build processes.
 
-The dependencies provided by Apple are the daily trade-off in order to build apps that are competitive. Apple ships a new SDK each year, developers need to ship new builds. If you can keep pace, then you can get you app in-front of millions of potentially paying customers.
+The dependencies provided by Apple are the daily trade-off in order to build apps that are competitive. Apple ships a new SDK each year, developers need to ship new builds. If you can keep pace, then you can get your app in-front of millions of potentially paying customers.
 
 ### Leveraging OSS
 
