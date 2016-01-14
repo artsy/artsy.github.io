@@ -24,9 +24,13 @@ Companies revolve around ideas, understanding what your core value is important.
 
 We're lucky to have [technical](http://www.forbes.com/special-report/2014/30-under-30/art-and-style.html) [co-founders](https://www.linkedin.com/in/sebastiancwilich), and a CTO with a strong belief in [Open Source](http://code.dblock.org/2015/02/09/becoming-open-source-by-default.html). So we had a head-start, I respect that.
 
-Like all big ideas, it started out small. We'd abstract out shared concerns into libraries. This is something that anyone who has heard a little bit about Open Source can get behind. "We're building on top of _x_, so we really should give back out _x_+_y_" it's low-risk, and potentially high reward in hiring.
+Like all big ideas, it started out small. We'd abstract out shared concerns into libraries. This is something that anyone who has heard a little bit about Open Source can get behind. "We're building on top of _x_, so we really should give back out _x_+_y_" it's low-risk, and potentially high reward in hiring. Getting the company on-board with your OSS libraries is about acclimatisation.
 
-Getting the company on-board with your OSS libraries is about acclimatisation. This works best by taking small incremental steps. You need buy-in from everyone involved though-out the process. Moving to OSS by Default is 30% technical work and 70% political relationships. You need to have infrastructure in place in order to not leak secrets, but you also need to ensure that the entire company doesn't feel threatened by the insight offered by opening the development process. There is no shortcut here.
+This works best by taking small incremental steps. You need buy-in from everyone involved though-out the process. Moving to OSS by Default is 30% technical work and 70% political relationships. There has to be infrastructure in place in order to not leak secrets, but you also need to ensure that the entire company doesn't feel threatened by the insight offered by opening the development process. There is no shortcut here.
+
+For me, this process involved talking with everyone involved in each project. Setting aside 1-on-1 time specifically on the subject to answer question about the ramifications for OSSing it. This ranged from "we will need to change the flow around _x_ and _y_." to "Yes, the competition will be able to see how we do _x_ and _y_." I came very prepared to these meetings.
+
+For our mobile apps, we progressively introduced Open by Default to our apps based on their age. We started out by creating a whole [new project](http://artsy.github.io/blog/2014/11/13/eidolon-retrospective/) as Open Source. Then started applying what we had learn to [older](http://artsy.github.io/blog/2015/04/28/how-we-open-sourced-eigen/) [projects](http://artsy.github.io/blog/2015/08/06/open-sourcing-energy/).
 
 ### Couldn't someone make a business copying me?
 
@@ -42,3 +46,7 @@ I covered this in [Licensing for OSS](/blog/2015/12/10/License-and-You/). If you
 ### I have code that _has_ to stay hidden
 
 So do we! In the iOS world, we use API compatible Open/Closed CocoaPods that allow for us to mock out for OSS consumers and let us use [private implementations](/blog/2014/06/20/artsys-first-closed-source-pod/). If you're trying to hide API secret calls, it's probably easier for someone to run a [proxy](http://www.charlesproxy.com) than it is to find the section of code calling it.
+
+### Our expectations of OSS contributors
+
+We don't expect people to contribute to our mobile apps. For libraries, that's different.
