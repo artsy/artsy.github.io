@@ -23,7 +23,7 @@ I'm going to talk about our final app, [Energy](https://github.com/artsy/energy)
 
 Energy is commonly known as [Artsy Folio](http://folio.artsy.net). It's a tool for Artsy's Partners to showcase their artworks on the go, and quickly email them. Here's a beautiful splash showing it in action.
 
-{% expanded_img http://folio.artsy.net/images/cover-bbf6fdf4.jpg Folio overview %}
+{% expanded_img /images/2015-08-01-open-sourcing-energy/cover-f1aa2339.jpg Folio overview %}
 
 This app comes from the pre-CocoaPods, pre-ARC, pre-UICollectionView and pre-Auto Layout days. It spent 3 years with no tests, but has come up to over 50% code coverage in the last year. It's testing suite is super fast, given that we learned a lot with Eigen's tests we stuck with five main principals:
 
