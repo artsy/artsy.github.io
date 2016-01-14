@@ -41,7 +41,7 @@ Code only represents the _past to almost present_ of your business, losing a val
 
 ### License Selection
 
-I covered this in [Licensing for OSS](/blog/2015/12/10/License-and-You/). If you want the TL:DR for Apps, jump to "Viral". We use MIT everywhere. It's worked out so far.
+I covered this in [Licensing for OSS](/blog/2015/12/10/License-and-You/). If you want the TL:DR for Apps on app stores, jump to "Viral". We use MIT everywhere. It's worked out so far.
 
 ### I have code that _has_ to stay hidden
 
@@ -49,4 +49,10 @@ So do we! In the iOS world, we use API compatible Open/Closed CocoaPods that all
 
 ### Our expectations of OSS contributors
 
-We don't expect people to contribute to our mobile apps. For libraries, that's different.
+We don't expect people to contribute to our mobile apps. For libraries, that's different. I think [Ello's write-up](https://ello.co/jayzes/post/tqLL-Z8U8GfbDySRk6wbKg) really nailed this point, so I'll quote jayzes:
+
+> On one hand, we have library and infrastructure code — things that are more generic and reusable. These are the sort of thing that we can more easily envision starting to grow communities around, albeit small ones.
+
+> On the other hand, we have custom-built applications, which are likely to have limited utility outside of their current purpose due to size and coupling to other parts of Ello’s infrastructure (the Ello API, for one). We don’t envision these apps building much of a community around themselves in the way that most open source tools and libraries do, and see the primary value in opening them up coming as a result of increased transparency. That having been said, we’ll certainly accept pull requests that fit our product roadmap and engineering standards, should anyone feel like jumping in and contributing!
+
+Beautiful. This is exactly how I feel, and in over a year these expectations have been met. We're pleasantly surprised when it happens, but we don't expect it. Nor try to encourage it too much.
