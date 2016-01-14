@@ -49,10 +49,28 @@ So do we! In the iOS world, we use API compatible Open/Closed CocoaPods that all
 
 ### Our expectations of OSS contributors
 
-We don't expect people to contribute to our mobile apps. For libraries, that's different. I think [Ello's write-up](https://ello.co/jayzes/post/tqLL-Z8U8GfbDySRk6wbKg) really nailed this point, so I'll quote jayzes:
+We don't expect people to contribute to our apps. For libraries, that's different. I think [Ello's write-up](https://ello.co/jayzes/post/tqLL-Z8U8GfbDySRk6wbKg) really nailed this point, so I'll just quote jayzes:
 
 > On one hand, we have library and infrastructure code — things that are more generic and reusable. These are the sort of thing that we can more easily envision starting to grow communities around, albeit small ones.
 
 > On the other hand, we have custom-built applications, which are likely to have limited utility outside of their current purpose due to size and coupling to other parts of Ello’s infrastructure (the Ello API, for one). We don’t envision these apps building much of a community around themselves in the way that most open source tools and libraries do, and see the primary value in opening them up coming as a result of increased transparency. That having been said, we’ll certainly accept pull requests that fit our product roadmap and engineering standards, should anyone feel like jumping in and contributing!
 
-Beautiful. This is exactly how I feel, and in over a year these expectations have been met. We're pleasantly surprised when it happens, but we don't expect it. Nor try to encourage it too much.
+Beautiful. This is exactly how I feel, and in over a year these expectations have been met. Some of our libraries have become big, and our apps have received small feature PRs. We're pleasantly surprised when it happens, but we don't expect it.
+
+### What didn't we expect?
+
+I didn't expect to be told face to face how many people have read, and learned from our codebases. We get around 120 unique clones of our iOS apps every week. People tell us that it's where they found a certain technique, or that they could see how the trade-offs were made for certain decisions.
+
+I also under-estimated how useful open code is in encouraging a culture of writing. Ash once quoted [me in a tweet](https://twitter.com/ashfurrow/status/676814159363842048) saying:
+
+> Order of importance: blog posts > types > tests
+
+While it is a joke against functional programmers, in general; having these huge codebases gives a lot to talk about. A commit says the what, a pull request the how and a blog post gives the why.
+
+### How does Open Source affect security
+
+Artsy has a [security policy](https://www.artsy.net/security), with bounties and ways to report issues. From our perspective so far, having this open has not affected the reports we receive. If 1Password [can say](https://teams.1password.com/white-paper/1Password%20for%20Teams%20White%20Paper.pdf)
+
+> We believe that openness always trumps “security through obscurity”.
+
+Then show off their algorithms that keep passwords safe, then so long as we're careful about our keys and stick to best security practices. We seem to be doing alright.
