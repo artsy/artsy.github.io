@@ -24,7 +24,7 @@ Companies revolve around ideas, understanding what your core value is important.
 
 We're lucky to have [technical](http://www.forbes.com/special-report/2014/30-under-30/art-and-style.html) [co-founders](https://www.linkedin.com/in/sebastiancwilich), and a CTO with a strong belief in [Open Source](http://code.dblock.org/2015/02/09/becoming-open-source-by-default.html). So we had a head-start, I respect that.
 
-Like all big ideas, it started out small. We'd abstract out shared concerns into libraries. This is something that anyone who has heard a little bit about Open Source can get behind. "We're building on top of _x_, so we really should give back out _x_+_y_" it's low-risk, and potentially high reward in hiring. Getting the company on-board with your OSS libraries is about acclimatisation.
+Like all big ideas, it started out small. We'd abstract out shared concerns into libraries. This is something that anyone who has heard a little bit about Open Source can get behind. "We're building on top of _x_, so we really should give back out _x_+_y_" it's low-risk, and potentially high reward. Getting the company on-board with your OSS libraries is about acclimatisation.
 
 This works best by taking small incremental steps. You need buy-in from everyone involved though-out the process. Moving to OSS by Default is 30% technical work and 70% political relationships. There has to be infrastructure in place in order to not leak secrets, but you also need to ensure that the entire company doesn't feel threatened by the insight offered by opening the development process. There is no shortcut here.
 
@@ -40,7 +40,9 @@ Code only represents the _past to almost present_ of your business, losing a val
 
 ### License Selection
 
-I covered this in [Licensing for OSS](/blog/2015/12/10/License-and-You/). If you want the TL:DR for Apps on app stores, jump to "Viral". We use MIT everywhere. It's worked out so far.
+I covered this in [Licensing for OSS](/blog/2015/12/10/License-and-You/). If you want the TL:DR for Apps on app stores, jump to "Viral".
+
+We use the [MIT license](https://en.wikipedia.org/wiki/MIT_License) on all Open Source projects. It's worked out so far for us, because as a platform each individual component can exist standalone. Having a fork of all our projects does not make you a competitor to us.
 
 ### I have code that _has_ to stay hidden
 
@@ -79,11 +81,15 @@ Then show off their algorithms that keep passwords safe, then so long as we're c
 
 I have a friend who works in a very large company. He told me that he was aiming to Open Source his app. He had had a few meetings with the legal team that didn't really go anywhere. After a few meetings, he explained that they weren't aiming for community-building with this, but aiming to develop in the open. This change of perspective, changed the tone of the meetings from then on in. It became much easier to start the political work necessary to even begin working on the technical aspect.
 
-### Alright, call to action to wrap up.
+### Alright, so I'm gonna need ammo for these meetings.
 
-* Working in the open is a great way to raise the profiles of your team, and the individuals on it.
+Looking back at the last year, here's been some highlights:
+
+* Working in the open is a great way to raise the profiles of your team, and the individuals on it. This opens extra potential for personal growth.
 * It can make it easier to hire, because you can "[show](https://github.com/artsy/mobile/)", not "[tell](https://www.artsy.net/article/artsy-jobs-mobile-engineer)" with respect to your team culture.
-* It can be structured in a way so that contributions within your team reflect how working in the OSS community is. Lowering the barrier of entry for your team to contribute back to their dependencies. There is little cultural differences between being a high-level contributors to CocoaPods and working in the Artsy mobile team.
+* It can be structured in a way so that contributions within your team reflect how working in the OSS community is. Lowering the barrier of entry for your team to contribute back to their dependencies. There is little cultural differences between being a high-level contributor to CocoaPods and working in the Artsy mobile team.
 * It's so much easier to talk about [technical challenges](https://github.com/artsy/eigen/issues/586), and [achievements](/blog/2015/12/15/Automating-Testflight-Deploys/) when you can let people explore; before, the code review, and after.
+* No-one codes in a vacuum, being able to reference code to third parties can make it much easier to work with others.
+
 
 This is still pretty new, there's a lot to explore in the space. The mobile team at Artsy is always happy to talk with people interested in doing it themselves. Send us an email at [mobile@artsy.net](mailto:mobile@artsy.net), tweet to [@ArtsyOpenSource](https://twitter.com/ArtsyOpenSource) or DM me [@orta](https://twitter.com/orta).
