@@ -30,14 +30,13 @@ This works best by taking small incremental steps. You need buy-in from everyone
 
 For me, this process involved talking with everyone involved in each project. Setting aside 1-on-1 time specifically on the subject to answer question about the ramifications for OSSing it. This ranged from "we will need to change the flow around _x_ and _y_." to "Yes, the competition will be able to see how we do _x_ and _y_." I came very prepared to these meetings.
 
-For our mobile apps, we progressively introduced Open by Default to our apps based on their age. We started out by creating a whole [new project](http://artsy.github.io/blog/2014/11/13/eidolon-retrospective/) as Open Source. Then started applying what we had learn to [older](http://artsy.github.io/blog/2015/04/28/how-we-open-sourced-eigen/) [projects](http://artsy.github.io/blog/2015/08/06/open-sourcing-energy/).
+For our mobile apps, we progressively introduced Open by Default to our apps based on their age. We started out by creating a whole [new project](/blog/2014/11/13/eidolon-retrospective/) as Open Source. Then started applying what we had learn to [older](/blog/2015/04/28/how-we-open-sourced-eigen/) [projects](/blog/2015/08/06/open-sourcing-energy/).
 
 ### Couldn't someone make a business copying me?
 
 It's also worth remembering that an app being OSS does not stop it [being copied](http://venturebeat.com/2014/03/30/threes-vs-2048-when-rip-offs-do-better-than-the-original-game/). Or, well, your [entire business](http://www.bloomberg.com/bw/articles/2012-02-29/the-germany-website-copy-machine).
 
 Code only represents the _past to almost present_ of your business, losing a valuable colleague hurts because of their ability to move your business forwards. A "fresh replacement" has a while to go in terms of being able to make the change you want. Someone trying to build off your source, has to learn to understand your motivations, your aspirations and then try build what they'd like around that. It's not good business sense.
-
 
 ### License Selection
 
@@ -74,3 +73,16 @@ Artsy has a [security policy](https://www.artsy.net/security), with bounties and
 > We believe that openness always trumps “security through obscurity”.
 
 Then show off their algorithms that keep passwords safe, then so long as we're careful about our keys and stick to best security practices. We seem to be doing alright.
+
+
+### What is a good approach to talk to the legal team?
+
+I have a developer friend who works in a very large company. He told me that he was aiming to Open Source his app. He had had a few meetings with the legal team that didn't really go anywhere. After a few meetings, he explained that they weren't aiming for community-building with this, but aiming to develop in the open. This change of perspective, changed the tone of the meetings from then on in. It became much easier to start the political work necessary to even begin working on the technical aspect.
+
+### Alright, call to action to wrap up.
+
+* Working in the open is a great way to raise the profiles of your team, and the individuals on it.
+* It can make it easier to hire, because you can "[show](https://github.com/artsy/mobile/)", not "[tell](https://www.artsy.net/article/artsy-jobs-mobile-engineer)" with respect to your team culture.
+* It can be structured in a way so that contributions within your team reflect how working in the OSS community is. Lowering the barrier of entry for your team to contribute back to their dependencies. There is little cultural differences between being a high-level contributors to CocoaPods and working in the Artsy mobile team.
+* It's so much easier to talk about [technical challenges](https://github.com/artsy/eigen/issues/586), and [achievements](/blog/2015/12/15/Automating-Testflight-Deploys/) when you can let people explore; before, the code review, and after.
+* This is still pretty new, there's a lot to explore in the space. The mobile team at Artsy is always happy to talk with people interested in doing it themselves. Send us an email at [mobile@artsy.net](mailto:mobile@artsy.net), tweet to [@ArtsyOpenSource](https://twitter.com/ArtsyOpenSource) or DM me [@orta](https://twitter.com/orta).
