@@ -26,7 +26,7 @@ We're lucky to have [technical](http://www.forbes.com/special-report/2014/30-und
 
 Like all big ideas, it started out small. We'd abstract out shared concerns into libraries. This is something that anyone who has heard a little bit about Open Source can get behind. "We're building on top of _x_, so we really should give back out _x_+_y_" it's low-risk, and potentially high reward. Getting the company on-board with your OSS libraries is about acclimatisation.
 
-This works best by taking small incremental steps. You need buy-in from everyone involved though-out the process. Moving to OSS by Default is 30% technical work and 70% political relationships. There has to be infrastructure in place in order to not leak secrets, but you also need to ensure that the entire company doesn't feel threatened by the insight offered by opening the development process. There is no shortcut here.
+This works best by taking small incremental steps. You need buy-in from everyone involved through-out the process. Moving to OSS by Default is 30% technical work and 70% political relationships. There has to be infrastructure in place in order to not leak secrets, but you also need to ensure that the entire company doesn't feel threatened by the insight offered by opening the development process. There is no shortcut here.
 
 For me, this process involved talking with everyone involved in each project. Setting aside 1-on-1 time specifically on the subject to answer question about the ramifications for OSSing it. This ranged from "we will need to change the flow around _x_ and _y_." to "Yes, the competition will be able to see how we do _x_ and _y_." I came very prepared to these meetings.
 
@@ -47,6 +47,8 @@ We use the [MIT license](https://en.wikipedia.org/wiki/MIT_License) on all Open 
 ### I have code that _has_ to stay hidden
 
 So do we! In the iOS world, we use API compatible Open/Closed CocoaPods that allow for us to mock out for OSS consumers and let us use [private implementations](/blog/2014/06/20/artsys-first-closed-source-pod/). If you're trying to hide secret API calls, it's probably easier for someone to run a [proxy](http://www.charlesproxy.com) than it is to find the section of code calling it.
+
+Having the core of your application Open Source doesn't mean you cannot develop features in private. I [built a WatchOS app](https://github.com/artsy/eigen/pull/302) for Eigen entirely on a private repo, where once a week for 2 months I rebase'd changes from the main repo. When we felt comfortable about making it known publicly we were working on it - I brought it over to a public repo and initiated the [code review](https://github.com/artsy/eigen/pull/302).
 
 ### Our expectations of OSS contributors
 
@@ -85,11 +87,17 @@ I have a friend who works in a very large company. He told me that he was aiming
 
 Looking back at the last year, here's been some highlights:
 
-* Working in the open is a great way to raise the profiles of your team, and the individuals on it. This opens extra potential for personal growth.
-* It can make it easier to hire, because you can "[show](https://github.com/artsy/mobile/)", not "[tell](https://www.artsy.net/article/artsy-jobs-mobile-engineer)" with respect to your team culture.
-* It can be structured in a way so that contributions within your team reflect how working in the OSS community is. Lowering the barrier of entry for your team to contribute back to their dependencies. There is little cultural differences between being a high-level contributor to CocoaPods and working in the Artsy mobile team.
-* It's so much easier to talk about [technical challenges](https://github.com/artsy/eigen/issues/586), and [achievements](/blog/2015/12/15/Automating-Testflight-Deploys/) when you can let people explore; before, the code review, and after.
-* No-one codes in a vacuum, being able to reference code to third parties can make it much easier to work with others.
+#### Personal
 
+* It's gratifying to give back to communities who help you get things done.
+* It's so much easier to talk about [technical challenges](https://github.com/artsy/eigen/issues/586), and [achievements](/blog/2015/12/15/Automating-Testflight-Deploys/) when you can let people explore; before, the code review, and after.
+* The code you write does not become unavailable to you when you leave the company. Carry your best ideas between jobs.
+
+#### Company-wide
+
+* You can structure in a way so that contributions within your team reflect how working in the OSS community is. Lowering the barrier of entry for your team to contribute back to their dependencies. There is little cultural differences between being a high-level contributor to CocoaPods and working in the Artsy mobile team.
+* Working in the open is a great way to raise the profiles of your team, and the individuals on it. This opens extra potential for personal growth for individuals. Not just professional.
+* It can make it easier to hire, because you can "[show](https://github.com/artsy/mobile/)", not "[tell](https://www.artsy.net/article/artsy-jobs-mobile-engineer)" the positives in your team culture.
+* You open the doors to potential contributors. Those contributors could eventually become hires.
 
 This is still pretty new, there's a lot to explore in the space. The mobile team at Artsy is always happy to talk with people interested in doing it themselves. Send us an email at [mobile@artsy.net](mailto:mobile@artsy.net), tweet to [@ArtsyOpenSource](https://twitter.com/ArtsyOpenSource) or DM me [@orta](https://twitter.com/orta).
