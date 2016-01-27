@@ -19,7 +19,7 @@ module Jekyll
         # .entry-content .content-container
         "</div></div>" \
         "<iframe width='100%' height='600' src='https://www.youtube.com/embed/#{@id}' frameborder='0' allowfullscreen></iframe>" \
-        "<div class='meta-container'><header>&nbsp;</header></div><div class='date-container'>&nbsp;</div><div class='content-container'><div class='entry-content'>" \
+        "<div class='meta-container'><header>&nbsp;</header></div><div class='content-container'><div class='entry-content'>" \
       else
         "Error processing input, expected syntax: {% youtube [id] %}"
       end
