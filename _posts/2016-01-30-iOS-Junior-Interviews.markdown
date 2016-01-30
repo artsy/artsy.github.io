@@ -16,10 +16,38 @@ Before I jump through to the article, there's one thing that should be above the
 <!-- more -->
 
 ### On Your Readiness
+
+No-one starting out is ever ready, and an individual is never really "done". However, in this [post @dbgrandi](http://dbgrandi.github.io/minimum_viable_programmer/) neatly sums up the bar.
+
+> I had a long list of specific things relating to Xcode and iOS. They were very tedious things like, “you should know how to add a new file to an Xcode project.” I’ve shortened that list to a general description here.
+
+> I expect you to be able to start a new project, write some code to download a bit of JSON via HTTP, and use the parsed JSON to present some data in a UITableView.
+
+> If you can do that, in a well organized manner, and can discuss the choices you made to get your app built you’ll have been able to do almost everything that was on that long and tedious list.
+
+This is a great starting point. In an ideal world, an interviewer isn't going to to judge you on not knowing every detail about the whole system. They will have expectations that you're going to have to learn on the job for a lot of things, and that's ok.
+
+
 ### On a Coffee
+
+Know what goes a long way? Talking with someone before applying. I regularly get coffee with applicants or potential applicants when I'm in NYC. Coffee can be hard when applying for junior roles when remote, but so far, to my knowledge I've not talked to anyone who hires a junior as a remote developer. I'm not sure it could work unless the entire team was remote, or the junior developer had a lot of experience and was only a junior in the sense that they were just hitting the work-force.
+
+These are 15-30 minute informal chats, but from an employers perspective they are definitely a good way to filter candidates. A coffee is time-cheap, interviews are time-expensive. So ask to do them, you'll usually get a yes.
+
 ### On an Intro Email
+
+Look at the language in the jobs page, and have your email / intro letter reflect that. When I receive very formal "dear hiring manager" emails it reflects badly on the applicant, [our page](https://www.artsy.net/article/artsy-jobs-mobile-engineer) states to not worry about that, as we're not that kind of culture.
+
 ### On a CV
 ### On The One
+
+So you know exactly who you are interested in applying to. One of your passions in life is to make music, and you think being a engineer at Spotify would be a dream job. How do you increase your chances?
+
+First up, you should have some experience before you apply. Apply at one or two other companies that you'd also really like to work for first, test out the water. Then for Spotify, you should make sure everything is perfect for them. Write a new CV and mention your band on it, include links to your music in the bottom. 
+
+A lot of companies have public employee get-togethers, for example at Artsy we have weekly Happy Hour in the office, or [Peer Labs](https://artsy.github.io/blog/2015/08/10/peer-lab/) where you can meet a lot of the people working at a company. This is a great way to mine the employees for information about the culture and to try and peek behind the curtain. In the case of Spotify, they host a lot of meetups, attend some at their offices.
+
+
 ### On Interview Preparation
 ### On Topic
 ### On the Aftermath
