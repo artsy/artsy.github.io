@@ -169,11 +169,12 @@ There is no catch-all solid advice for interviews
 
 * [Male Programmers Privilidge](http://geekfeminism.wikia.com/wiki/Male_Programmer_Privilege_Checklist) - The geek feminism wiki is a great resource for understand some of the  less positive aspects of a male-dominated culture.
 * Artsy's best-of for Juniors:
- - [OSS Expectations](http://artsy.github.io/blog/2016/01/13/OSS-Expectations/)
- - [Being a good OSS citizen](http://artsy.github.io/blog/2016/01/28/being-a-good-open-source-citizen/)
- - Video code-reviews: [Eidolon](http://artsy.github.io/blog/2016/01/14/eidolon-code-review/) / [Emergence](http://artsy.github.io/blog/2015/11/05/Emergence-Code-Review/)
- - [Dropped Design Patterns](http://artsy.github.io/blog/2015/09/01/Cocoa-Architecture-Dropped-Design-Patterns/)
- - [How To Write Unit Tests Like a Brood Parasite](http://artsy.github.io/blog/2015/07/06/how-to-write-unit-tests-like-a-brood-parasite/)
- - [Artsy's Engineering Compensation Framework](http://artsy.github.io/blog/2015/04/03/artsy-engineering-compensation-framework/)
- - [The Culture of Openness in the Artsy Mobile Team](http://artsy.github.io/blog/2015/03/31/the-culture-of-openness-artsy-mobile/)
- - [Building the Xcode Plugin Snapshots](http://artsy.github.io/blog/2014/06/17/building-the-xcode-plugin-snapshots/)
+ - [OSS Expectations](http://artsy.github.io/blog/2016/01/13/OSS-Expectations/) - On how to talk the talk when thinking about Open Source by Default
+ - [Being a good OSS citizen](http://artsy.github.io/blog/2016/01/28/being-a-good-open-source-citizen/) - On how to walk the walk when contributing back
+ - Video code-reviews: [Eidolon](http://artsy.github.io/blog/2016/01/14/eidolon-code-review/) / [Emergence](http://artsy.github.io/blog/2015/11/05/Emergence-Code-Review/) - On the gestalt of an app.
+ - [Dropped Design Patterns](http://artsy.github.io/blog/2015/09/01/Cocoa-Architecture-Dropped-Design-Patterns/) - On understanding that decisions aren't permanent
+ - [How To Write Unit Tests Like a Brood Parasite](http://artsy.github.io/blog/2015/07/06/how-to-write-unit-tests-like-a-brood-parasite/) - On using metaphors to understand complex ideas.
+ - [Artsy's Engineering Compensation Framework](http://artsy.github.io/blog/2015/04/03/artsy-engineering-compensation-framework/) - On ways in which you can rank yourself.
+ - [The Culture of Openness in the Artsy Mobile Team](http://artsy.github.io/blog/2015/03/31/the-culture-of-openness-artsy-mobile/) - On how a team talks about it's culture.
+ - [Building the Xcode Plugin Snapshots](http://artsy.github.io/blog/2014/06/17/building-the-xcode-plugin-snapshots/) - On how your tools can be improved, and how easy it is to get started.
+- [MVVM in Swift](https://artsy.github.io/blog/2015/09/24/mvvm-in-swift/) - On understanding that there is more than one way to skin a cat.
