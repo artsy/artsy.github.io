@@ -224,6 +224,8 @@ There is no catch-all solid advice for interviews, but I can give you some of th
 
 We look for [T shaped](https://en.wikipedia.org/wiki/T-shaped_skills) engineers, even in juniors. This means someone who has experience in a pretty wide net of things, but that they have a solid focus. This could be building their APIs for apps, writing their own blog, designing their website, automating some regular tasks or using technology for art.
 
+As a junior, the employer is looking for growth potential. Looking for people who, in the right environment could really thrive. However it's important to note, an interview only lets you know how well someone interviews. The greatest programmers can choke on interviews.
+
 ##### How I interview Juniors
 
 One thing I can tell you concretely though, is what I do. My interviews with juniors come in three parts:
@@ -247,6 +249,17 @@ Here's [a long writeup](https://mediuym.com/@jon.lazar/my-approach-to-learning-i
 None of this process aims to be adversarial, if someone has got this far, I really want to have a sense of how much time and attention will be required to give them some independence.
 
 ### On References
+
+References are important to everyone. When you're trying to get a sense of what someone's like on the long-term, asking their friends is a great idea. Colleagues tend to be the next best thing. We tend to ask for someone you reported to, someone who was a colleague and if you had reports one of them.
+
+Artsy puts a lot of priority on references,  Check out [Brennan Moore's article](https://www.zamiang.com/posts/post/2015/07/05/learning-from-artsy-how-to-hire-awesome-engineers/) on this, a lot of the behind the scenes emails afterwards uses quotes taken from references as examples of why someone should be hired. I don't think this will be unique to Artsy. References should be your cheerleaders. In an ideal world you should be looking for references like the ones we got for Maxim:
+
+> However, if I had to fire people gradually, I'd fire her last. her skill-set is so valuable, and so scarce that it's super valuable. I'd fire me before her.
+
+> She was the glue that held the team together - could talk at a different level to each contributor. Great intuition, could put in a room with anyone and they could understand how to get their bits done.
+
+I respect that no-one is in control of other people, so yes, references are a bit of a wild card from a junior's perspective. However, hopefully you've had a collection of positive interactions with people who can talk about that. It's not about your programming prowess at this point, it's about how you work with others and character reference.
+
 ### On the Aftermath
 ### On the Launch Pad
 
