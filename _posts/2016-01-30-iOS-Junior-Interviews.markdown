@@ -140,6 +140,10 @@ There's a lot of value in a collection of interview questions though, one that I
 
 One book that is considered the go-to for interview preparation is [Cracking the Coding Interview](http://www.crackingthecodinginterview.com), when I asked someone in the know about it [... https://twitter.com/orta/status/693766419390029825 ]
 
+##### I didn't study Computer Science
+
+
+
 ##### On Mocks
 
 If you can do Mock Interviews you should. You need an existing network in order to pull that off, but you can get real feedback that can be extremely helpful. As an employer you have to be very cautious in the way you word a rejection, in a mock interview you don't. This isn't a one-sided process, the interviewer can use the chance to try out a different technique or to improve their interviewing skills. 
@@ -160,6 +164,9 @@ There is no catch-all solid advice for interviews
 
 ##### How I interview Juniors
 
+One thing I can tell you concretely though, is what I do.
+
+
 ### On References
 ### On the Aftermath
 ### On the Launch Pad
@@ -167,9 +174,14 @@ There is no catch-all solid advice for interviews
 
 ### OK so I've got you, what else can I recommend?
 
-* [Male Programmers Privilidge](http://geekfeminism.wikia.com/wiki/Male_Programmer_Privilege_Checklist) - The geek feminism wiki is a great resource for understand some of the  less positive aspects of a male-dominated culture.
+The way in which you present yourself online will attract similar people. If you are always being negative, and it sure is easy, expect to end up surrounded with people who are similar. [Being nice is nice](https://realm.io/news/altconf-orta-therox-being-nice-in-open-source/).
+
+* [Male Programmers Privilege](http://geekfeminism.wikia.com/wiki/Male_Programmer_Privilege_Checklist) - The geek feminism wiki is a great resource for understand some of the  less positive aspects of a male-dominated culture.
+* [The Social Coding Contract](http://blog.testdouble.com/posts/2014-12-02-the-social-coding-contract.html) - I'd recommend this to anyone on any topic, regardless of what they were really asking.
+* [Git Conflicts and Empathy](http://blog.testdouble.com/posts/2016-01-25-an-empathetic-guide-to-git-conflicts.html) - Understanding that a git conflict is that two people really want to do something positive.
+* [Finding Joy at Work](http://blog.testdouble.com/posts/2015-06-08-finding-joy-at-work.html) - On the risks of being in a small company.
 * Artsy's best-of for Juniors:
- - [OSS Expectations](http://artsy.github.io/blog/2016/01/13/OSS-Expectations/) - On how to talk the talk when thinking about Open Source by Default
+ - [OSS Expectations](http://artsy.github.io/blog/2016/01/13/OSS-Expectations/) - On how to talk the talk when thinking about Open Source
  - [Being a good OSS citizen](http://artsy.github.io/blog/2016/01/28/being-a-good-open-source-citizen/) - On how to walk the walk when contributing back
  - Video code-reviews: [Eidolon](http://artsy.github.io/blog/2016/01/14/eidolon-code-review/) / [Emergence](http://artsy.github.io/blog/2015/11/05/Emergence-Code-Review/) - On the gestalt of an app.
  - [Dropped Design Patterns](http://artsy.github.io/blog/2015/09/01/Cocoa-Architecture-Dropped-Design-Patterns/) - On understanding that decisions aren't permanent
