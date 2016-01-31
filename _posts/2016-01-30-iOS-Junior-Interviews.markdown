@@ -244,7 +244,7 @@ One thing I can tell you concretely though, is what I do. My interviews with jun
 
   Alright, so I've been building up the applicant's confidence and now it's time to bring that all down. Sorry. I have been paying attention to finding out what the applicant doesn't know. Then I start asking questions about this. It doesn't really matter what the topic is, it could be threading, view controller lifecycle, code coupling, dynamic vs static dispatch, whatever. The point is that I want to understand how someone learns during a discussion. So the conversation tends to switch around, where-in I lead a conversation on the topic - try to lay foundations then experiment with questions that should require an understanding of the topic.
 
-Here's [a long writeup](https://mediuym.com/@jon.lazar/my-approach-to-learning-ios-fccf943aead#.xo5c8iada), with a lot of depth (and places to jump off from) from someone who has just come out of a mock interview with me. Thanks Jon.
+Here's [a long writeup](https://medium.com/@jon.lazar/my-approach-to-learning-ios-fccf943aead#.ei4yvc38k), with a lot of depth (and places to jump off from) from someone who has just come out of a mock interview with me. Thanks Jon.
 
 None of this process aims to be adversarial, if someone has got this far, I really want to have a sense of how much time and attention will be required to give them some independence.
 
@@ -261,16 +261,24 @@ Artsy puts a lot of priority on references,  Check out [Brennan Moore's article]
 I respect that no-one is in control of other people, so yes, references are a bit of a wild card from a junior's perspective. However, hopefully you've had a collection of positive interactions with people who can talk about that. It's not about your programming prowess at this point, it's about how you work with others and character reference.
 
 ### On the Aftermath
+
+So, interviews are over. What is happening behind the scenes? After your interviews are done, there will be a flurry of behind the scenes emails. From my experience at Artsy, it probably takes a few days to get enough of a consensus around a yay/nay. Someone should be keeping the applicant up to date, even if it's a matter of "not yet, but we're talking."
+
+This bit is hard, because you're in limbo, and it can take a while. I think with Sarah this took about a week and a half, from her final interviews to being able to send her an offer. Which I'm sure for her weren't great, she could be so close to an offer - or weeks wasted on moving towards another.
+
 ### On the Launch Pad
 
+OK, so you've been given an offer. If it's a startup, you might be offered equity. If you don't know this world, that's OK, it's hard to give advice here - but [this](https://github.com/jlevy/og-equity-compensation) seems to be best resource I know about it all. I started with no knowledge, and eventually got a reasonable understanding. If you want one sentence from me, "equity is a risk, be damn sure you think the company is going to go somewhere." I opted for a chunk of equity in Artsy, but I've worked at places where I've taken the minimum option.
 
-### OK so I've got you, what else can I recommend?
+Ideally you are presented with a great offer, I've never negotiated salary and we don't do it at Artsy as it [introduces bias](https://en.wikipedia.org/wiki/Gender_pay_gap_in_the_United_States#Negotiating_salaries), so I can't offer much there.
+
+### OK, so, while I have your attention, what else can I recommend?
 
 The way in which you present yourself online will attract similar people. If you are always being negative, and it sure is easy, expect to end up surrounded with people who are similar. [Being nice is nice](https://realm.io/news/altconf-orta-therox-being-nice-in-open-source/).
 
 If you have a blog, and it's on medium, look into making/editing your own blog. [Jekyll](http://jekyllrb.com) is the defacto go-to in that space, but I know people have enjoyed using [middleman](https://middlemanapp.com) and [hugo](http://gohugo.io). Do not use Octopress, vanilla Jekyll will do you just fine.
 
-If you're not active on Twitter, you should start trying. Every time you think of something worth saying to someone next to you, say it to them, then say it to twitter. Show off pictures of what you're working on, reply to people with more followers than you when they ask questions. It took me 4 years to hit my first thousand followers.
+If you're not active on Twitter, you should start trying. Every time you think of something worth saying to someone next to you, say it to them, then say it to twitter. Show off pictures of what you're working on, reply to people with more followers than you when they ask questions, talk about code. It took me 4 years to hit my first thousand followers, hopefully you can be more interesting [than I was](https://twitter.com/orta/status/13912101) for a while.
 
 When people say GitHub is your resume, they are right and they are wrong. GitHub can help get you through the door, but you can't rely on that in your interviews. Check out the advice at the [end of this post](http://code.dblock.org/2011/07/14/github-is-your-new-resume.html) on how to make your GitHub look good for people looking at whether to interview you.
 
