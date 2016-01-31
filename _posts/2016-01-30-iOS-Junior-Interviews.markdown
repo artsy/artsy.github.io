@@ -6,9 +6,9 @@ author: orta
 categories: [mobile, ios, juniors, interviewing]
 ---
 
-When I was at the beginning of my career, my first developer job application was to a design agency who were doing Mac development too. It was pretty nerve racking to apply for my first programming job, and I came into the interview with no idea what to expect.
+When I was at the beginning of my career, my first developer job application was to a design agency who were doing Mac development too. It was pretty nerve-racking to apply for my first programming job, and I came into the interview with no idea what to expect. I had just graduated from university and was at few steps of my career, the term I'm using for this stage of my career is being a junior. It is a time period where I would need mentoring, and supervision in order to grow. A good explanation is in [this StackOverflow](http://programmers.stackexchange.com/questions/14914/whats-the-difference-between-entry-level-jr-sr-developers).
 
-Now that I'm both further on in my career, and involved with so many juniors in NYC, I'm meeting with a lot of people who are in the same position and I get a lot of questions asking what they can do to prepare. This post _attempts_ at being a comprehensive collection of recommendations. It is subjective, of course, and strongly based towards my experiences.
+Now that I'm both further on in my career, and involved with so many juniors in NYC, I'm meeting with a lot of people who are in the same position I was then and I get a lot of questions asking what they can do to prepare. This post _attempts_ at being a comprehensive collection of recommendations. It is subjective, of course, and strongly based towards my experiences.
 
 Before I jump through to the article, there's one thing that should be above the fold. _Chill out_. You might not get it right on the first try, I've applied for jobs and received a "no thanks." Yet eventually I got here. Everyone finds their place in time.
 
@@ -22,7 +22,7 @@ No-one starting out is ever ready, and an individual is [never really "done"](ht
 
 > I expect you to be able to start a new project, write some code to download a bit of JSON via HTTP, and use the parsed JSON to present some data in a UITableView.
 
-> If you can do that, in a well organized manner, and can discuss the choices you made to get your app built you’ll have been able to do almost everything that was on that long and tedious list.
+> If you can do that, in a well organised manner, and can discuss the choices you made to get your app built you’ll have been able to do almost everything that was on that long and tedious list.
 
 This is a great starting point. In an ideal world, an interviewer isn't going to to judge you on not knowing every detail about the whole system. They will have expectations that you're going to have to learn on the job for a lot of things, and that's ok.
 
@@ -55,18 +55,39 @@ These are 15-30 minute informal chats, but from an employers perspective they ar
 
 Look at the language in the jobs page, and have your email / intro letter reflect that. When I receive very formal "dear hiring manager" emails it reflects badly on the applicant, [our jobs page](https://www.artsy.net/article/artsy-jobs-mobile-engineer) states to not worry about that, as we're not that kind of culture.
 
-An intro email is your chance to show that you understand the core value of a company. For example when I receive applications that only talk about our contributions to OSS then I wonder if they've even studied what Artsy is, and how OSS by Default is derived from deeper values as opposed to being an end-goal in itself. If you apply to Facebook and the only thing you mention is [React-Native](http://facebook.github.io/react-native/) I think you'd also be missing the point of Facebook. A great opener to Facebook might talk about how amazing it is that they can work on a product that pretty much everyone they meet uses, and so do 1 billion a day. It shows you understand the scope of their problems, and have done your homework.
+An intro email is your chance to show that you understand the core value of a company. For example when I receive applications that only talk about our contributions to OSS then I wonder if they've even studied what Artsy is, and how OSS by Default is derived from deeper values as opposed to being an end-goal in itself. If you apply to Facebook and the only thing you mention is [React-Native](http://facebook.github.io/react-native/) I think you'd also be missing the point of Facebook. A great opener to Facebook might talk about how amazing it is that they can work on a product that pretty much everyone they meet uses, and you think it's amazing that there is now 1 billion active users a day. It shows you understand the scope of their problems, and have done your homework.
 
+Let's look at Ash's intro email:
 
+> My name is Ash Furrow and I’m writing in regards to your mobile engineering position. I heard about the position first through Orta Therox, who spoke highly of Artsy. 
 
+> Upon further reading, Artsy sounded exactly like the kind of place I want to work. An ambitious goal, to change the world, with a thorough mix of math, software engineering, and art. I consider myself to be an artist, both when I code and when I am behind the lens of a camera (I like to develop my own film). I love working with companies who understand the important role of art in our society, as I did with 500px. 
+
+_10/10._ Extremely on topic. 
+
+Next, you're going to want to now talk about great of a fit you would be, how well you understand the domain and how you've been doing similar work already.
+
+> I love how you’ve contributed back to the open source community. I am a strong believer in the power of open source, especially in the iOS community, where there has historically been a resistance to opening software. Sponsoring CocoaPods is a fantastic contribution toward the iOS community and I thank you for it. I’ve contributed back to several projects on GitHub, have written for the Teehan+Lax blog professionally, and have a selection of the apps I’ve written on my portfolio.
+
+I know what you're thinking "Ash wasn't a junior when he applied", well, chances are you've still got a history of things that can be applied towards an email like this. Also, flattery can get you everywhere. "I've been using your app for years, I love how it does 'x' - have you thought of doing 'y'?"
+
+Sarah's was similar:
+
+> First, I'd just like to say I love Artsy and have been following your company since I learned of its existence two years ago. Making art accessible to the world is a problem the architects of the Internet should undoubtedly be solving and Artsy is doing so with elegance.
+
+_10/10_ ✔ 
+
+> I'm currently transitioning from embedded systems to iOS development and looking for a place where I can learn a lot while making significant contributions to a product. As for my background, I just graduated from NYU with a B.S. in Electrical Engineering and completed a seven-month-long research and development internship at Canary (a home security hardware startup). While I do enjoy building hardware, I find software engineering generally more fun and in tune with my intellectual and creative preferences.
+
+Dead on. Later on in the email, she references [art critics](https://en.wikipedia.org/wiki/Rosalind_E._Krauss) while discussing [programming concepts](https://en.wikipedia.org/wiki/Enumeration). A great introduction email.
 
 ### On a Portfolio
 
-_on wording_: I use the word portfolio, to encapsulate a CV/Resume/Design Portfolio. They all have specific meanings, but in this case, I mean something you attach to the email to provide the full context of your history/experiences.
+_on wording_: I use the word portfolio, to encapsulate a CV/Resume/Design Portfolio. They all have [specific meanings](http://www.diffen.com/difference/Curriculum_Vitae_vs_Résumé), but in this case, I mean something you attach to the email to provide the full context of your history/experiences.
 
-There are a lot of places for good, solid advice on the document you are using to persuade someone to interview you. So I'll tell you what has worked for me. I think it should be a one page document, that captures a snapshot of you. Things they must have: your name, a way to contact you and a list of things you think is relevant. Ideally it's going to be one page. 
+There are a lot of places for good, solid advice on the document you are using to persuade someone to interview you. So I'll tell you what has worked for me. I think it should be a one page document, that captures a snapshot of you. Things they must have: your name, a way to contact you and a list of things you think is relevant.
 
-You should consider what you think are qualities that you bring to the table, for some job applications I have submitted both a resume and a design portfolio. If you are particularly proud of your design work, perhaps find a way to include your app store screenshots and branding?
+You should consider what you think are qualities that you bring to the table, for some job applications I have submitted both a resume and a design portfolio. If you are particularly proud of your design work, perhaps find a way to include your app store screenshots and branding, or make your portfolio distinctive via design.
 
 
 ##### On Representing Myself
@@ -78,6 +99,41 @@ I dug through my archives and found every resume I have ever created; ranging fr
 - [2008](/images/2016-01-30-iOS-Junior-Interviews/2008-programming-144.jpg) as a graduate applying for programming jobs.
 - [2010](/images/2016-01-30-iOS-Junior-Interviews/2010-144.jpg) when applying for jobs once I had stopped being a junior.
 - [2015](/images/2016-01-30-iOS-Junior-Interviews/2015-144.jpg) my CV as a part of my U.S. VISA process.
+
+<table>
+  <thead>
+  </thead>
+  <tbody>
+    <tr>
+      <td>
+			<a href="/images/2016-01-30-iOS-Junior-Interviews/2007-144.jpg">
+				<img height="200" src="/images/2016-01-30-iOS-Junior-Interviews/2007-thumb.jpg">
+			</a>
+		</td>
+      <td>
+			<a href="/images/2016-01-30-iOS-Junior-Interviews/2008-general-144.jpg">
+				<img height="200" src="/images/2016-01-30-iOS-Junior-Interviews/2008-general-thumb.jpg">
+			</a>
+		</td>
+		 <td>
+			<a href="/images/2016-01-30-iOS-Junior-Interviews/2008-programming-144.jpg">
+				<img height="200" src="/images/2016-01-30-iOS-Junior-Interviews/2008-programming-thumb.jpg">
+			</a>
+		</td>
+      <td>
+			<a href="/images/2016-01-30-iOS-Junior-Interviews/2010-144.jpg">
+				<img height="200" src="/images/2016-01-30-iOS-Junior-Interviews/2010-thumb.jpg">
+			</a>
+		</td>
+      <td>
+			<a href="/images/2016-01-30-iOS-Junior-Interviews/2015-144.jpg">
+				<img height="200" src="/images/2016-01-30-iOS-Junior-Interviews/2015-thumb.jpg">
+			</a>
+		</td>
+    </tr>
+  </tbody>
+</table>
+
 
 You can definitely get a sense of my skill specialisations happening over the last 8 years, but the tone of how I present myself hasn't really changed.
 
