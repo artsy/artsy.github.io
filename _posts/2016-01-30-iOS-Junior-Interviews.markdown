@@ -10,13 +10,13 @@ When I was at the beginning of my career, my first developer job application was
 
 Now that I'm both further on in my career, and involved with so many juniors in NYC, I'm meeting with a lot of people who are in the same position and I get a lot of questions asking what they can do to prepare. This post _attempts_ at being a comprehensive collection of recommendations. It is subjective, of course, and strongly based towards my experiences.
 
-Before I jump through to the article, there's one thing that should be above the fold. _Chill out_. You might not get it right on the first try, I've applied for jobs and received a "no thanks." Yet eventually I got here.
+Before I jump through to the article, there's one thing that should be above the fold. _Chill out_. You might not get it right on the first try, I've applied for jobs and received a "no thanks." Yet eventually I got here. Everyone finds their place in time.
 
 <!-- more -->
 
 ### On Your Readiness
 
-No-one starting out is ever ready, and an individual is never really "done". However, in this [post @dbgrandi](http://dbgrandi.github.io/minimum_viable_programmer/) neatly sums up the bar.
+No-one starting out is ever ready, and an individual is [never really "done"](https://ashfurrow.com/blog/you-never-arrive/). However, in this [post @dbgrandi](http://dbgrandi.github.io/minimum_viable_programmer/) neatly sums up the bar.
 
 > I had a long list of specific things relating to Xcode and iOS. They were very tedious things like, “you should know how to add a new file to an Xcode project.” I’ve shortened that list to a general description here.
 
@@ -39,7 +39,7 @@ These kind of things work, I got my first programming job through [CocoaDev Jobs
 
 These are great, but in my opinion the best way to find out what companies are hiring is to attend meet-ups in the city. In NYC we have 3-4 big iOS meet-ups a month, and all of them give a chance for people looking for others to work to speak up. You might not live in as big of a city, but I used to travel an hour to Manchester to attend a meet-up, they would have the same thing, I almost became a full-time rubyist because of it. I have quite a few friends in NYC who started their careers by talking to someone at a meet-up.
 
-Generic job websites can be good, for example Artsy's job postings are on [AngelList](https://angel.co/artsy) and [Glassdoor](https://www.glassdoor.co.uk/Job/Artsy-Jobs-E793485.htm) but the vast majority of the incoming applicants from them feel like they were sen to a lot of companies. They are given a low priority when compared to direct inquiries because of this. I can't speak from experience but [Ladders](https://www.theladders.com), [LinkedIn](https://www.linkedin.com), [Hired](http://hired.com) and [weworkremotely](https://weworkremotely.com) are probably worth a look too.
+Generic job websites can be good, for example Artsy's job postings are on [AngelList](https://angel.co/artsy) and [Glassdoor](https://www.glassdoor.co.uk/Job/Artsy-Jobs-E793485.htm) but the vast majority of the incoming applicants from them feel like they were sent to a lot of companies. They are given a low priority when compared to direct inquiries because of this. I can't speak from experience but [Ladders](https://www.theladders.com), [LinkedIn](https://www.linkedin.com), [Hired](http://hired.com) and [weworkremotely](https://weworkremotely.com) are probably worth a look too.
 
 If you see an advert for a mobile developer, but they don't mention juniors, you should apply anyway. We've never had junior positions on our jobs pages, but have hired some who inquired anyway. Don't pretend to be more senior than you are though, set the right expectations. 
 
@@ -49,7 +49,7 @@ Finally, consult your network, talk to people at meet ups, sneakily contribute t
 
 Know what goes a long way? Talking with someone before applying. I regularly get coffee with applicants or potential applicants when I'm in NYC. Coffee can be hard when applying for junior roles when remote, but so far, to my knowledge I've not talked to anyone who hires a junior as a remote developer. I'm not sure it could work unless the entire team was remote, or the junior developer had a lot of experience and was only a junior in the sense that they were just hitting the work-force.
 
-These are 15-30 minute informal chats, but from an employers perspective they are definitely a good way to filter candidates. A coffee is time-cheap, interviews are time-expensive. So ask someone on the dev team to do them, you'll usually get a yes.
+These are 15-30 minute informal chats, but from an employers perspective they are definitely a good way to filter candidates. A coffee is time-cheap, interviews are time-expensive. So ask someone on the dev team to do them, you'll usually get a yes. Tamar Nachmany has some [great, salient points](https://booleancubes.tumblr.com/post/137057622039/the-networking-with-awesome-strangers-checklist) on the right way to pitch these emails.
 
 ### On an Intro Email
 
