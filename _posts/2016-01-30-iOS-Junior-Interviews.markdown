@@ -156,8 +156,24 @@ _More infö that I've reviewed and given a 👍:_
 
 To be at this point, a employer has already decided to invest probably something like 10 hours into you. This is spread across a few people but the point is important. To have got here, someone has to be on your side. They will have had to put in work to even get people to agree to schedule you into their day. Your mindset should reflect this, it's not you vs them. It's you and someone. Your job from here is persuading everyone else that gut feeling from that person is correct.
 
-T
+There is no catch-all solid advice for interviews
+
+##### How I interview Juniors
 
 ### On References
 ### On the Aftermath
 ### On the Launch Pad
+
+
+### OK so I've got you, what else can I recommend?
+
+* [Male Programmers Privilidge](http://geekfeminism.wikia.com/wiki/Male_Programmer_Privilege_Checklist) - The geek feminism wiki is a great resource for understand some of the  less positive aspects of a male-dominated culture.
+* Artsy's best-of for Juniors:
+ - [OSS Expectations](http://artsy.github.io/blog/2016/01/13/OSS-Expectations/)
+ - [Being a good OSS citizen](http://artsy.github.io/blog/2016/01/28/being-a-good-open-source-citizen/)
+ - Video code-reviews: [Eidolon](http://artsy.github.io/blog/2016/01/14/eidolon-code-review/) / [Emergence](http://artsy.github.io/blog/2015/11/05/Emergence-Code-Review/)
+ - [Dropped Design Patterns](http://artsy.github.io/blog/2015/09/01/Cocoa-Architecture-Dropped-Design-Patterns/)
+ - [How To Write Unit Tests Like a Brood Parasite](http://artsy.github.io/blog/2015/07/06/how-to-write-unit-tests-like-a-brood-parasite/)
+ - [Artsy's Engineering Compensation Framework](http://artsy.github.io/blog/2015/04/03/artsy-engineering-compensation-framework/)
+ - [The Culture of Openness in the Artsy Mobile Team](http://artsy.github.io/blog/2015/03/31/the-culture-of-openness-artsy-mobile/)
+ - [Building the Xcode Plugin Snapshots](http://artsy.github.io/blog/2014/06/17/building-the-xcode-plugin-snapshots/)
