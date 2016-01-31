@@ -27,6 +27,24 @@ No-one starting out is ever ready, and an individual is never really "done". How
 
 This is a great starting point. In an ideal world, an interviewer isn't going to to judge you on not knowing every detail about the whole system. They will have expectations that you're going to have to learn on the job for a lot of things, and that's ok.
 
+### On the lookout
+
+There are a bunch of websites for putting up job adverts. 
+
+- [StackOverflow jobs](http://stackoverflow.com/jobs)
+- [Natasha The Robot's Swift Jobs](https://www.natashatherobot.com/swift-jobs/)
+- [Core Intuition's Jobs Board](http://jobs.coreint.org)
+- [Apple's Jobs Site](https://www.apple.com/jobs/us/)
+
+These kind of things work, I got my first programming job through [CocoaDev Jobs](http://www.cocoabuilder.com/archive/cocoa/174142-ann-cocoadev-jobs-board.html).
+
+These are great, but in my opinion the best way to find out what companies are hiring is to attend meet-ups in the city. In NYC we have 3-4 big iOS meet-ups a month, and all of them give a chance for people looking for others to work to speak up. You might not live in as big of a city, but I used to travel an hour to Manchester to attend a meet-up, they would have the same thing, I almost became a full-time rubyist because of it.
+
+Generic job websites can be good, for example Artsy's job postings are on [AngelList](https://angel.co/artsy) and [Glassdoor](https://www.glassdoor.co.uk/Job/Artsy-Jobs-E793485.htm) but the vast majority of the incoming applicants from them feel like they were sen to a lot of companies. They are given a low priority when compared to direct inquiries because of this.
+
+If you see an advert for a mobile developer, but they don't mention juniors, you should apply anyway. We've never had junior positions on our jobs pages, but have hired some who inquired anyway. Don't pretend to be more senior than you are though, set the right expectations. 
+
+Finally, consult your network, talk to people at meet ups, sneakily contribute to open source projects with people you want to talk to and then email the project owner. 
 
 ### On a Coffee
 
@@ -37,6 +55,8 @@ These are 15-30 minute informal chats, but from an employers perspective they ar
 ### On an Intro Email
 
 Look at the language in the jobs page, and have your email / intro letter reflect that. When I receive very formal "dear hiring manager" emails it reflects badly on the applicant, [our page](https://www.artsy.net/article/artsy-jobs-mobile-engineer) states to not worry about that, as we're not that kind of culture.
+
+
 
 ### On a Portfolio
 
@@ -75,10 +95,10 @@ So you know exactly who you are interested in applying to. One of your passions 
 
 First up, you should have some experience before you apply. Apply at one or two other companies that you'd also really like to work for first, test out the water. Then for Spotify, you should make sure everything is perfect for them. Write a new CV and mention your band on it, include links to your music in the bottom. 
 
-A lot of companies have public employee get-togethers, for example at Artsy we have weekly Happy Hour in the office, or [Peer Labs](https://artsy.github.io/blog/2015/08/10/peer-lab/) where you can meet a lot of the people working at a company. This is a great way to mine the employees for information about the culture and to try and peek behind the curtain. In the case of Spotify, they host a lot of meetups, attend some at their offices.
-
+A lot of companies have public employee get-togethers, for example at Artsy we have weekly Happy Hour in the office, or [Peer Labs](https://artsy.github.io/blog/2015/08/10/peer-lab/) where you can meet a lot of the people working at a company. This is a great way to mine the employees for information about the culture and to try and peek behind the curtain. In the case of Spotify, they host a lot of meetups, try attending some at their offices.
 
 ### On Interview Preparation
 ### On Topic
+### On References
 ### On the Aftermath
 ### On the Launch Pad
