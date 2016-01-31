@@ -190,9 +190,9 @@ A lot of companies have public employee get-togethers, for example at Artsy we h
 
 ### On Interview Preparation
 
-So you've got an interview
+So you've got an interview, be gracious in setting up a time, it's normal for these to take 
 
-Be cautious with links on the internet here, some of the [top](http://www.raywenderlich.com/53962/ios-interview-questions) [links](http://www.geekinterview.com/Interview-Questions/iOS) [to](http://way2ios.com/development/ios-development-2/ios-interview-questions-with-answers/) [search](http://www.toptal.com/ios/interview-questions) here are probably not great for people starting. They aim at a different audience, or focus on minutae that juniors probably don't know.
+Be cautious with links on the internet here, some of the [top](http://www.raywenderlich.com/53962/ios-interview-questions) [links](http://www.geekinterview.com/Interview-Questions/iOS) [to](http://way2ios.com/development/ios-development-2/ios-interview-questions-with-answers/) [search](http://www.toptal.com/ios/interview-questions) here are probably not great for people starting. They aim at a different audience, or focus on minutiae that juniors probably don't know.
 
 There's a lot of value in a collection of interview questions though, one that IMO is a solid resource is [CameronBanga/iOS-Developer-and-Designer-Interview-Questions](https://github.com/CameronBanga/iOS-Developer-and-Designer-Interview-Questions) on GitHub. You could get asked a few of these.
 
@@ -200,7 +200,9 @@ One book that is considered the go-to for interview preparation is [Cracking the
 
 ##### I didn't study Computer Science
 
+Then I'd definitely recommend Cracking the Coding Interview. I don't think this is a blocker _at all_ - we have a lot of engineers on staff who do not have a computer science degree. In our line of work, having experience of the art world can be more useful in a lot of cases. It's very likely that you'll feel a hint of [impostor syndrome](http://geekfeminism.wikia.com/wiki/Impostor_syndrome) - [you shouldn't](https://medium.com/@aliciatweet/overcoming-impostor-syndrome-bdae04e46ec5#.ilrvfqjow) - the tech industry should be (and is) begging for people who can bring interesting new contexts.
 
+During the process of setting up your interviews, you should ask what to expect amor the interviews. If they are going to be whiteboards + algorithms like they do at Google/Facebook, then you I think you're gonna have to ht the books.
 
 ##### On Mocks
 
