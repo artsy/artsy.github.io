@@ -7,9 +7,9 @@ categories: [mobile, ios, juniors, interviewing]
 ---
 
 
-When I was a junior, I interviewed to join a design agency who were doing Mac development too. It was pretty nerve racking to apply for my first programming job, and I came into the interview with no idea what to expect.
+When I was at the beginning of my career, my first developer job application was to a design agency who were doing Mac development too. It was pretty nerve racking to apply for my first programming job, and I came into the interview with no idea what to expect.
 
-Now that I'm involved with so many juniors in NYC, I'm meeting with a lot of people who are in the same position and I get a lot of questions asking what they can do to prepare. This post _attempts_ at being a comprehensive collection of recommendations. I will also try to link to others as much as possible, each link should be a springboard.
+Now that I'm both further on in my career, and involved with so many juniors in NYC, I'm meeting with a lot of people who are in the same position and I get a lot of questions asking what they can do to prepare. This post _attempts_ at being a comprehensive collection of recommendations. I will also try to link to others as much as possible, each link should be a springboard.
 
 Before I jump through to the article, there's one thing that should be above the fold. _Chill out_. You might not get it right on the first try, I've applied for jobs and received a "no thanks." Yet eventually I got here.
 
@@ -38,7 +38,37 @@ These are 15-30 minute informal chats, but from an employers perspective they ar
 
 Look at the language in the jobs page, and have your email / intro letter reflect that. When I receive very formal "dear hiring manager" emails it reflects badly on the applicant, [our page](https://www.artsy.net/article/artsy-jobs-mobile-engineer) states to not worry about that, as we're not that kind of culture.
 
-### On a CV
+### On a Portfolio
+
+There are a lot of places for good, solid advice on the document you are using to persuade someone to interview you. So I'll tell you what has worked for me. I think it should be a one page document, that captures a snapshot of you. Things they must have: your name, a way to contact you and a list of things you think is relevant. Ideally it's going to be one page. 
+
+You should consider what you think are qualities that you bring to the table, for some job applications I have submitted both a resume and a design portfolio. If you are particularly proud of your design work, perhaps find a way to include your app store screenshots and branding?
+
+
+##### On Representing Myself
+
+I dug through my archives and found every resume I have ever created, ranging from my first as a student to last year.
+
+- [2007](/images/2016-01-30-iOS-Junior-Interviews/2007-144.jpg) as a part of the WWDC Student Scholarship. It was significantly less competitive then.
+- [2008](/images/2016-01-30-iOS-Junior-Interviews/2008-general-144.jpg) as a graduate applying for jobs that were not programming focused.
+- [2008](/images/2016-01-30-iOS-Junior-Interviews/2008-programming-144.jpg) as a graduate applying for programming jobs.
+- [2010](/images/2016-01-30-iOS-Junior-Interviews/2010-144.jpg) when applying for jobs once I had stopped being a junior.
+- [2015](/images/2016-01-30-iOS-Junior-Interviews/2015-144.jpg) my CV as a part of my U.S. VISA process.
+
+You can definitely get a sense of my skill specialisations happening over the last 8 years, but the tone of how I present myself hasn't really changed.
+
+I also consider my personal web-page [orta.io](http://orta.io) to act as a portfolio, Ash Furrow's portfolio page has a [similar vibe](https://ashfurrow.com/portfolio/).
+
+##### On the team 
+
+
+_More infö:_
+
+ * [iOS Developer Resume Examples
+](http://www.raywenderlich.com/54029/ios-developer-resume-examples) 
+
+ 
+
 ### On The One
 
 So you know exactly who you are interested in applying to. One of your passions in life is to make music, and you think being a engineer at Spotify would be a dream job. How do you increase your chances?
