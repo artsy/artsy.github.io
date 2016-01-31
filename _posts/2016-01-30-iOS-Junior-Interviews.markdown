@@ -202,7 +202,7 @@ One book that is considered the go-to for interview preparation is [Cracking the
 
 Then I'd definitely recommend Cracking the Coding Interview. I don't think this is a blocker _at all_ - we have a lot of engineers on staff who do not have a computer science degree. In our line of work, having experience of the art world can be more useful in a lot of cases. It's very likely that you'll feel a hint of [impostor syndrome](http://geekfeminism.wikia.com/wiki/Impostor_syndrome) - [you shouldn't](https://medium.com/@aliciatweet/overcoming-impostor-syndrome-bdae04e46ec5#.ilrvfqjow) - the tech industry should be (and is) begging for people who can bring interesting new contexts.
 
-During the process of setting up your interviews, you should ask what to expect amor the interviews. If they are going to be whiteboards + algorithms like they do at Google/Facebook, then you I think you're gonna have to ht the books.
+During the process of setting up your interviews, you should ask what to expect amor the interviews. If they are going to be whiteboards + algorithms like they do at Google/Facebook, then you I think you're gonna have to hit the books.
 
 ##### On Mocks
 
@@ -230,17 +230,21 @@ One thing I can tell you concretely though, is what I do. My interviews with jun
 
 - A Chat
 
-  I want to get someone comfortable with the interview, I'll have taken points from looking over the portfolio to explore. It will be a pretty one-sided conversation with me only trying to provide points to spring off. "So tell me about when you did x", ""
+  I want to get someone comfortable with the interview, I'll have taken points from looking over the portfolio to explore. It will be a pretty one-sided conversation with me only trying to provide points to spring off. "So tell me about when you did x". 
 
 - Pair Programming
 
-  Here's some details there 
+  I want to get a sense of how you use a computer and act under mentorship. So I do one of two things, depending on how work has been the last week. If there's been a pull request which seem small and contained enough from our team on one of our apps. I will pair on re-creating the pull request from scratch, without letting it be known that the PR had already been built and accepted. If there isn't, we'll take a pre-built broken app and fix it.
+
+  I want to see things like; do you use Xcode shortcuts? Can you explain the code you're looking at? If I offer some advice, do you use it? Can you present ideas when we're figuring out an abstraction? Can you identify where problematic behaviour lies?
 
 - Learn you a thing
 
-  OK
+  Alright, so I've been building up the applicant's confidence and now it's time to bring that all down. Sorry. I have been paying attention to finding out what the applicant doesn't know. Then I start asking questions about this. It doesn't really matter what the topic is, it could be threading, view controller lifecycle, code coupling, dynamic vs static dispatch, whatever. The point is that I want to understand how someone learns during a discussion. So the conversation tends to switch around, where-in I lead a conversation on the topic - try to lay foundations then experiment with questions that should require an understanding of the topic.
 
-Here's [a long writeup](https://medium.com/@jon.lazar/my-approach-to-learning-ios-fccf943aead#.xo5c8iada), with a lot of depth from someone who has just come out of a mock interview with me. Thanks Jon.
+Here's [a long writeup](https://mediuym.com/@jon.lazar/my-approach-to-learning-ios-fccf943aead#.xo5c8iada), with a lot of depth (and places to jump off from) from someone who has just come out of a mock interview with me. Thanks Jon.
+
+None of this process aims to be adversarial, if someone has got this far, I really want to have a sense of how much time and attention will be required to give them some independence.
 
 ### On References
 ### On the Aftermath
