@@ -1,11 +1,10 @@
 ---
 layout: post
-title: "Prep for Juniors focused on iOS"
+title: "Interviewing, applying and getting your first job in iOS"
 date: 2016-01-30 11:09
 author: orta
 categories: [mobile, ios, juniors, interviewing]
 ---
-
 
 When I was at the beginning of my career, my first developer job application was to a design agency who were doing Mac development too. It was pretty nerve racking to apply for my first programming job, and I came into the interview with no idea what to expect.
 
@@ -40,7 +39,7 @@ These kind of things work, I got my first programming job through [CocoaDev Jobs
 
 These are great, but in my opinion the best way to find out what companies are hiring is to attend meet-ups in the city. In NYC we have 3-4 big iOS meet-ups a month, and all of them give a chance for people looking for others to work to speak up. You might not live in as big of a city, but I used to travel an hour to Manchester to attend a meet-up, they would have the same thing, I almost became a full-time rubyist because of it. I have quite a few friends in NYC who started their careers by talking to someone at a meet-up.
 
-Generic job websites can be good, for example Artsy's job postings are on [AngelList](https://angel.co/artsy) and [Glassdoor](https://www.glassdoor.co.uk/Job/Artsy-Jobs-E793485.htm) but the vast majority of the incoming applicants from them feel like they were sen to a lot of companies. They are given a low priority when compared to direct inquiries because of this. I can't speak from experience but [Ladders](https://www.theladders.com), [LinkedIn](https://www.linkedin.com) and [Hired](http://hired.com) are probably worth a look too.
+Generic job websites can be good, for example Artsy's job postings are on [AngelList](https://angel.co/artsy) and [Glassdoor](https://www.glassdoor.co.uk/Job/Artsy-Jobs-E793485.htm) but the vast majority of the incoming applicants from them feel like they were sen to a lot of companies. They are given a low priority when compared to direct inquiries because of this. I can't speak from experience but [Ladders](https://www.theladders.com), [LinkedIn](https://www.linkedin.com), [Hired](http://hired.com) and [weworkremotely](https://weworkremotely.com) are probably worth a look too.
 
 If you see an advert for a mobile developer, but they don't mention juniors, you should apply anyway. We've never had junior positions on our jobs pages, but have hired some who inquired anyway. Don't pretend to be more senior than you are though, set the right expectations. 
 
@@ -60,6 +59,8 @@ An intro email is what starts up the entire process from within the company,
 
 
 ### On a Portfolio
+
+_on wording_: I use the word portfolio, to encapsulate a CV/Resume/Design Portfolio. They all have specific meanings, but in this case, I mean something you attach to the email to provide the full context of your history/experiences.
 
 There are a lot of places for good, solid advice on the document you are using to persuade someone to interview you. So I'll tell you what has worked for me. I think it should be a one page document, that captures a snapshot of you. Things they must have: your name, a way to contact you and a list of things you think is relevant. Ideally it's going to be one page. 
 
@@ -102,8 +103,7 @@ Want to know what the resumes looked like for people applying to Artsy? I asked 
 			</a>
 		</td>
       <td>
-											<!-- ADD LINK from S3-->
-			<a href="/images/2016-01-30-iOS-Junior-Interviews/ash-furrow-resume.pdf">
+			<a href="https://ortastuff.s3.amazonaws.com/artsy/maximcramer_artsy_portfolio.pdf">
 				<img height="200" src="/images/2016-01-30-iOS-Junior-Interviews/maximcramer_artsy_portfolio_thumb.jpg"></br>
 				Maxim Cramer (2015)
 			</a>
@@ -114,7 +114,7 @@ Want to know what the resumes looked like for people applying to Artsy? I asked 
 
 &nbsp;
 
-You could spend forever on a portfolio, but it's really just an exercise in restraint and prioritisation. Eventually it's been shaved to a point where you can remove nothing more.
+A portfolio can be whatever you want it to be. You could spend forever on a portfolio, but it's really just an exercise in restraint and prioritisation. Eventually it's been shaved to a point where you can remove nothing more.
 
 _More infö that I've reviewed and given a 👍:_
 
@@ -136,7 +136,7 @@ So you've got an interview
 
 Be cautious with links on the internet here, some of the [top](http://www.raywenderlich.com/53962/ios-interview-questions) [links](http://www.geekinterview.com/Interview-Questions/iOS) [to](http://way2ios.com/development/ios-development-2/ios-interview-questions-with-answers/) [search](http://www.toptal.com/ios/interview-questions) here are probably not great for people starting. They aim at a different audience, or focus on minutae that juniors probably don't know.
 
-There's a lot of value in a collection of interview questions though, one that IMO is a solid resource is [CameronBanga/iOS-Developer-and-Designer-Interview-Questions](https://github.com/CameronBanga/iOS-Developer-and-Designer-Interview-Questions) on GitHub.
+There's a lot of value in a collection of interview questions though, one that IMO is a solid resource is [CameronBanga/iOS-Developer-and-Designer-Interview-Questions](https://github.com/CameronBanga/iOS-Developer-and-Designer-Interview-Questions) on GitHub. You could get asked a few of these.
 
 One book that is considered the go-to for interview preparation is [Cracking the Coding Interview](http://www.crackingthecodinginterview.com), when I asked someone in the know about it [... https://twitter.com/orta/status/693766419390029825 ]
 
@@ -149,10 +149,15 @@ If you don't know anyone who can do this for you, I'd feel like there are two op
 _More infö that I've reviewed and given a 👍:_
 
 * [So You Have a Technical Interview at Macoscope](http://macoscope.com/blog/so-you-have-a-technical-interview-at-macoscope/) - Again, probably a bit more than expected of a junior, but a great summary of how they do it 
+* [How we hire](http://www.google.com/about/careers/lifeatgoogle/hiringprocess/) - How Google's hiring process works.
 
 
+### On iOS Interviews
 
-### On Topic
+To be at this point, a employer has already decided to invest probably something like 10 hours into you. This is spread across a few people but the point is important. To have got here, someone has to be on your side. They will have had to put in work to even get people to agree to schedule you into their day. Your mindset should reflect this, it's not you vs them. It's you and someone. Your job from here is persuading everyone else that gut feeling from that person is correct.
+
+T
+
 ### On References
 ### On the Aftermath
 ### On the Launch Pad
