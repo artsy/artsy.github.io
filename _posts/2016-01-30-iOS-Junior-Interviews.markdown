@@ -6,11 +6,11 @@ author: orta
 categories: [mobile, ios, juniors, interviewing]
 ---
 
-When I was at the beginning of my career, my first developer job application was to a design agency who were doing Mac development too. It was pretty nerve-racking to apply for my first programming job, and I came into the interview with no idea what to expect. I had just graduated from university and was at few steps of my career, the term I'm using for this stage of my career is being a junior. It is a time period where I would need mentoring, and supervision in order to grow. A good explanation is in [this StackOverflow](http://programmers.stackexchange.com/questions/14914/whats-the-difference-between-entry-level-jr-sr-developers).
+When I was at the beginning of my career, my first developer job application was to a design agency who were doing Mac development too. It was pretty nerve-racking to apply for my first programming job, and I came into the interview with no idea what to expect. I had just graduated from university and was at the first few steps of my career, I'd call this being a junior. It was a time period where I would need mentoring, and supervision in order to grow. A good explanation is in [this StackOverflow](http://programmers.stackexchange.com/questions/14914/whats-the-difference-between-entry-level-jr-sr-developers).
 
 Now that I'm both further on in my career, and involved with so many juniors in NYC, I'm meeting with a lot of people who are in the same position I was then and I get a lot of questions asking what they can do to prepare. This post _attempts_ at being a comprehensive collection of recommendations. It is subjective, of course, and strongly based towards my experiences.
 
-Before I jump through to the article, there's one thing that should be above the fold. _Chill out_. You might not get it right on the first try, I've applied for jobs and received a "no thanks." Yet eventually I got here. Everyone finds their place in time.
+Before I jump through to the article, there's one thing that should be above the fold. _Chill out_. You might not get it right on the first try, I've applied for jobs and received a "no thanks." Yet eventually I became the head of mobile at Artsy. Everyone finds their place in time.
 
 <!-- more -->
 
@@ -28,20 +28,23 @@ This is a great starting point. In an ideal world, an interviewer isn't going to
 
 ### On the lookout
 
-There are a bunch of websites for putting up job adverts. 
+There are a bunch of websites for putting up job adverts.
 
 - [StackOverflow jobs](http://stackoverflow.com/jobs)
 - [Natasha The Robot's Swift Jobs](https://www.natashatherobot.com/swift-jobs/)
 - [Core Intuition's Jobs Board](http://jobs.coreint.org)
 - [Apple's Jobs Site](https://www.apple.com/jobs/us/)
+- [@xcodejobs](https://twitter.com/xcodejobs)
 
 These kind of things work, I got my first programming job through [CocoaDev Jobs](http://www.cocoabuilder.com/archive/cocoa/174142-ann-cocoadev-jobs-board.html).
 
 These are great, but in my opinion the best way to find out what companies are hiring is to attend meet-ups in the city. In NYC we have 3-4 big iOS meet-ups a month, and all of them give a chance for people looking for others to work to speak up. You might not live in as big of a city, but I used to travel an hour to Manchester to attend a meet-up, they would have the same thing, I almost became a full-time rubyist because of it. I have quite a few friends in NYC who started their careers by talking to someone at a meet-up.
 
-Generic job websites can be good, for example Artsy's job postings are on [AngelList](https://angel.co/artsy) and [Glassdoor](https://www.glassdoor.co.uk/Job/Artsy-Jobs-E793485.htm) but the vast majority of the incoming applicants from them feel like they were sent to a lot of companies. They are given a low priority when compared to direct inquiries because of this. I can't speak from experience but [Ladders](https://www.theladders.com), [LinkedIn](https://www.linkedin.com), [Hired](http://hired.com) and [weworkremotely](https://weworkremotely.com) are probably worth a look too.
+Generic job websites can be good, for example Artsy's job postings are on [AngelList](https://angel.co/artsy) and [Glassdoor](https://www.glassdoor.co.uk/Job/Artsy-Jobs-E793485.htm) but the vast majority of applications feel like they were sent to a lot of companies. They are given a low priority when compared to direct inquiries because of this. I can't speak from experience but [Ladders](https://www.theladders.com), [LinkedIn](https://www.linkedin.com), [Hired](http://hired.com) and [weworkremotely](https://weworkremotely.com) are probably worth a look too.
 
-If you see an advert for a mobile developer, but they don't mention juniors, you should apply anyway. We've never had junior positions on our jobs pages, but have hired some who inquired anyway. Don't pretend to be more senior than you are though, set the right expectations. 
+Finally, search the websites of companies you like for careers or jobs pages.
+
+If you see an advert for a mobile developer, but they don't mention juniors, you should apply anyway. We've never had junior positions on our jobs pages, but have hired some who inquired anyway. Don't pretend to be more senior than you are though, set the right expectations.
 
 Finally, consult your network, talk to people at meet ups, sneakily contribute to open source projects with people you want to talk to and then email the project owner after they've got to know your name.
 
@@ -51,6 +54,8 @@ Know what goes a long way? Talking with someone before applying. I regularly get
 
 These are 15-30 minute informal chats, but from an employers perspective they are definitely a good way to filter candidates. A coffee is time-cheap, interviews are time-expensive. So ask someone on the dev team to do them, you'll usually get a yes. Tamar Nachmany has some [great, salient points](https://booleancubes.tumblr.com/post/137057622039/the-networking-with-awesome-strangers-checklist) on the right way to pitch these emails.
 
+It's definitely worth doing your homework on both the person doing coffee, and the company they work for. A coffee could turn into an interview.
+
 ### On an Intro Email
 
 Look at the language in the jobs page, and have your email / intro letter reflect that. When I receive very formal "dear hiring manager" emails it reflects badly on the applicant, [our jobs page](https://www.artsy.net/article/artsy-jobs-mobile-engineer) states to not worry about that, as we're not that kind of culture.
@@ -59,23 +64,23 @@ An intro email is your chance to show that you understand the core value of a co
 
 Let's look at Ash's intro email:
 
-> My name is Ash Furrow and I’m writing in regards to your mobile engineering position. I heard about the position first through Orta Therox, who spoke highly of Artsy. 
+> My name is Ash Furrow and I’m writing in regards to your mobile engineering position. I heard about the position first through Orta Therox, who spoke highly of Artsy.
 
-> Upon further reading, Artsy sounded exactly like the kind of place I want to work. An ambitious goal, to change the world, with a thorough mix of math, software engineering, and art. I consider myself to be an artist, both when I code and when I am behind the lens of a camera (I like to develop my own film). I love working with companies who understand the important role of art in our society, as I did with 500px. 
+> Upon further reading, Artsy sounded exactly like the kind of place I want to work. An ambitious goal, to change the world, with a thorough mix of math, software engineering, and art. I consider myself to be an artist, both when I code and when I am behind the lens of a camera (I like to develop my own film). I love working with companies who understand the important role of art in our society, as I did with 500px.
 
-_10/10._ Extremely on topic. 
+_10/10._ Extremely on topic.
 
 Next, you're going to want to now talk about great of a fit you would be, how well you understand the domain and how you've been doing similar work already.
 
 > I love how you’ve contributed back to the open source community. I am a strong believer in the power of open source, especially in the iOS community, where there has historically been a resistance to opening software. Sponsoring CocoaPods is a fantastic contribution toward the iOS community and I thank you for it. I’ve contributed back to several projects on GitHub, have written for the Teehan+Lax blog professionally, and have a selection of the apps I’ve written on my portfolio.
 
-I know what you're thinking "Ash wasn't a junior when he applied", well, chances are you've still got a history of things that can be applied towards an email like this. Also, flattery can get you everywhere. "I've been using your app for years, I love how it does 'x' - have you thought of doing 'y'?"
+I know what you're thinking: "Ash wasn't a junior when he applied", well, chances are you've still got a history of things that can be applied towards an email like this. Also, flattery can get you everywhere. "I've been using your app for years, I love how it does 'x' - have you thought of doing 'y'?"
 
 Sarah's was similar:
 
 > First, I'd just like to say I love Artsy and have been following your company since I learned of its existence two years ago. Making art accessible to the world is a problem the architects of the Internet should undoubtedly be solving and Artsy is doing so with elegance.
 
-_10/10_ ✔ 
+_10/10_ ✔
 
 > I'm currently transitioning from embedded systems to iOS development and looking for a place where I can learn a lot while making significant contributions to a product. As for my background, I just graduated from NYU with a B.S. in Electrical Engineering and completed a seven-month-long research and development internship at Canary (a home security hardware startup). While I do enjoy building hardware, I find software engineering generally more fun and in tune with my intellectual and creative preferences.
 
@@ -89,6 +94,7 @@ There are a lot of places for good, solid advice on the document you are using t
 
 You should consider what you think are qualities that you bring to the table, for some job applications I have submitted both a resume and a design portfolio. If you are particularly proud of your design work, perhaps find a way to include your app store screenshots and branding, or make your portfolio distinctive via design.
 
+Finally, consider that this is a document someone else will have to read. A dense document full of long descriptions and wordy titles is tough to read. Spend some time on making it as readable and easily digestible as possible.
 
 ##### On Representing Myself
 
@@ -139,7 +145,7 @@ You can definitely get a sense of my skill specialisations happening over the la
 
 I also consider my personal web-page [orta.io](http://orta.io) to act as a portfolio, Ash Furrow's portfolio page has a [similar vibe](https://ashfurrow.com/portfolio/).
 
-##### On the team 
+##### On the team
 
 Want to know what the resumes looked like for people applying to Artsy? I asked some of our team to send me their last resumes
 
@@ -177,8 +183,8 @@ A portfolio can be whatever you want it to be. You could spend forever on a port
 _More infö that I've reviewed and given a 👍:_
 
 * [iOS Developer Resume Examples](http://www.raywenderlich.com/54029/ios-developer-resume-examples) - Somehow I ended up sneaking on this article too.
-* [8 Minute Guide to Writing a Resume](https://rooting-for-you.cenedella.com/8-minute-resume-my-guide-to- writing-your-resume-effectively-3b0b117d94a#.ouqnzegkh) - Marc has a lot of experience in this space, plus his advice is definitely better if you're focusing on larger companies. 
- 
+* [8 Minute Guide to Writing a Resume](https://rooting-for-you.cenedella.com/8-minute-resume-my-guide-to-writing-your-resume-effectively-3b0b117d94a#.ouqnzegkh) - Marc has a lot of experience in this space, plus his advice is definitely better if you're focusing on larger companies.
+
 
 ### On The One
 
@@ -190,11 +196,11 @@ A lot of companies have public employee get-togethers, for example at Artsy we h
 
 ### On Interview Preparation
 
-So you've got an interview, be gracious in setting up a time, it's normal for these to take 
-
-Be cautious with links on the internet here, some of the [top](http://www.raywenderlich.com/53962/ios-interview-questions) [links](http://www.geekinterview.com/Interview-Questions/iOS) [to](http://way2ios.com/development/ios-development-2/ios-interview-questions-with-answers/) [search](http://www.toptal.com/ios/interview-questions) here are probably not great for people starting. They aim at a different audience, or focus on minutiae that juniors probably don't know.
+So you've got an interview, be gracious in setting up a time, it's normal for a bit of back and forth, the company probably has to find a time for a lot of people.
 
 There's a lot of value in a collection of interview questions though, one that IMO is a solid resource is [CameronBanga/iOS-Developer-and-Designer-Interview-Questions](https://github.com/CameronBanga/iOS-Developer-and-Designer-Interview-Questions) on GitHub. You could get asked a few of these.
+
+Be cautious with links on the internet here, some of the [top](http://www.raywenderlich.com/53962/ios-interview-questions) [links](http://www.geekinterview.com/Interview-Questions/iOS) [to](http://way2ios.com/development/ios-development-2/ios-interview-questions-with-answers/) [search](http://www.toptal.com/ios/interview-questions) here are probably not great for people starting. They aim at a different audience, or focus on minutiae that juniors probably don't know. If you want to help out there, and you're linking to this blog post on a website link it with the name include "iOS interview" in the text of the [link](http://answers.google.com/answers/threadview/id/141243.html).
 
 One book that is considered the go-to for interview preparation is [Cracking the Coding Interview](http://www.crackingthecodinginterview.com), it's considered a great guide to some of the computer-science-y questions you could get asked.
 
@@ -202,17 +208,17 @@ One book that is considered the go-to for interview preparation is [Cracking the
 
 Then I'd definitely recommend Cracking the Coding Interview. I don't think this is a blocker _at all_ - we have a lot of engineers on staff who do not have a computer science degree. In our line of work, having experience of the art world can be more useful in a lot of cases. It's very likely that you'll feel a hint of [impostor syndrome](http://geekfeminism.wikia.com/wiki/Impostor_syndrome) - [you shouldn't](https://medium.com/@aliciatweet/overcoming-impostor-syndrome-bdae04e46ec5#.ilrvfqjow) - the tech industry should be (and is) begging for people who can bring interesting new contexts.
 
-During the process of setting up your interviews, you should ask what to expect amor the interviews. If they are going to be whiteboards + algorithms like they do at Google/Facebook, then you I think you're gonna have to hit the books.
+During the process of setting up your interviews, you should ask what to expect from the interviews. If they are going to be whiteboards + algorithms like they do at Google/Facebook, then I think you're gonna have to hit the books.
 
 ##### On Mocks
 
-If you can do Mock Interviews you should. You need an existing network in order to pull that off, but you can get real feedback that can be extremely helpful. As an employer you have to be very cautious in the way you word a rejection, in a mock interview you don't. This isn't a one-sided process, the interviewer can use the chance to try out a different technique or to improve their interviewing skills. 
+If you can do Mock Interviews you should. You need an existing network in order to pull that off, but you can get real feedback that can be extremely helpful. As an employer you have to be very cautious in the way you word a rejection, in a mock interview you don't. This isn't a one-sided process, the interviewer can use the chance to try out a different technique or to improve their interviewing skills.
 
 If you don't know anyone who can do this for you, I'd feel like there are two options: [buy a mock interview](http://www.careercup.com/interview) and befriend someone who says they're looking for someone at a meet-up - they must be interviewing so they might want a practice run too. I've given about as many mock interviews as I have done real interviews in the last 2 years.
 
 _More infö that I've reviewed and given a 👍:_
 
-* [So You Have a Technical Interview at Macoscope](http://macoscope.com/blog/so-you-have-a-technical-interview-at-macoscope/) - Again, probably a bit more than expected of a junior, but a great summary of how they do it 
+* [So You Have a Technical Interview at Macoscope](http://macoscope.com/blog/so-you-have-a-technical-interview-at-macoscope/) - Again, probably a bit more than expected of a junior, but a great summary of how they do it
 * [How we hire](http://www.google.com/about/careers/lifeatgoogle/hiringprocess/) - How Google's hiring process works.
 
 
@@ -220,7 +226,7 @@ _More infö that I've reviewed and given a 👍:_
 
 To be at this point, a employer has already decided to invest probably something like 10 hours into you. This is spread across a few people but the point is important. To have got here, someone has to be on your side. They will have had to put in work to even get people to agree to schedule you into their day. Your mindset should reflect this, it's not you vs them. It's you and someone. Your job from here is persuading everyone else that gut feeling from that person is correct.
 
-There is no catch-all solid advice for interviews, but I can give you some of the things we talk about in Artsy. 
+There is no catch-all solid advice for interviews, but I can give you some of the things we talk about in Artsy.
 
 We look for [T shaped](https://en.wikipedia.org/wiki/T-shaped_skills) engineers, even in juniors. This means someone who has experience in a pretty wide net of things, but that they have a solid focus. This could be building their APIs for apps, writing their own blog, designing their website, automating some regular tasks or using technology for art.
 
@@ -232,11 +238,11 @@ One thing I can tell you concretely though, is what I do. My interviews with jun
 
 - A Chat
 
-  I want to get someone comfortable with the interview, I'll have taken points from looking over the portfolio to explore. It will be a pretty one-sided conversation with me only trying to provide points to spring off. "So tell me about when you did x". 
+  I want to get someone comfortable with the interview, I'll have taken points from looking over the portfolio to explore. It will be a pretty one-sided conversation with me only trying to provide points to spring off. "So tell me about when you did x".
 
 - Pair Programming
 
-  I want to get a sense of how you use a computer and act under mentorship. So I do one of two things, depending on how work has been the last week. If there's been a pull request which seem small and contained enough from our team on one of our apps. I will pair on re-creating the pull request from scratch, without letting it be known that the PR had already been built and accepted. If there isn't, we'll take a pre-built broken app and fix it.
+  I want to get a sense of how you use a computer and act under mentorship. So I do one of two things, depending on how work has been the last week. If there's been a pull request which seem small and contained enough from our team on one of our apps, I will pair on re-creating the pull request from scratch, without letting it be known that the PR had already been built and accepted. If there isn't, we'll take a pre-built broken app and fix it.
 
   I want to see things like; do you use Xcode shortcuts? Can you explain the code you're looking at? If I offer some advice, do you use it? Can you present ideas when we're figuring out an abstraction? Can you identify where problematic behaviour lies?
 
@@ -246,7 +252,7 @@ One thing I can tell you concretely though, is what I do. My interviews with jun
 
 Here's [a long writeup](https://medium.com/@jon.lazar/my-approach-to-learning-ios-fccf943aead#.ei4yvc38k), with a lot of depth (and places to jump off from) from someone who has just come out of a mock interview with me. Thanks Jon.
 
-None of this process aims to be adversarial, if someone has got this far, I really want to have a sense of how much time and attention will be required to give them some independence.
+None of this process aims to be adversarial, if someone has got this far, I really want to have a sense of how much time and attention will be required to give them some independence. I think a lot of interviewing techniques are created organically, so it's hard to provide a lot of context.
 
 ### On References
 
@@ -256,21 +262,25 @@ Artsy puts a lot of priority on references,  Check out [Brennan Moore's article]
 
 > However, if I had to fire people gradually, I'd fire her last. her skill-set is so valuable, and so scarce that it's super valuable. I'd fire me before her.
 
+and
+
 > She was the glue that held the team together - could talk at a different level to each contributor. Great intuition, could put in a room with anyone and they could understand how to get their bits done.
 
-I respect that no-one is in control of other people, so yes, references are a bit of a wild card from a junior's perspective. However, hopefully you've had a collection of positive interactions with people who can talk about that. It's not about your programming prowess at this point, it's about how you work with others and character reference.
+I respect that no-one is in control of other people, so yes, references are a bit of a wild card from a junior's perspective. However, hopefully you've had a collection of positive interactions with people who can talk about that. It's not about your programming prowess at this point, it's about how you work with others and character reference. Consider listing professors, advisers or supervisors from other jobs.
 
 ### On the Aftermath
 
 So, interviews are over. What is happening behind the scenes? After your interviews are done, there will be a flurry of behind the scenes emails. From my experience at Artsy, it probably takes a few days to get enough of a consensus around a yay/nay. Someone should be keeping the applicant up to date, even if it's a matter of "not yet, but we're talking."
 
-This bit is hard, because you're in limbo, and it can take a while. I think with Sarah this took about a week and a half, from her final interviews to being able to send her an offer. Which I'm sure for her weren't great, she could be so close to an offer - or weeks wasted on moving towards another.
+This bit is hard, because you're in limbo, and it can take a while. I think with Sarah this took about a week and a half, from her final interviews to being able to send her an offer. Which I'm sure for her weren't great, she could be so close to an offer - or weeks wasted on moving towards another. Sending "Gow's it going?" emails is totally fine if you've not heard back in a week. It's not cool for a company to not get back to you if you have interviewed.
 
 ### On the Launch Pad
 
-OK, so you've been given an offer. If it's a startup, you might be offered equity. If you don't know this world, that's OK, it's hard to give advice here - but [this](https://github.com/jlevy/og-equity-compensation) seems to be best resource I know about it all. I started with no knowledge, and eventually got a reasonable understanding. If you want one sentence from me, "equity is a risk, be damn sure you think the company is going to go somewhere." I opted for a chunk of equity in Artsy, but I've worked at places where I've taken the minimum option.
+OK, so you've been given an offer. If it's a startup, you might be offered equity. If you don't know this world, that's OK, it's hard to give advice here - but [this](https://github.com/jlevy/og-equity-compensation) seems to be the most comprehensive resource, and this seems to be the [best starter](http://jvns.ca/blog/2015/12/30/do-the-math-on-your-stock-options/). I started with no knowledge, and eventually got a reasonable understanding. If you want one sentence from me, "equity is a risk, be damn sure you think the company is going to go somewhere." I opted for a chunk of equity in Artsy, but I've worked at places where I've taken the minimum option.
 
-Ideally you are presented with a great offer, I've never negotiated salary and we don't do it at Artsy as it [introduces bias](https://en.wikipedia.org/wiki/Gender_pay_gap_in_the_United_States#Negotiating_salaries), so I can't offer much there.
+Ideally you are presented with a great offer, I've never negotiated salary and we don't do it at Artsy as it [introduces bias](https://en.wikipedia.org/wiki/Gender_pay_gap_in_the_United_States#Negotiating_salaries), so I can't offer much there. But I have recieved [some good](https://github.com/artsy/artsy.github.io/pull/205#discussion_r51386447) advice I'll paraphrase.
+
+It's up to you whether to negotiate. In order to negotiate, you need to have an understanding of what people in similar companies/positions are. Ask people in the industry, friends and mentors. Talk in pay-ranges if that's easier. Note: The type of company, it's/your location, benefits, equity and the economy are all things that will move those ranges.
 
 ### OK, so, while I have your attention, what else can I recommend?
 
@@ -280,7 +290,11 @@ If you have a blog, and it's on medium, look into making/editing your own blog. 
 
 If you're not active on Twitter, you should start trying. Every time you think of something worth saying to someone next to you, say it to them, then say it to twitter. Show off pictures of what you're working on, reply to people with more followers than you when they ask questions, talk about code. It took me 4 years to hit my first thousand followers, hopefully you can be more interesting [than I was](https://twitter.com/orta/status/13912101) for a while.
 
+This article covers [how developers in general use twitter](http://blog.leif.me/2013/11/how-software-developers-use-twitter/) it's an interesting read. You can get a lot of value by following developers whose work you rely on, or whose [blog posts you think are awesome](https://twitter.com/orta).
+
 When people say GitHub is your resume, they are right and they are wrong. GitHub can help get you through the door, but you can't rely on that in your interviews. Check out the advice at the [end of this post](http://code.dblock.org/2011/07/14/github-is-your-new-resume.html) on how to make your GitHub look good for people looking at whether to interview you.
+
+However you can [distinguish yourself by contributing to Open Source](https://ma.tt/2016/02/getting-a-job-after-coding-bootcamp/). [Fix READMEs](https://github.com/alloy/lowdown/pull/8), [improve documentation ](https://github.com/supermarin/ObjectiveSugar/pull/20) or [the Pods you use](http://artsy.github.io/blog/2016/01/28/being-a-good-open-source-citizen/). These slides go [into other ways](https://speakerdeck.com/orta/contributing-to-open-source-doesnt-require-changing-the-world) to contribute."
 
 #### Some links for further reading
 
@@ -288,13 +302,15 @@ When people say GitHub is your resume, they are right and they are wrong. GitHub
 * [The Social Coding Contract](http://blog.testdouble.com/posts/2014-12-02-the-social-coding-contract.html) - I'd recommend this to anyone on any topic, regardless of what they were really asking.
 * [Git Conflicts and Empathy](http://blog.testdouble.com/posts/2016-01-25-an-empathetic-guide-to-git-conflicts.html) - Understanding that a git conflict is that two people really want to do something positive.
 * [Finding Joy at Work](http://blog.testdouble.com/posts/2015-06-08-finding-joy-at-work.html) - On the risks of being in a small company.
-* Artsy's best-of for Juniors:
-  - [OSS Expectations](http://artsy.github.io/blog/2016/01/13/OSS-Expectations/) - On how to talk the talk when thinking about Open Source
-  - [Being a good OSS citizen](http://artsy.github.io/blog/2016/01/28/being-a-good-open-source-citizen/) - On how to walk the walk when contributing back
-  - Video code-reviews: [Eidolon](http://artsy.github.io/blog/2016/01/14/eidolon-code-review/) / [Emergence](http://artsy.github.io/blog/2015/11/05/Emergence-Code-Review/) - On the gestalt of an app.
-  - [Dropped Design Patterns](http://artsy.github.io/blog/2015/09/01/Cocoa-Architecture-Dropped-Design-Patterns/) - On understanding that decisions aren't permanent
-  - [How To Write Unit Tests Like a Brood Parasite](http://artsy.github.io/blog/2015/07/06/how-to-write-unit-tests-like-a-brood-parasite/) - On using metaphors to understand complex ideas.
-  - [Artsy's Engineering Compensation Framework](http://artsy.github.io/blog/2015/04/03/artsy-engineering-compensation-framework/) - On ways in which you can rank yourself.
-  - [The Culture of Openness in the Artsy Mobile Team](http://artsy.github.io/blog/2015/03/31/the-culture-of-openness-artsy-mobile/) - On how a team talks about it's culture.
-  - [Building the Xcode Plugin Snapshots](http://artsy.github.io/blog/2014/06/17/building-the-xcode-plugin-snapshots/) - On how your tools can be improved, and how easy it is to get started.
-  - [MVVM in Swift](https://artsy.github.io/blog/2015/09/24/mvvm-in-swift/) - On understanding that there is more than one way to skin a cat.
+
+#### This blog's best-of for Juniors:
+
+- [OSS Expectations](http://artsy.github.io/blog/2016/01/13/OSS-Expectations/) - On how to talk the talk when thinking about Open Source.
+- [Being a good OSS citizen](http://artsy.github.io/blog/2016/01/28/being-a-good-open-source-citizen/) - On how to walk the walk when contributing back.
+- Video code-reviews: [Eidolon](http://artsy.github.io/blog/2016/01/14/eidolon-code-review/) / [Emergence](http://artsy.github.io/blog/2015/11/05/Emergence-Code-Review/) - On the gestalt of an app.
+- [Dropped Design Patterns](http://artsy.github.io/blog/2015/09/01/Cocoa-Architecture-Dropped-Design-Patterns/) - On understanding that technical decisions aren't permanent.
+- [How To Write Unit Tests Like a Brood Parasite](http://artsy.github.io/blog/2015/07/06/how-to-write-unit-tests-like-a-brood-parasite/) - On using metaphors to understand complex ideas.
+- [Artsy's Engineering Compensation Framework](http://artsy.github.io/blog/2015/04/03/artsy-engineering-compensation-framework/) - On ways in which you can rank yourself.
+- [The Culture of Openness in the Artsy Mobile Team](http://artsy.github.io/blog/2015/03/31/the-culture-of-openness-artsy-mobile/) - On how a team talks about it's culture.
+- [Building the Xcode Plugin Snapshots](http://artsy.github.io/blog/2014/06/17/building-the-xcode-plugin-snapshots/) - On how your tools can be improved, and how easy it is to get started.
+- [MVVM in Swift](https://artsy.github.io/blog/2015/09/24/mvvm-in-swift/) - On understanding that there is more than one way to skin a cat.
