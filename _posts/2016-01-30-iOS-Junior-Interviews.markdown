@@ -8,7 +8,7 @@ categories: [mobile, ios, juniors, interviewing]
 
 When I was at the beginning of my career, my first developer job application was to a design agency who were doing Mac development too. It was pretty nerve-wracking to apply for my first programming job, and I came into the interview with no idea what to expect. I had just graduated from university and was at the first few steps of my career, I'd call this being a junior. It was a time period where I would need mentoring, and supervision in order to grow. A good explanation is in [this StackOverflow](http://programmers.stackexchange.com/questions/14914/whats-the-difference-between-entry-level-jr-sr-developers).
 
-Now that I'm both further on in my career, and involved with so many juniors in NYC, I'm meeting with a lot of people who are in the same position I was then and I get a lot of questions asking what they can do to prepare. This post _attempts_ at being a comprehensive collection of recommendations. It is subjective, of course, and strongly based towards my experiences.
+Now that I'm both further on in my career, and involved with so many juniors in NYC, I'm meeting with a lot of people who are in the same position I was then and I get a lot of questions asking what they can do to prepare. This post _attempts_ at being a comprehensive collection of recommendations. It is subjective, of course, and strongly biased towards my experiences.
 
 Before I jump through to the article, there's one thing that should be above the fold. _Chill out_. You might not get it right on the first try, I've applied for jobs and received a "no thanks." Yet eventually I became the head of mobile at Artsy. Everyone finds their place in time.
 
