@@ -272,7 +272,7 @@ I respect that no-one is in control of other people, so yes, references are a bi
 
 So, interviews are over. What is happening behind the scenes? After your interviews are done, there will be a flurry of behind the scenes emails. From my experience at Artsy, it probably takes a few days to get enough of a consensus around a yay/nay. Someone should be keeping the applicant up to date, even if it's a matter of "not yet, but we're talking."
 
-This bit is hard, because you're in limbo, and it can take a while. I think with Sarah this took about a week and a half, from her final interviews to being able to send her an offer. Which I'm sure for her weren't great, she could be so close to an offer - or weeks wasted on moving towards another. Sending "Gow's it going?" emails is totally fine if you've not heard back in a week. It's not cool for a company to not get back to you if you have interviewed.
+This bit is hard, because you're in limbo, and it can take a while. I think with Sarah this took about a week and a half, from her final interviews to being able to send her an offer. Which I'm sure for her weren't great, she could be so close to an offer - or weeks wasted on moving towards another. Sending "How's it going?" emails is totally fine if you've not heard back in a week. It's not cool for a company to not get back to you if you have interviewed.
 
 ### On the Launch Pad
 
