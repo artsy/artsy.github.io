@@ -6,7 +6,7 @@ author: orta
 categories: [mobile, ios, juniors, interviewing]
 ---
 
-When I was at the beginning of my career, my first developer job application was to a design agency who were doing Mac development too. It was pretty nerve-racking to apply for my first programming job, and I came into the interview with no idea what to expect. I had just graduated from university and was at the first few steps of my career, I'd call this being a junior. It was a time period where I would need mentoring, and supervision in order to grow. A good explanation is in [this StackOverflow](http://programmers.stackexchange.com/questions/14914/whats-the-difference-between-entry-level-jr-sr-developers).
+When I was at the beginning of my career, my first developer job application was to a design agency who were doing Mac development too. It was pretty nerve-wracking to apply for my first programming job, and I came into the interview with no idea what to expect. I had just graduated from university and was at the first few steps of my career, I'd call this being a junior. It was a time period where I would need mentoring, and supervision in order to grow. A good explanation is in [this StackOverflow](http://programmers.stackexchange.com/questions/14914/whats-the-difference-between-entry-level-jr-sr-developers).
 
 Now that I'm both further on in my career, and involved with so many juniors in NYC, I'm meeting with a lot of people who are in the same position I was then and I get a lot of questions asking what they can do to prepare. This post _attempts_ at being a comprehensive collection of recommendations. It is subjective, of course, and strongly based towards my experiences.
 
@@ -16,7 +16,7 @@ Before I jump through to the article, there's one thing that should be above the
 
 ### On Your Readiness
 
-No-one starting out is ever ready, and an individual is [never really "done"](https://ashfurrow.com/blog/you-never-arrive/). However, in this [post @dbgrandi](http://dbgrandi.github.io/minimum_viable_programmer/) neatly sums up the bar.
+No-one starting out is ever ready, and an individual is [never really "done"](https://ashfurrow.com/blog/you-never-arrive/). However, in this [post @dbgrandi](http://dbgrandi.github.io/minimum_viable_programmer/) neatly sums up the lower bar to entry.
 
 > I had a long list of specific things relating to Xcode and iOS. They were very tedious things like, “you should know how to add a new file to an Xcode project.” I’ve shortened that list to a general description here.
 
