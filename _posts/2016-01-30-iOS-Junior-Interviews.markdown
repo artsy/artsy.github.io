@@ -24,7 +24,7 @@ No-one starting out is ever ready, and an individual is [never really "done"](ht
 
 > If you can do that, in a well organised manner, and can discuss the choices you made to get your app built you’ll have been able to do almost everything that was on that long and tedious list.
 
-This is a great starting point. In an ideal world, an interviewer isn't going to to judge you on not knowing every detail about the whole system. They will have expectations that you're going to have to learn on the job for a lot of things, and that's ok.
+This is a great starting point. In an ideal world, an interviewer isn't going to judge you on not knowing every detail about the whole system. They will have expectations that you're going to have to learn on the job for a lot of things, and that's ok.
 
 ### On the lookout
 
