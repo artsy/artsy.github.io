@@ -244,6 +244,8 @@ We look for [T shaped](https://en.wikipedia.org/wiki/T-shaped_skills) engineers,
 
 As a junior, the employer is looking for growth potential. Looking for people who, in the right environment could really thrive. However it's important to note, an interview only lets you know how well someone interviews. The greatest programmers can choke on interviews.
 
+You should come in with a few ideas about questions you'd like to ask of the company, as interviews work both ways. Think of some specific to the space the company works, and this is a [great list of general questions](https://www.theladders.com/career-newsletters/its-not-about-me-its-about-you-the-21-questions-you-need-to-ask-in-a-job-interview-june-2014) to work from. You could consider them ice-brakers, or they can be used to finish up an interview. The most memorable question asked to me was "Where would I work if I wasn't at Artsy?" which threw me off completely, but probably told the interviewer a lot about the culture at Artsy.
+
 ##### How I interview Juniors
 
 One thing I can tell you concretely though, is what I do. My interviews with juniors come in three parts:
