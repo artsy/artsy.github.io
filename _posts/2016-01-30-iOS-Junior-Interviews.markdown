@@ -56,6 +56,18 @@ These are 15-30 minute informal chats, but from an employers perspective they ar
 
 It's definitely worth doing your homework on both the person doing coffee, and the company they work for. A coffee could turn into an interview.
 
+##### But I don't live in a major metropolis
+
+So meet-ups aren't going to work for you. I lived for most of my life (~25 years) about 2 hours train ride from Manchester. I love the little town, but there's very little meet-up scene or tech scene at all. Our meet-ups were people all starting together, and without a general core set of experienced people providing some consistency.
+
+Personally, I wouldn't hire a junior who was remote. I don't think that relationship would work out well for mentor/mentoree. You'd need the entire company to be remote for that to work, and it's too much to ask for someone to be both learning everything on the job and to also have to play catch-up with company culture.
+
+So then what are the options? When I was looking I took a local white-pages/local ads and applied to all of the companies in my local area who were doing what I was interested in. I ended up working somewhere close enough to walk to work.
+
+The other option is to move to a big city with existing infrastructure. This can obviously be hard, but being surrounded with people doing similar things is difficult to put a price on. I never wanted to move to a big city, but once I did, it boosted my abilities to get things done considerably. Constant access to people and ideas change you. [Most people](http://www.gizmag.com/go/7613/) now live in cities.
+
+Finally, one of the best ways to distinguish yourself if you're going to aim for remote is in Open Source contributions. The process of contributing to Open Source is very similar to working as a remote developer. They both require self-motivation, clearness in your messaging and dealing with asynchronicity well.
+
 ### On an Intro Email
 
 Look at the language in the jobs page, and have your email / intro letter reflect that. When I receive very formal "dear hiring manager" emails it reflects badly on the applicant, [our jobs page](https://www.artsy.net/article/artsy-jobs-mobile-engineer) states to not worry about that, as we're not that kind of culture.
