@@ -3,7 +3,7 @@ layout: post
 title: 'Being a Good OSS Citizen'
 date: 2016-01-28T00:00:00.000Z
 comments: false
-categories: [ios, mobile, review, video, code, swift, oss]
+categories: [ios, mobile, code, swift, oss]
 author: ash
 ---
 
@@ -21,15 +21,15 @@ I picked [this one](https://cocoapods.org/pods/MARKRangeSlider) because it did _
 
 But I said it did "almost exactly" what I needed, which meant I'd have to modify it. At this point, many developers either look for a different library or abandon the idea of using an existing library altogether and invent one themselves. That's a shame, because it's almost always faster and easier to improve an existing library than it is to build your own.
 
-So let's step through what I did to modify this library for my needs. First, I checked to see if there was an issue for my feature already opened on the repository; maybe someone else had tried this, and I could benefit from their experience! That wasn't the case, so I forked the library to my personal account and cloned my fork locally. Now I can modify the library's code and commit it to my fork. 
+So let's step through what I did to modify this library for my needs. First, I checked to see if there was an issue for my feature already opened on the repository; maybe someone else had tried this, and I could benefit from their experience! That wasn't the case, so I forked the library to my personal account and cloned my fork locally. Now I can modify the library's code and commit it to my fork.
 
-Next I add the library to my `Podfile`, but I'm clever about it. 
+Next I add the library to my `Podfile`, but I'm clever about it.
 
 ```rb
 pod 'MARKRangeSlider', :path => '../MARKRangeSlider'
 ```
 
-This tells CocoaPods that I'm _working_ on the pod, and, it is stored in a local directory (the one where I cloned my fork). This makes it a "development pod", so that the files in Xcode are actually the ones I've cloned locally. 
+This tells CocoaPods that I'm _working_ on the pod, and, it is stored in a local directory (the one where I cloned my fork). This makes it a "development pod", so that the files in Xcode are actually the ones I've cloned locally.
 
 This is a really important, but subtle point. Normally, CocoaPods downloads copies of the files and stores those copies, but in this case, it refers to the existing files. It doesn't copy them at all: any changes I make to the library while working on my app are to the files I cloned. That means they can be easily committed and pushed up to my fork.
 
@@ -57,6 +57,6 @@ This sounds like a lot, and having written it all out, I guess it is. But it's a
 
 ---
 
-I believe that using existing open source libraries is almost always better than writing your own, and I believe that improvements made to open source ought to be shared. Those beliefs shape my behaviour as a developer, and as a person. 
+I believe that using existing open source libraries is almost always better than writing your own, and I believe that improvements made to open source ought to be shared. Those beliefs shape my behaviour as a developer, and as a person.
 
 Making your first contribution to a project may seem scary, but we all [start somewhere](https://github.com/B-Sides/ELCSlider/pull/1). It gets easier, and in time, you will become a paragon of open source citizenry.

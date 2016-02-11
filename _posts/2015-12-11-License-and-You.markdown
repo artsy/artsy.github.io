@@ -3,7 +3,7 @@ layout: post
 title: 'Licenses for OSS Code'
 date: 2015-12-10T00:00:00.000Z
 comments: false
-categories: [ios, mobile, review, video, oss]
+categories: [ios, mobile, licensing, video, oss]
 author: orta
 ---
 
