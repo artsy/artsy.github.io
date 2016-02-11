@@ -1,6 +1,6 @@
 ---
 layout: post
-title: 'Eidolon: Code Review'
+title: 'Code Review: Eidolon'
 date: 2016-01-14T00:00:00.000Z
 comments: false
 categories: [ios, mobile, review, video, code, swift, oss]
