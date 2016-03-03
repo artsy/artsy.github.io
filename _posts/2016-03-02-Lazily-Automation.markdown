@@ -16,9 +16,9 @@ I'm going to cover four things I've worked on lately to improve this: [Danger](h
 
 ### Danger
 
-[Danger](https://github.com/danger/danger/) is a tool I co-created with a friend ([Felix Krause](https://github.com/krausefx/)), and [my girlfriend](https://github.com/dangermcshane). It came out of frustration that we couldn't easily hold ourselves accountable to better team processes. Requiring a code-reviewer to remember also remember things like "Add a CHANGELOG Entry" isn't much to ask, but it is "Yet Another Thing To Remember" for both the submitter and reviewer.
+[Danger](https://github.com/danger/danger/) is a tool I co-created with a friend ([Felix Krause](https://github.com/krausefx/)), and [my girlfriend](https://github.com/dangermcshane). It came out of frustration that we couldn't easily hold ourselves accountable to better team processes. Requiring a code-reviewer to  also remember details like "Add a CHANGELOG Entry" isn't much to ask, but it is "Yet Another Thing To Remember" for both the submitter and reviewer.
 
-It's turning into a really important part of our code-review, and the ideas it generates once we had it in place make it fun to add new rules. It means we can feel fast, and not have to think about process so much. Danger will tell us if we've missed something.
+It's turning into a really important part of our code-review, and the ideas it generates once we had it in place make it fun to add new rules. It means we can fail fast, and not have to think about process so much. Danger will tell us if we've missed something.
 
 ![Danger Example](/images/2016-03-02-Lazily-Automation/danger.png)
 
@@ -55,11 +55,14 @@ I created two shell functions, one that makes a branch that includes a context t
 
 ### Branch Prefixes
 
-We use a Makefile in all our projects to try and help automate simple tasks like running [mogenertor](https://github.com/artsy/energy/blob/12fe9de4d927eea27f4942d15e74b89016a6345f/Makefile#L44-L47), updating [storyboard identifiers](https://github.com/artsy/energy/blob/12fe9de4d927eea27f4942d15e74b89016a6345f/Makefile#L49-L50) and updating [embedded resources](https://github.com/artsy/eigen/blob/12fe9de4d927eea27f4942d15e74b89016a6345f/Makefile#L102-L103).
+We use a Makefile in all our projects to try and help automate per-project simple tasks like running [mogenertor](https://github.com/artsy/energy/blob/12fe9de4d927eea27f4942d15e74b89016a6345f/Makefile#L44-L47), updating [storyboard identifiers](https://github.com/artsy/energy/blob/12fe9de4d927eea27f4942d15e74b89016a6345f/Makefile#L49-L50) and updating [embedded resources](https://github.com/artsy/eigen/blob/12fe9de4d927eea27f4942d15e74b89016a6345f/Makefile#L102-L103).
 
 I also applied some standard make commands in our projects so that I can prefix my [branches with my name](https://github.com/artsy/eigen/blob/12fe9de4d927eea27f4942d15e74b89016a6345f/Makefile#L111-L118).
 
 ``` sh
+LOCAL_BRANCH = $(shell git rev-parse --abbrev-ref HEAD)
+BRANCH = $(shell echo $(shell whoami)-$(shell git rev-parse --abbrev-ref HEAD))
+
 pr:
 	if [ "$(LOCAL_BRANCH)" == "master" ]; then echo "In master, not PRing"; else git push upstream "$(LOCAL_BRANCH):$(BRANCH)"; open "https://github.com/artsy/eigen/pull/new/artsy:master...$(BRANCH)"; fi
 
@@ -70,7 +73,7 @@ fpush:
 	if [ "$(LOCAL_BRANCH)" == "master" ]; then echo "In master, not pushing"; else git push upstream $(LOCAL_BRANCH):$(BRANCH) --force; fi
 ```
 
-It means that everyone in the team can provide have logically named branches without having to have their local repo filled with `[my_name]-thing` branches.
+This works by some funky shell work to pull out your current branch into `LOCAL_BRANCH`, then to do the same thing but prefixed with your login name for `BRANCH`. Then the make commands handle pushing to the server. This means that everyone in the team can provide have logically named branches without having to have their local repo filled with `[my_name]-thing` branches.
 
 ## On-going
 
