@@ -55,7 +55,7 @@ I created two shell functions, one that makes a branch that includes a context t
 
 ### Branch Prefixes
 
-We use a Makefile in all our projects to try and help automate per-project simple tasks like running [mogenertor](https://github.com/artsy/energy/blob/e5db035225490fb53c65c74a6c1bdd660f305ab6/Makefile#L44), updating [storyboard identifiers](https://github.com/artsy/energy/blob/e5db035225490fb53c65c74a6c1bdd660f305ab6/Makefile#L49) and updating [embedded resources](https://github.com/artsy/eigen/blob/12fe9de4d927eea27f4942d15e74b89016a6345f/Makefile#L102-L103).
+We use a Makefile in all our projects to try and help automate per-project simple tasks like running [mogenerator](https://github.com/artsy/energy/blob/e5db035225490fb53c65c74a6c1bdd660f305ab6/Makefile#L44), updating [storyboard identifiers](https://github.com/artsy/energy/blob/e5db035225490fb53c65c74a6c1bdd660f305ab6/Makefile#L49) and updating [embedded resources](https://github.com/artsy/eigen/blob/12fe9de4d927eea27f4942d15e74b89016a6345f/Makefile#L102-L103).
 
 I also applied some standard make commands in our projects so that I can prefix my [branches with my name](https://github.com/artsy/eigen/blob/10106210196f096a27412a70af61dcae7fda285c/Makefile#L110-L117).
 
