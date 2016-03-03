@@ -8,7 +8,7 @@ categories: [automation, culture, teams]
 
 I juggle a bunch of projects, both in Artsy and in the Open Source community. If you don't work with me directly, you'd be mistaken for believing that I was an organized person. I'm pretty far from that, and [don't really](https://github.com/artsy/mobile/issues/68) plan on changing that.
 
-However, I work with other people and very strongly believe the programming is mostly a social problem once you're good enough at writing code. It'd be hypocritical of me to not improve the people process side, so I try to automate something that makes me a better team-mate.
+However, I work with other people and very strongly believe that programming is mostly a social problem once you're good enough at writing code. It'd be hypocritical of me to not improve the people process side, so I try to automate processes that makes me a better team-mate.
 
 I'm going to cover four things I've worked on lately to improve this: [Danger](https://github.com/danger/danger/), [GitHub-Clippers](https://github.com/orta/github-clippers) and improving how I write commits and prefixing my name on branches.
 
@@ -55,13 +55,13 @@ I created two shell functions, one that makes a branch that includes a context t
 
 ### Branch Prefixes
 
-We use a Makefile in all our projects to try and help automate per-project simple tasks like running [mogenertor](https://github.com/artsy/energy/blob/12fe9de4d927eea27f4942d15e74b89016a6345f/Makefile#L44-L47), updating [storyboard identifiers](https://github.com/artsy/energy/blob/12fe9de4d927eea27f4942d15e74b89016a6345f/Makefile#L49-L50) and updating [embedded resources](https://github.com/artsy/eigen/blob/12fe9de4d927eea27f4942d15e74b89016a6345f/Makefile#L102-L103).
+We use a Makefile in all our projects to try and help automate per-project simple tasks like running [mogenertor](https://github.com/artsy/energy/blob/e5db035225490fb53c65c74a6c1bdd660f305ab6/Makefile#L44), updating [storyboard identifiers](https://github.com/artsy/energy/blob/e5db035225490fb53c65c74a6c1bdd660f305ab6/Makefile#L49) and updating [embedded resources](https://github.com/artsy/eigen/blob/12fe9de4d927eea27f4942d15e74b89016a6345f/Makefile#L102-L103).
 
-I also applied some standard make commands in our projects so that I can prefix my [branches with my name](https://github.com/artsy/eigen/blob/12fe9de4d927eea27f4942d15e74b89016a6345f/Makefile#L111-L118).
+I also applied some standard make commands in our projects so that I can prefix my [branches with my name](https://github.com/artsy/eigen/blob/10106210196f096a27412a70af61dcae7fda285c/Makefile#L110-L117).
 
 ``` sh
 LOCAL_BRANCH = $(shell git rev-parse --abbrev-ref HEAD)
-BRANCH = $(shell echo $(shell whoami)-$(shell git rev-parse --abbrev-ref HEAD))
+BRANCH = $(shell echo host=github.com | git credential fill | sed -E 'N; s/.*username=(.+)\n?.*/\1/')-$(shell git rev-parse --abbrev-ref HEAD)
 
 pr:
 	if [ "$(LOCAL_BRANCH)" == "master" ]; then echo "In master, not PRing"; else git push upstream "$(LOCAL_BRANCH):$(BRANCH)"; open "https://github.com/artsy/eigen/pull/new/artsy:master...$(BRANCH)"; fi
