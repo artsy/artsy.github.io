@@ -7,3 +7,8 @@ gem 'octopress-hooks'
 gem 'rdiscount'
 gem 'pygments.rb'
 gem 'RedCloth'
+
+group :distribution do
+  gem 'danger'
+  gem 'link-checker'
+end
