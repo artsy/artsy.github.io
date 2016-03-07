@@ -16,7 +16,7 @@ I'm going to cover four things I've worked on lately to improve this: [Danger](h
 
 ### Danger
 
-[Danger](https://github.com/danger/danger/) is a tool I co-created with a friend ([Felix Krause](https://github.com/krausefx/)), and [my girlfriend](https://github.com/dangermcshane). It came out of frustration that we couldn't easily hold ourselves accountable to better team processes. Requiring a code-reviewer to  also remember details like "Add a CHANGELOG Entry" isn't much to ask, but it is "Yet Another Thing To Remember" for both the submitter and reviewer.
+[Danger](https://github.com/danger/danger/) is a tool I co-created with a friend ([Felix Krause](https://github.com/krausefx/)), and it's namesake, [Gem "Danger" McShane](https://github.com/dangermcshane). It came out of frustration that we couldn't easily hold ourselves accountable to better team processes. Requiring a code-reviewer to  also remember details like "Add a CHANGELOG Entry" isn't much to ask, but it is "Yet Another Thing To Remember" for both the submitter and reviewer.
 
 It's turning into a really important part of our code-review, and the ideas it generates once we had it in place make it fun to add new rules. It means we can fail fast, and not have to think about process so much. Danger will tell us if we've missed something.
 
