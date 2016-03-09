@@ -37,6 +37,14 @@ I write _reasonable_ commit messages, they're not [amazing](http://tbaggery.com/
 Their style is to have commits in a format like `[Context] Thing I did.` - it is much better that `Thing I did.`. So I looked into how I could automate this, because I would very quickly forget to do this. Here's what I did:
 
 ``` sh
+
+// Helper function to get the branch info
+function git_branch_info() {
+  ref=$(command git symbolic-ref HEAD 2> /dev/null) || \
+  ref=$(command git rev-parse --short HEAD 2> /dev/null) || return
+  echo "${ref#refs/heads/}"
+}
+
 function branch() {
   git checkout master;
   git pull upstream master;
@@ -48,6 +56,12 @@ function commit() {
   local BRANCH=$(git_branch_info)
   local INFO=$(git config branch.$(echo $BRANCH).description)
   git commit -m "[$(echo $INFO)] $argv"
+}
+
+// And if I forget to set my context
+function context() {
+  local BRANCH=$(git_branch_info)
+  git config branch.$(echo $BRANCH).description $1
 }
 ```
 
