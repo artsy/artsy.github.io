@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Public Speaking - Part 2: Where To Start?"
-date: 2016-03-04 11:00
+date: 2016-03-14 11:00
 author: maxim
 categories: [teaching, learning, speaking, oss, community]
 ---
