@@ -39,11 +39,11 @@ Funnily enough, my first ever talk, since starting out as a developer, was at a 
 
 I will say that this doesn’t necessarily mean you should go talk about anything your heart desires. Ultimately the attendees are there to learn, so it’s only fair that as speakers you’d tailor your presentation towards your audience. But more on that in Part 3.
 
-To be considered, often conference organisers ask people to submit a CfP (Call for Papers / Call for Proposals). This is your chance to submit details on what you’d like to present on. You usually want to include a preliminary talk title, an abstract, and a bit of background on yourself. If you’ve done any talks before and they happen to have been recorded, it’s worth including the video or otherwise previous slidedecks.
+To be considered, often conference organisers ask people to submit a CfP (Call for Papers / Call for Proposals). This is your chance to submit details on what you’d like to present on, although they may [give you suggestions][osfeels]. You usually want to include a preliminary talk title, an abstract, and a bit of background on yourself. If you’ve done any talks before and they happen to have been recorded, it’s worth including the video or otherwise previous slidedecks.
 
 As for how CfPs then get chosen depends on the conference. Most of the time the organisational committee selects talks from the proposal list. Some conferences have [an independent panel][altconf] review anonymised proposals or have a system in place where [the community votes][uikonf]. Once it’s been decided, they will get back in touch with you.
 
-Usually conferences are swarmed with CfPs so please don’t be discouraged if it takes a few tries to get picked. It’s understandable but bare in mind that a friend of mine felt like this 2 years ago also. Yet he kept at it and got invited to NSSpain 2014. He got incredibly active in the SF Swift meet-up scene and open source. All of this got the ball rolling and now he's given talks all around the world. [You might even have heard of him][twt_jp].
+Usually conferences are swarmed with CfPs so please don’t be discouraged if it takes a few tries to get picked. It’s understandable to feel rejected and give up, but bare in mind that a friend of mine felt this way yet kept applying. He got his break at NSSpain 2014, and now is incredibly active in the [San Francisco Swift][sfswift] meet-up scene. All of this got the ball rolling and now he's given talks all around the world. [You might even have heard of him][twt_jp].
 
 ### Lightning talks
 
@@ -51,7 +51,7 @@ If a CfP is a bit too much to prepare at the moment (we’re all busy) or you di
 
 A lightning talk is usually capped at 5 minutes, and gives you the time and space to cover one thing well. The best ones I’ve heard, have had one main message to convey and did so excellently.
 
-They require a bit of planning as you want to be concise, but will be done before you know it and gives the audience a great point of reference to engage with you. Not to mention that sometimes you might get asked to do a full talk based off these.
+They require a bit of planning as you [want to be concise][atc_shorter], but will be done before you know it and gives the audience a great point of reference to engage with you. Not to mention that sometimes you might get asked to do a full talk based off these.
 
 
 ### Preparing content
@@ -64,6 +64,9 @@ They require a bit of planning as you want to be concise, but will be done befor
 [pst_colourtheory]: https://speakerdeck.com/mennenia/colour-theory
 [nslondon]: http://www.meetup.com/NSLondon/
 [iosdevuk]: http://www.iosdevuk.com/
+[osfeels]: http://www.osfeels.com/talk-ideas/
 [altconf]: http://www.altconf.com
 [uikonf]: http://cfp.uikonf.com/about
+[sfswift]: http://www.meetup.com/swift-language/
 [twt_jp]: https://twitter.com/simjp
+[atc_shorter]: http://quoteinvestigator.com/2012/04/28/shorter-letter/
