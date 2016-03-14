@@ -24,7 +24,7 @@ Even if you’re goal is towards speaking at bigger events, any chance at practi
 
 ### Local meet-ups
 
-If you’re in a city that has a thriving meet-up scene, you may want to put your name forward to speak on a certain topic. A UK meet-up, NSLondon, is a great example of this. Many different members of the community have spoken, and it’s created a lovely atmosphere where it feels like you’re exchanging interesting tidbits of information continuously. Also for newcomers it’s created a welcoming atmosphere, as the people speaking are often people they know or “just like them”.
+If you’re in a city that has a thriving meet-up scene, you may want to put your name forward to speak on a certain topic. A UK meet-up, [NSLondon][nslondon], is a great example of this. Many different members of the community have spoken, and it’s created a lovely atmosphere where it feels like you’re exchanging interesting tidbits of information continuously. Also for newcomers it’s created a welcoming atmosphere, as the people speaking are often people they know or “just like them”.
 
 If you have a meet-up with a similar positive vibe, there’s no reason not to have a chat with the organisers and see what the next steps would be. It might even be well worth practicing a talk here, if you’ve got a bigger event coming up and you would like feedback. Bare in mind, the audience wants you to succeed!
 
@@ -62,6 +62,7 @@ They require a bit of planning as you want to be concise, but will be done befor
 [atc_meditation]: https://www.artsy.net/article/natalia-maldonado-introduction-to-office-meditation-5-steps-to-peace-of-mind-at-work
 [atc_busfactor]: https://en.wikipedia.org/wiki/Bus_factor
 [pst_colourtheory]: https://speakerdeck.com/mennenia/colour-theory
+[nslondon]: http://www.meetup.com/NSLondon/
 [iosdevuk]: http://www.iosdevuk.com/
 [altconf]: http://www.altconf.com
 [uikonf]: http://cfp.uikonf.com/about
