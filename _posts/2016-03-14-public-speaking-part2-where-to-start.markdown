@@ -20,7 +20,7 @@ If you have a workplace you feel comfortable at, this is definitely a good place
 
 One of the key elements in public speaking that is often forgotten is the fact that the audience wants you to succeed. They’re not there to poke holes or boo you off stage. They are curious to see what you have to say and learn from you. Give them that opportunity.
 
-Even if you’re goal is towards speaking at bigger events, any chance at practicing and putting together a well flowing talk is good and shouldn’t be ignored.
+Even if your goal is towards speaking at bigger events, any chance at practicing and putting together a well flowing talk is good and shouldn’t be ignored.
 
 ### Local meet-ups
 
