@@ -7,7 +7,7 @@ categories: [iOS, mobile]
 author: orta
 ---
 
-We built CocoaPods-Keys as a way to remove API keys and secrets from our source code. We use it to open up our code to the pubic, without leaking private details. One of the cool things about doing it this way was that we could all use different API keys stashed away in each developers Keychain.
+We built CocoaPods-Keys as a way to remove API keys and secrets from our source code. We use it to open up our code to the public, without leaking private details. One of the cool things about doing it this way was that we could all use different API keys stashed away in each developers Keychain.
 
 To ensure we could run CI on our apps we came up with two different ways to use keys on CI. This post explains them both.
 
