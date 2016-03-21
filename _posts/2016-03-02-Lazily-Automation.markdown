@@ -65,6 +65,8 @@ function context() {
 }
 ```
 
+Or if you're a fish user like me, [this gist](https://gist.github.com/orta/902d8e576a2b75afe2df).
+
 I created two shell functions, one that makes a branch that includes a context type. So for example, say I'm working on artwork notifications, I'd start a new branch with `$ branch artwork_notifications Notifications`. This saves the context as `Notifications` on the git branch metadata. Then everytime I want to commit my changes, I use `$ commit This is the thing I changed.` - and it will be prefixed with `[Notifications]`. It makes it easier for someone looking through the history to have an idea about the context, and makes me feel like I'm improving my process without remembering the context.
 
 ### Branch Prefixes
