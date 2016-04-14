@@ -6,7 +6,7 @@ author: orta
 categories: [mobile, development, web]
 ---
 
-I am a big fan of developer tooling as spending time upfront on imrpoving your process can pay a lot of dividends over time. I want to talk about one in particular. [Paw](https://luckymarmot.com/paw). Paw is a native HTTP client with a bunch of features. I want to cover one that means that we can now [introduce](https://github.com/artsy/energy/pull/192) `[AppName].paw` files in our mobile projects, making it easy for us to verify networking requests.
+I am a big fan of developer tooling, as spending time upfront on improving your process can pay a lot of dividends over time. I want to talk about one in particular: [Paw](https://luckymarmot.com/paw). Paw is a native HTTP client with a bunch of features. I want to cover one that means that we can now [introduce](https://github.com/artsy/energy/pull/192) `[AppName].paw` files in our mobile projects, making it easy for us to discuss networking requests.
 
 <!-- more -->
 
@@ -20,13 +20,13 @@ We used environment variables to keep track of things we wanted to change, but i
 
 ![Environments for Eidolon](/images/2016-04-14-Paw/eidolon-env.png)
 
- The environment tooling made it easy to change the routes, users and settings easily, but were also the thing keeping us from being able to share the files in source. Because of this, we stopped using Paw to keep track of our routes as it wasn't updated, and we had to ad-hoc share the file over chat.
+The environment tooling made it easy to change the routes, users and settings easily, but were also the thing keeping us from being able to share the files in source. Because of this, we stopped using Paw to keep track of our routes as we had to ad-hoc share the file over chat.
 
 ### A Second Shot
 
-I started work on a [large project](https://github.com/artsy/energy/pull/189) that I knew would involve using new networking APIs, so I took the time to look for ways to understand what I was working with. I came back to Paw, and discovered they had a [new feature](https://blog.luckymarmot.com/posts/paw-23-keep-it-secret-keep-it-safe/): Keychain integration.
+This week, roughly a year and a half later, I started work on a [large project](https://github.com/artsy/energy/pull/189) that I knew would involve using new networking APIs. So I took the time to look for ways to interpret what I was going to be working with. After exploring some alternatives, I came back to Paw, and discovered they had a [new feature](https://blog.luckymarmot.com/posts/paw-23-keep-it-secret-keep-it-safe/): Keychain integration. This stopped my search.
 
-On our iOS projects, as they are all open source, we use [CocoaPods-Keys](https://github.com/orta/cocoapods-keys) to ensure that our development configuration secrets are kept safe and outside of the project's source code. It stores the per-project keys inside a developer's Keychain. This means they can be accessed from inside the iOS app, but also from the [developer's computer](/images/2016-04-14-Paw/keychain.png) in a determinate location.
+In our iOS projects, as they are all open source, we use [CocoaPods-Keys](https://github.com/orta/cocoapods-keys) to ensure that our development configuration secrets are kept safe and outside of the project's source code. It stores the per-project keys inside a developer's Keychain. This means they can be accessed from inside the iOS app, but also from the [developer's computer](/images/2016-04-14-Paw/keychain.png) via a determinate location in the Keychain app.
 
 ```
 ~/d/i/a/energy (master) ⏛  bundle exec pod keys
@@ -42,7 +42,7 @@ Keys for Folio
  └  SegmentDev - [***********]
 ```
 
-This means that we can use CocoaPods-Keys with Paw in order to use the same `ArtsyAPIClientSecret` and `ArtsyAPIClientKey` environment variables. Great. This is almost enough to make the first API call to to get an access token.
+This means that we can use CocoaPods-Keys with Paw in order to use the same `ArtsyAPIClientSecret` and `ArtsyAPIClientKey` environment config variables. Great. This is almost enough to make the first API call to to get an access token.
 
 I re-used this idea to allow developers to have unique username and passwords. I created two more entires in Keychain, username and [password](/images/2016-04-14-Paw/keychain-password.png). This is something that every developer using our Paw file has to do, otherwise Paw won't know who to log you in as.
 
@@ -53,7 +53,7 @@ With these all hooked up, I could set up Paw to use all of our Keychain entities
 ![Paw Adding Keychain](/images/2016-04-14-Paw/paw-adding-keychain.png)
 ![Paw Setting Password](/images/2016-04-14-Paw/paw-setting-password.png)
 
-Tada, now I can run my route, and I've got an access token to use our API.
+Tada! Now I can run my route, and I've got an access token to use with our API.
 
 ### Route Resolving
 
@@ -69,4 +69,5 @@ Once those two routes were set up, it was a matter of looking up what routes I w
 
 It's easier to talk about your API when any other developer can open this one file and shoot off requests at the same time as you. One of my favourite nice-touches is to be able to easily convert any request into a cURL command.
 
-I am using it as a reminder to myself that tools evolve, and maybe your first impression on a developer tool may require re-interpeting in light of software evolution.
+I am using this event as a reminder to myself that tools evolve, and maybe your first impression on a developer tool may require re-interpreting in light of software evolution.
+
