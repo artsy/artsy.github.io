@@ -67,7 +67,14 @@ pod 'AFNetworking/Serialization', :git => "https://github.com/orta/AFNetworking.
 
 The Podspec is saved into the `Pods` directory in JSON format at `Pods/Local\ Podspecs/AFNetworking.podspec.json`, this is to ensure there's always access within the CocoaPods sandbox for the Podspecs, and speed probably. This is the podspec used for generating the checksum.
 
-Effectively, during development you would have used `pod update [library]` to update your library you were working, then made changes to a podspec without a final `pod update [library]`. From that point on you would only use `pod install` which considers the library to not need updating. So then when others pull down your changes, their Podspecs are a different sha, and CocoaPods will keep overwriting the version in the lockfile without forcing an update.
+**So how can this get out of sync?**
+
+* During the development cycle, when working with a library you would have used `pod update [library]` to update just that library you were working on.  This could happen multiple times as you build your changes.
+* You continued working against your fork till it was ready for review. At this point you have a working version, you submit a PR for code review on the library.
+* There are changes that affect the podspec that come up in review, you don't do a `pod update [library]` but send the code back to review ( maybe you changed some metadata for example, which doesn't warrebt another update to pass CI. )
+* Once all code is reviewed, everything is merged back into master.
+* You `pod install` - which continues to use the older version of the Podspec inside the Pods dir, e.g. `Pods/Local\ Podspecs/AFNetworking.podspec.json`.
+* You now have the older `AFNetworking.podspec.json` inside your local Pods folder, when the next person runs `pod install` with your changes merged, they get a different SHA, as they've got the version with the metadata changes.
 
 ### Simple Fix
 
