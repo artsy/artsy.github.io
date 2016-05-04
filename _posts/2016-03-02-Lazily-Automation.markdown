@@ -37,6 +37,14 @@ I write _reasonable_ commit messages, they're not [amazing](http://tbaggery.com/
 Their style is to have commits in a format like `[Context] Thing I did.` - it is much better that `Thing I did.`. So I looked into how I could automate this, because I would very quickly forget to do this. Here's what I did:
 
 ``` sh
+
+// Helper function to get the branch info
+function git_branch_info() {
+  ref=$(command git symbolic-ref HEAD 2> /dev/null) || \
+  ref=$(command git rev-parse --short HEAD 2> /dev/null) || return
+  echo "${ref#refs/heads/}"
+}
+
 function branch() {
   git checkout master;
   git pull upstream master;
@@ -49,7 +57,15 @@ function commit() {
   local INFO=$(git config branch.$(echo $BRANCH).description)
   git commit -m "[$(echo $INFO)] $argv"
 }
+
+// And if I forget to set my context
+function context() {
+  local BRANCH=$(git_branch_info)
+  git config branch.$(echo $BRANCH).description $1
+}
 ```
+
+Or if you're a fish user like me, [this gist](https://gist.github.com/orta/902d8e576a2b75afe2df).
 
 I created two shell functions, one that makes a branch that includes a context type. So for example, say I'm working on artwork notifications, I'd start a new branch with `$ branch artwork_notifications Notifications`. This saves the context as `Notifications` on the git branch metadata. Then everytime I want to commit my changes, I use `$ commit This is the thing I changed.` - and it will be prefixed with `[Notifications]`. It makes it easier for someone looking through the history to have an idea about the context, and makes me feel like I'm improving my process without remembering the context.
 

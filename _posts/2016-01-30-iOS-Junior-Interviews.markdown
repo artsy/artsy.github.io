@@ -228,7 +228,7 @@ If you can do Mock Interviews you should. You need an existing network in order 
 
 If you don't know anyone who can do this for you, I'd feel like there are two options: [buy a mock interview](http://www.careercup.com/interview) and befriend someone who says they're looking for someone at a meet-up - they must be interviewing so they might want a practice run too. I've given about as many mock interviews as I have done real interviews in the last 2 years.
 
-_More infö that I've reviewed and given a 👍:_
+_More info that I've reviewed and given a 👍:_
 
 * [So You Have a Technical Interview at Macoscope](http://macoscope.com/blog/so-you-have-a-technical-interview-at-macoscope/) - Again, probably a bit more than expected of a junior, but a great summary of how they do it
 * [How we hire](http://www.google.com/about/careers/lifeatgoogle/hiringprocess/) - How Google's hiring process works.
@@ -244,7 +244,7 @@ We look for [T shaped](https://en.wikipedia.org/wiki/T-shaped_skills) engineers,
 
 As a junior, the employer is looking for growth potential. Looking for people who, in the right environment could really thrive. However it's important to note, an interview only lets you know how well someone interviews. The greatest programmers can choke on interviews.
 
-You should come in with a few ideas about questions you'd like to ask of the company, as interviews work both ways. Think of some specific to the space the company works, and this is a [great list of general questions](https://www.theladders.com/career-newsletters/its-not-about-me-its-about-you-the-21-questions-you-need-to-ask-in-a-job-interview-june-2014) to work from. You could consider them ice-brakers, or they can be used to finish up an interview. The most memorable question asked to me was "Where would I work if I wasn't at Artsy?" which threw me off completely, but probably told the interviewer a lot about the culture at Artsy.
+You should come in with a few ideas about questions you'd like to ask of the company, as interviews work both ways. Think of some specific to the space the company works, and this is a [great list of general questions](https://www.theladders.com/career-newsletters/its-not-about-me-its-about-you-the-21-questions-you-need-to-ask-in-a-job-interview-june-2014) to work from. You could consider them icebreakers, or they can be used to finish up an interview. The most memorable question asked to me was "Where would I work if I wasn't at Artsy?" which threw me off completely, but probably told the interviewer a lot about the culture at Artsy.
 
 ##### How I interview Juniors
 
