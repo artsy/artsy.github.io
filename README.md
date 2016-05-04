@@ -46,4 +46,4 @@ categories: [Design, CSS, HTML5]
 
 More info can be found in the [official docs](http://jekyllrb.com/docs/posts/).
 
-When you have authored an article, `git add` and `git commit` it, then push to the source branch with `git push origin source`. To publish the post, you need to deploy the blog.
+When you have authored an article, `git add` and `git commit` it, then push to a named branch with `git push origin [branch]`, and create a pull request to the `source` branch, it will be deployed to the site by travis when merged.

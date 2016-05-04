@@ -3,7 +3,7 @@
 desc 'Initial setup'
 task :bootstrap do
   puts 'Installing Bundle...'
-  puts `bundle install`
+  puts `bundle install --without distribution`
 end
 
 desc 'Builds the site locally'
