@@ -9,6 +9,5 @@ gem 'pygments.rb'
 gem 'RedCloth'
 
 group :distribution do
-  gem 'danger'
-  gem 'link-checker'
+  gem 'danger', :git => "https://github.com/danger/danger.git"
 end

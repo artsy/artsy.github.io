@@ -6,7 +6,7 @@ author: orta
 categories: [mobile, cocoapods, dependencies]
 ---
 
-With CocoaPods, [we don't check in our Pods](https://github.com/artsy/eigen/issues/418) directory for one of our fastest moving apps. This sometimes can cause an [interesting data churn](https://github.com/artsy/eigen/pull/1464) inside the `Podfile.lock` when developers have different sha checksums for their Pods. This is weird, what gives?
+We use CocoaPods, and [we don't check in our Pods](https://github.com/artsy/eigen/issues/418) directory for one of our fastest moving apps, [Eigen](https://github.com/artsy/eigen/). This sometimes can cause an [interesting data churn](https://github.com/artsy/eigen/pull/1464) inside the `Podfile.lock` when developers have different sha checksums for their Pods. This is weird, what gives?
 
 <!-- more -->
 
