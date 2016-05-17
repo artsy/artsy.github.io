@@ -44,7 +44,7 @@ Keys for Folio
 
 This means that we can use CocoaPods-Keys with Paw in order to use the same `ArtsyAPIClientSecret` and `ArtsyAPIClientKey` environment config variables. Great. This is almost enough to make the first API call to to get an access token.
 
-I re-used this idea to allow developers to have unique username and passwords. I created two more entires in Keychain, username and [password](/images/2016-04-14-Paw/keychain-password.png). This is something that every developer using our Paw file has to do, otherwise Paw won't know who to log you in as.
+I re-used this idea to allow developers to have unique username and passwords. I created two more entries in Keychain, username and [password](/images/2016-04-14-Paw/keychain-password.png). This is something that every developer using our Paw file has to do, otherwise Paw won't know who to log you in as.
 
 ![Keychain Email](/images/2016-04-14-Paw/keychain-username.png)
 
