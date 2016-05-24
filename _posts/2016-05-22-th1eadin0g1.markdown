@@ -18,17 +18,18 @@ This could be as simple as downloading a file, or image from the internet, acces
 * `Thread` - A pathway of code, you can have multiple threads in an app's process.
 * `Main Thread` - The initial thread for your app, this is the only thread where you can do user interface code.
 * `Blocked` - You're waiting for some work to happen on a thread, so that something else can happen.
-* `Deadlock` - One thread is waiting for another thread to finish, but that thread is waiting for the other. Potentially either finish waiting.   
+* `Deadlock` - One thread is waiting for another thread to finish, but that thread is waiting for the other. Potentially either finish waiting.
+* `Mutable State` - If you create an object that will never change once created, you can be sure that something is what you think. If it can change once created, then you have to keep checking your assumptions. This idea of allowing changes is called mutable state.
 
 ### Thinking POSIX-itive
 
-Let's just say this is elephants all the way down, but we should at least know the terminology so you can pretend to talk like you know the buzzwords. 
+Let's just say this is a [turtles all the way down](https://en.wikipedia.org/wiki/Turtles_all_the_way_down) subject of infinite abstractions, but we should at least know the terminology so you can pretend to talk like you know the buzzwords. 
 
-So, pretty much all threading implementations are based on [POSIX threads](https://en.wikipedia.org/wiki/POSIX_Threads). What is POSIX you say? Well POSIX is a standard for communications inside an operating system. You would say an Operating System (OS) is POSIX compliant in that it conforms to the standard, iOS/OS X and Linux do, Android and Windows "kinda" do. It's more like a "It's complicated" relation. You don't need to know the details.
+So, pretty much all threading implementations are based on [POSIX threads](https://en.wikipedia.org/wiki/POSIX_Threads). What is POSIX you say? Well POSIX is a standard for communications inside an operating system. You would say an Operating System (OS) is POSIX compliant in that it conforms to the standard, iOS/OS X and Linux do, [Android](http://stackoverflow.com/questions/27604455/is-android-posix-compatible) and [Windows](http://arstechnica.com/information-technology/2016/03/ubuntus-bash-and-linux-command-line-coming-to-windows-10/) "kinda" do. It's more like a "It's complicated" relationship. You don't need to know the details.
 
-A POSIX thread is commonly called a `pthread`. The POSIX standard for `pthread`s is a collection of c functions. So they look a bit like `pthread_atfork`, `pthread_attr_destroy`, `pthread_attr_getdetachstate`, `pthread_attr_getguardsize` etc etc. You can open an Xcode project and do "pthreads.h" in "Open Quickly.." to find them all.
+A POSIX thread is commonly called a `pthread`. The POSIX standard for `pthread`s is a collection of c functions. So they look a bit like `pthread_atfork`, `pthread_attr_destroy`, `pthread_attr_getdetachstate`, `pthread_attr_getguardsize` etc etc. You can open an Xcode project and do "pthreads.h" in "Open Quickly..." to find them all.
 
-These provide the lowest level API to threads, everything is built on top of this.
+The `pthread` API is the lowest level API to work with threads, everything we will talk about going forwards is built on top of these.
 
 ### "Same Time"
 
@@ -48,23 +49,23 @@ Hardware Overview:
   Memory:	16 GB
 ```
 
-Which means there's one processor with two cores. This means my processor has [two processing](https://en.wikipedia.org/wiki/Multi-core_processor) units. However, a processor can also fake being more than one processor at once. This is known as [Hyperthreading](https://en.wikipedia.org/wiki/Hyper-threading) which is a tool used to help improve the faking of multiple processors. Effectively, it can create virtual processor cores - to know more, check [its wikipedia page](https://en.wikipedia.org/wiki/Hyper-threading).
+Which means there's one processor with two cores. This means my processor has [two processing](https://en.wikipedia.org/wiki/Multi-core_processor) units. However, a processor can also fake being more than one processor at once. This is known as [Hyperthreading](https://en.wikipedia.org/wiki/Hyper-threading) which is a tool used to help improve the faking of multiple processors. Effectively, it can create virtual processor cores.
 
-So, summary, you can have a bunch of `pthread` functions, and they can run code concurrently.
+So, summary, you can have a bunch of `pthread` functions, and they can run code concurrently. Sometimes they are faking it, sometimes it's real.
 
 ### Why Bother?
 
 Well, it turns out people want to do more than one thing at once. 
 
-It's pretty reasonable to expect to be able to scroll a user interface without waiting for an image to download from the server or file system before you see the next step in the animation. My first blog post on this blog was actually [about this back in 2012](https://artsy.github.io/blog/2012/09/13/on-grid-thumbnails/).
+It's reasonable to expect to scroll a user interface without waiting for an image to download from the server or file system before you see the next step in the animation. One of my first blog posts on this blog was actually [about this back in 2012](https://artsy.github.io/blog/2012/09/13/on-grid-thumbnails/). This was the problem we saw:
 
 > In our naiveté, Folio was originally using UIImage's initWithContentsOfFile: to load (without caching) a jpg from the file system. Once the file was loaded into memory, we displayed it onscreen in an UIImageView. This was fast enough to deal with our small thumbnails of 240x240 but the moment that you start asking it to pull 3 or 4 480x480 jpg files off the filesystem, decompress them and then put them on the screen, you're not going to have a smooth scroll.
 
-Loading a JPG from a file to the screen is _slow_, so we were blocking the main thread and then the scrolling animation could not run until all of the loading had finished. This is the perfect example of something that could be fixed with background threading.  So, we're going to go through different ways in which we could attack the problem.
+Loading a JPG from a file to the screen is _slow_, so we were blocking the main thread and then the scrolling animation could not run until all of the loading had finished. This is the perfect example of something which could be fixed with background threading.  So, we're going to go through different ways in which we could attack the problem. Starting, once again, at the beginning.
 
-### In the beginning, there was `NSThread`
+### Ye olde `NSThread`
 
-As a battle-scarred Mac Objective-C developer, I started writing code before [Grand Central Dispatch](https://en.wikipedia.org/wiki/Grand_Central_Dispatch) so we're going to go over the axiomic `NSThread` class before we jump to the higher abstractions that you would use in modern code. There are uses for `NSThread` still - we use it in [the CocoaPods App](https://github.com/CocoaPods/CocoaPods-app/blob/d2d62327906213b31bb8e07f9b45a7c11b564477/app/CPReflectionService/RBObject%2BCocoaPods.m#L156), for example, but we have a very [specific use case](https://github.com/artsy/artsy.github.io/pull/230#discussion_r64202215).
+As a battle-scarred Mac Objective-C developer, I started writing code before [Grand Central Dispatch](https://en.wikipedia.org/wiki/Grand_Central_Dispatch) so we're going to go over the axiomic `NSThread` class before we jump to the higher abstractions that you would use in modern code. 
 
 `NSThread` provided a [Cocoa-like API to threads](https://developer.apple.com/library/mac/documentation/Cocoa/Conceptual/Multithreading/CreatingThreads/CreatingThreads.html). It would allow you to run a single selector on a class on a separate thread. It would look something like this:
 
@@ -79,16 +80,20 @@ NSThread *myThread = [NSThread detachNewThreadSelector:@selector(setAsyncImageWi
 NSLog(@"Started background image");
 ```
 
-Which would create a new thread, run the code inside `setAsyncImageWithURL` on another thread, this is called `spawn`ing a thread. This creates a new context to run some code in, executes it in the background and then eventually finishes. Meanwhile execution continues and `"Started background"` is sent to the console, while `setAsyncImageWithURL` does it's background work at the same time.
+This would create a new thread, run the code inside `setAsyncImageWithURL` on that thread (this is called `spawn`ing a thread.) It will create a new processing context to run the code from `MyImageCell`, executes that in the background and eventually finishes. Meanwhile execution continues and `"Started background"` is sent to the console, while `setAsyncImageWithURL` does it's background work at the same time.
+
+This is a nice abstraction over writing `pthread` code yourself, but is a little bit clumsy, as it's complicate to keep track of threads within your application.
+
+There are uses for `NSThread` still though - we use it in [the CocoaPods App](https://github.com/CocoaPods/CocoaPods-app/blob/d2d62327906213b31bb8e07f9b45a7c11b564477/app/CPReflectionService/RBObject%2BCocoaPods.m#L156), for example, but we have a very [specific use case](https://github.com/artsy/artsy.github.io/pull/230#discussion_r64202215). It's rare that you would find code in the wild doing this.
 
 
 ### NSOperation
 
-An NSThread is a pretty simple model for doing threading. It allows you to run one function on a background thread, but what if you needed something more complicated, e.g. scheduling, priorities, state or management. This is the space that `NSOperation`s fill.
+An NSThread is a pretty simple model for doing threading. It allows you to run one function on a background thread, but what if you needed something more complicated? e.g. scheduling, priorities, state or management. This is the space that `NSOperation`s fill.
 
-There are three main ways people use `NSOperation`s: 
+There are three main ways people use `NSOperation`: 
 
-* **Using a custom subclass** - happens when you have specific work to do, you've may have used these yourself via [AFNetworking](https://cocoapods.org/pods/AFNetworking) which used to create [NSOperation subclasses](http://cocoadocs.org/docsets/AFNetworking/2.6.3/Classes/AFHTTPRequestOperation.html) to do it's networking.
+* **Using a custom subclass** - You may have used these yourself via [AFNetworking](https://cocoapods.org/pods/AFNetworking) which used to create [NSOperation subclasses](http://cocoadocs.org/docsets/AFNetworking/2.6.3/Classes/AFHTTPRequestOperation.html) to do it's networking. 
 
    A lot of our most critical code in Folio, the sync engine, is a collection of NSOperation subclasses. I did a video [explaining it all this year](http://artsy.github.io/blog/2016/02/12/Code-Review-Energy-Sync/).
 
@@ -97,11 +102,11 @@ There are three main ways people use `NSOperation`s:
 * **Using `NSInvocationOperation`** - This is actually what I recommended in my blog post in 2012, it's essentially a simple wrapper around `NSTask` which calls a specific method.
 * **Using `NSBlockOperation`** - This is a nice option when you want to run some code from a block. More on blocks later. 
 
-`NSOperation`s on their own are  pretty simple objects, but they allow you to define dependency graphs. So you could have one operation taking the JPG from the file system, then another operation that takes the image data and converts it in an `NSImage`, then the latter can depend on the former. Now you have some heirarchy. That's nice.
+`NSOperation`s on their own are  pretty simple objects, but they allow you to define dependency graphs. So you could have one operation taking the JPG from the file system, then another operation that takes the image data and converts it in an `NSImage`, then the latter can depend on the former. Now you have some hierarchy. That's nice.
 
 No discussion about `NSOperation` would be complete without `NSOperationQueue`. This is the abstraction you use to limit how many operations can be running at the same time. Say you had a lot of images to download, you could use an operation queue with a limit of three concurrent operations. They also provide an easy way to determine priority too, so you could have a higher priority queue for images you would see, then a lower priority queue for images that are not on the screen at the moment.
 
-This is only a small overview, for more information, I strongly recommend reading [NSHipster's NSOperation](http://nshipster.com/nsoperation/) post. 
+With a mix of `NSOperation` and `NSOperationQueue` managing a _huge_ amount of concurrent operations can become a fairly simple project. In [Folio/Energy](https://github.com/artsy/energy) our syncing engine has keeps track of hundreds of thousands of `NSOperation`s without hitting an apps memory limit.
 
 ### Grand Central Dispatch (GCD)
 
@@ -141,7 +146,9 @@ Let's go through what we see.
 1. Go back to the main thread via `dispatch_main_queue`
 1. Triple check we're still setting the right image, and if so, set the image
 
-GDC lets you put all the code in the same place, there's no need to have work happening in different methods or classes. This has a lot of advantages, especially when you're jumping across multiple threads. It's much easier to understand this code compared to the above abstractions. 
+GDC lets you put all the code in the same place, there's no need to have work happening in different methods or classes. This has a lot of advantages, especially when you're jumping across multiple threads. It's much easier to understand this code compared to the above abstractions.
+
+This block/closure approach lets you share local variables, and can mean that objects need to keep track of less things between methods. 
 
 
 ### Common Issues with Multi-Threading
@@ -154,7 +161,7 @@ There was a lot of checking going on in our GCD production code, mainly because 
 
 The problem here, is that the threading code cannot trust the objects that it is keeping track of. This is because a `UICollectionViewCell` is reused in it's lifecycle, and thus contains mutable state. There is no guarantee that when we started doing the work, that the cell still needed the work to be done. So the code would try to bail as early as it possibly could. 
 
-* Sychronization
+#### Sychronization
 
 The above example is a problem of trying to keep track of state, but what about when multiple threads may want to make changes to the same object. Well, this is when it gets tricky. The tools used to fix this are generally `NSLock`s and `@synchronized`. 
 
@@ -177,23 +184,29 @@ The fancy term for how most locks work is a `mutex` which means a _mutable exclu
 }
 ``` 
 
+### The Main Thread
+
+You cannot make changes to the GUI on a thread other than the main thread. Examples of GUI changes are setting a `UILabel`'s `text` property, or setting the `backgroundColor` on any `UIView`. This is because all of the user interface elements are owned by a single resource. This is partly for speed, and partly for sanity. If you saw my GCD code above, I was wasting a lot of computer time checking that nothing had changed, Apple would have to do that on some of the most performance critical code on a device.  
+
 ### Rx Schedulers
 
-Cool. So normally, this is where people stop. There are lots of nice ways to work with GDC. I want to go one more abstraction. This is a pattern that isn't unique to iOS, but is a common pattern coming from another paradigm. That paradigm is the [Reactive Pattern](http://reactivex.io). Roughly, the Reactive Pattern is about chains of methods that pass objects through a pipe. You avoid writing variables, and instead think about transformations of data.
+Cool. So normally, this is where people stop. There are lots of nice ways to work with GDC. I want to go one more abstraction. This is a pattern that isn't unique to iOS, but is a common pattern coming from another way of thinking. That paradigm is the [Reactive Pattern](http://reactivex.io). Roughly, the Reactive Pattern is about chains of methods that pass objects through a pipe. You avoid writing variables, and instead think about transformations of data.
 
 The highest quality Reactive library on [CocoaPods is RxSwift](https://cocoapods.org/pods/RxSwift/), if you're interested in the pattern, I'd start there. We use it in 2 Artsy apps.
 
-When working Reactively, you don't really have a place to use GCD, so they use [Schedulers](https://github.com/ReactiveX/RxSwift/blob/master/Documentation/Schedulers.md), these are abstractions that allow you to redirect chains of methods to different GDC queues. Here's what one chain looks like:
+When working Reactively, you don't really have a place to use GCD, so they use [Schedulers](https://github.com/ReactiveX/RxSwift/blob/master/Documentation/Schedulers.md), these are abstractions that allow you to redirect chains of methods to different GDC queues. Here's what one chain looks like, it will take some numbers, double them on a background thread, then double them again on the main thread:
 
 ``` swift
 sequenceOfNumbers
   .observeOn(backgroundScheduler)
   .map { n in
       print("This is performed on background scheduler")
+      return n * 2
   }
   .observeOn(MainScheduler.instance)
   .map { n in
       print("This is performed on main scheduler")
+      return n * 2
   }
 ```
 
@@ -203,4 +216,8 @@ These `Scheduler`s change the flow of execution between a background thread and 
 
 - [What is a thread?](http://arstechnica.com/business/2011/04/ask-ars-what-is-a-cpu-thread/) (arstechnica)
 - [What are JavaScript callbacks](http://dreamerslab.com/blog/en/javascript-callbacks/) (dreamerslab)
+- [Thread-Safe Class Design](https://www.objc.io/issues/2-concurrency/thread-safe-class-design/) (objc.io)
 - [NSOperations](http://nshipster.com/nsoperation/) (nshipster)
+- [Concurrent Programming](https://www.objc.io/issues/2-concurrency/) (objc.io)
+- [Simple & Reliable Threading with NSOperation](https://developer.apple.com/library/ios/technotes/tn2109/_index.html) (developer.apple)
+- [Advanced NSOperations](https://developer.apple.com/videos/play/wwdc2015/226/) (developer.apple)
