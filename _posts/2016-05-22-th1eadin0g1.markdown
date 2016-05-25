@@ -8,7 +8,7 @@ categories: [mobile, cocoapods, newbies]
 
 Once an app has reached a level of complexity wherein Apple would _not_ [reject it](https://developer.apple.com/app-store/review/rejections/) for "Not enough lasting value" it has probably had to deal with multiple thread execution.
 
-This could be as simple as downloading a file, or image from the internet, accessing an external API, using something like background locations or playing sounds. There are no limits to the amount of cases where you could be doing some asynchronous work under the hood. So, I'm going to try and cover _most_ of the common use cases of where you are using it without knowing, then expand on a few techniques to write useful multi-threaded code.
+This could be as simple as downloading a file, or image from the internet, accessing an external API, using something like background locations or playing sounds. There are no limits to the amount of cases where you could be doing some asynchronous work under the hood at the same time. So, I'm going to try and cover _most_ of the common use cases of where you are using it without knowing, then expand on a few techniques to write useful multi-threaded code.
 
 <!-- more -->
 
@@ -19,21 +19,12 @@ This could be as simple as downloading a file, or image from the internet, acces
 * `Main Thread` - The initial thread for your app, this is the only thread where you can do user interface code.
 * `Blocked` - You're waiting for some work to happen on a thread, so that something else can happen.
 * `Deadlock` - One thread is waiting for another thread to finish, but that thread is waiting for the other. Potentially either finish waiting.
-* `Mutable State` - If you create an object that will never change once created, you can be sure that something is what you think. If it can change once created, then you have to keep checking your assumptions. This idea of allowing changes is called mutable state.
-
-### Thinking POSIX-itive
-
-Let's just say this is a [turtles all the way down](https://en.wikipedia.org/wiki/Turtles_all_the_way_down) subject of infinite abstractions, but we should at least know the terminology so you can pretend to talk like you know the buzzwords. 
-
-So, pretty much all threading implementations are based on [POSIX threads](https://en.wikipedia.org/wiki/POSIX_Threads). What is POSIX you say? Well POSIX is a standard for communications inside an operating system. You would say an Operating System (OS) is POSIX compliant in that it conforms to the standard, iOS/OS X and Linux do, [Android](http://stackoverflow.com/questions/27604455/is-android-posix-compatible) and [Windows](http://arstechnica.com/information-technology/2016/03/ubuntus-bash-and-linux-command-line-coming-to-windows-10/) "kinda" do. It's more like a "It's complicated" relationship. You don't need to know the details.
-
-A POSIX thread is commonly called a `pthread`. The POSIX standard for `pthread`s is a collection of c functions. So they look a bit like `pthread_atfork`, `pthread_attr_destroy`, `pthread_attr_getdetachstate`, `pthread_attr_getguardsize` etc etc. You can open an Xcode project and do "pthreads.h" in "Open Quickly..." to find them all.
-
-The `pthread` API is the lowest level API to work with threads, everything we will talk about going forwards is built on top of these.
+* `Mutable State` - State is the name for keeping track of the somethinge: e.g. a variable. Mutable state is keeping track of something that can also change. 
+* `Immutable state` - Immutability is keeping track of something, and knowing it won't change.
 
 ### "Same Time"
 
-Saying that something is happening at the same time, is potentially a lie, or more accurately a simplification. I'm currently writing this on a MacBook Pro, with these specs:
+Saying that something is happening at the same time, is potentially a lie, or more accurately a simplification. I'm currently writing this post on a MacBook Pro, with these specs:
 
 ```
 Hardware Overview:
@@ -49,9 +40,19 @@ Hardware Overview:
   Memory:	16 GB
 ```
 
-Which means there's one processor with two cores. This means my processor has [two processing](https://en.wikipedia.org/wiki/Multi-core_processor) units. However, a processor can also fake being more than one processor at once. This is known as [Hyperthreading](https://en.wikipedia.org/wiki/Hyper-threading) which is a tool used to help improve the faking of multiple processors. Effectively, it can create virtual processor cores.
+Which means there's one processor with two cores. This means my processor has [two processing](https://en.wikipedia.org/wiki/Multi-core_processor) units. However, a processor can also fake being more than one processor at once. This is known as [Hyperthreading](https://en.wikipedia.org/wiki/Hyper-threading) which is a tool used to help improve the faking of multiple processors. Effectively, it can create virtual processor cores. This means I can run two sets of processing at once on this computer.
 
-So, summary, you can have a bunch of `pthread` functions, and they can run code concurrently. Sometimes they are faking it, sometimes it's real.
+If I was using a single-core processor, it wouldn't be possible to do two simultaneous instruction. However, because a processor can do work so fast, it can jump between the sets of instructions, that it's imperceptual to a human. So even if there's only one processor, it's possible to do multi-threading to give the impression of background work.
+
+### Thinking POSIX-itive
+
+Let's just say threading is a [turtles all the way down](https://en.wikipedia.org/wiki/Turtles_all_the_way_down) subject of infinite abstractions, but we should at least know the terminology so you can pretend to talk like you know the buzzwords. 
+
+Pretty much all threading implementations are based on [POSIX threads](https://en.wikipedia.org/wiki/POSIX_Threads). What is POSIX you say? Well POSIX is a standard for communications inside an operating system. You would say an Operating System (OS) is POSIX compliant in that it conforms to the standard, iOS/OS X and Linux do, [Android](http://stackoverflow.com/questions/27604455/is-android-posix-compatible) and [Windows](http://arstechnica.com/information-technology/2016/03/ubuntus-bash-and-linux-command-line-coming-to-windows-10/) "kinda" do. It's more like a "It's complicated" relationship. You don't need to know the details.
+
+A POSIX thread is commonly called a `pthread`. The POSIX standard for `pthread`s is a collection of c functions. So they look a bit like `pthread_atfork`, `pthread_attr_destroy`, `pthread_attr_getdetachstate`, `pthread_attr_getguardsize` etc etc. You can open an Xcode project and do "pthreads.h" in "Open Quickly..." to find them all.
+
+The `pthread` API is the lowest level API to work with threads, everything we will talk about going forwards is built on top of these.
 
 ### Why Bother?
 
@@ -125,7 +126,7 @@ Going back to our real example, in 2012, I recommended `NSOperation`s, in 2014, 
 
         UIImage *thumbnail = [... load data from the disk, and turn into an image]
 
-        dispatch_main_queue(^{
+        dispatch_async(dispatch_get_main_queue(), ^{
 
             // Double check that during the decoding the cell's not been re-used
             if ([cell.imagePath isEqual:imageAddress] && thumbnail) {
@@ -221,3 +222,5 @@ These `Scheduler`s change the flow of execution between a background thread and 
 - [Concurrent Programming](https://www.objc.io/issues/2-concurrency/) (objc.io)
 - [Simple & Reliable Threading with NSOperation](https://developer.apple.com/library/ios/technotes/tn2109/_index.html) (developer.apple)
 - [Advanced NSOperations](https://developer.apple.com/videos/play/wwdc2015/226/) (developer.apple)
+- [Let's build dispatch_queue](https://www.mikeash.com/pyblog/friday-qa-2015-09-04-lets-build-dispatch_queue.html) (mikeash)
+- [Intro to Grand Central Dispatch](https://www.mikeash.com/pyblog/friday-qa-2009-08-28-intro-to-grand-central-dispatch-part-i-basics-and-dispatch-queues.html) (mikeash)
