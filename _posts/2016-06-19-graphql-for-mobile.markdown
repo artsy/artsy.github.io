@@ -66,7 +66,7 @@ Our GraphQL server is owned by the [web-practice](http://artsy.github.io/blog/20
 
 Because of Metaphysics' ownership as a "front-end" product, it can contain additional information that is specific to front-end needs. For example, in our first example of a request to our GraphQL server we requested `id`, `additional_information`, `is_price_hidden` and `is_inquireable` - only two of these items come from the database. Both is `is_price_hidden` and `is_inquireable` are derived from the 
 
-This is _awesome_, because previously a [lot of this logic](https://github.com/artsy/eigen/blob/dac7c80b66b600f9a45aaae6095544fe420f0bbc/Artsy/Views/Artwork/ARArtworkActionsView.m#L310-L362) existed in a [Google Doc](https://github.com/artsy/eigen/blob/dac7c80b66b600f9a45aaae6095544fe420f0bbc/Artsy/Views/Artwork/ARArtworkActionsView.m#L108-L109) which needed to be re-implementation in 3-4 clients. On the native side we would regularly find out we were out-of-date mid-release cycle and had to rush to catch up.
+This is _awesome_, because previously a [lot of this logic](https://github.com/artsy/eigen/blob/dac7c80b66b600f9a45aaae6095544fe420f0bbc/Artsy/Views/Artwork/ARArtworkActionsView.m#L310-L362) existed in a [Google Doc](https://github.com/artsy/eigen/blob/dac7c80b66b600f9a45aaae6095544fe420f0bbc/Artsy/Views/Artwork/ARArtworkActionsView.m#L108-L109) which needed to be re-implemented in 3-4 clients. On the native side we would regularly find out we were out-of-date mid-release cycle and neded to rush to catch up.
 
 So, what does this mean for view models? It lessens the need for them. If you can move a lot of your derived data to the server, it is handling the logic that goes in a view model. We've not stopped writing view models, but now discussions on them includes "should this move to Metaphysics?".
 
@@ -74,7 +74,7 @@ So, what does this mean for view models? It lessens the need for them. If you ca
 
 We've already [shipped one full view controller](https://twitter.com/orta/status/734880605322776576) in [React Native](https://facebook.github.io/react-native/) for our flagship app, [Eigen](https://github.com/artsy/eigen/). The advantages that came from GraphQL were a big part of the discussion around using React Native.
 
-There will be longer articles on the "why" and "how" we choose to work this way. However the key thing that we're excited about in using React Native is Relay. Using Relay, our [views](https://github.com/artsy/emission/tree/2ac6e9fc0f85ca81483bcbd6c841841104f07833/lib/components/artist) can declare a fragment of the GraphQL query that each respective [view needs](https://github.com/artsy/emission/blob/2ac6e9fc0f85ca81483bcbd6c841841104f07833/lib/components/artist/biography.js#L60-L69).
+There will be longer articles on the "why" and "how" we choose to work this way. However, the key thing that we're excited about in using React Native is Relay. Using Relay, our [views](https://github.com/artsy/emission/tree/2ac6e9fc0f85ca81483bcbd6c841841104f07833/lib/components/artist) can declare a fragment of the GraphQL query that each respective [view needs](https://github.com/artsy/emission/blob/2ac6e9fc0f85ca81483bcbd6c841841104f07833/lib/components/artist/biography.js#L60-L69).
 
 So, in our Artist View Controller, the Biography "View" ([component](https://facebook.github.io/react-native/docs/native-components-ios.html)) declares "when I am in the view heirarchy, you need to grab a `bio`, and `blurb`"
 
