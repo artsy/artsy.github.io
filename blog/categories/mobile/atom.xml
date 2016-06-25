@@ -4,7 +4,7 @@
   <title><![CDATA[Category: mobile | Artsy Engineering]]></title>
   <link href="http://artsy.github.io/blog/categories/mobile/atom.xml" rel="self"/>
   <link href="http://artsy.github.io/"/>
-  <updated>2016-06-25T01:26:09+00:00</updated>
+  <updated>2016-06-25T15:30:07+00:00</updated>
   <id>http://artsy.github.io/</id>
   <author>
     <name><![CDATA[]]></name>
@@ -12,6 +12,153 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Swift Type Aliases: Use Early and Often]]></title>
+    <link href="http://artsy.github.io/blog/2016/06/24/typealias-for-great-good/"/>
+    <updated>2016-06-24T12:00:00+00:00</updated>
+    <id>http://artsy.github.io/blog/2016/06/24/typealias-for-great-good</id>
+    <content type="html"><![CDATA[<p>It's been so fun to watch the Swift developer community experiment with Swift and to experiment with what idiomatic Swift will look like. No one really knows the answer yet, but we're starting to see some design patterns used more than others. We're seeing some language features used in key ways that define idiomatic Swift, and other language features that are being mostly ignored.</p>
+
+<p>Regrettably, one of my favourite features of Swift has not enjoyed the meteoric rise in popularity I believe it deserves: <code>typealias</code>.</p>
+
+<!-- more -->
+
+
+<p>Type aliases allow developers to define synonyms for pre-existing types. It might sound dull because it <em>is</em> dull. In fact, its usefulness isn't even apparent when <em>writing</em> code, mostly when <em>maintaining</em> it.</p>
+
+<p>But before I dig into how <code>typealias</code> is useful, let's review what it is to make sure we're all on the same page. Developers use <code>typealias</code> to create a new type identifier that's a synonym for another type. For example, we can declare <code>typealias BigNumber = Int64</code> and use "BigNumber" any place we could have used "Int64".</p>
+
+<pre><code class="swift">func multiply(lhs: BigNumber, rhs: BigNumber) -&gt; BigNumber
+
+...
+
+let number: BigNumber = 5
+
+...
+
+let number = BigNumber(5)
+</code></pre>
+
+<p>You can use <code>typealias</code> for most any type: classes, enums, structs, tuples, closures, etc. Here are a few examples.</p>
+
+<pre><code class="swift">typealias Name = String
+typealias Employees = Array&lt;Employee&gt;
+typealias GridPoint = (Int, Int)
+typealias CompletionHandler = (ErrorType?) -&gt; Void
+</code></pre>
+
+<p>Now that we're familiar with <code>typealias</code>, I want to discuss four examples that show how <code>typealias</code> has helped us maintain code.</p>
+
+<h3>Promoting Existing Types Semantics</h3>
+
+<p>When writing web socket communication for eigen, Orta and I were using <a href="https://jwt.io">JSON Web Tokens</a> to authenticate the user. If you've never used JWTs before, don't worry, here's the tl;dr JWTs are a way to authenticate users in a way that clients can cryptographically verify. It's <em>basically</em> a base64 encoded string of JSON.</p>
+
+<p>Clients don't need to verify the JWT in order to use them, and in fact when Orta and I began using them, we treated them only as strings retrieved from one API and sent to another (like an access token). However, instead of using the <code>String</code> type, I decided to define a <code>JWT</code> type alias.</p>
+
+<pre><code class="swift">typealias JWT = String
+</code></pre>
+
+<p>I used the new <code>JWT</code> type throughout the code as a hint to other developers about what <em>kind</em> of string it is. This gave it some semantic meaning on top of being a string. Neat. Only later, when we needed to start decoding the JWT itself did this really come in handy.</p>
+
+<p>After deleting the <code>typealias</code> and replacing it with a class of the same name, we didn't have to worry about changing function definitions and property types all throughout our codebase. We made the changes locally, in one file, and most all the rest of our code still compiled. Pretty cool! Here's the <a href="https://github.com/artsy/eigen/pull/1638/files/911473424849240bb71b89c412b0a1887e5c1418#diff-6d73ebd58fdd2d00c32813f60608fbd1R10">relevant portion of the pull request</a> that made that change.</p>
+
+<h3>Consolidating Tuple Types</h3>
+
+<p>I <a href="https://ashfurrow.com/blog/uicollectionview-unjustly-maligned/">recently wrote about UICollectionView</a> and how I used them to solve a difficult layout problem. I detailed how I created a pipeline of simple math functions that used previous results to calculate the next step of the layout. What I didn't mention was that I used tuples to help, specifically tuples with <code>typealias</code>.</p>
+
+<p>Tuples are useful for composing several different values into a lightweight type. Think of tuples as junior structs. I was writing functions to do some calculations and return their result as a tuple. Something like this:</p>
+
+<pre><code class="swift">func layoutMetricsForPosition(position: CellPosition, aspectRatio: CGFloat) -&gt; (restingWidth: CGFloat, restingHeight: CGFloat, targetWidth: CGFloat, targetHeight: CGFloat)
+</code></pre>
+
+<p>And because of how the layout pipeline worked, I then needed to use the <em>same</em> tuple as a parameter for the next function.</p>
+
+<pre><code class="swift">func centersForPosition(position: CellPosition, metrics: (restingWidth: CGFloat, restingHeight: CGFloat, targetWidth: CGFloat, targetHeight: CGFloat)) -&gt; ...
+</code></pre>
+
+<p>Any time you use the same tuple type more than once, consider making a <code>typealias</code>. In this case, the code became a lot shorter and easier to skim and understand.</p>
+
+<pre><code class="swift">typealias LayoutMetrics = (restingWidth: CGFloat, restingHeight: CGFloat, targetWidth: CGFloat, targetHeight: CGFloat)
+typealias CenterXPositions = (restingCenterX: CGFloat, targetCenterX: CGFloat)
+
+func layoutMetricsForPosition(position: CellPosition, aspectRatio: CGFloat) -&gt; LayoutMetrics
+
+func centersForPosition(position: CellPosition, metrics: LayoutMetrics) -&gt; CenterXPositions
+</code></pre>
+
+<p>If we need to change something about the tuple later on, we only need to change it in one place. We've also made it easier to promote this tuple to a struct or class later on, just like in the JWT example, because all the functions are already referring to it as its own type. You can check out how we used type alias'd tuples <a href="https://github.com/artsy/eigen/blob/12eac80948bcfd1e5c6fc2aa85b22ccb2a4421dd/Artsy/View_Controllers/Live_Auctions/Views/LiveAuctionFancyLotCollectionViewLayout.swift#L104">in the code</a>.</p>
+
+<h3>Defining Closures Signatures</h3>
+
+<p>Objective-C developers, burdened with <a href="http://goshdarnblocksyntax.com">arcane syntax for blocks</a>, use C's <code>typedef</code> to isolate that syntax strangeness in one place. And even though Swift's closure syntax is <em>awesome</em>, we can still benefit from Objective-C's example – we can use type aliases for closure signatures.</p>
+
+<p><a href="https://github.com/Moya/Moya">Moya</a> uses this technique quite a bit, because it has so many closures. Let's take a look at the <code>StubClosure</code>, which <a href="https://github.com/Moya/Moya/blob/6666947219f231091d5c3e0b9d5f63ac4091718d/Source/Moya.swift#L78-L79">defines if (and how) a network request should be stubbed</a>.</p>
+
+<pre><code class="swift">typealias StubClosure = Target -&gt; StubBehavior
+</code></pre>
+
+<p>We use this type as an initializer parameter instead of the full closure syntax, making our code a lot shorter and more legible. Nice! Since the user usually doesn't want to customize this parameter, so we've <a href="https://github.com/Moya/Moya/blob/6666947219f231091d5c3e0b9d5f63ac4091718d/Source/Moya.swift#L97">defined a default value</a>.</p>
+
+<pre><code class="swift">init(...
+    stubClosure: StubClosure = MoyaProvider.NeverStub,
+    ...)
+</code></pre>
+
+<p><code>MoyaProvider</code> has a class function on it called <code>NeverStub</code> <a href="https://github.com/Moya/Moya/blob/6666947219f231091d5c3e0b9d5f63ac4091718d/Source/Moya.swift#L246-L248">whose type</a> matches our closure.</p>
+
+<pre><code class="swift">class func NeverStub(_: Target) -&gt; Moya.StubBehavior {
+    return .Never
+}
+</code></pre>
+
+<p>This particular function doesn't use the <code>typealias</code>, but another one does. We have a function named <code>DelayedStub</code> that returns the <code>typealias</code> instead of the raw closure. Take a look!</p>
+
+<pre><code class="swift">class func DelayedStub(seconds: NSTimeInterval) -&gt; ((Target) -&gt; Moya.StubBehavior) {
+    return { _ in return .Delayed(seconds: seconds) }
+}
+</code></pre>
+
+<p>Super cool! Closures are a powerful tool in Swift already, but by using a <code>typealias</code>, we refer to it as <code>StubClosure</code> throughout our code.</p>
+
+<p>In isolation, this gain may not seem significant, but the dividends have accrued dramatically for the project. <code>typealias</code> has made it easy to maintain Moya as it has evolved alongside Swift. Check out more examples of type aliasing closures <a href="https://github.com/artsy/eigen/blob/12eac80948bcfd1e5c6fc2aa85b22ccb2a4421dd/Artsy/View_Controllers/Live_Auctions/LiveAuctionStateManager.swift#L20-L21">in this eigen class</a>, which uses them for dependency injection.</p>
+
+<h3>Extending Typealiases</h3>
+
+<p>The last example I want to discuss is extensions, specifically extensions to <em>your own</em> types.</p>
+
+<p>When writing classes, especially view controllers, developers have a habit of writing long, unwieldy files that are difficult to navigate and maintain. Preventing such files is far easier than fixing them, which is why I use <code>typealias</code> early, and I use it often.</p>
+
+<p>I recommend using a descriptive <code>typealias</code> that is private to your file, and then extending that <code>typealias</code> so you can keep things neat and tidy. It's a bit confusing, so let's take a look at an example.</p>
+
+<pre><code class="swift">private typealias PrivateHelperFunctions = MyViewController
+extension PrivateHelperFunctions {
+    ...
+}
+
+private typealias TableViewMethods = MyViewController
+extension TableViewMethods: UITableViewDelegate, UITableViewDataSource {
+   ...
+}
+</code></pre>
+
+<p>We're still extending the view controller, but specifically we're extending the <code>typealias</code> so that the extension has a helpful name. This is another way that <code>typealias</code> can help add semantic meaning to your code.</p>
+
+<p>Beyond helping you find code quickly, having code in extensions also makes it <em>way</em> easier to move that extension to another file or create a new helper class altogether. So not only does it keep classes tidy, but it also helps you keep classes <em>small</em>.</p>
+
+<p>This technique can also serve as a workaround for Swift's <a href="http://stackoverflow.com/questions/24017316/pragma-mark-in-swift">awful Xcode sectioning syntax</a>.</p>
+
+<p><img src="/images/2016-06-24-typealias-for-great-good/jumpbar.png" alt="Xcode Jumpbar" /></p>
+
+<p>You can <a href="https://github.com/artsy/eigen/search?l=swift&amp;q=private+typealias&amp;utf8=%E2%9C%93">search through eigen</a> for more examples of using a private <code>typealias</code> to divide your code into manageable pieces.</p>
+
+<hr />
+
+<p>Look, I'm not saying that using <code>typealias</code> more is universally a good idea. You might disagree with some of the use cases in this post, which is fine! And this isn't meant to be an exhaustive list of examples, either.</p>
+
+<p>My point is, used in a few key ways, <code>typealias</code> has helped me maintain my code more easily. It's a good tool to be familiar with. Even if it won't revolutionize the way you write software, <code>typealias</code> can help make your job a smidgen easier, and who could argue with that?</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[GraphQL for iOS Developers]]></title>
@@ -337,26 +484,6 @@ Keys for Folio
 <p>Which means I can now get back to work at a reasonable pace. <code>Executed 15 tests, with 0 failures (0 unexpected) in 0.277 (0.312) seconds</code>. I can then run the full suite whenever I go and make a cup of tea.</p>
 
 <p><em>Note:</em> If you want to avoid using the mouse to change scheme, the <a href="/images/2016-04-06-Testing-Schemes/next_prev.png">key commands</a> to change between visible schemes is <code>cmd + ctrl + [</code> and  <code>cmd + ctrl + ]</code>.</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Code Injection for Xcode]]></title>
-    <link href="http://artsy.github.io/blog/2016/03/05/iOS-Code-Injection/"/>
-    <updated>2016-03-05T12:09:00+00:00</updated>
-    <id>http://artsy.github.io/blog/2016/03/05/iOS-Code-Injection</id>
-    <content type="html"><![CDATA[<p>I have been writing code for roughly a decade. A large chunk of that time has been sitting waiting for my project to compile. It's a nice excuse to <a href="https://xkcd.com/303/">practice sword fighting</a> in the office, but really, deep down. It's frustrating. It's so easy to become <a href="https://xkcd.com/356/">nerd-sniped</a> when you wait for a long time.</p>
-
-<p>As we integrate Swift into our projects, I've been seeing our compile times increase. So, I took some time to look at ways to improve this. The best option, so far, has been dynamic code injection via <a href="https://github.com/johnno1962/injectionforxcode">Injection Plugin for Xcode</a>. In a gist: This means that we don't recompile and re-launch, instead we inject new bits of code into a running application. This reduced the compile cycle on Eigen from 7 seconds to 1 second.</p>
-
-<p>I took some time over the weekend to try and put together a video showing how I used code injection on a trivial app to create a view controller in code. It covers the technique I've <a href="https://github.com/artsy/eigen/pull/1236">started using in Eigen</a> and talks a little bit about how the pieces come together.</p>
-
-<p>Jump <a href="https://www.youtube.com/watch?v=uftvtmyZ8TM">to YouTube</a> for the video, or click more for a smaller inline preview.</p>
-
-<!-- more -->
-
-
-<p></div></div><iframe width='100%' height='600' src='https://www.youtube.com/embed/uftvtmyZ8TM ' frameborder='0' allowfullscreen></iframe><div class='meta-container'><header>&nbsp;</header></div><div class='content-container'><div class='entry-content'></p>
 ]]></content>
   </entry>
   
