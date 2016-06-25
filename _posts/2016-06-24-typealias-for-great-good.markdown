@@ -111,7 +111,7 @@ class func NeverStub(_: Target) -> Moya.StubBehavior {
 This particular function doesn't use the `typealias`, but another one does. We have a function named `DelayedStub` that returns the `typealias` instead of the raw closure. Take a look!
 
 ```swift
-class func DelayedStub(seconds: NSTimeInterval) -> ((Target) -> Moya.StubBehavior) {
+class func DelayedStub(seconds: NSTimeInterval) -> Moya.StubClosure {
     return { _ in return .Delayed(seconds: seconds) }
 }
 ```
