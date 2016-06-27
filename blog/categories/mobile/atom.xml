@@ -4,7 +4,7 @@
   <title><![CDATA[Category: mobile | Artsy Engineering]]></title>
   <link href="http://artsy.github.io/blog/categories/mobile/atom.xml" rel="self"/>
   <link href="http://artsy.github.io/"/>
-  <updated>2016-06-26T00:58:21+00:00</updated>
+  <updated>2016-06-27T18:11:13+00:00</updated>
   <id>http://artsy.github.io/</id>
   <author>
     <name><![CDATA[]]></name>
@@ -12,6 +12,167 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Depedency Injection in Swift]]></title>
+    <link href="http://artsy.github.io/blog/2016/06/27/dependency-injection-in-swift/"/>
+    <updated>2016-06-27T12:00:00+00:00</updated>
+    <id>http://artsy.github.io/blog/2016/06/27/dependency-injection-in-swift</id>
+    <content type="html"><![CDATA[<p>Dependency Injection (DI) is a <a href="http://www.jamesshore.com/Blog/Dependency-Injection-Demystified.html">$25 word for a 5¢ idea</a>, but it's an idea that has become wholly foundation to how I write software. I want to take a look at some of the ways our team have been using DI in Swift.</p>
+
+<!-- more -->
+
+
+<p>DI users in Swift (and Objective-C) are generally in one of a few camps:</p>
+
+<ul>
+<li>Use <a href="https://www.natashatherobot.com/unit-testing-swift-dependency-injection/">initializer injection</a> to provide objects with their dependencies.</li>
+<li>Use property injection (<a href="https://ashfurrow.com/blog/lazy-property-setup-in-swift/">with laziness even!</a>).</li>
+<li>Use <a href="https://github.com/Swinject/Swinject">frameworks like Swinject</a> to build dependency graphs at run time.</li>
+</ul>
+
+
+<p>If you've used storybards or nibs before, you have probably already used property injection via IBOutlets. I actually consider initializer injection and property injection to be roughly the equivalent, just with different timing.</p>
+
+<p>If I had to pick a favourite, I like the initializer injection because it fits appropriately with the level of dynamism Swift offers. But Swift is still <em>super</em> young and there're lots of programming techniques to explore, so I've been experimenting with something new.</p>
+
+<p>The idea is similar to initializer injection, where you provide an instance's dependencies, but instead of providing the dependencies directly, you provide closures that return a dependency. It sounds odd, and is best explained using an example that starts without any DI at all.</p>
+
+<p>Okay, we've got a network layer that communicates with an API. We're writing the class that takes the parsed data from the <code>NetworkProvider</code> class and turns it into models consumable by the rest of the app. Right now it looks like this.</p>
+
+<pre><code class="swift">class StateManager {
+    let networkProvider: NetworkProvider
+
+    init() {
+        networkProvider = NetworkProvider("https://api.wherever.com")
+    }
+}
+</code></pre>
+
+<p>There are some limitations to this, specifically around testing it. It would be better to have the <code>networkProvider</code> passed in as an argument to <code>init()</code>. That's initializer injection, and my opposition to it is that we've moved the responsibility for creating the <code>networkProvider</code> up the stack.</p>
+
+<pre><code class="swift">class StateManager {
+    let networkProvider: NetworkProvider
+
+    init(networkProvider: NetworkProvider) {
+        self.networkProvider = networkProvider
+    }
+}
+
+...
+
+let stateManager = StateManager(
+    networkProvider: NetworkProvider("https://api.wherever.com")
+    )
+</code></pre>
+
+<p>The thing is, now some <em>other</em> object has to know how to do create the <code>NetworkProvider</code>. Hrm. You can repeat this process of injecting dependencies from further up the stack until you have a general-purpose DI framework, and that's not my bag.</p>
+
+<p>My approach passes a closure that <em>returns</em> a network provider instead of passing in a <code>networkProvider</code> instance directly. The parameter can be given a default implementation, too.</p>
+
+<pre><code class="swift">class StateManager {
+    let networkProvider: NetworkProvider
+
+    init(
+        networkProviderCreator: () -&gt; NetworkProvider = StateManager.defaultNetworkCreator()
+        ) {
+        networkProvider = networkProviderCreator()
+    }
+
+    class func defaultNetworkCreator() -&gt; (() -&gt; NetworkProvider) {
+        return {
+            NetworkProvider("https://api.wherever.com")
+        }
+    }
+}
+</code></pre>
+
+<p>There's a lot to unpack here, so let's take it slowly. The initializer has a new <code>networkProviderCreator</code>, a closure that returns a <code>NetworkProvider</code>. In the initializer, we set our property to the return value of the closure. We also have a class method that gives us a default implementation that's used in production.</p>
+
+<p>But in tests, we can initialize the <code>StateManager</code> with a stub closure, something like:</p>
+
+<pre><code class="swift">let fakeNetworkProvider = ...
+let testSubject = StateManager({ fakeNetworkProvider })
+</code></pre>
+
+<p>Now you get the benefits of initializer injection, but the flexibility to only use DI when you need to.</p>
+
+<p>Note: we should still test the <code>defaultNetworkCreator()</code> function to make sure it works, too. Having code behave differently specifically while being tested is not generally a good idea.</p>
+
+<p>Applying the advice on using <code>typealias</code> from <a href="http://artsy.github.io/blog/2016/06/24/typealias-for-great-good/">my last post</a>, we can tidy our code up a little bit.</p>
+
+<pre><code class="swift">class StateManager {
+    typealias NetworkCreator: () -&gt; NetworkProvider
+
+    let networkProvider: NetworkProvider
+
+    init(
+        networkProviderCreator: NetworkCreator = StateManager.defaultNetworkCreator()
+        ) {
+        networkProvider = networkProviderCreator()
+    }
+}
+
+private typealias ClassFunctions = StateManager
+extension ClassFunctions {
+    class func defaultNetworkCreator() -&gt; NetworkCreator {
+        return {
+            NetworkProvider("https://api.wherever.com")
+        }
+    }
+}
+</code></pre>
+
+<h3>But wait, there's more!</h3>
+
+<p>The other benefits of passing in a closure instead of an instance is that it lets the initializer customize the dependency based on other data. For example, let's say the state manager uses an <code>enum</code> to differentiate between staging and production API endpoints (btw, <a href="https://ashfurrow.com/blog/the-wrong-binary/">two-case enums are great at this</a>). How might our initializer change?</p>
+
+<pre><code class="swift">enum APIEnvironment {
+    case Staging, Production
+}
+
+class StateManager {
+    typealias NetworkCreator: (String) -&gt; NetworkProvider
+
+    let networkProvider: NetworkProvider
+
+    init(
+        environment: APIEnvironment,
+        networkProviderCreator: NetworkCreator = StateManager.defaultNetworkCreator()
+        ) {
+        let baseURLString: String
+        switch environment {
+        case .Staging:
+            baseURLString = "https://staging-api.wherever.com"
+        case .Production:
+            baseURLString = "https://api.wherever.com"
+        }
+
+        networkProvider = networkProviderCreator(baseURLString)
+    }
+}
+
+private typealias ClassFunctions = StateManager
+extension ClassFunctions {
+    class func defaultNetworkCreator() -&gt; NetworkCreator {
+        return { baseURLString in
+            NetworkProvider(baseURLString)
+        }
+    }
+}
+</code></pre>
+
+<p>I really dig this. The closure to create the dependency is close to the code that uses it, but is insulated from any specific instance, so we get the benefits of using DI.</p>
+
+<p>You could argue that picking a base URL for an API shouldn't belong here, and you could probably convince me. But my point isn't that this specific example is ideal, it's that the pattern of using closures for initializer injection is pretty neat.</p>
+
+<p>The logic to create dependencies has to go <em>somewhere</em>. I think it makes sense to keep it close to the code that actually uses the dependency, but isolated in a <code>class</code> function so no actual instance is involved in its creation. As a result, developers get the benefits of initializer injection and none of the added cognitive overhead when writing your production code.</p>
+
+<p>It may not be a perfect pattern (what is?) but we've been using it on <a href="https://github.com/artsy/eidolon">eidolon</a> and <a href="https://github.com/artsy/eigen">eigen</a> for nearly two years and – combined with generous use of protocols – we've been really happy with the results.</p>
+
+<p>Now that I have more free time to explore the pattern, I want to take it a step further and see where it could be used outside of unit testing. It's possible that using this approach could make all our types less tightly coupled and provide a more modular codebase.</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Swift Type Aliases: Use Early and Often]]></title>
@@ -414,76 +575,6 @@ Keys for Folio
 <p>It's easier to talk about your API when any other developer can open this one file and shoot off requests at the same time as you. One of my favourite nice-touches is to be able to easily convert any request into a cURL command.</p>
 
 <p>I am using this event as a reminder to myself that tools evolve, and maybe your first impression on a developer tool may require re-interpreting in light of software evolution.</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Using Xcode's Schemes to run a subset of your tests]]></title>
-    <link href="http://artsy.github.io/blog/2016/04/06/Testing-Schemes/"/>
-    <updated>2016-04-06T12:09:00+00:00</updated>
-    <id>http://artsy.github.io/blog/2016/04/06/Testing-Schemes</id>
-    <content type="html"><![CDATA[<p><a href="https://github.com/artsy/eigen">Eigen</a> has hit the point where testing is a chore. This is a positive sign, the app has grown in terms of size, complexity, and number of developers considerably over the last 3 years. The test suite makes us feel comfortable making changes.</p>
-
-<p>On my fastest computer, we're just under a minute - <code>Executed 1105 tests, with 1 failure (0 unexpected) in 43.221 (48.201) seconds</code>  for the whole suite. I think I could probably live with 20 seconds max. So I studied how <a href="https://www.jetbrains.com/objc/">AppCode</a> handles running tests, and this will be an illustrated guide as to how you can easily run the subset of tests in Xcode based on their techniques.</p>
-
-<p> I <a href="https://github.com/orta/life/issues/71">have ideas</a> on how to improve time for testing in general, based on <a href="http://artsy.github.io/blog/2016/03/05/iOS-Code-Injection/">Code Injection</a>, but they aren't fully fleshed out and I expect it to be time-intensive to pull off. Time I haven't made yet.</p>
-
-<!-- more -->
-
-
-<h3>What are Schemes?</h3>
-
-<blockquote><p>An Xcode scheme defines a collection of targets to build, a configuration to use when building, and a collection of tests to execute.</p>
-
-<p>You can have as many schemes as you want, but only one can be active at a time. You can specify whether a scheme should be stored in a project—in which case it’s available in every workspace that includes that project, or in the workspace—in which case it’s available only in that workspace. When you select an active scheme, you also select a run destination (that is, the architecture of the hardware for which the products are built).</p></blockquote>
-
-<p>To <a href="https://developer.apple.com/library/ios/featuredarticles/XcodeConcepts/Concept-Schemes.html">quote Apple</a>.</p>
-
-<h3>Hatching a Scheme</h3>
-
-<p>The Eigen Test Suite is around 50 test classes, these look a bit like this:</p>
-
-<p><img src="/images/2016-04-06-Testing-Schemes/tests.png" alt="Tests" /></p>
-
-<p>Before you start, you want to be able to say, "I want to only run tests for the Fairs section of Eigen", as that is where I will be working for the next few days. To get started, I need to create a new Scheme. You will have seen the schemes before when you click on the Target side of this Targer/Sim button in the top left of Xcode.</p>
-
-<p><img src="/images/2016-04-06-Testing-Schemes/empty_scheme.png" alt="Empty Scheme" /></p>
-
-<p>This is what it looks like on mine, we want to create a new scheme. This brings up a modal window where you need to choose your App's target (this is so you can continue running by pressing <code>cmd + r</code>.)</p>
-
-<p><img src="/images/2016-04-06-Testing-Schemes/new_scheme.png" alt="New Scheme" /></p>
-
-<p>I've called mine "Artsy just for Fairs", as I'm the only person who would see it, I can name it whatever I want. Clicking "OK" selects it, and hides the modal. You now need to go back to the target selector, and go to "Edit Schemes ..." to continue though.</p>
-
-<p><img src="/images/2016-04-06-Testing-Schemes/edit_schemes.png" alt="Edit Schemes" /></p>
-
-<h3>Making Amends</h3>
-
-<p>OK, click on "Test" in the sidebar, and now you're in the Schemes Test editor. This is where you do the work.</p>
-
-<p><img src="/images/2016-04-06-Testing-Schemes/empty_edit_schemes.png" alt="Empty Edit Schemes" /></p>
-
-<p>You need to hit the "+" in order to add your Test Target to the Scheme</p>
-
-<p><img src="/images/2016-04-06-Testing-Schemes/test_scheme.png" alt="Test Scheme" /></p>
-
-<p>Select and "Add" you Targets. This adds the target, you then need to click the disclosure arrow in order to show all the Test Classes.</p>
-
-<p><em>OK, here's some magic</em>. Hold <code>alt</code> and click on the blue tickbox to the right of your test target to turn it off. Then click again, without <code>alt</code>. It should then deselect all of the classes. This is standard in all Mac apps, so go wild there.</p>
-
-<p><img src="/images/2016-04-06-Testing-Schemes/deselect_all.png" alt="Deselect All" /></p>
-
-<p>This means you can go find the classes you do want to run, in my case that is the Test Classes relating to Fairs.</p>
-
-<p><img src="/images/2016-04-06-Testing-Schemes/just_the_good_tests.png" alt="Just The Good Tests" /></p>
-
-<p>Now when I press <code>cmd + u</code> it will only run those test classes.</p>
-
-<h3>Wrapping Up</h3>
-
-<p>Which means I can now get back to work at a reasonable pace. <code>Executed 15 tests, with 0 failures (0 unexpected) in 0.277 (0.312) seconds</code>. I can then run the full suite whenever I go and make a cup of tea.</p>
-
-<p><em>Note:</em> If you want to avoid using the mouse to change scheme, the <a href="/images/2016-04-06-Testing-Schemes/next_prev.png">key commands</a> to change between visible schemes is <code>cmd + ctrl + [</code> and  <code>cmd + ctrl + ]</code>.</p>
 ]]></content>
   </entry>
   
