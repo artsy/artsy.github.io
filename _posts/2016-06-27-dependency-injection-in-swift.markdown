@@ -6,11 +6,19 @@ author: ash
 categories: [mobile, swift, eigen, eidolon]
 ---
 
-Dependency injection is a [$25 word for a 5¢ idea](http://www.jamesshore.com/Blog/Dependency-Injection-Demystified.html), but it's an idea that has become wholly foundation to how I write software. I want to take a look at some of the ways our team have been using DI in Swift.
+Dependency Injection is a [$25 word for a 5¢ idea](http://www.jamesshore.com/Blog/Dependency-Injection-Demystified.html), but it's an idea that has become wholly foundation to how I write software. I want to take a look at some of the ways our team have been using DI in Swift.
 
 <!-- more -->
 
-DI users in Swift (and Objective-C) are generally in one of a few camps: one uses [initializer injection](https://www.natashatherobot.com/unit-testing-swift-dependency-injection/) to provide objects with their dependencies, one uses [lazy property injection](https://ashfurrow.com/blog/lazy-property-setup-in-swift/) (similar to initializer injection), and the other uses [frameworks like Swinject](https://github.com/Swinject/Swinject) to build dependency graphs at run time. If I had to pick a favourite, I like the initializer injection because it fits appropriately with the level of dynamism Swift offers. But Swift is still _super_ young and there're lots of programming techniques to explore, so I've been experimenting with something new.
+DI users in Swift (and Objective-C) are generally in one of a few camps: 
+
+- Use [initializer injection](https://www.natashatherobot.com/unit-testing-swift-dependency-injection/) to provide objects with their dependencies.
+- Use property injection ([with laziness even!](https://ashfurrow.com/blog/lazy-property-setup-in-swift/)).
+- Use [frameworks like Swinject](https://github.com/Swinject/Swinject) to build dependency graphs at run time. 
+
+If you've used storybards or nibs before, you have probably already used property injection via IBOutlets. I actually consider initializer injection and property injection to be roughly the equivalent, just with different timing. 
+
+If I had to pick a favourite, I like the initializer injection because it fits appropriately with the level of dynamism Swift offers. But Swift is still _super_ young and there're lots of programming techniques to explore, so I've been experimenting with something new.
 
 The idea is similar to initializer injection, where you provide an instance's dependencies, but instead of providing the dependencies directly, you provide closures that return a dependency. It sounds odd, and is best explained using an example that starts without any DI at all.
 
