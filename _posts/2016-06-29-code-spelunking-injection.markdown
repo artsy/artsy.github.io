@@ -212,6 +212,12 @@ When the new bundle is loaded [it triggers][auto_loaded_notify] this code:
 }
 ```
 
+Which does the job of letting the running app know that instances have been updated with new code. Injection does three things:
+
+* A global NSNotification for .
+* Sends all instances of classes injected a message that they've been injected.
+* Sends all classes that have been injected a message they've been injected.
+
 Which is where this goes from "complex", to "I couldn't do this." Let's start of quoting the README that John and I worked on for a while.
 
 > It can be tough to look through all of the memory of a running application. In order to determine the classes and instances to call the injected callbacks on, Injection performs a "sweep" to find all objects in memory. Roughly, this involves looking at an object, then recursively looking through objects which it refers to. For example, the object's instance variables and properties.
@@ -220,8 +226,43 @@ Which is where this goes from "complex", to "I couldn't do this." Let's start of
 
 > If no references are found, Injection will look through all objects that are referred to via sharedInstance. If that fails, well, Injection couldn't find your instance. This is one way in which you may miss callbacks in your app.
 
-
 ####  Client Injection Sweep
+
+So how does it pull that off? Calling `NSBundle`'s `- load` [here][bundle_load], calls the [load function to call on all classes][all_load] inside that new bundle. This triggers the load function from the `InjectionBundle` that is auto-generated during the Injection stage. Here's what one of mine looks like:
+
+```objc
+@interface InjectionBundle3 : NSObject
+@end
+@implementation InjectionBundle3
+
++ (void)load {
+    Class bundleInjection = NSClassFromString(@"BundleInjection");
+    [bundleInjection autoLoadedNotify:0 hook:(void *)injectionHook];
+}
+
+@end
+```
+
+This is generated from the `injectSource.pl` script [here][injection_hook]] `[bundleInjection autoLoadedNotify:$flags hook:(void *)injectionHook];` . It also comes with another function,
+
+```c
+int injectionHook() {
+    NSLog( \@"injectionHook():" );
+    [InjectionBundle3 load];
+    return YES;
+}
+```
+
+What we care about is `&injectionHook` which gets passed to `autoLoadedNotify` as a pointer to a function. Oddly enough, I'm a tad confused about the fact that the injection hook contains itself, but lets roll with it for now. Perhaps it's never actually called.
+
+So, we've had a fairly typical `NSBundle` `- load` load our classes into the runtime. This triggered the `InjectionBundle.bundle` to have it's classes created, and the first thing it does  is pass a reference back to the `BundleInjection` class instance for the `injectionHook` function that calls the `load` on the new class. 
+
+Next, Injection creates a [dynamic library info][dl_lib_info] [struct][dl_struct] and uses [dladdr][dladdr] to fill the struct, based on the function pointer. This lets Injection know where in memory the library exists. Safe in the knowledge that the code has been injected into the runtime - Injection, if you're requested will re-create the app structure. Like when it recieves a socket event of `~`.
+
+
+So, a notification is easy. That's the [first thing that happens][injected_notification] on the version I could pull off - `loadedNotify:` which seems to actually be un-used. However, the [version used now][auto_loader_notify] is `autoLoadedNotify:` where it's the last thing that happens, then do work once you're sure all changes are integrated.
+
+
 
 `BundleInjection.h` adds a few methods to NSObject for injection:
 
@@ -295,3 +336,11 @@ Which is where this goes from "complex", to "I couldn't do this." Let's start of
 [sending_files_from_client]: https://github.com/johnno1962/injectionforxcode/blob/master/InjectionPluginLite/Classes/BundleInjection.h#L492
 [client_update_image]: https://github.com/johnno1962/injectionforxcode/blob/master/InjectionPluginLite/Classes/BundleInjection.h#L540
 [auto_loaded_notify]: https://github.com/johnno1962/injectionforxcode/blob/master/InjectionPluginLite/injectSource.pl#L303-L308
+[injected_notification]: https://github.com/johnno1962/injectionforxcode/blob/master/InjectionPluginLite/Classes/BundleInjection.h#L910
+[auto_loader_notify]: https://github.com/johnno1962/injectionforxcode/blob/master/InjectionPluginLite/Classes/BundleInjection.h#L944
+[injection_hook]: https://github.com/johnno1962/injectionforxcode/blob/master/InjectionPluginLite/injectSource.pl#L311-L315
+[bundle_load]: https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/BundleInjection.h#L648
+[all_load]: https://developer.apple.com/library/mac/documentation/Cocoa/Reference/Foundation/Classes/NSBundle_Class/index.html#//apple_ref/occ/instm/NSBundle/load
+[dl_lib_info]: https://github.com/davetroy/astmanproxy/blob/f4b952a717b7e982b585bf0daa86398add394a88/src/include/dlfcn-compat.h#L44-L54
+[dl_struct]: https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/BundleInjection.h#L944-L946
+[dladdr]: http://linux.die.net/man/3/dladdr
