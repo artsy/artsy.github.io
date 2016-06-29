@@ -24,7 +24,7 @@ open TempInjection/InjectionPluginLite/InjectionPlugin.xcodeproj/
 
 ## A note on code style
 
-I am of the \_why [camp of programming](https://www.smashingmagazine.com/2010/05/why-a-tale-of-a-post-modern-genius/#dont-be-afraid-to-take-risks) - the code we are spelunking through can feel foreign to modern Objective-C, and it's not got tests. The end result of all this code _is_ beautiful, whether the code is - is a matter of perspective.
+I am of the \_why [camp of programming](https://www.smashingmagazine.com/2010/05/why-a-tale-of-a-post-modern-genius/#dont-be-afraid-to-take-risks) - the code we are spelunking through can feel foreign to modern Objective-C, and it's not got tests. The end result of all this code _is_ beautiful, whether the code is - is a matter of perspective. 
 
 ## Targets
 
@@ -36,7 +36,7 @@ I am of the \_why [camp of programming](https://www.smashingmagazine.com/2010/05
 
 ## Implementation Order
 
-I want to go through the code-base from the perspective what happens when it
+I want to go through the code-base from the perspective what happens when it:
 
 * Loads up inside Xcode.
 * Recieves a call to inject.
@@ -51,7 +51,7 @@ It then sets up the [user interface from a nib file][nib_setup], which [DIs][di]
 
 #### Server
 
-The server is a [c TCP socket][tcp_socket], prior to digging in here, I'd never needed to see one.
+The server is a [c TCP socket][tcp_socket], prior to digging in here, I'd never needed to see one. I see a lot of references to Android injection, so I assume the low-level choice in a socket  was so the same code can do both platforms.
 
 ``` c
 - (void)startServer {
@@ -142,7 +142,7 @@ Alright, back to [the INPluginClientController][INPluginClientController]. Skipp
 
 So, this is where I ended up a bit out of my comfort zone. This isn't a blog post about sockets and c though, so I'll annotate what's going on from the high level thoughout this [connection setup function][socket_connection].
 
-* Grab some info from socket, then if it's is an injection message, set the Injection console's info label to that filepath, this is the `BundleContents.m`.
+* Grab some the main client file from socket, then if it's is an injection message, set the Injection console's info label to that filepath, this is the `BundleContents.m`.
 * Otherwise inject all objects from a storyboard (not too sure whats going on there TBH)
 * The server [asks the client][asking_for_app_path] for the app's path e.g. `/Users/orta/Library/Developer/CoreSimulator/Devices/CDC9D8EF-AAAD-47F8-8D53-C3C69551E85A/data/Containers/Data/Application/1F636180-7113-406E-88F8-7E43EFAC13F6"`
 * There's some more communication around the [app's architecture][app_architecture].
@@ -155,11 +155,90 @@ From that point the server's job is mainly to pass messages and files that come 
 
 As an option you can set in the preferences toggles a File Watcher. I found a bunch of references to this in the code, so I wanted to at least dig into that. When you turn it on, any save will trigger an injection. This is done by looking for the folder that your [project resides in][watch_project], then using Apple's [file system event stream][fstream] to monitor for save changes. Then when a new FS event is triggered, it re-injects that file. I bet it's turned off by default as you'll see errors when it's not compilable.
 
-## Client-side
+## Client-Side
 
 We've hand-waved though the client-side of the app during the patching stage of installation, but to understand both parts of the system we need to cover the client side in a bit more depth. There's two aspects to it, the initial bundle/patch and incremental bundles that contain the new compiled code. 
 
 #### Client Setup
+
+To understand this, we need to grok a 1,200 LOC header file `:D`, it has a few responsibilities though. So we can try work through those, to [BundleInjection.h][BundleInjection.h]. Interesting note, when you are patching your application - you're actually making a link to a copy of this file inside your `/tmp/` dir.
+
+```objc
+#ifdef DEBUG
+static char _inMainFilePath[] = __FILE__;
+static const char *_inIPAddresses[] = {"10.12.1.67", "127.0.0.1", 0};
+
+#define INJECTION_ENABLED
+#import "/tmp/injectionforxcode/BundleInjection.h"
+#endif
+```
+
+#### Client Socket Connection
+
+Like the server, this has two responsibilities - using Bonjour to find the server, and raw socket communication. There is nothing unique about the Bonjour mutlicast work, so I'm skipping that. Once the socket knows how to establish a connection between processes `+ bundleLoader` [is called][bundle_loader] on a background thread.
+
+So, what does `bundleLoad` do?
+
+* It checks if it's a new Injection install in the app, [if so][param_setup] it sets up [INParameters and INColors][tunable] for tunable parameters.
+* It then determines the [hardware architecture][client_arch] for it to be sent to the server for compilation later.
+* Attempt to connect to the server, 5 times.
+* If it succeds, [write the location][client_file_loc] of the `BundleInjection` file to the server. Triggering the first of the socket work on the server.
+* Expect a response of the [server's][server_bundle_loc] version of `BundleInjection`
+* If the bundle is compiling storyboards on iOS, [swizzle some][nib_swizzling] of the UINib init functions.
+* Pass the [home directory of the app][client_app_home] to the server.
+
+From there the socket goes into runloop mode on it's on thread. 
+
+#### Client Socket Runloop
+
+As with server monitoring, the client listens for strings that begin with special prefixes:
+
+* `~` - Injects, then Re-creates the app degelate + view controller heirarchy.
+* `/` - [Loads][load_bundle_client] the bundle path that was sent in.
+* `>` - Accepts a file or directory to [be sent through the socket][sending_files_to_client].
+* `<` - Sends a requested file or directory to [through the socket][sending_files_from_client].
+* `#` - [Recieves][client_update_image] an `NS/UIImage` via NSData from the server, for Tunable Parameters.
+* `!` - Logs to console
+* Otherwise, assume it's another Tunable Parameter.
+
+#### Loading the Bundle
+
+When the new bundle is loaded [it triggers][auto_loaded_notify] this code:
+
+``` objc
++ (void)load {
+    Class bundleInjection = NSClassFromString(@"BundleInjection");
+    [bundleInjection autoLoadedNotify:$flags hook:(void *)injectionHook];
+}
+```
+
+Which is where this goes from "complex", to "I couldn't do this." Let's start of quoting the README that John and I worked on for a while.
+
+> It can be tough to look through all of the memory of a running application. In order to determine the classes and instances to call the injected callbacks on, Injection performs a "sweep" to find all objects in memory. Roughly, this involves looking at an object, then recursively looking through objects which it refers to. For example, the object's instance variables and properties.
+
+> This process is seeded using the application's delegate and all windows. Once all the in-memory reference are collected, Injection will then filter these references to ones that it has compiled and injected. Then sending them the messages referenced in the callbacks section.
+
+> If no references are found, Injection will look through all objects that are referred to via sharedInstance. If that fails, well, Injection couldn't find your instance. This is one way in which you may miss callbacks in your app.
+
+
+####  Client Injection Sweep
+
+`BundleInjection.h` adds a few methods to NSObject for injection:
+
+```objc
+@interface NSObject(injected)
++ (void)injectedClass:(Class)aClass;
++ (void)injected;
+- (void)injected;
+- (void)onXprobeEval;
+- (void)setViewController:vc;
+@end
+```
+
+
+#### Parameters
+
+
 
 
 [di]: http://artsy.github.io/blog/2016/06/27/dependency-injection-in-swift/
@@ -202,3 +281,17 @@ We've hand-waved though the client-side of the app during the patching stage of 
 [watch_project]: https://github.com/johnno1962/injectionforxcode/blob/master/InjectionPluginLite/Classes/INPluginMenuController.m#L432-L436
 [fstream]: https://github.com/johnno1962/injectionforxcode/blob/master/InjectionPluginLite/Classes/FileWatcher.m#L31
 [app_architecture]: https://github.com/johnno1962/injectionforxcode/blob/master/InjectionPluginLite/Classes/INPluginClientController.m#L229-L230
+[BundleInjection.h]: https://github.com/johnno1962/injectionforxcode/blob/master/InjectionPluginLite/Classes/BundleInjection.h
+[bundle_loader]: https://github.com/johnno1962/injectionforxcode/blob/master/InjectionPluginLite/Classes/BundleInjection.h#L359
+[param_setup]: https://github.com/johnno1962/injectionforxcode/blob/master/InjectionPluginLite/Classes/BundleInjection.h#L366-L367
+[tunable]: https://github.com/johnno1962/injectionforxcode/blob/master/documentation/tunable_parameters.md
+[client_arch]: https://github.com/johnno1962/injectionforxcode/blob/master/InjectionPluginLite/Classes/BundleInjection.h#L383-L400
+[client_file_loc]: https://github.com/johnno1962/injectionforxcode/blob/master/InjectionPluginLite/Classes/BundleInjection.h#L415
+[server_bundle_loc]: https://github.com/johnno1962/injectionforxcode/blob/master/InjectionPluginLite/Classes/BundleInjection.h#L417
+[nib_swizzling]: https://github.com/johnno1962/injectionforxcode/blob/master/InjectionPluginLite/Classes/BundleInjection.h#L424-L429
+[client_app_home]: https://github.com/johnno1962/injectionforxcode/blob/master/InjectionPluginLite/Classes/BundleInjection.h#L443
+[load_bundle_client]: https://github.com/johnno1962/injectionforxcode/blob/master/InjectionPluginLite/Classes/BundleInjection.h#L644
+[sending_files_to_client]: https://github.com/johnno1962/injectionforxcode/blob/master/InjectionPluginLite/Classes/BundleInjection.h#L476
+[sending_files_from_client]: https://github.com/johnno1962/injectionforxcode/blob/master/InjectionPluginLite/Classes/BundleInjection.h#L492
+[client_update_image]: https://github.com/johnno1962/injectionforxcode/blob/master/InjectionPluginLite/Classes/BundleInjection.h#L540
+[auto_loaded_notify]: https://github.com/johnno1962/injectionforxcode/blob/master/InjectionPluginLite/injectSource.pl#L303-L308
