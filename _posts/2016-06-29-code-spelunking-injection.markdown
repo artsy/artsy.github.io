@@ -74,7 +74,7 @@ The server is a [c TCP socket][tcp_socket], prior to digging in here, I'd never 
 
 Assuming everything went well, then a [Bonjour][bonjour] [service][bonjour_service] is created advertising the socket on the network. This then moves to a background thread and starts a infinite runloop checking for new connections on the [socket every 0.5 seconds][socket_runloop].
 
-Here is it [running][bbrowser_running] in [Bonjour Browser][bbrowser]. So, what does this server do? That's handled inside `INPluginClientController`.
+Here is it [running][bbrowser_running] in [Bonjour Browser][bbrowser]. So, what does this server do? That's handled inside `INPluginClientController`. I don't know why it uses a substring of your MAC address.
 
 At its simplest, the server exists to send messages between running multiple applications and the injection plugin. We'll get back to what the server does later.
 
@@ -118,26 +118,48 @@ Next it determines how to handle code-signing on the app, as it supports both si
 
 After that if needs to understand how to compile an individual file, so it gets a reference to the build log dirs for the [derived data][derived_data_logs] for your app. They're zipped, files, so it unzips them and parses the log. Here's an example of what [compiling a single class from Eigen looks like][a_build_log] (I've highlighted the useful bits). Internally, this is called the learnt db.
 
-The learnt db is used to compile a class to be individually compiled into a `injecting_class.o` file, I can't quite figure out where that file comes from. 
+The learnt db is used to compile a class to be individually compiled into a `injecting_class.o` file, I can't quite figure out where that file comes from though. 
 
-To wrap up the compilation it needs to take the compiled object `injecting_class.o` and statically link it to the bundle that is generated inside the sub-project. Here is the [command line generation][learnt_command], building the script is a little bit [more involved][learn_build] - but that's generally because it's trying to support a lot of user options. 
+To wrap up the compilation it needs to take the compiled object `injecting_class.o` and statically link it to the bundle that is generated inside the sub-project. Here is the [command line generation][learnt_command], building the script is a little bit [more involved][learn_build] - but that's generally because it's trying to support a lot of user options. The main class that exists in the bundle is `BundleContents`.
 
 The compiled bundle is then renamed so that you don't have name clashes, it's just incremental integers. My current sub-project I'm using for debugging looks like this:
 
 ![Injection Subproject](/images/2016-06-29-injection-overview/injection_subproject.png)
 
-With the `Logs` dir being a symlink to the derived data folder. With that done, it will code-sign the bundle if it's going to a device, and echo out the new bundle path so that the next step can happen.
+With the `Logs` dir being a symlink to the derived data folder. 
+
+With that done, it will [include any nibs][compile_nibs] from compiling storyboards, and [code-sign the bundle][code_sign_bundle] if it's going to a device. Finally it echoes out [the new bundle path][new_bundle_path] in aso that the next step can happen.
+
+#### Script Monitoring
+
+The script to create the Xcode project, amend it, and compile is done as a separate process. It's [done][open_script] via the [function][popen] `popen`. This is then monitored in background, [listening for output lines][output_lines] that begins with `<`, `>`, `!`, `%` and `?`. The one that we're most interested in, is the `!` operator which tells the server the filepath of the now compiled `InjectionBundleX.bundle`, in my most recent case, this looked like `/Users/orta/dev/ios/energy/iOSInjectionProject/build/Debug-iphonesimulator/InjectionBundle4.bundle`.
+
+This [tells the][tells_server] server running inside Xcode that it has a file to send to the clients.
 
 #### How the server works
 
-Skipping over the option setting `IBAction`s and [RTF-formatted logging][rtf_logging]. We come to the initial connection responder: `setConnection:`. 
+Alright, back to [the INPluginClientController][INPluginClientController]. Skipping over the option setting `IBAction`s and [RTF-formatted logging][rtf_logging]. We come to the initial connection responder: `setConnection:`. 
 
-So, this is where I ended up a bit out of my comfort zone. This isn't a blog post about sockets and c though, so I'll annotate what's going on from the high level thoughout this [connection function][socket_connection].
+So, this is where I ended up a bit out of my comfort zone. This isn't a blog post about sockets and c though, so I'll annotate what's going on from the high level thoughout this [connection setup function][socket_connection].
 
-* Grab a header from the socket, put it into a struct called `header`
-* If the header is an injection message, set the Injection console's info label to that message
-* Otherwise 
+* Grab some info from socket, then if it's is an injection message, set the Injection console's info label to that filepath, this is the `BundleContents.m`.
+* Otherwise inject all objects from a storyboard (not too sure whats going on there TBH)
+* The server [asks the client][asking_for_app_path] for the app's path e.g. `/Users/orta/Library/Developer/CoreSimulator/Devices/CDC9D8EF-AAAD-47F8-8D53-C3C69551E85A/data/Containers/Data/Application/1F636180-7113-406E-88F8-7E43EFAC13F6"`
+* There's some more communication around the [app's architecture][app_architecture].
+* The app gets a [badge][badge] with the client count on it, so you know it's working.
+* If checks if you want the File Watcher turned on.
 
+From that point the server's job is mainly to pass messages and files that come out of the scripts between the client and the host doing the compilation.
+
+#### File Watcher
+
+As an option you can set in the preferences toggles a File Watcher. I found a bunch of references to this in the code, so I wanted to at least dig into that. When you turn it on, any save will trigger an injection. This is done by looking for the folder that your [project resides in][watch_project], then using Apple's [file system event stream][fstream] to monitor for save changes. Then when a new FS event is triggered, it re-injects that file. I bet it's turned off by default as you'll see errors when it's not compilable.
+
+## Client-side
+
+We've hand-waved though the client-side of the app during the patching stage of installation, but to understand both parts of the system we need to cover the client side in a bit more depth. There's two aspects to it, the initial bundle/patch and incremental bundles that contain the new compiled code. 
+
+#### Client Setup
 
 
 [di]: http://artsy.github.io/blog/2016/06/27/dependency-injection-in-swift/
@@ -147,6 +169,7 @@ So, this is where I ended up a bit out of my comfort zone. This isn't a blog pos
 [eigen_gitignore]: https://github.com/artsy/eigen/pull/1236/files#diff-a084b794bc0759e7a6b77810e01874f2R46
 [derived_data_logs]: /images/2016-06-29-injection-overview/build_logs.png
 [a_build_log]: /images/2016-06-29-injection-overview/a_build_log.png
+[badge]: /images/2016-06-29-injection-overview/badge.png
 
 [principal_class]: https://github.com/johnno1962/injectionforxcode/blob/master/InjectionPluginLite/Info.plist#L21-L22
 [launch_shared]: https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/INPluginMenuController.m#L83-L94
@@ -167,3 +190,15 @@ So, this is where I ended up a bit out of my comfort zone. This isn't a blog pos
 [use_common]: https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/injectSource.pl#L15
 [learnt_command]: https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/injectSource.pl#L331-L365
 [learn_build]:https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/injectSource.pl#L376-L467
+[new_bundle_path]: https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/injectSource.pl#L515
+[compile_nibs]: https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/injectSource.pl#L487-L503
+[code_sign_bundle]: https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/injectSource.pl#L505-L512
+[popen]: http://linux.die.net/man/3/popen
+[open_script]: https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/INPluginClientController.m#L365
+[output_lines]: https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/INPluginClientController.m#L382
+[tells_server]: https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/INPluginClientController.m#L422-L423
+[INPluginClientController]: https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/INPluginClientController.m
+[asking_for_app_path]: https://github.com/johnno1962/injectionforxcode/blob/master/InjectionPluginLite/Classes/INPluginClientController.m#L216
+[watch_project]: https://github.com/johnno1962/injectionforxcode/blob/master/InjectionPluginLite/Classes/INPluginMenuController.m#L432-L436
+[fstream]: https://github.com/johnno1962/injectionforxcode/blob/master/InjectionPluginLite/Classes/FileWatcher.m#L31
+[app_architecture]: https://github.com/johnno1962/injectionforxcode/blob/master/InjectionPluginLite/Classes/INPluginClientController.m#L229-L230
