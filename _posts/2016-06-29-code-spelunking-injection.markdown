@@ -24,14 +24,14 @@ open TempInjection/InjectionPluginLite/InjectionPlugin.xcodeproj/
 
 ## A note on code style
 
-I am of the \_why [camp of programming](https://www.smashingmagazine.com/2010/05/why-a-tale-of-a-post-modern-genius/#dont-be-afraid-to-take-risks) - the code we are spelunking through can feel foreign to modern Objective-C, and it's not got tests. The end result of all this code _is_ beautiful, whether the code is - is a matter of perspective. 
+I am of the \_why [camp of programming](https://www.smashingmagazine.com/2010/05/why-a-tale-of-a-post-modern-genius/#dont-be-afraid-to-take-risks) - the code we are spelunking through can feel foreign to modern Objective-C, and it's not got tests. [@Johno1962][johnno1962] described it to me as being like 1997's Objective-C. The end result of all this code _is_ beautiful, whether the code is - is a matter of perspective. I'm super happy it exists.
 
 ## Targets
 
 * InjectionPlugin - The user facing Xcode plugin
-* InjectionLoader - A Bundle target which is used to skip patching a project for injection.
+* InjectionLoader - A Bundle used to skip patching a project for injection.
 * iOSBundleTemplate - A folder to a reference implementation of a iOS Project
-* OSXBundleTemplate - A folder to a reference implementation of a OSX Project
+* OSXBundleTemplate - Same but for OSX Project
 * unhide - A command line tool that extracts symbols from a Swift Framework
 
 ## Implementation Order
@@ -43,11 +43,9 @@ I want to go through the code-base from the perspective what happens when it:
 
 ### Launch
 
-All Xcode plugins have the exact same launch process, you [define a class][principal_class] in the info.plist, this class, `INPluginMenuController`, gets `+ pluginDidLoad:` called, this is where you [set up a shared instance][launch_shared], and can keep a reference to your bundle.
+All Xcode plugins have the exact same launch process, you [define a class][principal_class] in the info.plist, this class, `INPluginMenuController`, gets `+ pluginDidLoad:` called. This is where you [set up a shared instance][launch_shared], and can keep a reference to your bundle.
 
-This eventually triggers the interesting stuff, in `applicationDidFinishLaunching:`. It first pulls out some [useful private classes][private_classes] from Xcode, they're moved into instance variables - these are used later. 
-
-It then sets up the [user interface from a nib file][nib_setup], which [DIs][di] in a lot of the instance variables, and will send you to get a new version of Injection if it fails. It then sets up the menu ( note: [interesting use of c-structs here][menu_structs] ) and starts a TCP server, then registers for when a `NSWindow` becomes active.
+This triggers the interesting stuff in `applicationDidFinishLaunching:` this sets up the [user interface from a nib file][nib_setup], which [DIs][di] in a lot of the instance variables, and will send you to get a new version of Injection if it fails. It then sets up the menu ( note: [interesting use of c-structs here][menu_structs] ) and starts a TCP server, then registers for when a `NSWindow` becomes active.
 
 #### Server
 
@@ -82,21 +80,21 @@ At its simplest, the server exists to send messages between running multiple app
 
 The plugin will keep track of the key editor window, [this is done][window_checking] by making sure the window's controller is of the class `IDEWorkspaceWindowController` and that it has a corresponding file.
 
-That's basically everything now, until a user decides to start using Injection. So we're going to move to what happens when you press `ctrl + =`. 
+That's basically everything set up for the plugin now, until a user decides to start using Injection. So we're going to move to what happens when you press `ctrl + =`. 
 
 #### On Preparing for Injection
 
 The work starts at `injectSource` [from INPluginMenuController][inject_source]. 
 
-The first thing it does is make sure the current file is grab the current file, then saves it. It then checks what type of file it is, as only `.m, .mm, .swift or .storyboard` can be injected.
+The first thing it does is grab the current file, then saves it. It then checks what type of file it is, as only `.m, .mm, .swift or .storyboard` can be injected.
 
 Next, it pulls out a reference to the currently running LLDB session, the console in the bottom of Xcode. It checks if the server has any active clients. 
 
-OK, to understand this you need to understand what "unpatched injection" is. In order to support code injection, your app has to have some way to communicate back to the TCP server hosted in Xcode. This can be done either by [including some source code][unpatched] in your project, or by adding it in at runtime. Including the source code, is "patching" your project to allow injection. It's optional because of what comes next.
+OK, to understand the next bit you need to understand what _"unpatched injection"_ is. In order to support code injection, your app has to have some way to communicate back to the TCP server hosted in Xcode. This can be done either by [including some source code][unpatched] in your project, or by adding it in at runtime. Including the source code, is "patching" your project to allow injection. It's optional because of what comes next.
 
-If there are no clients connected, then requests a pause from LLDB, allowing interaction, it then waits a few microseconds to give the debugger chance to load. Once it's loaded `loadBundle:` is [called][load_bundle]. This is the second target from the list at the top, and is hosted inside the plugin's bundle (meta...).
+If there are no clients connected, then requests a pause from LLDB, allowing the plugin to send messages to the running app, it then waits a few microseconds to give the debugger chance to load. Once it's loaded `loadBundle:` is [called][load_bundle].
 
-Injection then sends `expr -l objc++ -O -- (void)[[NSClassFromString(@"NSBundle")  bundleWithPath:@"/Users/orta/Library/Application Support/Developer/Shared/Xcode/Plug-ins/InjectionPlugin.xcplugin/Contents/Resources/InjectionLoader.bundle"] load]` into the debugger. Causing the same code as the patch to exist inside your app.
+Injection then sends `expr -l objc++ -O -- (void)[[NSClassFromString(@"NSBundle")  bundleWithPath:@"/Users/orta/Library/Application Support/Developer/Shared/Xcode/Plug-ins/InjectionPlugin.xcplugin/Contents/Resources/InjectionLoader.bundle"] load]` into the debugger. Causing the same code as the patch to exist inside your app.  This code comes from the second target from the list at the top, and is hosted inside the plugin's bundle (meta...).
  
 With that verified, it's ready to inject the source code.
 
@@ -114,9 +112,9 @@ It starts out by copying a template xcodeproject (either `iOSBundleTemplate` or 
 
 Next it pulls out the build settings for all these keys `FRAMEWORK_SEARCH_PATHS HEADER_SEARCH_PATHS USER_HEADER_SEARCH_PATHS GCC_VERSION ARCHS VALID_ARCHS GCC_PREPROCESSOR_DEFINITIONS GCC_ENABLE_OBJC_EXCEPTIONS` from your project, into the sub-project.
 
-Next it determines how to handle code-signing on the app, as it supports both simulator and on-device. 
+Next it determines how to handle code-signing on the app, as it supports both simulator and on-device, and you need to sign to run any code on a device.
 
-After that if needs to understand how to compile an individual file, so it gets a reference to the build log dirs for the [derived data][derived_data_logs] for your app. They're zipped, files, so it unzips them and parses the log. Here's an example of what [compiling a single class from Eigen looks like][a_build_log] (I've highlighted the useful bits). Internally, this is called the learnt db.
+After that, if needs to understand how to compile an individual file, it gets a reference to the build log dirs for the [derived data][derived_data_logs] for your app. They're zipped files, so it unzips them and parses the log. Here's an example of what [compiling a single class from Eigen looks like][a_build_log] (I've highlighted the useful bits). Internally, this is called the learnt db.
 
 The learnt db is used to compile a class to be individually compiled into a `injecting_class.o` file, I can't quite figure out where that file comes from though. 
 
@@ -197,7 +195,7 @@ As with server monitoring, the client listens for strings that begin with specia
 * `/` - [Loads][load_bundle_client] the bundle path that was sent in.
 * `>` - Accepts a file or directory to [be sent through the socket][sending_files_to_client].
 * `<` - Sends a requested file or directory to [through the socket][sending_files_from_client].
-* `#` - [Receives][client_update_image] an `NS/UIImage` via NSData from the server, for Tunable Parameters.
+* `#` - [Receives][client_update_image] an `NS/UIImage` via NSData for Tunable Parameters.
 * `!` - Logs to console
 * Otherwise, assume it's another Tunable Parameter.
 
@@ -218,7 +216,7 @@ Which does the job of letting the running app know that instances have been upda
 * Sends all instances of classes injected a message that they've been injected.
 * Sends all classes that have been injected a message they've been injected.
 
-Which is where this goes from "complex", to "I couldn't do this." Let's start of quoting the README that [@Johno1962][johnno1962] and I worked on for a while.
+Which is where this goes from "complex", to "I would need to study up to do this." Let's start of quoting the README that [@Johno1962][johnno1962] and I worked on for a while.
 
 > It can be tough to look through all of the memory of a running application. In order to determine the classes and instances to call the injected callbacks on, Injection performs a "sweep" to find all objects in memory. Roughly, this involves looking at an object, then recursively looking through objects which it refers to. For example, the object's instance variables and properties.
 
@@ -253,7 +251,7 @@ int injectionHook() {
 }
 ```
 
-What we care about is `&injectionHook` which gets passed to `autoLoadedNotify` as a pointer to a function. Oddly enough, I'm a tad confused about the fact that the injection hook contains itself, but lets roll with it for now. Perhaps it's never actually called, _I asked_ it's for Android support, and isn't used.
+What we care about is `&injectionHook` which gets passed to `autoLoadedNotify` as a pointer to a function. Oddly enough, I'm a tad confused about the fact that the injection hook contains a reference to the function that calls it, but lets roll with it for now. Perhaps it's never actually called, _I asked_ -it's for Android support, and isn't used.
 
 So, we've had a fairly typical `NSBundle` `- load` load our classes into the runtime. This triggered the `InjectionBundle.bundle` to have it's classes created, and the first thing it does is pass a reference back to the `BundleInjection` class instance for the `injectionHook` function that calls the `load` on the new classes.
 
@@ -273,7 +271,7 @@ With valid class tables, and the newly injected functions added. Injection start
 
 At [this point][start_of_notifications] Injected does a run through the new class list again, if that class responds to the selector `+ injected` it runs it. It then does a check to see if the class's instances reponds to `- injected` if it does, it looks to see if it has any instances of the objects in it's liveObjects array. If the array hasn't been set up, then it needs to do a full memory sweep.
 
-Injection has an [Xprobe][xprobe]-lite included inside it. This lives in [BundleSweeper.h][BundleSweeper.h]. The quote opening this notification section above gave the start away, BundleSweeper [looks at the appDelegate][bprobe_seed] ( or a [Cocos2D director object][cocos2d]) and then starts to recursively look at every object that it's related to. This is done by adding a `bwseep` function to `NSObject` then individually customizing it for known container classes, and "reference" classes e.g [NSBlock][NSBlock], [NSData][NSData], NSString, NSValue etc. The `bsweep` function adds itself to the [shared list][shared_seen_list] of "objects seen", checks for an it being a [private class or a transition][UITransition], if it's not then it loops through the [IvarList][ivar_list] and runs `bsweep` on all of those. With that done, it casually tests to see if there are any weakly held objects that [tend to use common selectors][weak_selectors].
+Injection has an [Xprobe][xprobe]-lite included inside it. This lives in [BundleSweeper.h][BundleSweeper.h]. The quote opening this notification section above gave the start away, BundleSweeper [looks at the app delegate][bprobe_seed] ( or a [Cocos2D director object][cocos2d]) and then starts to recursively look at every object that it's related to. This is done by adding a `bwseep` function to `NSObject` then individually customizing it for known container classes, and "reference" classes e.g [NSBlock][NSBlock], [NSData][NSData], NSString, NSValue etc. The `bsweep` function adds itself to the [shared list][shared_seen_list] of "objects seen", checks for an it being a [private class or a transition][UITransition], if it's not then it loops through the [IvarList][ivar_list] and runs `bsweep` on all of those. With that done, it casually tests to see if there are any weakly held objects that [tend to use common selectors][weak_selectors].
 
 Let that simmer for a bit ( I jest, it's super fast. ) and then you have _almost_ every object in your object graph being told that they've been updated. I say almost because of the above caveat. Can't find all objects this way. Singletons that never are referenced strongly from another object inside the findable graph wouldn't get a notification this way for example.
 
@@ -287,16 +285,25 @@ With all the fancy class an instance nofications sorted, there is a good old rel
 
 So, this covered the majority of how Injection for Xcode works. It's a _really_ powerful tool, that can vastly improve your day-to-day programming. When I showed a draft of this post to [@Johno1962][johnno1962] he reminded me that [Diamond][diamond] - his Swift scripting improvement tool, had it's own version of Injector inside that, that is much [simpler and a easier read][diamond_reloader] at 120 LOC. However, can't understand the future without understanding the past. 
 
-As of Xcode 8, Xcode Plugins are on the way out, though there are hacks to work around the system to install them, doing so might not be the smartest of moves. It's hard to see where the future lies here. However, 
+A lot of the most complicated code is around:
 
-![Giphy](http://media2.giphy.com/media/agZcXBaYSAKeA/giphy.gif)
+* The client-server architecture, and about passing files/folders between the running application and the Xcode plugin.
+* The recursive memory sweeping required to get a notification that it's done.
 
-If you're interested in this kind of stuff, follow [@Johno1962][johnno1962] on Twitter, he's [@Injection4Xcode][Injection4Xcode] - Chris Lattner follows him, so you know it's good stuff.
+The actual work involved in [doing the injection, and replacing the classes][injection_overview] isn't particularly complicated, and is easy to understand without c/Mach-o domain knowledge. It's making sure the environment is set up and supporting useful features like Storyboards, Android via Apportable, ARC and no-ARC, 32bit vs 64bit and iOS vs Mac where things start to become more complex.
+
+As of Xcode 8, Xcode Plugins are on the way out, though there are hacks to work around the system to install them, doing so might not be the smartest of moves yet. It's hard to see where the future lies here. However, 
+
+![Giphy](http://media2.giphy.com/media/VHW0X0GEQQjiU/giphy.gif)
+
+So we'll see in a few months.
+
+If you're interested in this kind of stuff, follow [@Johno1962][johnno1962] on Twitter, he's [@Injection4Xcode][Injection4Xcode] - Chris Lattner follows him, so you know it's good stuff. He's always got some project that is pushing a boundry or two.
 
 [di]: http://artsy.github.io/blog/2016/06/27/dependency-injection-in-swift/
 [bonjour]: https://en.wikipedia.org/wiki/Bonjour_%28software%29
 [bbrowser]: http://tildesoft.com
-[bbrowser_running]: /images/2016-06-29-injection-overview/selected-bonjour.png
+[bbrowser_running]: /images/2016-06-29-injection-overview/selected_bonjour.png
 [eigen_gitignore]: https://github.com/artsy/eigen/pull/1236/files#diff-a084b794bc0759e7a6b77810e01874f2R46
 [derived_data_logs]: /images/2016-06-29-injection-overview/build_logs.png
 [a_build_log]: /images/2016-06-29-injection-overview/a_build_log.png
@@ -370,7 +377,7 @@ If you're interested in this kind of stuff, follow [@Johno1962][johnno1962] on T
 [cocos2d]: https://github.com/johnno1962/injectionforxcode/blob/16a9b8e93b458b1c5916e95df06fe8c74cb56862/InjectionPluginLite/Classes/BundleSweeper.h#L55
 [bprobe_seed]: https://github.com/johnno1962/injectionforxcode/blob/16a9b8e93b458b1c5916e95df06fe8c74cb56862/InjectionPluginLite/Classes/BundleSweeper.h#L47
 [NSBlock]: https://github.com/johnno1962/injectionforxcode/blob/16a9b8e93b458b1c5916e95df06fe8c74cb56862/InjectionPluginLite/Classes/BundleSweeper.h#L228
-[NSDate]: https://github.com/johnno1962/injectionforxcode/blob/16a9b8e93b458b1c5916e95df06fe8c74cb56862/InjectionPluginLite/Classes/BundleSweeper.h#L221
+[NSData]: https://github.com/johnno1962/injectionforxcode/blob/16a9b8e93b458b1c5916e95df06fe8c74cb56862/InjectionPluginLite/Classes/BundleSweeper.h#L221
 [shared_seen_list]: https://github.com/johnno1962/injectionforxcode/blob/16a9b8e93b458b1c5916e95df06fe8c74cb56862/InjectionPluginLite/Classes/BundleSweeper.h#L113-L117
 [UITransition]: https://github.com/johnno1962/injectionforxcode/blob/16a9b8e93b458b1c5916e95df06fe8c74cb56862/InjectionPluginLite/Classes/BundleSweeper.h#L119-L124
 [ivar_list]: http://stackoverflow.com/questions/16304483/debug-obtain-a-list-of-all-instance-variables-of-an-object-unknown-type
@@ -381,3 +388,5 @@ If you're interested in this kind of stuff, follow [@Johno1962][johnno1962] on T
 [diamond_reloader]: https://github.com/johnno1962/Diamond/blob/master/Reloader/Reloader.m
 [johnno1962]: https://github.com/johnno1962/
 [Injection4Xcode]: https://twitter.com/Injection4Xcode
+[injection_overview]: https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/BundleInjection.h#L807-L938
+[yaws]: https://github.com/johnno1962/Dynamo/commit/261e970cc171cec25b59121ece1e5248532eea1a
