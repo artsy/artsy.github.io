@@ -74,7 +74,7 @@ The server is a [c TCP socket][tcp_socket], prior to digging in here, I'd never 
 
 Assuming everything went well, then a [Bonjour][bonjour] [service][bonjour_service] is created advertising the socket on the network. This then moves to a background thread and starts a infinite runloop checking for new connections on the [socket every 0.5 seconds][socket_runloop].
 
-Here is it [running][bbrowser_running] in [Bonjour Browser][bbrowser]. So, what does this server do? That's handled inside `INPluginClientController`. I don't know why it uses a substring of your MAC address.
+Here is it [running][bbrowser_running] in [Bonjour Browser][bbrowser]. So, what does this server do? That's handled inside `INPluginClientController`. It uses a MAC address so that you can have multiple non-competing services running on the same network.
 
 At its simplest, the server exists to send messages between running multiple applications and the injection plugin. We'll get back to what the server does later.
 
@@ -218,7 +218,7 @@ Which does the job of letting the running app know that instances have been upda
 * Sends all instances of classes injected a message that they've been injected.
 * Sends all classes that have been injected a message they've been injected.
 
-Which is where this goes from "complex", to "I couldn't do this." Let's start of quoting the README that John and I worked on for a while.
+Which is where this goes from "complex", to "I couldn't do this." Let's start of quoting the README that [@Johno1962][johnno1962] and I worked on for a while.
 
 > It can be tough to look through all of the memory of a running application. In order to determine the classes and instances to call the injected callbacks on, Injection performs a "sweep" to find all objects in memory. Roughly, this involves looking at an object, then recursively looking through objects which it refers to. For example, the object's instance variables and properties.
 
@@ -226,7 +226,7 @@ Which is where this goes from "complex", to "I couldn't do this." Let's start of
 
 > If no references are found, Injection will look through all objects that are referred to via sharedInstance. If that fails, well, Injection couldn't find your instance. This is one way in which you may miss callbacks in your app.
 
-####  Client Injection Sweep
+####  Class + Method Injections
 
 So how does it pull that off? Calling `NSBundle`'s `- load` [here][bundle_load], calls the [load function to call on all classes][all_load] inside that new bundle. This triggers the load function from the `InjectionBundle` that is auto-generated during the Injection stage. Here's what one of mine looks like:
 
@@ -253,34 +253,45 @@ int injectionHook() {
 }
 ```
 
-What we care about is `&injectionHook` which gets passed to `autoLoadedNotify` as a pointer to a function. Oddly enough, I'm a tad confused about the fact that the injection hook contains itself, but lets roll with it for now. Perhaps it's never actually called.
+What we care about is `&injectionHook` which gets passed to `autoLoadedNotify` as a pointer to a function. Oddly enough, I'm a tad confused about the fact that the injection hook contains itself, but lets roll with it for now. Perhaps it's never actually called, _I asked_ it's for Android support, and isn't used.
 
-So, we've had a fairly typical `NSBundle` `- load` load our classes into the runtime. This triggered the `InjectionBundle.bundle` to have it's classes created, and the first thing it does  is pass a reference back to the `BundleInjection` class instance for the `injectionHook` function that calls the `load` on the new class. 
+So, we've had a fairly typical `NSBundle` `- load` load our classes into the runtime. This triggered the `InjectionBundle.bundle` to have it's classes created, and the first thing it does is pass a reference back to the `BundleInjection` class instance for the `injectionHook` function that calls the `load` on the new classes.
 
-Next, Injection creates a [dynamic library info][dl_lib_info] [struct][dl_struct] and uses [dladdr][dladdr] to fill the struct, based on the function pointer. This lets Injection know where in memory the library exists. Safe in the knowledge that the code has been injected into the runtime - Injection, if you're requested will re-create the app structure. Like when it recieves a socket event of `~`.
+_Note:_ terminology changes here, I've talked about a bundle, but now that the code is in the runtime, we start talking about it as a dynamic library. These bundles contain 2 files `Info.plist`, `InjectionBundleX` - so when I say dynamic library, I'm referring to the code that is inside the bundle that is linked ar runtime (and thus dynamically linked in.)
 
+Next, Injection creates a [dynamic library info][dl_lib_info] [struct][dl_struct] and uses [dladdr][dladdr] to fill the struct, based on the function pointer. This lets Injection know where in memory the library exists. It's now safe in the knowledge that the code has been injected into the runtime. Injection will re-create the app structure, if requested - like when it recieves a socket event of `~`.
 
-So, a notification is easy. That's the [first thing that happens][injected_notification] on the version I could pull off - `loadedNotify:` which seems to actually be un-used. However, the [version used now][auto_loader_notify] is `autoLoadedNotify:` where it's the last thing that happens, then do work once you're sure all changes are integrated.
+We're getting into Mach-O binary APIs, so put on your crash helmets. Injection is going to use the dynamic library info, and [ask for the Objective-C][ask_classlist] `__classlist` via [getsectdatafromheader][getsectdatafromheader] for the new dynamic library. This works fine for Swift too, it _mostly_ has to be exposed to the Objective-C runtime. If you want to understand more about what this looks like, read [this blog post][objc_reverse] from [Zynamics][zynamics]. Injection then loops through the classes inside the library, via the most [intensely casted][class_references] line in of code in here: `Class *classReferences = (Class *)(void *)((char *)info.dli_fbase+(uint64_t)referencesSection);`.
 
+These classes are then iterated though, and [new implementations of functions are swizzled][swizzling_meths] to reference the new implementations. With Swift you have no guarantee that the methods are `dynamic` so all their `vtable` [data is switched][swift_vtables]. If you don't know what a vtable is check this [page on Wikipedia][wiki_vtables]. 
 
+Once all of the classes have had their methods switched, the [class table is updated][class_updates] to ensure that functions that rely on the class table ( e.g. `NSClassFromSelector` ) return the new values.
 
-`BundleInjection.h` adds a few methods to NSObject for injection:
+With valid class tables, and injectioned functions added. Injection starts the memory sweep to send updated notifications. 
 
-```objc
-@interface NSObject(injected)
-+ (void)injectedClass:(Class)aClass;
-+ (void)injected;
-- (void)injected;
-- (void)onXprobeEval;
-- (void)setViewController:vc;
-@end
-```
+####  Class + Instance Notifications
 
+At [this point][start_of_notifications] Injected does a run through the new class list again, if that class responds to the selector `+ injected` it runs it. It then does a check to see if the class's instances reponds to `- injected` if it does, it looks to see if it has any instances of the objects in it's liveObjects array. If the array hasn't been set up, then it needs to do a full memory sweep.
 
-#### Parameters
+Injection has an [Xprobe][xprobe]-lite included inside it. This lives in [BundleSweeper.h][BundleSweeper.h]. The quote opening this notification section above gave the start away, BundleSweeper [looks at the appDelegate][bprobe_seed] ( or a [Cocos2D director object][cocos2d]) and then starts to recursively look at every object that it's related to. This is done by adding a `bwseep` function to `NSObject` then individually customizing it for known container classes, and "reference" classes e.g [NSBlock][NSBlock], [NSData][NSData], NSString, NSValue etc. The `bsweep` function adds itself to the [shared list][shared_seen_list] of "objects seen", checks for an it being a [private class or a transition][UITransition], if it's not then it loops through the [IvarList][ivar_list] and runs `bsweep` on all of those. With that done, it casually tests to see if there are any weakly held objects that [tend to use common selectors][weak_selectors].
 
+Let that simmer for a bit ( I jest, it's super fast. ) and then you have _almost_ every object in your objject graph being told that they've been updated. I say almost because of the above caveat. Can't find all objects this way. Singletons that never are referenced strongly from another object inside the findable graph wouldn't get a notification this way for example.
 
+With all the fancy class an instance nofications sorted, there is a good old reliable `NSNotification` - [here][injectioned_notification]. Which is what I based my [work on for Eigen][eigen_injection], super simple, extremely reliable and great for re-use.
 
+![https://cloud.githubusercontent.com/assets/49038/13548868/131cbb1e-e2c8-11e5-9f61-4acdfd10b6aa.gif](https://cloud.githubusercontent.com/assets/49038/13548868/131cbb1e-e2c8-11e5-9f61-4acdfd10b6aa.gif).
+
+---
+
+**Phew!**
+
+So, this covered the majority of how Injection for Xcode works. It's a _really_ powerful tool, that can vastly improve your day-to-day programming. When I showed a draft of this post to [@Johno1962][johnno1962] he reminded me that [Diamond][diamond] - his Swift scripting improvement tool, had it's own version of Injector inside that, that is much [simpler and a easier read][diamond_reloader] at 120 LOC. However, can't understand the future without understanding the past. 
+
+As of Xcode 8, Xcode Plugins are on the way out, though there are hacks to work around the system to install them, doing so might not be the smartest of moves. It's hard to see where the future lies here. However, 
+
+![Giphy](http://media2.giphy.com/media/agZcXBaYSAKeA/giphy.gif)
+
+If you're interested in this kind of stuff, follow @Johno1962][johnno1962] on Twitter, he's [@Injection4Xcode][Injection4Xcode] - Chris Lattern follows him, so you know it's good stuff.
 
 [di]: http://artsy.github.io/blog/2016/06/27/dependency-injection-in-swift/
 [bonjour]: https://en.wikipedia.org/wiki/Bonjour_%28software%29
@@ -291,7 +302,7 @@ So, a notification is easy. That's the [first thing that happens][injected_notif
 [a_build_log]: /images/2016-06-29-injection-overview/a_build_log.png
 [badge]: /images/2016-06-29-injection-overview/badge.png
 
-[principal_class]: https://github.com/johnno1962/injectionforxcode/blob/master/InjectionPluginLite/Info.plist#L21-L22
+[principal_class]: https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Info.plist#L21-L22
 [launch_shared]: https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/INPluginMenuController.m#L83-L94
 [private_classes]: https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/INPluginMenuController.m#L125-L128
 [nib_setup]: https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/INPluginMenuController.m#L131-L137
@@ -303,7 +314,7 @@ So, a notification is easy. That's the [first thing that happens][injected_notif
 [socket_connection]: https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/INPluginClientController.m#L189
 [window_checking]: https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/INPluginMenuController.m#L214-L220
 [inject_source]: https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/INPluginMenuController.m#L359
-[unpatched]: https://github.com/johnno1962/injectionforxcode/blob/master/documentation/patching_injection.md
+[unpatched]: https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/documentation/patching_injection.md
 [load_bundle]: https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/INPluginMenuController.m#L404-L415
 [injection_source_pl]: https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/injectSource.pl
 [common_pm]: https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/common.pm
@@ -318,29 +329,55 @@ So, a notification is easy. That's the [first thing that happens][injected_notif
 [output_lines]: https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/INPluginClientController.m#L382
 [tells_server]: https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/INPluginClientController.m#L422-L423
 [INPluginClientController]: https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/INPluginClientController.m
-[asking_for_app_path]: https://github.com/johnno1962/injectionforxcode/blob/master/InjectionPluginLite/Classes/INPluginClientController.m#L216
-[watch_project]: https://github.com/johnno1962/injectionforxcode/blob/master/InjectionPluginLite/Classes/INPluginMenuController.m#L432-L436
-[fstream]: https://github.com/johnno1962/injectionforxcode/blob/master/InjectionPluginLite/Classes/FileWatcher.m#L31
-[app_architecture]: https://github.com/johnno1962/injectionforxcode/blob/master/InjectionPluginLite/Classes/INPluginClientController.m#L229-L230
-[BundleInjection.h]: https://github.com/johnno1962/injectionforxcode/blob/master/InjectionPluginLite/Classes/BundleInjection.h
-[bundle_loader]: https://github.com/johnno1962/injectionforxcode/blob/master/InjectionPluginLite/Classes/BundleInjection.h#L359
-[param_setup]: https://github.com/johnno1962/injectionforxcode/blob/master/InjectionPluginLite/Classes/BundleInjection.h#L366-L367
-[tunable]: https://github.com/johnno1962/injectionforxcode/blob/master/documentation/tunable_parameters.md
-[client_arch]: https://github.com/johnno1962/injectionforxcode/blob/master/InjectionPluginLite/Classes/BundleInjection.h#L383-L400
-[client_file_loc]: https://github.com/johnno1962/injectionforxcode/blob/master/InjectionPluginLite/Classes/BundleInjection.h#L415
-[server_bundle_loc]: https://github.com/johnno1962/injectionforxcode/blob/master/InjectionPluginLite/Classes/BundleInjection.h#L417
-[nib_swizzling]: https://github.com/johnno1962/injectionforxcode/blob/master/InjectionPluginLite/Classes/BundleInjection.h#L424-L429
-[client_app_home]: https://github.com/johnno1962/injectionforxcode/blob/master/InjectionPluginLite/Classes/BundleInjection.h#L443
-[load_bundle_client]: https://github.com/johnno1962/injectionforxcode/blob/master/InjectionPluginLite/Classes/BundleInjection.h#L644
-[sending_files_to_client]: https://github.com/johnno1962/injectionforxcode/blob/master/InjectionPluginLite/Classes/BundleInjection.h#L476
-[sending_files_from_client]: https://github.com/johnno1962/injectionforxcode/blob/master/InjectionPluginLite/Classes/BundleInjection.h#L492
-[client_update_image]: https://github.com/johnno1962/injectionforxcode/blob/master/InjectionPluginLite/Classes/BundleInjection.h#L540
-[auto_loaded_notify]: https://github.com/johnno1962/injectionforxcode/blob/master/InjectionPluginLite/injectSource.pl#L303-L308
-[injected_notification]: https://github.com/johnno1962/injectionforxcode/blob/master/InjectionPluginLite/Classes/BundleInjection.h#L910
-[auto_loader_notify]: https://github.com/johnno1962/injectionforxcode/blob/master/InjectionPluginLite/Classes/BundleInjection.h#L944
-[injection_hook]: https://github.com/johnno1962/injectionforxcode/blob/master/InjectionPluginLite/injectSource.pl#L311-L315
+[asking_for_app_path]: https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/INPluginClientController.m#L216
+[watch_project]: https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/INPluginMenuController.m#L432-L436
+[fstream]: https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/FileWatcher.m#L31
+[app_architecture]: https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/INPluginClientController.m#L229-L230
+[BundleInjection.h]: https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/BundleInjection.h
+[bundle_loader]: https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/BundleInjection.h#L359
+[param_setup]: https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/BundleInjection.h#L366-L367
+[tunable]: https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/documentation/tunable_parameters.md
+[client_arch]: https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/BundleInjection.h#L383-L400
+[client_file_loc]: https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/BundleInjection.h#L415
+[server_bundle_loc]: https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/BundleInjection.h#L417
+[nib_swizzling]: https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/BundleInjection.h#L424-L429
+[client_app_home]: https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/BundleInjection.h#L443
+[load_bundle_client]: https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/BundleInjection.h#L644
+[sending_files_to_client]: https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/BundleInjection.h#L476
+[sending_files_from_client]: https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/BundleInjection.h#L492
+[client_update_image]: https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/BundleInjection.h#L540
+[auto_loaded_notify]: https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/injectSource.pl#L303-L308
+[injected_notification]: https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/BundleInjection.h#L910
+[auto_loader_notify]: https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/BundleInjection.h#L944
+[injection_hook]: https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/injectSource.pl#L311-L315
 [bundle_load]: https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/BundleInjection.h#L648
 [all_load]: https://developer.apple.com/library/mac/documentation/Cocoa/Reference/Foundation/Classes/NSBundle_Class/index.html#//apple_ref/occ/instm/NSBundle/load
 [dl_lib_info]: https://github.com/davetroy/astmanproxy/blob/f4b952a717b7e982b585bf0daa86398add394a88/src/include/dlfcn-compat.h#L44-L54
 [dl_struct]: https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/BundleInjection.h#L944-L946
 [dladdr]: http://linux.die.net/man/3/dladdr
+[getsectdatafromheader]: http://www.manpagez.com/man/3/getsectdatafromheader/
+[ask_classlist]: https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/BundleInjection.h#L959-L981
+[objc_reverse]: https://blog.zynamics.com/2010/07/02/objective-c-reversing-ii/
+[zynamics]: https://zynamics.com
+[class_references]: https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/BundleInjection.h#L988
+[swizzling_meths]: https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/BundleInjection.h#L836-L845
+[swift_vtables]: https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/BundleInjection.h#L847-L855
+[wiki_vtables]: https://en.wikipedia.org/wiki/Virtual_method_table
+[class_updates]: https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/BundleInjection.h#L911-L937
+[start_of_notifications]: https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/BundleInjection.h#L1028
+[xprobe]: https://github.com/johnno1962/Xprobe
+[BundleSweeper.h]:https://github.com/johnno1962/injectionforxcode/blob/16a9b8e93b458b1c5916e95df06fe8c74cb56862/InjectionPluginLite/Classes/BundleSweeper.h
+[cocos2d]: https://github.com/johnno1962/injectionforxcode/blob/16a9b8e93b458b1c5916e95df06fe8c74cb56862/InjectionPluginLite/Classes/BundleSweeper.h#L55
+[bprobe_seed]: https://github.com/johnno1962/injectionforxcode/blob/16a9b8e93b458b1c5916e95df06fe8c74cb56862/InjectionPluginLite/Classes/BundleSweeper.h#L47
+[NSBlock]: https://github.com/johnno1962/injectionforxcode/blob/16a9b8e93b458b1c5916e95df06fe8c74cb56862/InjectionPluginLite/Classes/BundleSweeper.h#L228
+[NSDate]: https://github.com/johnno1962/injectionforxcode/blob/16a9b8e93b458b1c5916e95df06fe8c74cb56862/InjectionPluginLite/Classes/BundleSweeper.h#L221
+[shared_seen_list]: https://github.com/johnno1962/injectionforxcode/blob/16a9b8e93b458b1c5916e95df06fe8c74cb56862/InjectionPluginLite/Classes/BundleSweeper.h#L113-L117
+[UITransition]: https://github.com/johnno1962/injectionforxcode/blob/16a9b8e93b458b1c5916e95df06fe8c74cb56862/InjectionPluginLite/Classes/BundleSweeper.h#L119-L124
+[ivar_list]: http://stackoverflow.com/questions/16304483/debug-obtain-a-list-of-all-instance-variables-of-an-object-unknown-type
+[weak_selectors]: https://github.com/johnno1962/injectionforxcode/blob/16a9b8e93b458b1c5916e95df06fe8c74cb56862/InjectionPluginLite/Classes/BundleSweeper.h#L148-L160
+[injectioned_notification]: https://github.com/johnno1962/injectionforxcode/blob/master/InjectionPluginLite/Classes/BundleInjection.h#L1065
+[eigen_injection]: https://github.com/artsy/eigen/pull/1236
+[diamond]: https://github.com/johnno1962/Diamond
+[diamond_reloader]: https://github.com/johnno1962/Diamond/blob/master/Reloader/Reloader.m
+[johnno1962]: https://github.com/johnno1962/
+[Injection4Xcode]: https://twitter.com/Injection4Xcode
