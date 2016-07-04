@@ -67,7 +67,7 @@ It's almost inevitable that once a project becomes big, maintainers have to beco
 
 Some of the most interesting ideas in the CocoaPods ecosystem comes from plugins.
 
-I wanted plugins to be a first class citizen within Danger from day one. It's in the [VISION][vision] file, and it's applied into how I've designed a lot of the user-facing site. I was [torn][plugins_1] after a few months of development ][where things][plugins_2] should go. Now the core of Danger is [built as plugins][plugins_3].
+I wanted plugins to be a first class citizen within Danger from day one. It's in the [VISION][vision] file, and it's applied into how I've designed a lot of the user-facing site. I was [torn][plugins_1] after a few months of development [where things][plugins_2] should go. Now the core of Danger is [built as plugins][plugins_3].
 
 ### Documentation
 
