@@ -6,9 +6,9 @@ author: orta
 categories: [mobile, oss, culture]
 ---
 
-I help maintain big OSS projects: ranging from a third-party [dependency manager][cocoapods] used in most iOS apps ([CocoaPods][cocoapods_org]), to the most popular Objective-C [testing framework][specta] and the most popular Swift [networking API client][moya]. I've been doing this for years.
+I help maintain big OSS projects: from a third-party [dependency manager][cocoapods] used in most iOS apps ([CocoaPods][cocoapods_org]), to the most popular Objective-C [testing framework][specta] and the most popular Swift [networking API client][moya]. I've been doing this for years.
 
-Projects with this much impact are big time-sinks. Ranging from ensuring infrastructure continues to work, support tickets need replies, new code needs reviewing and releases need coordinating.
+Projects with this much impact are big time-sinks. This time comes from ensuring infrastructure continues to work, support tickets need replies, new code needs reviewing and releases need coordinating.
 
 ![](/images/2016-07-03-big-oss/danger_logo_black@2x.png)
 
