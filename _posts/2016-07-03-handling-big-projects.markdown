@@ -12,9 +12,9 @@ Projects with this much impact are big time-sinks. This time comes from ensuring
 
 ![](/images/2016-07-03-big-oss/danger_logo_black@2x.png)
 
-Last September, almost a year ago, I started work on a new project, [Danger][danger_gh]. Danger fixes a problem we were seeing as the Artsy mobile team around adding "[process][process]" to our team.
+Last September, almost a year ago, I started work on a new project, [Danger][danger_gh]. Danger fixes a problem we were seeing in the Artsy mobile team around adding "[process][process]" to our team.
 
-As a part of discussing Danger internally, I've referenced that building CocoaPods has greatly influenced Danger. This blog post is about the way I've built Danger, knowing fully well that I cannot afford the level of time to maintain it at the scale it can become.
+As a part of discussing Danger internally, I've referenced that building CocoaPods has greatly influenced Danger. This blog post is about the way I've built Danger, knowing fully well that I cannot afford the level of time to maintain it at the scale it may get to.
 
 <!-- more -->
 
@@ -35,11 +35,11 @@ From the ground up, Danger could not end up as complex as CocoaPods, the domain 
 
 However, get enough people using a product and you end up with three types of issues: Bug Reports, How Do I X? and Feature Requests.
 
-I wanted to keep bug-reports down, as much as possible, and so I built a system wherein the default error reporting system would also search GitHub issues [for similar problems][gh_inspector]. Knowing this was a generic problem, I built it with running in [other][fastlane_gh] [large][cocoapods_gh] ruby projects in mind too.
+I wanted to keep bug-reports down, as much as possible, and so I built a system wherein the default error reporting system would also search GitHub issues [for similar problems][gh_inspector]. Knowing this was a generic problem, I built it with [other][fastlane_gh] [large][cocoapods_gh] ruby projects in mind too.
 
 `How do I X?` are issues that haven't appeared much on Danger. For CocoaPods we request people use the CocoaPods tag on StackOverflow. That saves us from 5 to 6 issues a day, and provides others a great place to get internet points by responding instead.
 
-Feature Requests issues are always fascinating, it gives you a chance to really see the difference between what you imagined a project's scope is, and how others perceive it. One thing that helps here, is that Danger has a [VISION.md][vision] file. This helped vocalise a lot of internal discussion, and let contributors understand the roadmap:
+Feature Requests issues are always fascinating, it gives you a chance to really see the difference between what you imagined a project's scope is, and how others perceive it. One thing that helps here is that Danger has a [VISION.md][vision] file. This helped vocalise a lot of internal discussion, and let contributors understand the roadmap:
 
 > The core concept is that the Danger project itself creates a system that is extremely easy to build upon. The codebase for Danger should resolve specifically around systems for CI, communication with Peer Review tools and providing APIs to Source Control changes. For example: Travis CI - GitHub - git.
 
@@ -49,7 +49,7 @@ As well as providing a heuristic for determining whether something should be add
 
 ### Infrastructure
 
-CocoaPods has about 6 web properties, 3 of which are critical. The others can go down, or be behind the Xcode update schedules and people's projects will work fine. The 3 the critical projects are all simple, focused projects that only do one thing: [trunk][trunk] (provide auth, and submitting new libraries) [cocoapods.org][cocoapods_org], and [search][search]. We control everything there.
+CocoaPods has about 6 web properties, 3 of which are critical. The others can go down, or be behind the Xcode update schedules and people's projects will work fine. The 3 the critical projects are all simple, focused projects: [trunk][trunk] (provide auth, and submitting new libraries) [cocoapods.org][cocoapods_org], and [search][search]. We control everything there.
 
 Meanwhile the less critical ones like [cocoadocs.org][cocoadocs_org] have dependencies all over the show: AppleDoc, CLOC, Xcode, Carthage, Jazzy - every one of these can, and has, been a source of unreliability for infrastructure that I maintain.
 
@@ -63,9 +63,9 @@ To support dynamic content on the website, I have a rake command to use [a decad
 <blockquote class="twitter-tweet" data-lang="en-gb"><p lang="en" dir="ltr">Summary of every big OSS project. Monolith -&gt; Plugin support.<a href="https://t.co/7x4vuW4bRd">https://t.co/7x4vuW4bRd</a></p>&mdash; Orta Therox (@orta) <a href="https://twitter.com/orta/status/748561323164864512">30 June 2016</a></blockquote> <script async src="//platform.twitter.com/widgets.js" charset="utf-8"></script>
 </center><br/>
 
-It's almost inevitable that once a project becomes big, maintainers have to become a lot more conservative about how they introduce new code. You become good at saying 'no', but that a lot of people have legitimate needs. So, instead end up building your tool into a platform.
+It's almost inevitable that once a project becomes big, maintainers have to become a lot more conservative about how they introduce new code. You become good at saying 'no', but a lot of people have legitimate needs. So, instead you end up converting your tool into a platform.
 
-Some of the most interesting ideas in the CocoaPods ecosystem comes from plugins.
+Some of the most interesting ideas in the CocoaPods ecosystem come from plugins.
 
 I wanted plugins to be a first class citizen within Danger from day one. It's in the [VISION][vision] file, and it's applied into how I've designed a lot of the user-facing site. I was [torn][plugins_1] after a few months of development [where things][plugins_2] should go. Now the core of Danger is [built as plugins][plugins_3].
 
@@ -77,9 +77,9 @@ My second big project on CocoaPods was collating documentation and scoping diffe
 * **Guides** (tutorials, overviews, FAQs)
 * **Reference** (Command-line interface, APIs for developers)
 
-These 3 buckets for documentation makes it pretty easy to separate where people should look depending on what they're looking for. This pattern I'm stealing outright for Danger. Just not quite there yet, it's a blocker on 1.0 though.
+These 3 buckets for documentation makes it pretty easy to separate where people should look depending on what they're looking for. This pattern I'm stealing outright for Danger. Just not quite yet, it's a blocker on 1.0 though.
 
-One trick I took from CocoaPods is to have as much documentation as possible generated from the source code. With Danger, all of the work gone into documenting the code is turned into public API documentation for end-users. This makes it really easy to ensure it's consistent and up-to-date. The same tools used to generate documentation for Danger are used for plugins. Any improvements there helps everyone.
+One trick I took from CocoaPods is to have as much documentation as possible generated from the source code. With Danger, all of the work that's gone into documenting the code is turned into public API documentation for end-users. This makes it really easy to ensure it's consistent and up-to-date. The same tools used to generate documentation for Danger are used for plugins. Any improvements there helps everyone.
 
 ## User Data
 
