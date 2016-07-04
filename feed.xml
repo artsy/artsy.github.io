@@ -5,9 +5,129 @@
     <description></description>
     <link>http://artsy.github.io/</link>
     <atom:link href="http://artsy.github.io/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Sun, 03 Jul 2016 15:34:12 +0000</pubDate>
-    <lastBuildDate>Sun, 03 Jul 2016 15:34:12 +0000</lastBuildDate>
+    <pubDate>Mon, 04 Jul 2016 16:50:57 +0000</pubDate>
+    <lastBuildDate>Mon, 04 Jul 2016 16:50:57 +0000</lastBuildDate>
     <generator>Jekyll v2.5.3</generator>
+    
+      <item>
+        <title>Handling Large OSS Projects Defensively</title>
+        <description>&lt;p&gt;I help maintain big OSS projects: ranging from a third-party &lt;a href=&quot;https://cocoapods.org&quot;&gt;dependency manager&lt;/a&gt; used in most iOS apps (&lt;a href=&quot;https://github.com/CocoaPods/cocoapods.org&quot;&gt;CocoaPods&lt;/a&gt;), to the most popular Objective-C &lt;a href=&quot;http://cocoapods.org/pods/Specta&quot;&gt;testing framework&lt;/a&gt; and the most popular Swift &lt;a href=&quot;http://cocoapods.org/pods/Moya&quot;&gt;networking API client&lt;/a&gt;. I&#39;ve been doing this for years.&lt;/p&gt;
+
+&lt;p&gt;Projects with this much impact are big time-sinks. Ranging from ensuring infrastructure continues to work, support tickets need replies, new code needs reviewing and releases need coordinating.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/images/2016-07-03-big-oss/danger_logo_black@2x.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Last September, almost a year ago, I started work on a new project, &lt;a href=&quot;https://github.com/danger/danger/&quot;&gt;Danger&lt;/a&gt;. Danger fixes a problem we were seeing as the Artsy mobile team around adding &quot;&lt;a href=&quot;https://github.com/artsy/mobile/issues/31&quot;&gt;process&lt;/a&gt;&quot; to our team.&lt;/p&gt;
+
+&lt;p&gt;As a part of discussing Danger internally, I&#39;ve referenced that building CocoaPods has greatly influenced Danger. This blog post is about the way I&#39;ve built Danger, knowing fully well that I cannot afford the level of time to maintain it at the scale it can become.&lt;/p&gt;
+
+&lt;!-- more --&gt;
+
+
+&lt;hr /&gt;
+
+&lt;p&gt;Danger is a project that could end up with a lot more users than CocoaPods. So I want to be cautious about how I create the community around Danger. If you&#39;re interested in some of the baseline setup required to run a popular project, the post &quot;&lt;a href=&quot;https://ashfurrow.com/blog/building-popular-projects/&quot;&gt;Building Popular Projects&lt;/a&gt;&quot; by &lt;a href=&quot;/author/ash&quot;&gt;Ash&lt;/a&gt; is a great place to start, this builds on that.&lt;/p&gt;
+
+&lt;p&gt;My maintenance time on CocoaPods resolves around:&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;Handling new issues&lt;/li&gt;
+&lt;li&gt;Keeping infrastructure running&lt;/li&gt;
+&lt;li&gt;Requests around user data&lt;/li&gt;
+&lt;li&gt;Keeping disparate communities together&lt;/li&gt;
+&lt;/ul&gt;
+
+
+&lt;h2&gt;Issues&lt;/h2&gt;
+
+&lt;p&gt;From the ground up, Danger could not end up as complex as CocoaPods, the domain they cover is different and CocoaPods sits atop of an annually moving (and &lt;em&gt;somewhat&lt;/em&gt; hostile) &lt;a href=&quot;https://developer.apple.com/news/&quot;&gt;platform&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;However, get enough people using a product and you end up with three types of issues: Bug Reports, How Do I X? and Feature Requests.&lt;/p&gt;
+
+&lt;p&gt;I wanted to keep bug-reports down, as much as possible, and so I built a system wherein the default error reporting system would also search GitHub issues &lt;a href=&quot;https://github.com/orta/gh_inspector&quot;&gt;for similar problems&lt;/a&gt;. Knowing this was a generic problem, I built it with running in &lt;a href=&quot;https://github.com/fastlane/fastlane/releases/tag/1.96.0&quot;&gt;other&lt;/a&gt; &lt;a href=&quot;https://github.com/CocoaPods/CocoaPods/pull/5421&quot;&gt;large&lt;/a&gt; ruby projects in mind too.&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;How do I X?&lt;/code&gt; are issues that haven&#39;t appeared much on Danger. For CocoaPods we request people use the CocoaPods tag on StackOverflow. That saves us from 5 to 6 issues a day, and provides others a great place to get internet points by responding instead.&lt;/p&gt;
+
+&lt;p&gt;Feature Requests issues are always fascinating, it gives you a chance to really see the difference between what you imagined a project&#39;s scope is, and how others perceive it. One thing that helps here, is that Danger has a &lt;a href=&quot;https://github.com/danger/danger/blob/master/VISION.md&quot;&gt;VISION.md&lt;/a&gt; file. This helped vocalise a lot of internal discussion, and let contributors understand the roadmap:&lt;/p&gt;
+
+&lt;blockquote&gt;&lt;p&gt;The core concept is that the Danger project itself creates a system that is extremely easy to build upon. The codebase for Danger should resolve specifically around systems for CI, communication with Peer Review tools and providing APIs to Source Control changes. For example: Travis CI - GitHub - git.&lt;/p&gt;&lt;/blockquote&gt;
+
+&lt;p&gt;As well as providing a heuristic for determining whether something should be added to Danger:&lt;/p&gt;
+
+&lt;blockquote&gt;&lt;p&gt;This means that decisions on new code integrated into Danger should ask &quot;is this valid for every CI provider, every review system and source control type?&quot; by making this domain so big, we can keep the core of Danger small.&lt;/p&gt;&lt;/blockquote&gt;
+
+&lt;h3&gt;Infrastructure&lt;/h3&gt;
+
+&lt;p&gt;CocoaPods has about 6 web properties, 3 of which are critical. The others can go down, or be behind the Xcode update schedules and people&#39;s projects will work fine. The 3 the critical projects are all simple, focused projects that only do one thing: &lt;a href=&quot;https://github.com/CocoaPods/trunk.cocoapods.org&quot;&gt;trunk&lt;/a&gt; (provide auth, and submitting new libraries) &lt;a href=&quot;https://github.com/CocoaPods/cocoapods.org&quot;&gt;cocoapods.org&lt;/a&gt;, and &lt;a href=&quot;https://github.com/CocoaPods/search.cocoapods.org&quot;&gt;search&lt;/a&gt;. We control everything there.&lt;/p&gt;
+
+&lt;p&gt;Meanwhile the less critical ones like &lt;a href=&quot;https://github.com/CocoaPods/cocoadocs.org&quot;&gt;cocoadocs.org&lt;/a&gt; have dependencies all over the show: AppleDoc, CLOC, Xcode, Carthage, Jazzy - every one of these can, and has, been a source of unreliability for infrastructure that I maintain.&lt;/p&gt;
+
+&lt;p&gt;With Danger, I wanted to avoid building any infrastructure that does not sit on top of solid, mature projects. The website is statically created in &lt;a href=&quot;https://middlemanapp.com&quot;&gt;Middleman&lt;/a&gt;, using &lt;a href=&quot;https://rubygems.org/gems/slim&quot;&gt;boring&lt;/a&gt; &lt;a href=&quot;https://rubygems.org/gems/sass&quot;&gt;old&lt;/a&gt; technology, this means no server to host.&lt;/p&gt;
+
+&lt;p&gt;To support dynamic content on the website, I have a rake command to use &lt;a href=&quot;https://rubygems.org/gems/yard/versions&quot;&gt;a decade old&lt;/a&gt; documentation formatter to pull content from a &lt;a href=&quot;https://en.wikipedia.org/wiki/RubyGems&quot;&gt;13 year old&lt;/a&gt; dependency manager - that lets others describer their project&#39;s. In order to let them keep it up to date, I have a tiny 35 line web-server that allows specific projects to trigger a new CI build.&lt;/p&gt;
+
+&lt;h3&gt;Plugins&lt;/h3&gt;
+
+&lt;center&gt;
+&lt;blockquote class=&quot;twitter-tweet&quot; data-lang=&quot;en-gb&quot;&gt;&lt;p lang=&quot;en&quot; dir=&quot;ltr&quot;&gt;Summary of every big OSS project. Monolith -&amp;gt; Plugin support.&lt;a href=&quot;https://t.co/7x4vuW4bRd&quot;&gt;https://t.co/7x4vuW4bRd&lt;/a&gt;&lt;/p&gt;&amp;mdash; Orta Therox (@orta) &lt;a href=&quot;https://twitter.com/orta/status/748561323164864512&quot;&gt;30 June 2016&lt;/a&gt;&lt;/blockquote&gt; &lt;script async src=&quot;//platform.twitter.com/widgets.js&quot; charset=&quot;utf-8&quot;&gt;&lt;/script&gt;
+&lt;/center&gt;
+
+
+&lt;p&gt;&lt;br/&gt;&lt;/p&gt;
+
+&lt;p&gt;It&#39;s almost inevitable that once a project becomes big, maintainers have to become a lot more conservative about how they introduce new code. You become good at saying &#39;no&#39;, but that a lot of people have legitimate needs. So, instead end up building your tool into a platform.&lt;/p&gt;
+
+&lt;p&gt;Some of the most interesting ideas in the CocoaPods ecosystem comes from plugins.&lt;/p&gt;
+
+&lt;p&gt;I wanted plugins to be a first class citizen within Danger from day one. It&#39;s in the &lt;a href=&quot;https://github.com/danger/danger/blob/master/VISION.md&quot;&gt;VISION&lt;/a&gt; file, and it&#39;s applied into how I&#39;ve designed a lot of the user-facing site. I was &lt;a href=&quot;https://github.com/danger/danger/issues/74&quot;&gt;torn&lt;/a&gt; after a few months of development ]&lt;a href=&quot;https://github.com/danger/danger/pull/156#issuecomment-205907128&quot;&gt;where things&lt;/a&gt; should go. Now the core of Danger is &lt;a href=&quot;https://github.com/danger/danger/pull/227&quot;&gt;built as plugins&lt;/a&gt;.&lt;/p&gt;
+
+&lt;h3&gt;Documentation&lt;/h3&gt;
+
+&lt;p&gt;My second big project on CocoaPods was collating documentation and scoping different types of documentation. In CocoaPods I ended with:&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Highlight pages&lt;/strong&gt; (intro pages, app pages, team pages)&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Guides&lt;/strong&gt; (tutorials, overviews, FAQs)&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Reference&lt;/strong&gt; (Command-line interface, APIs for developers)&lt;/li&gt;
+&lt;/ul&gt;
+
+
+&lt;p&gt;These 3 buckets for documentation makes it pretty easy to separate where people should look depending on what they&#39;re looking for. This pattern I&#39;m stealing outright for Danger. Just not quite there yet, it&#39;s a blocker on 1.0 though.&lt;/p&gt;
+
+&lt;p&gt;One trick I took from CocoaPods is to have as much documentation as possible generated from the source code. With Danger, all of the work gone into documenting the code is turned into public API documentation for end-users. This makes it really easy to ensure it&#39;s consistent and up-to-date. The same tools used to generate documentation for Danger are used for plugins. Any improvements there helps everyone.&lt;/p&gt;
+
+&lt;h2&gt;User Data&lt;/h2&gt;
+
+&lt;p&gt;Not storing any, phew! Though if &lt;a href=&quot;https://github.com/danger/danger/issues/42&quot;&gt;Danger as a Service&lt;/a&gt; happens, then it will.&lt;/p&gt;
+
+&lt;h2&gt;People&lt;/h2&gt;
+
+&lt;p&gt;People are hard, Ash said in &lt;a href=&quot;https://ashfurrow.com/blog/building-popular-projects/&quot;&gt;Building Popular Projects&lt;/a&gt;:&lt;/p&gt;
+
+&lt;blockquote&gt;&lt;p&gt;The biggest existential threat to your library is this: you get burned out and stop working on it – and no one else contributes to it –&lt;/p&gt;&lt;/blockquote&gt;
+
+&lt;p&gt;Understanding motivations, encouraging ownership and accommodating multiple viewpoints are vital parts of anyone who wants to make a project bigger than themselves. There &lt;a href=&quot;https://github.com/danger/danger/graphs/contributors&quot;&gt;are lots of times&lt;/a&gt; when I&#39;m not the lead developer on Danger.&lt;/p&gt;
+
+&lt;p&gt;I owe a lot of this to the policy Ash and I created with Moya, the wordy &quot;&lt;a href=&quot;https://github.com/Moya/contributors&quot;&gt;Moya Community Continuity Guidelines&lt;/a&gt;&quot; which define the expectations of the maintainers of a project towards contributors.&lt;/p&gt;
+
+&lt;p&gt;It&#39;s helped let a lot of other contributors make an impact. In the future, I hope those are the people that I get to hand Danger off to. Danger is bigger than me.&lt;/p&gt;
+
+&lt;hr /&gt;
+
+&lt;p&gt;Maintaining big projects is a learned activity, for most people it&#39;s a spectator sport, but it&#39;s not too hard to jump from writing issues to helping out. It&#39;s how I ended up contributing to CocoaPods.&lt;/p&gt;
+</description>
+        <pubDate>Sun, 03 Jul 2016 12:00:00 +0000</pubDate>
+        <link>http://artsy.github.io/blog/2016/07/03/handling-big-projects/</link>
+        <guid isPermaLink="true">http://artsy.github.io/blog/2016/07/03/handling-big-projects/</guid>
+        
+        
+        <category>culture</category>
+        
+        <category>mobile</category>
+        
+        <category>oss</category>
+        
+      </item>
     
       <item>
         <title>Code Spelunking: Injection for Xcode Plugin</title>
@@ -1397,66 +1517,6 @@
         <pubDate>Mon, 14 Mar 2016 11:00:00 +0000</pubDate>
         <link>http://artsy.github.io/blog/2016/03/14/public-speaking-part2-where-to-start/</link>
         <guid isPermaLink="true">http://artsy.github.io/blog/2016/03/14/public-speaking-part2-where-to-start/</guid>
-        
-        
-        <category>community</category>
-        
-        <category>learning</category>
-        
-        <category>oss</category>
-        
-        <category>speaking</category>
-        
-        <category>teaching</category>
-        
-      </item>
-    
-      <item>
-        <title>Public Speaking - Part 1: Is It For Me?</title>
-        <description>&lt;p&gt;At Artsy, sharing knowledge is heavily encouraged and so we write our code in the open, document using blog posts, and speak about our experiences. Many have &lt;a href=&quot;https://twitter.com/qnoid/status/702955785064677376&quot;&gt;bumped into us&lt;/a&gt; at various places around the world. And so I often get the question: “How did you get started? I’m interested in speaking too”.&lt;/p&gt;
-
-&lt;p&gt;In the name of sharing experiences with others, I can’t encourage this enough. Unfortunately though, public speaking is still considered &lt;a href=&quot;https://www.washingtonpost.com/news/wonk/wp/2014/10/30/clowns-are-twice-as-scary-to-democrats-as-they-are-to-republicans/&quot;&gt;man’s biggest fear&lt;/a&gt;.&lt;/p&gt;
-
-&lt;p&gt;I’d like to share with you the benefits of public speaking, tips on how to get started, and how to give great presentations.&lt;/p&gt;
-
-&lt;!-- more --&gt;
-
-
-&lt;h2&gt;Why do it?&lt;/h2&gt;
-
-&lt;h3&gt;Communication&lt;/h3&gt;
-
-&lt;p&gt;Without necessarily realising, you’re publicly speaking all the time. At the heart of it, it’s the act of communicating and expressing your ideas and viewpoints for others to understand.&lt;/p&gt;
-
-&lt;p&gt;It could be as simple as ordering your morning coffee or as important as trying to convince your team that they should use a new technology. Regardless of the context, it involves restructuring your thoughts into words and metaphors that you think others can relate to in order for them to understand your concepts.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Public speaking is a skill that is always good to improve on&lt;/strong&gt;. Misunderstandings happen all the time, and at the heart of that is often poor communication.&lt;/p&gt;
-
-&lt;p&gt;I know people have refrained from speaking up in meetings at work, because they struggle with speaking in front of others. There’s no need for everyone to be a keynote speaker at a conference, but if it’s hindering you in your career, it may be worth practicing. Everyone should feel empowered to call a meeting, participate in discussions, or ask questions at an all hands.&lt;/p&gt;
-
-&lt;h3&gt;Learning&lt;/h3&gt;
-
-&lt;p&gt;Another reason giving talks is 👍🏽 is that it will allow you to learn more fully. One of the best ways to learn is by &lt;a href=&quot;http://ideas.time.com/2011/11/30/the-protege-effect/&quot;&gt;teaching others&lt;/a&gt;. You grasp ideas better yourself and in order to communicate them properly, you get into the habit of restructuring your ideas and concepts.&lt;/p&gt;
-
-&lt;p&gt;Unfortunately, people often also consider this the blocker to public speaking. Not only are you afraid you’ll accidentally make a fool of yourself (“what if I trip?”) but also that it will be apparent that you don’t know something well enough. The only way to get over this is by doing it.&lt;/p&gt;
-
-&lt;p&gt;Chances are that you are actually very knowledgeable in certain fields, you just perceive that as normal. “Yeah, but that’s not interesting… everyone knows about &lt;em&gt;that&lt;/em&gt;”. And I can bet that, well, probably not everyone knows about that. Definitely not as much as you might actually do.&lt;/p&gt;
-
-&lt;p&gt;We all have our strengths. This is the time to play on them. We can’t be experts in both Core Image, Core Animation, and the Objective C runtime, all the while knowing everything about Swift Protocols. Pick your slice from a much wider scope. It doesn’t need to be a full framework, even just a specific use case of it, like &lt;a href=&quot;https://realm.io/news/gwendolyn-weston-ios-background-networking/&quot;&gt;background transfer services&lt;/a&gt;.&lt;/p&gt;
-
-&lt;p&gt;Furthermore, see it as a learning opportunity. Speak about a topic that truly interests you and take this time to uncover things you’ve always wanted to know. It does not require you to be an expert up front — sharing knowledge gives you the chance to become one.&lt;/p&gt;
-
-&lt;p&gt;For example, I wanted to give a talk on the beauty of design and why beautiful things “just work”. I took this chance to read papers and books on the field of positive psychology and design, learning all kinds of fun new facts. Others have shared with me also that it wasn’t until they decided to write or speak about certain API that they fully got to understand all the ins and outs.&lt;/p&gt;
-
-&lt;h2&gt;Ok you got me interested… now what?&lt;/h2&gt;
-
-&lt;p&gt;That&#39;s great!&lt;/p&gt;
-
-&lt;p&gt;Next you&#39;d probably want to figure out where you&#39;d like to speak and how to prepare a good talk. This will be covered in the next two posts, so stay tuned.&lt;/p&gt;
-</description>
-        <pubDate>Wed, 09 Mar 2016 11:00:00 +0000</pubDate>
-        <link>http://artsy.github.io/blog/2016/03/09/public-speaking-part1-is-it-for-me/</link>
-        <guid isPermaLink="true">http://artsy.github.io/blog/2016/03/09/public-speaking-part1-is-it-for-me/</guid>
         
         
         <category>community</category>

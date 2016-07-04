@@ -4,7 +4,7 @@
   <title><![CDATA[Category: oss | Artsy Engineering]]></title>
   <link href="http://artsy.github.io/blog/categories/oss/atom.xml" rel="self"/>
   <link href="http://artsy.github.io/"/>
-  <updated>2016-07-03T15:34:12+00:00</updated>
+  <updated>2016-07-04T16:50:57+00:00</updated>
   <id>http://artsy.github.io/</id>
   <author>
     <name><![CDATA[]]></name>
@@ -12,6 +12,118 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Handling Large OSS Projects Defensively]]></title>
+    <link href="http://artsy.github.io/blog/2016/07/03/handling-big-projects/"/>
+    <updated>2016-07-03T12:00:00+00:00</updated>
+    <id>http://artsy.github.io/blog/2016/07/03/handling-big-projects</id>
+    <content type="html"><![CDATA[<p>I help maintain big OSS projects: ranging from a third-party <a href="https://cocoapods.org">dependency manager</a> used in most iOS apps (<a href="https://github.com/CocoaPods/cocoapods.org">CocoaPods</a>), to the most popular Objective-C <a href="http://cocoapods.org/pods/Specta">testing framework</a> and the most popular Swift <a href="http://cocoapods.org/pods/Moya">networking API client</a>. I've been doing this for years.</p>
+
+<p>Projects with this much impact are big time-sinks. Ranging from ensuring infrastructure continues to work, support tickets need replies, new code needs reviewing and releases need coordinating.</p>
+
+<p><img src="/images/2016-07-03-big-oss/danger_logo_black@2x.png" alt="" /></p>
+
+<p>Last September, almost a year ago, I started work on a new project, <a href="https://github.com/danger/danger/">Danger</a>. Danger fixes a problem we were seeing as the Artsy mobile team around adding "<a href="https://github.com/artsy/mobile/issues/31">process</a>" to our team.</p>
+
+<p>As a part of discussing Danger internally, I've referenced that building CocoaPods has greatly influenced Danger. This blog post is about the way I've built Danger, knowing fully well that I cannot afford the level of time to maintain it at the scale it can become.</p>
+
+<!-- more -->
+
+
+<hr />
+
+<p>Danger is a project that could end up with a lot more users than CocoaPods. So I want to be cautious about how I create the community around Danger. If you're interested in some of the baseline setup required to run a popular project, the post "<a href="https://ashfurrow.com/blog/building-popular-projects/">Building Popular Projects</a>" by <a href="/author/ash">Ash</a> is a great place to start, this builds on that.</p>
+
+<p>My maintenance time on CocoaPods resolves around:</p>
+
+<ul>
+<li>Handling new issues</li>
+<li>Keeping infrastructure running</li>
+<li>Requests around user data</li>
+<li>Keeping disparate communities together</li>
+</ul>
+
+
+<h2>Issues</h2>
+
+<p>From the ground up, Danger could not end up as complex as CocoaPods, the domain they cover is different and CocoaPods sits atop of an annually moving (and <em>somewhat</em> hostile) <a href="https://developer.apple.com/news/">platform</a>.</p>
+
+<p>However, get enough people using a product and you end up with three types of issues: Bug Reports, How Do I X? and Feature Requests.</p>
+
+<p>I wanted to keep bug-reports down, as much as possible, and so I built a system wherein the default error reporting system would also search GitHub issues <a href="https://github.com/orta/gh_inspector">for similar problems</a>. Knowing this was a generic problem, I built it with running in <a href="https://github.com/fastlane/fastlane/releases/tag/1.96.0">other</a> <a href="https://github.com/CocoaPods/CocoaPods/pull/5421">large</a> ruby projects in mind too.</p>
+
+<p><code>How do I X?</code> are issues that haven't appeared much on Danger. For CocoaPods we request people use the CocoaPods tag on StackOverflow. That saves us from 5 to 6 issues a day, and provides others a great place to get internet points by responding instead.</p>
+
+<p>Feature Requests issues are always fascinating, it gives you a chance to really see the difference between what you imagined a project's scope is, and how others perceive it. One thing that helps here, is that Danger has a <a href="https://github.com/danger/danger/blob/master/VISION.md">VISION.md</a> file. This helped vocalise a lot of internal discussion, and let contributors understand the roadmap:</p>
+
+<blockquote><p>The core concept is that the Danger project itself creates a system that is extremely easy to build upon. The codebase for Danger should resolve specifically around systems for CI, communication with Peer Review tools and providing APIs to Source Control changes. For example: Travis CI - GitHub - git.</p></blockquote>
+
+<p>As well as providing a heuristic for determining whether something should be added to Danger:</p>
+
+<blockquote><p>This means that decisions on new code integrated into Danger should ask "is this valid for every CI provider, every review system and source control type?" by making this domain so big, we can keep the core of Danger small.</p></blockquote>
+
+<h3>Infrastructure</h3>
+
+<p>CocoaPods has about 6 web properties, 3 of which are critical. The others can go down, or be behind the Xcode update schedules and people's projects will work fine. The 3 the critical projects are all simple, focused projects that only do one thing: <a href="https://github.com/CocoaPods/trunk.cocoapods.org">trunk</a> (provide auth, and submitting new libraries) <a href="https://github.com/CocoaPods/cocoapods.org">cocoapods.org</a>, and <a href="https://github.com/CocoaPods/search.cocoapods.org">search</a>. We control everything there.</p>
+
+<p>Meanwhile the less critical ones like <a href="https://github.com/CocoaPods/cocoadocs.org">cocoadocs.org</a> have dependencies all over the show: AppleDoc, CLOC, Xcode, Carthage, Jazzy - every one of these can, and has, been a source of unreliability for infrastructure that I maintain.</p>
+
+<p>With Danger, I wanted to avoid building any infrastructure that does not sit on top of solid, mature projects. The website is statically created in <a href="https://middlemanapp.com">Middleman</a>, using <a href="https://rubygems.org/gems/slim">boring</a> <a href="https://rubygems.org/gems/sass">old</a> technology, this means no server to host.</p>
+
+<p>To support dynamic content on the website, I have a rake command to use <a href="https://rubygems.org/gems/yard/versions">a decade old</a> documentation formatter to pull content from a <a href="https://en.wikipedia.org/wiki/RubyGems">13 year old</a> dependency manager - that lets others describer their project's. In order to let them keep it up to date, I have a tiny 35 line web-server that allows specific projects to trigger a new CI build.</p>
+
+<h3>Plugins</h3>
+
+<center>
+<blockquote class="twitter-tweet" data-lang="en-gb"><p lang="en" dir="ltr">Summary of every big OSS project. Monolith -&gt; Plugin support.<a href="https://t.co/7x4vuW4bRd">https://t.co/7x4vuW4bRd</a></p>&mdash; Orta Therox (@orta) <a href="https://twitter.com/orta/status/748561323164864512">30 June 2016</a></blockquote> <script async src="//platform.twitter.com/widgets.js" charset="utf-8"></script>
+</center>
+
+
+<p><br/></p>
+
+<p>It's almost inevitable that once a project becomes big, maintainers have to become a lot more conservative about how they introduce new code. You become good at saying 'no', but that a lot of people have legitimate needs. So, instead end up building your tool into a platform.</p>
+
+<p>Some of the most interesting ideas in the CocoaPods ecosystem comes from plugins.</p>
+
+<p>I wanted plugins to be a first class citizen within Danger from day one. It's in the <a href="https://github.com/danger/danger/blob/master/VISION.md">VISION</a> file, and it's applied into how I've designed a lot of the user-facing site. I was <a href="https://github.com/danger/danger/issues/74">torn</a> after a few months of development ]<a href="https://github.com/danger/danger/pull/156#issuecomment-205907128">where things</a> should go. Now the core of Danger is <a href="https://github.com/danger/danger/pull/227">built as plugins</a>.</p>
+
+<h3>Documentation</h3>
+
+<p>My second big project on CocoaPods was collating documentation and scoping different types of documentation. In CocoaPods I ended with:</p>
+
+<ul>
+<li><strong>Highlight pages</strong> (intro pages, app pages, team pages)</li>
+<li><strong>Guides</strong> (tutorials, overviews, FAQs)</li>
+<li><strong>Reference</strong> (Command-line interface, APIs for developers)</li>
+</ul>
+
+
+<p>These 3 buckets for documentation makes it pretty easy to separate where people should look depending on what they're looking for. This pattern I'm stealing outright for Danger. Just not quite there yet, it's a blocker on 1.0 though.</p>
+
+<p>One trick I took from CocoaPods is to have as much documentation as possible generated from the source code. With Danger, all of the work gone into documenting the code is turned into public API documentation for end-users. This makes it really easy to ensure it's consistent and up-to-date. The same tools used to generate documentation for Danger are used for plugins. Any improvements there helps everyone.</p>
+
+<h2>User Data</h2>
+
+<p>Not storing any, phew! Though if <a href="https://github.com/danger/danger/issues/42">Danger as a Service</a> happens, then it will.</p>
+
+<h2>People</h2>
+
+<p>People are hard, Ash said in <a href="https://ashfurrow.com/blog/building-popular-projects/">Building Popular Projects</a>:</p>
+
+<blockquote><p>The biggest existential threat to your library is this: you get burned out and stop working on it – and no one else contributes to it –</p></blockquote>
+
+<p>Understanding motivations, encouraging ownership and accommodating multiple viewpoints are vital parts of anyone who wants to make a project bigger than themselves. There <a href="https://github.com/danger/danger/graphs/contributors">are lots of times</a> when I'm not the lead developer on Danger.</p>
+
+<p>I owe a lot of this to the policy Ash and I created with Moya, the wordy "<a href="https://github.com/Moya/contributors">Moya Community Continuity Guidelines</a>" which define the expectations of the maintainers of a project towards contributors.</p>
+
+<p>It's helped let a lot of other contributors make an impact. In the future, I hope those are the people that I get to hand Danger off to. Danger is bigger than me.</p>
+
+<hr />
+
+<p>Maintaining big projects is a learned activity, for most people it's a spectator sport, but it's not too hard to jump from writing issues to helping out. It's how I ended up contributing to CocoaPods.</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Public Speaking - Part 2: Where To Start?]]></title>
@@ -152,65 +264,6 @@
 
 
 <p></div></div><iframe width='100%' height='600' src='https://www.youtube.com/embed/Xhd25hFzN4o ' frameborder='0' allowfullscreen></iframe><div class='meta-container'><header>&nbsp;</header></div><div class='content-container'><div class='entry-content'></p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Being a Good OSS Citizen]]></title>
-    <link href="http://artsy.github.io/blog/2016/01/28/being-a-good-open-source-citizen/"/>
-    <updated>2016-01-28T00:00:00+00:00</updated>
-    <id>http://artsy.github.io/blog/2016/01/28/being-a-good-open-source-citizen</id>
-    <content type="html"><![CDATA[<p>Let's take a look at the day in the life of an open source citizen: me. On our app, I was given <a href="https://github.com/artsy/eigen/issues/971">an issue</a> that would allow users to refine what kinds of sale artworks they were looking at, and it included this <em>awesome</em> slider control so they could set min/max price ranges.</p>
-
-<!-- more -->
-
-
-<p></div></div><a href='/images/2016-01-28-being-a-good-open-source-citizen/design.png'><img src="/images/2016-01-28-being-a-good-open-source-citizen/design.png"></a><div class='meta-container'><header>&nbsp;</header></div><div class='date-container'>&nbsp;</div><div class='content-container'><div class='entry-content'></p>
-
-<p>Nice.</p>
-
-<p>But iOS doesn't have a slider like that built into UIKit, so I headed to <a href="https://cocoapods.org">CocoaPods.org</a> to find something that would work for me. Searching for "range slider" yielded a bunch of results, and I looked through three or four of them.</p>
-
-<p>I picked <a href="https://cocoapods.org/pods/MARKRangeSlider">this one</a> because it did <em>almost exactly</em> what I needed, provided a reasonable level of customization, and had a history of development leading up to a recent v1.0.</p>
-
-<p>But I said it did "almost exactly" what I needed, which meant I'd have to modify it. At this point, many developers either look for a different library or abandon the idea of using an existing library altogether and invent one themselves. That's a shame, because it's almost always faster and easier to improve an existing library than it is to build your own.</p>
-
-<p>So let's step through what I did to modify this library for my needs. First, I checked to see if there was an issue for my feature already opened on the repository; maybe someone else had tried this, and I could benefit from their experience! That wasn't the case, so I forked the library to my personal account and cloned my fork locally. Now I can modify the library's code and commit it to my fork.</p>
-
-<p>Next I add the library to my <code>Podfile</code>, but I'm clever about it.</p>
-
-<pre><code class="rb">pod 'MARKRangeSlider', :path =&gt; '../MARKRangeSlider'
-</code></pre>
-
-<p>This tells CocoaPods that I'm <em>working</em> on the pod, and, it is stored in a local directory (the one where I cloned my fork). This makes it a "development pod", so that the files in Xcode are actually the ones I've cloned locally.</p>
-
-<p>This is a really important, but subtle point. Normally, CocoaPods downloads copies of the files and stores those copies, but in this case, it refers to the existing files. It doesn't copy them at all: any changes I make to the library while working on my app are to the files I cloned. That means they can be easily committed and pushed up to my fork.</p>
-
-<p>That's exactly what I did. I made my changes from within the app until I was satisfied, and <a href="https://github.com/ashfurrow/MARKRangeSlider/commit/aefbeb181b62c8c257a7d0ada1e75834489b1909">pushed them to my fork</a>, then pointed the <code>Podfile</code> to my fork of the pod.</p>
-
-<pre><code class="rb">pod 'MARKRangeSlider', :git =&gt; 'https://github.com/ashfurrow/MARKRangeSlider.git'
-</code></pre>
-
-<p>Nice. At this point, I continued on as a developer, running a <code>pod install</code> to download the forked library with my commits as usual. I finished building the feature and <a href="https://github.com/artsy/eigen/pull/1075">PR'd it using my fork</a>.</p>
-
-<p><img src="/images/2016-01-28-being-a-good-open-source-citizen/done.gif" alt="" /></p>
-
-<p>I could've stopped here, but that'd be a shame. Someone else might want the same changes I made, and I should submit them back. I <a href="https://github.com/vadymmarkov/MARKRangeSlider/pull/22">opened a PR</a> on the library to contribute my changes back, and I made sure to explain <em>why</em> my changes were necessary. Because our app is open source, I was even able to link to <em>our</em> PR to show the library author how their work was being used.</p>
-
-<p>The next morning, I woke up to find my PR had been merged, and after the author pushed an updated version of the library (including my changes), I updated our app's <code>Podfile</code> once more.</p>
-
-<pre><code class="rb">pod 'MARKRangeSlider'
-</code></pre>
-
-<p>Then ran <code>pod update MARKRangeSlider</code> so it would update <em>just</em> that pod, and point it to the new release. I re-ran the unit tests to make sure I hadn't broken anything, and <a href="https://github.com/artsy/eigen/pull/1077">PR'd the change</a>.</p>
-
-<p>This sounds like a lot, and having written it all out, I guess it is. But it's a series of small steps, not big ones, and I've worked like this long enough that it's second-nature to me now.</p>
-
-<hr />
-
-<p>I believe that using existing open source libraries is almost always better than writing your own, and I believe that improvements made to open source ought to be shared. Those beliefs shape my behaviour as a developer, and as a person.</p>
-
-<p>Making your first contribution to a project may seem scary, but we all <a href="https://github.com/B-Sides/ELCSlider/pull/1">start somewhere</a>. It gets easier, and in time, you will become a paragon of open source citizenry.</p>
 ]]></content>
   </entry>
   

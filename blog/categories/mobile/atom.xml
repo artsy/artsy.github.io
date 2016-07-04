@@ -4,7 +4,7 @@
   <title><![CDATA[Category: mobile | Artsy Engineering]]></title>
   <link href="http://artsy.github.io/blog/categories/mobile/atom.xml" rel="self"/>
   <link href="http://artsy.github.io/"/>
-  <updated>2016-07-03T15:34:12+00:00</updated>
+  <updated>2016-07-04T16:50:57+00:00</updated>
   <id>http://artsy.github.io/</id>
   <author>
     <name><![CDATA[]]></name>
@@ -12,6 +12,118 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Handling Large OSS Projects Defensively]]></title>
+    <link href="http://artsy.github.io/blog/2016/07/03/handling-big-projects/"/>
+    <updated>2016-07-03T12:00:00+00:00</updated>
+    <id>http://artsy.github.io/blog/2016/07/03/handling-big-projects</id>
+    <content type="html"><![CDATA[<p>I help maintain big OSS projects: ranging from a third-party <a href="https://cocoapods.org">dependency manager</a> used in most iOS apps (<a href="https://github.com/CocoaPods/cocoapods.org">CocoaPods</a>), to the most popular Objective-C <a href="http://cocoapods.org/pods/Specta">testing framework</a> and the most popular Swift <a href="http://cocoapods.org/pods/Moya">networking API client</a>. I've been doing this for years.</p>
+
+<p>Projects with this much impact are big time-sinks. Ranging from ensuring infrastructure continues to work, support tickets need replies, new code needs reviewing and releases need coordinating.</p>
+
+<p><img src="/images/2016-07-03-big-oss/danger_logo_black@2x.png" alt="" /></p>
+
+<p>Last September, almost a year ago, I started work on a new project, <a href="https://github.com/danger/danger/">Danger</a>. Danger fixes a problem we were seeing as the Artsy mobile team around adding "<a href="https://github.com/artsy/mobile/issues/31">process</a>" to our team.</p>
+
+<p>As a part of discussing Danger internally, I've referenced that building CocoaPods has greatly influenced Danger. This blog post is about the way I've built Danger, knowing fully well that I cannot afford the level of time to maintain it at the scale it can become.</p>
+
+<!-- more -->
+
+
+<hr />
+
+<p>Danger is a project that could end up with a lot more users than CocoaPods. So I want to be cautious about how I create the community around Danger. If you're interested in some of the baseline setup required to run a popular project, the post "<a href="https://ashfurrow.com/blog/building-popular-projects/">Building Popular Projects</a>" by <a href="/author/ash">Ash</a> is a great place to start, this builds on that.</p>
+
+<p>My maintenance time on CocoaPods resolves around:</p>
+
+<ul>
+<li>Handling new issues</li>
+<li>Keeping infrastructure running</li>
+<li>Requests around user data</li>
+<li>Keeping disparate communities together</li>
+</ul>
+
+
+<h2>Issues</h2>
+
+<p>From the ground up, Danger could not end up as complex as CocoaPods, the domain they cover is different and CocoaPods sits atop of an annually moving (and <em>somewhat</em> hostile) <a href="https://developer.apple.com/news/">platform</a>.</p>
+
+<p>However, get enough people using a product and you end up with three types of issues: Bug Reports, How Do I X? and Feature Requests.</p>
+
+<p>I wanted to keep bug-reports down, as much as possible, and so I built a system wherein the default error reporting system would also search GitHub issues <a href="https://github.com/orta/gh_inspector">for similar problems</a>. Knowing this was a generic problem, I built it with running in <a href="https://github.com/fastlane/fastlane/releases/tag/1.96.0">other</a> <a href="https://github.com/CocoaPods/CocoaPods/pull/5421">large</a> ruby projects in mind too.</p>
+
+<p><code>How do I X?</code> are issues that haven't appeared much on Danger. For CocoaPods we request people use the CocoaPods tag on StackOverflow. That saves us from 5 to 6 issues a day, and provides others a great place to get internet points by responding instead.</p>
+
+<p>Feature Requests issues are always fascinating, it gives you a chance to really see the difference between what you imagined a project's scope is, and how others perceive it. One thing that helps here, is that Danger has a <a href="https://github.com/danger/danger/blob/master/VISION.md">VISION.md</a> file. This helped vocalise a lot of internal discussion, and let contributors understand the roadmap:</p>
+
+<blockquote><p>The core concept is that the Danger project itself creates a system that is extremely easy to build upon. The codebase for Danger should resolve specifically around systems for CI, communication with Peer Review tools and providing APIs to Source Control changes. For example: Travis CI - GitHub - git.</p></blockquote>
+
+<p>As well as providing a heuristic for determining whether something should be added to Danger:</p>
+
+<blockquote><p>This means that decisions on new code integrated into Danger should ask "is this valid for every CI provider, every review system and source control type?" by making this domain so big, we can keep the core of Danger small.</p></blockquote>
+
+<h3>Infrastructure</h3>
+
+<p>CocoaPods has about 6 web properties, 3 of which are critical. The others can go down, or be behind the Xcode update schedules and people's projects will work fine. The 3 the critical projects are all simple, focused projects that only do one thing: <a href="https://github.com/CocoaPods/trunk.cocoapods.org">trunk</a> (provide auth, and submitting new libraries) <a href="https://github.com/CocoaPods/cocoapods.org">cocoapods.org</a>, and <a href="https://github.com/CocoaPods/search.cocoapods.org">search</a>. We control everything there.</p>
+
+<p>Meanwhile the less critical ones like <a href="https://github.com/CocoaPods/cocoadocs.org">cocoadocs.org</a> have dependencies all over the show: AppleDoc, CLOC, Xcode, Carthage, Jazzy - every one of these can, and has, been a source of unreliability for infrastructure that I maintain.</p>
+
+<p>With Danger, I wanted to avoid building any infrastructure that does not sit on top of solid, mature projects. The website is statically created in <a href="https://middlemanapp.com">Middleman</a>, using <a href="https://rubygems.org/gems/slim">boring</a> <a href="https://rubygems.org/gems/sass">old</a> technology, this means no server to host.</p>
+
+<p>To support dynamic content on the website, I have a rake command to use <a href="https://rubygems.org/gems/yard/versions">a decade old</a> documentation formatter to pull content from a <a href="https://en.wikipedia.org/wiki/RubyGems">13 year old</a> dependency manager - that lets others describer their project's. In order to let them keep it up to date, I have a tiny 35 line web-server that allows specific projects to trigger a new CI build.</p>
+
+<h3>Plugins</h3>
+
+<center>
+<blockquote class="twitter-tweet" data-lang="en-gb"><p lang="en" dir="ltr">Summary of every big OSS project. Monolith -&gt; Plugin support.<a href="https://t.co/7x4vuW4bRd">https://t.co/7x4vuW4bRd</a></p>&mdash; Orta Therox (@orta) <a href="https://twitter.com/orta/status/748561323164864512">30 June 2016</a></blockquote> <script async src="//platform.twitter.com/widgets.js" charset="utf-8"></script>
+</center>
+
+
+<p><br/></p>
+
+<p>It's almost inevitable that once a project becomes big, maintainers have to become a lot more conservative about how they introduce new code. You become good at saying 'no', but that a lot of people have legitimate needs. So, instead end up building your tool into a platform.</p>
+
+<p>Some of the most interesting ideas in the CocoaPods ecosystem comes from plugins.</p>
+
+<p>I wanted plugins to be a first class citizen within Danger from day one. It's in the <a href="https://github.com/danger/danger/blob/master/VISION.md">VISION</a> file, and it's applied into how I've designed a lot of the user-facing site. I was <a href="https://github.com/danger/danger/issues/74">torn</a> after a few months of development ]<a href="https://github.com/danger/danger/pull/156#issuecomment-205907128">where things</a> should go. Now the core of Danger is <a href="https://github.com/danger/danger/pull/227">built as plugins</a>.</p>
+
+<h3>Documentation</h3>
+
+<p>My second big project on CocoaPods was collating documentation and scoping different types of documentation. In CocoaPods I ended with:</p>
+
+<ul>
+<li><strong>Highlight pages</strong> (intro pages, app pages, team pages)</li>
+<li><strong>Guides</strong> (tutorials, overviews, FAQs)</li>
+<li><strong>Reference</strong> (Command-line interface, APIs for developers)</li>
+</ul>
+
+
+<p>These 3 buckets for documentation makes it pretty easy to separate where people should look depending on what they're looking for. This pattern I'm stealing outright for Danger. Just not quite there yet, it's a blocker on 1.0 though.</p>
+
+<p>One trick I took from CocoaPods is to have as much documentation as possible generated from the source code. With Danger, all of the work gone into documenting the code is turned into public API documentation for end-users. This makes it really easy to ensure it's consistent and up-to-date. The same tools used to generate documentation for Danger are used for plugins. Any improvements there helps everyone.</p>
+
+<h2>User Data</h2>
+
+<p>Not storing any, phew! Though if <a href="https://github.com/danger/danger/issues/42">Danger as a Service</a> happens, then it will.</p>
+
+<h2>People</h2>
+
+<p>People are hard, Ash said in <a href="https://ashfurrow.com/blog/building-popular-projects/">Building Popular Projects</a>:</p>
+
+<blockquote><p>The biggest existential threat to your library is this: you get burned out and stop working on it – and no one else contributes to it –</p></blockquote>
+
+<p>Understanding motivations, encouraging ownership and accommodating multiple viewpoints are vital parts of anyone who wants to make a project bigger than themselves. There <a href="https://github.com/danger/danger/graphs/contributors">are lots of times</a> when I'm not the lead developer on Danger.</p>
+
+<p>I owe a lot of this to the policy Ash and I created with Moya, the wordy "<a href="https://github.com/Moya/contributors">Moya Community Continuity Guidelines</a>" which define the expectations of the maintainers of a project towards contributors.</p>
+
+<p>It's helped let a lot of other contributors make an impact. In the future, I hope those are the people that I get to hand Danger off to. Danger is bigger than me.</p>
+
+<hr />
+
+<p>Maintaining big projects is a learned activity, for most people it's a spectator sport, but it's not too hard to jump from writing issues to helping out. It's how I ended up contributing to CocoaPods.</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Code Spelunking: Injection for Xcode Plugin]]></title>
@@ -736,90 +848,6 @@ extension TableViewMethods: UITableViewDelegate, UITableViewDataSource {
 <hr />
 
 <p>GraphQL is having a massive impact in the way that we write our apps. It means we can make much faster mobile apps, as the network is our critical path. Faster apps means happier users, happier users means happier developers. I want to be happy. So I'm thankful that the <a href="https://github.com/artsy/metaphysics/graphs/contributors">Web practice</a> gave GraphQL a try, and <a href="https://github.com/artsy/metaphysics/pull/243">welcome'd</a> <a href="https://github.com/artsy/metaphysics/pull/313">us</a> <a href="https://github.com/artsy/metaphysics/pull/226">to</a> <a href="https://github.com/artsy/metaphysics/pull/302">the</a> <a href="https://github.com/artsy/metaphysics/issues/2">party</a>.</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Why does my team's Podfile.lock Podspec checksums change?]]></title>
-    <link href="http://artsy.github.io/blog/2016/05/03/podspec-checksums/"/>
-    <updated>2016-05-03T12:09:00+00:00</updated>
-    <id>http://artsy.github.io/blog/2016/05/03/podspec-checksums</id>
-    <content type="html"><![CDATA[<p>We use CocoaPods, and <a href="https://github.com/artsy/eigen/issues/418">we don't check in our Pods</a> directory for one of our fastest moving apps, <a href="https://github.com/artsy/eigen/">Eigen</a>. This sometimes can cause an <a href="https://github.com/artsy/eigen/pull/1464">interesting data churn</a> inside the <code>Podfile.lock</code> when developers have different sha checksums for their Pods. This is weird, what gives?</p>
-
-<!-- more -->
-
-
-<h3>What are the Lockfiles?</h3>
-
-<p>First off, to ensure we're talking about the same thing, this is our <a href="https://github.com/artsy/eigen/blob/master/Podfile.lock">Podfile.lock</a>. The lockfile is used on <code>pod install</code> to ensure all the members of your team have the <em>exact same</em> version of the libraries as each other. Otherwise, with a Podfile like:</p>
-
-<pre><code class="ruby">platform :ios, '9.3'
-pod 'AFNetworking/Serialization', '~&gt; 3.0'
-target 'MyApp'
-</code></pre>
-
-<p>A developer running <code>pod install</code> would get the latest <code>3.x</code> version, which could be <code>3.1</code> originally, but then 6 months later they could get <code>3.4</code> - without a lockfile there is no way to keep track of the specific build. This is why it should always be in your code repo. In the case above my lockfile looks like this:</p>
-
-<pre><code class="yaml">PODS:
-  - AFNetworking/Serialization (3.1.0)
-
-DEPENDENCIES:
-  - AFNetworking/Serialization (~&gt; 3.0)
-
-SPEC CHECKSUMS:
-  AFNetworking: 5e0e199f73d8626b11e79750991f5d173d1f8b67
-
-PODFILE CHECKSUM: 876ceaa409f4ade2b3d58d310dbe026393824bcc
-
-COCOAPODS: 1.0.0.beta.8
-</code></pre>
-
-<h3>What do the Spec Checksums do?</h3>
-
-<p>With the CocoaPods Master Specs repo, we do our best <a href="https://github.com/CocoaPods/Specs/pull/12199">to try</a> and ensure a write-once repository of Podspecs for the public. However, there are many times when you cannot guarantee that every you have the same version of a Podspec as everyone else in your team.</p>
-
-<p>So, CocoaPods makes a checksum of the JSON representation of your Podspec and keeps that in the lockfile. You can easily <a href="https://github.com/CocoaPods/CocoaPods/issues/3371">replicate</a> the work to generate a checksum with:</p>
-
-<pre><code class="sh">~/D/MyApp ⏛  pod ipc spec ~/.cocoapods/repos/master/Specs/AFNetworking/3.1.0/AFNetworking.podspec.json  | openssl sha1
-5e0e199f73d8626b11e79750991f5d173d1f8b67
-</code></pre>
-
-<h3>So why am I seeing churn?</h3>
-
-<p>A normal git development flow when working with libraries is to:</p>
-
-<ul>
-<li>Fork a library, change your Podfile to reflect that change</li>
-<li>Make some changes</li>
-<li>Commit them back to the main repo</li>
-<li>Update the Podspec, then make changes bringing your Podfile back to a real (tagged) release</li>
-</ul>
-
-
-<p>CocoaPods is smart about updating your libraries behind the scenes, but it's not perfect. In order to avoid re-creating your entire Pods folder every time it will check whether your libraries are at the expected version and skip re-creating the whole process.</p>
-
-<p>In the example above, we used the CocoaPods' Specs repo version of the Podspec. In forked repos, e,g,</p>
-
-<pre><code class="ruby">pod 'AFNetworking/Serialization', :git =&gt; "https://github.com/orta/AFNetworking.git", :commit =&gt; "6f31b5c7bcbd59d4dac7e92e215d3c2c22f3400e"
-</code></pre>
-
-<p>The Podspec is saved into the <code>Pods</code> directory in JSON format at <code>Pods/Local\ Podspecs/AFNetworking.podspec.json</code>, this is to ensure there's always access within the CocoaPods sandbox for the Podspecs, and speed probably. This is the podspec used for generating the checksum.</p>
-
-<p><strong>So how can this get out of sync?</strong></p>
-
-<ul>
-<li>During the development cycle, when working with a library you would have used <code>pod update [library]</code> to update just that library you were working on.  This could happen multiple times as you build your changes.</li>
-<li>You continued working against your fork till it was ready for review. At this point you have a working version, you submit a PR for code review on the library.</li>
-<li>There are changes that affect the podspec that come up in review, you don't do a <code>pod update [library]</code> but send the code back to review ( maybe you changed some metadata for example, which doesn't warrant another update to pass CI. )</li>
-<li>Once all code is reviewed, everything is merged back into master.</li>
-<li>You <code>pod install</code> - which continues to use the older version of the Podspec inside the Pods dir, e.g. <code>Pods/Local\ Podspecs/AFNetworking.podspec.json</code>.</li>
-<li>You now have the older <code>AFNetworking.podspec.json</code> inside your local Pods folder, when the next person runs <code>pod install</code> with your changes merged, they get a different SHA, as they've got the version with the metadata changes.</li>
-</ul>
-
-
-<h3>Simple Fix</h3>
-
-<p>The best option is to run <code>pod update [library]</code> on the computer which is causing churn, this will tell CocoaPods specifically to request a new version of the library. If that fails to give the same checksum as the rest of your team, there's the good old fasioned <code>rm -rf Pods &amp;&amp;  pod install</code>.</p>
 ]]></content>
   </entry>
   
