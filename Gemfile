@@ -10,5 +10,5 @@ gem 'RedCloth'
 
 group :distribution do
   gem 'danger'
-  gem 'danger-proselint', :git => "https://github.com/dbgrandi/danger-proselint"
+  gem 'danger-prose', git: 'https://github.com/dbgrandi/danger-prose'
 end
