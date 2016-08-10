@@ -4,7 +4,7 @@
   <title><![CDATA[Category: architecture | Artsy Engineering]]></title>
   <link href="http://artsy.github.io/blog/categories/architecture/atom.xml" rel="self"/>
   <link href="http://artsy.github.io/"/>
-  <updated>2016-08-10T14:19:34+00:00</updated>
+  <updated>2016-08-10T22:28:14+00:00</updated>
   <id>http://artsy.github.io/</id>
   <author>
     <name><![CDATA[]]></name>
@@ -12,6 +12,78 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[The Tech Behind Live Auction Integration]]></title>
+    <link href="http://artsy.github.io/blog/2016/08/09/the-tech-behind-live-auction-integration/"/>
+    <updated>2016-08-09T11:30:00+00:00</updated>
+    <id>http://artsy.github.io/blog/2016/08/09/the-tech-behind-live-auction-integration</id>
+    <content type="html"><![CDATA[<p>In late June, the <a href="https://www.artsy.net/auctions/">Artsy auctions</a> team launched our Live Auction Integration (LAI) product. It allows people to participate online in live sales held at auction houses <a href="https://www.artsy.net/auction-partnerships">that partner with Artsy</a>. It was a big project, begun in December, involving both brand new software and extensive integration work with the rest of our systems. This is the first in what will be a series of blog posts discussing the engineering work we did to get a complex product from inception to launch in such a brief time window, with a go-live deadline set in stone weeks in advance. In this, I’ll dig into what we shipped on a high level, as well as some of the overarching technical decisions.</p>
+
+<!-- more -->
+
+
+<p>LAI raised challenges that were novel to our engineering team. The product is a real-time experience from the perspectives of the bidder and the auction house. Producing that experience requires a complex human + computer system. There are two main flows of information: from auction house to bidder, and vice versa. These are mediated by our systems and staff as follows:</p>
+
+<ul>
+<li>As bids occur in the auction house sale room, an Artsy operator working on-site inputs that activity into a web interface so that online participants can keep track of what’s happening.</li>
+<li>As online participants place bids, our system records those as “prospective bids”, and an Artsy bidding clerk on site at the auction house bids on their behalf in the auction house. As those bids are recognized, they are reflected back to all participants, through the prior flow.</li>
+</ul>
+
+
+<p>To make this easier to visualize:</p>
+
+<p><img src="/images/2016-08-09-the-tech-behind-live-auction-integration/Artsy%20Live%20Auction%20Integration%20flow.png" alt="Artsy Live Auction Integration Flow" /></p>
+
+<p>This needs to happen in a tight loop to allow online bidders to be competitive with those in the room and via auction house phone clerks. The architecture and UX of the LAI product were optimized for that goal. In addition, we built the system to integrate with live events hosted by our partners. As the events are outside our direct control, there are many, many ways things can deviate from this idealized flow. We had to carefully account for these situations.</p>
+
+<p>Where possible, we leveraged our existing auctions technology. But we took the opportunity to upgrade that technology in some places and chose new approaches in others. Meanwhile, we were running the busiest Artsy auction season to date, and we had to ensure that we weren’t disrupting our existing stack. Below, I discuss the pieces of the end-to-end product.</p>
+
+<h1>The Live user experience</h1>
+
+<p>When the live auction actually begins, participants and Artsy staff interact with the system with front-end software developed from scratch. Web users (desktop and mobile) and staff use a new, dedicated Artsy Live web application, which is implemented in a project we call Prediction. iOS Artsy App users can also participate with newly developed UX within that app.</p>
+
+<h2>The web app: Prediction</h2>
+
+<p>Our bidder and operator web interfaces are implemented in an application we call Prediction, a <a href="https://medium.com/@mjackson/universal-javascript-4761051b7ae9#.ev1yd3juy">universal</a> <a href="https://facebook.github.io/react/">React</a>+<a href="http://redux.js.org/">Redux</a> Javascript app, served from an <a href="http://expressjs.com/">Express</a> server. Using React allowed us to completely share our view layer code for prerendering in the server and making updates in the client.</p>
+
+<p><img src="/images/2016-08-09-the-tech-behind-live-auction-integration/Prediction%20Bidder%20Screenshot.png" alt="Prediction Bidder UI" /></p>
+
+<p>Keeping our state management and transition code organized with Redux allowed us to achieve a massive amount of reuse of model and controller code between our web interfaces. To solve Redux's <a href="http://stackoverflow.com/q/34570758/807674">async</a> and <a href="http://stackoverflow.com/q/34299460/807674">data conveyance</a> “problems", we built an integration layer for React and Redux called <a href="https://github.com/artsy/react-redux-controller">React Redux Controller</a>.</p>
+
+<p><img src="/images/2016-08-09-the-tech-behind-live-auction-integration/Prediction%20Operator%20Screenshot.png" alt="Prediction Operator UI" /></p>
+
+<p>We found the React+Redux approach to model-view-controller app development to be a major win in what it gave us for maintainability, code reuse, easy testability, and the ability to reason about our code.</p>
+
+<h2>The iOS native app: Eigen</h2>
+
+<p>For users of the Artsy iOS app, known to our engineering team as <a href="https://github.com/artsy/eigen">Eigen</a>, a touch-optimized LAI experience was coded in Swift. It shares the same app with existing Objective-C code as well as <a href="https://facebook.github.io/react-native/">React Native</a> code used for other aspects of the iOS experience. We considered using React Native for this, but we decided to go with more familiar technology to contain the risk.</p>
+
+<p><img src="/images/2016-08-09-the-tech-behind-live-auction-integration/Eigen%20Bidder%20Screenshot.png" alt="Eigen Bidder UI" /></p>
+
+<p>Both of these applications interact with our central Artsy back-end service to pull in artist, artwork, and sale metadata when the user enters the auction. These queries are mediated by a <a href="http://graphql.org/">GraphQL</a> middleware service we call <a href="https://github.com/artsy/metaphysics">Metaphysics</a> (also discussed <a href="/blog/2016/06/19/graphql-for-mobile/">here</a>), which vastly simplified the fetching process in the front-end services. But from that point forward, the apps interact with a brand new auction state management system over a bidirectional <a href="https://en.wikipedia.org/wiki/WebSocket">WebSocket</a> API for live updating.</p>
+
+<h1>The auction state management service: Causality</h1>
+
+<p>The other recently launched piece of software delivered for LAI was a new auction state management system we call Causality. It processes bids and other auction events, computes the derived state of a sale, and hosts the bidirectional WebSocket API.</p>
+
+<p>Causality was developed in Scala, using the <a href="http://doc.akka.io/docs/akka/current/intro/what-is-akka.html">Akka</a> technology suite for distributed computing. At its core is an append-only storage engine, based on <a href="http://doc.akka.io/docs/akka/current/scala/persistence.html">Akka Persistence</a>, with a small library we developed called <a href="https://github.com/artsy/atomic-store">Atomic Store</a> that allowed us to achieve strict consistency, at the cost of maximal throughput -- a trade-off that is explored in the readme of that project.</p>
+
+<p>Lastly, Causality has an <a href="http://doc.akka.io/docs/akka/current/scala/http/introduction.html">Akka HTTP</a>-based API layer, with a WebSocket server implemented using <a href="http://doc.akka.io/docs/akka/current/scala/stream/stream-introduction.html">Akka Streams</a>. Asynchronous updates generated in the event processing logic are published across the cluster using <a href="http://doc.akka.io/docs/akka/current/scala/distributed-pub-sub.html">Akka Distributed Pub/Sub</a>, and they are merged into the WebSocket outflow.</p>
+
+<h1>Pre-bidding, tooling, and other concerns</h1>
+
+<p>In addition to accepting bids placed during a live sale, we also allow users to place bids before the event begins. In practice, this is almost the same workflow as our existing timed auction experience. For this reason, we chose to leverage all of our existing technology. The work of preparing our preexisting tech for LAI involved widespread modifications to our front-end UI, messaging services, admin tooling, and monitoring to make them appropriate for a live sale, as well as a reliable handoff of responsibility from these preexisting front- and back-end services to the new ones at the time the sale goes live.</p>
+
+<p>We relied on our automated test suites, as well as thorough manual testing by the entire Artsy auctions team, to ensure that this handoff functioned smoothly under various circumstances. We will eventually eliminate this duplication. But this will require delicate refactoring of our preexisting tooling, which we will take on, even as we execute a fall auction season significantly busier than the last.</p>
+
+<h1>Reflection</h1>
+
+<p>In the process of architecting our LAI product, we had to make some tough decisions in the face of new challenges. Chief among these were the decisions on where on the spectrum of bleeding-edge technology versus tried-and-true choices to land, for many of our subcomponents. Bleeding-edge tech often offers more elegant and performant solutions, but at the cost of learning curve and risk of immaturity. We also had to carefully prioritize functionality. Choosing wisely througout the process was critical to shipping on time. The rationale behind these decisions and their outcomes will be the result of future pieces.</p>
+
+<p>To close, I want to express huge thanks to the auctions product &amp; engineering team for putting in long hours to design, implement, and troubleshoot the software; the auctions arts team for providing the domain knowledge and operational feedback; and our broader Artsy engineering team, at least half of whom directly contributed code to this effort.</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Cocoa Architecture: Dependencies]]></title>
@@ -455,164 +527,6 @@ Bundle complete! 1 Gemfile dependency, 73 gems now installed.
 <p>So the Switchboard is a way that we've managed to contain some of the complexity around having web-like abilities to jump between any two view controllers. This pattern makes it easy to stub a switchboard in tests, and to easily test the routing itself.</p>
 
 <p>When I looked through some of the other open source iOS apps to compare the pattern, I couldn't find anything similar. So if you do have something similar, you should probably Open Source your app ;)</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Cocoa Architecture: ARRouter]]></title>
-    <link href="http://artsy.github.io/blog/2015/08/15/Cocoa-Architecture-Router-Pattern/"/>
-    <updated>2015-08-15T00:00:00+00:00</updated>
-    <id>http://artsy.github.io/blog/2015/08/15/Cocoa-Architecture-Router-Pattern</id>
-    <content type="html"><![CDATA[<p>I want to talk about a pattern that we've been using for the last few years on the Artsy Mobile team. This pattern pre-dates me joining Artsy by a few weeks, and was introduced into our codebase by <a href="http://90wpm.com">Ben Jackson</a>, this was the <code>ARRouter</code>'s first method:</p>
-
-<pre><code class="objc">  + (NSURL *)newOAuthURLWithUsername:(NSString *)username password:(NSString *)password {
-      NSDictionary *params = [[NSDictionary alloc] initWithObjectsAndKeys:
-                              username, @"email",
-                              password, @"password",
-                              ARAuthClientID, @"client_id",
-                              ARAuthSecret, @"client_secret",
-                              @"credentials", @"grant_type",
-                              nil];
-      NSString *url_string = [[NSString alloc] initWithFormat:@"%@%@", AROAuthURL, [params queryString]];
-      NSURL *url = [ARRouter newURLWithPath:url_string];
-      [url_string release];
-      [params release];
-      return url;
-  }
-</code></pre>
-
-<p>Yep, that's pre-ARC, pre-Dictionary Literals, memory-managed code. We took this pattern and rolled with it for the next 4 years, this article is about where we've taken it.</p>
-
-<p>Within Eigen, <code>ARRouter</code> is one of our <a href="https://github.com/artsy/eigen/blob/904e8abfc11ce6ea4b6e81f0e02684b755a280c3/Artsy/Networking/ARRouter.m">biggest classes</a>, coming in at almost 1,000 lines of code. Whereas in Energy, it sits at a <a href="https://github.com/artsy/energy/blob/e51529250ede359c781042f222d5836eb9e8a979/Classes/Util/App/ARRouter.m">more reasonable</a> 300 lines. Eidolon does not have an ARRouter, what gives?</p>
-
-<!-- more -->
-
-
-<hr />
-
-<h2>Pattern Evolution</h2>
-
-<p>We started out with a Router object as being something that can take a model object, and return a <code>NSURL</code> corresponding to a server side end-point.</p>
-
-<p>This worked pretty well, we shipped a 1.0 of Energy with this pattern. However, it become obvious that we were putting a lot of extra knowledge about the type and the parameters of request into classes whose responsibility was not generating a route. For example, user account creation, and user account deletion would use the same <code>NSURL</code> but have different HTTP methods.</p>
-
-<p>We migrated our networking stack to using AFNetworking <code>1.0</code>, and started using CocoaPods instead of manually dragging and dropping code. With this in mind, we improved on the pattern and started returning <code>NSURLRequest</code>s which better encapsulate the server end-point request we were trying to map in the Router.</p>
-
-<p>The pattern evolved when mixed with a <a href="http://cocoadocs.org/docsets/AFNetworking/1.3.4/Classes/AFHTTPClient.html">AFHTTPClient</a> to act as the base URL resolver, allowing us to easily switch between staging and production environments, and as a central point for hosting all HTTP headers. This meant it was trivial to generate authenticated <code>NSURLRequest</code>s.</p>
-
-<p>As it is presently, this pattern is working. We've just wrapped up a new Pod, <a href="https://github.com/artsy/Artsy_Authentication">Artsy Authentication</a>. It's a library that has an <code>ARRouter</code> that behaves <a href="https://github.com/artsy/Artsy_Authentication/blob/master/Pod/Classes/ArtsyAuthenticationRouter.h">exactly like above</a>. We continue to build new apps with the pattern.</p>
-
-<h2>Siblings</h2>
-
-<p>This pattern is standing the test of time, but that doesn't mean we're not actively trying to experiment within the domain. There are three interesting offshoots from our work on <code>ARRouter</code> that are worth talking about.</p>
-
-<h4>Got the Routes like Swagger</h4>
-
-<p>The difference between Eigen's <code>ARRouter</code> and Energy's <code>ARRouter</code> is pretty simple. Eigen's networking scope is an order of magnitude larger. This is a reflection on the varied data that Eigen is interested in, while Energy has a tight scope on specifically Artsy Parter related data.</p>
-
-<p>During the new year of 2015, I explored the <a href="https://github.com/orta/GotTheRoutesLikeSwagger">idea of programmatically generating</a> an <code>ARRouter</code> as a CocoaPod, and then using CocoaPods' subspecs to make it easy to define what collections of end-points you were interested in. This project is based on a standard in which an API is documented, <a href="http://swagger.io">Swagger</a>. This meant as an API consumer, I can generate the types of <code>NSURLRequest</code>s I would require from the API itself. It created files that looked like:</p>
-
-<pre><code class="objc">// Generated by Routes Like Swagger - 31/12/14
-
-@interface ARRouter (User)
-
-/// Retrieve a user by id.
-/// @return URLRequest for /api/v1/user/{id}.{format}
-
-- (NSURLRequest *)getUserWithID:(NSString * )slug;
-
-/// Update an existing user.
-/// @return URLRequest for /api/v1/user/{id}.{format}
-
-- (NSURLRequest *)updateUserWithID:(NSString * )slug;
-
-... [snip] ...
-
-@end
-</code></pre>
-
-<p>This was a pretty nice expansion of the pattern, but overall felt a bit over-engineered and so, it was left as just an experiment.</p>
-
-<h4>Moya</h4>
-
-<p>When we started an entirely fresh application, we noted down all the networking-related pain points felt from Eigen and Energy. The Router pattern was pretty good, but we were finding that we were having problems with the API consuming part of the <code>NSURLRequest</code>s. Mainly, a difficulty in testing, an inconsistency in how we would perform networking and that it didn't feel declarative.</p>
-
-<p>Moya is our attempt at fixing this. I won't go into depth on what Moya is, we've <a href="/blog/2014/09/22/transparent-prerequisite-network-requests/">written articles</a> on this already. The part that is interesting is that it obviates an ARRouter by using a collection of Swift enums - forcing developers to include all necessary metadata an an end-point.</p>
-
-<h4>HAL, and API v2</h4>
-
-<p>The Router pattern relies on the idea that you know all the routes ahead of time, and add support for them as you build out each part of the app. <a href="http://stateless.co/hal_specification.html">HAL, a Hypermedia Application Layer</a> - can be approximated as being a self describing API. dB. wrote about it in <a href="/blog/2014/09/12/designing-the-public-artsy-api/">this blog post</a>.</p>
-
-<p>This means that you ask the API how to get certain bits of data, and it will describe the ways in which you can access it.</p>
-
-<p>Artsy's future APIs are using this, and the Router pattern is, more or less, totally deprecated in this world. This is what an artwork's JSON data looks like in v2:</p>
-
-<pre><code class="json">{
-  "id": "4d8b92bb4eb68a1b2c00044a",
-  "created_at": "2010-11-15T16:32:38+00:00",
-  "updated_at": "2015-08-16T09:26:26+00:00",
-  "name": "Jeff Koons",
-  "sortable_name": "Koons Jeff",
-  "gender": "male",
-  "birthday": "1955",
-  "hometown": "York, Pennsylvania",
-  "location": "New York, New York",
-  "nationality": "American",
-  "_links": {
-    "curies": [
-      {
-        "name": "image",
-        "href": "https://d32dm0rphc51dk.cloudfront.net/Uqad2mGhbNGhAUgb8bUvIA/{rel}",
-        "templated": true
-      }
-  ],
-  "thumbnail": {
-    "href": "https://d32dm0rphc51dk.cloudfront.net/Uqad2mGhbNGhAUgb8bUvIA/four_thirds.jpg"
-  },
-  "image:self": {
-    "href": "{?image_version}.jpg",
-    "templated": true
-  },
-  "self": {
-    "href": "https://api.artsy.net/api/artists/4d8b92bb4eb68a1b2c00044a"
-  },
-  "permalink": {
-    "href": "http://www.artsy.net/artist/jeff-koons"
-  },
-  "artworks": {
-    "href": "https://api.artsy.net/api/artworks?artist_id=4d8b92bb4eb68a1b2c00044a"
-  },
-  "published_artworks": {
-    "href": "https://api.artsy.net/api/artworks?artist_id=4d8b92bb4eb68a1b2c00044a&amp;published=true"
-  },
-  "similar_artists": {
-    "href": "https://api.artsy.net/api/artists?similar_to_artist_id=4d8b92bb4eb68a1b2c00044a"
-  },
-  "similar_contemporary_artists": {
-    "href": "https://api.artsy.net/api/artists?similar_to_artist_id=4d8b92bb4eb68a1b2c00044a&amp;similarity_type=contemporary"
-  },
-  "genes": {
-    "href": "https://api.artsy.net/api/genes?artist_id=4d8b92bb4eb68a1b2c00044a"
-  }
-  },
-  "image_versions": [
-    "four_thirds",
-    "large",
-    "square",
-    "tall"
-  ]
-}
-</code></pre>
-
-<p>You can see that via the _links section, curies and self-referential urls, you can build network client which traverses the API without built-in implicit knowledge.</p>
-
-<p>It's a really exciting pattern, and as client developers, we can work on improving standard API clients that work on all HAL APIs. Instead of something specific to Artsy's API. A lot of the most interesting work in the Cocoa space has been done by Kyle Fuller with <a href="https://cocoapods.org/pods/Hyperdrive">Hyperdrive</a>.</p>
-
-<h3>Wrap Up</h3>
-
-<p>Given that we're not writing applications against the v2 API, yet. The Router pattern is working fine for us at Artsy. It can be a really nice way to abstract out a responsibility that may currently be sitting inside a very large API client that might be worth extracting out.</p>
-
-<p>Let us know what you think, send tweets to <a href="https://twitter.com/ArtsyOpenSource">@ArtsyOpenSource</a> on twitter. Ps. it's pronounced "rooter".</p>
 ]]></content>
   </entry>
   
