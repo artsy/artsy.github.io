@@ -25,12 +25,26 @@ Categories are generated when the ENV var `PRODUCTION` = `"YES"`.
 
 Travis CI will automatically deploy when new commits are pushed to the `source` branch, so you shouldn't need to deploy from your local computer. However, if you need to deploy locally, the `rake deploy` command is available. 
 
+## Adding an Author
+
+Authors are key-value stored, so you'll need to give yourself a key inside [_config.yml](_config.yml) - for example:
+
+```yaml
+  joey:
+    name: Joey Aghion
+    github: joeyAghion
+    twitter: joeyAghion
+    site: http://joey.aghion.com
+```
+
+Everything but name is optional.
+
 ## Authoring an Article
 
 TLDR
 _To generate a new post, create a new file in the `_posts` directory. Be sure to add your name as the author of the post and include a couple of categories to file the post under. Here's some sample header YAML:_
 
-```
+```yaml
 ---
 layout: post
 title: "Responsive Layouts with CSS3"
