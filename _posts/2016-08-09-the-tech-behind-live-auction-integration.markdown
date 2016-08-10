@@ -9,6 +9,8 @@ categories: [engineering, architecture, auctions, javascript, react, redux, scal
 
 In late June, the [Artsy auctions](https://www.artsy.net/auctions/) team launched our Live Auction Integration (LAI) product. To summarize its purpose, it allows people to participate online in live sales held at auction houses [that partner with Artsy](https://www.artsy.net/auction-partnerships). It was a big project, begun in December, involving both brand new software and extensive integration work with the rest of our systems. This is the first in what will be a series of blog posts discussing the engineering work we did to get a complex product from inception to launch in such a brief time window, with a go-live deadline set in stone weeks in advance. In this, I’ll dig into what we shipped on a high level, as well as some of the overarching technical decisions.
 
+<!-- more -->
+
 LAI raised challenges that were novel to our engineering team. The product is a real-time experience from the perspectives of the bidder and the auction house, and producing that experience requires a complex human + computer system. There are two main flows of information: from auction house to bidder, and vice versa. These are mediated by our systems and staff as follows:
 
 - As bids occur in the auction house sale room, an Artsy operator working on-site inputs that activity into a web interface so that online participants can keep track of what’s happening.
