@@ -12,7 +12,7 @@ author: eloy
 <img src="/images/react-native/artsy_react_logo.svg" style="width:300px;">
 </center>
 
-As [the Artsy iOS app](https://github.com/artsy/eigen) grew larger, we came to a point where we started hitting pain
+As [the Artsy iOS app](https://github.com/artsy/eigen) grew larger, we started hitting pain
 points in terms of our existing architecture, the future directions the application might take, support for other future
 platforms such as Android, and the technology decisions we needed to take in-order steer this all in the direction 
 we want - including more ways to improve user experience, such as, more efficient network data fetching.
@@ -24,14 +24,14 @@ paradigms that solved our architectural needs, it does not help in terms of cros
 building views and thus very framework specific, and did not really offer anything in terms of more efficient network
 data fetching.
 
-Our web team have been integrating React throughout their projects, and with really great results. There is a mobile version, 
-and as luck would have it, the solutions provided by the React ecosystem ticked all of our boxes too.
+Our web team is integrating React throughout their projects, and with really great results. There is a mobile version, 
+and as luck would have it, the solutions provided by the React ecosystem ticked all of our boxes, too.
 
 <!-- more -->
 
 # Cons
 
-So you decided to read the full post and the first thing you get confronted with is a list of cons… _boo_. Let’s just get
+So you decided to read the full post and the first thing you got confronted with is a list of cons… _boo_. Let’s just get
 these out of the way first, it will only get better afterwards.
 
 * Dependencies, dependencies, dependencies, both in libraries and tooling. Once you open this can, you’ll have worms
@@ -61,15 +61,20 @@ these out of the way first, it will only get better afterwards.
   out-of-the-box; in terms of open-source code I prefer code used in production over other code _any_ day.
 
 * There are currently many more people trying to get help, with often arguably simple questions in the context of iOS
-  development, compared to those willing to spend time on answering questions. Most fora I’ve seen suffer from the
+  development, compared to those willing to spend time on answering questions. Most forums I’ve seen suffer from the
   tragedy of the commons problem, which can be a real problem if you have incidental framework specific questions, but
-  React-Native probably is a complete disaster if you know very little about iOS development yet.
+  jumping to React-Native probably is a complete disaster if you know very little about iOS development yet.
 
   If you’re not already knowledgable about iOS development, are not motivated to put in the time to learn about the
   platform specific details, and think making rich iOS applications with React Native will be a breeze, you’ll
-  [come home from a very cold fair](http://www.dwotd.nl/2008/06/443-van-een-kouwe-kermis-thuiskomen.html) indeed. While
-  you can definitely make applications that way, in my experience those often end up not feeling like proper citizens of
-  the platform they inhibit.
+  [come home from a very cold fair](http://www.dwotd.nl/2008/06/443-van-een-kouwe-kermis-thuiskomen.html) indeed. 
+  
+  While you can definitely make applications that way, in my experience those often end up not feeling like proper 
+  citizens of the platform they inhibit.
+
+* Due to React Natives immaturity, you will not be able to find nuanced post-mortems on the subject. The project
+  is only at the beginning of the [hype cycle](https://en.wikipedia.org/wiki/Hype_cycle), meaning there is a lot 
+  to gain in writing about how great it is, but less incentive to discuss where it doesn't work out well. 
 
 # Pros, why we wanted to use React Native
 
@@ -141,7 +146,9 @@ these out of the way first, it will only get better afterwards.
 # Artsy app specific things we ran into
 
 * Scroll Views
-* 
+
+Due to not wanting to disrupt the current development inside Eigen, we ended up with quite a unique setup for our React Native code. Expect a blog post specifically on the implementation details of this to follow soon.
+
 
 # Things we learned
 
@@ -156,7 +163,7 @@ these out of the way first, it will only get better afterwards.
   when deployed generates a minified version of the JavaScript. This means to build the Artsy iOS app you do not need to have
   a JavaScript development environment.
 
-* We re-used a lot of our existing native views, starting with loading indicators and native switch views.
+* We reused a lot of our existing native views, starting with loading indicators and native switch views.
 
 * We used new native classes to improve integration, for example the `<OpaqueImageView>` 
   [component](https://github.com/artsy/emission/blob/master/lib/components/opaque_image_view.js) is a 
