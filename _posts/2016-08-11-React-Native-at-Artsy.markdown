@@ -13,19 +13,28 @@ author: eloy
 </center>
 
 As [the Artsy iOS app](https://github.com/artsy/eigen) grew larger, we started hitting pain
-points in terms of our existing architecture, the future directions the application might take, support for other future
-platforms such as Android, and the technology decisions we needed to take in-order steer this all in the direction 
-we want - including more ways to improve user experience, such as, more efficient network data fetching.
+points:
 
-Technology-wise, it would have been an easy leap to start using Swift and, as a matter of fact, we did just that in both
-our flagship application and [an auction kiosk app](http://artsy.github.io/blog/2014/11/13/eidolon-retrospective/).
-However, while Swift is a great language, it’s also just that, _another_ language. It does not do much in terms of new
-paradigms that solved our architectural needs, it does not help in terms of cross-platform as most of our code is
-building views and thus very framework specific, and did not really offer anything in terms of more efficient network
+* We want to support other future platforms such as Android.
+* We want different business teams to work on the app without disrupting each other.
+* We want our architecture to evolve in order to increase programmer efficiency.
+
+It took us about a year to start resolving these issues. Ideally, we wanted to find a solution to our architectural
+issues that would also improve the user experience. Notably we wanted more efficient networking.
+
+It would have been an easy leap to start using Swift and, as a matter of fact, we do use Swift in parts of
+our flagship application and entirely in [2 other apps](http://artsy.github.io/blog/2014/11/13/eidolon-retrospective/).
+
+However, while Swift is a great language, it’s also just that: _another_ language. It does not do much in terms of new
+paradigms that solved our architectural needs, it does not help in terms of cross-platform - as most of our code is
+building views and thus very framework specific, and it did not really offer anything in terms of more efficient network
 data fetching.
 
-Our web team is integrating React throughout their projects, and with really great results. There is a mobile version, 
-and as luck would have it, the solutions provided by the React ecosystem ticked all of our boxes, too.
+We've seen that the web teams integrate React in their projects with really great results. We've been
+[paying attention](https://github.com/artsy/mobile/issues/22) to React Native since it came out; the solutions provided
+by the React ecosystem ticked all of our boxes.
+
+Six months ago we took the plunge, and last month we formalized that this is the direction we want to go.
 
 <!-- more -->
 
