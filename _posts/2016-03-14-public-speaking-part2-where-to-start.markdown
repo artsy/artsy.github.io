@@ -4,6 +4,7 @@ title: "Public Speaking - Part 2: Where To Start?"
 date: 2016-03-14 11:00
 author: maxim
 categories: [teaching, learning, speaking, oss, community]
+series: Public Speaking
 ---
 
 So you’ve decided [you’d like to give speaking a go][part1], or perhaps you were always interested. By now you’re probably wondering where to start.

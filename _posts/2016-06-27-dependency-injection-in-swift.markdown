@@ -4,6 +4,7 @@ title: "Depedency Injection in Swift"
 date: 2016-06-27 12:00
 author: ash
 categories: [mobile, swift, eigen, eidolon]
+series: Swift Patterns
 ---
 
 Dependency Injection (DI) is a [$25 word for a 5¢ idea](http://www.jamesshore.com/Blog/Dependency-Injection-Demystified.html), but it's an idea that has become wholly foundation to how I write software. I want to take a look at some of the ways our team have been using DI in Swift.

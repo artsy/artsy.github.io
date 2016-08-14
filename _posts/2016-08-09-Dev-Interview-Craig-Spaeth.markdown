@@ -4,6 +4,7 @@ title: "Dev Interviews: Craig Spaeth"
 date: 2016-08-09 12:11
 author: [orta, craig]
 categories: [culture, video, interview]
+series: Dev Interviews
 ---
 
 Hello everyone! Orta here, over the summer I've started a series of interviews with the entire development team at Artsy. They're all on different topics, notably around technical and cultural issues. I've recorded a few of them already, and will be sporadically releasing them. I'm still getting the hang of editing and recording side of this, so give me some slack.    

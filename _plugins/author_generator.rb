@@ -19,7 +19,7 @@ module Jekyll
       self.process(@name)
       # Read the YAML data from the layout page.
       self.read_yaml(File.join(base, '_layouts'), 'author_index.html')
-      self.data['author']    = author
+      self.data['author']      = author
       # Set the title for this page.
       title_prefix             = 'Author: '
       self.data['title']       = "#{title_prefix}#{author}"

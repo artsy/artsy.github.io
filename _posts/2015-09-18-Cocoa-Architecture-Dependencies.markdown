@@ -9,6 +9,7 @@ categories:
   - architecture
   - dependencies
 author: orta
+series: Cocoa Architecture
 ---
 
 As a part of going through the design patterns we've found in the creation of the Artsy iOS apps, I'd like to talk a bit about some of

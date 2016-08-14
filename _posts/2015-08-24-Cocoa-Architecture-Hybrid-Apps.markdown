@@ -10,6 +10,7 @@ categories:
   - eigen
   - hybrid
 author: orta
+series: Cocoa Architecture
 ---
 
 As a part of going through the design patterns we've found in the creation of the Artsy iOS apps, I'd like to talk a bit about _Hybrid Applications_. A hybrid application refers to an app that uses native code and web content intertwined. Our flagship iOS app, [eigen](https://github.com/artsy/eigen) is a hybrid app, and it seems to get more and more hybrid-y each release. Let's talk a little bit about the pros and cons of this approach.

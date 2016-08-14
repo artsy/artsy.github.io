@@ -4,6 +4,7 @@ title: "Code Review: Energy overview"
 date: 2016-02-11 11:09
 author: orta
 categories: [mobile, ios, review, video, energy, folio, oss]
+series: iOS Code Review
 ---
 
 We are slowly trying to do high-level code-review views for all of our iOS apps. So far, we've covered [Eidolon](/blog/2016/01/14/eidolon-code-review/) and [Emergence](/blog/2015/11/05/Emergence-Code-Review/). Folio is an app that's shipped to the App Store in early 2012, it's used by our Partners to showcase their works offline, at fairs and on the go. If you want the full spiel, check out [this microsite](http://folio.artsy.net).
