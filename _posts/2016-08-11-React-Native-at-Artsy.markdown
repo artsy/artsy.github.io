@@ -15,12 +15,13 @@ author: eloy
 As [the Artsy iOS app](https://github.com/artsy/eigen) grew larger, we started hitting pain
 points:
 
-* We want to support other future platforms such as Android.
+* We want to support other future platforms such as Android without creating more teams.
 * We want different business teams to work on the app without disrupting each other.
 * We want our architecture to evolve in order to increase programmer efficiency.
 
-It took us about a year to start resolving these issues. Ideally, we wanted to find a solution to our architectural
-issues that would also improve the user experience. Notably we wanted more efficient networking.
+It took us [about a year](https://github.com/artsy/mobile/issues/22) to start resolving these issues. 
+Ideally, we wanted to find a solution to our architectural issues that would also improve the user 
+experience. Notably we wanted more efficient networking, due to mobile device constraints.
 
 It would have been an easy leap to start using Swift and, as a matter of fact, we do use Swift in parts of
 our flagship application and entirely in [2 other apps](http://artsy.github.io/blog/2014/11/13/eidolon-retrospective/).
@@ -152,13 +153,6 @@ these out of the way first, it will only get better afterwards.
 * Because React Native is still young, fast moving, and open-source, this is a great time to help shape the framework
   you’d _want_ to use.
 
-# Artsy app specific things we ran into
-
-* Scroll Views
-
-Due to not wanting to disrupt the current development inside Eigen, we ended up with quite a unique setup for our React Native code. Expect a blog post specifically on the implementation details of this to follow soon.
-
-
 # Things we learned
 
 * When we started out with React Native, I didn't want to have to re-write our application in order to take advantage of
@@ -179,7 +173,7 @@ Due to not wanting to disrupt the current development inside Eigen, we ended up 
   [native](https://github.com/artsy/emission/tree/master/Pod/Classes/OpaqueImageViewComponent) `UIImageView`
   subclass that works with our application-wide [SDWebImage](https://cocoapods.org/pods/SDWebImage) image cache.
 
-# Conclusion
+# Conclusion 
 
 To really shine with React Native, you need native experience. JavaScript has not eaten everything yet. However, 
 you don't need a team of native experts. For example, we expect to be able to get quite far with Android support based on 
@@ -187,3 +181,6 @@ our work in React Native, but to make it amazing, we will need someone with hist
 
 This frees up our engineers to widen their [T-shaped skills](https://artsy.github.io/blog/2016/01/30/iOS-Junior-Interviews/), 
 and to help remove the idea that the mobile team has to be a completely separate team with foreign tools and ideas.
+
+This is only the tip of the iceberg for our writings about React Native. Follow [@ArtsyOpenSource](https://twitter.com/orta)
+to stay up to date.
