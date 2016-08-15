@@ -5,6 +5,7 @@ date: 2016-03-28
 comments: true
 categories: [People]
 author: db
+series: Artsy Tech Stack
 ---
 <div style="max-width: 50%; text-align: center; float: right; padding: 0 0 10px 10px; line-height: 1;"><img src="/images/2016-03-28-artsy-engineering-organization-stack/stack.jpg"><br><font size="2px"><em>The Artsy Engineering Organization "Stack" in 2012<br>from <a target="_blank" href="http://code.dblock.org/2011/07/12/sitting-is-killing-you-move-to-new-york.html">"Sitting is Killing You? Move to New York"</a></em></font></div>
 

@@ -4,6 +4,7 @@ title: "Public Speaking - Part 1: Is It For Me?"
 date: 2016-03-09 11:00
 author: maxim
 categories: [teaching, learning, speaking, oss, community]
+series: Public Speaking
 ---
 
 At Artsy, sharing knowledge is heavily encouraged and so we write our code in the open, document using blog posts, and speak about our experiences. Many have [bumped into us][tw_ldn] at various places around the world. And so I often get the question: “How did you get started? I’m interested in speaking too”.

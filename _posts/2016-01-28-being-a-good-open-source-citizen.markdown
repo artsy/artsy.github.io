@@ -5,6 +5,7 @@ date: 2016-01-28T00:00:00.000Z
 comments: false
 categories: [ios, mobile, code, swift, oss]
 author: ash
+series: Open Source by Default
 ---
 
 Let's take a look at the day in the life of an open source citizen: me. On our app, I was given [an issue](https://github.com/artsy/eigen/issues/971) that would allow users to refine what kinds of sale artworks they were looking at, and it included this _awesome_ slider control so they could set min/max price ranges.

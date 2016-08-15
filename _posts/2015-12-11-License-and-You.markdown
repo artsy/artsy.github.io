@@ -5,6 +5,7 @@ date: 2015-12-10T00:00:00.000Z
 comments: false
 categories: [ios, mobile, licensing, video, oss]
 author: orta
+series: Open Source by Default
 ---
 
 As a part of our internal Lunch and Learn series, I  gave a talk to our developers with an overview of the different types of source code licenses available.

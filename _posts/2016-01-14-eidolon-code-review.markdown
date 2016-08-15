@@ -5,6 +5,7 @@ date: 2016-01-14T00:00:00.000Z
 comments: false
 categories: [ios, mobile, review, video, code, swift, oss]
 author: ash
+series: iOS Code Review
 ---
 
 [Eidolon](https://github.com/artsy/eidolon) is the third app from Artsy's mobile team, and it was the [first to be developed totally in the open](http://artsy.github.io/blog/2014/11/13/eidolon-retrospective/). It's often used as a reference for what an app written in Swift, or written using FRP, should look like. Given how interested the community seems to be around the app, it's about time we did a walkthrough of the code.

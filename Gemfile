@@ -7,6 +7,7 @@ gem 'octopress-hooks'
 gem 'rdiscount'
 gem 'pygments.rb'
 gem 'RedCloth'
+gem 'pry'
 
 group :distribution do
   gem 'danger'

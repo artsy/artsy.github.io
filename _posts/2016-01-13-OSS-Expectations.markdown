@@ -4,6 +4,7 @@ title: "Open Expectations"
 date: 2016-01-13 11:09
 author: orta
 categories: [mobile, oss, meta]
+series: Open Source by Default
 ---
 
 The Artsy engineering team has been moving towards Open Source by Default. In 2015 the Mobile team managed to get there. Since then, we've been writing up our process on this blog and offering advice to anyone would would ask for it.

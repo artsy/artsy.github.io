@@ -5,6 +5,7 @@ date: 2015-09-24 16:13
 comments: true
 author: ash
 categories: [ios, mvvm, open source, swift, mobile]
+series: Swift Patterns
 ---
 
 Model View ViewModel has become the default way I write apps on iOS – it makes writing iOS apps a joy. I've written [about it](https://www.objc.io/issues/13-architecture/mvvm/) [again](http://www.teehanlax.com/blog/model-view-viewmodel-for-ios/) and [again](https://speakerdeck.com/ashfurrow/reactivecocoa-at-mdevcon-2014) and [oh my](https://leanpub.com/iosfrp).

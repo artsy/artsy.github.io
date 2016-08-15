@@ -5,6 +5,7 @@ date: 2012-10-10 21:21
 comments: true
 categories: [Technology]
 author: db
+series: Artsy Tech Stack
 ---
 The public launch of Artsy via the [New York Times](http://www.nytimes.com/2012/10/09/arts/design/artsy-is-mapping-the-world-of-art-on-the-web.html) is a good opportunity to describe our current technology stack.
 

@@ -5,6 +5,7 @@ date: 2015-08-15
 comments: false
 categories: [ios, mobile, architecture, energy, eigen, eidolon, hal]
 author: orta
+series: Cocoa Architecture
 ---
 
 I want to talk about a pattern that we've been using for the last few years on the Artsy Mobile team. This pattern pre-dates me joining Artsy by a few weeks, and was introduced into our codebase by [Ben Jackson](http://90wpm.com), this was the `ARRouter`'s first method:
