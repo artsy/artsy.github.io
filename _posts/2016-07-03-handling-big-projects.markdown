@@ -4,6 +4,7 @@ title: "Handling Large OSS Projects Defensively"
 date: 2016-07-03 12:00
 author: orta
 categories: [mobile, oss, culture, danger]
+series: Open Source by Default
 ---
 
 I help maintain big OSS projects: from a third-party [dependency manager][cocoapods] used in most iOS apps ([CocoaPods][cocoapods_org]), to the most popular Objective-C [testing framework][specta] and the most popular Swift [networking API client][moya]. I've been doing this for years.

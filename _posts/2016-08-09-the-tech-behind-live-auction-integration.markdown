@@ -5,6 +5,7 @@ date: 2016-08-09 11:30
 comments: true
 author: alan
 categories: [engineering, architecture, auctions, javascript, react, redux, scala, akka, swift, launch, lifecycle]
+series: Artsy Tech Stack
 ---
 
 In late June, the [Artsy auctions](https://www.artsy.net/auctions/) team launched our Live Auction Integration (LAI) product. It allows people to participate online in live sales held at auction houses [that partner with Artsy](https://www.artsy.net/auction-partnerships). It was a big project, begun in December, involving both brand new software and extensive integration work with the rest of our systems. This is the first in what will be a series of blog posts discussing the engineering work we did to get a complex product from inception to launch in such a brief time window, with a go-live deadline set in stone weeks in advance. In this, I’ll dig into what we shipped on a high level, as well as some of the overarching technical decisions.

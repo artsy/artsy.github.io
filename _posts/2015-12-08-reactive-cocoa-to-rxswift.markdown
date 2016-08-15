@@ -5,6 +5,7 @@ date: 2015-12-08 12:00
 comments: true
 author: ash
 categories: [ios, mvvm, open source, swift, mobile]
+series: Swift Patterns
 ---
 
 When we [built Eidolon last year](http://artsy.github.io/blog/2014/11/13/eidolon-retrospective/), Swift was still pre-1.0 and we couldn't rely on the wide variety of available Swift libraries we enjoy today. I wanted to build it using functional reactive programming, because that's how I believe [everyone should write software](https://realm.io/news/altconf-ash-furrow-functional-reactive-swift/), but there were no Swift-based FRP libraries at the time. As a compromise, I used ReactiveCocoa's Objective-C API (the Swift API was months away from an alpha).

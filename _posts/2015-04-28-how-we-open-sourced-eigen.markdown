@@ -5,6 +5,7 @@ date: 2015-04-28
 comments: no
 categories: [ios, mobile, eigen, keys, open source, oss]
 author: orta
+series: Open Sourcing Your App
 ---
 
 It was 95 days ago, and I was sitting before of my computer in NYC. I loaded my terminal, opened [TapTalk](https://taptalk.me) on my phone, tapped on my collegue [Ash's](http://ashfurrow.com) avatar and held my finger there. I paused, this moment was a long time, it was worth waiting. I switched the camera from my face to the screen with the terminal open.

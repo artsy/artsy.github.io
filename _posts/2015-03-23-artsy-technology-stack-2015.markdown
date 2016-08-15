@@ -5,6 +5,7 @@ date: 2015-03-23
 comments: true
 categories: [Technology]
 author: db
+series: Artsy Tech Stack
 ---
 Artsy has now grown past 100 team members and our Engineering organization is now 20 strong. For a brief overview of what the company has accomplished in the last two years, check out our [2013](http://2013.artsy.net) and [2014](http://2014.artsy.net) reviews.
 

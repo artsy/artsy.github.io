@@ -11,6 +11,7 @@ categories:
   - eigen
   - eidolon
 author: orta
+series: Cocoa Architecture
 ---
 
 As a part of going through the design patterns we've found in the creation of the Artsy iOS apps, I'd like to introduce the Switchboard pattern. This evolved quite naturally out of [ARRouter](/blog/2015/08/15/Cocoa-Architecture:-Router-Pattern/) when applied to generating view controllers instead of API requests.  
