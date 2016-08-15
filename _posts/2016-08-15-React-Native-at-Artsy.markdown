@@ -1,11 +1,12 @@
 ---
 layout: post
 title: "React Native at Artsy"
-date: 2016-08-11 21:17
+date: 2016-08-15 21:17
 comments: true
 article-class: "expanded-code"
 categories: [React, Mobile]
 author: eloy
+series: React Native at Artsy
 ---
 
 <center>
