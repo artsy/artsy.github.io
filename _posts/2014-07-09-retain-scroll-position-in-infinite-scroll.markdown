@@ -3,7 +3,7 @@ layout: post
 title: "Retain scroll position in infinite scroll"
 date: 2014-07-09 17:29
 comments: true
-categories: [Infinite, Infinite Scroll, Iframe, Modal, Scroll Position, Retain Scroll Position]
+categories: [Infinite, Infinite Scroll, Iframe, Modal, Scroll Position, Retain Scroll Position, force]
 author: craig
 ---
 
