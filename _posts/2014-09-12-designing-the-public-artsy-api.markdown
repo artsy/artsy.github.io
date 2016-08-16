@@ -21,7 +21,7 @@ In this post we will step back and describe some of the technical decisions made
 
 ## First, Make All The Mistakes
 
-Artsy has been developing a homegrown API over the last four years, consisting of almost 400 endpoints and exposing over 100 domain models. It's probably one of the largest [Ruby Grape](https://github.com/intridea/grape) implementations and it has been battlefield-tested by the dozens of services that we have built around it, starting with our [recently open-sourced artsy.net website](https://github.com/artsy/force-public). The core API project itself is unfortunately not public.
+Artsy has been developing a homegrown API over the last four years, consisting of almost 400 endpoints and exposing over 100 domain models. It's probably one of the largest [Ruby Grape](https://github.com/intridea/grape) implementations and it has been battlefield-tested by the dozens of services that we have built around it, starting with our [recently open-sourced artsy.net website](https://github.com/artsy/force). The core API project itself is unfortunately not public.
 
 As with all legacy code with many client dependencies, our API has accumulated a staggering number of architectural faults, which have become impossible to work ourselves out of without a major rewrite. When thinking about a public API we went back to the drawing board with a more pragmatic approach.
 

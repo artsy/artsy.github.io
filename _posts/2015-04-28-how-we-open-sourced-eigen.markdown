@@ -53,7 +53,7 @@ Other than that we had already been opening any good abstractions as CocoaPods f
 
 It's one thing to think that it's possible, it's another to do it. I'm glad that I am in a position where I can enact change. I felt no resistence in the process. I kept offering potential avenues for someone to stop me, too. I emailed the entire team as I started the process 2 weeks before it happened, I talked to anyone who might write issues or contribute from the design team. As I got further along the process and sent another email out that it was going to happen tomorrow. All I got were 👍 and 🎉s in [GIF](https://itunes.apple.com/us/app/gifs/id961850017?l=en&mt=12) form. So I kept moving forwards till that tweet above.
 
-From our dev team's perspective, this is not a brave new world. Our website, [force](https://github.com/artsy/force-public), is open source. Though they operate under different constraints.
+From our dev team's perspective, this is not a brave new world. Our website, [force](https://github.com/artsy/force), is open source. Though they operate under different constraints.
 
 From the perspective of Artsy, even though opening our code aligns very strongly with our [values of openness](/blog/2015/03/31/the-culture-of-openness-artsy-mobile/), we are still a company. Opening up our codebase lets our competitors see what we're up to in advance, and [closed source](http://code.dblock.org/2015/02/09/becoming-open-source-by-default.html) is still the norm for apps. Opening our code and process is also opening ourselves to criticism.
 
