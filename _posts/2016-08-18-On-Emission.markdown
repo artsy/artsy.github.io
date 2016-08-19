@@ -41,8 +41,11 @@ Interestingly if the router cannot route a view controller, it will pass through
 
 ### Introducing Emission
 
-Emission is a node module, a CocoaPod and an iOS App.
+Emission is a node module, a CocoaPod and an iOS App. 
 
+The iOS app acts as a host for the CocoaPod, and provides an instance of an [AREmission][ar_emission] object to the view controllers using React Native. The AREmission instance is the intermediary between the host-app ([The Emission Example app][example_emission], or [Eigen][eigen_emission].) We use this host app to do development inside React Native, it supports [hot-reloading][reloading] for example. 
+
+### Deployment
 
 
 [auctions_team]: /blog/2016/08/09/the-tech-behind-live-auction-integration/
@@ -50,3 +53,7 @@ Emission is a node module, a CocoaPod and an iOS App.
 [eigen]: https://github.com/artsy/eigen/
 [router_pattern]: https://artsy.github.io/blog/2015/08/15/Cocoa-Architecture-Router-Pattern/
 [hybrid_app]: http://artsy.github.io/blog/2015/08/24/Cocoa-Architecture-Hybrid-Apps/
+[ar_emission]: https://github.com/artsy/emission/blob/master/Pod/Classes/Core/AREmission.m
+[example_emission]: https://github.com/artsy/emission/blob/eb9d0f6ca0edd3eb9f07dd9ff3b8499f095bc45b/Example/Emission/AppDelegate.m#L56
+[eigen_emission]: https://github.com/artsy/eigen/blob/41b00f6fe497de9e902315104089370dea417017/Artsy/App/ARAppDelegate%2BEmission.m
+[reloading]: http://facebook.github.io/react-native/releases/0.31/docs/debugging.html#automatic-reloading
