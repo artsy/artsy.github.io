@@ -13,7 +13,7 @@ The Artsy API currently provides access to images of historic artwork and relate
 
 <a href="https://developers.artsy.net"><img src="/images/2014-09-12-designing-the-public-artsy-api/the-art-world-in-your-app.png" border="0"></a>
 
-If you just want to use the API, you can stop reading here and head to the [developers.artsy.net](https://developers.artsy.net/) website. (The developers website itself is a classic Rails + Boootstrap example and is also [open-source](https://github.com/artsy/doppler).)
+If you just want to use the API, you can stop reading here and head to the [developers.artsy.net](https://developers.artsy.net/) website. (The developers website itself is a classic Rails + Bootstrap example and is also [open-source](https://github.com/artsy/doppler).)
 
 In this post we will step back and describe some of the technical decisions made during the development of the new API.
 
