@@ -94,7 +94,15 @@ The choice of Objective-C is for simplicity, and language stability. Swift is te
 In order to share native views with our host app, Eigen, we created a library to just hold the shared UI components, [Extraction][extraction]. These are [factored out of Eigen][extraction_files, and into a pod. Emission and Eigen have this as a dependency.
 
 #### Pod Deployment
->>>>>>> e92f4341a01c3c752a1e8729942ba17938e8bf54
+
+What makes this work well, from the perspective of Eigen is that the react native comes in atomically. The Podspec [references][emission_resource] the few native classes, and a single JavaScript file. 
+
+This JavaScript file is the bundled version of all our React Native code. It's [updated  by running][emission_run_bundle] `npm run bundle`. This generates both the minified JS, and a source map so that we can transcribe the error reports into the code we write.
+
+Using the CocoaPod, Emission can provide native view controllers that use React Native under the hood. The consume app does not need to know the underlying details like `npm`. 
+
+
+
 
 
 [auctions_team]: /blog/2016/08/09/the-tech-behind-live-auction-integration/
@@ -116,3 +124,6 @@ In order to share native views with our host app, Eigen, we created a library to
 [emission_pod_classes]: https://github.com/artsy/emission/tree/eb9d0f6ca0edd3eb9f07dd9ff3b8499f095bc45b/Pod/Classes
 [extraction]: https://github.com/artsy/extraction
 [extraction_files]: https://github.com/artsy/extraction/tree/d6a32186f7098eb2ec5d05e2fb5302a8378eff70/Extraction/Classes
+[emission_resource]: https://github.com/artsy/emission/blob/master/Emission.podspec#L17-L18
+[emission_bundling]: https://github.com/artsy/emission/blob/eb9d0f6ca0edd3eb9f07dd9ff3b8499f095bc45b/package.json#L7
+[emission_run_bundle]: https://github.com/artsy/emission/blob/eb9d0f6ca0edd3eb9f07dd9ff3b8499f095bc45b/package.json#L7
