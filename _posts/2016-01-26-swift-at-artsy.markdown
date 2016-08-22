@@ -5,6 +5,7 @@ date: 2016-01-26T00:00:00.000Z
 comments: false
 categories: [ios, mobile, review, video, code, swift, oss, teaching]
 author: ash
+series: Swift at Artsy
 ---
 
 While the Artsy engineering team includes many disciplines, tech stacks, and personalities, we all share a few things in common: a respect for each other, an appreciation of art-meets-science, and a celebration of learning. These are actually traits shared with our entire company, even non-engineers. So last Summer when Orta and I had some down time, it occurred to us how we could do something super-productive that was congruent with our values: we could teach the company Swift.
