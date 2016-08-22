@@ -183,5 +183,5 @@ our work in React Native, but to make it amazing, we will need someone with hist
 This frees up our engineers to widen their [T-shaped skills](https://artsy.github.io/blog/2016/01/30/iOS-Junior-Interviews/), 
 and to help remove the idea that the mobile team has to be a completely separate team with foreign tools and ideas.
 
-This is only the tip of the iceberg for our writings about React Native. Follow [@ArtsyOpenSource](https://twitter.com/orta)
+This is only the tip of the iceberg for our writings about React Native. Follow [@ArtsyOpenSource](https://twitter.com/ArtsyOpenSource)
 to stay up to date.
