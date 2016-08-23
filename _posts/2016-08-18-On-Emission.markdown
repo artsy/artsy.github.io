@@ -71,7 +71,7 @@ export default {
 
 Another node project can have Emission as a dependency - then can access our `Container`s, `Component`s and `Route`s. A container is a [Relay container][relay_cont], a component is a [React Component][react_component] and a Route is a [Relay Route][relay_route].
 
-The thing that's interesting from the integration side, is that each `Container` is effectively a View Controller that React Native provides to a host application.
+The thing that's interesting from the integration side, is that each `Container` is effectively a View Controller that Emission provides to a host application. React Native ignores  the concept of View Controllers from the Cocoa world, so we have an [ARComponentViewController][arcomponent] which is subclassed for each exposed `Component` class. 
 
 #### The iOS App
 
@@ -91,15 +91,17 @@ An important part of working with React Native, is that you can choose to use na
  
 The choice of Objective-C is for simplicity, and language stability. Swift is technically an option, but it's not  worth the complications for [a few simple objects][emission_pod_classes]. 
 
-In order to share native views with our host app, Eigen, we created a library to just hold the shared UI components, [Extraction][extraction]. These are [factored out of Eigen][extraction_files, and into a pod. Emission and Eigen have this as a dependency.
+In order to share native views with our host app, Eigen, we created a library to just hold the shared UI components, [Extraction][extraction]. These are [factored out of Eigen][extraction_files], and into a pod. Emission and Eigen have this as a dependency.
 
 #### Pod Deployment
 
-What makes this work well, from the perspective of Eigen is that the react native comes in atomically. The Podspec [references][emission_resource] the few native classes, and a single JavaScript file. 
+What makes this work well, from the perspective of Eigen is that the React Native comes in atomically. The Podspec [references][emission_resource] the few native classes, and a single JavaScript file. 
 
 This JavaScript file is the bundled version of all our React Native code. It's [updated  by running][emission_run_bundle] `npm run bundle`. This generates both the minified JS, and a source map so that we can transcribe the error reports into the code we write.
 
-Using the CocoaPod, Emission can provide native view controllers that use React Native under the hood. The consume app does not need to know the underlying details like `npm`. 
+Using the CocoaPod, Emission can provide native view controllers that use React Native under the hood. The host app does not need to know the underlying details like `npm`.
+
+###  
 
 
 
@@ -125,3 +127,4 @@ Using the CocoaPod, Emission can provide native view controllers that use React 
 [emission_resource]: https://github.com/artsy/emission/blob/master/Emission.podspec#L17-L18
 [emission_bundling]: https://github.com/artsy/emission/blob/eb9d0f6ca0edd3eb9f07dd9ff3b8499f095bc45b/package.json#L7
 [emission_run_bundle]: https://github.com/artsy/emission/blob/eb9d0f6ca0edd3eb9f07dd9ff3b8499f095bc45b/package.json#L7
+[arcomponent]: https://github.com/artsy/emission/blob/eb9d0f6ca0edd3eb9f07dd9ff3b8499f095bc45b/Pod/Classes/ViewControllers/ARComponentViewController.m
