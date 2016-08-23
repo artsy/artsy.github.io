@@ -103,8 +103,6 @@ Using the CocoaPod, Emission can provide native view controllers that use React 
 
 
 
-
-
 [auctions_team]: /blog/2016/08/09/the-tech-behind-live-auction-integration/
 [interstellar]: https://cocoapods.org/pods/Interstellar
 [eigen]: https://github.com/artsy/eigen/

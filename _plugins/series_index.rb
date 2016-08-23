@@ -22,7 +22,7 @@ module Jekyll
       # Read the YAML data from the layout page.
       read_yaml(File.join(base, '_layouts'), 'series_index.html')
       data['series'] = series
-      data['posts'] = posts
+      data['posts'] = posts[series]
       data['authors'] = authors
 
       # Set the title for this page.
@@ -90,14 +90,17 @@ module Jekyll
     # # Outputs a list of seriess as comma-separated <a> links. This is used
     # # to output the series list for each post on a series page.
     # #
-    # #  +seriess+ is the list of seriess to format.
+    # #  +series+ is the list of series to format.
     # #
     # # Returns string
     # #
-    # def series_link(series)
-    #   dir = @context.registers[:site].config['series_dir']
-    #   "<a class='series' href='/#{dir}/#{series.gsub(/_|\P{Word}/, '-').gsub(/-{2,}/, '-').downcase}/'>#{item}</a>"
-    # end
+    def series_link(series)
+          require 'pry'
+          binding.pry
+
+      dir = @context.registers[:site].config['series_dir']
+      "<a class='series' href='/#{dir}/#{series.gsub(/_|\P{Word}/, '-').gsub(/-{2,}/, '-').downcase}/'>#{item}</a>"
+    end
 
     # # Outputs the post.date as formatted html, with hooks for CSS styling.
     # #
