@@ -101,9 +101,9 @@ This JavaScript file is the bundled version of all our React Native code. It's [
 
 Using the CocoaPod, Emission can provide native view controllers that use React Native under the hood. The host app does not need to know the underlying details like `npm`.
 
-###  
+### Complexity
 
-
+The most constant question I am asked, via implication, is "why did we feel the need to rewrite, when Swift exists?" - we've never discussed a re-write for our flagship app, but I don't think it would garner much support. By integrating React Native as a dependency, isolated inside Emission, we could incrementally continue working on our app - while addressing a lot of [our original architectual concerns][architectual].   
 
 [auctions_team]: /blog/2016/08/09/the-tech-behind-live-auction-integration/
 [interstellar]: https://cocoapods.org/pods/Interstellar
@@ -130,3 +130,4 @@ Using the CocoaPod, Emission can provide native view controllers that use React 
 [arcomponent]: https://github.com/artsy/emission/blob/eb9d0f6ca0edd3eb9f07dd9ff3b8499f095bc45b/Pod/Classes/ViewControllers/ARComponentViewController.m
 [ar_router]: https://github.com/artsy/eigen/blob/master/Artsy/App/ARSwitchBoard.m#L122
 [switch_view]: https://github.com/artsy/extraction/blob/d6a32186f7098eb2ec5d05e2fb5302a8378eff70/Extraction/Classes/ARSwitchView.m
+[architectual]: /blog/2016/08/15/React-Native-at-Artsy/
