@@ -11,7 +11,7 @@ series: React Native at Artsy
  <img src="/images/emission/emission-logo-artsy.svg" style="height:300px;">
 </center>
 
-I arrived fashionably late to the React Native party in Artsy. I had been a part of our [Auctions Team][auctions_team], where we worked in Swift with [some light-FRP][interstellar]. We were not affected by 4 months of work on moving to React Native, at all. 
+I arrived fashionably late to the React Native party in Artsy. I had been a part of our [Auctions Team][auctions_team], where we worked in Swift with [some light-FRP][interstellar]. We were not affected by the 4 months of simultaneous work on moving to React Native, at all.
 
 It was a quiet revolution. We did not have to install `npm`, made zero changes to the code for auctions and the whole app's infrastructure barely changed. What gives? 
 
@@ -27,7 +27,7 @@ It all looks a bit like this:
 
 {% expanded_img /images/emission/eigen-overview.jpg %}
 
-Our app neatly splits into two areas of view controllers, ones that act as a browser chrome, and individual view controllers that normally map 1:1 to routes on the Artsy website. 
+Our app neatly splits into two areas of view controllers, ones that act as a browser chrome, and individual view controllers that normally map 1:1 to [routes][ar_router] on the Artsy website. 
 
 For example, `artsy.net/artwork/glenn-brown-suffer-well` maps to the native `ARArtworkViewController`. 
 
@@ -41,7 +41,7 @@ Interestingly if the router cannot route a view controller, it will pass through
 
 ### Introducing Emission
 
-Emission is:
+Emission is what we use to contain all of our React Native components. Our flagship app Eigen, can depend on and use without needing to bother with the implmentation details of React Native. At it's core, Emission is:
 
 - A node module.
 - A CocoaPod.
@@ -87,7 +87,7 @@ An important part of working with React Native, is that you can choose to use na
 
 * Communication between React Native and the host app objects via [native modules][native_modules] 
 * `UIViewController` subclasses for Host apps to consume.
-* Bridges for native views into React Native.
+* Bridges for existing native views (like our [SwitchView][switch_view]) into React Native.
  
 The choice of Objective-C is for simplicity, and language stability. Swift is technically an option, but it's not  worth the complications for [a few simple objects][emission_pod_classes]. 
 
@@ -128,3 +128,5 @@ Using the CocoaPod, Emission can provide native view controllers that use React 
 [emission_bundling]: https://github.com/artsy/emission/blob/eb9d0f6ca0edd3eb9f07dd9ff3b8499f095bc45b/package.json#L7
 [emission_run_bundle]: https://github.com/artsy/emission/blob/eb9d0f6ca0edd3eb9f07dd9ff3b8499f095bc45b/package.json#L7
 [arcomponent]: https://github.com/artsy/emission/blob/eb9d0f6ca0edd3eb9f07dd9ff3b8499f095bc45b/Pod/Classes/ViewControllers/ARComponentViewController.m
+[ar_router]: https://github.com/artsy/eigen/blob/master/Artsy/App/ARSwitchBoard.m#L122
+[switch_view]: https://github.com/artsy/extraction/blob/d6a32186f7098eb2ec5d05e2fb5302a8378eff70/Extraction/Classes/ARSwitchView.m
