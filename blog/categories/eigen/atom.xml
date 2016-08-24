@@ -4,7 +4,7 @@
   <title><![CDATA[Category: eigen | Artsy Engineering]]></title>
   <link href="http://artsy.github.io/blog/categories/eigen/atom.xml" rel="self"/>
   <link href="http://artsy.github.io/"/>
-  <updated>2016-08-23T21:25:56+00:00</updated>
+  <updated>2016-08-24T14:06:42+00:00</updated>
   <id>http://artsy.github.io/</id>
   <author>
     <name><![CDATA[]]></name>
@@ -12,6 +12,304 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[On our implementation of React Native]]></title>
+    <link href="http://artsy.github.io/blog/2016/08/18/On-Emission/"/>
+    <updated>2016-08-18T12:17:00+00:00</updated>
+    <id>http://artsy.github.io/blog/2016/08/18/On-Emission</id>
+    <content type="html"><![CDATA[<center>
+ <img src="/images/emission/emission-logo-artsy.svg" style="height:300px;">
+</center>
+
+
+<p>I arrived fashionably late to the <a href="/blog/2016/08/15/React-Native-at-Artsy/">React Native party</a> in Artsy. I had been a part of our <a href="/blog/2016/08/09/the-tech-behind-live-auction-integration/">Auctions Team</a>, where we worked in Swift with <a href="https://cocoapods.org/pods/Interstellar">some light-FRP</a>. We were not affected by the 4 months of simultaneous work on moving to React Native, at all.</p>
+
+<p>It was a quiet revolution. I did not have to install <code>npm</code>, I made zero changes to the code for auctions and the whole app's infrastructure barely changed. Yet we moved to making all new code inside our 3 year old iOS app use React Native. What gives?</p>
+
+<p>Well, first up we weren't planning a re-write, we don't have that kind of luxury and the scope of our app is too big compared to the team working on it. Second, we reused existing dependency infrastructure to support JavaScript based apps. Read on to find out what that looks like.</p>
+
+<!-- more -->
+
+
+<h3>Why we were in a good position to do this</h3>
+
+<p>Let's talk a little about the Artsy flagship app, <a href="https://github.com/artsy/eigen/">Eigen</a>. It's an app that aimed to comprehensively cover the art world. From <a href="https://www.artsy.net/shows">Shows</a> to <a href="https://www.artsy.net/galleries">Galleries</a>, <a href="https://www.artsy.net/art-fairs">Fairs</a> to <a href="https://www.artsy.net/auctions">Auctions</a>, <a href="https://www.artsy.net/institutions">Museums</a> to <a href="https://www.artsy.net/articles">Magazines</a>.</p>
+
+<p>It all looks a bit like this:</p>
+
+<p></div></div><a href='/images/emission/eigen-overview.jpg'><img src="/images/emission/eigen-overview.jpg"></a><div class='meta-container'><header>&nbsp;</header></div><div class='date-container'>&nbsp;</div><div class='content-container'><div class='entry-content'></p>
+
+<p>Our app neatly splits into two areas of view controllers, ones that act as a browser chrome, and individual view controllers that normally map 1:1 to <a href="https://github.com/artsy/eigen/blob/master/Artsy/App/ARSwitchBoard.m#L122">routes</a> on the Artsy website.</p>
+
+<p>For example, the route <code>artsy.net/artwork/glenn-brown-suffer-well</code> maps to the native <code>ARArtworkViewController</code>.</p>
+
+<p></div></div><a href='/images/emission/eigen.svg'><img src="/images/emission/eigen.svg"></a><div class='meta-container'><header>&nbsp;</header></div><div class='date-container'>&nbsp;</div><div class='content-container'><div class='entry-content'></p>
+
+<p>Just as a browser knows very little about the individual content of the pages that it's rendering, the eigen chrome exists <em>relatively</em> independent of the view controllers that are showing.</p>
+
+<p>Each view controller also knows very little about each-other, so actions that trigger a new view controller are generally done by creating a string route and passing it through the routing system. I've wrote about about pattern this in <a href="https://artsy.github.io/blog/2015/08/15/Cocoa-Architecture-Router-Pattern/">Cocoa Architecture: Router Pattern</a>.</p>
+
+<p>Interestingly, if the router cannot route a view controller, it will pass through to a web view. This is why we consider the app a <a href="http://artsy.github.io/blog/2015/08/24/Cocoa-Architecture-Hybrid-Apps/">hybrid app</a>. This pattern means adding new view controllers is extremely easy.</p>
+
+<h3>Introducing Emission</h3>
+
+<p>Emission is what we use to contain all of our React Native components. Our flagship app Eigen, can depend on and use without needing to bother with the implementation details of React Native. At it's core, Emission is:</p>
+
+<ul>
+<li>A node module.</li>
+<li>A CocoaPod.</li>
+<li>An iOS App.</li>
+</ul>
+
+
+<h4>The Node Module</h4>
+
+<p>Emission itself, is a node module. In our case, it is a JavaScript library that exposes 3 JavaScript objects.</p>
+
+<pre><code class="javascript">/* @flow */
+'use strict';
+
+import Containers from './lib/containers';
+import Components from './lib/components';
+import Routes from './lib/relay/routes';
+
+import './lib/relay/config';
+import './lib/app_registry';
+
+export default {
+  Containers,
+  Components,
+  Routes,
+};
+</code></pre>
+
+<p>Another node project can have Emission as a dependency - then can access our <code>Container</code>s, <code>Component</code>s and <code>Route</code>s. A container is a <a href="https://facebook.github.io/relay/docs/api-reference-relay-container.html">Relay container</a>, a component is a <a href="https://facebook.github.io/react/docs/component-api.html">React Component</a> and a Route is a <a href="https://facebook.github.io/relay/docs/guides-routes.html#content">Relay Route</a>.</p>
+
+<p>The thing that's interesting from the integration side, is that each <code>Container</code> is effectively a View Controller that Emission provides to a host application. React Native ignores  the concept of view controllers from the Cocoa world, so we have an <a href="https://github.com/artsy/emission/blob/eb9d0f6ca0edd3eb9f07dd9ff3b8499f095bc45b/Pod/Classes/ViewControllers/ARComponentViewController.m">ARComponentViewController</a> which is subclassed for each exposed <code>Component</code> class.</p>
+
+<h4>The iOS App</h4>
+
+<p>The iOS app acts as a host target for the CocoaPod, and provides an instance of an <a href="https://github.com/artsy/emission/blob/master/Pod/Classes/Core/AREmission.m">AREmission</a> object to the view controllers using React Native. The app is nothing special, it is the default app that is created using <code>pod lib create</code>. We then <a href="https://github.com/artsy/emission/blob/eb9d0f6ca0edd3eb9f07dd9ff3b8499f095bc45b/Example/Podfile">use CocoaPods</a> to bring in React from inside the <code>node_modules/</code> folder the Emission node module creates.</p>
+
+<p>The <code>AREmission</code> instance is the intermediary between the host-app (<a href="https://github.com/artsy/emission/blob/eb9d0f6ca0edd3eb9f07dd9ff3b8499f095bc45b/Example/Emission/AppDelegate.m#L56">The Emission Example app</a>, or <a href="https://github.com/artsy/eigen/blob/41b00f6fe497de9e902315104089370dea417017/Artsy/App/ARAppDelegate%2BEmission.m">Eigen</a>.) It has an API for handling routing, and passing authentication credentials into the React Native world.</p>
+
+<p>We use the example app to do development inside React Native. As of right now, it is simply a tableview that provides a list of view controllers <a href="https://github.com/artsy/emission/blob/eb9d0f6ca0edd3eb9f07dd9ff3b8499f095bc45b/Example/Emission/AppDelegate.m#L159-L169">that represent an exposed Container</a>. Once you are in the right view controller, you can rely on <a href="http://facebook.github.io/react-native/releases/0.31/docs/debugging.html#automatic-reloading">Hot Reloading</a> to simplify your work.</p>
+
+<h4>The Pod</h4>
+
+<p>An important part of working with React Native, is that you can choose to use native code when appropriate. The <a href="https://github.com/artsy/emission/blob/eb9d0f6ca0edd3eb9f07dd9ff3b8499f095bc45b/Emission.podspec">Pod for</a> Emission, created entirely in Objective-C, provides:</p>
+
+<ul>
+<li>Communication between React Native and the host app objects via <a href="https://facebook.github.io/react-native/docs/native-modules-ios.html">native modules</a>.</li>
+<li><code>UIViewController</code> subclasses for Host apps to consume.</li>
+<li>Bridges for existing native views (like our <a href="https://github.com/artsy/extraction/blob/d6a32186f7098eb2ec5d05e2fb5302a8378eff70/Extraction/Classes/ARSwitchView.m">SwitchView</a>) into React Native.</li>
+</ul>
+
+
+<p>The choice of Objective-C is for simplicity, and language stability. Swift is technically an option, but it's not  worth the complications for <a href="https://github.com/artsy/emission/tree/eb9d0f6ca0edd3eb9f07dd9ff3b8499f095bc45b/Pod/Classes">a few simple objects</a>.</p>
+
+<p>In order to share native views with our host app, Eigen, we created a library to just hold the shared UI components, <a href="https://github.com/artsy/extraction">Extraction</a>. These are <a href="https://github.com/artsy/extraction/tree/d6a32186f7098eb2ec5d05e2fb5302a8378eff70/Extraction/Classes">factored out of Eigen</a>, and into a pod. Emission and Eigen have this as a dependency.</p>
+
+<h4>Pod Deployment</h4>
+
+<p>What makes this work well, from the perspective of Eigen is that the React Native comes in atomically. The Podspec <a href="https://github.com/artsy/emission/blob/master/Emission.podspec#L17-L18">references</a> the few native classes, and a single JavaScript file.</p>
+
+<p>This JavaScript file is the bundled version of all our React Native code. It's <a href="https://github.com/artsy/emission/blob/eb9d0f6ca0edd3eb9f07dd9ff3b8499f095bc45b/package.json#L7">updated  by running</a> <code>npm run bundle</code>. This generates both the minified JS, and a source map so that we can transcribe the error reports into the code we write.</p>
+
+<p>Using the CocoaPod, Emission can provide native view controllers that use React Native under the hood. The host app does not need to know the underlying details like <code>npm</code>.</p>
+
+<h3>On Emission</h3>
+
+<p>Whether this is a pattern other apps can follow is hard to say, we were in a great position to do this. Our app has view controllers have very little communication with each other and the host app does not need to bridge large amounts of information.</p>
+
+<p>As ever, our work is open source, and we ensure that anyone can download and run Emission, so if you'd like to understand more, clone <a href="https://github.com/artsy/emission#reactions--emissions">artsy/emission</a> and study the implementation.</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[React Native at Artsy]]></title>
+    <link href="http://artsy.github.io/blog/2016/08/15/React-Native-at-Artsy/"/>
+    <updated>2016-08-15T21:17:00+00:00</updated>
+    <id>http://artsy.github.io/blog/2016/08/15/React-Native-at-Artsy</id>
+    <content type="html"><![CDATA[<center>
+<img src="/images/react-native/artsy_react_logo.svg" style="width:300px;">
+</center>
+
+
+<p>As <a href="https://github.com/artsy/eigen">the Artsy iOS app</a> grew larger, we started hitting pain
+points:</p>
+
+<ul>
+<li>We want to support other future platforms such as Android without creating more teams.</li>
+<li>We want different business teams to work on the app without disrupting each other.</li>
+<li>We want our architecture to evolve in order to increase programmer efficiency.</li>
+</ul>
+
+
+<p>It took us <a href="https://github.com/artsy/mobile/issues/22">about a year</a> to start resolving these issues.
+Ideally, we wanted to find a solution to our architectural issues that would also improve the user
+experience. Notably we wanted more efficient networking, due to mobile device constraints.</p>
+
+<p>It would have been an easy leap to start using Swift and, as a matter of fact, we do use Swift in parts of
+our flagship application and entirely in <a href="http://artsy.github.io/blog/2014/11/13/eidolon-retrospective/">2 other apps</a>.</p>
+
+<p>However, while Swift is a great language, it’s also just that: <em>another</em> language. It does not do much in terms of new
+paradigms that solved our architectural needs, it does not help in terms of cross-platform - as most of our code is
+building views and thus very framework specific, and it did not really offer anything in terms of more efficient network
+data fetching.</p>
+
+<p>We've seen that the web teams integrate React in their projects with really great results. We've been
+<a href="https://github.com/artsy/mobile/issues/22">paying attention</a> to React Native since it came out; the solutions provided
+by the React ecosystem ticked all of our boxes.</p>
+
+<p>Six months ago we took the plunge, and last month we formalized that this is the direction we want to go.</p>
+
+<!-- more -->
+
+
+<h1>Cons</h1>
+
+<p>So you decided to read the full post and the first thing you got confronted with is a list of cons… <em>boo</em>. Let’s just get
+these out of the way first, it will only get better afterwards.</p>
+
+<ul>
+<li><p>Dependencies, dependencies, dependencies, both in libraries and tooling. Once you open this can, you’ll have worms
+<em>everywhere</em> in no time; 593 packages to be exactly, at the time of writing, for a new React Native project. Good luck
+maintaining that.</p>
+
+<p>Having created <a href="https://cocoapods.org">a dependency manager</a>, I’m not afraid of some dependencies and don’t subscribe
+to NIH, but the JavaScript community has gone <em>way</em> overboard for my taste. If, like me, you subscribe to the idea
+that dependencies are <em>part</em> of your application and you want to be able to know what packages are being pulled in so
+you can maintain them, then you probably won’t like this aspect very much either.</p>
+
+<p>I’m not quite sure yet how I feel about this in the long run and what we can do about it, short of trying to get the
+maintainers of the packages we directly depend on to accept changes that simplify their dependency graphs.</p></li>
+<li><p>As is often the case, error reporting does not always receive the attention it should get. With the amount of tools
+and libs that make up the full stack you need to work with, this lack in attention to failure resolution can quickly
+cascade into deep rabbit holes.</p></li>
+<li><p>React Native is still very young and fast moving. If you don’t like living on the edge (i.e. lots of updating and
+dealing with breaking changes) nor have an interest in shaping an unfinished framework, this currently is not for you.</p></li>
+<li><p>All Facebook open-source code is made to solve the problems that Facebook has first, thus with young projects you may
+well need to put in a bunch of time to make it work for your problem set. React Native provides a lot of basic view
+building blocks, but you do lose a lot that you would get with UIKit for free, e.g. <code>UICollectionView</code>.</p>
+
+<p>However, it is important to note that this is only a heads-up for those that might think they can solve any problem
+out-of-the-box; in terms of open-source code I prefer code used in production over other code <em>any</em> day.</p></li>
+<li><p>There are currently many more people trying to get help, with often arguably simple questions in the context of iOS
+development, compared to those willing to spend time on answering questions. Most forums I’ve seen suffer from the
+tragedy of the commons problem, which can be a real problem if you have incidental framework specific questions, but
+jumping to React-Native probably is a complete disaster if you know very little about iOS development yet.</p>
+
+<p>If you’re not already knowledgable about iOS development, are not motivated to put in the time to learn about the
+platform specific details, and think making rich iOS applications with React Native will be a breeze, you’ll
+<a href="http://www.dwotd.nl/2008/06/443-van-een-kouwe-kermis-thuiskomen.html">come home from a very cold fair</a> indeed.</p>
+
+<p>While you can definitely make applications that way, in my experience those often end up not feeling like proper
+citizens of the platform they inhibit.</p></li>
+<li><p>Due to React Natives immaturity, you will not be able to find nuanced post-mortems on the subject. The project
+is only at the beginning of the <a href="https://en.wikipedia.org/wiki/Hype_cycle">hype cycle</a>, meaning there is a lot
+to gain in writing about how great it is, but less incentive to discuss where it doesn't work out well.</p></li>
+</ul>
+
+
+<h1>Pros, why we wanted to use React Native</h1>
+
+<ul>
+<li><p>From <a href="https://facebook.github.io/react/">the React website</a>:</p>
+
+<blockquote><p>React will efficiently update and render just the right components when your data changes.
+Build encapsulated components that manage their own state, then compose them to make complex UIs.</p></blockquote>
+
+<p>The functional model that React introduces that allows you to reason about the state of your views in much simpler
+ways has for us been a welcome change that should make it much easier to write decoupled code going forward.</p>
+
+<p>I’m by no means a functional programming purist, nor do I really care for being one. I found the React/React Native
+communities to be very welcome to functional enthusiasts and pragmatists alike, a healthy mix that I find leads to
+more productive outcomes.</p></li>
+<li><p>Relay. From <a href="https://facebook.github.io/relay/">its website</a>:</p>
+
+<blockquote><p>Queries live next to the views that rely on them, so you can easily reason about your app.
+Relay aggregates queries into efficient network requests to fetch only what you need.</p></blockquote>
+
+<p>The clarity this brings to the view codebase - coupled with its smart caching, networking is just ground-breaking.
+No more multiple levels of model code in your application that you need to trace, just a single file with
+<a href="https://github.com/artsy/emission/blob/a2e4dbdb/lib/components/artist/header.js#L87">the view component</a> <em>and</em>
+<a href="https://github.com/artsy/emission/blob/a2e4dbdb/lib/components/artist/header.js#L143-L144">the data it needs</a>. Neat.</p>
+
+<p>We do still have ‘view models’, however, those now pretty much all live in
+<a href="http://artsy.github.io/blog/2016/06/19/graphql-for-mobile/">our GraphQL service</a>. The added benefit here is that we
+share that model logic with Artsy’s other (web) clients.</p></li>
+<li><p>“Learn once, write anywhere.” is the neo-cross-platform slogan deployed by React, which is a play on the tried
+“Write once, run anywhere.” slogan of yesteryear. The difference being that you can use the same paradigms to create
+products on various platforms, rather than pure code-reuse.</p>
+
+<p>While we haven’t put this to the test yet at Artsy, we do plan to team up people across platforms to implement single
+features on each respective platform, rather than having multiple people implement the same feature <em>on their own</em>.
+The hope is that this will lead to better understanding of features and thus the implementations thereof, while still
+taking each platform’s unique nature into account. The added benefit would be that people learn to understand and
+appreciate those unique platform traits, thus making them more well-rounded engineers.</p>
+
+<p>In the long run, we hope to extend this way of working as we start work on a React Native Android client.</p></li>
+<li><p>While Auto Layout is a great step up from manual frame calculation, most of our views don’t need the granularity that
+Auto Layout offers. React Native ditches Auto Layout and instead uses
+<a href="https://en.wikipedia.org/wiki/CSS_Flex_Box_Layout">flexbox</a> for its layout. While my head has never been able to
+fully wrap around classic CSS, I find that flexbox is an abstraction that nicely fits most of our needs.</p>
+
+<p>I can definitely imagine situations in which more granularity would be required, however, in those cases we can always
+decide to ‘drop down’ to native view code, so I don’t really worry too much about that.</p></li>
+<li><p>Layout calculations are performed on a background thread, the so-called ‘shadow’ thread. This can make a big
+difference when e.g. scrolling through a large complex list view.</p>
+
+<p>Granted, you <em>can</em> do this with <code>UIView</code>, but the pattern is not as ingrained in UIKit thus usually leading to more holistic
+replacements such as <a href="http://asyncdisplaykit.org">AsyncDisplayKit</a>.</p></li>
+<li><p>Great separation of declarative view layout (JS, single-threaded) and technical details (native code, multi-threaded).
+Because of the hard constraint of having a JS/native bridge, there really is no way to take shortcuts (e.g. spaghetti
+code) that in the long run would only lead to technical debt. Constraints are great.</p></li>
+<li><p>Because there’s very little code that needs to be compiled and how the isolated component nature of React makes it
+it very easy to reload code in-process, development velocity lies much higher than with your typical native UIKit-based
+development.</p></li>
+<li><p>While, as mentioned above, there are definitely issues with the tooling and libs, on the flip-side it is all
+open-source software and you <em>can</em> (officially) dive in and figure it out, unlike e.g. Xcode and UIKit. (Granted, you
+still need to deal with these when using React Native, but it can be kept to a minimal surface.)</p></li>
+<li><p>Because React Native is still young, fast moving, and open-source, this is a great time to help shape the framework
+you’d <em>want</em> to use.</p></li>
+</ul>
+
+
+<h1>Things we learned</h1>
+
+<ul>
+<li><p>When we started out with React Native, I didn't want to have to re-write our application in order to take advantage of
+the technology. To address this I worked within our existing application structure. We consider the App to
+<a href="https://artsy.github.io/blog/2015/08/24/Cocoa-Architecture-Hybrid-Apps/">be a browser</a> of native and web view controllers. So,
+we added routes <a href="http://artsy.github.io/blog/2015/08/19/Cocoa-Architecture-Switchboard-Pattern/">to our SwitchBoard</a> for
+view controllers which are created in React Native. To the rest of the app, there is no difference between a Swift view controller,
+or one with React Native inside.</p></li>
+<li><p>All of the React Native code is kept in a completely separate repo, <a href="https://github.com/artsy/emission">Emission</a>, which
+when deployed generates a minified version of the JavaScript. This means to build the Artsy iOS app you do not need to have
+a JavaScript development environment.</p></li>
+<li><p>We reused a lot of our existing native views, starting with loading indicators and native switch views.</p></li>
+<li><p>We used new native classes to improve integration, for example the <code>&lt;OpaqueImageView&gt;</code>
+<a href="https://github.com/artsy/emission/blob/master/lib/components/opaque_image_view.js">component</a> is a
+<a href="https://github.com/artsy/emission/tree/master/Pod/Classes/OpaqueImageViewComponent">native</a> <code>UIImageView</code>
+subclass that works with our application-wide <a href="https://cocoapods.org/pods/SDWebImage">SDWebImage</a> image cache.</p></li>
+</ul>
+
+
+<h1>Conclusion</h1>
+
+<p>To really shine with React Native, you need native experience. JavaScript has not eaten everything yet. However,
+you don't need a team of native experts. For example, we expect to be able to get quite far with Android support based on
+our work in React Native, but to make it amazing, we will need someone with history and context in the space.</p>
+
+<p>This frees up our engineers to widen their <a href="https://artsy.github.io/blog/2016/01/30/iOS-Junior-Interviews/">T-shaped skills</a>,
+and to help remove the idea that the mobile team has to be a completely separate team with foreign tools and ideas.</p>
+
+<p>This is only the tip of the iceberg for our writings about React Native. Follow <a href="https://twitter.com/ArtsyOpenSource">@ArtsyOpenSource</a>
+to stay up to date.</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Depedency Injection in Swift]]></title>
@@ -419,205 +717,6 @@ extension TableViewMethods: UITableViewDelegate, UITableViewDataSource {
 <hr />
 
 <p>GraphQL is having a massive impact in the way that we write our apps. It means we can make much faster mobile apps, as the network is our critical path. Faster apps means happier users, happier users means happier developers. I want to be happy. So I'm thankful that the <a href="https://github.com/artsy/metaphysics/graphs/contributors">Web practice</a> gave GraphQL a try, and <a href="https://github.com/artsy/metaphysics/pull/243">welcome'd</a> <a href="https://github.com/artsy/metaphysics/pull/313">us</a> <a href="https://github.com/artsy/metaphysics/pull/226">to</a> <a href="https://github.com/artsy/metaphysics/pull/302">the</a> <a href="https://github.com/artsy/metaphysics/issues/2">party</a>.</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Cocoa Architecture: Dropped Design Patterns]]></title>
-    <link href="http://artsy.github.io/blog/2015/09/01/Cocoa-Architecture-Dropped-Design-Patterns/"/>
-    <updated>2015-09-01T00:00:00+00:00</updated>
-    <id>http://artsy.github.io/blog/2015/09/01/Cocoa-Architecture-Dropped-Design-Patterns</id>
-    <content type="html"><![CDATA[<p>As a part of going through the design patterns we've found in the creation of the Artsy iOS apps, I'd like to talk a bit about some of the patterns that we've had and migrated away from. This is not 100% comprehensive, as there has been a lot of time, and a lot of people involved. Instead I'm going to try and give a birds eye view, and zoom in on some things that feel more important overall.</p>
-
-<p>It's important to preface that I don't believe in perfect code, or am I a fan of big re-writes. We can spot a bad pattern, but not do anything about it. We do have apps to ship, not a codebase to make perfect for the sake of technical purity.</p>
-
-<!-- more -->
-
-
-<hr />
-
-<h2>NSNotifications as a decoupling method</h2>
-
-<p>A lot of the initial codebase for Energy relied on using NSNotifications as a way of passing messages throughout the application. There were notifications for user settings changes, download status updates, anything related to authentication and the corresponding different error states and a few app features. These relied on sending global notifications with very little attempts at scoping the relationship between objects.</p>
-
-<p>NSNotificationCenter notifications are an implementation of the <a href="https://en.wikipedia.org/wiki/Observer_pattern">Observer Pattern</a> in Cocoa. They are a beginner to intermediate programmer's design paradigm dream. It offers a way to have objects send messages to each other without having to go through any real coupling. As someone just starting with writing apps for iOS, it was an easy choice to adapt.</p>
-
-<p>One of the biggest downsides of using NSNotifications are that they make it easy to be lazy as a programmer. It allows you to not think carefully about the relationships between your objects and instead to pretend that they are loosely coupled, when instead they are coupled but via stringly typed notifications.</p>
-
-<p>Loose-coupling can have it's place but without being careful there is no scope on what could be listening to any notification. Also de-registering for interest can be a tricky thing <a href="http://stackoverflow.com/questions/tagged/nsnotification">to learn</a> and the default memory-management behavior is about to change ( <a href="https://developer.apple.com/library/prerelease/mac/releasenotes/Foundation/RN-Foundation/index.html#//apple_ref/doc/uid/TP30000742">for the better</a>.)</p>
-
-<p>We still have a <a href="https://github.com/artsy/energy/blob/702036664a087db218d3aece8ddddb2441f931c8/Classes/Constants/ARNotifications.h">lot of notifications</a> in Energy, however in Eigen and Eidolon there are next to none. We don't even have a specific file for the constants.</p>
-
-<h2>#define kARConstant</h2>
-
-<p>Not much to say here, using <code>#defines</code> as constants was definitely <a href="https://github.com/adium/adium/blob/master/Source/AdiumAccounts.m#L24-L30">in favour</a> when I learned Objective-C. Likely a throw back from C. Using <code>#defines</code> as constants would not use on-device memory to store an unchanging value. This is because a <code>#define</code> uses the pre-compiler to directly change the source code to be the value, whereas using a static constant takes up memory space on the device, which we used to <em>really</em> care about. It's likely that a modern copy of LLVM doesn't assign on device memory unless it needs to, especially for things marked <code>const</code>. Switching to real variables means you can inspect and use in a debugger and use can rely on the type system better.</p>
-
-<p>What this means in practice is what when we would have had something <a href="https://github.com/artsy/eigen/blob/master/Artsy/Views/Table_View_Cells/AdminTableView/ARAnimatedTickView.m#L3">like</a>: <code>#define TICK_DIMENSION 32</code> it should be <a href="https://github.com/artsy/eigen/blob/master/Artsy/View_Controllers/App_Navigation/ARAppSearchViewController.m#L11">migrated to</a> <code>static const NSInteger ARTickViewDimensionSize = 20;</code>.</p>
-
-<h2>Sprinkling Analytics</h2>
-
-<p>We took some of the ideas for <a href="http://albertodebortoli.github.io/blog/2014/03/25/an-aspect-oriented-approach-programming-to-ios-analytics/">Aspect oriented programming</a> with <a href="https://cocoapods.org/pods/ARAnalytics#user-content-aspect-oriented-dsl">Analytics</a>.</p>
-
-<p>Where we used to <a href="https://github.com/artsy/energy/blob/master/Classes/Controllers/Popovers/Add%20to%20Album/ARAddToAlbumViewController.m#L271-L282">have this</a>:</p>
-
-<pre><code class="objc">@implementation ARAddToAlbumViewController
-
-- (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath
-{
-    if (indexPath.row &lt; [self.albums count]) {
-        Album *selectedAlbum = ((Album *)self.albums[indexPath.row]);
-        ARTickedTableViewCell *cell = (ARTickedTableViewCell *)[self.tableView cellForRowAtIndexPath:indexPath];
-
-        if ([cell isSelected]) {
-            [ARAnalytics event:ARRemoveFromAlbumEvent withProperties:@{
-                @"artworks" : @(self.artworks.count),
-                @"from" : [ARNavigationController pageID]
-            }];
-            [...]
-</code></pre>
-
-<p>We would instead build something <a href="https://github.com/artsy/eigen/blob/master/Artsy/App/ARAppDelegate+Analytics.m#L69">like this</a>:</p>
-
-<pre><code class="objc">@implementation ARAppDelegate (Analytics)
-
-- (void)setupAnalytics
-{
-    ArtsyKeys *keys = [[ArtsyKeys alloc] init];
-    [...]
-    [ARAnalytics setupWithAnalytics: @{ [...] } configuration:
-    @{
-        ARAnalyticsTrackedEvents:
-            @[
-                @{
-                    ARAnalyticsClass: ARAddToAlbumViewController.class,
-                    ARAnalyticsDetails: @[
-                        @{
-                            ARAnalyticsEventName: ARRemoveFromAlbumEvent,
-                            ARAnalyticsSelectorName: NSStringFromSelector(@selector(tableView: didSelectRowAtIndexPath:)),
-                            ARAnalyticsProperties: ^NSDictionary*(ARAddToAlbumViewController *controller, NSArray *_) {
-                                return @{
-                                    @"artworks" : @(controller.artworks.count),
-                                    @"from" : [ARNavigationController pageID],
-                                };
-                        },
-                        [...]
-                    ]
-                },
-                [...]
-</code></pre>
-
-<p>This gives us the ability to not sprinkle analytics code around the app in every file. It keeps the responsibilities of objects simpler and we've been happy with it in Eigen. We've not migrated it into Energy, its dependency on ReactiveCocoa brings too much additional weight. So far we've been applying analytics inline, Energy has much less need for individual analytics throughout the application. If you want to learn more about this pattern check out <a href="http://artsy.github.io/blog/2014/08/04/aspect-oriented-programming-and-aranalytics/">Aspect-Oriented Programming and ARAnalytics</a>.</p>
-
-<h2>Class Methods as the whole API</h2>
-
-<p>For a very long time, I preferred aesthetics of class based APIs. E.g. using only class methods instead instance methods. I think I still do. However, once you start adding tests to a project then they become a bit of a problem.</p>
-
-<p>I'm a big fan of the idea of Dependency Injection within tests. This, roughly <em>TL:DR'd</em>, means passing in any additional context, instead of an object finding the context itself. A common case is a call to <code>NSUserDefaults</code>. It's very likely <em>not</em> the role of your class to know which <code>NSUserDefault</code>s object you're working with, but it's likely that you're making that decision in the method by doing something like <code>[[NSUserDefaults standardUserDefaults] setObject:reminderID forKey:@"ARReminderID"];</code>. Using dependency injection would be allowing that object to come from outside that method. If you're interested in a longer and better, explanation, read this great <a href="https://www.objc.io/issues/15-testing/dependency-injection/">objc.io</a> by <a href="http://qualitycoding.org/about/">Jon Reid</a>.</p>
-
-<p>The problem with a class based API, is that it becomes difficult to inject that object. This doesn't flow well with writing simple, fast tests. You can use a mocking library to fake the class API, but that feels weird. Mocking should be used for things you don't control. You control the object if you're making the API. Having an instance'd object means being able to provide different versions with different behaviors or values, even better if you can reduce the behavior to <a href="https://github.com/artsy/eigen/blob/e19ac594bf6240d076e8092d9c56e9876c94444e/Artsy/Networking/Network_Models/ARArtistNetworkModel.h">a protocol</a>.</p>
-
-<h2>Objects Sneakily Networking</h2>
-
-<p>When you have a complicated application, there can be a lot of places you can perform networking. We've had it in models, view controllers and views. Basically throwing the idea of purity in MVC out of the system. We started to recognise a pattern in eigen, we were not doing a good job of keeping our networking well abstracted. If you want to see the full story check out the <a href="https://github.com/Moya/Moya">moya/Moya README</a>.</p>
-
-<p>One attempt to at trying to fix this pattern by creating a different type of networking client I've just referenced, <a href="https://github.com/Moya/Moya">Moya</a>.</p>
-
-<p>The other was to abstract any networking performed into a separate object. If you've heard of Model-View-ViewModel (<a href="http://www.teehanlax.com/blog/model-view-viewmodel-for-ios/">MVVM</a>) then this is a similar premise for networking instead of views. Network Models give us a way to abstract the networking into a set of behaviors. The extra abstraction means that you think "I want the things related to <em>x</em>" instead of "send a GET to address <em>x</em> and turn it into <em>y</em>."</p>
-
-<p>Network models also make it extremely easy to swap behavior out in tests. In eigen, we have our asynchronous networking <a href="https://github.com/artsy/eigen/pull/575">run synchronously in tests</a> but we still use the network models to be able to provide <a href="https://github.com/artsy/eigen/blob/master/Artsy_Tests/View_Controller_Tests/Artist/ARArtistViewControllerTests.m#L29-L40">whatever data we want to expect</a> from the server in our tests.</p>
-
-<h2>Subclassing more than twice</h2>
-
-<p>As projects evolve it can become very easy to subclass <em>x</em> in order to provide a "similar but a little bit different" behavior. Perhaps you need to <a href="https://github.com/artsy/eigen/blob/e19ac594bf6240d076e8092d9c56e9876c94444e/Artsy/View_Controllers/Web_Browsing/ARTopMenuInternalMobileWebViewController.m#L58">override some methods</a>, or add a <a href="https://github.com/artsy/eigen/blob/e19ac594bf6240d076e8092d9c56e9876c94444e/Artsy/View_Controllers/Web_Browsing/AREndOfLineInternalMobileWebViewController.h#L5">specific behavior</a>. Like the <a href="http://ezinearticles.com/?The-Boiled-Frog-Phenomenon&amp;id=932310">urban myth</a> of a frog being slowly boiled, you end up with a difficult to understand codebase as expected behavior mutates depending on how deep the hierarchy goes.</p>
-
-<p>One pattern for handling this is <a href="http://stackoverflow.com/questions/9710411/ios-grasping-composition">class composition</a>. This is the idea that instead of having one object do multiple things, you allow a collection of objects to work together. Providing more space for each object to conform to the Single Responsibility Principle (<a href="https://en.wikipedia.org/wiki/Single_responsibility_principle">SRP</a>.) If you're interested in this, you may also be interested in the <a href="https://developer.apple.com/library/ios/documentation/General/Conceptual/CocoaEncyclopedia/ClassClusters/ClassClusters.html">class clusters</a> pattern.</p>
-
-<p>A good example of this comes <a href="https://github.com/artsy/energy/blob/aa97d90cf37932d4c0f49ea4c4d31f7e491f16a6/Classes/Controllers/Top%20View%20Controller/ARTopViewToolbarController.m">from Energy</a>, our root view controller <code>ARTopViewController</code> used to control its own toolbar items. Over 4 years this became difficult to manage, and a lot of extra code in the view controller. By abstracting out the implementation details of managing the toolbar items into it's <a href="https://github.com/artsy/energy/blob/aa97d90cf37932d4c0f49ea4c4d31f7e491f16a6/Classes/Controllers/Top%20View%20Controller/ARTopViewToolbarController.m">own class</a> we were able to allow the <code>ARTopViewController</code> to state what it wanted by not how it was done.</p>
-
-<h2>Configuration Classes over Inter-Class Communication</h2>
-
-<p>A one of the most important aspects of Energy is to <a href="http://folio.artsy.net">email artworks</a>. So there is a lot of code around configuring the email you want to send, and then generating HTML from those settings. This started out pretty simple as we had very few app-wide settings. Over time, deciding what we need to show in terms of settings and how they affected the email became very complicated.</p>
-
-<p>The part that eventually became a strong enough code-smell to warrant a re-write was the view controller which allowed a partner to choose what information to send would pass details individually to an object that would generate the HTML. I found it difficult to write simple tests for the class' behavior. Initially I would mock the email composer, then inspect the methods that were called. This felt wrong, as you shouldn't really be mocking classes you own. Given the importance of the functionality that classes provide our application, ideas on ways to improve the section of code stayed on my mind for a long time.</p>
-
-<p>The fix came to me during Justin Searls' talk <a href="https://speakerdeck.com/searls/sometimes-a-controller-is-just-a-controller">Sometimes a Controller is Just a Controller</a> - specifically slide <a href="https://speakerdeck.com/searls/sometimes-a-controller-is-just-a-controller?slide=55">55</a>. Justin talks about objects that <em>either hold and describe a value or perform useful behavior, never both</em>.</p>
-
-<p>I took this advice and re-evaluated the relationship between settings view controller and composer object. Before the change, the settings view controller would configure the composer directly. Now, the settings view controller creates a configuration object and the composer consumes it. This made it <em>significantly</em> easier to write tests for both objects, as they have very obvious inputs and outputs in the form of a <a href="https://github.com/artsy/energy/blob/aa97d90cf37932d4c0f49ea4c4d31f7e491f16a6/Classes/Util/Emails/AREmailSettings.h">AREmailSettings</a>. The <a href="https://github.com/artsy/energy/blob/aa97d90cf37932d4c0f49ea4c4d31f7e491f16a6/ArtsyFolio%20Tests/Util/AREmailComposerTests.m">AREmailComposerTests</a> in particular become much more elegant.</p>
-
-<h3>Direct use of Responder Chain</h3>
-
-<p>Before I worked at Artsy, I was a <a href="http://i.imgur.com/Am9LjED.gif">Mac developer</a>, I've been doing that since before iOS existed, so this influences my code style. One of the great parts of the Cocoa toolchain is the <a href="https://developer.apple.com/library/ios/documentation/EventHandling/Conceptual/EventHandlingiPhoneOS/event_delivery_responder_chain/event_delivery_responder_chain.html">responder chain</a>, a well documented way of passing methods up a known chain of objects. It solves a common problem with complicated view structures. You could have a button that is generated at runtime deep inside a view hierarchy and you would like the view controller to handle it being tapped. You could use a long chain of delegate methods, or use a <a href="https://twitter.com/unimp0rtanttech/status/555828778015129600">private method</a> to get the reference to the view controller instance. On the Mac usage of the responder chain is a common pattern, on iOS it is used rarely.</p>
-
-<p>We have this problem with our Artwork view controller in Eigen. There are buttons that are many <a href="https://speakerdeck.com/orta/ios-at-artsy?slide=38">stack views deep</a> that need to pass a message back to the view controller. When we first hit this the issue I immediately used the responder chain, you write a <a href="https://github.com/artsy/eigen/blob/e19ac594bf6240d076e8092d9c56e9876c94444e/Artsy/Views/Artwork/ARArtworkActionsView.m#L85">line of code</a> like: <code>[bidButton addTarget:self action:@selector(tappedBidButton:) forControlEvents:UIControlEventTouchUpInside];</code> where the <code>self</code> is referring to the view. This would send the message <code>tappedBidButton:</code> up the responder chain where it is reacted upon by the <a href="https://github.com/artsy/eigen/blob/e19ac594bf6240d076e8092d9c56e9876c94444e/Artsy/View_Controllers/Artwork/ARArtworkViewController+ButtonActions.m#L114">ARArtworkViewController</a>.</p>
-
-<p>I had to explain the premise of the responder chain to almost everyone touching this area of the code base. This is great in terms of the <a href="https://xkcd.com/1053/">"lucky 10,000"</a> but  means that the pattern is unintuitive to those who have not previously heard of it. There was one more issue, the lack of coupling means that renaming selectors via refactoring can break the chain.</p>
-
-<p>The way that we reduced the cognitive load was via a protocol, all of the actions that the responder chain will use are mapped inside <a href="https://github.com/artsy/eigen/blob/e19ac594bf6240d076e8092d9c56e9876c94444e/Artsy/Views/Artwork/ARArtworkActionsView.h#L10-L20">ARArtworkActionsViewButtonDelegate</a>-like protocols. It's a bit of a white-lie given that there is no direct relationship using the protocol in the app, but it makes the relationship more obvious. We use a class extension that <a href="https://github.com/artsy/eigen/blob/e19ac594bf6240d076e8092d9c56e9876c94444e/Artsy/View_Controllers/Artwork/ARArtworkViewController+ButtonActions.h#L11">conforms to these types of protocols</a> to keep the actions all kept in one place.</p>
-
-<h3>Wrap-up</h3>
-
-<p>There are many design patterns, and they all come with trade-offs. Over time, our opinions on what is "good code" changes, this is great. It's important that as developers we understand that being able to change our minds is one of the most vital skills we have in our toolchain. This means being open to opinions outside of your usual sphere of influence and to maybe bring some good ideas from them. It's great to be passionate about an aspect of how we craft applications, but from my perspective, the best programmers choose pragmatism over idealism.</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Cocoa Architecture: Hybrid Apps]]></title>
-    <link href="http://artsy.github.io/blog/2015/08/24/Cocoa-Architecture-Hybrid-Apps/"/>
-    <updated>2015-08-24T00:00:00+00:00</updated>
-    <id>http://artsy.github.io/blog/2015/08/24/Cocoa-Architecture-Hybrid-Apps</id>
-    <content type="html"><![CDATA[<p>As a part of going through the design patterns we've found in the creation of the Artsy iOS apps, I'd like to talk a bit about <em>Hybrid Applications</em>. A hybrid application refers to an app that uses native code and web content intertwined. Our flagship iOS app, <a href="https://github.com/artsy/eigen">eigen</a> is a hybrid app, and it seems to get more and more hybrid-y each release. Let's talk a little bit about the pros and cons of this approach.</p>
-
-<!-- more -->
-
-
-<hr />
-
-<h1>What is a Hybrid App</h1>
-
-<p>Above is the widest possible definition above, so let's dig in as this can be a contentious. There is a whole spectrum of which an app can be classed as a hybrid app. This ranges from more or less web-tech everywhere to 100% native code like Objective-C / Swift.</p>
-
-<p>A great example of the furthest to the web-side is <a href="https://atom.io">ATOM</a>, the text editor. It's on the extreme side because all of the user interface is built using HTML + CSS, and almost all of the app is in javascript. The trade-off for them is that their developers can easy write cross-platform code, that will work reliably with technology that the vast majority of programmers use. This vastly reduces the barrier to entry for contributors and gives ATOM a really large community of programmers to draw from with respect to extending the app.</p>
-
-<p>An example of a purely native application would be <a href="https://github.com/artsy/energy/">Energy</a>. It's over a hundred thousand plus lines of Objective-C. Yet under the hood, there's definitely some web-tech there. Prior to iOS7 <code>UILabel</code>s, <code>UITextField</code>s and <code>UITextField</code>s <a href="http://www.objc.io/issues/5-ios7/getting-to-know-textkit/">used WebKit for rendering</a>. Not to mention that when a Partner sends an email via Energy, the editor is a <code>UIWebView</code>. However, from the app developer's perspective they are creating native interactions that are consistent with the rest of the operating system's behavior.</p>
-
-<h1>Eigen</h1>
-
-<p>When we started building Eigen, it was very obvious that we had a Sisyphean task ahead of us. We wanted to take the core ideas of the Artsy website,  <em>The Art World Online</em>, and convert it into mobile, <em>The Art World in Your Pocket</em>.</p>
-
-<p>That's not impossible, but the mobile team was a fraction of the Artsy development team. Any new features added to the website would need a mobile equivalent, and given the speed in which web developer's can ship, we'd need to outnumber them to stand a chance at keeping up.</p>
-
-<p>So, we opted for building a highly integrated mobile website at the same time, it would use the same design language as the iOS app and can act as a way for Android devices to access Artsy.</p>
-
-<h1>Techniques for Doing It Well</h1>
-
-<p>So we'll be talking about our <a href="https://github.com/artsy/eigen/blob/6bb44a01c1b23fb8e92c645c3091fd33725743c3/Artsy/View_Controllers/Web_Browsing/ARInternalMobileWebViewController.m">ARInteralMobileViewController</a> - which currently relies on <code>UIWebView</code> but is in <a href="https://github.com/artsy/eigen/pull/606">the process of</a> migrating to <code>WKWebkit</code>.</p>
-
-<ul>
-<li><p>Scroll like an <a href="https://github.com/artsy/eigen/blob/6bb44a01c1b23fb8e92c645c3091fd33725743c3/Artsy/View_Controllers/Web_Browsing/ARExternalWebBrowserViewController.m#L39">iOS app</a> by setting the web view's <code>scrollView.decelerationRate = UIScrollViewDecelerationRateNormal</code>.</p></li>
-<li><p>Use a simple design language to avoid the <a href="http://tvtropes.org/pmwiki/pmwiki.php/Main/UncannyValley">uncanny valley</a>. Care about using the same <a href="https://github.com/artsy/Artsy-UILabels">typographical rules</a> on everything including tabs, buttons and switches.</p></li>
-<li><p>Take over navigation. This means pushing a <a href="https://github.com/artsy/eigen/blob/6bb44a01c1b23fb8e92c645c3091fd33725743c3/Artsy/View_Controllers/Web_Browsing/ARInternalMobileWebViewController.m#L180">new view controller</a> on the navigation stack every time a user intends to change context.</p></li>
-<li><p>Take over common OS features. We take over <a href="https://github.com/artsy/eigen/blob/master/Artsy/View_Controllers/Web_Browsing/ARInternalMobileWebViewController.m#L184-L190">social sharing</a>  instead of letting the web site send you to an external page, offering a native share sheet instead.</p></li>
-</ul>
-
-
-<h1>Downsides</h1>
-
-<p>When you choose developer ease over user experience it's important to take into consideration some of the downsides.</p>
-
-<ul>
-<li><p>Localisation is difficult. Cocoa offers a great localisation APIs. We can't use them, otherwise half of our app is correctly localised and the rest isn't.</p></li>
-<li><p>Conforming to the operating system's Human Interface Guidelines is difficult, as you're relying less on foundations built with this in mind.</p></li>
-<li><p>Web tech is slower, and threading APIs are generally poor. A difficulty here is that you are also complicating the technical stack upon which your app sits above. When relying on web-tech in a Mac app, it's common for that trade-off to show itself in excessive memory usage over time.</p></li>
-</ul>
-
-
-<h1>Evolution</h1>
-
-<p>One of the most interesting developments this year in the Cocoa world is Facebook's <a href="https://cocoapods.org/pods/React">react-native</a>, a bridge between web technology and native code that doesn't rely on using the <a href="http://www.quirksmode.org/dom/intro.html">traditional DOM</a> - freeing it from a lot of the common problems found in highly web-based apps.</p>
-
-<p>We're pretty optimistic about it on the mobile team. We're not quite willing to jump head-first into a <a href="http://artsy.github.io/blog/2014/11/13/eidolon-retrospective/">pre-1.0 technology</a> again, but it shows a lot of promise.</p>
-
-<p>The fact that we were able to ship an app at all was because we could build the parts that meant the most to us native, then rely on web technologies to cover the rest of the ground. By being pragmatic in our approach to using web tech, we have the chance to stand on the shoulders of giants.</p>
 ]]></content>
   </entry>
   
