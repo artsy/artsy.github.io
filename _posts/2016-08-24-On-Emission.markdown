@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "On our implementation of React Native"
-date: 2016-08-18 12:17
+date: 2016-08-24 12:17
 author: orta
 categories: [tooling, mobile, eigen, node, reactnative]
 series: React Native at Artsy
