@@ -11,17 +11,17 @@ series: React Native at Artsy
  <img src="/images/emission/emission-logo-artsy.svg" style="height:300px;">
 </center>
 
-I arrived fashionably late to the React Native party in Artsy. I had been a part of our [Auctions Team][auctions_team], where we worked in Swift with [some light-FRP][interstellar]. We were not affected by the 4 months of simultaneous work on moving to React Native, at all.
+I arrived fashionably late to the [React Native party][architectual] in Artsy. I had been a part of our [Auctions Team][auctions_team], where we worked in Swift with [some light-FRP][interstellar]. We were not affected by the 4 months of simultaneous work on moving to React Native, at all.
 
-It was a quiet revolution. We did not have to install `npm`, made zero changes to the code for auctions and the whole app's infrastructure barely changed. What gives? 
+It was a quiet revolution. I did not have to install `npm`, I made zero changes to the code for auctions and the whole app's infrastructure barely changed. Yet we moved to making all new code inside our 3 year old iOS app use React Native. What gives? 
 
-Well, first up we weren't planning a re-write, we don't have that kind of luxury and the scope of our app is too big compared to the team working on it. Second, we reused existing dependency infrastructure. Read on to find out what that looks like.
+Well, first up we weren't planning a re-write, we don't have that kind of luxury and the scope of our app is too big compared to the team working on it. Second, we reused existing dependency infrastructure to support JavaScript based apps. Read on to find out what that looks like.
 
 <!-- more -->
 
 ### Why we were in a good position to do this
 
-Let's talk a little about the Artsy flagship app, [Eigen][eigen]. It's an app that aimed to comprehensively cover the art world. From [Shows](https://www.artsy.net/shows) to [Galleries](https://www.artsy.net/galleries), [Fairs](https://www.artsy.net/art-fairs), [Auctions](https://www.artsy.net/auctions), [Museums & Institutions](https://www.artsy.net/institutions).  
+Let's talk a little about the Artsy flagship app, [Eigen][eigen]. It's an app that aimed to comprehensively cover the art world. From [Shows](https://www.artsy.net/shows) to [Galleries](https://www.artsy.net/galleries), [Fairs](https://www.artsy.net/art-fairs) to [Auctions](https://www.artsy.net/auctions), [Museums](https://www.artsy.net/institutions) to [Magazines](https://www.artsy.net/articles).
 
 It all looks a bit like this: 
 
@@ -29,19 +29,19 @@ It all looks a bit like this:
 
 Our app neatly splits into two areas of view controllers, ones that act as a browser chrome, and individual view controllers that normally map 1:1 to [routes][ar_router] on the Artsy website. 
 
-For example, `artsy.net/artwork/glenn-brown-suffer-well` maps to the native `ARArtworkViewController`. 
+For example, the route `artsy.net/artwork/glenn-brown-suffer-well` maps to the native `ARArtworkViewController`.
 
 {% expanded_img /images/emission/eigen.svg %}
 
-Just as a browser knows very little about the individual content of the pages that it is rendering, the eigen chrome exists _relatively_ independent of the view controllers that are showing. 
+Just as a browser knows very little about the individual content of the pages that it's rendering, the eigen chrome exists _relatively_ independent of the view controllers that are showing. 
 
-Each view controller also knows very little about each other, so actions that trigger a new view controller are generally done by creating a string route and passing it through the routing system. I've wrote about about this in [Cocoa Architecture: Router Pattern][router_pattern]. 
+Each view controller also knows very little about each-other, so actions that trigger a new view controller are generally done by creating a string route and passing it through the routing system. I've wrote about about pattern this in [Cocoa Architecture: Router Pattern][router_pattern]. 
 
-Interestingly if the router cannot route a view controller, it will pass through to a web view. This is why we consider the app a [hybrid app][hybrid_app]. This system means adding new view controllers is extremely easy.
+Interestingly, if the router cannot route a view controller, it will pass through to a web view. This is why we consider the app a [hybrid app][hybrid_app]. This pattern means adding new view controllers is extremely easy.
 
 ### Introducing Emission
 
-Emission is what we use to contain all of our React Native components. Our flagship app Eigen, can depend on and use without needing to bother with the implmentation details of React Native. At it's core, Emission is:
+Emission is what we use to contain all of our React Native components. Our flagship app Eigen, can depend on and use without needing to bother with the implementation details of React Native. At it's core, Emission is:
 
 - A node module.
 - A CocoaPod.
@@ -71,7 +71,7 @@ export default {
 
 Another node project can have Emission as a dependency - then can access our `Container`s, `Component`s and `Route`s. A container is a [Relay container][relay_cont], a component is a [React Component][react_component] and a Route is a [Relay Route][relay_route].
 
-The thing that's interesting from the integration side, is that each `Container` is effectively a View Controller that Emission provides to a host application. React Native ignores  the concept of View Controllers from the Cocoa world, so we have an [ARComponentViewController][arcomponent] which is subclassed for each exposed `Component` class. 
+The thing that's interesting from the integration side, is that each `Container` is effectively a View Controller that Emission provides to a host application. React Native ignores  the concept of view controllers from the Cocoa world, so we have an [ARComponentViewController][arcomponent] which is subclassed for each exposed `Component` class. 
 
 #### The iOS App
 
@@ -79,13 +79,13 @@ The iOS app acts as a host target for the CocoaPod, and provides an instance of 
 
 The `AREmission` instance is the intermediary between the host-app ([The Emission Example app][example_emission], or [Eigen][eigen_emission].) It has an API for handling routing, and passing authentication credentials into the React Native world.
 
-We use the example app to do development inside React Native. As of right now, it is simply a tableview that provides a list of View Controllers [that represent an exposed Container][app_delegate_cont]. Once you are in the right view controller, you can rely on [Hot Reloading][reloading] to simplify your work.
+We use the example app to do development inside React Native. As of right now, it is simply a tableview that provides a list of view controllers [that represent an exposed Container][app_delegate_cont]. Once you are in the right view controller, you can rely on [Hot Reloading][reloading] to simplify your work.
 
 #### The Pod
 
 An important part of working with React Native, is that you can choose to use native code when appropriate. The [Pod for][podspec] Emission, created entirely in Objective-C, provides:
 
-* Communication between React Native and the host app objects via [native modules][native_modules] 
+* Communication between React Native and the host app objects via [native modules][native_modules].
 * `UIViewController` subclasses for Host apps to consume.
 * Bridges for existing native views (like our [SwitchView][switch_view]) into React Native.
  
@@ -101,9 +101,11 @@ This JavaScript file is the bundled version of all our React Native code. It's [
 
 Using the CocoaPod, Emission can provide native view controllers that use React Native under the hood. The host app does not need to know the underlying details like `npm`.
 
-### Complexity
+### On Emission
 
-The most constant question I am asked, via implication, is "why did we feel the need to rewrite, when Swift exists?" - we've never discussed a re-write for our flagship app, but I don't think it would garner much support. By integrating React Native as a dependency, isolated inside Emission, we could incrementally continue working on our app - while addressing a lot of [our original architectual concerns][architectual].   
+Whether this is a pattern other apps can follow is hard to say, we were in a great position to do this. Our app has view controllers have very little communication with each other and the host app does not need to bridge large amounts of information. 
+
+As ever, our work is open source, and we ensure that anyone can download and run Emission, so if you'd like to understand more, clone [artsy/emission][repo] and study the implementation.   
 
 [auctions_team]: /blog/2016/08/09/the-tech-behind-live-auction-integration/
 [interstellar]: https://cocoapods.org/pods/Interstellar
@@ -131,3 +133,4 @@ The most constant question I am asked, via implication, is "why did we feel the 
 [ar_router]: https://github.com/artsy/eigen/blob/master/Artsy/App/ARSwitchBoard.m#L122
 [switch_view]: https://github.com/artsy/extraction/blob/d6a32186f7098eb2ec5d05e2fb5302a8378eff70/Extraction/Classes/ARSwitchView.m
 [architectual]: /blog/2016/08/15/React-Native-at-Artsy/
+[repo]: https://github.com/artsy/emission#reactions--emissions
