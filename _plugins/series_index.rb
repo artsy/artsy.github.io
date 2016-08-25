@@ -62,10 +62,11 @@ module Jekyll
       series.each do |name|
         safe_name = name.gsub(/_|\P{Word}/, '-').gsub(/-{2,}/, '-').downcase
         path = File.join("series", safe_name)
-        this_series_posts = posts.select { |p| p.data["series"] == name }
+
+        this_series_posts = posts.select { |p| p.data["series"] == name }.sort { |x, y| x.date <=> y.date }
         series_posts[name] = this_series_posts
 
-        authors =  this_series_posts.map { |p| p.data["author"] }.flatten.uniq.map { |key| self.config['authors'][key] }
+        authors = this_series_posts.map { |p| p.data["author"] }.flatten.uniq.map { |key| self.config['authors'][key] }
         write_series_index(path, name, series_posts, authors)
       end
     end
