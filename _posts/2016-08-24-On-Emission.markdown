@@ -35,7 +35,7 @@ For example, the route `artsy.net/artwork/glenn-brown-suffer-well` maps to the n
 
 Just as a browser knows very little about the individual content of the pages that it's rendering, the eigen chrome exists _relatively_ independent of the view controllers that are showing. 
 
-Each view controller also knows very little about each-other, so actions that trigger a new view controller are generally done by creating a string route and passing it through the routing system. I've wrote about about pattern this in [Cocoa Architecture: Router Pattern][router_pattern]. 
+Each view controller also knows very little about each-other, so actions that trigger a new view controller are generally done by creating a string route and passing it through the routing system. I've wrote about this pattern in [Cocoa Architecture: Router Pattern][router_pattern]. 
 
 Interestingly, if the router cannot route a view controller, it will pass through to a web view. This is why we consider the app a [hybrid app][hybrid_app]. This pattern means adding new view controllers is extremely easy.
 
@@ -103,7 +103,7 @@ Using the CocoaPod, Emission can provide native view controllers that use React 
 
 ### On Emission
 
-Whether this is a pattern other apps can follow is hard to say, we were in a great position to do this. Our app has view controllers have very little communication with each other and the host app does not need to bridge large amounts of information. 
+Whether this is a pattern other apps can follow is hard to say, we were in a great position to do this. Our app has view controllers that have very little communication with each other and the host app does not need to bridge large amounts of information. 
 
 As ever, our work is open source, and we ensure that anyone can download and run Emission, so if you'd like to understand more, clone [artsy/emission][repo] and study the implementation.   
 
