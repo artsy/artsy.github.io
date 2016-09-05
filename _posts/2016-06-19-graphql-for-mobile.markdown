@@ -6,7 +6,7 @@ author: orta
 categories: [mobile, graphql, eigen]
 ---
 
-GraphQL is something you may have heard in passing, usually from the web team. It's a Facebook API technology, that describes itself as a _A Data Query Language and Runtime_. GraphQL is a [spec](http://facebook.github.io/graphql/), and there are [multiple implementation](https://github.com/chentsulin/awesome-graphql#libraries) of it. As mobile engineers, we can consider it an API, where the front-end team have as much control as the backend.
+GraphQL is something you may have heard in passing, usually from the web team. It's a Facebook API technology, that describes itself as a _A Data Query Language and Runtime_. GraphQL is a [spec](http://facebook.github.io/graphql/), and there are [multiple implementations](https://github.com/chentsulin/awesome-graphql#libraries) of it. As mobile engineers, we can consider it an API, where the front-end team have as much control as the backend.
 
 This blog post covers our usage of GraphQL, and what I've learned in the last 3 months of using it in [Eigen](https://github.com/artsy/eigen/).
 
