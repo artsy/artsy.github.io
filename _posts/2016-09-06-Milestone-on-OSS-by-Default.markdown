@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Helping the Web Towards OSS by Default"
-date: 2016-08-27 12:17
+date: 2016-09-06 12:17
 author: orta
 categories: [force, node, microgravity, js, JavaScript, web]
 series: Open Source by Default
