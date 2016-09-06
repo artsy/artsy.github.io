@@ -23,7 +23,7 @@ We scoped out what it would require, creating an issue that summerized the work.
 
 {% expanded_img /images/oss-milestone/force-oss.png %}
 
-It had been 9 months since the last commit to the public repo, and so auditing the commits was a matter of investigating into configuration files, and seeing what's changed since the last pubic commit. 
+It had been 9 months since the last commit to the public repo, and so auditing the commits was a matter of investigating into configuration files, and seeing what's changed since the last public commit. 
 
 Next up, we renamed the current `force` repo to `force-private`. This was to keep the old issues and PRs around after we moved to working in the public. With `force` now available we re-named the already public project. 
 
