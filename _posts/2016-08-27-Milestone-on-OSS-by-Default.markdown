@@ -1,25 +1,25 @@
 ---
 layout: post
-title: "Helping the Web towards OSS by Default"
+title: "Helping the Web Towards OSS by Default"
 date: 2016-08-27 12:17
 author: orta
-categories: [force, node, microgravity, js, JavaScript web]
+categories: [force, node, microgravity, js, JavaScript, web]
 series: Open Source by Default
 ---
 
 The main Artsy.net website for the desktop, [Force][force_gh], was our first Artsy application to open it's source code, [Craig][craig] and [Brennan][brennan] did it [back in 2014][force_oss]. Force's public offering laid the groundwork for the iOS OSS projects to come afterwards: [Eidolon][eidolon_oss], [Eigen][eigen_oss], [Energy][energy_oss] and [Emergence][emergence_oss].
 
-Force wasn't quite Open Source by Default though, it represented a _really_ important step for  Artsy's OSS perspective but was not the end goal. We were opening our source, but not opening our process.
+Though Force wasn't quite Open Source by Default, it represented a _really_ important step for  Artsy's OSS perspective but was not the end goal. We were opening our source, but not opening our process.
 
-This month both [Force][force_gh], the desktop version of Artsy.net and [Microgravity][mg_gh], the mobile version - moved to being built entirely in the open. Read on to find out how.
+This month both [Force][force_gh], the desktop version of [Artsy.net][artsy_net] and [Microgravity][mg_gh], the mobile version - moved to being built entirely in the open. Read on to find out how.
 
 <!-- more -->
 
 ## Force
 
-Over the course of the last month, I've sat on and off with Charles "[Cab][cab]" Brokskoski, and figured out what it would take to migrate Force to work in the public. Previous to this, work happened on an a private repo, and we would push that code to the public.
+Over the course of the last month, I've sat on and off with Charles "[Cab][cab]" Brokskoski, and figured out what it would take to migrate Force to work in the public. Previous to this, work happened on a private repo, and we would push that code to the public.
 
-We scoped out what it would require, creating an issue that summerizing the work. Then we waited for 2 weeks, to give people the chance to discuss the idea and to offer examples for why we should delay or not move. 
+We scoped out what it would require, creating an issue that summerizing the work. Then we waited for 2 weeks, to give people the chance to discuss the idea and to offer examples for why we should delay or not move. Not all projects _should_ be OSS, and everyone should have a say when it affects them - giving some time let the team speak their mind. Especially during summer, when people are less active at work.
 
 {% expanded_img /images/oss-milestone/force-oss.png %}
 
@@ -47,7 +47,7 @@ This sets up the environment like we used to have it when force was private.
 
 ### Team
 
-We needed to move all the team members to using the OSS version of our apps. This is a little bit complicated as [we work from forks][forks]. [Roop][roop], an engineer on the web team created a "Force OSS Dance Script" ( sidenote: [his site][roop] is worth a visit, 15 years of interesting maps. )
+We needed to move all the team members to using the OSS version of our apps. This is a little bit complicated as [we work from forks][forks]. [Roop][roop], an engineer on the web team, created a "Force OSS Dance Script" ( sidenote: [his site][roop] is worth a visit, there's 15 years of interesting maps. )
 
 ```sh
 ## RENAME THE OLD REPO
@@ -124,3 +124,4 @@ I love that I got to help make these changes, the web team started the process o
 [eigen_tag]: /blog/2015/04/28/how-we-open-sourced-eigen/
 [ezel]: http://ezeljs.com
 [issue_mover]: https://github-issue-mover.appspot.com
+[artsy_net]: https://www.artsy.net/
