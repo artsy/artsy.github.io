@@ -17,9 +17,9 @@ This month both [Force][force_gh], the desktop version of [Artsy.net][artsy_net]
 
 ## Force
 
-Over the course of the last month, I've sat on and off with Charles "[Cab][cab]" Brokskoski, and figured out what it would take to migrate Force to work in the public. Previous to this, work happened on a private repo, and we would push that code to the public.
+Over the course of the last month, I've sat on and off with Charles "[Cab][cab]" Broskoski, and figured out what it would take to migrate Force to work in the public. Previous to this, work happened on a private repo, and we would push that code to the public.
 
-We scoped out what it would require, creating an issue that summerizing the work. Then we waited for 2 weeks, to give people the chance to discuss the idea and to offer examples for why we should delay or not move. Not all projects _should_ be OSS, and everyone should have a say when it affects them - giving some time let the team speak their mind. Especially during summer, when people are less active at work.
+We scoped out what it would require, creating an issue that summerized the work. Then we waited for 2 weeks, to give people the chance to discuss the idea and to offer examples for why we should delay or not move. Not all projects _should_ be OSS, and everyone should have a say when it affects them - giving some time let the team speak their mind. Especially during summer, when people were less active at work.
 
 {% expanded_img /images/oss-milestone/force-oss.png %}
 
@@ -33,11 +33,11 @@ We then ensured all outstanding PRs were merged or closed, and pushed the commit
 
 To get back up to speed we needed to set up CI, figuring this out took time.
 
-We got testing up and running in no time. However, Force is deployed via [Semaphore CI][semaphore], and to deploy we needed to push compiled assets to S3. To pull that off, we need access to an S3 key, and token. 
+We got testing up and running in no time. However, Force is deployed via [Semaphore CI][semaphore], and to deploy we needed to push compiled assets to S3. To pull that off, we needed access to an S3 key, and token. 
 
-In our iOS projects, [we do not expose environment variables][eidolon_pr] to PRs from forks, so we don't expect them to pass. This is fine because we have [different expectations][oss_expectations] for OSS apps vs libraries. We do this to ensure that we don't receive a PR that adds `printenv` to the CI scripts, exposing our secret keys.
+In our iOS projects, [we do not expose environment variables][eidolon_pr] to PRs from forks, so we don't expect them to pass from external contributors. This is fine, because we have [different expectations][oss_expectations] for OSS apps vs libraries. We do this to ensure that we don't receive a PR that adds `printenv` to the CI scripts, exposing our secret keys.
 
-We couldn't add the keys to our testing environment, instead we added them to our heroku environment. Semaphore sets up our heroku environment during deployment, so during the deployment phase, we can use a line like:
+As we couldn't add the keys to our testing environment, we added them to our heroku environment then took them from that. Semaphore sets up our heroku environment only during deployment, so in the deployment phase, we can use a line like:
 
 ```sh
 export FORCE_S3_KEY=$(heroku config:get FORCE_S3_KEY --app force-production)
@@ -85,7 +85,7 @@ cp ../force-private/node_modules ./ # or just 'npm install' again
 # all good now - both repos on local machine with correct remotes, envs, deps
 ```
 
-For Force, all the same commits existed in both repos, so it would be difficult to push secrets to the open repo by accident. However, you do need to sync up a new version of your fork.
+For Force, all the same commits existed in both repos, so it would be difficult to push secrets to the open repo by accident. However, individuals did to sync up a new version of their forks.
 
 And that, is how we moved force into OSS by Default. :+1: - We'll cover the issues migration later.
 
