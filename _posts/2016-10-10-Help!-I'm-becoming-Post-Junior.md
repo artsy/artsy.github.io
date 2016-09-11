@@ -31,7 +31,7 @@ We measure your career stage by your **impact** at Artsy, this is initially on t
 
 What we’re talking about here is the transition from Engineer 1, to Engineer 2. Here’s our full unabridged description of an Engineer 2.
 
->  ▪	Consistently writes and delivers correct and clean quality code with guidance.
+> ▪	Consistently writes and delivers correct and clean quality code with guidance.
 
 > ▪	Self-sufficient and makes steady progress on tasks.
 
@@ -43,11 +43,11 @@ What we’re talking about here is the transition from Engineer 1, to Engineer 2
 
 > ▪	Provides help and support outside of area under their responsibility.
 
-What can we gleam from this, that we start thinking of ways to improve ourselves as individual contributors?
+What can we gleam from this, so we start thinking of ways to improve ourselves as individual contributors?
 
-## Being Aware of How The Sausage Is Made
+## Increasing your Responsibility with Cross Team Interactions
 
-It’s very unlikely that you are making all of the calls in a product, what is hopefully happening is that your team figures out a plan to ship something in a reasonable timeframe and as a team, you assign each other smaller talks that make that work. 
+It’s very unlikely that you are making all of the calls in a product. What is hopefully happening is that your team figures out a plan to ship something in a reasonable timeframe and as a team you assign each other smaller tasks that make that work.
 
 It’s very likely that as a junior, you will be given the most well-defined small tasks. In OSS we call these the “[easy first steps][2].” tasks that can be done atomically, without requiring more interaction with designers or members of the product team. This is a feature, that eventually turns into a bug. 
 
@@ -55,7 +55,9 @@ When it’s time to divvy up responsibilities, you should consider speaking up a
 
 This could be checking up occasionally with an API team, or leasing with different parts of the business to get confirmation on a specific detail. These kind of skills are not the sort of things you get in a computer science degree, and those without them are in a great place to other skills they’ve learned.
 
-## Shipping 
+It is generally the vagueness that makes the task harder, work your way to making the task clean - then you have a well defined next step. 
+
+## Learn From Your Project's History 
 
 When you work, you’re probably working inside an application that other people have built. They have laid the frameworks down, established the team norms and architectural choices that could have existed for years before you arrived. 
 
@@ -65,11 +67,11 @@ To evolve from just that you need to really understand why these choices were ma
 
 By understanding the history of the choices that you have been living with, you can make better decisions in the future.
 
-## Spit Shine
+## The Bigger Picture
 
 There is no “One True Solution” for anything in programming. You should be wary of anyone that tries to tell you all similar sounding things should be done one way. The things you work on are likely a combination of different patterns that work together to become “an app.”
 
-Understanding your patterns well, and knowing when to apply them will get you far. If you want to go further still, you need to be able to step back from your patterns and try to see larger pictures. A feature that you write this week  _with a little bit more abstraction today_ could make it much easier to write something next week. 
+Understanding your patterns well, and knowing when to apply them will get you far. If you want to go further still, you need to be able to step back from your patterns and try to see larger pictures. A feature that you write this week  _with a little bit more abstraction today_ could make it much easier to write something next week. Writing better abstractions makes it easier for you to become a multiplier for other peoples work.
 
 The hard bit is trying to see what that is. Realistically, this is about understanding where the product is, and what it’s roadmap is for the next few iterations as well as trying to think about abstractions that may not be available inside your project.
 
@@ -93,7 +95,7 @@ You can help your team out by using some of the skills from above.  You can then
 
 If you’ve got this far in the article, it’s very likely you’ve got enough skills to lead workshops internally, and to write blog posts about your experiences to help other developers at your level. For example, this month I’ve ran a workshop on keyboard shortcuts and on learning to program in Swift. Both of them required maybe 2 hours of preparation, and an email or two announcing that it’s happening.
 
-Other options are to give technical talks within your company on specific topics, for example [Licensing for OSS code][11] is a talk I gave internally to Artsy. We now have a weekly team “Lunch & Learn” where we give anyone the chance to talk, or request a talk on a topic. 
+Other options are to give [technical talks](http://artsy.github.io/blog/2016/03/09/public-speaking-part1-is-it-for-me/) within your company on specific topics, for example [Licensing for OSS code][11] is a talk I gave internally to Artsy. We now have a weekly team “Lunch & Learn” where we give anyone the chance to talk, or request a talk on a topic. 
 
 This gives a lot of space for personal growth too, as these are really easy to transition into blog posts and meetup talks.
 
@@ -107,15 +109,17 @@ Side projects give you the chance to test out new ideas in an isolated environme
 
 ## Contributing to Open Source
 
-A lot of people’s work relies on Open Source code, as you are starting to branch out into having a larger impact - perhaps making smaller improvements to the projects you rely on every day could help. This is [how I got started][16] with larger projects in the Open Source world.
+A lot of people’s work relies on Open Source code and as you are starting to branch out into having a larger impact - perhaps making smaller improvements to the projects you rely on every day could help. This is [how I got started][16] working with larger projects in the Open Source world.
 
-Working in these projects exposes you to whole new teams of people with, hopefully, very different perspectives. It will change you, you will change them.
+Interacting in these projects exposes you to whole new teams of people with, hopefully, very different perspectives. It will change you, you will change them.
 
 ## Wrap-up
 
-There is no simple “one-step to increasing your impact” article. Only a collection of ideas that you can re-apply in your own context. 
+This is no simple “one-step to consider yourself post-Junior" article. Only a collection of ideas that you can apply until you feel confident as you find you own ways to help out. As you grow, you grow in many different directions at once - and all of them are valid. 
 
-We use the idea of an engineering ladder as a yardstick to ensure we treat developers fairly at Artsy, different companies will have different ways of measuring impact.
+You can grow by research, practice, doing things outside of work, doing small projects with others in work, experimentation with technology, interacting with more and more people and re-thinking existing approaches. Once you're outside of small feature work - there are so many ways you can contribute.   
+
+We use the idea of an engineering ladder as a yardstick to ensure we treat developers fairly at Artsy. Different companies will have different ways of scoping how you measure up as a programmer. Your company's ladder can help offer direction for what they would love to see.
 
 At the end of the day you’ve got your foundations now, and its time to start thinking about building yourself into a unique programmer and creating your own opinions. There’s never been a better time to start.
 
