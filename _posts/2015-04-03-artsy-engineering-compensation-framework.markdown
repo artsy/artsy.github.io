@@ -5,6 +5,7 @@ date: 2015-04-03
 comments: true
 categories: [Team, Money]
 author: db
+series: Stages of Professional Growth
 ---
 Fair compensation is an important part of cultivating and growing engineers, and determining how much money someone is going to make is often more art than science, especially in young start-ups. We wanted this to be a collaborative process and not an adversarial one, and as our engineering team grew past 20 members it became important to think about compensation more systematically.
 
@@ -14,7 +15,7 @@ In this post I will share our individual contributor engineering ladder and our 
 
 Performance evaluation at Artsy is composed of the *what*, i.e. what you achieve that contributes to your team’s goals and ultimately Artsy goals, and the *how*, i.e. how you act and how those actions  contribute to Artsy’s culture and values. The *what* part for an engineer is expressed in our individual contributor ladder, which describes typical growth from someone who has recently graduated, to an inspiring technologist. There's nothing typical to engineering in our team - we have more art degrees than computer science ones, and I find all our junior engineers incredibly inspiring. This ladder is a benchmark, not a formula - knowing what's typical helps team leads highlight the exceptional achievements and individuals to find themselves in a traditional growth path and figure out what their next step could be. It's also important to note that our ladder recognizes that individual contributors do not need to become team leads to make more money - individual contributors are the most important people at Artsy and there's no ceiling in their career here. We also are working on a company-wide system for team leads, but that's a subject for another post.
 
-We have devised 5 levels, much inspired by the excellent [Rent-the-Runway's Engineering Ladder](http://dresscode.renttherunway.com/blog/ladder). You'll find it at the end of this article.
+We have devised 5 levels, much inspired by the excellent [Rent-the-Runway's Engineering Ladder][1]. You'll find it at the end of this article.
 
 Armed with this list a team lead can have a good 1:1 conversation with a team member about where they are in their career in terms of pure performance, and what areas need be paid attention to in order to grow into the next level. Leads can also compare engineers that don't work on their teams using a consistent vocabulary.
 
@@ -84,3 +85,5 @@ We test our framework when making new offers by asking candidates what their com
 * Creates architecture that enables many potential futures without knowing exactly what the future is.
 * Leads the conversations internally about the direction of major areas of the technology.
 * Identifies technology strategic growth opportunities that enable Artsy to grow as a business.
+
+[1]:	http://dresscode.renttherunway.com/blog/ladder
