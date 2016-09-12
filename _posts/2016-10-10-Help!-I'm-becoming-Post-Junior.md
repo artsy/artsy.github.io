@@ -9,9 +9,9 @@ series: Stages of Professional Growth
 
 I’ve lived in NYC for 2 years now. I’ve been around long enough that some of the people I helped when they started learning have begun to feel like they’re not “Juniors” anymore. 
 
-They have been feeling about feeling confident in your code, your responsibilities at the company and wanting to improve both. It's a feeling that maybe, just maybe, [you're not struggling too much anymore][1].
+They have begun feeling confident in their code, their responsibilities at the company and wanting to improve both. It's a feeling that maybe, just maybe, [you're not struggling to stay afloat anymore][1].
 
-This post aims to be technology-agnostic, and if you sit somewhere at 1.5 -3 years of programming experience ( and most of that as writing production code ) then you’ll probably get something out of it. Though I’ll give some JS and iOS specific tips at the end.
+This post aims to be technology-agnostic, and if you sit somewhere at 1.5 - 3 years of programming experience then you’ll probably get something out of it. On top of that,  I’ll give some pragmatic JS and iOS specific tips at the end.
 
 <!-- more -->
 
