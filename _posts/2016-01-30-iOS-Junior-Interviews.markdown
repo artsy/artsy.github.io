@@ -300,7 +300,7 @@ OK, so you've been given an offer. If it's a startup, you might be offered equit
 
 Ideally you are presented with a great offer, I've never negotiated salary and we don't do it at Artsy as it [introduces bias][51], so I can't offer much there. But I have recieved [some good][52] advice I'll paraphrase.
 
-It's up to you whether to negotiate. In order to negotiate, you need to have an understanding of what people in similar companies/positions are. Ask people in the industry, friends and mentors. Talk in pay-ranges if that's easier. Note: The type of company, it's/your location, benefits, equity and the economy are all things that will move those ranges.
+It's up to you whether to negotiate. In order to negotiate, you need to have an understanding of what people in similar companies/positions are. Ask people in the industry, friends and mentors. Talk in pay-ranges if that's easier. Note: The type of company, its/your location, benefits, equity and the economy are all things that will move those ranges.
 
 ### OK, so, while I have your attention, what else can I recommend?
 
@@ -314,7 +314,9 @@ This article covers [how developers in general use twitter][58] it's an interest
 
 When people say GitHub is your resume, they are right and they are wrong. GitHub can help get you through the door, but you can't rely on that in your interviews. Check out the advice at the [end of this post][60] on how to make your GitHub look good for people looking at whether to interview you.
 
-However you can [distinguish yourself by contributing to Open Source][61]. [Fix READMEs][62], [improve documentation ][63] or [the Pods you use][64]. These slides go [into other ways][65] to contribute."
+However you can [distinguish yourself by contributing to Open Source][61]: [Fix READMEs][62], [improve documentation ][63] or [the Pods you use][64]. These slides go [into other ways][65] to contribute.
+
+The other side of community work is to devote time to helping out on Stack Overflow, follow tags that you know something about, or want to - and try respond to a few.
 
 #### Some links for further reading
 
