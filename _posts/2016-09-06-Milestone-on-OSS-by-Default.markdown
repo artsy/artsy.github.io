@@ -7,7 +7,7 @@ categories: [force, node, microgravity, js, JavaScript, web]
 series: Open Source by Default
 ---
 
-The main Artsy.net website for the desktop, [Force][force_gh], was our first Artsy application to open it's source code, [Craig][craig] and [Brennan][brennan] did it [back in 2014][force_oss]. Force's public offering laid the groundwork for the iOS OSS projects to come afterwards: [Eidolon][eidolon_oss], [Eigen][eigen_oss], [Energy][energy_oss] and [Emergence][emergence_oss].
+The main Artsy.net website for the desktop, [Force][force_gh], was our first Artsy application to open its source code, [Craig][craig] and [Brennan][brennan] did it [back in 2014][force_oss]. Force's public offering laid the groundwork for the iOS OSS projects to come afterwards: [Eidolon][eidolon_oss], [Eigen][eigen_oss], [Energy][energy_oss] and [Emergence][emergence_oss].
 
 Though Force wasn't quite Open Source by Default, it represented a _really_ important step for  Artsy's OSS perspective but was not the end goal. We were opening our source, but not opening our process.
 
@@ -19,13 +19,13 @@ This month both [Force][force_gh], the desktop version of [Artsy.net][artsy_net]
 
 Over the course of the last month, I've sat on and off with Charles "[Cab][cab]" Broskoski, and figured out what it would take to migrate Force to work in the public. Previous to this, work happened on a private repo, and we would push that code to the public.
 
-We scoped out what it would require, creating an issue that summerized the work. Then we waited for 2 weeks, to give people the chance to discuss the idea and to offer examples for why we should delay or not move. Not all projects _should_ be OSS, and everyone should have a say when it affects them - giving some time let the team speak their mind. Especially during summer, when people were less active at work.
+We scoped out what it would require, creating an issue that summarized the work. Then we waited for 2 weeks, to give people the chance to discuss the idea and to offer examples for why we should delay or not move. Not all projects _should_ be OSS, and everyone should have a say when it affects them - giving some time let the team speak their mind. Especially during summer, when people were less active at work.
 
 {% expanded_img /images/oss-milestone/force-oss.png %}
 
-It had been 9 months since the last commit to the public repo, and so auditing the commits was a matter of investigating into configuration files, and seeing what's changed since the last public commit. 
+It had been 9 months since the last commit to the public repo, and so auditing the commits was a matter of investigating into configuration files, and seeing what's changed since the last public commit.
 
-Next up, we renamed the current `force` repo to `force-private`. This was to keep the old issues and PRs around after we moved to working in the public. With `force` now available we re-named the already public project. 
+Next up, we renamed the current `force` repo to `force-private`. This was to keep the old issues and PRs around after we moved to working in the public. With `force` now available we re-named the already public project.
 
 We then ensured all outstanding PRs were merged or closed, and pushed the commits from `force-private` to the now OSS `force`.
 
@@ -33,7 +33,7 @@ We then ensured all outstanding PRs were merged or closed, and pushed the commit
 
 To get back up to speed we needed to set up CI, figuring this out took time.
 
-We got testing up and running in no time. However, Force is deployed via [Semaphore CI][semaphore], and to deploy we needed to push compiled assets to S3. To pull that off, we needed access to an S3 key, and token. 
+We got testing up and running in no time. However, Force is deployed via [Semaphore CI][semaphore], and to deploy we needed to push compiled assets to S3. To pull that off, we needed access to an S3 key, and token.
 
 In our iOS projects, [we do not expose environment variables][eidolon_pr] to PRs from forks, so we don't expect them to pass from external contributors. This is fine, because we have [different expectations][oss_expectations] for OSS apps vs libraries. We do this to ensure that we don't receive a PR that adds `printenv` to the CI scripts, exposing our secret keys.
 
@@ -43,7 +43,7 @@ As we couldn't add the keys to our testing environment, we added them to our her
 export FORCE_S3_KEY=$(heroku config:get FORCE_S3_KEY --app force-production)
 ```
 
-This sets up the environment like we used to have it when force was private. 
+This sets up the environment like we used to have it when force was private.
 
 ### Team
 
@@ -95,7 +95,7 @@ I have a lot of love for Microgravity. It's the web project that made [Eigen][ei
 
 {% expanded_img /images/oss-milestone/micrograv-oss.png %}
 
-It is no surprise to find a lot of overlap, both projects are based on the same foundations: [Ezel.js][ezel]. 
+It is no surprise to find a lot of overlap, both projects are based on the same foundations: [Ezel.js][ezel].
 
 We didn't trust the commit history for microgravity, so we nuked it. Same as our native OSS apps.
 
