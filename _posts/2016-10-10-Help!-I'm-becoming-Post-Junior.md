@@ -87,6 +87,8 @@ This leads to an interesting problem, how do you learn new architectural pattens
 
 You can use this knowledge to start offering useful advice that can start to influence your team, for example could be in the form of trying few new idea and offering feedback on their tradeoffs.
 
+As this is useful to both you and your employer, you should consider talking to your manager about booking time in your work calendar for doing 30 minutes of career development once a week studying topics like these.
+
 ## Helping others
 
 You can help your team out by using some of the skills from above.  You can then start thinking of expanding your influence within the company. By being a programmer you already have skills that a lot of people would like to learn or have a better working knowledge of it.
