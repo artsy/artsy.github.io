@@ -111,6 +111,16 @@ A lot of people’s work relies on Open Source code and as you are starting to b
 
 Interacting in these projects exposes you to whole new teams of people with, hopefully, very different perspectives. It will change you, you will change them.
 
+## Moving On
+
+This is a [complicated topic][23], perhaps worth of it’s own post.
+
+When you first start looking for a job in technology, you likely didn’t have too many choices and was pleased to have any offer. By this point, I’m hoping you’re at a point where you understand your value to a company. 
+
+Perhaps it’s worth thinking about what kind of space the company has for you to grow in. Since I started my career, Artsy is the only job I’ve been in for longer than 2 years. For some, I felt like I had outgrown my original role but could not find a space to grow into. 
+
+It’s worth re-evaluating. I do it every year in anticipation of my [annual write-ups][24].
+
 ## Wrap-up
 
 This is no simple “one-step to consider yourself post-Junior" article. Only a collection of ideas that you can apply until you feel confident as you find you own ways to help out. As you grow, you grow in many different directions at once - and all of them are valid. 
@@ -123,20 +133,20 @@ At the end of the day you’ve got your foundations now, and its time to start t
 
 ## Further Reading
 
-- [What I Didn't Understand as a Junior Programmer][23]
-- [Growing Beyond Junior][24]
+- [What I Didn't Understand as a Junior Programmer][25]
+- [Growing Beyond Junior][26]
 
 ## iOS Specific
 
-- Study [GraphQL][25], study my entire series on [Cocoa Architecture][26] and our [app code reviews][27]. 
+- Study [GraphQL][27], study my entire series on [Cocoa Architecture][28] and our [app code reviews][29]. 
 - Study MVC, MVVM, RxSwift, VIPER, Testing, BDD, CocoaPods & Swift Package Manager with an hour on each minimum.
-- Read [objc.io][28], watch their videos too.
+- Read [objc.io][30], watch their videos too.
 - Study other languages, and toolsets - it’s very easy to become silo’d in just Objective-C and Swift.
 
 ## JS Specific
 
 - Study ES6, GraphQL, React, Relay, Redux, Angular 2, Flow, TypeScript, Carte Blanche, Webpack & Babel.
-- Get a company account on [Egghead][29] - give yourself a timetable on work time to spend 30+ minutes once a week watching videos from it.
+- Get a company account on [Egghead][31] - give yourself a timetable on work time to spend 30+ minutes once a week watching videos from it.
 - Explore VS Code,Safari Web Inspector and Web Storm as different ways of doing the same thing, but with more tooling.
 
 [1]:	https://ashfurrow.com/blog/normalizing-struggle/
@@ -161,10 +171,12 @@ At the end of the day you’ve got your foundations now, and its time to start t
 [20]:	https://cocoapods.org
 [21]:	http://danger.systems
 [22]:	https://speakerdeck.com/orta/the-cocoapods-spec-repo-and-cocoadocs
-[23]:	http://blog.alexnaraghi.com/what-i-didnt-understand-as-a-junior-programmer
-[24]:	http://dbgrandi.github.io/growing_beyond_junior/
-[25]:	/blog/2016/06/19/graphql-for-mobile/
-[26]:	/series/cocoa-architecture/
-[27]:	/series/ios-code-review/
-[28]:	https://www.objc.io
-[29]:	https://egghead.io
+[23]:	https://github.com/artsy/artsy.github.io/pull/275#issuecomment-246227904
+[24]:	http://orta.io/on/being/29
+[25]:	http://blog.alexnaraghi.com/what-i-didnt-understand-as-a-junior-programmer
+[26]:	http://dbgrandi.github.io/growing_beyond_junior/
+[27]:	/blog/2016/06/19/graphql-for-mobile/
+[28]:	/series/cocoa-architecture/
+[29]:	/series/ios-code-review/
+[30]:	https://www.objc.io
+[31]:	https://egghead.io
