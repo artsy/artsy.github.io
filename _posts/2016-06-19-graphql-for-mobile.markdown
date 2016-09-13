@@ -4,6 +4,7 @@ title: "GraphQL for iOS Developers"
 date: 2016-06-19 12:09
 author: orta
 categories: [mobile, graphql, eigen]
+series: React Native at Artsy
 ---
 
 GraphQL is something you may have heard in passing, usually from the web team. It's a Facebook API technology, that describes itself as a _A Data Query Language and Runtime_. GraphQL is a [spec](http://facebook.github.io/graphql/), and there are [multiple implementations](https://github.com/chentsulin/awesome-graphql#libraries) of it. As mobile engineers, we can consider it an API, where the front-end team have as much control as the backend.
