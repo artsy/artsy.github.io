@@ -7,7 +7,7 @@ categories: [culture, juniors]
 series: Stages of Professional Growth
 ---
 
-I’ve lived in NYC for 2 years now. I’ve been around long enough that some of the people I helped when they started learning have begun to feel like they’re not “Juniors” anymore. 
+I’ve lived in NYC for 2 years now. I’ve been around long enough that some of the people I helped when they started learning have begun to feel like they’re not “Juniors” anymore.
 
 They have begun feeling confident in their code, their responsibilities at the company and wanting to improve both. It's a feeling that maybe, just maybe, [you're not struggling to stay afloat anymore][1].
 
@@ -49,15 +49,15 @@ What can we gleam from this, so we start thinking of ways to improve ourselves a
 
 It’s very unlikely that you are making all of the calls in a product. What is hopefully happening is that your team figures out a plan to ship something in a reasonable timeframe and as a team you assign each other smaller tasks that make that work.
 
-It’s very likely that as a junior, you will be given the most well-defined small tasks. In OSS we call these the “[easy first steps][3].” Tasks that can be done atomically, without requiring more interaction with designers or members of the product team. Initially this is a feature (in that you get easy tasks), that eventually turns into a bug (you want to contribute at a higher level). 
+It’s very likely that as a junior, you will be given the most well-defined small tasks. In OSS we call these the “[easy first steps][3].” Tasks that can be done atomically, without requiring more interaction with designers or members of the product team. Initially this is a feature (in that you get easy tasks), that eventually turns into a bug (you want to contribute at a higher level).
 
 When it’s time to divvy up responsibilities, you should consider speaking up about taking tasks that are blocking people, but require further investigation outside of your dev team.
 
-These responsibilities could be checking up on the status of an API with a platform team, or communicating with different parts of the business to get confirmation on specific details. It is the vagueness that makes the task harder, work your way towards making the task clear - then you have a well defined project. 
+These responsibilities could be checking up on the status of an API with a platform team, or communicating with different parts of the business to get confirmation on specific details. It is the vagueness that makes the task harder, work your way towards making the task clear - then you have a well defined project.
 
 ## Learn From Your Project's History
 
-When you work, you’re probably working inside an application that other people have built. They have laid the frameworks down, established the team norms and architectural choices that could have existed for years before you arrived. 
+When you work, you’re probably working inside an application that other people have built. They have laid the frameworks down, established the team norms and architectural choices that could have existed for years before you arrived.
 
 Part of what gives you that feeling of confidence in your code is you’re comfortable within the architectural ecosystem you’re used to: e.g. React + Relay, iOS MVVM, Backbone + Express, Rails + CoffeeScript. You’re probably getting good at using them, and that’s awesome.
 
@@ -95,7 +95,7 @@ You can help your team out by using some of the skills from above.  You can then
 
 If you’ve got this far in the article, it’s very likely you’ve got enough skills to [lead][12] [workshops][13] internally, and write blog posts about [your experiences][14] to [help other developers][15] at your level. For example, this month I’ve ran a workshop on keyboard shortcuts and on learning to program in Swift. Both of them required maybe 2 hours of preparation, and an email or two announcing that it’s happening.
 
-Other options are to give [technical talks][16] within your company on specific topics, for example [Licensing for OSS code][17] is a talk I gave internally to Artsy. We now have a weekly team “Lunch & Learn” where we give anyone the chance to talk, or request a talk on a topic. 
+Other options are to give [technical talks][16] within your company on specific topics, for example [Licensing for OSS code][17] is a talk I gave internally to Artsy. We now have a weekly team “Lunch & Learn” where we give anyone the chance to talk, or request a talk on a topic.
 
 This gives a lot of space for personal growth too, as these are really easy to transition into blog posts and meetup talks.
 
@@ -103,7 +103,7 @@ Finally, try to pair with programmers outside of your direct team, it could be o
 
 ## Side Projects
 
-I’ve tried to focus this post specifically on things you can do on work time. Not everyone has the ability to go home and spend a few hours on this and that. However, programming at the early stage can generally be a “you get out what you put in” kind of deal with time.  
+I’ve tried to focus this post specifically on things you can do on work time. Not everyone has the ability to go home and spend a few hours on this and that. However, programming at the early stage can generally be a “you get out what you put in” kind of deal with time.
 
 Side projects give you the chance to test out new ideas in an isolated environment that is totally under your control. They are great places for exploring what makes a system tick. Some side-projects are built to be [thrown away][19] others can [to last][20] [for years][21]. Both are valuable spaces for experimentation.
 
@@ -117,17 +117,17 @@ Interacting in these projects exposes you to whole new teams of people with, hop
 
 This is a [complicated topic][23], perhaps worth of it’s own post.
 
-When you first start looking for a job in technology, you likely didn’t have too many choices and was pleased to have any offer. By this point, I’m hoping you’re at a point where you understand your value to a company. 
+When you first start looking for a job in technology, you likely didn’t have too many choices and was pleased to have any offer. By this point, I’m hoping you’re at a point where you understand your value to a company.
 
-Perhaps it’s worth thinking about what kind of space the company has for you to grow in. Since I started my career, Artsy is the only job I’ve been in for longer than 2 years. For some, I felt like I had outgrown my original role but could not find a space to grow into. 
+Perhaps it’s worth thinking about what kind of space the company has for you to grow in. Since I started my career, Artsy is the only job I’ve been in for longer than 2 years. For some, I felt like I had outgrown my original role but could not find a space to grow into.
 
 It’s worth re-evaluating. I do it every year in anticipation of my [annual write-ups][24].
 
 ## Wrap-up
 
-This is no simple “one-step to consider yourself post-Junior" article. Only a collection of ideas that you can apply until you feel confident as you find you own ways to help out. As you grow, you grow in many different directions at once - and all of them are valid. 
+This is no simple “one-step to consider yourself post-Junior" article. Only a collection of ideas that you can apply until you feel confident as you find you own ways to help out. As you grow, you grow in many different directions at once - and all of them are valid.
 
-You can grow by research, practice, doing things outside of work, doing small projects with others in work, experimentation with technology, interacting with more and more people and re-thinking existing approaches. Once you're outside of small feature work - there are so many ways you can contribute.  
+You can grow by research, practice, doing things outside of work, doing small projects with others in work, experimentation with technology, interacting with more and more people and re-thinking existing approaches. Once you're outside of small feature work - there are so many ways you can contribute.
 
 We use the idea of an engineering ladder as a yardstick to ensure we treat developers fairly at Artsy. Different companies will have different ways of scoping how you measure up as a programmer. Your company's ladder can help offer direction for what they would love to see.
 
@@ -140,7 +140,7 @@ At the end of the day you’ve got your foundations now, and its time to start t
 
 ## iOS Specific
 
-- Study [GraphQL][27], study my entire series on [Cocoa Architecture][28] and our [app code reviews][29]. 
+- Study [GraphQL][27], study my entire series on [Cocoa Architecture][28] and our [app code reviews][29].
 - Study MVC, MVVM, RxSwift, VIPER, Testing, BDD, CocoaPods & Swift Package Manager with an hour on each minimum.
 - Read [objc.io][30], watch their videos too.
 - Study other languages, and toolsets - it’s very easy to become silo’d in just Objective-C and Swift.
@@ -149,7 +149,7 @@ At the end of the day you’ve got your foundations now, and its time to start t
 
 - Study ES6, GraphQL, React, Relay, Redux, Angular 2, Flow, TypeScript, Carte Blanche, Webpack & Babel.
 - Get a company account on [Egghead][31] - give yourself a timetable on work time to spend 30+ minutes once a week watching videos from it.
-- Explore VS Code,Safari Web Inspector and Web Storm as different ways of doing the same thing, but with more tooling.
+- Explore VS Code, Safari Web Inspector and Web Storm as different ways of doing the same thing, but with more tooling.
 
 [1]:	https://ashfurrow.com/blog/normalizing-struggle/
 [2]:	/blog/2015/04/03/artsy-engineering-compensation-framework/
