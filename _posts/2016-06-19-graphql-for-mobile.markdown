@@ -21,7 +21,7 @@ GraphQL is an API middle-layer. It acts as an intermediate layer between multipl
 
 <img src="/images/2016-06-19-graphql-for-iOS-devs/graphQL.svg" width=100%>
 
-As a client, you [send](https://github.com/artsy/eigen/blob/dac7c80b66b600f9a45aaae6095544fe420f0bbc/Artsy/Networking/ARRouter.m#L1011) a "[JSON-shaped query](http://graphql.org/docs/getting-started/#queries)" structure, which is heirarchical and easy to read:
+As a client, you [send](https://github.com/artsy/eigen/blob/dac7c80b66b600f9a45aaae6095544fe420f0bbc/Artsy/Networking/ARRouter.m#L1011) a "[JSON-shaped query](http://graphql.org/docs/getting-started/#queries)" structure, which is hierarchical and easy to read:
 
 ```json
 {
@@ -79,7 +79,7 @@ We've already [shipped one full view controller](https://twitter.com/orta/status
 
 There will be longer articles on the "why" and "how" we choose to work this way. However, the key thing that we're excited about in using React Native is Relay. Using Relay, our [views](https://github.com/artsy/emission/tree/2ac6e9fc0f85ca81483bcbd6c841841104f07833/lib/components/artist) can declare a fragment of the GraphQL query that each respective [view needs](https://github.com/artsy/emission/blob/2ac6e9fc0f85ca81483bcbd6c841841104f07833/lib/components/artist/biography.js#L60-L69).
 
-So, in our Artist View Controller, the Biography "View" ([component](https://facebook.github.io/react-native/docs/native-components-ios.html)) declares "when I am in the view heirarchy, you need to grab a `bio`, and `blurb`"
+So, in our Artist View Controller, the Biography "View" ([component](https://facebook.github.io/react-native/docs/native-components-ios.html)) declares "when I am in the view hierarchy, you need to grab a `bio`, and `blurb`"
 
 ``` js
 export default Relay.createContainer(Biography, {
