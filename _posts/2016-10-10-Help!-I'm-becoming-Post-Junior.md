@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Help! I'm becoming Post-Junior"
-date: 2016-10-10 12:17
+date: 2016-09-10 12:17
 author: orta
 categories: [culture, juniors]
 series: Stages of Professional Growth
