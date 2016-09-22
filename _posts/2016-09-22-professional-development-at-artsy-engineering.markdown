@@ -15,7 +15,7 @@ As I thought about it, I began to realize that the answer is “a lot”! Most o
 
 # Practices
 
-Our engineering team used to be organized along _practice_ lines: web, mobile native, and platform. Following our recent [product reorganization][1], we’re primarily organized in product teams, which are more deeply integrated and aligned with our business units. But practices are here to stay! They serve as horizontal channels for developers working in similar technologies to collaborate and share best practices. Each of our practice teams still has a very active Slack channel.
+Our engineering team used to be organized along _practice_ lines: web, mobile native, and platform. Following our recent [product reorganization][1], we’re primarily organized in product teams, which are more deeply integrated and aligned with our business units. But practices are here to stay. They serve as horizontal channels for developers working in similar technologies to collaborate and share best practices.
 
 # Collaboration
 
@@ -27,15 +27,15 @@ Every Thursday, we do a Lunch-and-Learn session. Historically, we mostly showed 
 
 # Conferences
 
-Devs are encouraged to attend conferences. The engineering budget covers expenses for 1 per year as an attendee, and unlimited as a presenter. Many of our engineers are very experienced presenters -- and I know [Orta][1] has even been a conference organizer! So there’s plenty of support for first-time presenters. Lunch ’n’ Learn sessions have served as a place to do a dry run for a presentation.
+Devs are encouraged to attend conferences. The engineering budget covers expenses for 1 per year as an attendee, and unlimited as a presenter. Many of our engineers are experienced presenters -- and I know [Orta][1] has even been a conference organizer. So there’s plenty of support for first-time presenters. Lunch ’n’ Learn sessions have served as a place to do a dry run for a presentation.
 
 # Community engagement
 
-Professional development isn’t just about absorbing new information, it’s also about teaching and sharing. That’s one of the best ways to truly master a topic. We encourage folks to participate in [OSS][2], blogging (obviously!), speaking, and other types of community engagement, and we’ve got really experienced people on all those fronts to support for helping make this happen.
+Professional development isn’t just about absorbing new information, it’s also about teaching and sharing. That’s one of the best ways to truly master a topic. We encourage folks to participate in [OSS][2], blogging (obviously), speaking, and other types of community engagement, and we’ve got really experienced people on all those fronts to support for helping make this happen.
 
 # Slack discussions
 
-We’ve got a very active #tech-learning Slack channel, which people use to share and discuss articles. We also have a number of language-specific Slack channels, such as #elixir, #swift, and #scala (my personal fave!).
+We’ve got an active #tech-learning Slack channel, which people use to share and discuss articles. We also have a number of language-specific Slack channels, such as #elixir, #swift, and #scala (my personal fave).
 
 # Mentorship
 
