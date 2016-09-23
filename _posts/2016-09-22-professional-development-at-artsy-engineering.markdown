@@ -15,7 +15,11 @@ As I thought about it, I began to realize that the answer is “a lot”! Most o
 
 # Practices
 
-Our engineering team used to be organized along _practice_ lines: web, mobile native, and platform. Following our recent [product reorganization][1], we’re primarily organized in product teams, which are more deeply integrated and aligned with our business units. But practices are here to stay. They serve as horizontal channels for developers working in similar technologies to collaborate and share best practices.
+Our engineering team used to be organized along _practice_ lines: web, mobile native, and platform. Following our recent [product reorganization][1], we’re primarily organized in product teams, which are more deeply integrated and aligned with our business units. But practices are here to stay. They serve as horizontal channels for developers working in similar technologies to collaborate and share best practices. They each have a lively Slack channel and do standups once or twice a week.
+
+# Product teams
+
+Within product teams, engineers take on work across the stack. Most engineers have a comfort zone, and it's largely up to individuals to decide when and how to branch out. This gives people prerogative in shaping their expertise in accordance with their goals as a developer.
 
 # Collaboration
 
@@ -27,11 +31,11 @@ Every Thursday, we do a Lunch-and-Learn session. Historically, we mostly showed 
 
 # Conferences
 
-Devs are encouraged to attend conferences. The engineering budget covers expenses for 1 per year as an attendee, and unlimited as a presenter. Many of our engineers are experienced presenters -- and I know [Orta][1] has even been a conference organizer. So there’s plenty of support for first-time presenters. Lunch ’n’ Learn sessions have served as a place to do a dry run for a presentation.
+Devs are encouraged to attend conferences. The engineering budget covers expenses for 1 per year as an attendee, and unlimited as a presenter. Many of our engineers are experienced presenters -- and I know [Orta][2] has even been a conference organizer. So there’s plenty of support for first-time presenters. Lunch ’n’ Learn sessions have served as a place to do a dry run for a presentation.
 
 # Community engagement
 
-Professional development isn’t just about absorbing new information, it’s also about teaching and sharing. That’s one of the best ways to truly master a topic. We encourage folks to participate in [OSS][2], blogging (obviously), speaking, and other types of community engagement, and we’ve got really experienced people on all those fronts to support for helping make this happen.
+Professional development isn’t just about absorbing new information, it’s also about teaching and sharing. That’s one of the best ways to truly master a topic. We encourage folks to participate in OSS, blogging (obviously), speaking, and other types of community engagement, and we’ve got really experienced people on all those fronts to support for helping make this happen. We've got team members who help maintain highly utilized community projects, but there are more low-key ways to be involved in OSS. One nice thing about being [open source by default][3] is that it gives us ways to contribute to OSS in the course of doing regular product development.
 
 # Slack discussions
 
@@ -39,7 +43,7 @@ We’ve got an active #tech-learning Slack channel, which people use to share an
 
 # Mentorship
 
-Newer devs are paired with a mentor, to be a point person in helping along their professional development.
+Newer devs are paired with a mentor, who serves as the point person the newer dev can always talk to. Making this connection official means that it counts as a job responsibility for the mentor. For obvious reasons, mentoring benefits the mentee, but it's good to remember that it also helps mentors develop. After all, teaching someone is the best way to learn.
 
 [1] http://artsy.github.io/blog/2016/03/28/artsy-engineering-organization-stack/
 
