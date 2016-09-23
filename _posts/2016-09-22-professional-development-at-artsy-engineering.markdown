@@ -45,8 +45,8 @@ We’ve got an active #tech-learning Slack channel, which people use to share an
 
 Newer devs are paired with a mentor, who serves as the point person the newer dev can always talk to. Making this connection official means that it counts as a job responsibility for the mentor. For obvious reasons, mentoring benefits the mentee, but it's good to remember that it also helps mentors develop. After all, teaching someone is the best way to learn.
 
-[1] http://artsy.github.io/blog/2016/03/28/artsy-engineering-organization-stack/
+[1]: http://artsy.github.io/blog/2016/03/28/artsy-engineering-organization-stack/
 
-[2] http://orta.io/
+[2]: http://orta.io/
 
-[3] http://code.dblock.org/2015/02/09/becoming-open-source-by-default.html
+[3]: http://code.dblock.org/2015/02/09/becoming-open-source-by-default.html
