@@ -19,11 +19,11 @@ Our engineering team used to be organized along _practice_ lines: web, mobile na
 
 # Product teams
 
-Within product teams, engineers take on work across the stack. Most engineers have a comfort zone, and it's largely up to individuals to decide when and how to branch out. This gives people prerogative in shaping their expertise in accordance with their goals as a developer.
+Within product teams, engineers take on work across the stack. Most engineers have one or more zone of expertise, but it's important for us to branch out as well. In my role as a product engineering lead, I'm responsible for helping to support this, to ensure that my team members are broadening in their skills.
 
 # Collaboration
 
-In day-to-day work, we do a lot of pair programming and whiteboard architecture on an ad hoc basis. This happens between teams as much as within them.
+In day-to-day work, we do a lot of pair programming and whiteboard architecture on an ad hoc basis. This happens between teams as much as within them. It's common for developers to request code reviews from members of other teams, and equally common for them to provide friendly pointers on PRs they chance upon.
 
 # Lunch ’n’ Learn
 
