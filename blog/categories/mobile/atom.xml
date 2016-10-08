@@ -4,7 +4,7 @@
   <title><![CDATA[Category: mobile | Artsy Engineering]]></title>
   <link href="http://artsy.github.io/blog/categories/mobile/atom.xml" rel="self"/>
   <link href="http://artsy.github.io/"/>
-  <updated>2016-09-27T10:29:56+00:00</updated>
+  <updated>2016-10-08T20:53:30+00:00</updated>
   <id>http://artsy.github.io/</id>
   <author>
     <name><![CDATA[]]></name>
@@ -12,6 +12,194 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[The Eidolon Deploy Process]]></title>
+    <link href="http://artsy.github.io/blog/2016/10/08/eidolon-deploy-process/"/>
+    <updated>2016-10-08T12:00:00+00:00</updated>
+    <id>http://artsy.github.io/blog/2016/10/08/eidolon-deploy-process</id>
+    <content type="html"><![CDATA[<p>Since we <a href="http://artsy.github.io/blog/2014/11/13/eidolon-retrospective/">originally built</a> Eidolon – an auction bidding kiosk app – the project has largely remained in maintenance mode. Eidolon was one of the first projects that we used automated deploys for, and the deploy process has remained largely unchanged. I believe this stability of the deploy process is a testament to how well the automated deploys have gone.</p>
+
+<p>This post is going to detail the mechanics of automated deploys for an enterprise-distributed iOS application, discuss lessons we learned and applied to other projects' deploy processes, and describe some of the changes we'd like to make. Our project is entirely open source, so you can check out any part of the code on your own or <a href="https://github.com/artsy/eidolon/issues/new">open an issue</a> with questions.</p>
+
+<!-- more -->
+
+
+<h2>Deploying Eidolon</h2>
+
+<p>It's one command on the terminal to deploy Eidolon:</p>
+
+<pre><code class="sh">bundle exec fast lane deploy version:X.Y.Z
+</code></pre>
+
+<p>This command does a lot of things. It uses <a href="https://fastlane.tools">Fastlane</a>, and you can <a href="https://github.com/artsy/eidolon/blob/a0aad31bccfe2b4abf648fc64892cc165be400b4/fastlane/Fastfile#L40-L131">read the entire script here</a>. We're going to go over each part line-by-line. A few notes:</p>
+
+<ul>
+<li>We run this command locally on a development machine that has the keys installed to sign a deploy.</li>
+<li>Our changelog is formatted in <a href="https://en.wikipedia.org/wiki/YAML">yaml</a>, our script uses this strategically.</li>
+<li>Our deploy script modifies the project's Info.plist version and build number, as well as the changelog.</li>
+</ul>
+
+
+<p>Let's dive in!</p>
+
+<h2>The Script</h2>
+
+<p>The first thing we do is verify that the version number we've been given is in the proper <a href="http://semver.org">SemVer</a> format.</p>
+
+<pre><code class="rb">version = options[:version]
+raise "You must specify a version in A.B.X format to deploy." if version.nil? || version.scan(/\d+\.\d+\.\d+/).length == 0
+</code></pre>
+
+<p>We deploy using Hockey, so make sure that an environment variable with the Hockey API key is set.</p>
+
+<pre><code class="rb">hockey_api_token = ENV['HOCKEY_API_TOKEN']
+raise "You must specify a HOCKEY_API_TOKEN environment variable to deploy." if hockey_api_token.nil?
+</code></pre>
+
+<p>We also want to verify that we have valid API keys for analytics, the Artsy API, and a few other services yhe app uses. This validation only makes sure the keys have been set to non-empty values. And we don't want to accidentally deploy uncommited changes, so we check the git status first.</p>
+
+<pre><code class="rb">verify_pod_keys
+ensure_git_status_clean
+</code></pre>
+
+<p>Next we need to set the build number. These need to be unique, and we use the current date. This could be a problem if we need to deploy more than once in a day. It hasn't been a problem yet, though, since we rarely deploy.</p>
+
+<p>We also want to set the Info.plist's version to the one specified when we run the <code>fast lane</code> command.</p>
+
+<pre><code class="rb">build_number = Time.new.strftime("%Y.%m.%d")
+increment_build_number build_number: build_number
+
+increment_version_number version_number: version
+</code></pre>
+
+<p>Okay, now it's time to generate markdown release notes from the changelog. Our changelog is in the following format:</p>
+
+<pre><code class="yaml">upcoming:
+- Upcoming version bug fix.
+
+releases:
+- version: X.Y.Z
+  date: Month Day Year
+  notes:
+  - Previous version bug fix.
+</code></pre>
+
+<p>We want to grab the <code>upcoming</code> notes for the changelog, and then move them to the <code>releases</code> section. Let's generate the notes first:</p>
+
+<pre><code class="rb">changelog_filename = '../CHANGELOG.yml'
+changelog_yaml = YAML.load_file(changelog_filename)
+release_notes = changelog_yaml['upcoming'].map{ |note| note.prepend '- ' }.join("\n")
+</code></pre>
+
+<p>Updating the changelog is a little messy. I tried parsing the changelog as yaml, modifying it, and then writing it back as yaml, but kept running into trouble. Instead, I treat it as plain text. We open the changelog, split on <code>releases:</code>, prepend the existing releases with a the generated release notes, and write the changelog.</p>
+
+<pre><code class="rb">changelog_contents = File.read(changelog_filename)
+existing_releases = changelog_contents.split('releases:').last
+this_release = changelog_yaml['upcoming'].map{ |note| note.prepend '  ' }.join("\n")
+changelog_contents = &lt;&lt;-EOS
+upcoming:
+releases:
+- version: #{version}
+  date: #{Time.new.strftime("%B %d %Y")}
+  notes:
+#{this_release}
+#{existing_releases}
+EOS
+
+File.open(changelog_filename, 'w') { |file| file.puts changelog_contents }
+</code></pre>
+
+<p>At this point, we're ready to start the actual deploy process. First we need to download the provisioning profiles, which is only one step with Fastlane:</p>
+
+<pre><code class="rb">sigh
+</code></pre>
+
+<p>Next we build our app using <code>gym</code>. We need to use the legacy build API, I can't remember why.</p>
+
+<pre><code class="rb">gym(
+  scheme: "Kiosk",
+  export_method: 'enterprise',
+  use_legacy_build_api: true
+)
+</code></pre>
+
+<p>With our build finished, we upload to Hockey.</p>
+
+<pre><code class="rb">hockey(
+  api_token: hockey_api_token,
+  notes: release_notes
+)
+</code></pre>
+
+<p>Okay, our build is deployed. Time to let the team know there's a new version available:</p>
+
+<pre><code class="rb">slack(
+  message: "There is a new version of the Kiosk app available. Download it at http://artsy.net/kioskbeta",
+  success: true,        # optional, defaults to true
+  payload: {            # optional, lets you specify any number of your own Slack attachments
+    'Version' =&gt; version,
+    'What\'s new' =&gt; release_notes,
+  },
+  default_payloads: [],
+)
+</code></pre>
+
+<p><code>default_payloads</code> needs to be empty I think, I can't remember why. Seems like "I can't remember why" is a common theme here...</p>
+
+<p>Before committing the changes we've made to the changelog and Info.plist files, we need to clean any build artefacts. This includes the actual binary that was compiled, unit test coverage reports, and downloaded provisioning profiles.</p>
+
+<pre><code class="rb">clean_build_artifacts
+</code></pre>
+
+<p>Finally, we commit, tag the build, and push to GitHub. Fastlane's built-in commands to commit to git reject any changes except to Info.plist files, and we've modified the changelog, so I used <code>sh</code> and used git directly.</p>
+
+<pre><code class="rb">sh "git add .. ; git commit -m 'Deploying version #{version}.'"
+add_git_tag tag: version
+push_to_git_remote
+</code></pre>
+
+<p>And that's it! With one terminal command, we've done all the following:</p>
+
+<ul>
+<li>Verified version number format.</li>
+<li>Verified the local environment is set up to deploy.</li>
+<li>Verified API keys used by the app aren't empty.</li>
+<li>Incremented the build number and version.</li>
+<li>Updated the changelog.</li>
+<li>Built and signed the app.</li>
+<li>Uploaded the build to Hockey.</li>
+<li>Posted a notification to Slack.</li>
+<li>Tagged the release and pushed to GitHub.</li>
+</ul>
+
+
+<h2>Lessons Learned</h2>
+
+<p>Automating Eidolon deploys was one of the first automated deploys we built on Artsy's iOS team. Now, based on Eidolon's successful deploy process, all our iOS deploys are automated.</p>
+
+<p>We've learned a few lessons.</p>
+
+<p>First, running deploys locally is <em>so 2015</em>. Our more modern deploy processes run on continuous integration servers like Circle CI. This poses some problems around securing certificates necessary to deploy, maybe we'll cover that in a future blog post.</p>
+
+<p>We deploy on CI based on pushes to a specific branch, and we run our deploy script only if the unit tests pass. This is a huge incentive to keep CI green.</p>
+
+<p>On other iOS projects, we sometimes deploy more than once a day, so we use <code>Year.Month.Day.Hour</code> as the build number format, which is unique enough to do one deploy per hour. This is good enough for now.</p>
+
+<p>One thing I really wish I'd done when I set up automated deploys is to document things a little better. To be honest, that's part of the motivation to write this blog post (better late than never!).</p>
+
+<h2>Conclusion</h2>
+
+<p>Overall, automating deploys for Eidolon has been a huge win. The other night, we had an emergency at an auction: the Eidolon app was no longer working and we needed a new deploy.</p>
+
+<blockquote class="twitter-tweet" data-lang="en"><p lang="en" dir="ltr">Guess who’s got two thumbs and forgot that their enterprise distribution certificates expire in September.<br><br>👍this guy👍</p>&mdash; Ash vs NSThread (@ashfurrow) <a href="https://twitter.com/ashfurrow/status/784548214527627266">October 8, 2016</a></blockquote>
+
+
+<p> <script async src="//platform.twitter.com/widgets.js" charset="utf-8"></script></p>
+
+<p>From the time the team let me know about the problem to the time they had a fresh deploy with a new certificate, less than twenty minutes had passed. I issued one command and watched it do all the work for me. If I had to manually follow a set of arcane steps I hadn't done in a long time, our team might not have had the new build in time.</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Learn Swift at Artsy, Beginners Lesson Three]]></title>
@@ -174,190 +362,6 @@ export default {
 
 
 <p></div></div><iframe width='100%' height='600' src='https://www.youtube.com/embed/OLdSg0XpFqA ' frameborder='0' allowfullscreen></iframe><div class='meta-container'><header>&nbsp;</header></div><div class='content-container'><div class='entry-content'></p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[React Native at Artsy]]></title>
-    <link href="http://artsy.github.io/blog/2016/08/15/React-Native-at-Artsy/"/>
-    <updated>2016-08-15T21:17:00+00:00</updated>
-    <id>http://artsy.github.io/blog/2016/08/15/React-Native-at-Artsy</id>
-    <content type="html"><![CDATA[<center>
-<img src="/images/react-native/artsy_react_logo.svg" style="width:300px;">
-</center>
-
-
-<p>As <a href="https://github.com/artsy/eigen">the Artsy iOS app</a> grew larger, we started hitting pain
-points:</p>
-
-<ul>
-<li>We want to support other future platforms such as Android without creating more teams.</li>
-<li>We want different business teams to work on the app without disrupting each other.</li>
-<li>We want our architecture to evolve in order to increase programmer efficiency.</li>
-</ul>
-
-
-<p>It took us <a href="https://github.com/artsy/mobile/issues/22">about a year</a> to start resolving these issues.
-Ideally, we wanted to find a solution to our architectural issues that would also improve the user
-experience. Notably we wanted more efficient networking, due to mobile device constraints.</p>
-
-<p>It would have been an easy leap to start using Swift and, as a matter of fact, we do use Swift in parts of
-our flagship application and entirely in <a href="http://artsy.github.io/blog/2014/11/13/eidolon-retrospective/">2 other apps</a>.</p>
-
-<p>However, while Swift is a great language, it’s also just that: <em>another</em> language. It does not do much in terms of new
-paradigms that solved our architectural needs, it does not help in terms of cross-platform - as most of our code is
-building views and thus very framework specific, and it did not really offer anything in terms of more efficient network
-data fetching.</p>
-
-<p>We've seen that the web teams integrate React in their projects with really great results. We've been
-<a href="https://github.com/artsy/mobile/issues/22">paying attention</a> to React Native since it came out; the solutions provided
-by the React ecosystem ticked all of our boxes.</p>
-
-<p>Six months ago we took the plunge, and last month we formalized that this is the direction we want to go.</p>
-
-<!-- more -->
-
-
-<h1>Cons</h1>
-
-<p>So you decided to read the full post and the first thing you got confronted with is a list of cons… <em>boo</em>. Let’s just get
-these out of the way first, it will only get better afterwards.</p>
-
-<ul>
-<li><p>Dependencies, dependencies, dependencies, both in libraries and tooling. Once you open this can, you’ll have worms
-<em>everywhere</em> in no time; 593 packages to be exactly, at the time of writing, for a new React Native project. Good luck
-maintaining that.</p>
-
-<p>Having created <a href="https://cocoapods.org">a dependency manager</a>, I’m not afraid of some dependencies and don’t subscribe
-to NIH, but the JavaScript community has gone <em>way</em> overboard for my taste. If, like me, you subscribe to the idea
-that dependencies are <em>part</em> of your application and you want to be able to know what packages are being pulled in so
-you can maintain them, then you probably won’t like this aspect very much either.</p>
-
-<p>I’m not quite sure yet how I feel about this in the long run and what we can do about it, short of trying to get the
-maintainers of the packages we directly depend on to accept changes that simplify their dependency graphs.</p></li>
-<li><p>As is often the case, error reporting does not always receive the attention it should get. With the amount of tools
-and libs that make up the full stack you need to work with, this lack in attention to failure resolution can quickly
-cascade into deep rabbit holes.</p></li>
-<li><p>React Native is still very young and fast moving. If you don’t like living on the edge (i.e. lots of updating and
-dealing with breaking changes) nor have an interest in shaping an unfinished framework, this currently is not for you.</p></li>
-<li><p>All Facebook open-source code is made to solve the problems that Facebook has first, thus with young projects you may
-well need to put in a bunch of time to make it work for your problem set. React Native provides a lot of basic view
-building blocks, but you do lose a lot that you would get with UIKit for free, e.g. <code>UICollectionView</code>.</p>
-
-<p>However, it is important to note that this is only a heads-up for those that might think they can solve any problem
-out-of-the-box; in terms of open-source code I prefer code used in production over other code <em>any</em> day.</p></li>
-<li><p>There are currently many more people trying to get help, with often arguably simple questions in the context of iOS
-development, compared to those willing to spend time on answering questions. Most forums I’ve seen suffer from the
-tragedy of the commons problem, which can be a real problem if you have incidental framework specific questions, but
-jumping to React-Native probably is a complete disaster if you know very little about iOS development yet.</p>
-
-<p>If you’re not already knowledgable about iOS development, are not motivated to put in the time to learn about the
-platform specific details, and think making rich iOS applications with React Native will be a breeze, you’ll
-<a href="http://www.dwotd.nl/2008/06/443-van-een-kouwe-kermis-thuiskomen.html">come home from a very cold fair</a> indeed.</p>
-
-<p>While you can definitely make applications that way, in my experience those often end up not feeling like proper
-citizens of the platform they inhibit.</p></li>
-<li><p>Due to React Natives immaturity, you will not be able to find nuanced post-mortems on the subject. The project
-is only at the beginning of the <a href="https://en.wikipedia.org/wiki/Hype_cycle">hype cycle</a>, meaning there is a lot
-to gain in writing about how great it is, but less incentive to discuss where it doesn't work out well.</p></li>
-</ul>
-
-
-<h1>Pros, why we wanted to use React Native</h1>
-
-<ul>
-<li><p>From <a href="https://facebook.github.io/react/">the React website</a>:</p>
-
-<blockquote><p>React will efficiently update and render just the right components when your data changes.
-Build encapsulated components that manage their own state, then compose them to make complex UIs.</p></blockquote>
-
-<p>The functional model that React introduces that allows you to reason about the state of your views in much simpler
-ways has for us been a welcome change that should make it much easier to write decoupled code going forward.</p>
-
-<p>I’m by no means a functional programming purist, nor do I really care for being one. I found the React/React Native
-communities to be very welcome to functional enthusiasts and pragmatists alike, a healthy mix that I find leads to
-more productive outcomes.</p></li>
-<li><p>Relay. From <a href="https://facebook.github.io/relay/">its website</a>:</p>
-
-<blockquote><p>Queries live next to the views that rely on them, so you can easily reason about your app.
-Relay aggregates queries into efficient network requests to fetch only what you need.</p></blockquote>
-
-<p>The clarity this brings to the view codebase - coupled with its smart caching, networking is just ground-breaking.
-No more multiple levels of model code in your application that you need to trace, just a single file with
-<a href="https://github.com/artsy/emission/blob/a2e4dbdb/lib/components/artist/header.js#L87">the view component</a> <em>and</em>
-<a href="https://github.com/artsy/emission/blob/a2e4dbdb/lib/components/artist/header.js#L143-L144">the data it needs</a>. Neat.</p>
-
-<p>We do still have ‘view models’, however, those now pretty much all live in
-<a href="http://artsy.github.io/blog/2016/06/19/graphql-for-mobile/">our GraphQL service</a>. The added benefit here is that we
-share that model logic with Artsy’s other (web) clients.</p></li>
-<li><p>“Learn once, write anywhere.” is the neo-cross-platform slogan deployed by React, which is a play on the tried
-“Write once, run anywhere.” slogan of yesteryear. The difference being that you can use the same paradigms to create
-products on various platforms, rather than pure code-reuse.</p>
-
-<p>While we haven’t put this to the test yet at Artsy, we do plan to team up people across platforms to implement single
-features on each respective platform, rather than having multiple people implement the same feature <em>on their own</em>.
-The hope is that this will lead to better understanding of features and thus the implementations thereof, while still
-taking each platform’s unique nature into account. The added benefit would be that people learn to understand and
-appreciate those unique platform traits, thus making them more well-rounded engineers.</p>
-
-<p>In the long run, we hope to extend this way of working as we start work on a React Native Android client.</p></li>
-<li><p>While Auto Layout is a great step up from manual frame calculation, most of our views don’t need the granularity that
-Auto Layout offers. React Native ditches Auto Layout and instead uses
-<a href="https://en.wikipedia.org/wiki/CSS_Flex_Box_Layout">flexbox</a> for its layout. While my head has never been able to
-fully wrap around classic CSS, I find that flexbox is an abstraction that nicely fits most of our needs.</p>
-
-<p>I can definitely imagine situations in which more granularity would be required, however, in those cases we can always
-decide to ‘drop down’ to native view code, so I don’t really worry too much about that.</p></li>
-<li><p>Layout calculations are performed on a background thread, the so-called ‘shadow’ thread. This can make a big
-difference when e.g. scrolling through a large complex list view.</p>
-
-<p>Granted, you <em>can</em> do this with <code>UIView</code>, but the pattern is not as ingrained in UIKit thus usually leading to more holistic
-replacements such as <a href="http://asyncdisplaykit.org">AsyncDisplayKit</a>.</p></li>
-<li><p>Great separation of declarative view layout (JS, single-threaded) and technical details (native code, multi-threaded).
-Because of the hard constraint of having a JS/native bridge, there really is no way to take shortcuts (e.g. spaghetti
-code) that in the long run would only lead to technical debt. Constraints are great.</p></li>
-<li><p>Because there’s very little code that needs to be compiled and how the isolated component nature of React makes it
-it very easy to reload code in-process, development velocity lies much higher than with your typical native UIKit-based
-development.</p></li>
-<li><p>While, as mentioned above, there are definitely issues with the tooling and libs, on the flip-side it is all
-open-source software and you <em>can</em> (officially) dive in and figure it out, unlike e.g. Xcode and UIKit. (Granted, you
-still need to deal with these when using React Native, but it can be kept to a minimal surface.)</p></li>
-<li><p>Because React Native is still young, fast moving, and open-source, this is a great time to help shape the framework
-you’d <em>want</em> to use.</p></li>
-</ul>
-
-
-<h1>Things we learned</h1>
-
-<ul>
-<li><p>When we started out with React Native, I didn't want to have to re-write our application in order to take advantage of
-the technology. To address this I worked within our existing application structure. We consider the App to
-<a href="https://artsy.github.io/blog/2015/08/24/Cocoa-Architecture-Hybrid-Apps/">be a browser</a> of native and web view controllers. So,
-we added routes <a href="http://artsy.github.io/blog/2015/08/19/Cocoa-Architecture-Switchboard-Pattern/">to our SwitchBoard</a> for
-view controllers which are created in React Native. To the rest of the app, there is no difference between a Swift view controller,
-or one with React Native inside.</p></li>
-<li><p>All of the React Native code is kept in a completely separate repo, <a href="https://github.com/artsy/emission">Emission</a>, which
-when deployed generates a minified version of the JavaScript. This means to build the Artsy iOS app you do not need to have
-a JavaScript development environment.</p></li>
-<li><p>We reused a lot of our existing native views, starting with loading indicators and native switch views.</p></li>
-<li><p>We used new native classes to improve integration, for example the <code>&lt;OpaqueImageView&gt;</code>
-<a href="https://github.com/artsy/emission/blob/master/lib/components/opaque_image_view.js">component</a> is a
-<a href="https://github.com/artsy/emission/tree/master/Pod/Classes/OpaqueImageViewComponent">native</a> <code>UIImageView</code>
-subclass that works with our application-wide <a href="https://cocoapods.org/pods/SDWebImage">SDWebImage</a> image cache.</p></li>
-</ul>
-
-
-<h1>Conclusion</h1>
-
-<p>To really shine with React Native, you need native experience. JavaScript has not eaten everything yet. However,
-you don't need a team of native experts. For example, we expect to be able to get quite far with Android support based on
-our work in React Native, but to make it amazing, we will need someone with history and context in the space.</p>
-
-<p>This frees up our engineers to widen their <a href="https://artsy.github.io/blog/2016/01/30/iOS-Junior-Interviews/">T-shaped skills</a>,
-and to help remove the idea that the mobile team has to be a completely separate team with foreign tools and ideas.</p>
-
-<p>This is only the tip of the iceberg for our writings about React Native. Follow <a href="https://twitter.com/ArtsyOpenSource">@ArtsyOpenSource</a>
-to stay up to date.</p>
 ]]></content>
   </entry>
   
