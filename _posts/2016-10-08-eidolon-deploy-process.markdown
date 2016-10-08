@@ -30,7 +30,7 @@ Let's dive in!
 
 ## The Script
 
-The first thing we do is verify that the version number we've been given is in the proper [semver](http://semver.org) format.
+The first thing we do is verify that the version number we've been given is in the proper [SemVer](http://semver.org) format.
 
 ```rb
 version = options[:version]
@@ -44,11 +44,11 @@ hockey_api_token = ENV['HOCKEY_API_TOKEN']
 raise "You must specify a HOCKEY_API_TOKEN environment variable to deploy." if hockey_api_token.nil?
 ```
 
-We also want to verify that we have valid Artsy API keys
+We also want to verify that we have valid API keys for analytics, the Artsy API, and a few other services yhe app uses. This validation only makes sure the keys have been set to non-empty values. And we don't want to accidentally deploy uncommited changes, so we check the git status first.
 
 ```rb
-  verify_pod_keys
-  ensure_git_status_clean
+verify_pod_keys
+ensure_git_status_clean
 ```
 
 Next we need to set the build number. These need to be unique, and we use the current date. This could be a problem if we need to deploy more than once in a day. It hasn't been a problem yet, though, since we rarely deploy. 
@@ -143,7 +143,7 @@ slack(
 
 `default_payloads` needs to be empty I think, I can't remember why. Seems like "I can't remember why" is a common theme here...
 
-Before committing the changes we've made to the changelog and Info.plist files, we need to clean any build artefacts.
+Before committing the changes we've made to the changelog and Info.plist files, we need to clean any build artefacts. This includes the actual binary that was compiled, unit test coverage reports, and downloaded provisioning profiles.
 
 ```rb
 clean_build_artifacts
