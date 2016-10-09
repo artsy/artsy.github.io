@@ -44,7 +44,7 @@ hockey_api_token = ENV['HOCKEY_API_TOKEN']
 raise "You must specify a HOCKEY_API_TOKEN environment variable to deploy." if hockey_api_token.nil?
 ```
 
-We also want to verify that we have valid API keys for analytics, the Artsy API, and a few other services yhe app uses. This validation only makes sure the keys have been set to non-empty values. And we don't want to accidentally deploy uncommited changes, so we check the git status first.
+We also want to verify that we have valid API keys for analytics, the Artsy API, and a few other services the app uses. This validation only makes sure the keys have been set to non-empty values. And we don't want to accidentally deploy uncommited changes, so we check the git status first.
 
 ```rb
 verify_pod_keys
@@ -53,7 +53,7 @@ ensure_git_status_clean
 
 Next we need to set the build number. These need to be unique, and we use the current date. This could be a problem if we need to deploy more than once in a day. It hasn't been a problem yet, though, since we rarely deploy. 
 
-We also want to set the Info.plist's version to the one specified when we run the `fast lane` command.
+We also want to set the Info.plist's version to the one specified when we run the `fastlane` command.
 
 ```rb
 build_number = Time.new.strftime("%Y.%m.%d")
