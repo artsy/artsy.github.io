@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: emission | Artsy Engineering]]></title>
+  <link href="http://artsy.github.io/blog/categories/emission/atom.xml" rel="self"/>
+  <link href="http://artsy.github.io/"/>
+  <updated>2016-10-16T12:00:09+00:00</updated>
+  <id>http://artsy.github.io/</id>
+  <author>
+    <name><![CDATA[]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Accessing the app's Source Code from your Simulator]]></title>
+    <link href="http://artsy.github.io/blog/2016/10/14/Accessing-the-Source-Code-from-your-Simulator/"/>
+    <updated>2016-10-14T12:17:00+00:00</updated>
+    <id>http://artsy.github.io/blog/2016/10/14/Accessing-the-Source-Code-from-your-Simulator</id>
+    <content type="html"><![CDATA[<p>In the last few months twice I've wanted to access the source code of our application. The first time I did it I came up with a pretty neat hack, but it wouldn't really work in many places. The second time however, I <a href="https://twitter.com/orta/status/786470282093625344">asked the internet</a>, and the <a href="https://twitter.com/saniul/status/786470857635827712">internet</a> <a href="https://twitter.com/0xced/status/786619335116750848">replied</a>.</p>
+
+<p>TLDR: You can use your <a href="https://github.com/artsy/emission/pull/350/commits/2a39c743bcaaf2e3b848ad60621198f40365fdd2">project's scheme</a> to expose derived Xcode environment variables to your source code.</p>
+
+<p>The rest of the blog post is a little bit about <em>why</em> I wanted to do that and what I did with it.</p>
+
+<!-- more -->
+
+
+<p>Both times I've wanted to access the source code of our apps is because I've wanted to make better admin tools. It should come as no surprise to people who know me that I care about tooling, but I also care a lot about making it possible for our admins to do their own thing. As such, our <a href="https://github.com/artsy/eigen/blob/master/Artsy/View_Controllers/Admin/ARAdminSettingsViewController.m">admin settings panel</a> in Eigen is extensive.</p>
+
+<h3>Root React Components</h3>
+
+<p>The first time came when I started to think about what admin options I'd like to see for people using our React Native side. These are the options I came up with:</p>
+
+<p> <img src="/images/source-code-sim/react-admin-eigen.png" alt="/images/source-code-sim/react-admin-eigen.png" /></p>
+
+<p>There are two interesting things about it:</p>
+
+<ul>
+<li>We support running any master commit of our React Native code inside Eigen, for Admins, <a href="https://apphub.io">via AppHub</a></li>
+<li>We allow loading arbitrary React components as an admin.</li>
+</ul>
+
+
+<p> It's this last bit that's interesting, right now I'm working on a new root Gene component (read: new view controller) in Emission, our React Native implmentation. As this work has not moved upstream into Eigen, I can access it through a commit on AppHub, and then open it using our custom module loader:</p>
+
+<p><img src="/images/source-code-sim/react-module-eigen.png" alt="/images/source-code-sim/react-module-eigen.png" /></p>
+
+<p>In order to show the available root components (Artist/Home/Gene), we use GitHub's raw URLs to download the source code of our Open Source apps. Hah, a nice hack right? I <a href="https://github.com/artsy/eigen/blob/master/Artsy/View_Controllers/Admin/ARAdminNetworkModel.m">created</a> a <code>ARAdminNetworkModel</code> with an API like this:</p>
+
+<pre><code class="objc">@interface ARAdminNetworkModel : NSObject
+
+- (void)getEmissionJSON:(NSString *)path completion:(void (^)(NSDictionary *json, NSError *error))completion;
+
+- (void)getEmissionFile:(NSString *)path completion:(void (^)(NSString *fileContents, NSError *error))completion;
+
+@end
+</code></pre>
+
+<p>Which simply uses <code>NSURLSession</code> under the hood:</p>
+
+<pre><code class="objc">- (void)getEmissionData:(NSString *)path completion:(void (^)(NSData *data, NSError *error))completion;
+{
+    NSURLSession *session = [NSURLSession sharedSession];
+    NSString *urlFormat = @"https://raw.githubusercontent.com/artsy/emission/master/%@";
+    NSString *url = [NSString stringWithFormat: urlFormat, path];
+    NSURLRequest *request = [NSURLRequest requestWithURL:[NSURL URLWithString:url]];
+    NSURLSessionDataTask *task = [session dataTaskWithRequest:request completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
+            completion(data, error);
+    }];
+    [task resume];
+}
+</code></pre>
+
+<p>Nothing special, but it required a cognative jump to get there.</p>
+
+<h3>Submodule Introspection</h3>
+
+<p>The second time I wanted this is inside <a href="https://github.com/artsy/emission/tree/master/Example">the example app</a> for Emission. This is a typical example application for a library made by <code>pod lib create</code>. This example app is basically just the admin settings panel from Eigen, shown above.</p>
+
+<p>When I <a href="https://github.com/artsy/emission/pull/347">switched the</a> example app to use a similar theme and menu DSL as Eigen, I also took the chance to expand on the buttons we had available. Previously there was the ability to load the view controller for one specific artist, but I knew we had a <a href="https://github.com/artsy/metaphysics/blob/master/schema/artist/maps/artist_title_slugs.js">giant list of artist slugs</a> inside one of our optional sub-modules. What I wanted to do, was offer a random Artist from that if the submodule was <code>init</code>'d.</p>
+
+<p>This required introspecting the source, which I could have also done via the GitHub API, but it was also feasible to do by accessing the filesystem outside of the simulator. This is totally possible ( and is <a href="https://www.objc.io/issues/15-testing/snapshot-testing/">how FBSnapshots works</a> ) but I needed to access the project root, then I could build relative links. Thus, <a href="https://twitter.com/orta/status/786470282093625344">I asked the internet</a>. I knew these variables existed, but that they were a part of the build process - and not exposed to the app runtime.</p>
+
+<p>There are two ways to do it, both make sense for different contexts:</p>
+
+<ul>
+<li><a href="https://github.com/artsy/emission/blob/74d0bc6cc45da906436f8bbc33710ea030657ee8/Example/Emission/Info.plist#L5-L6">Baking the value into your Info.plist</a> - which makes it available for all consumers at runtime, e.g. you could deploy this value, but it's not too useful for my problem.</li>
+<li><a href="https://github.com/artsy/emission/pull/350/commits/2a39c743bcaaf2e3b848ad60621198f40365fdd2">Exposing it as an environment variable via your scheme</a> - perfect for this case, the variable won't be exported when you deploy.</li>
+</ul>
+
+
+<p>Now our scheme looks like this:</p>
+
+<p></div></div><a href='/images/source-code-sim/scheme-settings-emission.png'><img src="/images/source-code-sim/scheme-settings-emission.png"></a><div class='meta-container'><header>&nbsp;</header></div><div class='date-container'>&nbsp;</div><div class='content-container'><div class='entry-content'></p>
+
+<p>I can then use the value of <code>SRCROOT</code> as the start of an absolute path to get to any of the source code in our project. Making the <a href="https://github.com/artsy/emission/blob/dda57636e424ab7d4517de57f3e8bd917fcb3c6f/Example/Emission/ARRootViewController.m#L85-L108">final code</a>:</p>
+
+<pre><code class="obj-c">- (ARCellData *)jumpToRandomArtist
+{
+  NSString *sourceRoot = [NSProcessInfo processInfo].environment[@"SRCROOT"];
+  NSString *artistListFromExample = @"../externals/metaphysics/schema/artist/maps/artist_title_slugs.js";
+  NSString *slugsPath = [sourceRoot stringByAppendingPathComponent:artistListFromExample];
+
+  NSFileManager *manager = [NSFileManager defaultManager];
+
+  // Don't have the submodule? bail, it's no biggie
+  if (![manager fileExistsAtPath:slugsPath]) { return nil; }
+
+  // Otherwise lets support jumping to a random Artist
+  return [self tappableCellDataWithTitle:@"Artist (random from metaphysics)" selection: ^{
+    NSString *data = [NSString stringWithContentsOfFile:slugsPath encoding:NSUTF8StringEncoding error:nil];
+
+    ... and so on
+</code></pre>
+
+<h3>Tooling</h3>
+
+<p>Paying attention to your admin tools, and improving your development experience for the whole team is a great way to win friends and influence people. Introspecting your source code may help that.</p>
+]]></content>
+  </entry>
+  
+</feed>
