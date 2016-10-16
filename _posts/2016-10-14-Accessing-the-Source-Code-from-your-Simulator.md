@@ -59,7 +59,7 @@ Which simply uses `NSURLSession` under the hood:
 }
 ```
 
-Nothing special, but it required a cognative jump to get there.
+Nothing special, but it required a cognitive jump to get there.
 
 ### Submodule Introspection
 
