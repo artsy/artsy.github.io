@@ -27,7 +27,7 @@ There are two interesting things about it:
  - We support running any master commit of our React Native code inside Eigen, for Admins, [via AppHub](https://apphub.io)
  - We allow loading arbitrary React components as an admin.
 
- It's this last bit that's interesting, right now I'm working on a new root Gene component (read: new view controller) in Emission, our React Native implmentation. As this work has not moved upstream into Eigen, I can access it through a commit on AppHub, and then open it using our custom module loader:
+ It's this last bit that's interesting, right now I'm working on a new root Gene component (read: new view controller) in Emission, our React Native implementation. As this work has not moved upstream into Eigen, I can access it through a commit on AppHub, and then open it using our custom module loader:
 
 ![/images/source-code-sim/react-module-eigen.png](/images/source-code-sim/react-module-eigen.png)
 
