@@ -30,7 +30,7 @@ Once decoded:
 
 After a successful login, our API would generate a custom JSON object including some basic information about the user and application, then encrypt it using a single server-side secret.
 For every authenticated request we would have to decrypt the token, make sure user and application are valid and application still has access to our API. We are already _stateless_ since we don't store tokens in our database.
-In this manner, we avoided needing to store sessions in the database. However, client applications had to make an API call to get any information about the authenticated user.
+However, client applications had to make an API call to get any information about the authenticated user.
 
 
 # Where we are going
