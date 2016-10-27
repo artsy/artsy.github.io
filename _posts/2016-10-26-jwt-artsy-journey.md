@@ -23,6 +23,8 @@ Once decoded:
 
 - Signature section is used to verify the sender of the JWT and make sure token wasn't modified along the way.
 
+![JWT example](/images/2016-10-26-JWT-Artsy-Journey/jwt-example.png)
+
 <a href="https://jwt.io/introduction/" target="_blank">JWT</a> and <a href="https://tools.ietf.org/html/rfc7519" target="_blank">RFC 7519</a> provide more details about each section of JWT and how encoding, decoding and verification work.
 
 
