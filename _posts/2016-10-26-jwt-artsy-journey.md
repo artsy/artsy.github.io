@@ -42,7 +42,7 @@ We want to keep our current auth flow which is already stateless and mainly repl
 
 - Possibly include different data in JWT payload for different applications. Some clients may request user roles with respect to galleries and others with respect to auction houses..
 
-- Follow a well-defined standard and use existing libraries for creating and reading the token. JWT has a decent set of reseverd _claims_ which can be used to describe the token in a unified language. Few examples:
+- Follow a well-defined standard and use existing libraries for creating and reading the token. JWT has a decent set of reserved _claims_ which can be used to describe the token in a unified language. Few examples:
 
   - `exp`: Expiration time.
   - `iat`: Time this JWT was issued.
@@ -62,7 +62,7 @@ When we get an authenticated request:
 
 - We decode JWT without verifying the signature.
 
-- From JWT payload we get the aud (audience) attribute which defines for which application this JWT was generated.
+- From JWT payload we get the `aud` (audience) attribute which defines for which application this JWT was generated.
 
 - We fetch `ClientApplication` for this `aud` and we verify JWT's signature using this application's secret key.
 
