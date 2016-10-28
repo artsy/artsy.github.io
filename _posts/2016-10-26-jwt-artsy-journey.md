@@ -21,7 +21,7 @@ Once decoded:
 
 - The payload section includes _claims_ and data provided by token issuer about the user/application, things like token expiration time, user id and etc.
 
-- Signature section is used to verify the sender of the JWT and make sure token wasn't modified along the way.
+- The signature section is used to verify the sender of the JWT and make sure token wasn't modified along the way.
 
 ![JWT example](/images/2016-10-26-JWT-Artsy-Journey/jwt-example.png)
 
@@ -31,14 +31,14 @@ Once decoded:
 # Where we were
 
 After a successful login, our API would generate a custom JSON object including some basic information about the user and application, then encrypt it using a single server-side secret.
-For every authenticated request we would have to decrypt the token, make sure user and application are valid and application still has access to our API. We are already _stateless_ since we don't store tokens in our database.
+For every authenticated request we would have to decrypt the token, make sure the user and application are valid and application still has access to our API. We are already _stateless_ since we don't store tokens in our database.
 However, client applications had to make an API call to get any information about the authenticated user.
 
 
 # Where we are going
-We want to keep our current auth flow which is already stateless and mainly replace our in-house generated access token with a more standard JWT. What that gives us is:
+We want to keep our current auth flow which is already stateless(tokens are not stored in database) and mainly replace our in-house generated access token with a more standard JWT. This let's us::
 
-- Client applications are able to decode and use basic information out of our token. With our in-house generated access token this was not possible since they don't share the secret. With JWT each app can decode the token and get basic data out of it, it can check if token is expired or not and etc. If client is doing something that needs to make sure token is still valid, it can still call the API, like before, to re-validate and get more data about it.
+- Make client applications who are able to decode and use basic information out of our token. With our in-house generated access token this was not possible since they don't share the secret. With JWT each app can decode the token and get basic data out of it, it can check if token is expired or not and etc. If client is doing something that needs to make sure token is still valid, it can still call the API, like before, to re-validate and get more data about it.
 
 - Possibly include different data in JWT payload for different applications. Some clients may request user roles with respect to galleries and others with respect to auction houses..
 
@@ -47,12 +47,12 @@ We want to keep our current auth flow which is already stateless and mainly repl
   - `exp`: Expiration time.
   - `iat`: Time this JWT was issued.
   - `iss`: Issuer of this JWT (ex. our main API)
-  - `aud`: Audience of this JWt (ex. Our mobile application)
+  - `aud`: Audience of this JWT (ex. Our mobile application)
   - `jti`: JWT ID, unique identifier for this JWT
 
 Most JWT libraries honor these claims and can automatically validate them so we don't have to handle things like expiration ourselves.
 
-In our new approach, every `ClientApplication` has it's own secret key. When we get a new login for specific application:
+In our new approach, every `ClientApplication` has its own secret key. When we get a new login for specific application:
 
 - We find the application in our database to make sure it is still valid and has access to our API.
 
@@ -68,7 +68,7 @@ When we get an authenticated request:
 
 # Transition
 
-Changing authentication token can be tricky when we already have many clients using our old access token format. It turns out that since we aren't changing the authentication flow, it's easier than we might expect. We simply have to continue decoding the legacy token format until they've all expired or been replaced by JWTs.
+Changing authentication tokens can be tricky when we already have many clients using our old access token format. It turns out that since we aren't changing the authentication flow, it's easier than we might expect. We simply have to continue decoding the legacy token format until they've all expired or been replaced by JWTs.
 
 Basically once we go live with this change:
 
