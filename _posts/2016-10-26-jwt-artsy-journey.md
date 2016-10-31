@@ -7,9 +7,12 @@ author: ashkan
 categories: [Authentication, JWT, API]
 ---
 
-At Artsy we currently have ~1730 client applications hitting our API and requesting authentication. When a user successfully authenticates through one of these clients, we want to embed basic user/application data in the resulting token rather than have to look up a session ID in the database on each request. For that we want to use JWT.
+At Artsy we currently have ~1730 client applications hitting our API and requesting authentication. When a user successfully authenticates through one of these clients, we want to embed basic user/application data in the resulting token rather than have to look up a session ID in the database on each request to get user/application basic data. For that we want to use JWT.
 
-JWT (JSON Web Token) is a self-contained, secure and standard way of transmitting data between applications and clients as JSON objects.
+JWT (JSON Web Token) is a self-contained, secure and standard way of transmitting data between applications and clients as JSON objects. Using JWTs lets us use a standardized technology to cut our authentication workflow down by one round-trip.
+
+We've recently switched our authentication flow to use JWT, and I'm going to cover what they are, how we've used them and how we're handling the transition.
+
 <!-- more -->
 JWT has three separate sections which are separated by `.`: header, payload and signature.
 
