@@ -26,7 +26,7 @@ Once decoded:
 
 - The signature section is used to verify the sender of the JWT and make sure token wasn't modified along the way.
 
-![JWT example](/images/2016-10-26-JWT-Artsy-Journey/jwt-example.png)
+![JWT example](/images/2016-10-26-jwt-artsy-journey/jwt-example.png)
 
 <a href="https://jwt.io/introduction/" target="_blank">JWT</a> and <a href="https://tools.ietf.org/html/rfc7519" target="_blank">RFC 7519</a> provide more details about each section of JWT and how encoding, decoding and verification work.
 
@@ -81,5 +81,5 @@ Basically once we go live with this change:
 
 - Every time we get a legacy token, we increment a `legacy.token` metric via [Statsd](https://github.com/etsy/statsd). This way we can monitor the rate of legacy tokens we receive and decide when we can safely remove support for the legacy format.
 
-![Tracking Legacy tokens](/images/2016-10-26-JWT-Artsy-Journey/graphite-legacy-tokens.png)
+![Tracking Legacy tokens](/images/2016-10-26-jwt-artsy-journey/graphite-legacy-tokens.png)
 
