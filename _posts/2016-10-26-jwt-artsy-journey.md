@@ -71,7 +71,7 @@ Once we go live with this change:
 
 - Any new successful authentication will use the JWT format.
 - When validating existing tokens, we'll simply test if the token appears to be in the JWT format. If so, we'll decode it and validate the signature. If not, we'll attempt to decrypt it as a legacy token.
-- Every time we get a legacy token, we increment a `legacy.token` metric via [Statsd](https://github.com/etsy/statsd). This way we can monitor the rate of legacy tokens we receive and decide when we can safely remove support for the legacy format.
+- Every time we get a legacy token, we increment a `legacy.token` metric via [Statsd](https://github.com/etsy/statsd). This way we can monitor the rate of legacy tokens we receive and decide when we can safely remove support for the legacy format. Following diagram shows legacy tokens usage.
 
 ![Tracking legacy tokens](/images/2016-10-26-jwt-artsy-journey/graphite-legacy-tokens.png)
 
