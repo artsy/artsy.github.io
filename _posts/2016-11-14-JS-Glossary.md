@@ -92,7 +92,11 @@ If you'd like to read more, there is a much deeper explaination in [uberVU/react
 
 ### Context
 
-Hrm
+[The docs][context_docs] are pretty specific about context:
+
+> If you aren't an experienced React developer, don't use context. There is usually a better way to implement functionality just using props and state.
+
+Seems to be you should only be using this is really, really specific places. If you need it, you don't need this glossary.
 
 ### JSX
 
@@ -101,16 +105,25 @@ As we'll find out later, modern JavaScript is a collection of different ideas, a
 Under the hood, JSX is quite simple, with code looking like this:
 
 ```js
-return (<View><Button/></View>)
+const element = (
+  <h1 className="greeting">
+    Hello, world!
+  </h1>
+);
 ```
 
-Turning into (VERIFY)
+Turning into 
 
 ```js
-return react.createElement("View", react.createElement("Button"))
+const element = React.createElement(
+  'h1',
+  {className: 'greeting'},
+  'Hello, world!'
+);
+
 ```
 
-Where `createElement` comes from the React [module](#module).
+Where `createElement` comes from the React [module](#module). You can find out more in [the React docs][react_jsx]
 
 # Libraries
 
@@ -412,3 +425,5 @@ Flow-Typed is new, so it's not really got many definitions at all. Typings on th
 [typings]: TNJDNKSJDNFKJSDNF
 [flow-typed]: aSADAFA
 [node_history]: aSDASDASD
+[context_docs]: https://facebook.github.io/react/docs/context.html
+[react_jsx]: https://facebook.github.io/react/docs/introducing-jsx.html
