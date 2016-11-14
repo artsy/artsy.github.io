@@ -7,9 +7,9 @@ categories: [javascript, emission, danger]
 series: React Native at Artsy
 ---
 
-Getting to grips with the entire JavaScript ecosystem is a tough job when you're getting started. Coming from the native mobile space, there's a lot to learn. I've spent a lot of time in the environment now, and can distill so you can grok, then dig into places when you choose.
+Getting to grips with the entire JavaScript ecosystem is a tough job when you're getting started. Coming from the native mobile space, there's a lot to learn. I've spent a lot of time in the environment now, and can distill so you can grok, then dig into places when you choose. This post is semi-opinionated, with links for further reading so you can get a different perspective too.
 
-This post will try to provide a glossary around the tools that are being used inside a React Native project, as well as some code examples.  
+This post focus specifically on the JavaScript tooling around React Native projects, but is applicable to all JavaScript projects. 
 
 <!-- more -->
 
@@ -42,7 +42,7 @@ export default class SearchBar extends React.Component {
 }
 ```
 
-By providing a well encapulated Component model, you can really reduce the amount of code you need to build an application. By not initially writing to the DOM, React can decide what has changed between user actions and that means you have to juggle significant less [state](#state).
+By providing a well encapsulated Component model, you can agressively reduce the amount of redundant code you need to build an application. By not initially writing to the DOM, React can decide what has changed between user actions and that means you have to juggle significant less [state](#state).
 
 ### React Native
 
@@ -52,7 +52,7 @@ React Native is an implmentation of React where instead of having it abstract a 
 
 React Native is cross platform. You write JavaScript like above, which React Native transforms into a native view heirarchy. That view heirarchy could be on a Samsung TV, a Windows phone or Android instead. 
 
-It's a smart move, most "Make apps in JS" try to have a native-like experience where they replicate the platform's UI in HTML. However, that tends to feel unnatural very easily. If I showed you our app, you could not distinguish between a view controller in React Native, Swift or Objective-C.
+It's a smart move, most "Make apps in JS" try to have a native-like experience where they replicate the platform's UI in HTML. However, this technique tends to feel unnatural very easily. If I showed you our app, you could not distinguish between a view controller in React Native, Swift or Objective-C.
 
 ### App State
 
@@ -67,13 +67,18 @@ Props are chunks of app state that are passed into your component from a parent 
 Let's check out [an example][jsx-example]:
 
 ```js
-return (
-    <View style={styles.followButton}>
-        <InvertedButton text={this.state.following ? 'Following' : 'Follow'}
-                        selected={this.state.following}
-                        onPress={this.handleFollowChange} />
-    </View>
-)
+export default class Header extends React.Component {
+  [...]
+  render() {
+    return (
+        <View style={styles.followButton}>
+            <InvertedButton text={this.state.following ? 'Following' : 'Follow'}
+                            selected={this.state.following}
+                            onPress={this.handleFollowChange} />
+        </View>
+    )
+  }
+}
 ```
 
 See the `InvertedButton` component, it has three `props` being passed in: `text`, `selected` and `onPress`. If any of those props were to change the entire `InvertedButton` component would be re-rendered to the native view heirarchy. These `props` are the key to passing data downwards through your heirarchy. Note: you cannot access the parent component (without passing it in as a prop.)
@@ -82,9 +87,9 @@ You should therefore consider `props` as immutable bits of app state.
 
 ### State-again
 
-A component also has a `state` attribute. The key to understanding the difference between `props` and `state` is, `state` is something controlled within that component that can change `props` does not. 
+A component also has a `state` attribute. The key to understanding the difference between `props` and `state` is, `state` is something controlled within that component that can change - `props` do not. 
 
-The above example is a pretty good example of this, when this component is first added to the heirarchy, we send a networking request to get whether you are following something or not. The parent component does not need to update when we know whether you are following or not, but the button does. So it is in `state` for the parent, but a `prop` for the `InvertedButton`. This means changing the state for `following` will only cause a re-render in the button.
+The above example is a pretty good example of this, when this component is first added to the heirarchy, we send a networking request to get whether you are following something or not. The parent component (`Header`) does not need to update when we know whether you are following or not, but the `InvertedButton` does. So, it is `state` for the parent, but a `prop` for the `InvertedButton`. This means changing the state for `following` will only cause a re-render in the button.
 
 So state is something which changes within a component, which _could_ be used as `props` for it's children. Examples of this are around handling animation progress, whether you're following something, selection indices and any kind of networking which we do outside of [Relay](#relay).
 
@@ -127,11 +132,23 @@ Where `createElement` comes from the React [module](#module). You can find out m
 
 # Libraries
 
+### GraphQL
+
+TLDR: An API format for requesting only the data you want, and getting back just that. 
+
+If you want the longer explaination, I wrote a [blog post on it](/blog/2016/06/19/graphql-for-mobile/).
+
 ### Relay
+
+Relay is what makes working in our React Native app shine. It is a library that allows a component to describe the fragments of a networking request it would need to render. Relay would then look through your component heirarchy, take all the networking fragments, make a single GraphQL request and handle passing in the API fragments as [props](#props).
+
+This means you can throw away a significant amount of glue code.
+
 ### Redux
 
-# Tooling
+Redux is a state management pattern, it builds on top of React's "state is only passed down" concept, and creates a single way to handle triggering changes to your state. I'm afraid I don't ahve any experience with it, so I can't provide much context. I feel like [this post][what_)redux] covers it well though.   
 
+# Tooling
 
 
 ### Node
@@ -180,17 +197,46 @@ How can you be sure your syntax is correct? JavaScript has a really powerful and
 # Development
 
 ### Live Reload
+
+This is a common feature in JavaScript tooling. If you press save in a source file then some action is taken. Live Reloading tends to be a more blunt action, for example reloading the current view from scratch, or running all of the tests related to the file.  
+
 ### Hot-Reloading
+
+Hot Reloading is more rare, because it's significantly harder. Hot Reloading for React projects is injecting new functions into the running application, and keeping it in the same state. 
+
+For example if you had a filled-in form on your screen, you could make styling changes inside your source file and the text inside the form would not change. Hot reloading is amazing.
+
 ### Haste Map
+
+Part of what makes React Native support Hot Reloading, and allows [Jest](#jest) to understand changes for testing is by using a Haste Map. A Haste Map is a dependency resolver for JavaScript, looking through every function to know how it connects to every other function within the JavaScript project. 
+
+With the dependencies mapped, it becomes possible to know what functions would need replacing or testing when you press save after writing some changes. This is why it takes a bit of time to start up a React Native project. 
+
+The public API is deprecated, you shouldn't use it ni your projects, but the [old README is still around][haste].
 
 # Testing
 
 ### Jest
+
+Facebook have their own test runner called Jest. It builds on [Jasmine][jasmine], and offers a few features that kick ass for me:
+
+* Re-runs failing tests first
+* Assumes all tests unrelated to changes are green and doesn't run them
+* Watch mode that works reliably 
+
+I miss these features when I'm not in a Jest project.
+
+### Jest Snapshots
+
+Jest also has a feature called Jest Snapshots, this allows you to take "snapshots" of JavaScript objects, and then verify they are they are the same as they were last time. In iOS we [used visual snapshot][snapshots] testing a lot.
+
 ### VSCode-Jest
+
+I created a project to auto-run Jest inside projects that use it as a test runner when using Visual Studio Code: [vscode-jest][vscode-jest]. I've wrote about our usage of VS Code [on this blog series][using-code] also.  
 
 # JS
 
-I'm always told that JavaScript was created in 10 days, which is a cute anecdote, but JavaScript has evolved for the next 20 years (TODO: how long?). The JavaScript you wrote 10 years ago would still run, however modern JavaScript is an amazing and expressive programming language once you start using modern features.
+I'm always told that JavaScript was created in 10 days, which is a cute anecdote, but JavaScript has evolved for the next 21 years. The JavaScript you wrote 10 years ago would still run, however modern JavaScript is an amazing and expressive programming language once you start using modern features.
 
 Sometimes these features aren't available in [node](#node), or your browser's JavaScript engine, you can work around this by using a transpiler, which takes your source code and backports the features you are using to an older version of JavaScript.  
 
@@ -213,15 +259,27 @@ Turns out that didn't work out too well, so the terminology changed again. The c
 Now an ECMAScript language improvement specification moves through a series of stages, depending on their maturity. I believe starting at 4, and working down to 1. So a ECMAScript Stage 4 feature is going to be really new, if you're using it via a transpiler then you should expect a lot of potential API changes and code churn. The lower the number, the longer the spec has been discussed, and the more likely for the code you're transpiling to be the vanilla JavaScript code in time.
 
 
-### Mutablilty
+### Modules / Imports
 
-JavaScript has had a keyword `var` to indicate a variable forever. You should basically never use this. I've never written one this year, except by accident. It's a keyword that has a really confusing scope, leading to odd bugs. [ES6](#es6) brought two replacements, both of which will give you a little bit of cognative dissonance if you have a lot of Swift experience.
+A modules is the terminology for a group of JavaScript code. Terminology can get confusing, as the import structure for a library is very similar to importing a local file.
 
-`let` - the replacement for `var`, this is a _mutable_ variable, you can replace the value of a `let`. The scope of a `let` is exactly what you think from every other programming language.
-`const` - this is a `let` that won't allow you to change the _value_. So it creates a mutable object (all JS objects are mutable) but you cannot replace the object from the initial assignment.  
+You can import a module using syntax like `import { thin, other } from "thingy"`. Here's some examples [from our project][imports]:
 
-### Modules
+```js
+// Import modules
+import Relay from 'react-relay'
+import React from 'react'
+// Import two items from the react-native module 
+import { View, TouchableWithoutFeedback } from 'react-native'
 
+// Import the default class from a local file
+import ImageView from '../../opaque_image_view'
+import SwitchBoard from '../../../native_modules/switch_board'
+```
+
+An import can either have [a default export][default-export], or a set of exportable function/objects.
+
+You might see something like `const thing = require "thing"` around the internet, I think that's the older syntax from before the above syntax was decided upon.
 
 ### Classes
 
@@ -229,10 +287,10 @@ Modern JavaScript has classes introduced in [es6](#es6), this means that instead
 
 ```js
 const danger = {
-name: "Danger",
-hello: function () {
-console.log("Hi!")
-}
+  name: "Danger",
+  hello: function () {
+  console.log("Hi!")
+  }
 }
 
 danger.hello();
@@ -242,16 +300,75 @@ Instead you could write:
 
 ```js
 class Person {
-constructor(name) {
-this.name = name
-}
-//TODO - function?
+  constructor(name) {
+    this.name = name
+  }
+  //TODO - function?
 }
 
 const danger = new Person("danger")
 ```
 
 Classes provides the option of doing object-oriented programming, which is still a pretty solid way to write code. You can get useful errors 
+
+
+### Mutablilty
+
+JavaScript has had a keyword `var` to indicate a variable forever. You should basically never use this. I've never written one this year, except by accident. It's a keyword that has a really confusing scope, leading to odd bugs. [ES6](#es6) brought two replacements, both of which will give you a little bit of cognative dissonance if you have a lot of Swift experience.
+
+`let` - the replacement for `var`, this is a _mutable_ variable, you can replace the value of a `let`. The scope of a `let` is exactly what you think from every other programming language.
+`const` - this is a `let` that won't allow you to change the _value_. So it creates a mutable object (all JS objects are mutable) but you cannot replace the object from the initial assignment.  
+
+### This
+
+The keyword `this` is a tricky one. It is confusing because `this` gets assigned to the object that invokes the function where you use `this`.
+
+It's confusing because you may have a function inside a class, and would expect `this` to be the instance to which the function is attached to, but it very easily could not be. For [example](https://github.com/artsy/emission/blob/c558323e4276699925b4edb3d448812005ae6b5d/lib/components/artist/articles/article.js#L11-L22):
+
+```js
+class Article extends React.Component {
+  handleTap() {
+    SwitchBoard.presentNavigationViewController(this, this.props.article.href)
+  }
+
+  render() {
+    [...]
+    return (
+      <View style={styles.container}>
+        <TouchableWithoutFeedback onPress={this.handleTap}>
+
+``` 
+
+In the above example `this` inside `handleTap` does not refer to the instance of Article. Tricky right? 
+
+There are two "easy" fixes, [using arrow functions][arrow-func] instead if normal functions:
+
+```js
+class Article extends React.Component {
+  handleTap = () => {
+    SwitchBoard.presentNavigationViewController(this, this.props.article.href)
+  }
+  [...]
+```
+
+Or you can use the `bind` function to ensure that `this` inside the function is what you want it to be.  
+
+```js
+class Article extends React.Component {
+  [...]
+
+  render() {
+    [...]
+    return (
+      <View style={styles.container}>
+        <TouchableWithoutFeedback onPress={this.handleTap.bind(this)}>
+```
+
+This is a great in-depth explaination of the way it works: [Understanding the “this” keyword in JavaScript][this]. 
+
+### Strict Mode
+
+Introduced in ECMAScript 5.1, it provides a way to [opt-in to more errors][strict-mode] inside the JavaScript runtime. As you're likely to be using both a linter and a transpiler to keep your source clean, I'm less worried about including it on every page. 
 
 ### Destructuring
 
@@ -350,9 +467,6 @@ You aren't always given a promise to work with as not all APIs support promises 
 
 The `await` part of an `async` function using `await readFile` will now wait on the synchronous execution until the promise has resolved. This makes complicated code look very simple.
 
-### Spreads
-
-
 # Types
 
 Types can provide an amazing developer experience, as an editor can understand the shape of all the object's inside your project. This can make it possible to build rich refactoring, static analysis or auto-complete experiences without relying on a runtime.
@@ -427,3 +541,15 @@ Flow-Typed is new, so it's not really got many definitions at all. Typings on th
 [node_history]: aSDASDASD
 [context_docs]: https://facebook.github.io/react/docs/context.html
 [react_jsx]: https://facebook.github.io/react/docs/introducing-jsx.html
+[what_redux]: http://www.youhavetolearncomputers.com/blog/2015/9/15/a-conceptual-overview-of-redux-or-how-i-fell-in-love-with-a-javascript-state-container
+[arrow-func]: http://exploringjs.com/es6/ch_arrow-functions.html
+[this]: https://toddmotto.com/understanding-the-this-keyword-in-javascript/
+[strict-mode]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Strict_mode 
+[imports]: https://github.com/artsy/emission/blob/master/lib/components/artist/shows/show.js#L4-L9
+[default-export]: https://github.com/danger/danger-js/blob/61557ac7b6de37ef9a7e4a1aa0c0cbe0bd00977d/source/ci_source/Fake.js#L6
+[export-functions]: https://github.com/danger/danger-js/blob/61557ac7b6de37ef9a7e4a1aa0c0cbe0bd00977d/source/ci_source/ci_source_helpers.js#L6-L30
+[haste]: https://github.com/facebookarchive/node-haste/tree/master#node-haste-
+[jasmine]: https://jasmine.github.io
+[snapshots]: https://www.objc.io/issues/15-testing/snapshot-testing/
+[vscode-jest]: https://github.com/orta/vscode-jest
+[using-code]: https://artsy.github.io/blog/2016/08/15/vscode/
