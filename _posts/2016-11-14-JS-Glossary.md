@@ -7,7 +7,7 @@ categories: [javascript, emission, danger]
 series: React Native at Artsy
 ---
 
-Getting to grips with the entire JavaScript ecosystem is a tough job when you're getting started. Coming from the native mobile space, there's a lot to learn. I've spent a lot of time in the environment now, and can distill so you can grok, then dig into places when you choose. This post is semi-opinionated, with links for further reading so you can get a different perspective too.
+Getting to grips with the entire JavaScript ecosystem is a tough job when you're getting started. Coming from the native mobile space, there's a lot to learn. I've spent a lot of time in the environment now, and can distil so you can grok, then dig into places when you choose. This post is semi-opinionated, with links for further reading so you can get a different perspective too.
 
 This post focus specifically on the JavaScript tooling around React Native projects, but is applicable to all JavaScript projects. 
 
@@ -17,7 +17,7 @@ This post focus specifically on the JavaScript tooling around React Native proje
 
 ### React
 
-React is a Facebook project which offers a uni-direction Component model that _can_ replace MVC in a front-end application. It was built out of a desire to mock a web page's view heirarchy (called the DOM) so that they could make changes as differences between view states.
+React is a Facebook project which offers a uni-direction Component model that _can_ replace MVC in a front-end application. It was built out of a desire to mock a web page's view hierarchy (called the DOM) so that they could make changes as differences between view states.
 
 Its model is that you would create a set of Components to encapsulate each part for the state of the page. React makes it easy to make components that are functional in the FRP sense. They act like a function which takes some specially declared state and it is rendered into HTML.
 
@@ -42,15 +42,15 @@ export default class SearchBar extends React.Component {
 }
 ```
 
-By providing a well encapsulated Component model, you can agressively reduce the amount of redundant code you need to build an application. By not initially writing to the DOM, React can decide what has changed between user actions and that means you have to juggle significant less [state](#state).
+By providing a well encapsulated Component model, you can aggressively reduce the amount of redundant code you need to build an application. By not initially writing to the DOM, React can decide what has changed between user actions and that means you have to juggle significant less [state](#state).
 
 ### React Native
 
 Writing native apps is now officially a pain. I came to this conclusion early this year, and it's been amazing to be able to work in React Native.
 
-React Native is an implmentation of React where instead of having it abstract a web page's DOM, it create a native view heirarchy. In the case of iOS that is a UIView heriarchy. Note that it does not handle View Controllers. The MVC model from Apple's Cocoa framework does not directly map into React Natives. I've wrote about how we [bridge that gap earlier][our-implmentation].
+React Native is an implementation of React where instead of having it abstract a web page's DOM, it create a native view hierarchy. In the case of iOS that is a UIView hierarchy. Note that it does not handle View Controllers. The MVC model from Apple's Cocoa framework does not directly map into React Natives. I've wrote about how we [bridge that gap earlier][our-implmentation].
 
-React Native is cross platform. You write JavaScript like above, which React Native transforms into a native view heirarchy. That view heirarchy could be on a Samsung TV, a Windows phone or Android instead. 
+React Native is cross platform. You write JavaScript like above, which React Native transforms into a native view hierarchy. That view hierarchy could be on a Samsung TV, a Windows phone or Android instead. 
 
 It's a smart move, most "Make apps in JS" try to have a native-like experience where they replicate the platform's UI in HTML. However, this technique tends to feel unnatural very easily. If I showed you our app, you could not distinguish between a view controller in React Native, Swift or Objective-C.
 
@@ -81,7 +81,7 @@ export default class Header extends React.Component {
 }
 ```
 
-See the `InvertedButton` component, it has three `props` being passed in: `text`, `selected` and `onPress`. If any of those props were to change the entire `InvertedButton` component would be re-rendered to the native view heirarchy. These `props` are the key to passing data downwards through your heirarchy. Note: you cannot access the parent component (without passing it in as a prop.)
+See the `InvertedButton` component, it has three `props` being passed in: `text`, `selected` and `onPress`. If any of those props were to change the entire `InvertedButton` component would be re-rendered to the native view hierarchy. These `props` are the key to passing data downwards through your hierarchy. Note: you cannot access the parent component (without passing it in as a prop.)
 
 You should therefore consider `props` as immutable bits of app state. 
 
@@ -89,11 +89,11 @@ You should therefore consider `props` as immutable bits of app state.
 
 A component also has a `state` attribute. The key to understanding the difference between `props` and `state` is, `state` is something controlled within that component that can change - `props` do not. 
 
-The above example is a pretty good example of this, when this component is first added to the heirarchy, we send a networking request to get whether you are following something or not. The parent component (`Header`) does not need to update when we know whether you are following or not, but the `InvertedButton` does. So, it is `state` for the parent, but a `prop` for the `InvertedButton`. This means changing the state for `following` will only cause a re-render in the button.
+The above example is a pretty good example of this, when this component is first added to the hierarchy, we send a networking request to get whether you are following something or not. The parent component (`Header`) does not need to update when we know whether you are following or not, but the `InvertedButton` does. So, it is `state` for the parent, but a `prop` for the `InvertedButton`. This means changing the state for `following` will only cause a re-render in the button.
 
 So state is something which changes within a component, which _could_ be used as `props` for it's children. Examples of this are around handling animation progress, whether you're following something, selection indices and any kind of networking which we do outside of [Relay](#relay).
 
-If you'd like to read more, there is a much deeper explaination in [uberVU/react-guide][react-guide]   
+If you'd like to read more, there is a much deeper explanation in [uberVU/react-guide][react-guide]   
 
 ### Context
 
@@ -136,24 +136,24 @@ Where `createElement` comes from the React [module](#module). You can find out m
 
 TLDR: An API format for requesting only the data you want, and getting back just that. 
 
-If you want the longer explaination, I wrote a [blog post on it](/blog/2016/06/19/graphql-for-mobile/).
+If you want the longer explanation, I wrote a [blog post on it](/blog/2016/06/19/graphql-for-mobile/).
 
 ### Relay
 
-Relay is what makes working in our React Native app shine. It is a library that allows a component to describe the fragments of a networking request it would need to render. Relay would then look through your component heirarchy, take all the networking fragments, make a single GraphQL request and handle passing in the API fragments as [props](#props).
+Relay is what makes working in our React Native app shine. It is a library that allows a component to describe the fragments of a networking request it would need to render. Relay would then look through your component hierarchy, take all the networking fragments, make a single GraphQL request and handle passing in the API fragments as [props](#props).
 
 This means you can throw away a significant amount of glue code.
 
 ### Redux
 
-Redux is a state management pattern, it builds on top of React's "state is only passed down" concept, and creates a single way to handle triggering changes to your state. I'm afraid I don't ahve any experience with it, so I can't provide much context. I feel like [this post][what_)redux] covers it well though.   
+Redux is a state management pattern, it builds on top of React's "state is only passed down" concept, and creates a single way to handle triggering changes to your state. I'm afraid I don't have any experience with it, so I can't provide much context. I feel like [this post][what_redux] covers it well though.   
 
 # Tooling
 
 
 ### Node
 
-Node is the JavaScript implmentation from Google's Chrome (called v8) with an expanded API for doing useful systems tooling. It is a pretty recent creation, so it started off with an entirely synchronous API for any potentially blocking code.
+Node is the JavaScript implementation from Google's Chrome (called v8) with an expanded API for doing useful systems tooling. It is a pretty recent creation, so it started off with an entirely synchronous API for any potentially blocking code.
 
 For web developers this was a big boon, you could share code between the browser and the server. The blocking API meant it was much easier to write faster servers, and there are lots of big companies putting a lot of time and money into improving the speed of JavaScript every day.
 
@@ -163,7 +163,7 @@ Node has an interesting history of ownership, I won't cover it here, but [this l
 
 NPM is the Node Package Manager. It is shipped with node, but it is a completely different project and team. NPM the project is ran by a private company.
 
-NPM is one of the first dependency managers to offer the ability to install multiple versions of the same library inside your app. This contributes considerably to the issue of the number of depenencies inside any app's ecosystem.
+NPM is one of the first dependency managers to offer the ability to install multiple versions of the same library inside your app. This contributes considerably to the issue of the number of dependencies inside any app's ecosystem.
 
 JavaScript people will always complain about NPM, but people will always complain about their build tools. Dependency Manager's especially. From an outsider's view, it nearly always does what you expect, has a great team behind it and has more available dependencies than any other.
 
@@ -192,7 +192,7 @@ In the case of a react-native project, Babel is happening behind the scenes.
 
 ### ESLint
 
-How can you be sure your syntax is correct? JavaScript has a really powerful and extensible linter called ESLint. If parses your JavaScript and offers warnings and errors around your syntax. You can use this to provide a consistant codebase, or in my case, to be lazy with your formatting. Fixing a lot of issues is one command away. 
+How can you be sure your syntax is correct? JavaScript has a really powerful and extensible linter called ESLint. If parses your JavaScript and offers warnings and errors around your syntax. You can use this to provide a consistent codebase, or in my case, to be lazy with your formatting. Fixing a lot of issues is one command away. 
 
 # Development
 
@@ -212,7 +212,7 @@ Part of what makes React Native support Hot Reloading, and allows [Jest](#jest) 
 
 With the dependencies mapped, it becomes possible to know what functions would need replacing or testing when you press save after writing some changes. This is why it takes a bit of time to start up a React Native project. 
 
-The public API is deprecated, you shouldn't use it ni your projects, but the [old README is still around][haste].
+The public API is deprecated, you shouldn't use it in your projects, but the [old README is still around][haste].
 
 # Testing
 
@@ -242,19 +242,19 @@ Sometimes these features aren't available in [node](#node), or your browser's Ja
 
 ### ES6
 
-JavaScript is run by a commitee. Around the time that people were starting to talk about HTML5 and CSS3, work was started on a new specification for JavaScript called ECMAScript 6. [What IS ECMA?]
+JavaScript is run by a committee. Around the time that people were starting to talk about HTML5 and CSS3, work was started on a new specification for JavaScript called ECMAScript 6. [What IS ECMA?]
 
 ES6 represents the first point at which JavaScript really started to take a lot of the best features from transpile to JavaScript languages like CoffeeScript. Making it feasible for larger systems programming to be possible in vanilla JavaScript.  
 
 ### ES2016
 
-It took forever for [ES6](#es6) to come out, and every time they wrote up / changed a spec there were multiple implmentations of the spec availble for transpiling via [babel](#babel). This I can imagine was frustrating for developers wanting to use new features, and specification authors trying to put out documentation for discussion as a work in progress. This happened a lot [with the Promises](#promises) API.
+It took forever for [ES6](#es6) to come out, and every time they created / amended a specification there were multiple implementations of the specification available for transpiling via [babel](#babel). This I can imagine was frustrating for developers wanting to use new features, and specification authors trying to put out documentation for discussion as a work in progress. This happened a lot [with the Promises](#promises) API.
 
 To fix this they opted to discuss specification features on a year basis. So that specifications could be smaller and more focused, instead of major multi-year projects. Quite a SemVer jump from 6 to 2016.
 
 ### Stages
 
-Turns out that didn't work out too well, so the terminology changed again. The change is mainly to set expectations between the Specification authors and developers transpiling those specs into their apps.
+Turns out that didn't work out too well, so the terminology changed again. The change is mainly to set expectations between the Specification authors and developers transpiling those specifications into their apps.
 
 Now an ECMAScript language improvement specification moves through a series of stages, depending on their maturity. I believe starting at 4, and working down to 1. So a ECMAScript Stage 4 feature is going to be really new, if you're using it via a transpiler then you should expect a lot of potential API changes and code churn. The lower the number, the longer the spec has been discussed, and the more likely for the code you're transpiling to be the vanilla JavaScript code in time.
 
@@ -303,7 +303,6 @@ class Person {
   constructor(name) {
     this.name = name
   }
-  //TODO - function?
 }
 
 const danger = new Person("danger")
@@ -314,7 +313,7 @@ Classes provides the option of doing object-oriented programming, which is still
 
 ### Mutablilty
 
-JavaScript has had a keyword `var` to indicate a variable forever. You should basically never use this. I've never written one this year, except by accident. It's a keyword that has a really confusing scope, leading to odd bugs. [ES6](#es6) brought two replacements, both of which will give you a little bit of cognative dissonance if you have a lot of Swift experience.
+JavaScript has had a keyword `var` to indicate a variable forever. You should basically never use this. I've never written one this year, except by accident. It's a keyword that has a really confusing scope, leading to odd bugs. [ES6](#es6) brought two replacements, both of which will give you a little bit of cognitive dissonance if you have a lot of Swift experience.
 
 `let` - the replacement for `var`, this is a _mutable_ variable, you can replace the value of a `let`. The scope of a `let` is exactly what you think from every other programming language.
 `const` - this is a `let` that won't allow you to change the _value_. So it creates a mutable object (all JS objects are mutable) but you cannot replace the object from the initial assignment.  
@@ -364,7 +363,7 @@ class Article extends React.Component {
         <TouchableWithoutFeedback onPress={this.handleTap.bind(this)}>
 ```
 
-This is a great in-depth explaination of the way it works: [Understanding the “this” keyword in JavaScript][this]. 
+This is a great in-depth explanation of the way it works: [Understanding the “this” keyword in JavaScript][this]. 
 
 ### Strict Mode
 
@@ -427,15 +426,15 @@ function (lhs, rhs) {
 
 ### Promises
 
-[Node](#node) is renound for having a non-blocking API from day one. The way they worked around this is by using callbacks everywhere. This can work out pretty well, but eventually maintaining and controlling your callbacks turns into it's own problem. This can be extra tricky around handing errors.
+[Node](#node) is renowned for having a non-blocking API from day one. The way they worked around this is by using callbacks everywhere. This can work out pretty well, but eventually maintaining and controlling your callbacks turns into it's own problem. This can be extra tricky around handing errors.
 
-One way to fix this is to have a Promise API, Promises offer consitent wawys to handle errors wand callback chaining.
+One way to fix this is to have a Promise API, Promises offer consistent ways to handle errors wand callback chaining.
 
-JavaScript now has a built-in a Promise API, this means every library can work to one API when handling any kind of asyncronous task. I'm not sure what ECMA Specification brought it in. This makes it really easy to make consistent code between libraries. However, more importantly, it makes it possible to have async/await.
+JavaScript now has a built-in a Promise API, this means every library can work to one API when handling any kind of asynchronous task. I'm not sure what ECMA Specification brought it in. This makes it really easy to make consistent code between libraries. However, more importantly, it makes it possible to have async/await.
 
 ### Async/Await
 
-Once Promises were in, then a language construct could be created for using them elegantly. They work by declaring the entire function to be an `async` function. An async function is a function which pretends to be syncronous, but behind the scnes is waiting for specific promises to resolve asynchronously.
+Once Promises were in, then a language construct could be created for using them elegantly. They work by declaring the entire function to be an `async` function. An async function is a function which pretends to be synchronous, but behind the scenes is waiting for specific promises to resolve asynchronously.
 
 There are a few rules for an `async` function:
 
@@ -477,7 +476,7 @@ Both take the approach of providing an optional typing system. This means you ca
 
 ### Interfaces
 
-As both [Flow](#flow) and [TypeScript](#typescript) interact with JavaScript, the mindset for applying types is through Interfaces. This is very similar to protocol oriented programming, where you only care about the responsabilities of an object - not the specific type. Here is a Flow interface from DangerJS:
+As both [Flow](#flow) and [TypeScript](#typescript) interact with JavaScript, the mindset for applying types is through Interfaces. This is very similar to protocol oriented programming, where you only care about the responsibilities  of an object - not the specific type. Here is a Flow interface from DangerJS:
 
 ```js
 /** An API representation for a Code Review site */
