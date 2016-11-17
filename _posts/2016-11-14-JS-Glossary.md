@@ -56,7 +56,7 @@ It's a smart move, most "Make apps in JS" try to have a native-like experience w
 
 ### App State
 
-Think of every variable inside your application, that is your application's state. You could not make an app worth using without state. In MVC, MVVM, VIPER and other native patterns, there is no consistent way to handle changes in those variables. React uses a common state pattern though the use of specific terminology: "[props](#props)", "[context](#context)" and "[#state](#state-again)". 
+Think of every variable inside your application, that is your application's state. You could not make an app worth using without state. In MVC, MVVM, VIPER and other native patterns, there is no consistent way to handle changes in those variables. React uses a common state pattern though the use of specific terminology: "[props](#props)", "[context](#context)" and "[state](#state-again)". 
 
 Yes, the "state" and "state" thing is a little confusing, we'll get to it.
 
@@ -83,11 +83,11 @@ export default class Header extends React.Component {
 
 See the `InvertedButton` component, it has three `props` being passed in: `text`, `selected` and `onPress`. If any of those props were to change the entire `InvertedButton` component would be re-rendered to the native view hierarchy. These `props` are the key to passing data downwards through your hierarchy. Note: you cannot access the parent component (without passing it in as a prop.)
 
-You should therefore consider `props` as immutable bits of app state. 
+You should therefore consider `props` as immutable bits of app state relevant to the component it's being passed into. 
 
 ### State-again
 
-A component also has a `state` attribute. The key to understanding the difference between `props` and `state` is, `state` is something controlled within that component that can change - `props` do not. 
+A component also has a `state` attribute. The key to understanding the difference between `props` and `state` is: `state` is something controlled within that component that can change - `props` do not. 
 
 The above example is a pretty good example of this, when this component is first added to the hierarchy, we send a networking request to get whether you are following something or not. The parent component (`Header`) does not need to update when we know whether you are following or not, but the `InvertedButton` does. So, it is `state` for the parent, but a `prop` for the `InvertedButton`. This means changing the state for `following` will only cause a re-render in the button.
 
@@ -532,12 +532,12 @@ Flow-Typed is new, so it's not really got many definitions at all. Typings on th
 
 
 [search-bar]: https://github.com/artsy/emission/blob/c558323e4276699925b4edb3d448812005ae6b5d/lib/components/home/search_bar.js
-[our-implmentation]: asdasdas
+[our-implmentation]: http://artsy.github.io/blog/2016/08/24/On-Emission/
 [jsx-example]: https://github.com/artsy/emission/blob/c558323e4276699925b4edb3d448812005ae6b5d/lib/components/artist/header.js
 [react-guide]: https://github.com/uberVU/react-guide/blob/master/props-vs-state.md#props-vs-state
-[typings]: TNJDNKSJDNFKJSDNF
-[flow-typed]: aSADAFA
-[node_history]: aSDASDASD
+[typings]: https://github.com/typings/typings
+[flow-typed]: https://github.com/flowtype/flow-typed/
+[node_history]: http://anandmanisankar.com/posts/nodejs-iojs-why-the-fork/
 [context_docs]: https://facebook.github.io/react/docs/context.html
 [react_jsx]: https://facebook.github.io/react/docs/introducing-jsx.html
 [what_redux]: http://www.youhavetolearncomputers.com/blog/2015/9/15/a-conceptual-overview-of-redux-or-how-i-fell-in-love-with-a-javascript-state-container
