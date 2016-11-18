@@ -7,19 +7,22 @@ categories: [javascript, emission, danger]
 series: React Native at Artsy
 ---
 
-Getting to grips with the entire JavaScript ecosystem is a tough job when you're getting started. Coming from the native mobile space, there's a lot to learn. I've spent a lot of time in the environment now, and can distil so you can grok, then dig into places when you choose. This post is semi-opinionated, with links for further reading so you can get a different perspective too.
+Getting to grips with the entire JavaScript ecosystem is a tough job when you're getting started. Coming from the native mobile space, there's a lot to learn. I've spent a few months immersed in the environment now, and can try summerize a lot of topics. This should make it easier to find more information when you need it. This post is semi-opinionated, with links for further reading so you can get a different perspective too.
 
 This post focus specifically on the JavaScript tooling around React Native projects, but is applicable to all JavaScript projects. 
 
 <!-- more -->
 
+Lets start with the entire reason we are using JavaScript for mobile in the first place: React and React Native,
+
 # React 
 
 ### React
 
-React is a Facebook project which offers a uni-direction Component model that _can_ replace MVC in a front-end application. It was built out of a desire to mock a web page's view hierarchy (called the DOM) so that they could make changes as differences between view states.
+React is a Facebook project which offers a uni-direction Component model that _can_ replace MVC in a front-end application. React was built out of a desire to abstract away a web page's true view hierarchy (called the DOM) so that they could make changes to all of their views and then React would handle finding the differences between view states.
 
-Its model is that you would create a set of Components to encapsulate each part for the state of the page. React makes it easy to make components that are functional in the FRP sense. They act like a function which takes some specially declared state and it is rendered into HTML.
+Its model is that you would create a set of Components to encapsulate each part for the state of the page. React makes it easy to make components that are functional in the [Functional Reactive Programming](https://en.wikipedia.org/wiki/functional_reactive_programming) sense. They act like a function which takes some specially declared state and it is rendered into HTML.
+
 
 A component optionally uses a language called [JSX](#jsx) to visualise how each component's child components are set up,here's an example of a React component using JSX [from Emission, our React Native library][search-bar]:  
 
@@ -42,13 +45,13 @@ export default class SearchBar extends React.Component {
 }
 ```
 
-By providing a well encapsulated Component model, you can aggressively reduce the amount of redundant code you need to build an application. By not initially writing to the DOM, React can decide what has changed between user actions and that means you have to juggle significant less [state](#state).
+By providing a well encapsulated Component model, you can aggressively reduce the amount of redundant code you need to build an application. By not initially writing to the DOM, React can decide what has changed between user actions and that means you have to juggle significantly less [state](#state).
 
 ### React Native
 
-Writing native apps is now officially a pain. I came to this conclusion early this year, and it's been amazing to be able to work in React Native.
+I came to this conclusion early this year that writing native apps using compiled code is a pain, and it's been amazing to be able to work in React Native in contrast.
 
-React Native is an implementation of React where instead of having it abstract a web page's DOM, it create a native view hierarchy. In the case of iOS that is a UIView hierarchy. Note that it does not handle View Controllers. The MVC model from Apple's Cocoa framework does not directly map into React Natives. I've wrote about how we [bridge that gap earlier][our-implmentation].
+React Native is an implementation of React where instead of having it abstract a web page's DOM, it creates a native view hierarchy. In the case of iOS that is a UIView hierarchy. Note that it does not handle View Controllers. The MVC model from Apple's Cocoa framework does not directly map into React Natives. I've wrote about how we [bridge that gap earlier][our-implmentation].
 
 React Native is cross platform. You write JavaScript like above, which React Native transforms into a native view hierarchy. That view hierarchy could be on a Samsung TV, a Windows phone or Android instead. 
 
@@ -101,7 +104,7 @@ If you'd like to read more, there is a much deeper explanation in [uberVU/react-
 
 > If you aren't an experienced React developer, don't use context. There is usually a better way to implement functionality just using props and state.
 
-Seems to be you should only be using this is really, really specific places. If you need it, you don't need this glossary.
+Seems to be something that you should only be using in really, really specific places. If you need it, you don't need this glossary.
 
 ### JSX
 
@@ -140,7 +143,7 @@ If you want the longer explanation, I wrote a [blog post on it](/blog/2016/06/19
 
 ### Relay
 
-Relay is what makes working in our React Native app shine. It is a library that allows a component to describe the fragments of a networking request it would need to render. Relay would then look through your component hierarchy, take all the networking fragments, make a single GraphQL request and handle passing in the API fragments as [props](#props).
+Relay is what makes working in our React Native app shine. It is a library that allows a component to describe small chunks of a networking request it would need to render. Relay would then look through your component hierarchy, take all the networking fragments, make a single GraphQL request for all the data. Once it has the data, Relay passes in the response as [props](#props) to all of the components in the tree.
 
 This means you can throw away a significant amount of glue code.
 
@@ -153,9 +156,9 @@ Redux is a state management pattern, it builds on top of React's "state is only 
 
 ### Node
 
-Node is the JavaScript implementation from Google's Chrome (called v8) with an expanded API for doing useful systems tooling. It is a pretty recent creation, so it started off with an entirely synchronous API for any potentially blocking code.
+Node is the JavaScript implementation from Google's Chrome (called v8) with an expanded API for doing useful systems tooling. It is a pretty recent creation, so it started off with an entirely asynchronous API for any potentially blocking code.
 
-For web developers this was a big boon, you could share code between the browser and the server. The blocking API meant it was much easier to write faster servers, and there are lots of big companies putting a lot of time and money into improving the speed of JavaScript every day.
+For web developers this was a big boon, you could share code between the browser and the server. The non-blocking API meant it was much easier to write faster servers, and there are lots of big companies putting a lot of time and money into improving the speed of JavaScript every day.
 
 Node has an interesting history of ownership, I won't cover it here, but [this link][node_history] provides some context.
 
@@ -179,7 +182,6 @@ Yarn is a NPM replacement (ish) by Facebook. It's very new. It solves three prob
 
 It uses the NPM infrastructure for downloading [modules](#modules), and works with the exact same `Package.json`. I moved most of our projects to it.
 
-
 ### Babel
 
 I mentioned JSX a few times above. JSX is not a part of JavaScript, it is transpiled from your source code (as XML-like code) into real JavaScript. The tool that does this is Babel.
@@ -190,9 +192,18 @@ Babel's plugins can be configured inside your `Package.json`. To ship your code 
 
 In the case of a react-native project, Babel is happening behind the scenes.
 
+### Webpack
+
+A JavaScript source code & resource package manager. It can be easy to confuse Babel + Webpack, so in simple: 
+
+* Babel will directly transform your source code file by file 
+* Webpack will take source code and merge it all into one file 
+
+They work at different scopes. Webpack is mainly a web front-end tool, and isn't used in React Native. However, you'll come across it, and it's better to know the scope of it's domain. 
+
 ### ESLint
 
-How can you be sure your syntax is correct? JavaScript has a really powerful and extensible linter called ESLint. If parses your JavaScript and offers warnings and errors around your syntax. You can use this to provide a consistent codebase, or in my case, to be lazy with your formatting. Fixing a lot of issues is one command away. 
+How can you be sure your syntax is correct? JavaScript has a really powerful and extensible linter called ESLint. It parses your JavaScript and offers warnings and errors around your syntax. You can use this to provide a consistent codebase, or in my case, to be lazy with your formatting. Fixing a lot of issues is one command away. I have [my editor][using-code] auto indent using ESLint every time I press save.  
 
 # Development
 
@@ -228,13 +239,13 @@ I miss these features when I'm not in a Jest project.
 
 ### Jest Snapshots
 
-Jest also has a feature called Jest Snapshots, this allows you to take "snapshots" of JavaScript objects, and then verify they are they are the same as they were last time. In iOS we [used visual snapshot][snapshots] testing a lot.
+Jest has a feature called Jest Snapshots, that allows you to take "snapshots" of JavaScript objects, and then verify they are they are the same as they were last time. In iOS we [used visual snapshot][snapshots] testing a lot.
 
 ### VSCode-Jest
 
 I created a project to auto-run Jest inside projects that use it as a test runner when using Visual Studio Code: [vscode-jest][vscode-jest]. I've wrote about our usage of VS Code [on this blog series][using-code] also.  
 
-# JS
+# JavaScript the Language
 
 I'm always told that JavaScript was created in 10 days, which is a cute anecdote, but JavaScript has evolved for the next 21 years. The JavaScript you wrote 10 years ago would still run, however modern JavaScript is an amazing and expressive programming language once you start using modern features.
 
@@ -277,9 +288,9 @@ import ImageView from '../../opaque_image_view'
 import SwitchBoard from '../../../native_modules/switch_board'
 ```
 
-An import can either have [a default export][default-export], or a set of exportable function/objects.
+An import can either have [a default export][default-export], or a set of [exportable function/objects][export-func].
 
-You might see something like `const thing = require "thing"` around the internet, I think that's the older syntax from before the above syntax was decided upon.
+You might see an import like `const _ = require("underscore")` around the internet, this is an older format for packaging JavaScript called [CommonJS][commonjs]. It was replaced by the `import` statements above because you can make guarantees about the individual items exported between module boundries. This is interesting because of [tree-shaking][#tree-shaking], which we'll get to later. 
 
 ### Classes
 
@@ -289,7 +300,7 @@ Modern JavaScript has classes introduced in [es6](#es6), this means that instead
 const danger = {
   name: "Danger",
   hello: function () {
-  console.log("Hi!")
+    console.log("Hi!")
   }
 }
 
@@ -303,13 +314,26 @@ class Person {
   constructor(name) {
     this.name = name
   }
+  hello() {
+    console.log("Hi!")
+  }
 }
 
 const danger = new Person("danger")
+danger.hello()
 ```
 
-Classes provides the option of doing object-oriented programming, which is still a pretty solid way to write code. You can get useful errors 
+Classes provide the option of doing object-oriented programming, which is still a solid way to write code. Classes provide a simple tool for making interfaces, which is really useful when you're working to the [Gang of Four][gof] principals:
 
+> “Program to an interface, not an implementation,” and “favor object composition over class inheritance.”
+
+### Prototypical
+
+So, classes - it took 20ish years before they happened? Before that JavaScript was basically only a prototype-based language. This meant you created "objects" but that they were just effectively just key-value stores, and you used functions to do everything else.
+
+The language is a great fit for functional programming, I ended up building [an Artsy chat bot][mitosis] using only functions by accident. Really, a few days into it when I started looking for an example class to show in this post I realised I didn't have one. Whereas in Danger I do almost exclusive OOP in JavaScript, sometimes the project fits the paradigm too. 
+
+A really good, and highly opinionated post on the values of prototypical/functional programming in JavaScript is [The Two Pillars of JavaScript](https://medium.com/javascript-scene/the-two-pillars-of-javascript-ee6f3281e7f3#.knm7xb7zr) - I agree with a lot of it.
 
 ### Mutablilty
 
@@ -466,6 +490,14 @@ You aren't always given a promise to work with as not all APIs support promises 
 
 The `await` part of an `async` function using `await readFile` will now wait on the synchronous execution until the promise has resolved. This makes complicated code look very simple.
 
+### Tree Shaking
+
+All development ecosystems have trade-offs which shape their culture. For web developers reducing the amount of JavaScript they send to a client is an easy, and vital part of their day job. This started with minifying their source code, e.g. reducing the number of characters but having the same behavior. 
+
+The current state of the art is tree-shaking, wherein you can know what functions are unused and remove those from the source code before shipping the code to a client. A [haste-map][#haste-map] is one way to handle these dependencies, but it's not the only one. [Rollup][rollup] is considered the de-facto ruler of the space, but it is in [babel](#babel) and [webpack](#babel) also. 
+
+Does this affect you if you're using React Native? Not really, but it's an interesting part of the ecosystem you should be aware of. 
+
 # Types
 
 Types can provide an amazing developer experience, as an editor can understand the shape of all the object's inside your project. This can make it possible to build rich refactoring, static analysis or auto-complete experiences without relying on a runtime.
@@ -495,7 +527,7 @@ createComment: (body: string) => Promise<?Comment>;
 }
 ```
 
-This interface defines the shape of an object, e.g. what functions/properties it will it have. Using interfaces means that you can expose the least amount of about an object, but you can be certain that if someone refactors the object it provide errors.
+This interface defines the shape of an object, e.g. what functions/properties it will it have. Using interfaces means that you can expose the least amount of about an object, but you can be certain that if someone refactors the object and changes any interface properties - it provide errors.
 
 
 ### Flow
@@ -518,8 +550,14 @@ return [...]
 
 Wherein we now have interfaces for our arguments and the return value of the function. This means better error message from Flow, and better auto-complete in your editor.
 
-
 ### TypeScript
+
+TypeScript is a typed language that compiles JavaScript by Microsoft. It's awesome, it has all of the advantages that I talked about with Flow and a lot more. With TypeScript you can get a much more consistent build environment (you are not picking and choosing different features of ES6) as Microsoft implement all of it into TypeScript.
+
+We opted to go for JS + Flow for Artsy's React Native mainly because we could incrementally add types, and you can find a lot more examples of JavaScript on the internet. It also is the way in which React Native is built, so you get the ecosystem advantage. 
+
+That said, if we start a new React Native from scratch project, I would pitch that we should use TypeScript after my experiences with [making PRs][inline-mac] to VS Code. TypeScript feels more comprehensive, I got better error messages and VS Code is very well optimised for working in TypeScript projects.
+
 ### Typings/Flow-Typed
 
 Shockingly, not all JavaScript [modules](#modules) ship with a typed interface for others. This makes it a pain to work with any code outside your perfectly crafted/typed codebase. This isn't optimal, especially in JavaScript where you rely on so many external libraries. 
@@ -528,7 +566,15 @@ Meaning that you can either look up the function definitions in their individual
 
 Both TypeScript and Flow offer a tool to provide external definitions for their libraries. For typescript that is [typings][typings] and for Flow, [flow-typed][flow-typed]. These tools pull into your project definition files that tell TypeScript/Flow what each module's input/outputs are shaped like, and provides inline documentation for them.
 
-Flow-Typed is new, so it's not really got many definitions at all. Typings on the other hand has quite a lot, so in our React Native we use typings.
+Flow-Typed is new, so it's not really got many definitions at all. Typings on the other hand has quite a lot, so in our React Native we use typings to get auto-complete for our libraries.
+
+---
+
+So that's my glossary, there's a lot of interesting projects out in the JS world. 
+
+They have a term "[JavaScript fatigue][js-fat]" which represents the concept of the churn in choosing and learning from so many projects. This is very real, which is something we're taking into account. Given the amount of flexibility in the ecosystem, it's really easy to create anything you want. If I wanted to implement a simplified version of Swift's guard function for our JavaScript, I could probably do it in about 2 days using a Babel plugin, then we can opt-in on any project we want.   
+
+This can make it easy to freeze and flip the table, but it also makes JavaScript a weird, kind of ideal, primordial soup where some _extremely_ interesting ideas come out. It's your job to use your smarts to decide which are the ideas which will evolve further, then help them stablize and mature. 
 
 
 [search-bar]: https://github.com/artsy/emission/blob/c558323e4276699925b4edb3d448812005ae6b5d/lib/components/home/search_bar.js
@@ -552,3 +598,10 @@ Flow-Typed is new, so it's not really got many definitions at all. Typings on th
 [snapshots]: https://www.objc.io/issues/15-testing/snapshot-testing/
 [vscode-jest]: https://github.com/orta/vscode-jest
 [using-code]: https://artsy.github.io/blog/2016/08/15/vscode/
+[commonjs]: https://www.wikiwand.com/en/CommonJS
+[export-func]: https://github.com/artsy/Mitosis/blob/0c1d73055122bd61559df3b1a2913cf4e272b4ed/source/bot/artsy-api.js#L31-L94
+[rollup]: http://rollupjs.org/
+[inline-mac]: https://github.com/Microsoft/vscode/pull/12628
+[js-fat]: http://www.confluentforms.com/2016/01/javascript-churn-technology-investment-effect.html
+[mitosis]: https://github.com/artsy/Mitosis/
+[gof]: http://www.amazon.com/gp/product/0201633612?ie=UTF8&camp=213733&creative=393185&creativeASIN=0201633612&linkCode=shr&tag=eejs-20&linkId=5S2XB3C32NLP7IVQ
