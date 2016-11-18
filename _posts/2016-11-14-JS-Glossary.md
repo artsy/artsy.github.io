@@ -576,6 +576,13 @@ They have a term "[JavaScript fatigue][js-fat]" which represents the concept of 
 
 This can make it easy to freeze and flip the table, but it also makes JavaScript a weird, kind of ideal, primordial soup where some _extremely_ interesting ideas come out. It's your job to use your smarts to decide which are the ideas which will evolve further, then help them stablize and mature. 
 
+<script>
+// Ain't optimal, but it does it for now, need to figure a better way in the future.
+$("a[name]").each(function(i, el){
+  var $el = $(el)
+  $el.attr("name", $el.attr("name").toLowerCase().replace(".", "-"))
+})
+</script>
 
 [search-bar]: https://github.com/artsy/emission/blob/c558323e4276699925b4edb3d448812005ae6b5d/lib/components/home/search_bar.js
 [our-implmentation]: http://artsy.github.io/blog/2016/08/24/On-Emission/
