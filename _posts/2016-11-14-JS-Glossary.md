@@ -253,7 +253,7 @@ Sometimes these features aren't available in [node](#node), or your browser's Ja
 
 ### ES6
 
-JavaScript is run by a committee. Around the time that people were starting to talk about HTML5 and CSS3, work was started on a new specification for JavaScript called ECMAScript 6. [What IS ECMA?]
+JavaScript is run by a committee. Around the time that people were starting to talk about HTML5 and CSS3, work was started on a new specification for JavaScript called ECMAScript 6.
 
 ES6 represents the first point at which JavaScript really started to take a lot of the best features from transpile to JavaScript languages like CoffeeScript. Making it feasible for larger systems programming to be possible in vanilla JavaScript.  
 
@@ -290,7 +290,7 @@ import SwitchBoard from '../../../native_modules/switch_board'
 
 An import can either have [a default export][default-export], or a set of [exportable function/objects][export-func].
 
-You might see an import like `const _ = require("underscore")` around the internet, this is an older format for packaging JavaScript called [CommonJS][commonjs]. It was replaced by the `import` statements above because you can make guarantees about the individual items exported between module boundries. This is interesting because of [tree-shaking][#tree-shaking], which we'll get to later. 
+You might see an import like `const _ = require("underscore")` around the internet, this is an older format for packaging JavaScript called [CommonJS][commonjs]. It was replaced by the `import` statements above because you can make guarantees about the individual items exported between module boundries. This is interesting because of [tree-shaking](#tree-shaking), which we'll get to later. 
 
 ### Classes
 
