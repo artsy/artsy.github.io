@@ -4,7 +4,7 @@
   <title><![CDATA[Category: xcode | Artsy Engineering]]></title>
   <link href="http://artsy.github.io/blog/categories/xcode/atom.xml" rel="self"/>
   <link href="http://artsy.github.io/"/>
-  <updated>2016-11-18T16:13:56+00:00</updated>
+  <updated>2016-11-18T16:49:44+00:00</updated>
   <id>http://artsy.github.io/</id>
   <author>
     <name><![CDATA[]]></name>
@@ -34,10 +34,12 @@ git clone https://github.com/johnno1962/injectionforxcode TempInjection
 open TempInjection/InjectionPluginLite/InjectionPlugin.xcodeproj/
 </code></pre>
 
+<a name="A.note.on.code.style"></a>
 <h2>A note on code style</h2>
 
 <p>I am of the _why <a href="https://www.smashingmagazine.com/2010/05/why-a-tale-of-a-post-modern-genius/#dont-be-afraid-to-take-risks">camp of programming</a> - the code we are spelunking through can feel foreign to modern Objective-C, and it's not got tests. <a href="https://github.com/johnno1962/">@Johno1962</a> described it to me as being like 1997's Objective-C. The end result of all this code <em>is</em> beautiful, whether the code is - is a matter of perspective. I'm super happy it exists.</p>
 
+<a name="Targets"></a>
 <h2>Targets</h2>
 
 <ul>
@@ -49,6 +51,7 @@ open TempInjection/InjectionPluginLite/InjectionPlugin.xcodeproj/
 </ul>
 
 
+<a name="Implementation.Order"></a>
 <h2>Implementation Order</h2>
 
 <p>I want to go through the code-base from the perspective what happens when it:</p>
@@ -59,12 +62,14 @@ open TempInjection/InjectionPluginLite/InjectionPlugin.xcodeproj/
 </ul>
 
 
+<a name="Launch"></a>
 <h3>Launch</h3>
 
 <p>All Xcode plugins have the exact same launch process, you <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Info.plist#L21-L22">define a class</a> in the info.plist, this class, <code>INPluginMenuController</code>, gets <code>+ pluginDidLoad:</code> called. This is where you <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/INPluginMenuController.m#L83-L94">set up a shared instance</a>, and can keep a reference to your bundle.</p>
 
 <p>This triggers the interesting stuff in <code>applicationDidFinishLaunching:</code> this sets up the <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/INPluginMenuController.m#L131-L137">user interface from a nib file</a>, which <a href="http://artsy.github.io/blog/2016/06/27/dependency-injection-in-swift/">DIs</a> in a lot of the instance variables, and will send you to get a new version of Injection if it fails. It then sets up the menu ( note: <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/INPluginMenuController.m#L151-L154">interesting use of c-structs here</a> ) and starts a TCP server, then registers for when a <code>NSWindow</code> becomes active.</p>
 
+<a name="Server"></a>
 <h4>Server</h4>
 
 <p>The server is a <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/INPluginMenuController.m#L512-L535">c TCP socket</a>, prior to digging in here, I'd never needed to see one. I see a lot of references to Android injection, so I assume the low-level choice in a socket  was so the same code can do both platforms.</p>
@@ -93,12 +98,14 @@ open TempInjection/InjectionPluginLite/InjectionPlugin.xcodeproj/
 
 <p>At its simplest, the server exists to send messages between running multiple applications and the injection plugin. We'll get back to what the server does later.</p>
 
+<a name="Inside.Xcode"></a>
 <h4>Inside Xcode</h4>
 
 <p>The plugin will keep track of the key editor window, <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/INPluginMenuController.m#L214-L220">this is done</a> by making sure the window's controller is of the class <code>IDEWorkspaceWindowController</code> and that it has a corresponding file.</p>
 
 <p>That's basically everything set up for the plugin now, until a user decides to start using Injection. So we're going to move to what happens when you press <code>ctrl + =</code>.</p>
 
+<a name="On.Preparing.for.Injection"></a>
 <h4>On Preparing for Injection</h4>
 
 <p>The work starts at <code>injectSource</code> <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/INPluginMenuController.m#L359">from INPluginMenuController</a>.</p>
@@ -115,6 +122,7 @@ open TempInjection/InjectionPluginLite/InjectionPlugin.xcodeproj/
 
 <p>With that verified, it's ready to inject the source code.</p>
 
+<a name="Code.Injection.Compilation"></a>
 <h4>Code Injection Compilation</h4>
 
 <p>If everything is good, and ready to go, and we've got confirmation that a client exists, Injection starts monitoring for file changes inside your Xcodeproject.</p>
@@ -145,12 +153,14 @@ open TempInjection/InjectionPluginLite/InjectionPlugin.xcodeproj/
 
 <p>With that done, it will <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/injectSource.pl#L487-L503">include any nibs</a> from compiling storyboards, and <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/injectSource.pl#L505-L512">code-sign the bundle</a> if it's going to a device. Finally it prints out <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/injectSource.pl#L515">the new bundle path</a> in so the monitoring script can work with it.</p>
 
+<a name="Script.Monitoring"></a>
 <h4>Script Monitoring</h4>
 
 <p>The script to create the Xcode project, amend it, and compile is done as a separate process. It's <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/INPluginClientController.m#L365">done</a> via the <a href="http://linux.die.net/man/3/popen">function</a> <code>popen</code>. This is then monitored in background, <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/INPluginClientController.m#L382">listening for output lines</a> that begins with <code>&lt;</code>, <code>&gt;</code>, <code>!</code>, <code>%</code> and <code>?</code>. The one that we're most interested in, is the <code>!</code> operator which tells the server the filepath of the now compiled <code>InjectionBundleX.bundle</code>, in my most recent case, this looked like <code>/Users/orta/dev/ios/energy/iOSInjectionProject/build/Debug-iphonesimulator/InjectionBundle4.bundle</code>.</p>
 
 <p>This <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/INPluginClientController.m#L422-L423">tells the</a> server running inside Xcode that it has a file to send to the clients.</p>
 
+<a name="How.the.server.works"></a>
 <h4>How the server works</h4>
 
 <p>Alright, back to <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/INPluginClientController.m">the INPluginClientController</a>. Skipping over the option setting <code>IBAction</code>s and <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/INPluginClientController.m#L129-L185">RTF-formatted logging</a>. We come to the initial connection responder: <code>setConnection:</code>.</p>
@@ -169,14 +179,17 @@ open TempInjection/InjectionPluginLite/InjectionPlugin.xcodeproj/
 
 <p>From that point the server's job is mainly to pass messages and files that come out of the scripts between the client and the host doing the compilation.</p>
 
+<a name="File.Watcher"></a>
 <h4>File Watcher</h4>
 
 <p>As an option you can set in the preferences toggles a File Watcher. I found a bunch of references to this in the code, so I wanted to at least dig into that. When you turn it on, any save will trigger an injection. This is done by looking for the folder that your <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/INPluginMenuController.m#L432-L436">project resides in</a>, then using Apple's <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/FileWatcher.m#L31">file system event stream</a> to monitor for save changes. Then when a new FS event is triggered, it re-injects that file. I bet it's turned off by default as you'll see errors when it's not compilable.</p>
 
+<a name="Client-Side"></a>
 <h2>Client-Side</h2>
 
 <p>We've hand-waved though the client-side of the app during the patching stage of installation, but to understand both parts of the system we need to cover the client side in a bit more depth. There's two aspects to it, the initial bundle/patch and incremental bundles that contain the new compiled code.</p>
 
+<a name="Client.Setup"></a>
 <h4>Client Setup</h4>
 
 <p>To understand this, we need to grok a 1,200 LOC header file <code>:D</code>, it has a few responsibilities though. So we can try work through those, to <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/BundleInjection.h">BundleInjection.h</a>. Interesting note, when you are patching your application - you're actually making a link to a copy of this file inside your <code>/tmp/</code> dir.</p>
@@ -190,6 +203,7 @@ static const char *_inIPAddresses[] = {"10.12.1.67", "127.0.0.1", 0};
 #endif
 </code></pre>
 
+<a name="Client.Socket.Connection"></a>
 <h4>Client Socket Connection</h4>
 
 <p>Like the server, this has two responsibilities - using Bonjour to find the server, and raw socket communication. There is nothing unique about the Bonjour mutlicast work, so I'm skipping that. Once the socket knows how to establish a connection between processes <code>+ bundleLoader</code> <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/BundleInjection.h#L359">is called</a> on a background thread.</p>
@@ -209,6 +223,7 @@ static const char *_inIPAddresses[] = {"10.12.1.67", "127.0.0.1", 0};
 
 <p>From there the socket goes into runloop mode on it's on thread.</p>
 
+<a name="Client.Socket.Runloop"></a>
 <h4>Client Socket Runloop</h4>
 
 <p>As with server monitoring, the client listens for strings that begin with special prefixes:</p>
@@ -224,6 +239,7 @@ static const char *_inIPAddresses[] = {"10.12.1.67", "127.0.0.1", 0};
 </ul>
 
 
+<a name="Loading.the.Bundle"></a>
 <h4>Loading the Bundle</h4>
 
 <p>When the new bundle is loaded <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/injectSource.pl#L303-L308">it triggers</a> this code:</p>
@@ -251,6 +267,7 @@ static const char *_inIPAddresses[] = {"10.12.1.67", "127.0.0.1", 0};
 
 <p>If no references are found, Injection will look through all objects that are referred to via sharedInstance. If that fails, well, Injection couldn't find your instance. This is one way in which you may miss callbacks in your app.</p></blockquote>
 
+<a name="Class...Method.Injections"></a>
 <h4>Class + Method Injections</h4>
 
 <p>So how does it pull that off? Calling <code>NSBundle</code>'s <code>- load</code> <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/BundleInjection.h#L648">here</a>, calls the <a href="https://developer.apple.com/library/mac/documentation/Cocoa/Reference/Foundation/Classes/NSBundle_Class/index.html#//apple_ref/occ/instm/NSBundle/load">load function to call on all classes</a> inside that new bundle. This triggers the load function from the <code>InjectionBundle</code> that is auto-generated during the Injection stage. Here's what one of mine looks like:</p>
@@ -292,6 +309,7 @@ static const char *_inIPAddresses[] = {"10.12.1.67", "127.0.0.1", 0};
 
 <p>With valid class tables, and the newly injected functions added. Injection starts the memory sweep to send updated notifications.</p>
 
+<a name="Class...Instance.Notifications"></a>
 <h4>Class + Instance Notifications</h4>
 
 <p>At <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/BundleInjection.h#L1028">this point</a> Injected does a run through the new class list again, if that class responds to the selector <code>+ injected</code> it runs it. It then does a check to see if the class's instances reponds to <code>- injected</code> if it does, it looks to see if it has any instances of the objects in it's liveObjects array. If the array hasn't been set up, then it needs to do a full memory sweep.</p>
@@ -344,6 +362,7 @@ static const char *_inIPAddresses[] = {"10.12.1.67", "127.0.0.1", 0};
 <!-- more -->
 
 
+<a name="What.are.Schemes."></a>
 <h3>What are Schemes?</h3>
 
 <blockquote><p>An Xcode scheme defines a collection of targets to build, a configuration to use when building, and a collection of tests to execute.</p>
@@ -352,6 +371,7 @@ static const char *_inIPAddresses[] = {"10.12.1.67", "127.0.0.1", 0};
 
 <p>To <a href="https://developer.apple.com/library/ios/featuredarticles/XcodeConcepts/Concept-Schemes.html">quote Apple</a>.</p>
 
+<a name="Hatching.a.Scheme"></a>
 <h3>Hatching a Scheme</h3>
 
 <p>The Eigen Test Suite is around 50 test classes, these look a bit like this:</p>
@@ -370,6 +390,7 @@ static const char *_inIPAddresses[] = {"10.12.1.67", "127.0.0.1", 0};
 
 <p><img src="/images/2016-04-06-Testing-Schemes/edit_schemes.png" alt="Edit Schemes" /></p>
 
+<a name="Making.Amends"></a>
 <h3>Making Amends</h3>
 
 <p>OK, click on "Test" in the sidebar, and now you're in the Schemes Test editor. This is where you do the work.</p>
@@ -392,6 +413,7 @@ static const char *_inIPAddresses[] = {"10.12.1.67", "127.0.0.1", 0};
 
 <p>Now when I press <code>cmd + u</code> it will only run those test classes.</p>
 
+<a name="Wrapping.Up"></a>
 <h3>Wrapping Up</h3>
 
 <p>Which means I can now get back to work at a reasonable pace. <code>Executed 15 tests, with 0 failures (0 unexpected) in 0.277 (0.312) seconds</code>. I can then run the full suite whenever I go and make a cup of tea.</p>
@@ -434,10 +456,12 @@ static const char *_inIPAddresses[] = {"10.12.1.67", "127.0.0.1", 0};
 <!-- more -->
 
 
+<a name="The.problem"></a>
 <h2>The problem</h2>
 
 <p>I was modernizing a section of <a href="http://orta.github.io/#folio-header-unit">Folio</a> that hasn't changed in 2 years to use custom UILabel subclasses consistent with <a href="https://iphone.artsy.net">the Artsy iOS app</a> and realized I was copying and pasting a large amount of code from one app to the other. This got me thinking about ways to keep this code in one place, as we might start another project which needs these same styles soon.</p>
 
+<a name="The.solution"></a>
 <h2>The solution</h2>
 
 <p>I didn't want to put it on the public CocoaPods Spec Repo, because it's not very relevant to the larger community, but in keeping with our philosophy of "open source by default," I definitely wanted to publish it as an example for others. The most elegant answer was to create our own <a href="https://github.com/artsy/specs">public Specs Repo</a>, which serves as a good reference when people want to know what a private specs repo looks like.</p>
@@ -446,6 +470,7 @@ static const char *_inIPAddresses[] = {"10.12.1.67", "127.0.0.1", 0};
 
 <p>One of the good things about having to build three libraries is that I became very familiar with <code>pod lib create</code>. This is a command for building the scaffolding around a CocoaPod, making it much easier to create something fast. We had been holding off doing a <a href="https://github.com/CocoaPods/pod-template/pull/33">big update</a> to the command because no-one knew what WWDC would bring. Now we know, so I've worked on a new version of the command that programmatically manipulates an example project via <a href="https://github.com/CocoaPods/Xcodeproj">xcodeproj</a>. I've used it in creating all of these libraries. Expect to see it on the CocoaPods blog soon.</p>
 
+<a name="Caveat"></a>
 <h2>Caveat</h2>
 
 <p>I built three libraries, but one of them is unique. I modelled Artsy+UIFonts from <a href="http://kylefuller.co.uk">Kyle Fuller</a>'s <a href="https://github.com/kylef/OpenSans-pod">OpenSans-pod</a>, where the CocoaPod has the font resources and installing it moves them into your project. This is great for a free or open-source font, but would break commercial font licenses. For that reason, we don't have the ability to open source that project. Thus Artsy Mobile's first closed-source library.</p>
@@ -466,6 +491,7 @@ static const char *_inIPAddresses[] = {"10.12.1.67", "127.0.0.1", 0};
 <!-- more -->
 
 
+<a name="Getting.started"></a>
 <h2>Getting started</h2>
 
 <p>Lets start of with some Xcode inception. The nicest way to start working on Xcode plugins is to install <a href="http://alcatraz.io">Alcatraz</a> the Xcode plugin package manager:</p>
@@ -491,6 +517,7 @@ static const char *_inIPAddresses[] = {"10.12.1.67", "127.0.0.1", 0};
 </ul>
 
 
+<a name="Releasing"></a>
 <h2>Releasing</h2>
 
 <p>Next up you want to get it on Alcatraz, this is just a pull request to the <a href="https://github.com/supermarin/alcatraz-packages">alcatraz-packages repo</a>, it's like the old days of CocoaPods! Then you have a plugin, and people will always be using the master HEAD version of your plugin, so be wary around putting unstable code on that branch.</p>

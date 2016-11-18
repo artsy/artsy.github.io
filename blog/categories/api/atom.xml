@@ -4,7 +4,7 @@
   <title><![CDATA[Category: api | Artsy Engineering]]></title>
   <link href="http://artsy.github.io/blog/categories/api/atom.xml" rel="self"/>
   <link href="http://artsy.github.io/"/>
-  <updated>2016-11-18T16:13:56+00:00</updated>
+  <updated>2016-11-18T16:49:44+00:00</updated>
   <id>http://artsy.github.io/</id>
   <author>
     <name><![CDATA[]]></name>
@@ -44,12 +44,14 @@
 
 <p><a href="https://jwt.io/introduction/" target="_blank">JWT</a> and <a href="https://tools.ietf.org/html/rfc7519" target="_blank">RFC 7519</a> provide more details about each section of JWT and how encoding, decoding and verification work.</p>
 
+<a name="Where.we.were"></a>
 <h1>Where we were</h1>
 
 <p>After a successful login, our API would generate a custom JSON object including some basic information about the user and application, then encrypt it using a single server-side secret.</p>
 
 <p>For every authenticated request we would have to decrypt the token, make sure the user and application were valid and the application still had access to our API. We were already <em>stateless</em> since we didn't store tokens in our database. However, client applications had to make an API call to get any information about the authenticated user.</p>
 
+<a name="Where.we.are.going"></a>
 <h1>Where we are going</h1>
 
 <p>We want to keep our current auth flow which is already stateless (tokens are not stored in database) and mainly replace our in-house generated access token with a more standard JWT. This let's us:</p>
@@ -89,6 +91,7 @@
 </ul>
 
 
+<a name="Transition"></a>
 <h1>Transition</h1>
 
 <p>Changing authentication tokens can be tricky when we already have many clients using our old access token format. It turns out that since we aren't changing the authentication flow, it's easier than we might expect. We simply have to continue decoding the legacy token format until they've all expired or been replaced by JWTs.</p>
@@ -124,12 +127,14 @@
 <!-- more -->
 
 
+<a name="First..Make.All.The.Mistakes"></a>
 <h2>First, Make All The Mistakes</h2>
 
 <p>Artsy has been developing a homegrown API over the last four years, consisting of almost 400 endpoints and exposing over 100 domain models. It's probably one of the largest <a href="https://github.com/intridea/grape">Ruby Grape</a> implementations and it has been battlefield-tested by the dozens of services that we have built around it, starting with our <a href="https://github.com/artsy/force">recently open-sourced artsy.net website</a>. The core API project itself is unfortunately not public.</p>
 
 <p>As with all legacy code with many client dependencies, our API has accumulated a staggering number of architectural faults, which have become impossible to work ourselves out of without a major rewrite. When thinking about a public API we went back to the drawing board with a more pragmatic approach.</p>
 
+<a name="Use.Hypermedia"></a>
 <h2>Use Hypermedia</h2>
 
 <p>One of the common problems of being an API client is figuring out which routes an API provides or what data is available. For example, what can I do with this specific artwork? Documentation helps, but it often lacks such context. Furthermore, URLs are long and cumbersome to reference, parse and use. How can we make the API more developer-friendly and discoverable? Our answer was to settle on a well-known Hypermedia format. We chose <a href="http://stateless.co/hal_specification.html">HAL+JSON</a> because it is disciplined and very complete. Let me illustrate by example.</p>
@@ -181,18 +186,21 @@ artist.links.artworks.embedded.artworks.each do |artwork|
 end
 </code></pre>
 
+<a name="Provide.Canonical.URLs.for.Resources"></a>
 <h2>Provide Canonical URLs for Resources</h2>
 
 <p>In the past we returned different JSON payloads for a resource when it appeared within a collection vs. when it was retrieved individually. We have also developed solutions such as <a href="https://github.com/dblock/mongoid-cached-json">mongoid-cached-json</a> to deal with this in a declarative way. However, clients were burdened to merge data. For example, our iOS application had to deal with the fact that different data existed in the local store for the same artwork depending on how a user navigated to it in the app.</p>
 
 <p>With the new API each resource has a canonical, uniquely identifying, "self" link which is used to reference it from other resources. When a client encounters such a link and has already downloaded the resource, it can just swap the data without making an HTTP request. This is only possible because every single URL maps 1:1 with a specific JSON response - there're no two data responses possible for the same URL. The retrieval of such data can be solved by a generic crawler - get a resource, fetch dependent resource links, iterate until you run out of links. Storage is even simpler and doesn't have to know anything about our domain model since it just maps URLs to JSON bodies.</p>
 
+<a name="Partition.Data.and.Perform.Access.Controls.at.API.Level"></a>
 <h2>Partition Data and Perform Access Controls at API Level</h2>
 
 <p>Because we decided not to return two different types of responses for a given model, we needed to partition data at the model level. For example, we introduced publicly available <a href="https://developers.artsy.net/docs/users">Users</a> and private <a href="https://developers.artsy.net/docs/user_details">User Details</a>. Access controls are now done exclusively at the API level.</p>
 
 <p>The API developer must simply answer the question of whether a client is authorized to retrieve a resource or not. The API will return a 403 or 404 otherwise and it's not necessary to customize the response for different types of access.</p>
 
+<a name="Be.Disciplined.About.Data.Access.and.NxM.Queries"></a>
 <h2>Be Disciplined About Data Access and NxM Queries</h2>
 
 <p>The performance of APIs that return collections of objects has been a constant struggle. The initial API design attempted to help clients make the least amount of HTTP requests possible, often requiring many NxM server-side queries. This actually had a profoundly negative impact on overall performance and user experience than we have ever anticipated. Servers had to allocate a lot more memory to parse, render and cache very large JSON payloads, also causing larger garbage collection cycles. Web applications seemed slower because a lot of data had to be retrieved to render anything on initial page load. Mobile clients spend a lot more time parsing huge JSON payloads, requiring a lot of CPU and yielding rarely. This created a very sluggish user experience and much longer delays waiting for background processing to finish. To mitigate this and keep our API response times low on the server we had to leverage complicated caching schemes with <a href="https://github.com/artsy/garner">garner</a> and had to fine-tune Mongoid's eager-loading endpoint by endpoint.</p>
@@ -218,6 +226,7 @@ end
 
 <p>Furthermore, creating such rigid rules forces us to never optimize for a specific client's scenario. That said, we still want to make life easy for developers that need bulk loading of various resources. We plan to implement a <a href="http://techblog.netflix.com/2012/07/embracing-differences-inside-netflix.html">Netflix API</a>-style middleware, where you can supply a set of URLs and get back a single, full JSON response with many different embedded resources. HAL+JSON's disciplined structure makes mixing data very easy.</p>
 
+<a name="Use.Media.Types.and.Accept.Headers.for.Versioning"></a>
 <h2>Use Media Types and Accept Headers for Versioning</h2>
 
 <p>Our initial API lives under a versioned URL which includes "v1". For the new API we decided to adopt a different model and use an "Accept" header which currently takes an optional "application/vnd.artsy-v2+json" media type.</p>
@@ -227,6 +236,7 @@ end
 
 <p>Accept headers in the API context can be used to indicate that the request is specifically limited to an API version. Our API will serve a backward compatible format by default. However, when we decide change the format of a resource we will increment the API version and require a newer value in the header to retrieve it. The new version can become the default only after the old version has been fully deprecated.</p>
 
+<a name="Create.a.Flat.API.Structure.and.Leverage.302.Redirects"></a>
 <h2>Create a Flat API Structure and Leverage 302 Redirects</h2>
 
 <p>Our old API served all artworks from "/artworks" and artworks belonging to a partner from "/partner/:id/artworks". This was convenient, but made obsolete by a Hypermedia API. API URL structure no longer matters, because you no longer have to build URLs yourself, but follow links instead.</p>
@@ -249,6 +259,7 @@ end
 
 <p>We leverage 302 redirects extensively. For example, querying "/current_user" redirects to "/users/:user_id" with a 302 status code (we cannot serve different content per user at the root of the API, as explained in a section above). Another good example is that the current API only provides access to public domain artworks, so if you navigate to "/artworks", you will currently be redirected to "/artworks?public=true", making this scheme future-proof.</p>
 
+<a name="Do.Not.Paginate.with.Pages.and.Offsets"></a>
 <h2>Do Not Paginate with Pages and Offsets</h2>
 
 <p>Our original API accepted "page" or "offset" parameters. This was rather problematic for changing collections. Consider what happens when you are on page 5 and an item is inserted on page 4. Your next set of results for page 6 will include a duplicate that has just moved from page 5 onto page 6. Similarly, if an item was removed from page 4, a request to page 6 will skip an item that now appears on page 5.</p>
@@ -272,6 +283,7 @@ end
 
 <p>To get the "total_count", we decided to require clients to append "?total_count=true" to the query string. It's not necessary to do all that counting work on the server side if you're not going to use the data.</p>
 
+<a name="Standardize.Error.Format"></a>
 <h2>Standardize Error Format</h2>
 
 <p>We use HTTP error codes, however we also use JSON data that comes with those errors for additional, often humanly readable descriptions. We settled on a standard error format that includes a "type" and a "message". For example, a 401 Unauthorized response will also carry the following payload.</p>
@@ -282,6 +294,7 @@ end
 }
 </code></pre>
 
+<a name="Conclusion"></a>
 <h2>Conclusion</h2>
 
 <p>We tried to stay pragmatic with our approach and still have time and room for improvements. We would love to hear from you on our <a href="http://groups.google.com/group/artsy-api-developers/subscribe">API developers mailing list</a> and hope you'll give our new API a try at <a href="https://developers.artsy.net/">developers.artsy.net</a>.</p>
@@ -300,6 +313,7 @@ end
 <!-- more -->
 
 
+<a name="Bulk.Reference.Resolving.with.a.Local.Cache"></a>
 <h2>Bulk Reference Resolving with a Local Cache</h2>
 
 <p>Consider an array of database model instances, each with numerous references to other objects. It's typical to see such instances reference the same object: for example we have an <code>Artwork</code> that references an <code>Artist</code>. It's common to see multiple artworks reference the same artist in a collection. Retrieving the artist from cache every time it is referenced is clearly inefficient.</p>
@@ -308,16 +322,19 @@ end
 
 <p>Note, that while this optimization reduces load on the Memcached servers, there's a cost of doing additional work after collecting the entire JSON in Ruby.</p>
 
+<a name="Fetching.Cache.Data.in.Bulk"></a>
 <h2>Fetching Cache Data in Bulk</h2>
 
 <p>Various cache stores, including Memcached, support bulk read operations. The <a href="https://github.com/mperham/dalli">Dalli</a> gem, which we use in production, exposes this via the <code>read_multi</code> method. With the bulk reference optimization above we now have the entire list of keys to query from cache, at once. <code>Mongoid::CachedJson</code> will always invoke <code>read_multi</code> where available, which significantly reduces the number of network roundtrips to the cache servers.</p>
 
 <p>This is a good example of where declarative models and DSLs have tremendous advantages in enabling massive improvements across the board. Imagine making the <code>read_multi</code> optimization in hundreds of API endpoints!</p>
 
+<a name="Benchmarks"></a>
 <h2>Benchmarks</h2>
 
 <p>With the above optimizations the library does more work in order to make less roundtrips to Memcached over the network. Since the network is often the slowest part in any large scale system, the overall production performance should be better as long as we can obtain similar throughput in ideal network conditions on localhost. We've added some common case benchmarks in <a href="https://github.com/dblock/mongoid-cached-json/blob/master/spec/benchmark_spec.rb">spec/benchmark_spec.rb</a> and ran them against 1.2.3 and 1.4.0 to obtain <a href="https://gist.github.com/4583039">these results</a>. The overall performance gain averaged 14.6%, which is quite significant. With real world data in a production environment we're seeing 15-50% less time spent in Memcached, depending on the API.</p>
 
+<a name="Links"></a>
 <h2>Links</h2>
 
 <p>The concepts behind these improvements should be attributed to <a href="https://github.com/aaw">@aaw</a> and <a href="https://github.com/macreery">@macreery</a>. If you want to learn more about the above-mentioned libraries, check out the following links:</p>
@@ -346,6 +363,7 @@ end
 <!-- more -->
 
 
+<a name="Enabling.Caching.of.Static.Data"></a>
 <h3>Enabling Caching of Static Data</h3>
 
 <p>Caching static data is fairly easy: set <code>Cache-Control</code> and <code>Expires</code> headers in the HTTP response.</p>
@@ -357,6 +375,7 @@ header "Expires", CGI.rfc1123_date(Time.now.utc + expire_in)
 
 <p>This example indicates to a cache in front of your service (CDN, proxy or user's browser) that the data expires in a year and that it's private for this user. When caching truly static data, such as images, use <code>public</code>. Your CDN or proxy, such as <a href="https://www.varnish-cache.org/">Varnish</a> that sits in front of Artsy on <a href="http://www.heroku.com/">Heroku</a>, will cache the data and subsequent requests won't even need to hit your server, even though it could potentially serve different content every time.</p>
 
+<a name="Disabling.Caching.of.Dynamic.Data"></a>
 <h3>Disabling Caching of Dynamic Data</h3>
 
 <p>Caching dynamic data is slightly more involved. Let's begin with a simple Ruby API that returns a counter.</p>
@@ -372,6 +391,7 @@ end
 
 <p>Garner provides <a href="https://github.com/dblock/garner/blob/master/lib/garner/middleware/cache/bust.rb">Garner::Middleware::Cache::Bust</a> a Rack middleware that accomplishes just that.</p>
 
+<a name="If-Modified-Since..ETags.and.If-None-Match"></a>
 <h3>If-Modified-Since, ETags and If-None-Match</h3>
 
 <p>Given our API example, a client may want to retrieve the value of the counter and, for example, run a job every time the value changes. As it stands, the current API requires an effort on the client's part to remember the previous value and compare it every time it makes an API call. This can be avoided by asking the server for a new counter if the value has changed since last time it was retrieved.</p>
@@ -380,6 +400,7 @@ end
 
 <p>A more robust solution is to generate a unique signature, called ETag, for this data and to use it to find out whether the counter has changed. There exists a generic <a href="https://github.com/rack/rack/blob/master/lib/rack/etag.rb">Rack::ETag</a> middleware that sets ETags on all text bodies. Adding the middleware would produce an ETag for every response from the API. You can now combine <code>Rack::ETag</code> and <code>Rack::Cache</code> - a client makes a request with an <code>If-None-Match: Etag</code> header and the server returns a <code>304 Not Modified</code> if the data hasn't changed, without sending the data.</p>
 
+<a name="Memcached.via.Dalli.and.Rails.Cache"></a>
 <h3>Memcached via Dalli and Rails.Cache</h3>
 
 <p>There's an obvious problem with <code>Rack::Cache</code>. In order for it to serve a <code>304 Not Modified</code> response it must compare the ETag from the request with the ETag generated from the body of the current response. So it saves bandwidth, but doesn't save execution time on the server. We'd also like the server to cache the entire response and therefore avoid any heavy processing, such as querying a database.</p>
@@ -404,6 +425,7 @@ end
 
 <p>This generic approach to key generation is fine to get one started, but is largely insufficient for real-world applications.</p>
 
+<a name="Production-Grade.Cache.Keys.and.Model.Binding"></a>
 <h3>Production-Grade Cache Keys and Model Binding</h3>
 
 <p>Most large scale web properties operate on data with the following requirements.</p>
@@ -426,6 +448,7 @@ end
 
 <p>Binding to multiple objects or classes can also be reasoned about as a way to partition the cache. Adding structure into the fields lets us reason about the relationships between various instances of data in the cache.</p>
 
+<a name="Role-Based.Caching"></a>
 <h3>Role-Based Caching</h3>
 
 <p>Role-Based caching is a subset of the generic problem of binding data to groups of other objects. For example, a <code>Widget</code> may have a different representation for an <code>admin</code> vs. a <code>user</code>. In Garner you can inject something called a "key strategy" into the current key generation pipeline. A strategy is a plain module that must implement two methods: <code>field</code> and <code>apply</code>. The former should define a unique key name and the latter applies the strategy within a context.</p>
@@ -457,6 +480,7 @@ end
 ]
 </code></pre>
 
+<a name="Multiple.Calls.from.the.Same.Function"></a>
 <h3>Multiple Calls from the Same Function</h3>
 
 <p>Binding to the same set of objects within the same function call will produce the same key. To solve this in a generic way we can examine the call stack, find the caller that's not within the helper module and inject it in the key options.</p>
@@ -468,12 +492,14 @@ options[:caller] = api_caller_line[1] if api_caller_line
 
 <p>Garner implements this as <a href="https://github.com/dblock/garner/blob/master/lib/garner/strategies/keys/caller_strategy.rb">Garner::Strategies::Keys::Caller</a>.</p>
 
+<a name="Cache.Invalidation"></a>
 <h3>Cache Invalidation</h3>
 
 <p>Invalidating a cache entry bound to multiple objects requires keeping an additional index along with the actual cache data. In the example above we've bound the resulting Widget to a specific <code>User</code>, the <code>Widget</code> instance itself and all instances of <code>Gadget</code>. Every time a Gadget changes, we'll want to invalidate this cache entry. Garner will handle this either automatically via a mixin (we've provided <a href="https://github.com/dblock/garner/blob/master/lib/garner/mixins/mongoid_document.rb">Garner::Mixins::Mongoid::Document</a> for the Mongoid ODM) or via an explicit <code>invalidate(Gadget)</code> call.</p>
 
 <p>Since we're not able to scan the entire cache during invalidation, we keep a key index in the cache as well. The key for each index entry is derived from the individual elements in the binding.</p>
 
+<a name="Using.with.Grape"></a>
 <h3>Using with Grape</h3>
 
 <p>Garner currently ships with <a href="https://github.com/dblock/garner/blob/master/lib/garner/mixins/grape_cache.rb">Garner::Mixins::Grape::Cache</a>. There're two ways to use it: <code>cache</code> and <code>cache_or_304</code>.</p>
@@ -498,10 +524,12 @@ get "widget/:id" do
 end
 </code></pre>
 
+<a name="Conclusion"></a>
 <h3>Conclusion</h3>
 
 <p>An effective cache implementation for a web service combines server-side caching with client-side expiration. The latter broadly includes proxies, CDNs and browsers, all active actors in the process of exchanging information. The web is, in a way, an eventually consistent data storage and distribution system.</p>
 
+<a name="Links"></a>
 <h3>Links</h3>
 
 <ul>

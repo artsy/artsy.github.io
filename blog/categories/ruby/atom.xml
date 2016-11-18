@@ -4,7 +4,7 @@
   <title><![CDATA[Category: ruby | Artsy Engineering]]></title>
   <link href="http://artsy.github.io/blog/categories/ruby/atom.xml" rel="self"/>
   <link href="http://artsy.github.io/"/>
-  <updated>2016-11-18T16:13:56+00:00</updated>
+  <updated>2016-11-18T16:49:44+00:00</updated>
   <id>http://artsy.github.io/</id>
   <author>
     <name><![CDATA[]]></name>
@@ -199,10 +199,12 @@ gravity...
 <!-- more -->
 
 
+<a name="Deciding.What.Content.to.Include"></a>
 <h3>Deciding What Content to Include</h3>
 
 <p>First, we had to decide what types of personalized content we wanted to feature in our mails. Users can follow artists and galleries, and so this seemed like a great place to start. We'd like to let you know about new artworks that have been uploaded by artists that you follow, as well as new shows that have been added by galleries you follow, or that are exhibiting artists you follow. Since we have location data for our galleries and our users (accomplished thru an onboarding flow, or thru geo-locating their IP address), we also want to include new shows that are opening near you. Additionally, we have a recommendations engine that recommends artworks to users based on their preferences and activity on the site, and we'd like to show some of the latest and best of such recommendations.</p>
 
+<a name="Initial.Implementation.Ideas"></a>
 <h3>Initial Implementation Ideas</h3>
 
 <p>My first thought was to have an observer (really just some <code>after_save</code> callbacks) that will wait for data to get into a state where a user can be validly notified, and in a background task write these notifications to interested users. Here's how the base setup of our <code>Notification</code> model looked:</p>
@@ -247,10 +249,12 @@ end
 
 <p>The other types of notifications were all implemented similarly (via an observer on the model, and a specific <code>Notification</code> class inheriting from the base class). We also added some other logic into the base <code>Notification</code> class such as some uniqueness constraints, as well as an ability to mark notifications as 'sent' or 'invalid'. However, we ran into serious performance/scaling issues fairly quickly, and had to re-implement this scheme.</p>
 
+<a name="Performance.Bottlenecks"></a>
 <h3>Performance Bottlenecks</h3>
 
 <p>All of these records were being written to one collection in <a href="https://www.mongodb.org/">MongoDB</a>, and the size of this collection grew quite rapidly. It's size almost immediately dwarfed the size of any of our other collections, and the number of records quickly reached into the tens of millions. This led to problems: writing new notifications started to crawl to a standstill. We had several indices on this collection to aid in querying, and these made the insertion of new notifications very non-performant, and also started to affect overall database performance. Querying against this collection degraded quickly and started to similarly affect database performance. Archiving old records also proved next to impossible. We couldn't simply drop the entire collection, but had to prune records. This similarly was totally non-performant and was adversely affecting database and site performance. We needed to come up with a new implementation for <code>Notification</code>, and addressing these issues was essential.</p>
 
+<a name="Resolving.Performance.Bottlenecks"></a>
 <h3>Resolving Performance Bottlenecks</h3>
 
 <p>So, we decided on a scheme where each day would result in a new <code>Notifications</code> collection (name keyed on the date), named <code>notifications_20140101</code>, <code>notifications_20140102</code>, etc. Each of these collections would have an <code>_id</code> field that corresponds to a user_id, and an <code>events</code> array (or 'stack' if you will) that records the id's of notified objects, as well as the type of notification. An example of a record in that collection is:</p>
@@ -317,6 +321,7 @@ end
 
 <p>Ok, so we seem to have solved some of our issues: namely writing and archiving notifications is performant, and we understand the behavior of these collections as the number of users and content on the site grows. Now let's look at how we can query against this scheme in an efficient manner, and also how we can mark events as 'seen' to avoid emailing out duplicates.</p>
 
+<a name="Marking.Notifications.as.Flushed.and.Retrieving.Notifications"></a>
 <h3>Marking Notifications as Flushed and Retrieving Notifications</h3>
 
 <p>We decided to push a <code>flushed</code> event onto the user's stack after we send out notifications, and analogously, when we are querying a user's notifications, we want to throw away notifications that occur before a <code>flushed</code> event. Here's that method, in our <code>NotificationService</code> module:</p>
@@ -387,6 +392,7 @@ end
 
 <p>And...that's basically it! Throughout the week as partners are uploading their shows/fair booths/artworks, these records are being opportunistically written to that day's notification collection, in a performant and scalable fashion. Then when we want to send you a personalized email, we pull all your appropriate notifications via the <code>get</code> routine in our <code>NotificationService</code>, and primarily using the technique described in <a href="http://artsy.github.io/blog/2014/03/18/presenters-and-memoization-moving-logic-out-of-templates/">Presenters and Memoization</a> we make sure we cache/memoize all such data. Using the tips in <a href="http://artsy.github.io/blog/2014/03/17/ruby-helper-to-group-artworks-into-a-pinterest-style-layout-for-email/">Pinterest-style Layouts</a> and <a href="http://artsy.github.io/blog/2014/03/17/some-tips-for-email-layout-and-responsiveness/">Email Layouts and Responsiveness</a> we can render this content and support various devices/email clients. We parallelize and batch the generation/sending of our e-mails as well. This whole system, from notification generation to actually emailing users, is running successfully and smoothly in production.</p>
 
+<a name="Next.Steps"></a>
 <h3>Next Steps</h3>
 
 <p>I think this type of infrastructure can easily be adapted to serve as a feed on a front-end or other client app. An API to serve up these notifications (AKA feed items) can be built and different feed items can then be rendered or aggregated at load-time. Simple client-side polling can even be set up to alert a user if something has happened that interests them <em>while</em> they're browsing! I think push notifications and other messaging can be handled by this system as well.</p>
@@ -414,6 +420,7 @@ scientists</a> by Simon Parsons (CUNY), Juan A. Rodriguez-Aguilar (CSIC) and Mar
 <!-- more -->
 
 
+<a name="Data.Modeling"></a>
 <h3>Data Modeling</h3>
 
 <p>In the Artsy platform, an <em>Auction</em> is an specialization of a more general concept of a <em>Sale</em>. A sale typically has an opening and a closing date, during which bidding or purchases can occur. We create a relationship between an artwork and a sale, which, in the case of an auction, includes the opening bid amount. We store all money in cents, and assume the currency to be USD, making it easy to extend the system for other currencies in the future.</p>
@@ -468,6 +475,7 @@ end
 
 <p>This is called a "book bid" - before technology took over the auctions world buyers delegated an agent to bid on their behalf after giving them a maximum amount they were willing to part with. Bidder positions belong to a bidder and to the artwork-to-sale relationship. They cannot be changed - if a user wants to increase his maximum bid, he simply creates a new bidder position.</p>
 
+<a name="Bidding.Round"></a>
 <h3>Bidding Round</h3>
 
 <p>Every time a bidder position is created, a <em>Bidding Round</em> is queued for the item being bid on. We can parallelize execution of these by artwork, however all bidding rounds for the same artwork are serialized.</p>
@@ -554,10 +562,12 @@ end
 
 <p>One of the interesting aspects of this system is what happens when two users create two identical bidder positions - the earlier one wins and the later one is outbid. In a transactional system we could produce an error message to the second bidder before the position is even created.</p>
 
+<a name="Bidder.Notifications"></a>
 <h3>Bidder Notifications</h3>
 
 <p>Notifying upon being "outbid" is straightforward, because a position only enters that state once, but notifying bidders of when they are the current high bidder or when their bid has been increased is trickier. We don't want to generate notifications every time a bid is made (i.e., it's the current high). Rather, we want to allow the round to reach a stable state at which there's only a single active position and then notify the current high and outbid bidders. This happens after each <code>round.run!</code>.</p>
 
+<a name="Beyond.Bidding"></a>
 <h3>Beyond Bidding</h3>
 
 <p>Aside of the bidding implementation we've built a whole software ecosystem around auctions. We developed a backend system to manage these. We put up projection screens at the event that list works being auctioned and flash every time a bid is placed. We register users' credit cards and collect their money.</p>
