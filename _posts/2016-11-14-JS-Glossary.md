@@ -494,7 +494,7 @@ The `await` part of an `async` function using `await readFile` will now wait on 
 
 All development ecosystems have trade-offs which shape their culture. For web developers reducing the amount of JavaScript they send to a client is an easy, and vital part of their day job. This started with minifying their source code, e.g. reducing the number of characters but having the same behavior. 
 
-The current state of the art is tree-shaking, wherein you can know what functions are unused and remove those from the source code before shipping the code to a client. A [haste-map][#haste-map] is one way to handle these dependencies, but it's not the only one. [Rollup][rollup] is considered the de-facto ruler of the space, but it is in [babel](#babel) and [webpack](#babel) also. 
+The current state of the art is tree-shaking, wherein you can know what functions are unused and remove those from the source code before shipping the code to a client. A [haste-map](#haste-map) is one way to handle these dependencies, but it's not the only one. [Rollup][rollup] is considered the de-facto ruler of the space, but it is in [babel](#babel) and [webpack](#babel) also. 
 
 Does this affect you if you're using React Native? Not really, but it's an interesting part of the ecosystem you should be aware of. 
 
