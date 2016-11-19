@@ -267,7 +267,11 @@ To fix this they opted to discuss specification features on a year basis. So tha
 
 Turns out that didn't work out too well, so the terminology changed again. The change is mainly to set expectations between the Specification authors and developers transpiling those specifications into their apps.
 
-Now an ECMAScript language improvement specification moves through a series of stages, depending on their maturity. I believe starting at 4, and working down to 1. So a ECMAScript Stage 4 feature is going to be really new, if you're using it via a transpiler then you should expect a lot of potential API changes and code churn. The lower the number, the longer the spec has been discussed, and the more likely for the code you're transpiling to be the vanilla JavaScript code in time.
+Now an ECMAScript language improvement specification moves through a series of stages, depending on their maturity. I [believe starting][stages] at 0, and working up to 4. 0 Idea, 1 Proposal, 2 Draft, 3 Accepted and 4 Done. 
+
+So a ECMAScript Stage 0 feature is going to be really new, if you're using it via a transpiler then you should expect a lot of potential API changes and code churn. The higher the number, the longer the spec has been discussed, and the more likely for the code you're transpiling to be the vanilla JavaScript code in time.
+
+The committee who discussed these improvements are the [TC39][tc39] commitee, the cool bit is that you can see [all the proposals][tc39-github] as individual GitHub repos so it's convient to browse. 
 
 
 ### Modules / Imports
@@ -612,3 +616,6 @@ $("a[name]").each(function(i, el){
 [js-fat]: http://www.confluentforms.com/2016/01/javascript-churn-technology-investment-effect.html
 [mitosis]: https://github.com/artsy/Mitosis/
 [gof]: http://www.amazon.com/gp/product/0201633612?ie=UTF8&camp=213733&creative=393185&creativeASIN=0201633612&linkCode=shr&tag=eejs-20&linkId=5S2XB3C32NLP7IVQ
+[stages]: https://twitter.com/logicoder/status/799919558429736960
+[tc39]: http://ecma-international.org/memento/TC39.htm
+[tc39-github]: https://github.com/tc39
