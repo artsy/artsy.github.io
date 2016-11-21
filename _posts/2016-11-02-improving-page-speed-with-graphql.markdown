@@ -14,17 +14,17 @@ I work on the Publishing Team at Artsy, and we've recently been focused on page 
 
 ## Prior to GraphQL
 
-Before we went ahead with adding a GraphQL-based endpoint in Positron, I spent about a week and refactoring our current codebase. We refactored our router code to make less fetches, made better use of caching, and moved some below-the-fold rendering into the client side. These are important steps towards a faster page, but it doesn't push our technology in a direction that lets us reimagine things.
+In our publishing CMS called [Positron](http://github.com/artsy/positron), we serve a separate API, database, and front-end from the rest of the Artsy stack. We're also responsible for the delivery and presentation of the content itself. Over the past year we've focused a lot on how the content appears, and now we've opened up time to focus on speed since in the land of content, every second counts.
+
+Before we went ahead with adding a GraphQL-based endpoint to Positron, I spent about a week and refactoring our current codebase. We refactored our router code to make less fetches, made better use of caching, and moved some below-the-fold rendering into the client side. These are important steps towards a faster page, but it doesn't push our technology in a direction that lets us reimagine things.
 
 ## Speed Issues
-
-In our publishing CMS called [Positron](http://github.com/artsy/positron), we serve a separate API, database, and front-end from the rest of the Artsy stack. We're also responsible for the delivery and presentation of the content itself. Over the past year we've focused a lot on how the content appears, and now we've opened up time to focus on speed since in the land of content, every second counts.
 
 We split the speed problem in two: `Server Response Time` (server-side) and `Document Interactive Time` (client-side). We currently use Google Analytics to track these [metrics](https://support.google.com/analytics/answer/2383341?hl=en). There are some inaccuracies with GA such as small sampling, geographic noise (countries with different download speeds), and timeouts being counted as zero, but for our initial testing this will suffice for relative measuring.
 
 ## Enter GraphQL and JoiQL
 
-Our very own [Craig Spaeth](https://twitter.com/craigspaeth) recently started working on a project called [Mural](https://github.com/muraljs/mural). It's a framework for React and GraphQL. One library that came out of this project is called [JoiQL](http://github.com/muraljs/joiql). It's a The main purpose of JoiQL is to convert [Joi](http://github.com/hapijs/joi) schemas into GraphQL schemas, and vice versa.
+Our very own [Craig Spaeth](https://twitter.com/craigspaeth) recently started working on a project called [Mural](https://github.com/muraljs/mural). It's a framework for React and GraphQL. One library that came out of this project is called [JoiQL](http://github.com/muraljs/joiql). It's a The main purpose of JoiQL is to convert [Joi](http://github.com/hapijs/joi) schemas into GraphQL schemas.
 
 We already use Joi in Positron so creating a GraphQL-based endpoint was trivial with JoiQL. Note that while JoiQL is currently used in production, it's still a beta project! Below is an example of how the JoiQL setup works.
 
@@ -35,7 +35,7 @@ const { object, string, number, array, date } = require('joi')
 const app = require('express')()
 const graphqlHTTP = require('express-graphql')
 
-# Given a Joi schema:
+// Given a Joi schema:
 const Article = object({
   title: string(),
   body: string(),
@@ -44,24 +44,24 @@ const Article = object({
   args: { id: number().required() }
 })
 
-# Define api with JoiQL like this:
+// Define api with JoiQL like this:
 const api = joiql({
   query: {
     article: Article
   }
 })
 
-# Resolve the request using a Koa 2 style middleware pattern:
+// Resolve the request using a Koa 2 style middleware pattern:
 api.use((ctx, next) => {
   return new Promise (resolve, reject) ->
-    # Method that fetches an article based on the query
+    // Method that fetches an article based on the query
     findArticle(ctx.req.query.article.args), (err, results) ->
       ctx.res.article = results.article
       next()
       resolve()
 })
 
-# Finally, mount our schema to express:
+// Finally, mount our schema to express:
 app.use('/graphql', graphqlHTTP({
   schema: api.schema,
   graphiql: true
@@ -70,16 +70,17 @@ app.listen(3000, () => console.log('listening on 3000'))
 
 ```
 
-You can see how simple it becomes to convert apps that already use Joi with JoiQL. It's less JSON blobs to handle and we also get a nice Koa 2 style middleware pattern that lets us hook into a downstream/upstream flow. This could be useful later on when if we were to get really granular with measuring speed and decide to track the speed of a request manually. We could do something like this:
+You can see how simple it becomes to convert apps that already use Joi with JoiQL. Joi provides a nice API for building GraphQL schemas with minimal boilerplate and we also get a nice Koa 2 style middleware pattern that lets us hook into a downstream/upstream flow. This downstream/upstream flow could be useful later on if we were to get really granular with measuring speed. For instance, if we decide to track the speed of the whole lifecycle of a request, we could do something like this:
 
-```
+```javascript
 api.use((ctx, next) => {
   startTIme = Date.now()
   next()
   console.log(Date.now() - startTime)
+}
 
 api.use((ctx, next) => {
-  # fetch content here
+  // fetch content here
   next() #we get bumped back up after this
 })
 ```
@@ -102,7 +103,7 @@ Since we were previously getting back collection of articles with all of its con
 
 ### Multiple fetches
 
-Although we haven't made use of this in production yet, I anticipate that the ability to coalesce requests will be significant. For example, to render an article page, there are up to five fetches that can be requested by our front-end app with a normal REST API. Now, we can combine the requests to a single fetch, which then moves the responsibility of fanning out database queries to the API. If we aggregate the request and cache the response using a client like [Lokka](https://github.com/kadirahq/lokka), our future looks bright.
+Although we haven't made use of this in production yet, I anticipate that the ability to coalesce requests will be significant. For example, to render an article page, there are up to five fetches that can be requested by our front-end app with a normal REST API. Now, we can combine the requests to a single fetch, which moves the responsibility of coalescing requests from aggregating slow HTTP requests to fanning out fast database queries. If we aggregate the request and cache the response using a client like [Lokka](https://github.com/kadirahq/lokka), our future looks bright.
 
 ## What's next?
 
