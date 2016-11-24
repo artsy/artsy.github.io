@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Bringing Artsy to Amazon Echo \"Alexa\""
-date: 2016-11-16
+date: 2016-11-24
 comments: true
 author: db
 categories: [Alexa, Amazon Echo]
@@ -65,7 +65,14 @@ var alexa = require('alexa-app');
 var app = new alexa.app('artsy');
 
 app.launch(function(req, res) {
-    res.say("Welcome to Artsy!");
+    res
+        // welcome message
+        .say("Welcome to Artsy! Ask me about an artist.")
+        // don't close the session, wait for user input (an artist name)
+        // and provide a re-prompt in case the user says something meaningless
+        .shouldEndSession(false, "Ask me about an artist. Say help if you need help or exit any time to exit.")
+        // speak the response
+        .send();
 });
 
 app.intent('AboutIntent', {
@@ -90,9 +97,14 @@ var value = req.slot('VALUE');
 if (value == 'artsy') {
   return res.say("Artsy’s mission is to make all the world’s art accessible to anyone with an Internet connection.");
 } else if (!value) {
-  return res.say("Sorry, I didn't get that artist name.");
+  return res
+    .say("Sorry, I didn't get that artist name.")
+    // don't close the session, wait for user input again (an artist name)
+    .shouldEndSession(false, "Ask me about an artist. Say help if you need help or exit any time to exit.");
 } else {
-  // lookup the artist in the Artsy API, read their bio
+  // asynchronously lookup the artist in the Artsy API, read their bio
+  // tell alexa-app that we're performing an asynchronous operation by returning false
+  return false;
 }
 ```
 
@@ -253,12 +265,38 @@ I configured the "Service Endpoint" in the Alexa Skill configuration to point to
 
 I deploy the lambda function with `apex deploy` and test the skill with `apex invoke` or from the Alexa test UI.
 
+### Testing with Echoism
+
+You can use [echosim.io](https://echosim.io) to test your skill. It's essentially identical to an Echo.
+
 ### Testing with Echo
 
-Test skills appear automatically in the Alexa configuration attached to my account!
+I got an Echo Dot. Test skills appear automatically in the Alexa configuration attached to my account!
 
 ![alexa skills](/images/2016-11-16-bringing-artsy-to-amazon-echo-alexa/alexa-skills.png)
 
 I just try to [talk to it](https://www.youtube.com/watch?v=FYVOAU35Sio).
+
+### Certification Process
+
+This took several weeks of back-and-forth. I should have gone through the [Alexa Skills Kit Voice Interface and User Experience Testing for Custom Skills](https://developer.amazon.com/public/solutions/alexa/alexa-skills-kit/docs/alexa-skills-kit-voice-interface-and-user-experience-testing) more thoroughly, but even after reading it a few times it wasn't obvious what the reviewers wanted.
+
+Here's a list of my mistakes.
+
+#### Sample Phrases
+
+The _Example Phrases_ in the _Publishing Information_ section of the certification UI must be present in your sample utterances. My three examples are _"Alexa, ask Artsy about website Artsy"_, _"Alexa, ask Artsy about Andy Warhol"_ and _"Alexa, ask Artsy about Norman Rockwell"_.
+
+The sample utterances are in the _Interaction Model_ section and must not include the wake word or any relevant launch phrasing. In the Artsy app I only have a single utterance with _"AboutIntent about {VALUE}"_, but lots of entries for _VALUE_ in the custom slot type. I forgot to include _website artsy_ and _Norman Rockwell_ in those.
+
+#### The Opening Line
+
+The welcome prompt is required, and must describe what users can ask of the skill and the session must remain open for a user response. This means that in order to get your app certified you must build some kind of basic conversational ability. My first cut simply said _"Welcome to Artsy"_, which wasn't good enough. I added a prompt, _"Ask me about an artist."_ and included `shouldEndSession(false)` in the code.
+
+#### Stop, Cancel and Help Intents
+
+The skill must exit appropriately when users say _"stop"_ or _"cancel"_. This means you must build at the very least an _AMAZON.StopIntent_, _AMAZON.CancelIntent_ and _AMAZON.HelpIntent_. In my first iteration a user would say _"Alexa open Artsy"_, then _"help"_ and would get _"Sorry, I didn't get that artist name."_.
+
+### Complete Code
 
 Find the [complete Skill code on Github](https://github.com/artsy/elderfield).
