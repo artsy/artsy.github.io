@@ -293,9 +293,13 @@ The sample utterances are in the _Interaction Model_ section and must not includ
 
 The welcome prompt is required, and must describe what users can ask of the skill and the session must remain open for a user response. This means that in order to get your app certified you must build some kind of basic conversational ability. My first cut simply said _"Welcome to Artsy"_, which wasn't good enough. I added a prompt, _"Ask me about an artist."_ and included `shouldEndSession(false)` in the code.
 
-#### Stop, Cancel and Help Intents
+#### Stop and Cancel Intents
 
-The skill must exit appropriately when users say _"stop"_ or _"cancel"_. This means you must build at the very least an _AMAZON.StopIntent_, _AMAZON.CancelIntent_ and _AMAZON.HelpIntent_. In my first iteration a user would say _"Alexa open Artsy"_, then _"help"_ and would get _"Sorry, I didn't get that artist name."_.
+The skill must exit appropriately when users say _"stop"_ or _"cancel"_. This means you must build at the very least an _AMAZON.StopIntent_, _AMAZON.CancelIntent_. In my first iteration a user would say _"Alexa open Artsy"_, then _"stop"_ and would get _"Sorry, I didn't get that artist name."_.
+
+#### Help Intent
+
+The skill must also implement _AMAZON.HelpIntent_ as a question. In my first iteration a user would say _"Alexa open Artsy"_, then _"help"_ and would get _"Sorry, I didn't get that artist name."_. Then help would say something like _"You can ask me about Artsy. Say cancel or stop at any time."_ The certification process requires a prompt, eg. _"What artist would you like to hear about?"_ and the session must remain open via `shouldEndSession(false)`.
 
 ### Complete Code
 
