@@ -10,7 +10,7 @@ With its powerful automatic speech recognizer, accurate natural language underst
 
 Alexa knows about the weather, but it doesn't know much about art.
 
-In this post I'll dig a little inside the Alexa software platform and go over the technical details of bringing Artsy to the Echo, starting with a very simple "Ask Artsy to tell me about Norman Rockwell."
+In this post I'll dig a little inside the Alexa software platform and go over the technical details of bringing Artsy to the Echo, starting with a very simple "Ask Artsy about Norman Rockwell."
 
 <a href='https://www.youtube.com/watch?v=FYVOAU35Sio' target='_blank'>
 <iframe width="280" height="280" src="https://www.youtube.com/embed/FYVOAU35Sio" frameborder="0" allowfullscreen></iframe>
@@ -94,9 +94,7 @@ The skill expects a slot value as defined in the intent above.
 ```js
 var value = req.slot('VALUE');
 
-if (value == 'artsy') {
-  return res.say("Artsy’s mission is to make all the world’s art accessible to anyone with an Internet connection.");
-} else if (!value) {
+if (!value) {
   return res
     .say("Sorry, I didn't get that artist name.")
     // don't close the session, wait for user input again (an artist name)
@@ -230,7 +228,7 @@ chai.use(require('chai-http'));
 var server = require('../server');
 
 describe('artsy alexa', function() {
-    it('tells me about Normal Rockwell', function(done) {
+    it('tells me about Norman Rockwell', function(done) {
         var aboutIntentRequest = require('./AboutIntentRequest.json');
         chai.request(server)
             .post('/alexa/artsy')
@@ -240,7 +238,7 @@ describe('artsy alexa', function() {
                 var data = JSON.parse(res.text);
                 expect(data.response.outputSpeech.type).to.equal('SSML')
                 var ssml = data.response.outputSpeech.ssml;
-              expect(ssml).to.startWith('<speak>American artist Normal Rockwell ');
+              expect(ssml).to.startWith('<speak>American artist Norman Rockwell ');
               done();
             });
     });
@@ -263,7 +261,26 @@ I configured the "Service Endpoint" in the Alexa Skill configuration to point to
 
 ![Alexa skill configuration](/images/2016-11-16-bringing-artsy-to-amazon-echo-alexa/alexa-skill-configuration.png)
 
-I deploy the lambda function with `apex deploy` and test the skill with `apex invoke` or from the Alexa test UI.
+I deployed the lambda function with `apex deploy` and test the skill with `apex invoke` or from the Alexa test UI.
+
+Logs didn't appear in AWS Cloudwatch with the execution policy created by default, I had to give the IAM "alexa-artsy" role more access to "arn:aws:logs:*:*:*" via an additional inline policy.
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+      ],
+      "Resource": "arn:aws:logs:*:*:*"
+    }
+  ]
+}
+```
 
 ### Testing with Echoism
 
@@ -285,9 +302,11 @@ Here's a list of my mistakes.
 
 #### Sample Phrases
 
-The _Example Phrases_ in the _Publishing Information_ section of the certification UI must be present in your sample utterances. My three examples are _"Alexa, ask Artsy about website Artsy"_, _"Alexa, ask Artsy about Andy Warhol"_ and _"Alexa, ask Artsy about Norman Rockwell"_.
+The _Example Phrases_ in the _Publishing Information_ section of the certification UI must be present in your sample utterances. My three examples are _"Alexa, ask Artsy about Artsy"_, _"Alexa, ask Artsy about Andy Warhol"_ and _"Alexa, ask Artsy about Norman Rockwell"_.
 
-The sample utterances are in the _Interaction Model_ section and must not include the wake word or any relevant launch phrasing. In the Artsy app I only have a single utterance with _"AboutIntent about {VALUE}"_, but lots of entries for _VALUE_ in the custom slot type. I forgot to include _website artsy_ and _Norman Rockwell_ in those.
+The sample utterances are in the _Interaction Model_ section and must not include the wake word or any relevant launch phrasing. In the Artsy app I only have a single utterance with _"AboutIntent about {VALUE}"_, but lots of entries for _VALUE_ in the custom slot type. I forgot to include _artsy_ and _Norman Rockwell_ in those.
+
+The skill got rejected mutliple times with _about artsy_ not working, so I eventually gave up on supporting that. Alexa would recognize it as _artsee_, _artzi_ and many other variations. I suspect testers pronounce it _artsay_ or _artsai_ and never get the correct response.
 
 #### The Opening Line
 
