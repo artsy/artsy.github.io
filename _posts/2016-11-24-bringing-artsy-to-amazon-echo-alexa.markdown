@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Bringing Artsy to Amazon Echo \"Alexa\""
-date: 2016-11-24
+date: 2016-11-30
 comments: true
 author: db
 categories: [Alexa, Amazon Echo]
@@ -15,6 +15,8 @@ In this post I'll dig a little inside the Alexa software platform and go over th
 <a href='https://www.youtube.com/watch?v=FYVOAU35Sio' target='_blank'>
 <iframe width="280" height="280" src="https://www.youtube.com/embed/FYVOAU35Sio" frameborder="0" allowfullscreen></iframe>
 </a>
+
+Find the [Artsy skill in the Alexa app](http://alexa.amazon.com/spa/index.html#skills/dp/B01MYLJO1N) and [the complete Skill code on Github](https://github.com/artsy/elderfield).
 
 <!-- more -->
 
@@ -54,7 +56,7 @@ The only possible sample utterance of this intent is "about {VALUE}", the "ask A
 
 Since Alexa cannot understand artist names out of the box, I had to teach it with a custom, user-defined slot type added to the "Skill Interaction Model" with about a thousand most popular artist names on Artsy.
 
-![Alexa interaction model](/images/2016-11-16-bringing-artsy-to-amazon-echo-alexa/alexa-interaction-model.png)
+![Alexa interaction model](/images/2016-11-30-bringing-artsy-to-amazon-echo-alexa/alexa-interaction-model.png)
 
 ### Implementing a Skill
 
@@ -181,7 +183,7 @@ if (process.env['ENV'] == 'lambda') {
 
 Running the server locally with `node server.js` will create a simulator console on http://localhost:8080/alexa/artsy.
 
-![lambda configuration](/images/2016-11-16-bringing-artsy-to-amazon-echo-alexa/console.png)
+![lambda configuration](/images/2016-11-30-bringing-artsy-to-amazon-echo-alexa/console.png)
 
 We will use the test console to produce test JSON. The about intent translates into the following.
 
@@ -251,15 +253,15 @@ The production version of the Alexa skill is a Lambda function.
 
 I created an "alexa-artsy" function with a new IAM role, "alexa-artsy" in AWS Lambda and copy-pasted the role URN into "project.json". This is a file used by [Apex](https://github.com/apex/apex), a Lambda deployment tool (`curl https://raw.githubusercontent.com/apex/apex/master/install.sh | sh`) along with awscli (`brew install awscli`). I had to configure access to AWS the first time, too (`aws configure`).
 
-![lambda configuration](/images/2016-11-16-bringing-artsy-to-amazon-echo-alexa/lambda-configuration.png)
+![lambda configuration](/images/2016-11-30-bringing-artsy-to-amazon-echo-alexa/lambda-configuration.png)
 
 In order to connect the lambda function with an Alexa skill, I added an "Alexa Skills Kit" trigger. Without this you get an obscure "Please make sure that Alexa Skills Kit is selected for the event source type of arn:..." error.
 
-![lambda triggers](/images/2016-11-16-bringing-artsy-to-amazon-echo-alexa/lambda-triggers.png)
+![lambda triggers](/images/2016-11-30-bringing-artsy-to-amazon-echo-alexa/lambda-triggers.png)
 
 I configured the "Service Endpoint" in the Alexa Skill configuration to point to my Lambda function.
 
-![Alexa skill configuration](/images/2016-11-16-bringing-artsy-to-amazon-echo-alexa/alexa-skill-configuration.png)
+![Alexa skill configuration](/images/2016-11-30-bringing-artsy-to-amazon-echo-alexa/alexa-skill-configuration.png)
 
 I deployed the lambda function with `apex deploy` and test the skill with `apex invoke` or from the Alexa test UI.
 
@@ -290,13 +292,17 @@ You can use [echosim.io](https://echosim.io) to test your skill. It's essentiall
 
 I got an Echo Dot. Test skills appear automatically in the Alexa configuration attached to my account!
 
-![alexa skills](/images/2016-11-16-bringing-artsy-to-amazon-echo-alexa/alexa-skills.png)
+![alexa skills](/images/2016-11-30-bringing-artsy-to-amazon-echo-alexa/alexa-skills.png)
 
 I just try to [talk to it](https://www.youtube.com/watch?v=FYVOAU35Sio).
 
 ### Certification Process
 
+![certified email](/images/2016-11-30-bringing-artsy-to-amazon-echo-alexa/certified-email.png)
+
 This took several weeks of back-and-forth. I should have gone through the [Alexa Skills Kit Voice Interface and User Experience Testing for Custom Skills](https://developer.amazon.com/public/solutions/alexa/alexa-skills-kit/docs/alexa-skills-kit-voice-interface-and-user-experience-testing) more thoroughly, but even after reading it a few times it wasn't obvious what the reviewers wanted.
+
+![certified dashboard](/images/2016-11-30-bringing-artsy-to-amazon-echo-alexa/certified-dashboard.png)
 
 Here's a list of my mistakes.
 
@@ -320,6 +326,8 @@ The skill must exit appropriately when users say _"stop"_ or _"cancel"_. This me
 
 The skill must also implement _AMAZON.HelpIntent_ as a question. In my first iteration a user would say _"Alexa open Artsy"_, then _"help"_ and would get _"Sorry, I didn't get that artist name."_. Then help would say something like _"You can ask me about Artsy. Say cancel or stop at any time."_ The certification process requires a prompt, eg. _"What artist would you like to hear about?"_ and the session must remain open via `shouldEndSession(false)`.
 
-### Complete Code
+### Skill and Code
+
+Find the [Artsy skill in the Alexa app](http://alexa.amazon.com/spa/index.html#skills/dp/B01MYLJO1N).
 
 Find the [complete Skill code on Github](https://github.com/artsy/elderfield).
