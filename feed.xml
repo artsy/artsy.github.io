@@ -5,8 +5,8 @@
     <description></description>
     <link>http://artsy.github.io/</link>
     <atom:link href="http://artsy.github.io/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Wed, 30 Nov 2016 13:56:46 +0000</pubDate>
-    <lastBuildDate>Wed, 30 Nov 2016 13:56:46 +0000</lastBuildDate>
+    <pubDate>Wed, 30 Nov 2016 18:38:50 +0000</pubDate>
+    <lastBuildDate>Wed, 30 Nov 2016 18:38:50 +0000</lastBuildDate>
     <generator>Jekyll v2.5.3</generator>
     
       <item>
@@ -1331,6 +1331,183 @@ $(&quot;a[name]&quot;).each(function(i, el){
       </item>
     
       <item>
+        <title>Improving Page Speed with GraphQL</title>
+        <description>&lt;p&gt;This past year, our team started using a GraphQL orchestration layer that connects various APIs with multiple front-end apps including &lt;a href=&quot;http://artsy.github.io/blog/2016/06/19/graphql-for-mobile&quot;&gt;iOS&lt;/a&gt;. It also handles caching and extracts some business logic out of our client apps. This helped us not only to be more consistent with the way we fetch data across apps, but also improved developer happiness and even bridged teams by having our web and iOS developers work with the same API layer. This got me thinking what other problems GraphQL could solve at Artsy.&lt;/p&gt;
+
+&lt;p&gt;I work on the Publishing Team at Artsy, and we&#39;ve recently been focused on page speed as a KPI. With so many ways of measuring speed, it&#39;s a daunting task but for this post, I&#39;ll focus on the way we handled things on the server-side and how integrating GraphQL on our API improved page speed.&lt;/p&gt;
+
+&lt;!-- more --&gt;
+
+
+&lt;a name=&quot;Prior.to.GraphQL&quot;&gt;&lt;/a&gt;
+&lt;h2&gt;Prior to GraphQL&lt;/h2&gt;
+
+&lt;p&gt;In our publishing CMS called &lt;a href=&quot;http://github.com/artsy/positron&quot;&gt;Positron&lt;/a&gt;, we serve a separate API, database, and front-end from the rest of the Artsy stack. We&#39;re also responsible for the delivery and presentation of the content itself. Over the past year we&#39;ve focused a lot on how the content appears, and now we&#39;ve opened up time to focus on speed since in the land of content, every second counts.&lt;/p&gt;
+
+&lt;p&gt;Before we went ahead with adding a GraphQL-based endpoint to Positron, I spent about a week and refactoring our current codebase. We refactored our router code to make less fetches, made better use of caching, and moved some below-the-fold rendering into the client side. These are important steps towards a faster page, but it doesn&#39;t push our technology in a direction that lets us reimagine things.&lt;/p&gt;
+
+&lt;a name=&quot;Speed.Issues&quot;&gt;&lt;/a&gt;
+&lt;h2&gt;Speed Issues&lt;/h2&gt;
+
+&lt;p&gt;We split the speed problem in two: &lt;code&gt;Server Response Time&lt;/code&gt; (server-side) and &lt;code&gt;Document Interactive Time&lt;/code&gt; (client-side). We currently use Google Analytics to track these &lt;a href=&quot;https://support.google.com/analytics/answer/2383341?hl=en&quot;&gt;metrics&lt;/a&gt;. There are some inaccuracies with GA such as small sampling, geographic noise (countries with different download speeds), and timeouts being counted as zero, but for our initial testing this will suffice for relative measuring.&lt;/p&gt;
+
+&lt;a name=&quot;Enter.GraphQL.and.JoiQL&quot;&gt;&lt;/a&gt;
+&lt;h2&gt;Enter GraphQL and JoiQL&lt;/h2&gt;
+
+&lt;p&gt;Our very own &lt;a href=&quot;https://twitter.com/craigspaeth&quot;&gt;Craig Spaeth&lt;/a&gt; recently started working on a project called &lt;a href=&quot;https://github.com/muraljs/mural&quot;&gt;Mural&lt;/a&gt;. It&#39;s a framework for React and GraphQL. One library that came out of this project is called &lt;a href=&quot;http://github.com/muraljs/joiql&quot;&gt;JoiQL&lt;/a&gt;. It&#39;s a The main purpose of JoiQL is to convert &lt;a href=&quot;http://github.com/hapijs/joi&quot;&gt;Joi&lt;/a&gt; schemas into GraphQL schemas.&lt;/p&gt;
+
+&lt;p&gt;We already use Joi in Positron so creating a GraphQL-based endpoint was trivial with JoiQL. Note that while JoiQL is currently used in production, it&#39;s still a beta project! Below is an example of how the JoiQL setup works.&lt;/p&gt;
+
+&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;6&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;7&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;8&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;9&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;10&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;11&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;12&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;13&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;14&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;15&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;16&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;17&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;18&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;19&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;20&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;21&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;22&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;23&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;24&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;25&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;26&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;27&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;28&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;29&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;30&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;31&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;32&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;33&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;34&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;35&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;36&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;37&lt;/span&gt;
+&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;javascript&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;kr&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;joiql&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;require&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;../&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;kr&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;object&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;string&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;number&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;array&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;date&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;require&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;joi&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;kr&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;app&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;require&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;express&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)()&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;kr&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;graphqlHTTP&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;require&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;express-graphql&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;c1&quot;&gt;// Given a Joi schema:&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;kr&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;Article&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;object&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;({&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nx&quot;&gt;title&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;string&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(),&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nx&quot;&gt;body&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;string&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(),&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nx&quot;&gt;published_at&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;date&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;}).&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;meta&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;({&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nx&quot;&gt;args&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;id&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;number&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;().&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;required&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;})&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;c1&quot;&gt;// Define api with JoiQL like this:&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;kr&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;api&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;joiql&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;({&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nx&quot;&gt;query&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nx&quot;&gt;article&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;Article&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;})&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;c1&quot;&gt;// Resolve the request using a Koa 2 style middleware pattern:&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;nx&quot;&gt;api&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;use&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;((&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;ctx&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;next&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;Promise&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;resolve&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;reject&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;c1&quot;&gt;// Method that fetches an article based on the query&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nx&quot;&gt;findArticle&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;ctx&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;req&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;query&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;article&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;args&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;err&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;results&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;nx&quot;&gt;ctx&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;res&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;article&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;results&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;article&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;nx&quot;&gt;next&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;nx&quot;&gt;resolve&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;})&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;c1&quot;&gt;// Finally, mount our schema to express:&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;nx&quot;&gt;app&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;use&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;/graphql&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;graphqlHTTP&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;({&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nx&quot;&gt;schema&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;api&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;schema&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nx&quot;&gt;graphiql&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;kc&quot;&gt;true&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;}))&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;nx&quot;&gt;app&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;listen&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;3000&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;console&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;log&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;listening on 3000&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
+
+
+&lt;p&gt;You can see how simple it becomes to convert apps that already use Joi with JoiQL. Joi provides a nice API for building GraphQL schemas with minimal boilerplate and we also get a nice Koa 2 style middleware pattern that lets us hook into a downstream/upstream flow. This downstream/upstream flow could be useful later on if we were to get really granular with measuring speed. For instance, if we decide to track the speed of the whole lifecycle of a request, we could do something like this:&lt;/p&gt;
+
+&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;6&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;7&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;8&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;9&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;10&lt;/span&gt;
+&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;javascript&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;nx&quot;&gt;api&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;use&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;((&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;ctx&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;next&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nx&quot;&gt;startTIme&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;Date&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;now&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nx&quot;&gt;next&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nx&quot;&gt;console&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;log&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;Date&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;now&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;startTime&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;nx&quot;&gt;api&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;use&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;((&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;ctx&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;next&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;c1&quot;&gt;// fetch content here&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nx&quot;&gt;next&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;#&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;we&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;get&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;bumped&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;back&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;up&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;after&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;this&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;})&lt;/span&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
+
+
+&lt;a name=&quot;Results&quot;&gt;&lt;/a&gt;
+&lt;h2&gt;Results&lt;/h2&gt;
+
+&lt;p&gt;The two features of GraphQL that have been helpful for reducing page speed are:
+1. Reduced payload because you only request the data you need
+2. Multiple fetches can be coalesced into a single request&lt;/p&gt;
+
+&lt;p&gt;Not surprisingly, decreased payload and coalesced requests are the same two features &lt;a href=&quot;http://twitter.com/orta&quot;&gt;Orta&lt;/a&gt; describes in part of his post on the killer features of &lt;a href=&quot;http://artsy.github.io/blog/2016/06/19/graphql-for-mobile&quot;&gt;GraphQL for Mobile&lt;/a&gt;.&lt;/p&gt;
+
+&lt;a name=&quot;Reduced.Payload&quot;&gt;&lt;/a&gt;
+&lt;h3&gt;Reduced Payload&lt;/h3&gt;
+
+&lt;p&gt;Reduced payload turned out to be one of the biggest factors in reducing speed. Just after October 27 we switched over to using GraphQL on our &lt;a href=&quot;http://m.artsy.net/articles&quot;&gt;mobile articles landing page&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;&lt;/div&gt;&lt;/div&gt;&lt;a href=&#39;/images/2016-11-02-improving-page-speed-with-graphql/download_time.png&#39;&gt;&lt;img src=&quot;/images/2016-11-02-improving-page-speed-with-graphql/download_time.png&quot;&gt;&lt;/a&gt;&lt;div class=&#39;meta-container&#39;&gt;&lt;header&gt;&amp;nbsp;&lt;/header&gt;&lt;/div&gt;&lt;div class=&#39;date-container&#39;&gt;&amp;nbsp;&lt;/div&gt;&lt;div class=&#39;content-container&#39;&gt;&lt;div class=&#39;entry-content&#39;&gt;&lt;/p&gt;
+
+&lt;p&gt;Since we were previously getting back collection of articles with all of its content, rendering a simple page with a list of articles meant the payload size was unnecessarily huge. Now, we only request a few things like the title and image without having to do any extra work. This is especially important for mobile devices where we encounter slow network speeds!&lt;/p&gt;
+
+&lt;a name=&quot;Multiple.fetches&quot;&gt;&lt;/a&gt;
+&lt;h3&gt;Multiple fetches&lt;/h3&gt;
+
+&lt;p&gt;Although we haven&#39;t made use of this in production yet, I anticipate that the ability to coalesce requests will be significant. For example, to render an article page, there are up to five fetches that can be requested by our front-end app with a normal REST API. Now, we can combine the requests to a single fetch, which moves the responsibility of coalescing requests from aggregating slow HTTP requests to fanning out fast database queries. If we aggregate the request and cache the response using a client like &lt;a href=&quot;https://github.com/kadirahq/lokka&quot;&gt;Lokka&lt;/a&gt;, our future looks bright.&lt;/p&gt;
+
+&lt;a name=&quot;What.s.next.&quot;&gt;&lt;/a&gt;
+&lt;h2&gt;What&#39;s next?&lt;/h2&gt;
+
+&lt;p&gt;Besides making use of this new endpoint on all the things, I think the next big win with GraphQL is to add &lt;a href=&quot;http://graphql.org/learn/queries/#mutations&quot;&gt;mutations&lt;/a&gt;. By adding support for mutations, we can modify our data with GraphQL just as simply as we can query it.&lt;/p&gt;
+
+&lt;p&gt;We currently use a combination of Backbone and React to edit articles on our front-end CMS. After we move our CMS&#39;s data platform to GraphQL, we can move away from frameworks like Backbone and towards managing state containers like Redux which are made to work with GraphQL. Features like revision history and undo events would feel natural with state containers like Redux and a joy for our editors!&lt;/p&gt;
+
+&lt;p&gt;In the context of speed, some other topics I look forward to exploring are optimizing expensive database queries and client-side asset compression.&lt;/p&gt;
+</description>
+        <pubDate>Wed, 02 Nov 2016 14:21:00 +0000</pubDate>
+        <link>http://artsy.github.io/blog/2016/11/02/improving-page-speed-with-graphql/</link>
+        <guid isPermaLink="true">http://artsy.github.io/blog/2016/11/02/improving-page-speed-with-graphql/</guid>
+        
+        
+        <category>graphql</category>
+        
+        <category>javascript</category>
+        
+        <category>joi</category>
+        
+        <category>positron</category>
+        
+      </item>
+    
+      <item>
         <title>JSON Web Tokens: Artsy&#39;s Journey</title>
         <description>&lt;p&gt;At Artsy we currently have thousands of client applications hitting our API and requesting authentication. When a user successfully authenticates through one of these clients, we want to embed basic user and application data in the resulting token rather than have to look up a session ID in the database on each request. For that we want to use JWT.&lt;/p&gt;
 
@@ -2295,41 +2472,6 @@ $(&quot;a[name]&quot;).each(function(i, el){
         <category>node</category>
         
         <category>web</category>
-        
-      </item>
-    
-      <item>
-        <title>macOS Keyboard Shortcuts workshop video</title>
-        <description>&lt;p&gt;Hey all, I was asked to talk internally about ways in which anyone can improve their day-to-day computer usage. For me, using keyboard shortcuts shows a greater level of control of your machine - and more importantly can be considerably faster.&lt;/p&gt;
-
-&lt;p&gt;I have all of my notes, annotated with images inside a personal GitHub repo: &lt;a href=&quot;https://github.com/orta/keyboard_shortcuts&quot;&gt;orta/keyboard_shortcuts&lt;/a&gt;. We covered:&lt;/p&gt;
-
-&lt;ul&gt;
-&lt;li&gt;Pressing menu items via keyboard&lt;/li&gt;
-&lt;li&gt;Window Management&lt;/li&gt;
-&lt;li&gt;Text Management, e.g. jumping between words etc.&lt;/li&gt;
-&lt;li&gt;Searching for text&lt;/li&gt;
-&lt;li&gt;Taking Screenshots&lt;/li&gt;
-&lt;li&gt;Slack and Chrome&lt;/li&gt;
-&lt;li&gt;Using a Window Manager and Clipboard History Manager&lt;/li&gt;
-&lt;/ul&gt;
-
-
-&lt;p&gt;Jump &lt;a href=&quot;https://www.youtube.com/watch?v=1mIRCL_lGbg&quot;&gt;to YouTube&lt;/a&gt; for the video, or click more for a smaller inline preview.&lt;/p&gt;
-
-&lt;!-- more --&gt;
-
-
-&lt;p&gt;&lt;/div&gt;&lt;/div&gt;&lt;iframe width=&#39;100%&#39; height=&#39;600&#39; src=&#39;https://www.youtube.com/embed/1mIRCL_lGbg &#39; frameborder=&#39;0&#39; allowfullscreen&gt;&lt;/iframe&gt;&lt;div class=&#39;meta-container&#39;&gt;&lt;header&gt;&amp;nbsp;&lt;/header&gt;&lt;/div&gt;&lt;div class=&#39;content-container&#39;&gt;&lt;div class=&#39;entry-content&#39;&gt;&lt;/p&gt;
-</description>
-        <pubDate>Wed, 31 Aug 2016 12:09:00 +0000</pubDate>
-        <link>http://artsy.github.io/blog/2016/08/31/Keyboard-Shortcuts-workshop/</link>
-        <guid isPermaLink="true">http://artsy.github.io/blog/2016/08/31/Keyboard-Shortcuts-workshop/</guid>
-        
-        
-        <category>video</category>
-        
-        <category>workshop</category>
         
       </item>
     

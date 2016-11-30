@@ -4,7 +4,7 @@
   <title><![CDATA[Category: javascript | Artsy Engineering]]></title>
   <link href="http://artsy.github.io/blog/categories/javascript/atom.xml" rel="self"/>
   <link href="http://artsy.github.io/"/>
-  <updated>2016-11-30T13:56:46+00:00</updated>
+  <updated>2016-11-30T18:38:50+00:00</updated>
   <id>http://artsy.github.io/</id>
   <author>
     <name><![CDATA[]]></name>
@@ -640,6 +640,124 @@ $("a[name]").each(function(i, el){
   </entry>
   
   <entry>
+    <title type="html"><![CDATA[Improving Page Speed with GraphQL]]></title>
+    <link href="http://artsy.github.io/blog/2016/11/02/improving-page-speed-with-graphql/"/>
+    <updated>2016-11-02T14:21:00+00:00</updated>
+    <id>http://artsy.github.io/blog/2016/11/02/improving-page-speed-with-graphql</id>
+    <content type="html"><![CDATA[<p>This past year, our team started using a GraphQL orchestration layer that connects various APIs with multiple front-end apps including <a href="http://artsy.github.io/blog/2016/06/19/graphql-for-mobile">iOS</a>. It also handles caching and extracts some business logic out of our client apps. This helped us not only to be more consistent with the way we fetch data across apps, but also improved developer happiness and even bridged teams by having our web and iOS developers work with the same API layer. This got me thinking what other problems GraphQL could solve at Artsy.</p>
+
+<p>I work on the Publishing Team at Artsy, and we've recently been focused on page speed as a KPI. With so many ways of measuring speed, it's a daunting task but for this post, I'll focus on the way we handled things on the server-side and how integrating GraphQL on our API improved page speed.</p>
+
+<!-- more -->
+
+
+<a name="Prior.to.GraphQL"></a>
+<h2>Prior to GraphQL</h2>
+
+<p>In our publishing CMS called <a href="http://github.com/artsy/positron">Positron</a>, we serve a separate API, database, and front-end from the rest of the Artsy stack. We're also responsible for the delivery and presentation of the content itself. Over the past year we've focused a lot on how the content appears, and now we've opened up time to focus on speed since in the land of content, every second counts.</p>
+
+<p>Before we went ahead with adding a GraphQL-based endpoint to Positron, I spent about a week and refactoring our current codebase. We refactored our router code to make less fetches, made better use of caching, and moved some below-the-fold rendering into the client side. These are important steps towards a faster page, but it doesn't push our technology in a direction that lets us reimagine things.</p>
+
+<a name="Speed.Issues"></a>
+<h2>Speed Issues</h2>
+
+<p>We split the speed problem in two: <code>Server Response Time</code> (server-side) and <code>Document Interactive Time</code> (client-side). We currently use Google Analytics to track these <a href="https://support.google.com/analytics/answer/2383341?hl=en">metrics</a>. There are some inaccuracies with GA such as small sampling, geographic noise (countries with different download speeds), and timeouts being counted as zero, but for our initial testing this will suffice for relative measuring.</p>
+
+<a name="Enter.GraphQL.and.JoiQL"></a>
+<h2>Enter GraphQL and JoiQL</h2>
+
+<p>Our very own <a href="https://twitter.com/craigspaeth">Craig Spaeth</a> recently started working on a project called <a href="https://github.com/muraljs/mural">Mural</a>. It's a framework for React and GraphQL. One library that came out of this project is called <a href="http://github.com/muraljs/joiql">JoiQL</a>. It's a The main purpose of JoiQL is to convert <a href="http://github.com/hapijs/joi">Joi</a> schemas into GraphQL schemas.</p>
+
+<p>We already use Joi in Positron so creating a GraphQL-based endpoint was trivial with JoiQL. Note that while JoiQL is currently used in production, it's still a beta project! Below is an example of how the JoiQL setup works.</p>
+
+<pre><code class="javascript">const joiql = require('../')
+const { object, string, number, array, date } = require('joi')
+const app = require('express')()
+const graphqlHTTP = require('express-graphql')
+
+// Given a Joi schema:
+const Article = object({
+  title: string(),
+  body: string(),
+  published_at: date()
+}).meta({
+  args: { id: number().required() }
+})
+
+// Define api with JoiQL like this:
+const api = joiql({
+  query: {
+    article: Article
+  }
+})
+
+// Resolve the request using a Koa 2 style middleware pattern:
+api.use((ctx, next) =&gt; {
+  return new Promise (resolve, reject) -&gt;
+    // Method that fetches an article based on the query
+    findArticle(ctx.req.query.article.args), (err, results) -&gt;
+      ctx.res.article = results.article
+      next()
+      resolve()
+})
+
+// Finally, mount our schema to express:
+app.use('/graphql', graphqlHTTP({
+  schema: api.schema,
+  graphiql: true
+}))
+app.listen(3000, () =&gt; console.log('listening on 3000'))
+</code></pre>
+
+<p>You can see how simple it becomes to convert apps that already use Joi with JoiQL. Joi provides a nice API for building GraphQL schemas with minimal boilerplate and we also get a nice Koa 2 style middleware pattern that lets us hook into a downstream/upstream flow. This downstream/upstream flow could be useful later on if we were to get really granular with measuring speed. For instance, if we decide to track the speed of the whole lifecycle of a request, we could do something like this:</p>
+
+<pre><code class="javascript">api.use((ctx, next) =&gt; {
+  startTIme = Date.now()
+  next()
+  console.log(Date.now() - startTime)
+}
+
+api.use((ctx, next) =&gt; {
+  // fetch content here
+  next() #we get bumped back up after this
+})
+</code></pre>
+
+<a name="Results"></a>
+<h2>Results</h2>
+
+<p>The two features of GraphQL that have been helpful for reducing page speed are:
+1. Reduced payload because you only request the data you need
+2. Multiple fetches can be coalesced into a single request</p>
+
+<p>Not surprisingly, decreased payload and coalesced requests are the same two features <a href="http://twitter.com/orta">Orta</a> describes in part of his post on the killer features of <a href="http://artsy.github.io/blog/2016/06/19/graphql-for-mobile">GraphQL for Mobile</a>.</p>
+
+<a name="Reduced.Payload"></a>
+<h3>Reduced Payload</h3>
+
+<p>Reduced payload turned out to be one of the biggest factors in reducing speed. Just after October 27 we switched over to using GraphQL on our <a href="http://m.artsy.net/articles">mobile articles landing page</a>.</p>
+
+<p></div></div><a href='/images/2016-11-02-improving-page-speed-with-graphql/download_time.png'><img src="/images/2016-11-02-improving-page-speed-with-graphql/download_time.png"></a><div class='meta-container'><header>&nbsp;</header></div><div class='date-container'>&nbsp;</div><div class='content-container'><div class='entry-content'></p>
+
+<p>Since we were previously getting back collection of articles with all of its content, rendering a simple page with a list of articles meant the payload size was unnecessarily huge. Now, we only request a few things like the title and image without having to do any extra work. This is especially important for mobile devices where we encounter slow network speeds!</p>
+
+<a name="Multiple.fetches"></a>
+<h3>Multiple fetches</h3>
+
+<p>Although we haven't made use of this in production yet, I anticipate that the ability to coalesce requests will be significant. For example, to render an article page, there are up to five fetches that can be requested by our front-end app with a normal REST API. Now, we can combine the requests to a single fetch, which moves the responsibility of coalescing requests from aggregating slow HTTP requests to fanning out fast database queries. If we aggregate the request and cache the response using a client like <a href="https://github.com/kadirahq/lokka">Lokka</a>, our future looks bright.</p>
+
+<a name="What.s.next."></a>
+<h2>What's next?</h2>
+
+<p>Besides making use of this new endpoint on all the things, I think the next big win with GraphQL is to add <a href="http://graphql.org/learn/queries/#mutations">mutations</a>. By adding support for mutations, we can modify our data with GraphQL just as simply as we can query it.</p>
+
+<p>We currently use a combination of Backbone and React to edit articles on our front-end CMS. After we move our CMS's data platform to GraphQL, we can move away from frameworks like Backbone and towards managing state containers like Redux which are made to work with GraphQL. Features like revision history and undo events would feel natural with state containers like Redux and a joy for our editors!</p>
+
+<p>In the context of speed, some other topics I look forward to exploring are optimizing expensive database queries and client-side asset compression.</p>
+]]></content>
+  </entry>
+  
+  <entry>
     <title type="html"><![CDATA[Helping the Web Towards OSS by Default]]></title>
     <link href="http://artsy.github.io/blog/2016/09/06/Milestone-on-OSS-by-Default/"/>
     <updated>2016-09-06T12:17:00+00:00</updated>
@@ -1130,58 +1248,6 @@ var PanelArtworkInfo = React.createClass({
 <p>Converting our app to use a React-based front-end went surprisingly smoothly. We were able to incrementally change certain templates to React components, which made it easy to test as we went along. Additionally, our development time in adding new features since then has decreased dramatically. It is much easier to add new components or edit existing ones when there is a single source of truth and you don't have to search through global event listeners.</p>
 
 <p>Choosing a front-end framework is non-trivial but incredibly important, and we are glad we found React. Because it does not require much overhead and it is possible to only use it on a portion of a page, React can be integrated into small or large projects. Although we deliberated for a long time over whether or not to use a framework, we never regretted moving to React and investing in the future of the app.</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[We open sourced our Isomorphic Javascript website]]></title>
-    <link href="http://artsy.github.io/blog/2014/09/05/we-open-sourced-our-isomorphic-javascript-website/"/>
-    <updated>2014-09-05T15:09:00+00:00</updated>
-    <id>http://artsy.github.io/blog/2014/09/05/we-open-sourced-our-isomorphic-javascript-website</id>
-    <content type="html"><![CDATA[<p><img src="/images/2014-09-05-we-open-sourced-our-isomorphic-javascript-website/force.png" alt="May The Force be With You" /></p>
-
-<p>Today we're happy to announce we've open sourced the entire Artsy.net web app, <a href="https://github.com/artsy/force">Force</a>.</p>
-
-<p>Over the past few months, we've rewritten our web front-end to move off Rails and on to a <a href="http://nodejs.org/">Node.js</a> stack that shares Javascript code and rendering between the server and client, otherwise known as <a href="http://nerds.airbnb.com/isomorphic-JavaScript-future-web-apps/">Isomorphic Javascript</a>. After migrating to this new stack, we open-sourced our boilerplate, <a href="http://ezeljs.com">Ezel</a>, and have now gone a step further and open sourced Artsy.net.</p>
-
-<!-- more -->
-
-
-<a name="Isomorphic.vs.Monolithic"></a>
-<h2>Isomorphic vs Monolithic</h2>
-
-<p>Our transition to an isomorphic Javascript stack has been very successful albeit with some speed bumps. If you're interested in the details we've written <a href="http://artsy.github.io/blog/2013/11/30/rendering-on-the-server-and-client-in-node-dot-js/">a blog post</a>, given a talk at <a href="https://www.joyent.com/developers/videos/node-js-on-the-road-nyc-craig-spaeth-brennan-moore">Node on the Road</a> (slides <a href="http://www.slideshare.net/craigspaeth/artsy-node-on-the-roady-slides">here</a>), and another more extensive talk at <a href="http://www.hakkalabs.co/articles/monolithic-to-distributed-how-artsy-transitioned-from-ruby-on-rails-to-node-js-and-isomorphic-javascript#">this meetup</a>.</p>
-
-<p>The short story is that we moved from a monolithic rails app to a couple of Node servers on Heroku. This vastly improved the performance of our site and our own development speed. Using the patterns in Ezel, we are able to tailor assets packages to specific pages and render some of the page on the server. This cut our page-load in half (from 6.5 seconds to under 3 seconds) and our tests take about 5 minutes (down from around 5 hours!) with little reduction in coverage. Performance numbers aside, our real win was dramatically improved development speed due to some architecture decisions we made.</p>
-
-<a name="Modularity"></a>
-<h2>Modularity</h2>
-
-<p><a href="https://artsy.net/artwork/nathan-sawaya-red-head"><img src="/images/2014-09-05-we-open-sourced-our-isomorphic-javascript-website/sawaya.jpg" alt="Nathan Sawaya, Red Head, 2009" /></a></p>
-
-<p>One of the biggest takeaways from the transition is the pleasure of modularity. By breaking our project up into smaller reusable pieces such as <a href="https://github.com/artsy/ezel#project-vs-apps-vs-components">apps &amp; components</a> we make it easier to experiment, test, and refactor with confidence knowing our code is encapsulated into clearly defined pieces.</p>
-
-<p>For instance, we recently redesigned our <a href="https://artsy.net/about">about</a> page. To gradually introduce the new page, we simply started a new about2 app along side our old about app which you can see <a href="https://github.com/artsy/force/tree/0d5a49da08e94a91b3f23c7cd1005c1e83da7ba5/apps">a little back in Force's history</a>. This let us push code into the new about2 app with confidence it wasn't touching other parts of the stack. When it was time to ship it, we simply deleted the old about app folder and search and replaced "about2" to "about". There was no need to dig around various stylesheets, views, etc. folders looking for places where code for the old about page might still live.</p>
-
-<p><a href="https://github.com/artsy/ezel#components">Components</a> are particularly useful for re-usability. For instance building <a href="https://artsy.net/gene/abstract-expressionism">this gene page</a> (source code <a href="https://github.com/artsy/force/tree/master/apps/gene">here</a>) was mostly a matter of pulling in various components like a <a href="https://github.com/artsy/force/tree/master/components/follow_button">follow button</a>, a <a href="https://github.com/artsy/force/tree/master/components/filter">filter</a> component, this <a href="https://github.com/artsy/force/tree/master/components/artist_fillwidth_list">artist fill-width layout</a>, etc. Because the CSS for those components are clearly self-contained it's easy to build up a small asset package that uses only the minimal CSS needed which you can see <a href="https://github.com/artsy/force/blob/master/assets/gene.styl">here</a>.</p>
-
-<p>We're so convinced this encapsulation is important that we've updated Ezel to <a href="https://github.com/artsy/ezel/tree/master/src/js-example/apps/commits/public/images">use app/component-level public folders</a> by default so you can even modularize static assets, like images, and keep them coupled with their respective apps/components.</p>
-
-<a name="Open.Source.by.Default"></a>
-<h2>Open Source by Default</h2>
-
-<p><img src="/images/2014-09-05-we-open-sourced-our-isomorphic-javascript-website/octocat.jpg" alt="Ocotcat" /></p>
-
-<p>Even though Force isn't a library, we have open-soured many of its components and libraries. Before open sourcing Force, we open sourced app-specific modules such as <a href="https://github.com/artsy/artsy-backbone-mixins">these backbone mixins</a> <a href="https://github.com/artsy/artsy-passport">this Artsy API authentication library</a>, or <a href="https://github.com/artsy/backbone-cache-sync">this module</a> we use to cache server-side Backbone requests.</p>
-
-<p>Open-sourcing Force was pretty straightforward but we needed to make our sensitive keys/secrets private while not complicating development. To do this we wrote a .env file and uploaded it as a private gist that gets downloaded when setting up the app. We wanted to spread this open-source-by-default culture so we decided to update Ezel's configuration to be able to use a .env file in this way as well. This makes it easy keep your sensitive configuration data private while allowing the rest of your app code to be open source. You can read more about this in Ezel's <a href="https://github.com/artsy/ezel#build-scripts--configuration">Build Scripts &amp; Configuration docs</a>.</p>
-
-<a name="Spreading.The.Love"></a>
-<h2>Spreading The Love</h2>
-
-<p>Force serves as an example of how we structured a large <a href="http://ezeljs.com">Ezel</a> project and contains the full commit history of its construction. Unfortunately, due to image licensing issues, we cannot open up the Artsy API and therefore this repository can't serve as a runnable clone of our website. However, we will continue to merge our production code into it. If you have any questions feel free to hit us up on twitter: <a href="https://twitter.com/craigspaeth">@craigspaeth</a>, <a href="https://twitter.com/dzucconi">@dzucconi</a>, <a href="https://twitter.com/zamiang">@zamiang</a>.</p>
-
-<p>We're excited to continue pushing open source at Artsy. For more exciting open source projects take a look at <a href="https://github.com/artsy">our GitHub profile</a>.</p>
 ]]></content>
   </entry>
   
