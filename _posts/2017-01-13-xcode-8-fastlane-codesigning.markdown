@@ -7,9 +7,11 @@ categories: [mobile, ios, devops, ci]
 series: Open Source by Default
 ---
 
-New year, new deploy process! Late last year our mobile team completed the update to Swift 3 (and thus, the update to Xcode 8). The latest version of Apple's IDE includes a lovely feature: automating provisioning profile management! (Note: not sarcasm, the feature is really nice.)
+New year, new deploy process! Late last year our mobile team completed the update to Swift 3 (and thus, the update to Xcode 8). The latest version of Apple's IDE includes a lovely feature: automating provisioning profile management! (Note: not sarcasm, the feature is really nice. Check out the [WWDC video](https://developer.apple.com/videos/play/wwdc2016/401/) for an in-depth exploration.)
 
-However, when I went to make our first [automated deploy](http://artsy.github.io/blog/2015/12/15/Automating-Testflight-Deploys/) today, things didn't work. I got the following error.
+![Automatic code signing settings](/images/2017-01-13-xcode-8-fastlane-codesigning/xcode-screenshot.png)
+
+However, when I went to make our first [automated deploy](http://artsy.github.io/blog/2015/12/15/Automating-Testflight-Deploys/) today, things didn't work; I got a somewhat cryptic error about code signing.
 
 <!-- more -->
 
