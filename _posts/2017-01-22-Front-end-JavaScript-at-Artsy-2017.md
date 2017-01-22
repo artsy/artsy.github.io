@@ -38,3 +38,6 @@ series: React Native at Artsy
 
 * Relay
   - Reduces boilerplate considerably
+
+* Yarn
+  - Fast, reliable
