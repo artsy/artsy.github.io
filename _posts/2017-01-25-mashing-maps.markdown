@@ -1,9 +1,9 @@
 ---
 layout: post
-title: "Mashing data, making maps"
+title: "Mashing Data, Making Maps"
 date: 2017-01-25 14:00
 author: orta
-categories: [mongo, postgres]
+categories: [mongo, postgres, coffeescript, node, analytics]
 ---
 
 We have a lot of really awesome data. Things worth exploring, and visualizing. We have an entire team devoted to it, [looks like they're hiring too](https://www.artsy.net/article/artsy-jobs-data-analyst). Not all of the output of the data comes from that team though, 2 years ago our Director of Product Engineering, [Craig Spaeth][craig] created a [static-site generator][partner-maps] that mapped our partners around the globe. Last week I've been improving it.
@@ -13,6 +13,8 @@ We have a lot of really awesome data. Things worth exploring, and visualizing. W
 Projects like these happen in most companies, quick hacks for one offs that are opened 2 years later by someone completely different to build on top of it. In trying to follow [the Boy Scout rule][cleaner], I've cleaned it up and consolidated some other similar projects. This post is a rough road-map of what making [this PR][pr] looked like.
 
 <!-- more -->
+
+The aim was to visualise data we had created on when galleries were founded. Then to be able to see how that corresponds with our artwork inquiry data.
 
 ## Coming back to an npm app 2 years later
 
@@ -41,7 +43,7 @@ This isn't too surprising, I'm pretty sure we'd have the same problem with an iO
 
 ## CoffeeScript
 
-I have zero experience with [CoffeeScript][coffee]. My (serious) JavaScript experience only comes from the last 6 months, and it's a different world at the minute. Two years ago CoffeeScript was in it's prime, as the first of the JavaScript transpilers - if this is new to you, I'd strongly recommend watching this talk:
+I have zero experience with [CoffeeScript][coffee]. My high-level JavaScript experience only comes from the last 6 months, and it's a different world at the minute. Two years ago CoffeeScript was in it's prime, as the first of the JavaScript transpilers - if this is new to you, I'd strongly recommend watching this talk:
 
 <iframe width="640" height="360" src="https://www.youtube.com/embed/DspYurD75Ns" frameborder="0" allowfullscreen></iframe>
 
@@ -72,13 +74,15 @@ Which gets to the crux of CoffeeScript's ideology, I would often start with writ
 
 ## Databases
 
-You want to churn data? You better get that data available locally or you're going to spend a long time iterating. As a side-effect of Artsy converting [to microservices][services] I needed three separate databases to connect all the data I needed. It covers over two types of databases: MongoDB and Postgres.
+You want to convert all data your companies data into something useful? You better get that data available locally or you're going to spend a long time iterating. As a side-effect of Artsy converting [to microservices][services] I needed three separate databases to connect all the data I needed. It covers over two types of databases: MongoDB and Postgres.
 
 ### MongoDB
 
 MongoDB is a NoSQL document store database, this means it has no formal data-structure. It feels very JavaScript-y because of this. I host it [inside an app][mongodbapp], and I [use RoboMongo][robomongo] to inspect it.
 
-![A screenshot of RobotMongo](/images/mappings/robomongo.png)
+
+{% expanded_img /images/mappings/robomongo.png %}
+
 
 This works out nicely, I needed to make a local copy of the databases, so I used the answers from this [stack overflow](http://stackoverflow.com/questions/23652402/how-to-copy-a-collection-from-one-mongodb-to-another)
 
@@ -95,11 +99,11 @@ Doing this for the specific collections you're interested in will help get you s
 
 ### Postgres
 
-Other databases I needed access to were Postgres databases, I don't know much about databases but Postgres seems to be [Heroku's favourite database][heroku_post] so I'll take that endorsement. It's an SQL database, which you can do [amazing things with][postgraphql]. I host it [inside an app][postgres_app] and use [Postico] to inspect it.
+Other databases I needed access to were Postgres databases, I don't know much about databases but Postgres seems to be [Heroku's favourite database][heroku_post] so I'll take that endorsement as gold. It's an SQL database, which you can do [amazing things with][postgraphql]. I host it [inside an app][postgres_app] and use [Postico] to inspect it.
 
-![A screenshot of Postico](/images/mappings/postico.png)
+{% expanded_img /images/mappings/postico.png %}
 
-I grabbed a backup of our databases, they come down as a [pg_dump file][pg_dump] file which you can replicate locally in your postgres using a command like:
+I grabbed a [backup][heroku_backup] of our databases, they come down as a [pg_dump file][pg_dump] file which you can replicate locally in your postgres using a command like:
 
 ```sh
 pg_restore --verbose --clean --no-acl --no-owner -h localhost -U [your_name] -d [db_name] [filepath]
@@ -142,7 +146,7 @@ CSV.open("/Users/orta/Downloads/end-result.csv", "wb") do |csv|
 end
 ```
 
-Once this was ready I created a new script to pull things from another API, in theory this code could have gone inside the 
+Once this was ready I created a new script to pull things from another databasea, in theory this code could have gone inside the previous script, but it felt like a good time to get up and make a tea during a pairing session.
 
 ```ruby
 require 'CSV'
@@ -174,7 +178,7 @@ CSV.open("/Users/orta/Downloads/end-result-2.csv", "wb") do |csv|
 end
 ```
 
-Then finally I could convert that into something that's useful for this project
+Then finally with a fully fleshed out CSV, I could convert that into something that's useful for this project, JSON:
 
 ```ruby
 require 'CSV'
@@ -195,19 +199,59 @@ And that gives me the raw data that I can now use with our mapping system.
 
 ## D3 + Datamaps
 
-There are concepts that you can just pick up, because they are simple evolutions of something you know. D3 is not one of these. Learning how to do D3 properly is a thing. Luckily we had a Lunch & Learn [2 weeks ago on D3][lunch_d3] and now I am a total domain expert. 
+There are concepts that you can just pick up, because they are simple evolutions of something you know. [D3 is not one of these][d3]. D3 is a system for making data-based graphical documents. Learning how to do D3 properly takes time and a perspective change. Luckily we had a Lunch & Learn [2 weeks ago on D3][lunch_d3] and now I am a total domain expert. 
 
 I jest. However, the talk was definitely enough to do the majority of what I wanted to do. Which was take some static data, and animate it over time. In these cases I get out the trusty `setTimeout` API call in JavaScript which gets the ball rolling. 
 
-I had a few thousand datapoints with a `date_created` attribute, so it was pretty simple to pull that out and   group them according to a time interval. I wanted the freedom to decide how long each animation should last, there probably is a D3 API for this kind of thing but I never quite 
+I had a few thousand datapoints with a `date_created` attribute, so it was pretty simple to pull that out and  group them according to a time interval. I wanted the freedom to decide how long each animation should last, there probably is a D3 API for this kind of thing but I never spent the time researching. Maybe the next developer can do that.
 
-## Merging
+We use the _amazing_ library [Datamaps][datamaps] to show the globe and handle a lot of the lat/long -> pixel mathematics. It is built in a D3 mindset, so with each interval of the animation, I added all of the locations or arcs to it and D3/Datamaps will derive the difference between what it has and what is new and animate those. This makes thinking about the animation simple.
 
-We had a 
+## Too much data
+
+One problem I kept hitting against was that we were working with a dataset that couldn't fit into memory. Initially a direct port of our algorithm to get all of Artsy's partners and locations would crash node due to memory pressure. Originally we were working with a much smaller data-set, now it's multiple orders of magnitude bigger. These were pretty easy to fix with a bit of understanding about all the asynchronous callbacks and by finding the `async.eachOfLimit` [function][eachoflimit].
+
+Another issue with the amount of data came through trying to visualise them. It would bring down my computer, in the end after trying a few ideas (looking for averages, grouping similar data-points) I found the simplest option to be the one worth shipping. `rand(x, y)`.
+
+```coffee
+#
+# Take a set of arcs, and pick a random 1 in x
+# yarn run coffee -- data/inquiries/inquiry-random-subsets.coffee
+#
+
+fs = require 'fs'
+
+# Random number between min, max
+random = (min, max) -> Math.round(Math.random() * (max - min) + min)
+
+# Take an array or arcs, and reduce it to one in amount, then save to path
+derive = (amount, arcs, path) ->
+  luckyOnes = arcs.filter (arc) -> random(0, amount) == 23
+  console.log "There are #{luckyOnes.length} arcs from #{arcs.length} in #{path}"
+  fs.writeFileSync __dirname + '/' + path, JSON.stringify luckyOnes
+
+all_arcs = require '../jsons/every-inquiry-arcs.json'
+derive(1500, all_arcs, "../jsons/all-inquiries-random-subset.json")
+```
+
+This ended up creating a pretty useful representation of the whole data-set, in a way that is actually renderable without killing the browser's process.
+
+## Code Cleanup + Docs
+
+I spent most of my time inside [artsy/partner-map][partner-maps] but we had another repo with very similar code, [partner/inquiry-map][inquiry-map]. So I took the time to merge the two of them, officially deprecating inquiry-map. Now those maps can be generated by partner-map, and there's space for more expansion.
+
+Other than that, I took the time to improve the repo and to do this write-up, so that the next person who comes along can have an idea of some of the scripts and how they all fit together.
+
+## Going solo
+
+For a project like this, I did no code review, no testing or other staples of engineering culture at Artsy. This is fine for a project of this scope and pace. 
+
+However, I think it's always worth throwing in an extra 2-3 hours at the end of a hack project to write up some of the tricky parts and cleaning up the codebase for the next person. If you don't write some tests, then writing some docs or do a [quick video][emergence].
 
 
 [cleaner]: http://programmer.97things.oreilly.com/wiki/index.php/The_Boy_Scout_Rule
 [partner-maps]: https://github.com/artsy/partner-map
+[inquiry-map]: https://github.com/artsy/inquiry-map
 [craig]: https://github.com/craigspaeth
 [our_yarn]: /blog/2016/11/14/JS-Glossary/#yarn
 [coffee]: http://coffeescript.org
@@ -227,3 +271,8 @@ We had a
 [pg_dump]: https://www.commandprompt.com/blog/a_better_backup_with_postgresql_using_pg_dump/
 [numbers]: http://www.apple.com/numbers/
 [lunch_d3]: https://twitter.com/orta/status/809451441882628096
+[heroku_backup]: https://devcenter.heroku.com/articles/heroku-postgres-backups
+[d3]: https://d3js.org
+[datamaps]: http://datamaps.github.io
+[eachoflimit]: http://caolan.github.io/async/docs.html#eachOfLimit
+[emergence]: http://artsy.github.io/blog/2015/11/05/Emergence-Code-Review/
