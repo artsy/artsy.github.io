@@ -1,18 +1,18 @@
 ---
 layout: post
-title: "Title TK"
+title: "Animating the Year In Art"
 date: 2017-01-30 14:21
 author: eve
 categories: [javascript]
 ---
 
-Artsy's end of year features are and annual chance to walk through highlights of the year while also exploring front-end experiments. For this year's piece, designed by Owen Dodd, we pursued an interactive timeline of singular moments in the art world.
+Artsy's end of year features are and annual chance to walk through highlights of the year while also exploring front-end experiments. Created in collaboration with UBS and designed by Owen Dodd, [The Year In Art 2016](http://artsy.net/year-in-art-2016) presents an interactive timeline of singular moments in art and culture over the past year.
 
-The header animation, a series of transparent, sliding boxes presented a unique challenge as it required animating elements in response both to the size of other elements in the viewport, and to the client’s scroll interactions.
+The piece opens with header animation, a series of transparent sliding boxes that presented a unique challenge. The finalized look is somewhat like a slinky-— a stack of containers that are stretched open from the bottom, and compress again as they reach the top of the viewport, collapsing inward without ever crossing outside the screen.
+
+Achieving this effect required animating elements in response both to the size of other elements in the viewport, and to the client’s scroll interactions.
 
 <!-- more -->
-
-The finalized look of the animation is somewhat like a slinky-— a stack of containers that are stretched open from the bottom, and compress again as they reach the top of the viewport, collapsing inward without ever crossing outside the screen.
 
 Because each element in the animation opens out from the center, and because the entire container is transparent, the sections needed to adjust their height rather than simply sliding out of view. Furthermore, the entire animation needed be responsive, and able to it’s place easily on page when it's refreshing or resized.
 
@@ -63,4 +63,4 @@ Now that we’re able to scroll, how do we know where we are?  This calls for an
     return closest
 ```
 
-This method gives us the index of the section closest to the top of the screen at any given moment, and from there we can manipulate both that element and the ones immediately surrounding it.
+This method gives us the index of the section nearest to the top of our window at any given moment, allowing us to identify and manipulate both the active element and the ones immediately surrounding it.
