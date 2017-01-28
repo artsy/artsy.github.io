@@ -14,10 +14,26 @@ series: React Native at Artsy
 
 <!-- more -->
 
+We predominantly build websites and iOS apps, wherein the data is all stored externally  and it is the job of our products to basically convert API results into usable 
+
 We did two big projects to understand what the future was Live Auctions in Swift, Artist and Home VC done in React Native
 
-I'm cautious of someone reading this and TLDRing "Orta/Artsy say Swift sucks" - it doesn't. It is not the right choice
-for our business today
+I'm cautious of someone reading this and TLDRing "Orta/Artsy say Swift sucks" - it doesn't. It is not the right choice for our business today.
+
+
+### Swift's upsides
+
+* Inter-operable with Objective-C, no re-write required
+* Great for teaching
+  - Would love a Playgrounds.app for Mac
+
+* Great for building encapsulated systems
+  - Types work well here
+
+* You can use whatever new features are released 
+* Nascent community we were already members of
+* 
+
 
 ### Swift + Native Downsides
 
@@ -34,7 +50,7 @@ for our business today
 * Open but hard to be accessible
  - You need to be a compiler engineer to improve Swift
  - Can't fork Foundation, Cocoa, UIKit
- - Much smaller pool of active contributors to OSS in native
+ - Small pool of active contributors to OSS
 
 * Tooling immaturity, and redundant re-implementations
  - Community manually re-create a bunch of apple tools, why?
@@ -49,15 +65,6 @@ for our business today
  - Why use Swift when there's Kotlin?
  - Swift on a Server might be usable in a few years, not sure anyone would push on server  
  
-
-### Swift's upsides
-
-* Inter-operable with Objective-C, no re-write required
-* Great for teaching
-  - Would love a Playgrounds.app for Mac
-
-* Great for building encapsulated systems
-  - Types work well here
 
 ### React Native
 

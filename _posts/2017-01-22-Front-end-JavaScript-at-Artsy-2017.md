@@ -21,12 +21,6 @@ series: React Native at Artsy
   - Like Ruby, less magic, more types, better tooling
   - Biggest compilation unit is a file, not a target
 
-* Jest
-  - Watcher, Snapshots, extremely responsive team
-
-* VS Code
-  - Open, extensible and regularly updated
-
 * React / React Native
   - Awesome abstraction for data driven UI
   - Encourages better code reuse and data encapulation
@@ -41,3 +35,9 @@ series: React Native at Artsy
 
 * Yarn
   - Fast, reliable
+
+* Jest
+  - Watcher, Snapshots, extremely responsive team
+
+* VS Code
+  - Open, extensible and regularly updated
