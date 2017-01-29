@@ -57,10 +57,11 @@ Continuing to build native apps via native code had quite a bit running for it:
 
 ### Native Downsides
 
-It's hard to talk about some of the downsides to working natively without having something to contrast against. 
+<!--It's hard to talk about some of the downsides to working natively without having something to contrast against. 
 
-For example, without being able to fork any project in your dependency stack - it's really not something you think of as being feasible. Had someone asked "would you fork Foundation  with your changes" or said "Ah yeah, check out the Steipete fork of UIKit for the Popover rotation orientation bug fix" to me a year ago, I would have just laughed, as the idea would have never crossed my mind.
+For example, without being able to fork any project in your dependency stack - it's really not something you think of as being feasible. Had someone asked "would you fork Foundation  with your changes" or said "Ah yeah, check out the Steipete fork of UIKit for the Popover rotation orientation bug fix" to me a year ago, I would have just laughed, as the idea would have never crossed my mind.-->
 
+The biggest two issues come from differences in opinions in how software should be built. 
 
 * **Types.** Types are useful. Overly strict typing systems make to hard to build _quick_ (not easy) to change codebases.
 
@@ -80,7 +81,7 @@ For example, without being able to fork any project in your dependency stack - i
   
   I've heard developers say they use using Playgrounds to work around some of these problems, and the KickStarter app has probably the closest I've seen to an [actual implmentation of this][kickstart_play].
 
-  The Swift compiler is slow. Yes, it will improve. However, it's root issue comes from Swift being a more complicated language to compile, and it doing more work. On the side of doing more work, the awesome type inference systems can make it feel arbitrary about what will take longer to compile or not. We eventually [automated having our CI warn us][danger-eigen] whether the code we were adding was slow.
+  The Swift compiler is slow. Yes, it will improve. However, it's root issue comes from Swift being a more complicated language to compile, and it doing more work. On the side of doing more work, the awesome type inference systems can make it feel arbitrary about what will take longer to compile or not. We eventually [automated having our CI warn us][danger-eigen] whether the code we were adding was slow. 
 
 
 ### React Native
@@ -95,18 +96,28 @@ However, the key part of this post is how does this compare to native developmen
 
 #### Better Developer Experience
 
+* Better abstractions for building JSON driven apps
+ - https://rauchg.com/2015/pure-ui
+
+* Falling back to native code is no problem at all
+
+* Tests operate outside of the iOS sim
+
+
 #### Same Tools, Different Dev
 
-#### Owning the stack
 
 * Reduce the barrier to entry for rest of team
   - more external contributions from web engineers since we moved
 
-* Better abstractions for building JSON driven apps
- - https://rauchg.com/2015/pure-ui
-
+* Will only be usable for Apple products
+ - Why use Swift when there's Kotlin?
+ - Swift on a Server might be usable in a few years, not sure anyone would push on server  
+ 
 * Encourages mobile developers to make API changes, same concepts
   - Web and API is JS, same tools, same workflow
+
+#### Owning the stack
 
 * Conceptual idea of customizing your language to the project
   - We pick and choose language features we want
@@ -116,16 +127,6 @@ However, the key part of this post is how does this compare to native developmen
   - Relay
   - VS Code
   - React-Native
-
-* Falling back to native code is no problem at all
-
-* Tests operate outside of the iOS sim
-
-
-* Compiler iteration cycle
- - Sure it will get faster, but it'll not be faster than a simpler language
- - No concept like a watch mode
- - App Changes require full state reload
 
 * Open but hard to be accessible
  - You need to be a compiler engineer to improve Swift
@@ -137,12 +138,6 @@ However, the key part of this post is how does this compare to native developmen
  - Community had to re-write every useful library "For Swift" again, making it instable
  - Community changed to be "Swift XX" as opposed to "Cocoa XX", swift purism vs mature pragmaticism
  - https://twitter.com/orta/status/649214813168640000
-
-* Will only be usable for Apple products
- - Why use Swift when there's Kotlin?
- - Swift on a Server might be usable in a few years, not sure anyone would push on server  
- 
-
 
 
 [eidolon-postmortem]: http://artsy.github.io/blog/2014/11/13/eidolon-retrospective/
