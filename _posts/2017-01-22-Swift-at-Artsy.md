@@ -23,21 +23,21 @@ By [March 2015][gave_up], we gave up trying to keep pace with the web.
 
 Once we came to this conclusion, our discussion came to "what can we do to fix this?" Over the course of the 2015/2016 winter break we explored ideas on how we could write more re-usable code.    
 
-### What are Artsy's apps?
+# What are Artsy's apps?
 
 Eigen specifically is an app where we taken JSON data from the server, and convert it into a user interface. It nearly always can be described as a function taking data and mapping it to a UI.
 
 We have different apps with different trade-offs. [Eidolon][eidolon] (our Auctions Kiosk app) which contains a lot of Artsy-wide unique business logic which is handled with local state like card reader input, or unique user identification modes. [Emergence][emergence] is a trivial-ish tvOS app which has a few view controllers, and is mostly handled by Xcode's storyboards.
 
-Eigen is where we worry, other apps are limited in their scope, but Eigen is basically the mobile representation of Artsy. We're never _not_ going to have something like Eigen. 
+Eigen is where we worry, other apps are limited in their scope, but Eigen is basically the mobile representation of Artsy. We're never _not_ going to have something like Eigen.
 
 We eventually came to the conclusion that we needed to re-think our entire UIKit stack for Eigen. Strictly speaking, Objective-C was not a problem for us, our issues came from abstractions around the way we built apps.
 
-Re-writing from scratch was not an option. That takes a lot of time and effort to remove technical debt. We also don't need a big redesign. However, a lot of companies used the Objective-C -> Swift transition as a time to re-write from scratch. We asked for the experiences from developers who had opted to do this, they said it was a great marketing tool for hiring - but was a lot of pain to actually work with day to day. They tend to talk abut technical debt, and clean slates - but not that Objective-C was painful and Swift solves major architectural problems. 
+Re-writing from scratch was not an option. That takes a lot of time and effort, which will happily remove technical debt, but that's not our issue. We also don't need or have a big redesign. However, a lot of companies used the Objective-C -> Swift transition as a time to re-write from scratch. We asked for the experiences from developers who had opted to do this, they said it was a great marketing tool for hiring - but was a lot of pain to actually work with day to day. They tend to talk abut technical debt, and clean slates - but not that Objective-C was painful and Swift solves major architectural problems. 
 
 In the end, for Eigen, we came to the conclusion that we could try build a component-based architecture either from scratch ( one very similar to the route Spotify ([hub][hub]) or Hyperslo ([Spots][spots]) took ) or inspired by React ( like Bending Spoons ([Katana][katana]) ).
 
-### Swift's upsides
+# Swift's upsides
 
 Continuing to build native apps via native code had quite a bit running for it:
 
@@ -45,9 +45,9 @@ Continuing to build native apps via native code had quite a bit running for it:
 
 * **Swift code can interact with Objective-C and can work on it's own.** We can write Swift libraries that can build on-top of our existing infrastructure to work at a higher level of abstraction. Building a component-based infrastructure via Swift could allow easy-reuse of existing code, while providing a language difference for "new app code" vs "infra." 
 
-* **People are excited about Swift.** It's an interesting, growing language, and one of the few ones non-technical people ask about. "Oh you're an iOS developer, do you use Swift?" is something I've been asked a lot. The rest of the development team are have signed up multiple times for Swift workshops and want to know what Swift is, and what it's trade-offs are.
+* **People are excited about Swift.** It's an interesting, growing language, and one of the few ones non-technical people ask about. "Oh you're an iOS developer, do you use Swift?" is something I've been asked a lot. The rest of the development team  have signed up multiple times for Swift workshops and want to know what Swift is, and what it's trade-offs are.
 
-* **Swift improves on a lot of Objective-C.** Most of the patterns that are verbose in Objective-C can become extremely terse inside Swift. Potentially making it easier to read and understand.   
+* **Swift improves on a lot of Objective-C.** Most of the patterns that we use in Objective-C are verbose, and they can become extremely terse inside Swift. Potentially making it easier to read and understand. 
 
 * **We would be using the official route.** Apple obviously _want_ you to be using Swift, they are putting a _lot_ of resources into the language. There are smart people working on the project, and it's becomes more stable and useful every year. There aren't any _Swift-only_ APIs yet, but obviously they'll be coming.
 
@@ -55,7 +55,7 @@ Continuing to build native apps via native code had quite a bit running for it:
 
   This is worth continuing here, because if we end up building something which gains popularity we get the advantage of working with a lot of perspectives, and being able to gain from other people working on the same project. It's a pattern Basecamp discuss when they [talk about rails][rails] by beginning with a real project and abstracting outwards.
 
-### Native Downsides
+# Native Downsides
 
 <!--It's hard to talk about some of the downsides to working natively without having something to contrast against. 
 
@@ -73,18 +73,18 @@ The biggest two issues come from differences in opinions in how software should 
 
   > Swift’s built-in language features make it easy to safely extract and work with JSON data decoded with Foundation APIs — without the need for an external library or framework.
 
-  They do, but it's not great code to write nor maintain.
+  They do, but it's not great code to write nor maintain. I don't know anyone who does what they recommend in production.
 
 * **Slow.** Native development when put next to web development is slow. Application development requires full compilation cycles, and full state restart of the application that you're working on. A trivial string change in Eigen takes [25 seconds][eigen_25] to show up. When I tell some developers that time, they laugh and say I have it good.
 
   This becomes extremely painful once you start [getting used][injection_twitter] to technologies like Injection for Xcode, which is what ruined my appetite for building apps the traditional way. We were starting to come up with all sorts of techniques to allow separation of any part of the codebase into a new app so you can iterate just there. 
   
-  I've heard developers say they use using Playgrounds to work around some of these problems, and the KickStarter app has probably the closest I've seen to an [actual implmentation of this][kickstart_play].
+  I've heard developers say they use using Playgrounds to work around some of these problems, and the Kickstarter app has probably the closest I've seen to an [actual implmentation of this][kickstart_play].
 
-  The Swift compiler is slow. Yes, it will improve. However, it's root issue comes from Swift being a more complicated language to compile, and it doing more work. On the side of doing more work, the awesome type inference systems can make it feel arbitrary about what will take longer to compile or not. We eventually [automated having our CI warn us][danger-eigen] whether the code we were adding was slow. 
+  The Swift compiler is slow. Yes, it will improve. However, it's root issue comes from Swift being a more complicated language to compile, and it doing more work. On the side of doing more work, the awesome type inference systems can make it feel arbitrary about what will take longer to compile or not. We eventually [automated having our CI warn us][danger-eigen] whether the code we were adding was slow.
 
 
-### React Native
+# React Native
 
 You may want to read our announcement of switching to [React Native][artsy-rn] in anticipation of this. However the big three reasons are:
 
@@ -94,7 +94,23 @@ You may want to read our announcement of switching to [React Native][artsy-rn] i
 
 However, the key part of this post is how does this compare to native development? Also, have these arguments stood up to the test of time a year later? 
 
-#### Better Developer Experience
+### Developer Experience
+
+The JavaScript ecosystem cares about how someone using the tool will feel. This is a part of what separates the good from the great in the community. It's not enough to just provide a great API, documentation but it should substantially improve the way you work. 
+
+> References from JS 2017: [Relay][relay], [Jest][jest]
+
+As _everyone_ inside the community has both the ability and the tools to contribute to the ecosystem you get better tools. 
+
+Apple make _great_ tools. I do miss Xcode sometimes. It's cohesive, beautifully designed and doesn't show it's age. It's a perfect Mac citizen.
+
+Though it's important to note that they make tools for Apple first and then for us 3rd party devs. Outside influence obviously exists, but they're shipping whatever _they_ want and you can only influence that via Radars and through going to a conference once a year and talking directly to the dev tools team. Only the Swift language is Open Source (and [SwiftPM][swiftpm])
+
+There are so few well built, large developer tools for the Apple eco-system. Developers are very wary [of][stack] [being copied by Apple][https://twitter.com/mattt/status/473544723118837760] - something so prevalent that there is a common word for it, being [Sherlocked][sherlocked]. The project I've worked on for 5 years, CocoaPods, had an announcement of being sherlocked in late-2015 - you just have to deal with it. The idea that only Apple should be shipping these kind of things kills community momentum.
+
+If you're going to build something amazing, only to have all support pulled out from under you one it gets popular - why bother? 
+
+###
 
 * Better abstractions for building JSON driven apps
  - https://rauchg.com/2015/pure-ui
@@ -158,5 +174,11 @@ However, the key part of this post is how does this compare to native developmen
 [swift_blog]: https://developer.apple.com/swift/blog/?id=37
 [eigen_25]: https://twitter.com/orta/status/778242899821621249
 [injection_twitter]: https://twitter.com/orta/status/705890397810257921
-[kickstarter_play]: https://github.com/kickstarter/ios-oss/tree/master/Kickstarter-iOS.playground/Pages
+[kickstart_play]: https://github.com/kickstarter/ios-oss/tree/master/Kickstarter-iOS.playground/Pages
 [danger-eigen]: https://github.com/artsy/eigen/pull/1465
+[relay]: ASDASDASD
+[jest]: GSGSDGS
+[swiftpm]: https://github.com/apple/swift-package-manager
+[sherlocked]: https://www.cocoanetics.com/2011/06/on-getting-sherlocked/
+[stack]: https://twitter.com/orta/status/608013279433138176
+[cp-sherlock]: https://twitter.com/Objective_Neo/status/474681170504843264
