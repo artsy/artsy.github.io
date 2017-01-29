@@ -51,47 +51,53 @@ Continuing to build native apps via native code had quite a bit running for it:
 
 * **We would be using the official route.** Apple obviously _want_ you to be using Swift, they are putting a _lot_ of resources into the language. There are smart people working on the project, and it's becomes more stable and useful every year. There aren't any _Swift-only_ APIs yet, but obviously they'll be coming.
 
-* **It's a [known-unknown][known-known] territory.** We have a lot of knowledge around building better tooling for iOS apps. From libraries like [Moya][moya], to foundational projects like [CocoaPods][cocoapods. Coming up with, and executing dramatic tooling improvements is possible. Perhaps we had just overlooked a smarter abstraction elsewhere and it was worth expanding our search.
+* **It's a [known-unknown][known-known] territory.** We have a lot of knowledge around building better tooling for iOS apps. From libraries like [Moya][moya], to foundational projects like [CocoaPods][cocoapods]. Coming up with, and executing dramatic tooling improvements is possible. Perhaps we had just overlooked a smarter abstraction elsewhere and it was worth expanding our search.
+
+  This is worth continuing here, because if we end up building something which gains popularity we get the advantage of working with a lot of perspectives, and being able to gain from other people working on the same project. It's a pattern Basecamp discuss when they [talk about rails][rails] by beginning with a real project and abstracting outwards.
+
+### Native Downsides
+
+It's hard to talk about some of the downsides to working natively without having something to contrast against. 
+
+For example, without being able to fork any project in your dependency stack - it's really not something you think of as being feasible. Had someone asked "would you fork Foundation  with your changes" or said "Ah yeah, check out the Steipete fork of UIKit for the Popover rotation orientation bug fix" to me a year ago, I would have just laughed, as the idea would have never crossed my mind.
 
 
+* **Types.** Types are useful. Overly strict typing systems make to hard to build _quick_ (not easy) to change codebases.
 
+  Strictly typed language work _really_ well for [building systems][systems], or completely atomic apps - the sort Apple have to build on a day to day basis. When I say an atomic app, I mean one where the majority of the inputs and outputs exist within the domain of the application. Think of apps with their own filetypes, that can control inputs and outputs really easily.
 
-### Swift + Native Downsides
+  Even in Objective-C, a looser-typed language where you were not discouraged from using meta--programming, handling JSON required _a tonne_ of boilerplate, and inelegant code when working with an API. Considering how bread-and-butter working with an API is for most 3rd party developers it should come as no surprise that the most popular CocoaPods are about handling JSON parsing, and making network requests.  
 
-* Fussy compiler wrt Typing (systems vs apps)
- - Harder to build easy to change systems
- - http://mjtsai.com/blog/2014/10/14/hypothetical-objective-c-3-0/#comment-2177091
- - https://github.com/artsy/causality
+  Problems which Apple, generally speaking, don't have. They use iCloud, or CloudKit, or whatever. The Apple opinion was was neatly summed up on the official Swift blog on how to handle JSON parsing [exhibits the problem well][swift_blog].
 
-* Compiler iteration cycle
- - Sure it will get faster, but it'll not be faster than a simpler language
- - No concept like a watch mode
- - App Changes require full state reload
+  > Swift’s built-in language features make it easy to safely extract and work with JSON data decoded with Foundation APIs — without the need for an external library or framework.
 
-* Open but hard to be accessible
- - You need to be a compiler engineer to improve Swift
- - Can't fork Foundation, Cocoa, UIKit
- - Small pool of active contributors to OSS
+  They do, but it's not great code to write or maintain.
 
-* Tooling immaturity, and redundant re-implementations
- - Community manually re-create a bunch of apple tools, why?
- - Community had to re-write every useful library "For Swift" again, making it instable
- - Community changed to be "Swift XX" as opposed to "Cocoa XX", swift purism vs mature pragmaticism
+* **Slow.** Native development when put next to web development is slow. Application development requires full compilation cycles, and full state restart of the application that you're working on. A trivial string change in Eigen takes [25 seconds][eigen_25] to show up. When I tell some developers that time, they laugh and say I have it good.
 
-* Inter-op with Cocoa feels forced (relevant?)
- - The best parts of Apple's tooling requires writing non-canonical Swift
- - Struct vs NSObject trees, dynamic keyword
+  This becomes extremely painful once you start [getting used][injection_twitter] to technologies like Injection for Xcode, which is what ruined my appetite for building apps the traditional way. We were starting to come up with all sorts of techniques to allow separation of any part of the codebase into a new app so you can iterate just there. 
+  
+  I've heard developers say they use using Playgrounds to work around some of these problems, and the KickStarter app has probably the closest I've seen to an [actual implmentation of this][kickstart_play].
 
-* Will only be usable for Apple products
- - Why use Swift when there's Kotlin?
- - Swift on a Server might be usable in a few years, not sure anyone would push on server  
- 
+  The Swift compiler is slow. Yes, it will improve. However, it's root issue comes from Swift being a more complicated language to compile, and it doing more work. On the side of doing more work, the awesome type inference systems can make it feel arbitrary about what will take longer to compile or not. We eventually [automated having our CI warn us][danger-eigen] whether the code we were adding was slow.
+
 
 ### React Native
 
-Full context is: http://artsy.github.io/blog/2016/08/15/React-Native-at-Artsy/
+You may want to read our announcement of switching to [React Native][artsy-rn] in anticipation of this. However the big three reasons are:
 
-But as a direct comparison to Swift:
+* Better developer experience.
+* Same conceptual levels as the rest of the team.
+* Ownership of the whole stack.
+
+However, the key part of this post is how does this compare to native development? Also, have these arguments stood up to the test of time a year later? 
+
+#### Better Developer Experience
+
+#### Same Tools, Different Dev
+
+#### Owning the stack
 
 * Reduce the barrier to entry for rest of team
   - more external contributions from web engineers since we moved
@@ -115,12 +121,34 @@ But as a direct comparison to Swift:
 
 * Tests operate outside of the iOS sim
 
-https://twitter.com/orta/status/705137290092400640
+
+* Compiler iteration cycle
+ - Sure it will get faster, but it'll not be faster than a simpler language
+ - No concept like a watch mode
+ - App Changes require full state reload
+
+* Open but hard to be accessible
+ - You need to be a compiler engineer to improve Swift
+ - Can't fork Foundation, Cocoa, UIKit
+ - Small pool of active contributors to OSS
+
+* Tooling immaturity, and redundant re-implementations
+ - Community manually re-create a bunch of apple tools, why?
+ - Community had to re-write every useful library "For Swift" again, making it instable
+ - Community changed to be "Swift XX" as opposed to "Cocoa XX", swift purism vs mature pragmaticism
+ - https://twitter.com/orta/status/649214813168640000
+
+* Will only be usable for Apple products
+ - Why use Swift when there's Kotlin?
+ - Swift on a Server might be usable in a few years, not sure anyone would push on server  
+ 
+
+
 
 [eidolon-postmortem]: http://artsy.github.io/blog/2014/11/13/eidolon-retrospective/
 [emergence]: https://github.com/artsy/emergence
 [live-a]: http://artsy.github.io/blog/2016/08/09/the-tech-behind-live-auction-integration/
-[artsy-rn]: http://artsy.github.io/blog/2016/08/15/React-Native-at-Artsy/
+[artsy-rn]: o/blog/2016/08/15/React-Native-at-Artsy/
 [what-is-artsy-app]: /blog/2016/08/24/On-Emission/#Why.we.were.in.a.good.position.to.do.this
 [eidolon]: https://github.com/artsy/eidolon
 [spots]: https://cocoapods.org/pods/Spots
@@ -130,3 +158,10 @@ https://twitter.com/orta/status/705137290092400640
 [known-known]: https://en.wikipedia.org/wiki/There_are_known_knowns
 [moya]: https://github.com/moya/moya
 [cocoapods]: https://cocoapods.org
+[rails]: https://signalvnoise.com/posts/660-ask-37signals-the-genesis-and-benefits-of-rails
+[systems]: http://mjtsai.com/blog/2014/10/14/hypothetical-objective-c-3-0/#comment-2177091
+[swift_blog]: https://developer.apple.com/swift/blog/?id=37
+[eigen_25]: https://twitter.com/orta/status/778242899821621249
+[injection_twitter]: https://twitter.com/orta/status/705890397810257921
+[kickstarter_play]: https://github.com/kickstarter/ios-oss/tree/master/Kickstarter-iOS.playground/Pages
+[danger-eigen]: https://github.com/artsy/eigen/pull/1465
