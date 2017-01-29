@@ -19,7 +19,7 @@ We're regularly asked _why_ we moved, and it was touched on briefly in our annou
 
 We were finding that our current patterns of building apps were not scaling as the team and app scope grew. Building anything new inside Eigen barely re-used existing code, and it was progressively taking longer and longer to build features. App and test build times were increasing, it would take 2 iOS engineers to build a feature in a similar time-frame as a single web engineer. 
 
-We eventually gave up trying to keep pace with the web.
+By [March 2015][gave_up], we gave up trying to keep pace with the web.
 
 Once we came to this conclusion, our discussion came to "what can we do to fix this?" Over the course of the 2015/2016 winter break we explored ideas on how we could write more re-usable code.    
 
@@ -33,27 +33,27 @@ Eigen is where we worry, other apps are limited in their scope, but Eigen is bas
 
 We eventually came to the conclusion that we needed to re-think our entire UIKit stack for Eigen. Strictly speaking, Objective-C was not a problem for us, our issues came from abstractions around the way we built apps.
 
-Re-writing from scratch was not an option. That takes a lot of time However, a lot of companies used the Objective-C -> Swift transition as a time to re-write from scratch. We asked for the experiences from employees who had opted to do this, they said it was a great marketing tool for hiring - but was a lot of pain to actually work with day to day.
+Re-writing from scratch was not an option. That takes a lot of time and effort to remove technical debt. We also don't need a big redesign. However, a lot of companies used the Objective-C -> Swift transition as a time to re-write from scratch. We asked for the experiences from developers who had opted to do this, they said it was a great marketing tool for hiring - but was a lot of pain to actually work with day to day. They tend to talk abut technical debt, and clean slates - but not that Objective-C was painful and Swift solves major architectural problems. 
 
-In the end we came to the conclusion that we could try build a component-based architecture either from scratch ( one very similar to the route Spotify ([hub][hub]) or Hyperslo ([Spots][spots]) took ) or inspired by React ( like Bending Spoons ([Katana][katana]) ).
-
-Post-discussion we had two big software projects to work on, Live Auctions for iOS, and a re-design of the initial Home screen. 
-
-I'm cautious of someone reading this and TLDRing "Orta/Artsy say Swift sucks" - it doesn't. It is not the right choice for our business today.
-
+In the end, for Eigen, we came to the conclusion that we could try build a component-based architecture either from scratch ( one very similar to the route Spotify ([hub][hub]) or Hyperslo ([Spots][spots]) took ) or inspired by React ( like Bending Spoons ([Katana][katana]) ).
 
 ### Swift's upsides
 
-* Inter-operable with Objective-C, no re-write required
-* Great for teaching
-  - Would love a Playgrounds.app for Mac
+Continuing to build native apps via native code had quite a bit running for it:
 
-* Great for building encapsulated systems
-  - Types work well here
+* **It was consistent with our existing code.** We wrote hundreds of thousands of lines of code in Objective-C and maybe around a hundred thousand of Swift. The majority of the team had 5+ years of Cocoa experience and no-one needs to essentially argue that _continuing_ with that has value.
 
-* You can use whatever new features are released 
-* Nascent community we were already members of
-* 
+* **Swift code can interact with Objective-C and can work on it's own.** We can write Swift libraries that can build on-top of our existing infrastructure to work at a higher level of abstraction. Building a component-based infrastructure via Swift could allow easy-reuse of existing code, while providing a language difference for "new app code" vs "infra." 
+
+* **People are excited about Swift.** It's an interesting, growing language, and one of the few ones non-technical people ask about. "Oh you're an iOS developer, do you use Swift?" is something I've been asked a lot. The rest of the development team are have signed up multiple times for Swift workshops and want to know what Swift is, and what it's trade-offs are.
+
+* **Swift improves on a lot of Objective-C.** Most of the patterns that are verbose in Objective-C can become extremely terse inside Swift. Potentially making it easier to read and understand.   
+
+* **We would be using the official route.** Apple obviously _want_ you to be using Swift, they are putting a _lot_ of resources into the language. There are smart people working on the project, and it's becomes more stable and useful every year. There aren't any _Swift-only_ APIs yet, but obviously they'll be coming.
+
+* **It's a [known-unknown][known-known] territory.** We have a lot of knowledge around building better tooling for iOS apps. From libraries like [Moya][moya], to foundational projects like [CocoaPods][cocoapods. Coming up with, and executing dramatic tooling improvements is possible. Perhaps we had just overlooked a smarter abstraction elsewhere and it was worth expanding our search.
+
+
 
 
 ### Swift + Native Downsides
@@ -120,10 +120,13 @@ https://twitter.com/orta/status/705137290092400640
 [eidolon-postmortem]: http://artsy.github.io/blog/2014/11/13/eidolon-retrospective/
 [emergence]: https://github.com/artsy/emergence
 [live-a]: http://artsy.github.io/blog/2016/08/09/the-tech-behind-live-auction-integration/
-[artsy-rn]: 
+[artsy-rn]: http://artsy.github.io/blog/2016/08/15/React-Native-at-Artsy/
 [what-is-artsy-app]: /blog/2016/08/24/On-Emission/#Why.we.were.in.a.good.position.to.do.this
-[eidolon]
-
+[eidolon]: https://github.com/artsy/eidolon
 [spots]: https://cocoapods.org/pods/Spots
 [hub]: https://cocoapods.org/pods/HubFramework
 [katana]: https://cocoapods.org/pods/Katana
+[gave_up]: https://github.com/artsy/mobile/issues/22
+[known-known]: https://en.wikipedia.org/wiki/There_are_known_knowns
+[moya]: https://github.com/moya/moya
+[cocoapods]: https://cocoapods.org
