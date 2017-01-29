@@ -73,7 +73,7 @@ The biggest two issues come from differences in opinions in how software should 
 
   > Swift’s built-in language features make it easy to safely extract and work with JSON data decoded with Foundation APIs — without the need for an external library or framework.
 
-  They do, but it's not great code to write or maintain.
+  They do, but it's not great code to write nor maintain.
 
 * **Slow.** Native development when put next to web development is slow. Application development requires full compilation cycles, and full state restart of the application that you're working on. A trivial string change in Eigen takes [25 seconds][eigen_25] to show up. When I tell some developers that time, they laugh and say I have it good.
 
