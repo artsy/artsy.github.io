@@ -9,7 +9,7 @@ series: React Native at Artsy
 
 The Artsy web team have been early adopters of node, and for the last 4 years the stable stack for the Artsy website has been predominantly been Node + CoffeeScript + Express + Backbone. In 2016 the mobile team announced that it had moved to React Native, matching the web team as using JavaScript as the tools of their trade.
 
-Historically we have always had two separate dev teams for building Artsy.net and the corresponding iOS app, we call them [GMV][gmv] Web, and GMV Mobile. By the end of 2016 we decided to merge the teams. The merger has given way to a whole plethora of ideas about what modern JavaScript looks like and we've been experimenting with finding common patterns between web and native.
+Historically we have always had two separate dev teams for building Artsy.net and the corresponding iOS app, we call them Collector Web, and Collector Mobile. By the end of 2016 we decided to merge the teams. The merger has given way to a whole plethora of ideas about what modern JavaScript looks like and we've been experimenting with finding common patterns between web and native.
 
 This post tries to encapsulate what we consider to be our consolidated stack for web/native Artsy in 2017. 
 
@@ -44,5 +44,3 @@ TLDR: GraphQL, TypeScript, React/React Native, Relay, Yarn, Jest, and VS Code.
 
 * VS Code
   - Open, extensible and regularly updated
-
-[gmv]: https://en.wikipedia.org/wiki/Gross_merchandise_volume

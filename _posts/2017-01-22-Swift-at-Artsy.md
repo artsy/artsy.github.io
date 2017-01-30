@@ -7,7 +7,7 @@ categories: [swift, eigen, eidolon, javascript, emission, reactnative]
 series: React Native at Artsy
 ---
 
-Swift was announced in June 2014, by August we had started using it in Artsy. By October, we had [Swift in production][eidolon-postmortem] channeling hundreds of thousands of dollars in auction bids.  
+Swift became public in June 2014, by August we had started using it in Artsy. By October, we had [Swift in production][eidolon-postmortem] channeling hundreds of thousands of dollars in auction bids.  
 
 Since then we've built an [appleTV app][emergence] in Swift, integrated Swift-support into our key app Eigen and built non-trivial parts of that [application in Swift][live-a]. It is pretty obvious that Swift is the future of native development on Apple platforms. 
 
@@ -35,7 +35,7 @@ We eventually came to the conclusion that we needed to re-think our entire UIKit
 
 Re-writing from scratch was not an option. That takes a lot of time and effort, which will happily remove technical debt, but that's not our issue. We also don't need or have a big redesign. However, a lot of companies used the Objective-C -> Swift transition as a time to re-write from scratch. We asked for the experiences from developers who had opted to do this, they said it was a great marketing tool for hiring - but was a lot of pain to actually work with day to day. They tend to talk abut technical debt, and clean slates - but not that Objective-C was painful and Swift solves major architectural problems. 
 
-In the end, for Eigen, we came to the conclusion that we could try build a component-based architecture either from scratch ( one very similar to the route Spotify ([hub][hub]) or Hyperslo ([Spots][spots]) took ) or inspired by React ( like Bending Spoons ([Katana][katana]) ).
+In the end, for Eigen, we came to the conclusion that we could try build a component-based architecture either from scratch ( one very similar to the route Spotify's ([hub][hub]) or Hyperslo's ([Spots][spots]) took ) or inspired by React ( like Bending Spoons's ([Katana][katana]) ).
 
 # Swift's upsides
 
@@ -130,7 +130,7 @@ Both of these tools provide a developer experience better than iOS native toolin
 
 A single press of save would take your changes, inject it into your current running application, keep you in the exact same place, depending on the type of change it could re-layout your views, and so you can stay in your editor and make your changes. From 25 seconds, to less than one.
 
-So, you're thinking _"Yeah, but JavaScript..."_ - well, we use TypeScript and it fixes pretty much every issue with JavaScript. Mix that with the fact that it's no problem for us to write native code when we need to. It feels like the best of both worlds. Elegant, fast to work with, application code, with native tooling when we think it will be best for the project. 
+So, you're thinking _"Yeah, but JavaScript..."_ - well, we use TypeScript and it fixes pretty much every issue with JavaScript. Mix that with the fact that it's no problem for us to write native code when we need to. The last project I did on our React Native codebase require copious JS <-> Swift communication. It feels like the best of both worlds. Elegant, fast to work with application code in JS, with native tooling when we think it will be best for the project.
 
 > References from JS 2017: [TypeScript][typescript]
 
@@ -138,11 +138,15 @@ There's one more thing that I want to really stress around developer experience,
 
 #### Same Tools, Different Dev
 
-We wanted to stop being special snowflakes inside the dev team. Artsy has around 25 developers, the vast majority of which work with Ruby and JavaScript on a day-to-day basis. The mobile team was the only development team that didn't make their own API changes, used completely different toolchains and were much slower in shipping anything.
+We wanted to stop being special snowflakes inside the dev team. Artsy has around 25 developers, the majority of which work with Ruby and JavaScript on a day-to-day basis. The mobile team was the single development team that didn't make their own API changes, used different toolchains and were much slower in shipping anything.
 
 This isn't a great position to be in.
 
-We wanted all developers to feel like they can contribute in any area of the company, the native mobile projects had close to zero contributions from anyone outside of the mobile team. Since the mobile team have moved to Reach Native we have received features and bug fixes from the web team. The mobile 
+We wanted all developers to feel like they can contribute to any area of the company. For the past 5 years, the native mobile projects had close to zero contributions from anyone outside of the mobile team. Since the mobile team moved to Reach Native we have received features and bug fixes from the web team.
+
+This expansion of a mobile team developer's scope has made it much easier for us to reason about finding better ways to share code with the web team. At the end of 2015, the Collector Web team introduced GraphQL to Artsy. This acts as an API layer owned by the front-end side of Artsy. T
+
+> References from JS 2017: [GraphQL][graphql]
 
 * Reduce the barrier to entry for rest of team
   - more external contributions from web engineers since we moved
@@ -199,6 +203,7 @@ We wanted all developers to feel like they can contribute in any area of the com
 [danger-eigen]: https://github.com/artsy/eigen/pull/1465
 [relay]: ASDASDASD
 [jest]: GSGSDGS
+[graphql]: SDFSDFSDF
 [swiftpm]: https://github.com/apple/swift-package-manager
 [sherlocked]: https://www.cocoanetics.com/2011/06/on-getting-sherlocked/
 [stack]: https://twitter.com/orta/status/608013279433138176
