@@ -572,7 +572,7 @@ Both TypeScript and Flow offer a tool to provide external definitions for their 
 
 Flow-Typed is new, so it's not really got many definitions at all. Typings on the other hand has quite a lot, so in our React Native we use typings to get auto-complete for our libraries.
 
----
+### JavaScript Fatigue
 
 So that's my glossary, there's a lot of interesting projects out in the JS world. 
 

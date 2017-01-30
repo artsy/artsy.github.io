@@ -76,7 +76,7 @@ these out of the way first, it will only get better afterwards.
   tragedy of the commons problem, which can be a real problem if you have incidental framework specific questions, but
   jumping to React-Native probably is a complete disaster if you know very little about iOS development yet.
 
-  If you’re not already knowledgable about iOS development, are not motivated to put in the time to learn about the
+  If you’re not already knowledgeable about iOS development, are not motivated to put in the time to learn about the
   platform specific details, and think making rich iOS applications with React Native will be a breeze, you’ll
   [come home from a very cold fair](http://www.dwotd.nl/2008/06/443-van-een-kouwe-kermis-thuiskomen.html) indeed. 
   

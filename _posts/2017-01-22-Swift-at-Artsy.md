@@ -51,7 +51,7 @@ Continuing to build native apps via native code had quite a bit running for it:
 
 * **We would be using the official route.** Apple obviously _want_ you to be using Swift, they are putting a _lot_ of resources into the language. There are smart people working on the project, and it's becomes more stable and useful every year. There aren't any _Swift-only_ APIs yet, but obviously they'll be coming.
 
-* **It's a [known-unknown][known-known] territory.** We have a lot of knowledge around building better tooling for iOS apps. From libraries like [Moya][moya], to foundational projects like [CocoaPods][cocoapods]. Coming up with, and executing dramatic tooling improvements is possible. Perhaps we had just overlooked a smarter abstraction elsewhere and it was worth expanding our search.
+* **It's a [known-unknown][known-known] territory.** We have a lot of knowledge around building better tooling for iOS apps. From libraries like [Moya][moya], to foundational projects like [CocoaPods][cocoapods]. Coming up with, and executing dramatic tooling improvements is possible. Perhaps we had overlooked a smarter abstraction elsewhere and it was worth expanding our search.
 
   This is worth continuing here, because if we end up building something which gains popularity we get the advantage of working with a lot of perspectives, and being able to gain from other people working on the same project. It's a pattern Basecamp discuss when they [talk about rails][rails] by beginning with a real project and abstracting outwards.
 
@@ -67,9 +67,9 @@ The biggest two issues come from differences in opinions in how software should 
 
   Strictly typed language work _really_ well for [building systems][systems], or completely atomic apps - the sort Apple have to build on a day to day basis. When I say an atomic app, I mean one where the majority of the inputs and outputs exist within the domain of the application. Think of apps with their own filetypes, that can control inputs and outputs really easily.
 
-  Even in Objective-C, a looser-typed language where you were not discouraged from using meta--programming, handling JSON required _a tonne_ of boilerplate, and inelegant code when working with an API. Considering how bread-and-butter working with an API is for most 3rd party developers it should come as no surprise that the most popular CocoaPods are about handling JSON parsing, and making network requests.  
+  Even in Objective-C, a looser-typed language where you were not discouraged from using meta--programming, handling JSON required _a tonne_ of boilerplate laden, inelegant code when working with an API. Considering how bread-and-butter working with an API is for most 3rd party developers it should come as no surprise that the most popular CocoaPods are about handling JSON parsing, and making network requests.  
 
-  Problems which Apple, generally speaking, don't have. They use iCloud, or CloudKit, or whatever. The Apple opinion was was neatly summed up on the official Swift blog on how to handle JSON parsing [exhibits the problem well][swift_blog].
+  Problems which Apple, generally speaking, don't have. They use iCloud, or CloudKit, or whatever, and expect you to too. The official Apple opinion was neatly summed up on the official Swift blog on how to handle JSON parsing [exhibits the problem well][swift_blog].
 
   > Swift’s built-in language features make it easy to safely extract and work with JSON data decoded with Foundation APIs — without the need for an external library or framework.
 
@@ -106,22 +106,43 @@ Apple make _great_ tools. I do miss Xcode sometimes. It's cohesive, beautifully 
 
 Though it's important to note that they make tools for Apple first and then for us 3rd party devs. Outside influence obviously exists, but they're shipping whatever _they_ want and you can only influence that via Radars and through going to a conference once a year and talking directly to the dev tools team. Only the Swift language is Open Source (and [SwiftPM][swiftpm])
 
-There are so few well built, large developer tools for the Apple eco-system. Developers are very wary [of][stack] [being copied by Apple][https://twitter.com/mattt/status/473544723118837760] - something so prevalent that there is a common word for it, being [Sherlocked][sherlocked]. The project I've worked on for 5 years, CocoaPods, had an announcement of being sherlocked in late-2015 - you just have to deal with it. The idea that only Apple should be shipping these kind of things kills community momentum.
+There are so few well built, large developer tools for the Apple eco-system. Developers are wary [of][stack] [being copied by Apple][https://twitter.com/mattt/status/473544723118837760] - something so prevalent that there is a common word for it, being [Sherlocked][sherlocked]. The project I've worked on for 5 years, CocoaPods, had an announcement of being sherlocked in late-2015 - you just have to deal with it. The idea that only Apple should be shipping these kind of things kills community momentum.
 
-If you're going to build something amazing, only to have all support pulled out from under you one it gets popular - why bother? 
+If you're going to build something amazing, only to have all support pulled out from under you once it gets popular because apple copied it and made it for free and with a full time team behind it - why bother? 
 
-###
+This makes it tough for us, as the 3rd party community, to build useful tools on the kind of scale that is normal in other developer eco-systems. Think of Fastlane, which _needs_ a company like Twitter/Google to behind to handle the scale of usage because no-one else is fixing toolchain issues.
 
-* Better abstractions for building JSON driven apps
- - https://rauchg.com/2015/pure-ui
+### Better Abstractions, Better Developer Experience
 
-* Falling back to native code is no problem at all
+I've mentioned that the apps we build have problems specific to API-driven applications. This means that the majority of our work tends to be that we have the full data already, and need to iterate to get the right styling and logic mapping correct, in doing so we want to also make it easy to re-use code.
 
-* Tests operate outside of the iOS sim
+The React component-oriented architecture makes it very easy to build these types of applications. Born out of the [JavaScript primordial soup][js-soup], where conceptual frameworks come and go every year or so. React has been around for a while now, and seems to have a lot of stopping power.
 
+All of these frameworks have the same domain problems that our iOS apps have, external API stores, complex user device state and a mature end-of-line API (either the DOM, or UIKit.) 
+
+With React, the core concept of a virtual DOM means that you can simplify a lot of complicated state-management for your application. It becomes trivial, removing the need for more complicated state-handling ideas like functional or reactive programming.
+
+With Relay, we got an genuinely ground-breaking change in how interactions get handled with our API. I don't want to ever work against an API without a tool like Relay.
+
+> References from JS 2017: [React][react], [Relay][relay]
+
+Both of these tools provide a developer experience better than iOS native tooling. React's strict state management rules allow external tools to extend a React application easily, so the onus is not on the React team to make better tools. Other projects provide tools like:[debuggers][rn-debugger], [external state viewers][reactotron], [runtime code injection][hrm], [component storyboarding][storybook] all of which can be running simulatiously at runtime. 
+
+A single press of save would take your changes, inject it into your current running application, keep you in the exact same place, depending on the type of change it could re-layout your views, and so you can stay in your editor and make your changes. From 25 seconds, to less than one.
+
+So, you're thinking _"Yeah, but JavaScript..."_ - well, we use TypeScript and it fixes pretty much every issue with JavaScript. Mix that with the fact that it's no problem for us to write native code when we need to. It feels like the best of both worlds. Elegant, fast to work with, application code, with native tooling when we think it will be best for the project. 
+
+> References from JS 2017: [TypeScript][typescript]
+
+There's one more thing that I want to really stress around developer experience, it's really easy to write tests for our React components. Testing in JavaScript is night-and-day better than native testing. Because we can run our tests outside of the simulator (due to React's virtual DOM) we have all tests related to all the changes in git running on save.
 
 #### Same Tools, Different Dev
 
+We wanted to stop being special snowflakes inside the dev team. Artsy has around 25 developers, the vast majority of which work with Ruby and JavaScript on a day-to-day basis. The mobile team was the only development team that didn't make their own API changes, used completely different toolchains and were much slower in shipping anything.
+
+This isn't a great position to be in.
+
+We wanted all developers to feel like they can contribute in any area of the company, the native mobile projects had close to zero contributions from anyone outside of the mobile team. Since the mobile team have moved to Reach Native we have received features and bug fixes from the web team. The mobile 
 
 * Reduce the barrier to entry for rest of team
   - more external contributions from web engineers since we moved
@@ -182,3 +203,8 @@ If you're going to build something amazing, only to have all support pulled out 
 [sherlocked]: https://www.cocoanetics.com/2011/06/on-getting-sherlocked/
 [stack]: https://twitter.com/orta/status/608013279433138176
 [cp-sherlock]: https://twitter.com/Objective_Neo/status/474681170504843264
+[js-soup]: /blog/2016/11/14/JS-Glossary/#javascript-fatigue
+[rn-debugger]: https://github.com/jhen0409/react-native-debugger
+[reactotron]: https://github.com/infinitered/reactotron
+[hrm]: https://github.com/gaearon/react-hot-loader
+[storybook]: https://github.com/storybooks/react-storybook
