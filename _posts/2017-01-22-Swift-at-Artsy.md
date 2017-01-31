@@ -144,19 +144,23 @@ This isn't a great position to be in.
 
 We wanted all developers to feel like they can contribute to any area of the company. For the past 5 years, the native mobile projects had close to zero contributions from anyone outside of the mobile team. Since the mobile team moved to Reach Native we have received features and bug fixes from the web team.
 
-This expansion of a mobile team developer's scope has made it much easier for us to reason about finding better ways to share code with the web team. At the end of 2015, the Collector Web team introduced GraphQL to Artsy. This acts as an API layer owned by the front-end side of Artsy. T
+This expansion of a mobile team developer's scope has made it much easier for us to reason about finding better ways to share code with the web team. At the end of 2015, the Collector Web team introduced GraphQL to Artsy. I wrote about how this affected the [mobile team][mobile-graphql]. This acts as an API layer owned by the front-end side of Artsy. Meaning that it could contain a lot of API-derived client-specific logic. Previously, this work was done by the web team, and then consumed by mobile - now both teams build their APIs and consume them.
 
 > References from JS 2017: [GraphQL][graphql]
 
-* Reduce the barrier to entry for rest of team
-  - more external contributions from web engineers since we moved
+This is not something we have explored too deeply, however we expect to be able to port a lot of our React Native to Android. I got a rough prototype ported in 2 days work. By working at React-level, and allowing the React Native bindings to handle the interactions with the host OS, we've been writing cross-platform code.
 
-* Will only be usable for Apple products
- - Why use Swift when there's Kotlin?
- - Swift on a Server might be usable in a few years, not sure anyone would push on server  
- 
-* Encourages mobile developers to make API changes, same concepts
-  - Web and API is JS, same tools, same workflow
+We consider ourselves blocked on Android support, specifically by having an engineer in our team with _deep_ experience in Android. Moving to React Native does not obviate our native skills, you're going to be significantly better in that environment with those skills than without. As we mentioned in our announcement:
+
+> If you’re not already knowledgeable about iOS development, are not motivated to put in the time to learn about the
+  platform specific details, and think making rich iOS applications with React Native will be a breeze, you’ll
+  [come home from a very cold fair](http://www.dwotd.nl/2008/06/443-van-een-kouwe-kermis-thuiskomen.html) indeed. 
+
+We need someone with a similar depth of knowledge in the Android eco-system, but we may need one or two for the entire team. The rest can continue to be a mix of Web and iOS engineers. You gain a subset of cross-platform skills using React Native. Had we continued down the path of using Swift, our skills would continue to be siloed.
+
+There is an argument that Swift will be running servers soon, and so you can re-use Swift code across platforms. I could see myself writing server-side back-end code in Swift (you're writing systems, not apps) but it has a [long way to go][ssswift]. It also isn't an argument towards using it in our native apps, we'd have to re-write servers and implement our own GraphQL and Relay stack. 
+
+With respect to Swift on Android, potentially, logic code could be shared between platforms but realistically for our setup that's just not worth it. We're moving that kind of logic into the GraphQL instance and sharing across _all_ clients, not only native platforms. If you're sharing model code, you could generate that per-project instead from the server. Since GraphQL is strongly-typed, we're doing this for both [TypeScript + GraphQL][gql2ts] and [TypeScript + Relay][vscode-relay].
 
 #### Owning the stack
 
@@ -167,7 +171,7 @@ This expansion of a mobile team developer's scope has made it much easier for us
   - You can expect a reply to an issue, you don't to a radar
   - Relay
   - VS Code
-  - React-Native
+  - React Native
 
 * Open but hard to be accessible
  - You need to be a compiler engineer to improve Swift
@@ -179,6 +183,11 @@ This expansion of a mobile team developer's scope has made it much easier for us
  - Community had to re-write every useful library "For Swift" again, making it instable
  - Community changed to be "Swift XX" as opposed to "Cocoa XX", swift purism vs mature pragmaticism
  - https://twitter.com/orta/status/649214813168640000
+
+
+#### React Native, one year later
+
+In our announcement we talked about the lack of nuanced post-mortems on React Native. We're now a year in, we can at least try to help out in that space. We're sticking with React Native for the foreseeable future. It would take some _drastics_ changes in the Apple ecosystem for us to consider 
 
 
 [eidolon-postmortem]: http://artsy.github.io/blog/2014/11/13/eidolon-retrospective/
@@ -213,3 +222,7 @@ This expansion of a mobile team developer's scope has made it much easier for us
 [reactotron]: https://github.com/infinitered/reactotron
 [hrm]: https://github.com/gaearon/react-hot-loader
 [storybook]: https://github.com/storybooks/react-storybook
+[mobile-graphql]: http://artsy.github.io/blog/2016/06/19/graphql-for-mobile/
+[ssswift]: https://ashfurrow.com/blog/swift-on-linux/
+[gql2ts]: https://github.com/alloy/relational-theory/pull/18
+[vscode-relay]: https://github.com/alloy/vscode-relay
