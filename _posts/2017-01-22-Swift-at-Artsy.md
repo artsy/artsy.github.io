@@ -7,6 +7,11 @@ categories: [swift, eigen, eidolon, javascript, emission, reactnative]
 series: React Native at Artsy
 ---
 
+
+<center>
+<img src="/images/swift-in-rn/swift-in-react-native.svg" style="width:300px;">
+</center>
+
 Swift became public in June 2014, by August we had started using it in Artsy. By October, we had [Swift in production][eidolon-postmortem] channeling hundreds of thousands of dollars in auction bids.  
 
 Since then we've built an [appleTV app][emergence] in Swift, integrated Swift-support into our key app Eigen and built non-trivial parts of that [application in Swift][live-a]. It is pretty obvious that Swift is the future of native development on Apple platforms. 

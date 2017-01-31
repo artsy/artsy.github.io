@@ -9,7 +9,7 @@ end
 desc 'Builds the site locally'
 task :build do
   puts 'Building site.'
-  sh 'PRODUCTION="YES" bundle exec jekyll build -d _gh-pages'
+  sh 'PRODUCTION="YES" jekyll build -d _gh-pages'
 end
 
 # Deprecated, but leaving shortcut in because I'm sure Orta, at least, has this
@@ -20,13 +20,13 @@ namespace :serve do
   desc 'Runs a local server *with* draft posts and watches for changes'
   task :drafts do
     puts 'Starting the server locally on http://localhost:4000'
-    sh 'PRODUCTION="NO" bundle exec jekyll serve --watch --drafts --port 4000'
+    sh 'PRODUCTION="NO" jekyll serve --watch --drafts --port 4000'
   end
 
   desc 'Runs a local server *without* draft posts and watches for changes'
   task :published do
     puts 'Starting the server locally on http://localhost:4000'
-    sh 'PRODUCTION="NO" bundle exec jekyll serve --watch --port 4000'
+    sh 'PRODUCTION="NO" jekyll serve --watch --port 4000'
   end
 end
 
