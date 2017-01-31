@@ -7,14 +7,13 @@ categories: [swift, eigen, eidolon, javascript, emission, reactnative]
 series: React Native at Artsy
 ---
 
-
 <center>
 <img src="/images/swift-in-rn/swift-in-react-native.svg" style="width:300px;">
 </center>
 
-Swift became public in June 2014, by August we had started using it in Artsy. By October, we had [Swift in production][eidolon-postmortem] channeling hundreds of thousands of dollars in auction bids.  
+Swift became public in June 2014, by August we had started using it in Artsy. By October, we had [Swift in production][eidolon-postmortem] channeling hundreds of thousands of dollars in auction bids. It was pretty obvious that Swift is the future of native development on Apple platforms. 
 
-Since then we've built an [appleTV app][emergence] in Swift, integrated Swift-support into our key app Eigen and built non-trivial parts of that [application in Swift][live-a]. It is pretty obvious that Swift is the future of native development on Apple platforms. 
+Since then we've built an [appleTV app][emergence] in Swift, integrated Swift-support into our key app Eigen and built non-trivial parts of that [application in Swift][live-a].
 
 We first started experimenting with with React Native in February 2016, and by August 2016, we announced that [Artsy moved to React Native][artsy-rn] effectively meaning new code would be in JavaScript from here onwards.
 
@@ -40,7 +39,7 @@ We eventually came to the conclusion that we needed to re-think our entire UIKit
 
 Re-writing from scratch was not an option. That takes a lot of time and effort, which will happily remove technical debt, but that's not our issue. We also don't need or have a big redesign. However, a lot of companies used the Objective-C -> Swift transition as a time to re-write from scratch. We asked for the experiences from developers who had opted to do this, they said it was a great marketing tool for hiring - but was a lot of pain to actually work with day to day. They tend to talk abut technical debt, and clean slates - but not that Objective-C was painful and Swift solves major architectural problems. 
 
-In the end, for Eigen, we came to the conclusion that we could try build a component-based architecture either from scratch ( one very similar to the route Spotify's ([hub][hub]) or Hyperslo's ([Spots][spots]) took ) or inspired by React ( like Bending Spoons's ([Katana][katana]) ).
+In the end, for Eigen, we came to the conclusion that we could try build a component-based architecture either from scratch ( similar to the patterns in Spotify's ([hub][hub]) or Hyperslo's ([Spots][spots]) ) or inspired by React ( like Bending Spoons's ([Katana][katana]) ).
 
 # Swift's upsides
 
@@ -62,11 +61,7 @@ Continuing to build native apps via native code had quite a bit running for it:
 
 # Native Downsides
 
-<!--It's hard to talk about some of the downsides to working natively without having something to contrast against. 
-
-For example, without being able to fork any project in your dependency stack - it's really not something you think of as being feasible. Had someone asked "would you fork Foundation  with your changes" or said "Ah yeah, check out the Steipete fork of UIKit for the Popover rotation orientation bug fix" to me a year ago, I would have just laughed, as the idea would have never crossed my mind.-->
-
-The biggest two issues come from differences in opinions in how software should be built. 
+The dominant two issues come from differences in opinions in how software should be built
 
 * **Types.** Types are useful. Overly strict typing systems make to hard to build _quick_ (not easy) to change codebases.
 
@@ -86,7 +81,7 @@ The biggest two issues come from differences in opinions in how software should 
   
   I've heard developers say they use using Playgrounds to work around some of these problems, and the Kickstarter app has probably the closest I've seen to an [actual implmentation of this][kickstart_play].
 
-  The Swift compiler is slow. Yes, it will improve. However, it's root issue comes from Swift being a more complicated language to compile, and it doing more work. On the side of doing more work, the awesome type inference systems can make it feel arbitrary about what will take longer to compile or not. We eventually [automated having our CI warn us][danger-eigen] whether the code we were adding was slow.
+  The Swift compiler is slow. Yes, it will improve. One argument that it won't ever be as fast as Objective-C comes from Swift being a more complicated language to compile - it's doing more work. On the side of doing more work, the awesome type inference systems can make it feel arbitrary about what will take longer to compile or not. We eventually [automated having our CI warn us][danger-eigen] whether the code we were adding was slow.
 
 
 # React Native
@@ -98,6 +93,8 @@ You may want to read our announcement of switching to [React Native][artsy-rn] i
 * Ownership of the whole stack.
 
 However, the key part of this post is how does this compare to native development? Also, have these arguments stood up to the test of time a year later? 
+
+_Sidenote:_ I found it hard to write this without being able to comprehensively reference what we are doing now, and so, I'll be referencing a sibling article: [JS 2017][js-2017]. 
 
 ### Developer Experience
 
@@ -137,7 +134,7 @@ A single press of save would take your changes, inject it into your current runn
 
 So, you're thinking _"Yeah, but JavaScript..."_ - well, we use TypeScript and it fixes pretty much every issue with JavaScript. Mix that with the fact that it's no problem for us to write native code when we need to. The last project I did on our React Native codebase require copious JS <-> Swift communication. It feels like the best of both worlds. Elegant, fast to work with application code in JS, with native tooling when we think it will be best for the project.
 
-> References from JS 2017: [TypeScript][typescript]
+> Reference from JS 2017: [TypeScript][typescript]
 
 There's one more thing that I want to really stress around developer experience, it's really easy to write tests for our React components. Testing in JavaScript is night-and-day better than native testing. Because we can run our tests outside of the simulator (due to React's virtual DOM) we have all tests related to all the changes in git running on save.
 
@@ -151,7 +148,7 @@ We wanted all developers to feel like they can contribute to any area of the com
 
 This expansion of a mobile team developer's scope has made it much easier for us to reason about finding better ways to share code with the web team. At the end of 2015, the Collector Web team introduced GraphQL to Artsy. I wrote about how this affected the [mobile team][mobile-graphql]. This acts as an API layer owned by the front-end side of Artsy. Meaning that it could contain a lot of API-derived client-specific logic. Previously, this work was done by the web team, and then consumed by mobile - now both teams build their APIs and consume them.
 
-> References from JS 2017: [GraphQL][graphql]
+> Reference from JS 2017: [GraphQL][graphql]
 
 This is not something we have explored too deeply, however we expect to be able to port a lot of our React Native to Android. I got a rough prototype ported in 2 days work. By working at React-level, and allowing the React Native bindings to handle the interactions with the host OS, we've been writing cross-platform code.
 
@@ -168,6 +165,18 @@ There is an argument that Swift will be running servers soon, and so you can re-
 With respect to Swift on Android, potentially, logic code could be shared between platforms but realistically for our setup that's just not worth it. We're moving that kind of logic into the GraphQL instance and sharing across _all_ clients, not only native platforms. If you're sharing model code, you could generate that per-project instead from the server. Since GraphQL is strongly-typed, we're doing this for both [TypeScript + GraphQL][gql2ts] and [TypeScript + Relay][vscode-relay].
 
 #### Owning the stack
+
+Pick an abstraction level of our application above UIKit and we can fork it. All our tools can be also be forked. We can fix our own issues.
+
+There are no concepts like, _"We'll use Steipete's fork of UIKit for UIPopover rotation fixes"_ or _"My version of Xcode will run tests when you press save."_
+
+In the mobile team, we have submitted code to: React Native, Relay, VS Code, Jest, [more?] - fixing problems where we see them, offering features if we need them. Some of these changes are 
+
+- Swift is working to make fixes at UIKit level even harder with [closed objects by default][closed]. 
+
+I've never heard of a team using their own version of Swift, 
+
+
 
 * Conceptual idea of customizing your language to the project
   - We pick and choose language features we want
@@ -194,7 +203,12 @@ With respect to Swift on Android, potentially, logic code could be shared betwee
 
 In our announcement we talked about the lack of nuanced post-mortems on React Native. We're now a year in, we can at least try to help out in that space. We're sticking with React Native for the foreseeable future. It would take some _drastics_ changes in the Apple ecosystem for us to consider 
 
-
+[js-2017]: SFSDFSDDF
+[relay]: ASDASDASD
+[jest]: GSGSDGS
+[graphql]: SDFSDFSDF
+[react]: ASDASDASSD
+[typescript]: ASDASDASSD
 [eidolon-postmortem]: http://artsy.github.io/blog/2014/11/13/eidolon-retrospective/
 [emergence]: https://github.com/artsy/emergence
 [live-a]: http://artsy.github.io/blog/2016/08/09/the-tech-behind-live-auction-integration/
@@ -215,9 +229,6 @@ In our announcement we talked about the lack of nuanced post-mortems on React Na
 [injection_twitter]: https://twitter.com/orta/status/705890397810257921
 [kickstart_play]: https://github.com/kickstarter/ios-oss/tree/master/Kickstarter-iOS.playground/Pages
 [danger-eigen]: https://github.com/artsy/eigen/pull/1465
-[relay]: ASDASDASD
-[jest]: GSGSDGS
-[graphql]: SDFSDFSDF
 [swiftpm]: https://github.com/apple/swift-package-manager
 [sherlocked]: https://www.cocoanetics.com/2011/06/on-getting-sherlocked/
 [stack]: https://twitter.com/orta/status/608013279433138176
@@ -231,3 +242,4 @@ In our announcement we talked about the lack of nuanced post-mortems on React Na
 [ssswift]: https://ashfurrow.com/blog/swift-on-linux/
 [gql2ts]: https://github.com/alloy/relational-theory/pull/18
 [vscode-relay]: https://github.com/alloy/vscode-relay
+[closed]: http://mjtsai.com/blog/2016/07/17/swift-classes-to-be-non-publicly-subclassable-by-default/
