@@ -23,7 +23,6 @@ TLDR: GraphQL, TypeScript, React/React Native, Relay, Yarn, Jest, and VS Code.
   - Like Ruby, less magic, more types, better tooling
   - Biggest compilation unit is a file, not a target
 
-
 * GraphQL
   - Vastly reduces networking traffic
   - Amazing tooling
@@ -40,7 +39,29 @@ TLDR: GraphQL, TypeScript, React/React Native, Relay, Yarn, Jest, and VS Code.
   - Fast, reliable
 
 * Jest
-  - Watcher, Snapshots, extremely responsive team
+  - Git diff based watcher
+  - Watcher handles interruptions
+  - Fast, caches transpiled files via haste-map
+  - Runs failed tests first on next run
+  - Extensible and open to improvements 
+  - Comprehensive amount of matchers
+  - Natural support of async code
+  - Handles JSON snapshot testing elgantly
+  - No configuration, but you can if you want to
+  - Smart, logical, mocking system for any dependency
+  - Officially supports Babel, TypeScript, webpack
+  - Has custom ESLint rules
+  - Ease of porting from other testing tools via codemods
+  - Meaningful error messages
+  - Built-in code coverage
+  - Parallel, and totally sandboxed tests
+
 
 * VS Code
+  - Open Source
+  - Process Separated
+  - Project Oriented
+    - User and project settings
+  - Carefully extensible
+
   - Open, extensible and regularly updated

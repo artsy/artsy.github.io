@@ -79,7 +79,7 @@ The dominant two issues come from differences in opinions in how software should
 
 * **Slow.** Native development when put next to web development is slow. Application development requires full compilation cycles, and full state restart of the application that you're working on. A trivial string change in Eigen takes [25 seconds][eigen_25] to show up. When I tell some developers that time, they laugh and say I have it good.
 
-  The moment that this really stood out for me was when I [re][injection-twentytwelve]-discovered [Injection for Xcode][injection_twitter] which ruined my appetite for building apps the traditional way. It reduced an iteration cycle to about [a second][injection_time]. With Apple's resources, and the fact that Injection for Xcode has existed for years by a single developer, it's embarrasing that iOS is a [mobile platform][instant-run] with no support code reloading. I filed radars, they were marked as duped with no comment. I talked to Apple engineers at WWDC, it was dismissed as didn't work when it was [tried before][fix-and-continue].
+  The moment that this really stood out for me was when I [re][injection-twentytwelve]-discovered [Injection for Xcode][injection_twitter] which ruined my appetite for building apps the traditional way. It reduced an iteration cycle to about [a second][injection_time]. With Apple's resources, and the fact that Injection for Xcode has existed for years by a single developer, it's embarrasing that iOS is a [mobile platform][instant-run] with no support code reloading. I filed bug reports ([radars][what-is-radar]), they were marked as duped with no comment. I talked to Apple engineers at WWDC, the idea was dismissed as "didn't work" when it was [tried before][fix-and-continue].
   
   I've heard developers say they use using Playgrounds to work around some of these problems, and the Kickstarter app has probably the closest I've seen to an [actual implmentation of this][kickstart_play], so check that out if you're hitting these issues.
 
@@ -167,48 +167,38 @@ There is an argument that Swift will be running servers soon, and so you can re-
 
 With respect to Swift on Android, potentially, logic code could be shared between platforms but realistically for our setup that's just not worth it. We're moving that kind of logic into the GraphQL instance and sharing across _all_ clients, not only native platforms. If you're sharing model code, you could generate that per-project instead from the server. Since GraphQL is strongly-typed, we're doing this for both [TypeScript + GraphQL][gql2ts] and [TypeScript + Relay][vscode-relay].
 
-We don't know where this will end, but we've prototyped porting one of our view controllers from React Native [to a website][relational-rnw]. This such a completely different mind space from where we were a year ago.
+We don't know where this will end, but we've prototyped porting one of our view controllers from React Native [to a website][relational-rnw]. It's almost source-compatible. This such a completely different mind space from where we were a year ago.
 
 #### Owning the stack
 
 Pick an abstraction level of our application above UIKit and we can fork it. All our tools can be also be forked. We can fix our own issues.
 
-In native, there are no concepts like, _"We'll use Steipete's fork of UIKit for UIPopover rotation fixes"_ or _"My version of Xcode will run tests when you press save."_. Well, hopefully the latter may be fixed in time, but the "you have no choice but to wait" aspect is part of the problem. You have your tools given to you, in a year you get some new ones and lose some old ones.
+In native, there are no concepts like, _"We'll use Steipete's fork of UIKit for UIPopover rotation fixes"_ or _"My version of Xcode will run tests when you press save."_. Well, hopefully the latter [may be fixed][xcode-extensions] in time, but the "you have no choice but to wait, and maybe it won't happen" aspect is part of the problem. You have your tools given to you, in a year you get some new ones and lose some old ones. In contrast, we've built [many][vscode-jest] [extensions][vscode-rns] [for][vscode-relay] [VS][vscode-common] [Code][vscode-danger] for our own use, and helped out on [major ones][flow-vscode]. When the VS Code didn't do what I wanted, I started using [use my own fork][essence].
 
-On that subject, we've built [many][vscode-jest] [extensions][vscode-rns] [for][vscode-relay] [VS][vscode-common] [Code][vscode-danger] for our own use, and helped out on [major ones][flow-vscode]. When the VS Code APIs weren't enough, I decided to [use my own fork][essence].
+> Reference from JS 2017: [VS Code][code]
 
-In the last year, we have submitted code to major JavaScript dependencies of ours: React Native, Relay, VS Code, Jest, [more?] - fixing problems where we see them, offering features if we need them. Some of these changes are [small][vscode-toolbars], but some [are][relay-id] [big][jest-editor] [moves][react-shadow] .
+In the last year, we have submitted code to major JavaScript dependencies of ours: React Native, Relay, VS Code, Jest and a few libraries in-between - fixing problems where we see them, offering features if we need them. Some of these changes are [small][vscode-toolbars], but some [are][relay-id] [big][jest-editor] [moves][react-shadow]. Being able to help out on any problem makes it much easier to live with the [593 dependencies](/blog/2016/08/15/React-Native-at-Artsy/) that using React Native brings.
 
-- Swift is working to make fixes at UIKit level even harder with [closed objects by default][closed]. 
+It's worth highlighting that all of this is done on GitHub, in the open. We can write issues, get responses, and have direct line to the people who are working on something we depend on. This is a stark contrast to the Radar system used internally at Apple, and which external developers have write-only access to. For external contributors radar is opaque, and [totally feels like a waste of time][tnw-radar]. On the other hand, a GitHub issue doesn't have to have to wait for the repo maintainers, others can get value from it and it's publicly indexed. If we had put all our effort into Radars instead of [issues like][eigen_launch] this, the whole community would be worse off.
 
-I've never heard of a team using their own version of Swift, 
+This isn't all doom and gloom. With Swift the language, and SwiftPM the package manager, Apple are more open with the feedback cycle using tools like Slack, Mailing Lists, JIRA and Twitter.
 
+One aspect of working with JavaScript that has been particularly pleasant is the idea that your language is effectively a buffet. If you want to use the latest features of the language you can opt-in to it. We've slowly added language features, while retaining backwards compatibility. First using [Babel][babel-site], then [Flow][flow-site] and finally with [TypeScript][typescript-site]. 
 
-
-* Conceptual idea of customizing your language to the project
-  - We pick and choose language features we want
-
-* "Forking" / Contributing back (can't use our own fork of Swift)
-  - You can expect a reply to an issue, you don't to a radar
-  - Relay
-  - VS Code
-  - React Native
-
-* Open but hard to be accessible
- - You need to be a compiler engineer to improve Swift
- - Can't fork Foundation, Cocoa, UIKit
- - Small pool of active contributors to OSS
-
-* Tooling immaturity, and redundant re-implementations
- - Community manually re-create a bunch of apple tools, why?
- - Community had to re-write every useful library "For Swift" again, making it instable
- - Community changed to be "Swift XX" as opposed to "Cocoa XX", swift purism vs mature pragmaticism
- - https://twitter.com/orta/status/649214813168640000
-
+In contrast, and this may be the last major time it happens, but people refer to the time it took to migrate [in][weeks1] [the][weeks2] [scale][weeks3] [of][weeks4] _weeks_ during the Swift 2 -> 3 migration. Having the language evolve is great, sometimes in ways that you [agree with][swift-api] and sometimes in ways [you don't][closed]. Being able to use your own version of your tools frees you to make it work for you and your business.
 
 #### React Native, one year later
 
-In our announcement we talked about the lack of nuanced post-mortems on React Native. We're now a year in, we can at least try to help out in that space. We're sticking with React Native for the foreseeable future. It would take some _drastics_ changes in the Apple ecosystem for us to consider 
+In our announcement we talked about the lack of nuanced post-mortems on React Native. We're now a year in, we can at least try to help out in that space. We're sticking with React Native for the foreseeable future. It would take some _drastics_ changes in the Apple ecosystem for us to re-consider this decision.
+
+* We can share concepts
+* Tools built for our apps like ours
+* To do it right requires engineers willing to dive deep in JS
+* Need native experience to have a polished experience
+* Dependency stack is still obscene
+* Opens native engineers to more projects, more welcoming to others
+* Problems do, and will occur, but everything is fixable
+
 
 // End of Recommendation
 // Eggheads? 
@@ -266,7 +256,6 @@ In our announcement we talked about the lack of nuanced post-mortems on React Na
 [fix-and-continue]: http://stpeterandpaul.ca/tiger/documentation/DeveloperTools/Conceptual/XcodeUserGuide/Contents/Resources/en.lproj/06_06_db_fix_and_continue/chapter_44_section_1.html
 [essence]: https://github.com/orta/Essence
 [vscode-jest]: https://github.com/orta/vscode-jest#vscode-jest-
-https://github.com/orta/vscode-jest#vscode-jest-
 [vscode-rns]: https://github.com/orta/vscode-react-native-storybooks
 [flow-vscode]:https://github.com/flowtype/flow-for-vscode/blob/master/CHANGELOG.md
 [vscode-relay]: https://github.com/alloy/vscode-relay
@@ -276,3 +265,16 @@ https://github.com/orta/vscode-jest#vscode-jest-
 [relay-id]: https://github.com/facebook/relay/issues/1061
 [jest-editor]: https://github.com/facebook/jest/pull/2192
 [react-shadow]: https://github.com/facebook/react-native/pull/6114
+[xcode-extensions]: https://twitter.com/orta/status/790589579552296966
+[what-is-radar]: https://forums.developer.apple.com/thread/8796
+[eigen_launch]: https://github.com/artsy/eigen/issues/586
+[tnw-radar]: https://thenextweb.com/apple/2012/04/13/app-developers-frustrated-with-bug-reporting-tools-call-on-apple-to-fix-radar-or-gtfo/
+[babel-site]: https://babeljs.io
+[flow-site]: https://flowtype.org
+[typescript-site]: http://www.typescriptlang.org
+[weeks1]: https://engblog.nextdoor.com/migrating-to-swift-3-7add0ce0655#.rvyrohyhq
+[weeks2]: https://tech.zalando.com/blog/app-migration-to-swift-3/
+[weeks3]: https://github.com/kickstarter/ios-oss/pull/26 
+[weeks4]: https://twitter.com/guidomb/status/817363981216129025
+[closed]: http://mjtsai.com/blog/2016/07/17/swift-classes-to-be-non-publicly-subclassable-by-default/
+[swift-api]: https://swift.org/documentation/api-design-guidelines/
