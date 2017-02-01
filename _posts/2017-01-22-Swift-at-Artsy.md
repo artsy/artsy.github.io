@@ -11,15 +11,15 @@ series: React Native at Artsy
 <img src="/images/swift-in-rn/swift-in-react-native.svg" style="width:300px;">
 </center>
 
-Swift became public in June 2014, by August we had started using it in Artsy. By October, we had [Swift in production][eidolon-postmortem] channeling hundreds of thousands of dollars in auction bids. It was pretty obvious that Swift is the future of native development on Apple platforms. 
+Swift became public in June 2014, by August we had started using it in Artsy. By October, we had [Swift in production][eidolon-postmortem] channeling hundreds of thousands of dollars in auction bids. 
 
-Since then we've built an [appleTV app][emergence] in Swift, integrated Swift-support into our key app Eigen and built non-trivial parts of that [application in Swift][live-a].
+It is pretty obvious that Swift is the future of native development on Apple platforms. It was a no-brainer to then build an [appleTV app][emergence] in Swift, integrated Swift-support into our key app Eigen and built non-trivial parts of that [application in Swift][live-a].
 
 We first started experimenting with with React Native in February 2016, and by August 2016, we announced that [Artsy moved to React Native][artsy-rn] effectively meaning new code would be in JavaScript from here onwards.
 
 We're regularly asked _why_ we moved, and it was touched on briefly in our announcement but I'd like to dig in to this and try to cover a lot of our decision process. So, if you're into understanding why a small team of iOS developers with decades of experience switched to JavaScript, read on. 
 
-// Structure of blog post
+This post will cover: What are Artsy's apps?, Swifts Positives and Negatives for us, React Native, and Our 1-year Summary.
 
 <!-- more -->
 
@@ -33,13 +33,15 @@ Once we came to this conclusion, our discussion came to "what can we do to fix t
 
 Eigen specifically is an app where we taken JSON data from the server, and convert it into a user interface. It nearly always can be described as a function taking data and mapping it to a UI.
 
+{% expanded_img /images/emission/eigen.svg %}
+
 We have different apps with different trade-offs. [Eidolon][eidolon] (our Auctions Kiosk app) which contains a lot of Artsy-wide unique business logic which is handled with local state like card reader input, or unique user identification modes. [Emergence][emergence] is a trivial-ish tvOS app which has a few view controllers, and is mostly handled by Xcode's storyboards.
 
 Eigen is where we worry, other apps are limited in their scope, but Eigen is basically the mobile representation of Artsy. We're never _not_ going to have something like Eigen.
 
 We eventually came to the conclusion that we needed to re-think our entire UIKit stack for Eigen. Strictly speaking, Objective-C was not a problem for us, our issues came from abstractions around the way we built apps.
 
-Re-writing from scratch was not an option. That takes [a lot of time and effort][rewrite], which will happily remove technical debt, but that's not our issue. We also don't need or have a big redesign. However, a lot of companies used the Objective-C -> Swift transition as a time to re-write from scratch. We asked for the experiences from developers who had opted to do this, they said it was a great marketing tool for hiring - but was a lot of pain to actually work with day to day. They tend to talk abut technical debt, and clean slates - but not that Objective-C was painful and Swift solves [major architectural problems. 
+Re-writing from scratch was not an option. That takes [a lot of time and effort][rewrite], which will happily remove technical debt, but that's not our issue. We also don't need or have a big redesign. However, a lot of companies used the Objective-C -> Swift transition as a time to re-write from scratch. We asked for the experiences from developers who had opted to do this, they said it was a great marketing tool for hiring - but was a lot of pain to actually work with day to day. They tend to talk abut technical debt, and clean slates - but not that Objective-C was painful and Swift solves major architectural problems. With the notable exception of Functional Programmers.
 
 In the end, for Eigen, we came to the conclusion that we could try build a component-based architecture either from scratch ( similar to the patterns in Spotify's ([hub][hub]) or Hyperslo's ([Spots][spots]) ) or inspired by React ( like Bending Spoons's ([Katana][katana]) ).
 
@@ -52,6 +54,8 @@ Had we continued with native apps via native code, we'd have put more resources 
 * **Swift code can interact with Objective-C and can work on it's own.** We can write Swift libraries that can build on-top of our existing infrastructure to work at a higher level of abstraction. Building a component-based infrastructure via Swift could allow easy-reuse of existing code, while providing a language difference for "new app code" vs "infra." 
 
 * **People are excited about Swift.** It's an interesting, growing language, and one of the few ones non-technical people ask about. "Oh you're an iOS developer, do you use Swift?" is something I've been asked a lot. The rest of the development team  have signed up multiple times for Swift workshops and want to know what Swift is, and what it's trade-offs are.
+
+* **It's evolving** the language changes at a fast rate, with new ideas coming from, and influencing other languages. People inside the community influence and shape it's growth. There are some great claims being made [about Swift][swift-excite] by people we respect.
 
 * **Swift improves on a lot of Objective-C.** Most of the patterns that we use in Objective-C are verbose, and they can become extremely terse inside Swift. Potentially making it easier to read and understand. 
 
@@ -83,7 +87,7 @@ The dominant two issues come from differences in opinions in how software should
   
   I've heard developers say they use using Playgrounds to work around some of these problems, and the Kickstarter app has probably the closest I've seen to an [actual implmentation of this][kickstart_play], so check that out if you're hitting these issues.
 
-  The Swift compiler is slow. Yes, it will improve. One argument that it won't ever be as fast as Objective-C comes from Swift being a more complicated language to compile - it's doing more work. On the side of doing more work, the awesome type inference systems can make it feel arbitrary about what will take longer to compile or not. We eventually [automated having our CI warn us][danger-eigen] whether the code we were adding was slow as it felt indeterminate.
+  The Swift compiler is slow. Yes, it will improve. One argument that it won't ever be as fast as Objective-C comes from Swift being a more complicated language to compile - it's doing more work. There is nothing like a constrained generic with an associated type, or nested classes with protocol extensions in the Objective-C world. One amazing feature that can catch you out on compile time is the type inference system, which can make it feel arbitrary about what will take longer to compile or not. We eventually [automated having our CI warn us][danger-eigen] whether the code we were adding was slow as it felt indeterminate.
 
 # React Native
 
@@ -131,7 +135,7 @@ With Relay, we got an genuinely ground-breaking change in how interactions get h
 
 Both of these tools provide a developer experience better than iOS native tooling. React's strict state management rules allow external tools to extend a React application easily, so the onus is not on the React team to make better tools. Other projects provide tools like:[debuggers][rn-debugger], [external state viewers][reactotron], [runtime code injection][hrm], [component storyboarding][storybook] all of which can be running simulatiously at runtime. 
 
-A single press of save would take your changes, inject it into your current running application, keep you in the exact same place, depending on the type of change it could re-layout your views, and so you can stay in your editor and make your changes. <em>From 25 seconds, to less than one<em/>. For a lot of my work, I can put my tests, debuggers and the application on another screen, and just move my head to watch changes propogate on save.
+A single press of save would take your changes, inject it into your current running application, keep you in the exact same place, depending on the type of change it could re-layout your views, and so you can stay in your editor and make your changes. <em>From 25 seconds, to less than one</em>. For a lot of my work, I can put my tests, debuggers and the application on another screen, and just move my head to watch changes propogate on save.
 
 So, you're thinking _"Yeah, but JavaScript..."_ - well, we use [TypeScript][what_is_ts] and it fixes pretty much every issue with JavaScript. Add in with that it's no problem for us to write native code when we need to. The last project I did on our React Native codebase required JS <-> Swift communication. 
 
@@ -155,7 +159,7 @@ This expansion of a mobile team developer's scope has made it much easier for us
 
 This is not something we have explored too deeply, however we expect to be able to port a lot of our React Native to Android. I got a rough prototype ported in 2 days work. By working at React-level, and allowing the React Native bindings to handle the interactions with the host OS, we've been writing cross-platform code.
 
-We consider ourselves blocked on Android support, specifically by having an engineer in our team with _deep_ experience in Android. Moving to React Native does not obviate our native skills, you're going to be significantly better in that environment with those skills than without. As we mentioned in our announcement:
+We consider ourselves blocked on Android support, specifically by not having an engineer in our team with _deep_ experience in Android. Moving to React Native does not obviate our native skills, you're going to be significantly better in that environment with those skills than without. As we mentioned in our announcement:
 
 > If you’re not already knowledgeable about iOS development, are not motivated to put in the time to learn about the
   platform specific details, and think making rich iOS applications with React Native will be a breeze, you’ll
@@ -187,25 +191,31 @@ One aspect of working with JavaScript that has been particularly pleasant is the
 
 In contrast, and this may be the last major time it happens, but people refer to the time it took to migrate [in][weeks1] [the][weeks2] [scale][weeks3] [of][weeks4] _weeks_ during the Swift 2 -> 3 migration. Having the language evolve is great, sometimes in ways that you [agree with][swift-api] and sometimes in ways [you don't][closed]. Being able to use your own version of your tools frees you to make it work for you and your business.
 
-#### React Native, one year later
+# React Native, one year later
 
-In our announcement we talked about the lack of nuanced post-mortems on React Native. We're now a year in, we can at least try to help out in that space. We're sticking with React Native for the foreseeable future. It would take some _drastics_ changes in the Apple ecosystem for us to re-consider this decision.
+In our announcement we talked about the lack of nuanced post-mortems on React Native. We're now a year in, we can at least try to help out in that space. We're sticking with React Native for the foreseeable future. It would take some _drastics_ changes in the Apple ecosystem for us to re-consider this decision. So here's our summary after 1 year.
 
-* We can share concepts
-* Tools built for our apps like ours
+* We can share concepts with web
+* Tools are built for our apps like ours
 * To do it right requires engineers willing to dive deep in JS
-* Need native experience to have a polished experience
-* Dependency stack is still obscene
-* Opens native engineers to more projects, more welcoming to others
-* Problems do, and will occur, but everything is fixable
+* You need native experience to have a polished app
+* Dependency stack is still obscenely big
+* Opens native engineers to more projects, makes yours more welcoming to others
+* Problems do, and will occur, but everything is fixable by forking
+* Extensive communication with native code gets tricky to test and maintain
+* It makes working in native code feel like a bad job for someone to do
+* 
 
+So, should you use React Native? Maybe. If you have an API driven app, probably.
 
-// End of Recommendation
-// Eggheads? 
-// Swift makes sense if not API driven
-// Value in not-rewriting, keeping with community
+# Want to get started?
 
-// Embed tweets?
+- Here's the [official site][rn].
+- These [two][eggheads1] [series][eggheads2] are high-quality. I studied JavaScript by watching hours of egghead videos.
+- Run through the [f8 app][f8] series on  [makeitopen.com][f8-open].
+- Clone our React Native app, [Emission][emission].
+- Read the rest of our [series on React Native][series].
+- 
 
 [js-2017]: SFSDFSDDF
 [relay]: ASDASDASD
@@ -213,10 +223,11 @@ In our announcement we talked about the lack of nuanced post-mortems on React Na
 [graphql]: SDFSDFSDF
 [react]: ASDASDASSD
 [typescript]: ASDASDASSD
+
 [eidolon-postmortem]: http://artsy.github.io/blog/2014/11/13/eidolon-retrospective/
 [emergence]: https://github.com/artsy/emergence
 [live-a]: http://artsy.github.io/blog/2016/08/09/the-tech-behind-live-auction-integration/
-[artsy-rn]: o/blog/2016/08/15/React-Native-at-Artsy/
+[artsy-rn]: /blog/2016/08/15/React-Native-at-Artsy/
 [what-is-artsy-app]: /blog/2016/08/24/On-Emission/#Why.we.were.in.a.good.position.to.do.this
 [eidolon]: https://github.com/artsy/eidolon
 [spots]: https://cocoapods.org/pods/Spots
@@ -278,3 +289,11 @@ In our announcement we talked about the lack of nuanced post-mortems on React Na
 [weeks4]: https://twitter.com/guidomb/status/817363981216129025
 [closed]: http://mjtsai.com/blog/2016/07/17/swift-classes-to-be-non-publicly-subclassable-by-default/
 [swift-api]: https://swift.org/documentation/api-design-guidelines/
+[eggheads1]: https://egghead.io/courses/react-native-fundamentals
+[eggheads2]: https://egghead.io/courses/build-a-react-native-todo-application
+[f8]: https://github.com/fbsamples/f8app/
+[f8-open]: http://makeitopen.com/
+[emission]: https://github.com/artsy/emission/
+[series]: /series/react-native-at-artsy/
+[rn]: https://facebook.github.io/react-native/
+[swift-excite]: https://twitter.com/wilshipley/status/565001293975257091
