@@ -19,9 +19,11 @@ We first started experimenting with with React Native in February 2016, and by A
 
 We're regularly asked _why_ we moved, and it was touched on briefly in our announcement but I'd like to dig in to this and try to cover a lot of our decision process. So, if you're into understanding why a small team of iOS developers with decades of experience switched to JavaScript, read on. 
 
+// Structure of blog post
+
 <!-- more -->
 
-We were finding that our current patterns of building apps were not scaling as the team and app scope grew. Building anything new inside Eigen barely re-used existing code, and it was progressively taking longer and longer to build features. App and test build times were increasing, it would take 2 iOS engineers to build a feature in a similar time-frame as a single web engineer. 
+We were finding that our current patterns of building apps were not scaling as the team and app scope grew. Building anything new inside Eigen barely re-used existing native code, and it was progressively taking longer and longer to build features. App and test build times were increasing, it would take 2 iOS engineers to build a feature in a similar time-frame as a single web engineer. Our iOS engineers have a lot of experience across many platforms, are well versed in best practices and understand the value of building better tools to make it faster 
 
 By [March 2015][gave_up], we gave up trying to keep pace with the web.
 
@@ -37,13 +39,13 @@ Eigen is where we worry, other apps are limited in their scope, but Eigen is bas
 
 We eventually came to the conclusion that we needed to re-think our entire UIKit stack for Eigen. Strictly speaking, Objective-C was not a problem for us, our issues came from abstractions around the way we built apps.
 
-Re-writing from scratch was not an option. That takes a lot of time and effort, which will happily remove technical debt, but that's not our issue. We also don't need or have a big redesign. However, a lot of companies used the Objective-C -> Swift transition as a time to re-write from scratch. We asked for the experiences from developers who had opted to do this, they said it was a great marketing tool for hiring - but was a lot of pain to actually work with day to day. They tend to talk abut technical debt, and clean slates - but not that Objective-C was painful and Swift solves major architectural problems. 
+Re-writing from scratch was not an option. That takes [a lot of time and effort][rewrite], which will happily remove technical debt, but that's not our issue. We also don't need or have a big redesign. However, a lot of companies used the Objective-C -> Swift transition as a time to re-write from scratch. We asked for the experiences from developers who had opted to do this, they said it was a great marketing tool for hiring - but was a lot of pain to actually work with day to day. They tend to talk abut technical debt, and clean slates - but not that Objective-C was painful and Swift solves [major architectural problems. 
 
 In the end, for Eigen, we came to the conclusion that we could try build a component-based architecture either from scratch ( similar to the patterns in Spotify's ([hub][hub]) or Hyperslo's ([Spots][spots]) ) or inspired by React ( like Bending Spoons's ([Katana][katana]) ).
 
 # Swift's upsides
 
-Continuing to build native apps via native code had quite a bit running for it:
+Had we continued with native apps via native code, we'd have put more resources behind Swift, which had quite a bit running for it:
 
 * **It was consistent with our existing code.** We wrote hundreds of thousands of lines of code in Objective-C and maybe around a hundred thousand of Swift. The majority of the team had 5+ years of Cocoa experience and no-one needs to essentially argue that _continuing_ with that has value.
 
@@ -69,7 +71,7 @@ The dominant two issues come from differences in opinions in how software should
 
   Even in Objective-C, a looser-typed language where you were not discouraged from using meta--programming, handling JSON required _a tonne_ of boilerplate laden, inelegant code when working with an API. Considering how bread-and-butter working with an API is for most 3rd party developers it should come as no surprise that the most popular CocoaPods are about handling JSON parsing, and making network requests.  
 
-  Problems which Apple, generally speaking, don't have. They use iCloud, or CloudKit, or whatever, and expect you to too. The official Apple opinion was neatly summed up on the official Swift blog on how to handle JSON parsing [exhibits the problem well][swift_blog].
+  Problems which Apple, generally speaking, don't have. They use iCloud, or CloudKit, or whatever, and expect you to too aswell. The official Apple opinion was neatly summed up on the official Swift blog on how to handle JSON parsing [exhibits the problem well][swift_blog].
 
   > Swift’s built-in language features make it easy to safely extract and work with JSON data decoded with Foundation APIs — without the need for an external library or framework.
 
@@ -77,12 +79,11 @@ The dominant two issues come from differences in opinions in how software should
 
 * **Slow.** Native development when put next to web development is slow. Application development requires full compilation cycles, and full state restart of the application that you're working on. A trivial string change in Eigen takes [25 seconds][eigen_25] to show up. When I tell some developers that time, they laugh and say I have it good.
 
-  This becomes extremely painful once you start [getting used][injection_twitter] to technologies like Injection for Xcode, which is what ruined my appetite for building apps the traditional way. We were starting to come up with all sorts of techniques to allow separation of any part of the codebase into a new app so you can iterate just there. 
+  The moment that this really stood out for me was when I [re][injection-twentytwelve]-discovered [Injection for Xcode][injection_twitter] which ruined my appetite for building apps the traditional way. It reduced an iteration cycle to about [a second][injection_time]. With Apple's resources, and the fact that Injection for Xcode has existed for years by a single developer, it's embarrasing that iOS is a [mobile platform][instant-run] with no support code reloading. I filed radars, they were marked as duped with no comment. I talked to Apple engineers at WWDC, it was dismissed as didn't work when it was [tried before][fix-and-continue].
   
-  I've heard developers say they use using Playgrounds to work around some of these problems, and the Kickstarter app has probably the closest I've seen to an [actual implmentation of this][kickstart_play].
+  I've heard developers say they use using Playgrounds to work around some of these problems, and the Kickstarter app has probably the closest I've seen to an [actual implmentation of this][kickstart_play], so check that out if you're hitting these issues.
 
-  The Swift compiler is slow. Yes, it will improve. One argument that it won't ever be as fast as Objective-C comes from Swift being a more complicated language to compile - it's doing more work. On the side of doing more work, the awesome type inference systems can make it feel arbitrary about what will take longer to compile or not. We eventually [automated having our CI warn us][danger-eigen] whether the code we were adding was slow.
-
+  The Swift compiler is slow. Yes, it will improve. One argument that it won't ever be as fast as Objective-C comes from Swift being a more complicated language to compile - it's doing more work. On the side of doing more work, the awesome type inference systems can make it feel arbitrary about what will take longer to compile or not. We eventually [automated having our CI warn us][danger-eigen] whether the code we were adding was slow as it felt indeterminate.
 
 # React Native
 
@@ -98,7 +99,7 @@ _Sidenote:_ I found it hard to write this without being able to comprehensively 
 
 ### Developer Experience
 
-The JavaScript ecosystem cares about how someone using the tool will feel. This is a part of what separates the good from the great in the community. It's not enough to just provide a great API, documentation but it should substantially improve the way you work. 
+The JavaScript ecosystem cares about how someone using the tool will feel. This is a part of what separates the good from the great in the community. It's not enough to just provide a great API, and comprehensive documentation but it should substantially improve the way you work. 
 
 > References from JS 2017: [Relay][relay], [Jest][jest]
 
@@ -122,7 +123,7 @@ The React component-oriented architecture makes it very easy to build these type
 
 All of these frameworks have the same domain problems that our iOS apps have, external API stores, complex user device state and a mature end-of-line API (either the DOM, or UIKit.) 
 
-With React, the core concept of a virtual DOM means that you can simplify a lot of complicated state-management for your application. It becomes trivial, removing the need for more complicated state-handling ideas like functional or reactive programming.
+With React, the core concept of a virtual DOM means that you can simplify a lot of complicated state-management for your application. It becomes trivial, removing the need for more complicated state-handling ideas like functional or reactive programming. 
 
 With Relay, we got an genuinely ground-breaking change in how interactions get handled with our API. I don't want to ever work against an API without a tool like Relay.
 
@@ -130,9 +131,11 @@ With Relay, we got an genuinely ground-breaking change in how interactions get h
 
 Both of these tools provide a developer experience better than iOS native tooling. React's strict state management rules allow external tools to extend a React application easily, so the onus is not on the React team to make better tools. Other projects provide tools like:[debuggers][rn-debugger], [external state viewers][reactotron], [runtime code injection][hrm], [component storyboarding][storybook] all of which can be running simulatiously at runtime. 
 
-A single press of save would take your changes, inject it into your current running application, keep you in the exact same place, depending on the type of change it could re-layout your views, and so you can stay in your editor and make your changes. From 25 seconds, to less than one.
+A single press of save would take your changes, inject it into your current running application, keep you in the exact same place, depending on the type of change it could re-layout your views, and so you can stay in your editor and make your changes. <em>From 25 seconds, to less than one<em/>. For a lot of my work, I can put my tests, debuggers and the application on another screen, and just move my head to watch changes propogate on save.
 
-So, you're thinking _"Yeah, but JavaScript..."_ - well, we use TypeScript and it fixes pretty much every issue with JavaScript. Mix that with the fact that it's no problem for us to write native code when we need to. The last project I did on our React Native codebase require copious JS <-> Swift communication. It feels like the best of both worlds. Elegant, fast to work with application code in JS, with native tooling when we think it will be best for the project.
+So, you're thinking _"Yeah, but JavaScript..."_ - well, we use [TypeScript][what_is_ts] and it fixes pretty much every issue with JavaScript. Add in with that it's no problem for us to write native code when we need to. The last project I did on our React Native codebase required JS <-> Swift communication. 
+
+React Native feels like the best of both worlds: Elegant, fast to work with application code, which the whole dev team understands. Falling back to native tooling when we think it will be best for the project.
 
 > Reference from JS 2017: [TypeScript][typescript]
 
@@ -140,11 +143,11 @@ There's one more thing that I want to really stress around developer experience,
 
 #### Same Tools, Different Dev
 
-We wanted to stop being special snowflakes inside the dev team. Artsy has around 25 developers, the majority of which work with Ruby and JavaScript on a day-to-day basis. The mobile team was the single development team that didn't make their own API changes, used different toolchains and were much slower in shipping anything.
+We wanted to stop being highly unique inside the dev team. Artsy has around 25 developers, the majority of which work with Ruby and JavaScript on a day-to-day basis. The mobile team was the single development team that didn't make their own API changes, used different toolchains and were much slower in shipping anything.
 
 This isn't a great position to be in.
 
-We wanted all developers to feel like they can contribute to any area of the company. For the past 5 years, the native mobile projects had close to zero contributions from anyone outside of the mobile team. Since the mobile team moved to Reach Native we have received features and bug fixes from the web team.
+We wanted all developers to feel like they can contribute to any area of the company. For the past 5 years, the native mobile projects had close to zero contributions from anyone outside of the mobile team. Due to differences in tooling, and the idea that there was a cultural difference between us. Since the mobile team moved to Reach Native we have received features and bug fixes from the web team, and fit in better overall.
 
 This expansion of a mobile team developer's scope has made it much easier for us to reason about finding better ways to share code with the web team. At the end of 2015, the Collector Web team introduced GraphQL to Artsy. I wrote about how this affected the [mobile team][mobile-graphql]. This acts as an API layer owned by the front-end side of Artsy. Meaning that it could contain a lot of API-derived client-specific logic. Previously, this work was done by the web team, and then consumed by mobile - now both teams build their APIs and consume them.
 
@@ -164,13 +167,17 @@ There is an argument that Swift will be running servers soon, and so you can re-
 
 With respect to Swift on Android, potentially, logic code could be shared between platforms but realistically for our setup that's just not worth it. We're moving that kind of logic into the GraphQL instance and sharing across _all_ clients, not only native platforms. If you're sharing model code, you could generate that per-project instead from the server. Since GraphQL is strongly-typed, we're doing this for both [TypeScript + GraphQL][gql2ts] and [TypeScript + Relay][vscode-relay].
 
+We don't know where this will end, but we've prototyped porting one of our view controllers from React Native [to a website][relational-rnw]. This such a completely different mind space from where we were a year ago.
+
 #### Owning the stack
 
 Pick an abstraction level of our application above UIKit and we can fork it. All our tools can be also be forked. We can fix our own issues.
 
-There are no concepts like, _"We'll use Steipete's fork of UIKit for UIPopover rotation fixes"_ or _"My version of Xcode will run tests when you press save."_
+In native, there are no concepts like, _"We'll use Steipete's fork of UIKit for UIPopover rotation fixes"_ or _"My version of Xcode will run tests when you press save."_. Well, hopefully the latter may be fixed in time, but the "you have no choice but to wait" aspect is part of the problem. You have your tools given to you, in a year you get some new ones and lose some old ones.
 
-In the mobile team, we have submitted code to: React Native, Relay, VS Code, Jest, [more?] - fixing problems where we see them, offering features if we need them. Some of these changes are 
+On that subject, we've built [many][vscode-jest] [extensions][vscode-rns] [for][vscode-relay] [VS][vscode-common] [Code][vscode-danger] for our own use, and helped out on [major ones][flow-vscode]. When the VS Code APIs weren't enough, I decided to [use my own fork][essence].
+
+In the last year, we have submitted code to major JavaScript dependencies of ours: React Native, Relay, VS Code, Jest, [more?] - fixing problems where we see them, offering features if we need them. Some of these changes are [small][vscode-toolbars], but some [are][relay-id] [big][jest-editor] [moves][react-shadow] .
 
 - Swift is working to make fixes at UIKit level even harder with [closed objects by default][closed]. 
 
@@ -202,6 +209,13 @@ I've never heard of a team using their own version of Swift,
 #### React Native, one year later
 
 In our announcement we talked about the lack of nuanced post-mortems on React Native. We're now a year in, we can at least try to help out in that space. We're sticking with React Native for the foreseeable future. It would take some _drastics_ changes in the Apple ecosystem for us to consider 
+
+// End of Recommendation
+// Eggheads? 
+// Swift makes sense if not API driven
+// Value in not-rewriting, keeping with community
+
+// Embed tweets?
 
 [js-2017]: SFSDFSDDF
 [relay]: ASDASDASD
@@ -243,3 +257,22 @@ In our announcement we talked about the lack of nuanced post-mortems on React Na
 [gql2ts]: https://github.com/alloy/relational-theory/pull/18
 [vscode-relay]: https://github.com/alloy/vscode-relay
 [closed]: http://mjtsai.com/blog/2016/07/17/swift-classes-to-be-non-publicly-subclassable-by-default/
+[rewrite]: https://www.joelonsoftware.com/2000/04/06/things-you-should-never-do-part-i/
+[injection-twentytwelve]: https://twitter.com/orta/status/271559616888967168
+[instant-run]: https://developer.android.com/studio/run/index.html#instant-run
+[injection_time]: https://twitter.com/orta/status/706165678177390592
+[what_is_ts]: http://typescriptlang.org
+[relational-rnw]: https://github.com/alloy/relational-theory/pull/16
+[fix-and-continue]: http://stpeterandpaul.ca/tiger/documentation/DeveloperTools/Conceptual/XcodeUserGuide/Contents/Resources/en.lproj/06_06_db_fix_and_continue/chapter_44_section_1.html
+[essence]: https://github.com/orta/Essence
+[vscode-jest]: https://github.com/orta/vscode-jest#vscode-jest-
+https://github.com/orta/vscode-jest#vscode-jest-
+[vscode-rns]: https://github.com/orta/vscode-react-native-storybooks
+[flow-vscode]:https://github.com/flowtype/flow-for-vscode/blob/master/CHANGELOG.md
+[vscode-relay]: https://github.com/alloy/vscode-relay
+[vscode-danger]:  https://github.com/orta/vscode-danger
+[vscode-common]: https://github.com/orta/vscode-ios-common-files
+[vscode-toolbars]: https://github.com/Microsoft/vscode/pull/12628
+[relay-id]: https://github.com/facebook/relay/issues/1061
+[jest-editor]: https://github.com/facebook/jest/pull/2192
+[react-shadow]: https://github.com/facebook/react-native/pull/6114
