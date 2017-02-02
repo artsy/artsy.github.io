@@ -204,7 +204,6 @@ In our announcement we talked about the lack of nuanced post-mortems on React Na
 * Problems do, and will occur, but everything is fixable by forking
 * Extensive communication with native code gets tricky to test and maintain
 * It makes working in native code feel like a bad job for someone to do
-* 
 
 So, should you use React Native? Maybe. If you have an API driven app, probably.
 
@@ -215,7 +214,7 @@ So, should you use React Native? Maybe. If you have an API driven app, probably.
 - Run through the [f8 app][f8] series on  [makeitopen.com][f8-open].
 - Clone our React Native app, [Emission][emission].
 - Read the rest of our [series on React Native][series].
-- 
+
 
 [js-2017]: SFSDFSDDF
 [relay]: ASDASDASD
