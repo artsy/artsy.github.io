@@ -103,7 +103,7 @@ Any front-end client has a lot of work to do on a page:
   * Updating the local cache after receiving new results/changes the server objects responses.
   * Optimistically updating the UI while waiting for the server to respond to mutations.
 
-This is typically handled in a per-page basis, for example the API details, and state management between a Gene page, and an Artist page are different. However, they do share a lot the common responsibilities mentioned above. In our native side, we struggled to find abstractions that would work across multiple pages. Relay fixes this, and does it in a shockingly elegant way. 
+This is typically handled in a per-page basis, for example the API details, and state management between a Gene page, and an Artist page are different. In part because they have different data-models, but also that they have different correlated data. However, they do share a lot the common responsibilities mentioned above. In our native side, we struggled to find abstractions that would work across multiple pages. Relay fixes this, and does it in a shockingly elegant way. 
 
 Relay is a framework for building data-driven react apps which relies on a deep connection to GraphQL. You wrap your React components inside a Relay container, which handles the networking and setting the state for your component.
 
@@ -141,42 +141,85 @@ export default Relay.createContainer(Biography, {
 // `gene.description` by the Relay container. 
 ```
 
-This is very typical code you write, once you start working with Relay.
+Relay handles this by having each component in your view hierarchy exposing the fragments of a GraphQL query. There is a pre-render stage where all of your components fragments are brought together to make a single API request. So in the case of the Gene, it may look something like:
 
-  - Show an example
+```json
+{
+  gene(id: "the-fantastic") {
+    // could have come from the root component's fragment
+    id
+    name 
 
-  - Explain a query, and root container
-  - Caching
-  - Data Masking
+    // came from the above Header fragment
+    description 
 
-  - https://facebook.github.io/relay/docs/thinking-in-graphql.html#content
-  - https://facebook.github.io/relay/docs/thinking-in-relay.html#content
+    // could have come from a RelatedArtists component's fragment
+    trending_artists {
+      name
+      href
+    }
+  }
+}
+``` 
 
-* Yarn
-  - New, no demands for backwards compat
-  - Fast, local caching
-  - Determinate
-  - Smart defaults (`yarn run jest`)
-  - Flattened dependencies
+The data is first looked up inside Relay's local cache, and then any un-cached items are requested from the network. The results of the query is then moved into the component via it's props. Relay will only provide the specific data each component has requested. So the `Header` component would get nothing for `this.props.gene.name`. This data-masking is a great way of ensuring the connection between component and API.
+
+I'd strongly recommend taking the dive into both the [Thinking with GraphQL][thinking-ql] and then [Thinking with Relay][think-rl] tutorials to learn more. 
 
 
-* Jest
-  - Git diff based watcher
-  - Watcher handles interruptions
-  - Fast, caches transpiled files via haste-map
-  - Runs failed tests first on next run
-  - Extensible and open to improvements 
-  - Comprehensive amount of matchers
-  - Natural support of async code
-  - Handles JSON snapshot testing elgantly
-  - No configuration, but you can if you want to
-  - Smart, logical, mocking system for any dependency
-  - Officially supports Babel, TypeScript, webpack
-  - Has custom ESLint rules
-  - Ease of porting from other testing tools via codemods
-  - Meaningful error messages
-  - Built-in code coverage
-  - Parallel, and totally sandboxed tests
+## Yarn
+
+I have a lot of respect for NPM, their scale is [through the roof][npm]. They built out the foundations for a massive, thriving community. They did a great job. Like a lot of the JavaScript eco-system, their tooling is allows you to get away with a lot of things. You can have the same dependency inside the app with multiple versions, or apps with a dependency tree that is different each time you run `npm install`.
+
+We have multiple engineers who have worked on a dependency manager for half a decade, having indeterminate builds in JavaScript was something that worried us greatly. Luckily, there is Yarn.
+
+Yarn is a Facebook project that replaces the NPM [cli][cli] client. It's very new, so unlike NPM it does not have to worry about backwards compatibility. It is what I'd imagine a fresh re-write of the NPM cli would look like. 
+
+Yarn is significantly faster, has a determinate process for setting up and project and uses a lockfile by default to ensure everyone using the project gets the exact same dependency tree. It uses NPM as a server, and so you get the same node modules as you with the NPM cli.
+
+Sometimes Yarn gives you pleasant surprises too, my favourite being that `yarn run [x]` will check to see if that is a local command that you could run, saving a bunch of redundant settings.
+
+Converting a codebase can be as simple as going into your project and running:
+
+```shell
+npm install -g yarn
+yarn install
+```
+
+Now you have a lockfile, and are using yarn. Awesome, if you are migrating from a project with a shrink-wrap - I have a script which will generate a summary of the changes for you: [script][yarn-migrate], [example][yarn-example].
+
+## Jest
+
+One of the things that I find particularly pleasant about the JavaScript ecosystem are their testing tools. With our React Native, we came into the eco-system with fresh eyes, and it was pretty obvious that Jest was an exceptional testing framework. I hear historically Jest has been a bit meh, but it is without a doubt worth another look.
+
+**The watcher** - 
+
+**Fast and safe** - 
+
+**Snapshots** -
+
+**No config** - except when you do, supports etc
+
+**Extremely welcoming** - 
+
+
+
+- Git diff based watcher
+- Watcher handles interruptions
+- Fast, caches transpiled files via haste-map
+- Runs failed tests first on next run
+- Extensible and open to improvements 
+- Comprehensive amount of matchers
+- Natural support of async code
+- Handles JSON snapshot testing elgantly
+- No configuration, but you can if you want to
+- Smart, logical, mocking system for any dependencyso
+- Officially supports Babel, TypeScript, webpack
+- Has custom ESLint rules
+- Ease of porting from other testing tools via codemods
+- Meaningful error messages
+- Built-in code coverage
+- Parallel, and totally sandboxed tests
 
 
 * VS Code
@@ -206,3 +249,9 @@ This is very typical code you write, once you start working with Relay.
 
 [mob-graph]: /blog/2016/06/19/graphql-for-mobile/
 [graph-spec]: https://github.com/facebook/graphql
+[think-ql]: https://facebook.github.io/relay/docs/thinking-in-graphql.html
+[think-rl]: https://facebook.github.io/relay/docs/thinking-in-relay.html
+[npm]: http://blog.npmjs.org/post/143451680695/how-many-npm-users-are-there
+[cli]: https://en.wikipedia.org/wiki/Command-line_interface
+[yarn-script]: https://gist.github.com/orta/cb6d0b8256852c1f01ecf1d803b664c9
+[yarn-example]: https://github.com/artsy/metaphysics/pull/479
