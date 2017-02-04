@@ -222,7 +222,18 @@ One of the things that I find particularly pleasant about the JavaScript ecosyst
 - Parallel, and totally sandboxed tests
 
 
-* VS Code
+## Visual Studio Code
+
+Had you told me two years ago that my main editor would be a JavaScript app, I'd have bought you a beer for such a great joke. 
+
+Visual Studio Code was the app that changed my mind.
+
+I've done a longer write up on the how and why we use VS Code in [JavaScript projects][vcode-js], however here I'd like to consider more of the cultural aspect. It's common practice among web technologists to all have different editors on a project, and for their editors to generally do little work for them. A lot of this culture came from the TextMate and Rails days with the infamous [blog in 5 minutes video][tm-blog]. When I was a web developer, I also did this. 
+
+When you spend a lot of time in a powerful IDE though, it gets pretty hard to go back to a bare-bones editor. VS Code sits at a good half-way point between full-IDE and text editor. You can get a lot of the flexibility from 
+
+One thing that is working well for us is to gradually add project settings for our apps
+
   - Open Source
   - Process Separated
   - Project Oriented
@@ -255,3 +266,6 @@ One of the things that I find particularly pleasant about the JavaScript ecosyst
 [cli]: https://en.wikipedia.org/wiki/Command-line_interface
 [yarn-script]: https://gist.github.com/orta/cb6d0b8256852c1f01ecf1d803b664c9
 [yarn-example]: https://github.com/artsy/metaphysics/pull/479
+[vcode-js]: /blog/2016/08/15/vscode/
+[tm-blog]: https://twitter.com/dhh/status/492706473936314369?lang=en
+
