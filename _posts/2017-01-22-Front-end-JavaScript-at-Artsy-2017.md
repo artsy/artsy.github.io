@@ -17,7 +17,7 @@ TLDR: GraphQL, TypeScript, React/React Native, Relay, Yarn, Jest, and VS Code.
 
 <!-- more -->
 
-### Overview
+## Overview
 
 * TypeScript
   - Like Ruby, less magic, more types, better tooling
@@ -33,11 +33,11 @@ TLDR: GraphQL, TypeScript, React/React Native, Relay, Yarn, Jest, and VS Code.
   - Deep Dive - https://github.com/basarat/typescript-book
   - Looking open to extensions (e.g. Relay)
 
-* GraphQL
+## GraphQL
 
 GraphQL is a way to handle API requests. I consider it the successor to REST when working with front-end clients. A big claim, yeah. So, what is it?
 
-Officially GraphQL is a specification. A server can conform to the GraphQL spec, and then clients can make queries against it. Think of it a bit like how SQL is a standardized way of doing database queries across multiple objects 
+Officially [GraphQL is a specification][graph-spec]. A server can conform to the GraphQL spec, and then clients can make queries against it. Think of it a bit like how SQL is a standardized way of doing database queries across multiple databases types. 
 
 As a client, you [send](https://github.com/artsy/eigen/blob/dac7c80b66b600f9a45aaae6095544fe420f0bbc/Artsy/Networking/ARRouter.m#L1011) a "[JSON-shaped query](http://graphql.org/docs/getting-started/#queries)" structure, which is hierarchical and easy to read:
 
@@ -58,17 +58,15 @@ As a client, you [send](https://github.com/artsy/eigen/blob/dac7c80b66b600f9a45a
 
 It's important to note here, the data being sent _back_ is specifically  what you ask for. This is not defined on the server as a _short_ or _embedded_ version of a model, but the specific data the client requested. When bandwidth and speed is crucial, this is the other way in which GraphQL vastly improves an app-user's experience.
 
-This is in stark contrast to other successors to REST APIs, the hypermedia APIs, like [HAL](http://stateless.co/hal_specification.html) and [JSON-API](http://jsonapi.org) - both of which are optimised for caching, and rely on "one model, one request" types of API access. E.g. a list of Artworks would actually contain a list of hrefs instead of the model data, and you have to fetch each model as a separate request.
+This is in stark contrast to other successors to REST APIs, the hypermedia APIs, like [HAL](http://stateless.co/hal_specification.html) and [JSON-API](http://jsonapi.org) - both of which are optimised for caching, and rely on "one model, one request" types of API access. E.g. a list of Artworks would actually contain a list of hrefs instead of the model data, and you have to fetch each model in a separate request.
 
-Hypermedias APIs have a really useful space in cross-server communications, but are extremely wasteful of the most precious resource on a front-end device - bandwidth.
+Hypermedias APIs have a really useful space in cross-server communications, but are extremely wasteful of the most precious resource on a front-end device - bandwidth. The sooner you can enough information to present a screen 
 
 I explored our usage of GraphQL from the perspective of a native developer [earlier in the year][mob-graph]. 
 
 We use GraphQL as an API middle-layer. It acts as an intermediate layer between multiple front-end clients and multiple back-end APIs. This means we can easily coalesce many API calls into a single request, this can be a _massive_ user experience improvement when you have a screen that requires information from varied sources before you can present anything to a user.
 
 <img src="/images/2016-06-19-graphql-for-iOS-devs/graphQL.svg" width=100%>
-
-
 
   - Owned by front-end
   - Moves control of what data is accessed on to clients
@@ -94,23 +92,57 @@ We use GraphQL as an API middle-layer. It acts as an intermediate layer between 
   - Ideas like pure function makes it easy to write tests
   - A lot of great tooling available 
 
-* Relay
+## Relay
 
-  Any front-end client has a lot of work to do on a page:
+Any front-end client has a lot of work to do on a page:
 
-    * Fetching all the data for a view hierarchy.
-    * Managing asynchronous state transitions and coordinating concurrent requests.
-    * Managing errors.
-    * Retrying failed requests.
-    * Updating the local cache after receiving new results/changes the server objects responses.
-    * Optimistically updating the UI while waiting for the server to respond to mutations.
+  * Fetching all the data for a view hierarchy.
+  * Managing asynchronous state transitions and coordinating concurrent requests.
+  * Managing errors.
+  * Retrying failed requests.
+  * Updating the local cache after receiving new results/changes the server objects responses.
+  * Optimistically updating the UI while waiting for the server to respond to mutations.
 
-  This is typically handled in a per-page basis, for example the API details between a Gene page, and an Artist page are very different. 
+This is typically handled in a per-page basis, for example the API details, and state management between a Gene page, and an Artist page are different. However, they do share a lot the common responsibilities mentioned above. In our native side, we struggled to find abstractions that would work across multiple pages. Relay fixes this, and does it in a shockingly elegant way. 
 
-  - A framework for data-driven react apps
-  - Declarative API, no need to declare an API call/fetch
-  - Co-location of data and API request
-  
+Relay is a framework for building data-driven react apps which relies on a deep connection to GraphQL. You wrap your React components inside a Relay container, which handles the networking and setting the state for your component.
+
+```js
+// This is a normal React component, taken directly from our app
+// It will optionally show a description if one exists on a gene.
+
+class Biography extends React.Component {
+  render() {
+    const gene = this.props.gene
+    if (!gene.description) { return null }
+
+    return (
+      <View>
+        <SerifText style={styles.blurb} numberOfLines={0}>{gene.description}</SerifText>
+      </View>
+    )
+  }
+}
+
+// We take the above container, and wrap it with relay and a description of what parts
+// of a GraphQL request does the component need from the API. 
+
+export default Relay.createContainer(Biography, {
+  fragments: {
+    gene: () => Relay.QL`
+      fragment on Gene {
+        description
+      }
+    `,
+  }
+})
+
+// Then when the Biography component is rendered, the component is given props of 
+// `gene.description` by the Relay container. 
+```
+
+This is very typical code you write, once you start working with Relay.
+
   - Show an example
 
   - Explain a query, and root container
@@ -173,3 +205,4 @@ We use GraphQL as an API middle-layer. It acts as an intermediate layer between 
 
 
 [mob-graph]: /blog/2016/06/19/graphql-for-mobile/
+[graph-spec]: https://github.com/facebook/graphql
