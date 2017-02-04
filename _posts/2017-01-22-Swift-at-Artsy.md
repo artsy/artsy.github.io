@@ -23,11 +23,11 @@ This post will cover: what are Artsy's apps?, swifts positives and negatives for
 
 <!-- more -->
 
-We were finding that our current patterns of building apps were not scaling as the team and app scope grew. Building anything new inside Eigen barely re-used existing native code, and it was progressively taking longer and longer to build features. App and test build times were increasing, it would take 2 iOS engineers to build a feature in a similar time-frame as a single web engineer. Our iOS engineers have a lot of experience across many platforms, are well versed in best practices and understand the value of building better tools to make it faster 
+We were finding that our current patterns of building apps were not scaling as the team and app scope grew. Building anything inside Eigen rarely re-used existing native code, and progressively took longer to build features. Our app and test target build times were increasing, till eventually it would take 2 iOS engineers to build a feature in a similar time-frame as a single web engineer. Our iOS engineers have a lot of experience across many platforms, are well versed in best practices and understand the value of building better tools to make it faster. We had the knowledge, but we weren't finding ourselves in a great position product development wise.
 
 By [March 2015][gave_up], we gave up trying to keep pace with the web.
 
-Once we came to this conclusion, our discussion came to "what can we do to fix this?" Over the course of the 2015/2016 winter break we explored ideas on how we could write more re-usable code.    
+Once we came to this conclusion, our discussion came to "what can we do to fix this?" Over the course of the 2015 winter break we explored ideas on how we could write more re-usable code.    
 
 # What are Artsy's apps?
 
