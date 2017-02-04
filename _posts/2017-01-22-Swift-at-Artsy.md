@@ -19,7 +19,7 @@ We first started experimenting with with React Native in February 2016, and by A
 
 We're regularly asked _why_ we moved, and it was touched on briefly in our announcement but I'd like to dig in to this and try to cover a lot of our decision process. So, if you're into understanding why a small team of iOS developers with decades of experience switched to JavaScript, read on. 
 
-This post will cover: What are Artsy's apps?, Swifts Positives and Negatives for us, React Native, and Our 1-year Summary.
+This post will cover: what are Artsy's apps?, swifts positives and negatives for us, React Native, and our 1-year summary.
 
 <!-- more -->
 
@@ -31,11 +31,11 @@ Once we came to this conclusion, our discussion came to "what can we do to fix t
 
 # What are Artsy's apps?
 
-Eigen specifically is an app where we taken JSON data from the server, and convert it into a user interface. It nearly always can be described as a function taking data and mapping it to a UI.
+We have different apps with different trade-offs.
+
+[Eigen][eigen] is an app where we taken JSON data from the server, and convert it into a user interface. Each view controller can nearly always be described as a function taking data and mapping it to a UI. [Eidolon][eidolon] (our Auctions Kiosk app) which contains a lot of Artsy-wide unique business logic which is handled with local state like card reader input, or unique user identification modes. [Emergence][emergence] is a trivial-ish tvOS app which has a few view controllers, and is mostly handled by Xcode's storyboards.
 
 {% expanded_img /images/emission/eigen.svg %}
-
-We have different apps with different trade-offs. [Eidolon][eidolon] (our Auctions Kiosk app) which contains a lot of Artsy-wide unique business logic which is handled with local state like card reader input, or unique user identification modes. [Emergence][emergence] is a trivial-ish tvOS app which has a few view controllers, and is mostly handled by Xcode's storyboards.
 
 Eigen is where we worry, other apps are limited in their scope, but Eigen is basically the mobile representation of Artsy. We're never _not_ going to have something like Eigen.
 
@@ -43,7 +43,7 @@ We eventually came to the conclusion that we needed to re-think our entire UIKit
 
 Re-writing from scratch was not an option. That takes [a lot of time and effort][rewrite], which will happily remove technical debt, but that's not our issue. We also don't need or have a big redesign. However, a lot of companies used the Objective-C -> Swift transition as a time to re-write from scratch. We asked for the experiences from developers who had opted to do this, they said it was a great marketing tool for hiring - but was a lot of pain to actually work with day to day. They tend to talk abut technical debt, and clean slates - but not that Objective-C was painful and Swift solves major architectural problems. With the notable exception of Functional Programmers.
 
-In the end, for Eigen, we came to the conclusion that we could try build a component-based architecture either from scratch ( similar to the patterns in Spotify's ([hub][hub]) or Hyperslo's ([Spots][spots]) ) or inspired by React ( like Bending Spoons's ([Katana][katana]) ).
+In the end, for Eigen, we came to the conclusion that we wanted to work with a component-based architecture. This architectual  choice comes from studying how other larger apps handle code-reuse. We were considering building the structure from based on JSON ( which would have ended up like Spotify's ([hub][hub]) or Hyperslo's ([Spots][spots]) ) or inspired by React ( like Bending Spoons's ([Katana][katana]) ).
 
 # Swift's upsides
 
@@ -69,9 +69,9 @@ Had we continued with native apps via native code, we'd have put more resources 
 
 The dominant two issues come from differences in opinions in how software should be built
 
-* **Types.** Types are useful. Overly strict typing systems make to hard to build _quick_ (not easy) to change codebases.
+* **Types.** Types are useful. Overly strict typing systems make it to hard to build _quick_ (not easy) to change codebases.
 
-  Strictly typed language work _really_ well for [building systems][systems], or completely atomic apps - the sort Apple have to build on a day to day basis. When I say an atomic app, I mean one where the majority of the inputs and outputs exist within the domain of the application. Think of apps with their own filetypes, that can control inputs and outputs really easily.
+  Strictly typed languages work _really_ well for [building systems][systems], or completely atomic apps - the sort Apple have to build on a day to day basis. When I say an atomic app, I mean one where the majority of the inputs and outputs exist within the domain of the application. Think of apps with their own filetypes, that can control inputs and outputs really easily.
 
   Even in Objective-C, a looser-typed language where you were not discouraged from using meta--programming, handling JSON required _a tonne_ of boilerplate laden, inelegant code when working with an API. Considering how bread-and-butter working with an API is for most 3rd party developers it should come as no surprise that the most popular CocoaPods are about handling JSON parsing, and making network requests.  
 
@@ -167,7 +167,7 @@ We consider ourselves blocked on Android support, specifically by not having an 
 
 We need someone with a similar depth of knowledge in the Android eco-system, but we may need one or two for the entire team. The rest can continue to be a mix of Web and iOS engineers. You gain a subset of cross-platform skills using React Native. Had we continued down the path of using Swift, our skills would continue to be siloed.
 
-There is an argument that Swift will be running servers soon, and so you can re-use Swift code across platforms. I could see myself writing server-side back-end code in Swift (you're writing systems, not apps) but it has a [long way to go][ssswift]. It also isn't an argument towards using it in our native apps, we'd have to re-write servers and implement our own GraphQL and Relay stack. 
+There is an argument that Swift will be running servers soon, and so you can re-use Swift code across platforms. I could see myself writing server-side back-end code in Swift (you're writing systems, not apps) but it has a [long way to go][ssswift]. It also isn't an argument towards using it in our native apps, we'd have to re-write servers and implement our own GraphQL and Relay stack. This also would not impact the front-end code for the web - they would still be using JavaScript.
 
 With respect to Swift on Android, potentially, logic code could be shared between platforms but realistically for our setup that's just not worth it. We're moving that kind of logic into the GraphQL instance and sharing across _all_ clients, not only native platforms. If you're sharing model code, you could generate that per-project instead from the server. Since GraphQL is strongly-typed, we're doing this for both [TypeScript + GraphQL][gql2ts] and [TypeScript + Relay][vscode-relay].
 
@@ -228,6 +228,7 @@ So, should you use React Native? Maybe. If you have an API driven app, probably.
 [live-a]: http://artsy.github.io/blog/2016/08/09/the-tech-behind-live-auction-integration/
 [artsy-rn]: /blog/2016/08/15/React-Native-at-Artsy/
 [what-is-artsy-app]: /blog/2016/08/24/On-Emission/#Why.we.were.in.a.good.position.to.do.this
+[eigen]:  https://github.com/artsy/eigen
 [eidolon]: https://github.com/artsy/eidolon
 [spots]: https://cocoapods.org/pods/Spots
 [hub]: https://cocoapods.org/pods/HubFramework
