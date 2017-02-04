@@ -17,7 +17,7 @@ This blog post covers our usage of GraphQL, and what I've learned in the last 3 
 
 You can get the full explanation on [the GraphQL website](http://graphql.org). Though, I found running through [Learn GraphQL](https://learngraphql.com) site to really hammer down how it works. Reading the [introduction blog post](https://facebook.github.io/react/blog/2015/05/01/graphql-introduction.html) can be useful too.
 
-GraphQL is an API middle-layer. It acts as an intermediate layer between multiple front-end clients and multiple back-end APIs. This means it can easily coalesce multiple API calls into a single request, this can be a _massive_ user experience improvement when you have a screen that requires information from multiple sources before you can present anything to a user.
+We use GraphQL as an API middle-layer. It acts as an intermediate layer between multiple front-end clients and multiple back-end APIs. This means it can easily coalesce many API calls into a single request, this can be a _massive_ user experience improvement when you have a screen that requires information from varied sources before you can present anything to a user.
 
 <img src="/images/2016-06-19-graphql-for-iOS-devs/graphQL.svg" width=100%>
 

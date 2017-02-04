@@ -34,6 +34,42 @@ TLDR: GraphQL, TypeScript, React/React Native, Relay, Yarn, Jest, and VS Code.
   - Looking open to extensions (e.g. Relay)
 
 * GraphQL
+
+GraphQL is a way to handle API requests. I consider it the successor to REST when working with front-end clients. A big claim, yeah. So, what is it?
+
+Officially GraphQL is a specification. A server can conform to the GraphQL spec, and then clients can make queries against it. Think of it a bit like how SQL is a standardized way of doing database queries across multiple objects 
+
+As a client, you [send](https://github.com/artsy/eigen/blob/dac7c80b66b600f9a45aaae6095544fe420f0bbc/Artsy/Networking/ARRouter.m#L1011) a "[JSON-shaped query](http://graphql.org/docs/getting-started/#queries)" structure, which is hierarchical and easy to read:
+
+```json
+{
+  artwork(id: "kimber-berry-as-close-to-magic-as-you-can-get") {
+    id
+    additional_information
+
+    is_price_hidden
+    is_inquireable
+  }
+}
+
+```
+
+> This will search for a [specific artwork](https://www.artsy.net/artwork/kimber-berry-as-close-to-magic-as-you-can-get), with the response JSON as the Artwork's `id`, `additional_information`, `is_price_hidden` and `is_inquireable`.
+
+It's important to note here, the data being sent _back_ is specifically  what you ask for. This is not defined on the server as a _short_ or _embedded_ version of a model, but the specific data the client requested. When bandwidth and speed is crucial, this is the other way in which GraphQL vastly improves an app-user's experience.
+
+This is in stark contrast to other successors to REST APIs, the hypermedia APIs, like [HAL](http://stateless.co/hal_specification.html) and [JSON-API](http://jsonapi.org) - both of which are optimised for caching, and rely on "one model, one request" types of API access. E.g. a list of Artworks would actually contain a list of hrefs instead of the model data, and you have to fetch each model as a separate request.
+
+Hypermedias APIs have a really useful space in cross-server communications, but are extremely wasteful of the most precious resource on a front-end device - bandwidth.
+
+I explored our usage of GraphQL from the perspective of a native developer [earlier in the year][mob-graph]. 
+
+We use GraphQL as an API middle-layer. It acts as an intermediate layer between multiple front-end clients and multiple back-end APIs. This means we can easily coalesce many API calls into a single request, this can be a _massive_ user experience improvement when you have a screen that requires information from varied sources before you can present anything to a user.
+
+<img src="/images/2016-06-19-graphql-for-iOS-devs/graphQL.svg" width=100%>
+
+
+
   - Owned by front-end
   - Moves control of what data is accessed on to clients
   - Acts as a meta-API between many APIs
@@ -59,6 +95,18 @@ TLDR: GraphQL, TypeScript, React/React Native, Relay, Yarn, Jest, and VS Code.
   - A lot of great tooling available 
 
 * Relay
+
+  Any front-end client has a lot of work to do on a page:
+
+    * Fetching all the data for a view hierarchy.
+    * Managing asynchronous state transitions and coordinating concurrent requests.
+    * Managing errors.
+    * Retrying failed requests.
+    * Updating the local cache after receiving new results/changes the server objects responses.
+    * Optimistically updating the UI while waiting for the server to respond to mutations.
+
+  This is typically handled in a per-page basis, for example the API details between a Gene page, and an Artist page are very different. 
+
   - A framework for data-driven react apps
   - Declarative API, no need to declare an API call/fetch
   - Co-location of data and API request
@@ -124,3 +172,4 @@ TLDR: GraphQL, TypeScript, React/React Native, Relay, Yarn, Jest, and VS Code.
 - All open source, all hackable
 
 
+[mob-graph]: /blog/2016/06/19/graphql-for-mobile/
