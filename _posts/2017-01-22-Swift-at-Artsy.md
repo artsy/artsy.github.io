@@ -41,7 +41,7 @@ Eigen is where we worry, other apps are limited in their scope, but Eigen is bas
 
 We eventually came to the conclusion that we needed to re-think our entire UIKit stack for Eigen. Strictly speaking, Objective-C was not a problem for us, our issues came from abstractions around the way we built apps.
 
-Re-writing from scratch was not an option. That takes [a lot of time and effort][rewrite], which will happily remove technical debt, but that's not our issue. We also don't need or have a big redesign. However, a lot of companies used the Objective-C -> Swift transition as a time to re-write from scratch. We asked for the experiences from developers who had opted to do this, they said it was a great marketing tool for hiring - but was a lot of pain to actually work with day to day. They tend to talk abut technical debt, and clean slates - but not that Objective-C was painful and Swift solves major architectural problems. With the notable exception of Functional Programmers.
+Re-writing from scratch was not an option. That takes [a lot of time and effort][rewrite], which will happily remove technical debt, but that's not our issue. We also don't need or have a big redesign. However, a lot of companies used the Objective-C -> Swift transition as a time to re-write from scratch. We asked for the experiences from developers who had opted to do this, they said it was a great marketing tool for hiring - but was a lot of pain to actually work with day to day. They tend to talk abut technical debt, and clean slates - but not that Objective-C was painful and Swift solves major architectural problems. With the notable exception of functional programming purists.
 
 In the end, for Eigen, we came to the conclusion that we wanted to work with a component-based architecture. This architectual  choice comes from studying how other larger apps handle code-reuse. We were considering building the structure from based on JSON ( which would have ended up like Spotify's ([hub][hub]) or Hyperslo's ([Spots][spots]) ) or inspired by React ( like Bending Spoons's ([Katana][katana]) ).
 
@@ -81,6 +81,8 @@ The dominant two issues come from differences in opinions in how software should
 
   They do, but it's not great code to write nor maintain. I don't know anyone who does what they recommend in production.
 
+  The stricter type system in Swift made it harder to work on JSON-driven apps.
+
 * **Slow.** Native development when put next to web development is slow. Application development requires full compilation cycles, and full state restart of the application that you're working on. A trivial string change in Eigen takes [25 seconds][eigen_25] to show up. When I tell some developers that time, they laugh and say I have it good.
 
   The moment that this really stood out for me was when I [re][injection-twentytwelve]-discovered [Injection for Xcode][injection_twitter] which ruined my appetite for building apps the traditional way. It reduced an iteration cycle to about [a second][injection_time]. With Apple's resources, and the fact that Injection for Xcode has existed for years by a single developer, it's embarrasing that iOS is a [mobile platform][instant-run] with no support code reloading. I filed bug reports ([radars][what-is-radar]), they were marked as duped with no comment. I talked to Apple engineers at WWDC, the idea was dismissed as "didn't work" when it was [tried before][fix-and-continue].
@@ -115,9 +117,15 @@ Though it's important to note that they make tools for Apple first and then for 
 
 There are so few well built, large developer tools for the Apple eco-system. Developers are wary [of][stack] [being copied by Apple][https://twitter.com/mattt/status/473544723118837760] - something so prevalent that there is a common word for it, being [Sherlocked][sherlocked]. The project I've worked on for 5 years, CocoaPods, had an announcement of being sherlocked in late-2015 - you just have to deal with it. The idea that only Apple should be shipping these kind of things kills community momentum.
 
+<center><blockquote class="twitter-tweet" data-lang="en"><p lang="en" dir="ltr">Alfred, Dropbox, Snapchat, Parse, OpenGL, Objective-C… <br><br>Quite the body count this WWDC.</p>&mdash; Mattt (@mattt) <a href="https://twitter.com/mattt/status/473544723118837760">June 2, 2014</a></blockquote> <script async src="//platform.twitter.com/widgets.js" charset="utf-8"></script></center>
+
 If you're going to build something amazing, only to have all support pulled out from under you once it gets popular because apple copied it and made it for free and with a full time team behind it - why bother? 
 
 This makes it tough for us, as the 3rd party community, to build useful tools on the kind of scale that is normal in other developer eco-systems. Think of Fastlane, which _needs_ a company like Twitter/Google to behind to handle the scale of usage because no-one else is fixing toolchain issues.
+
+This contrasts drastically with the JavaScript eco-system, check out my explaination of Jest - and compare Jest to either Quick or Specta. Then remember that only Apple has the power to do most of what Jest does.
+
+> Reference from JS 2017: [Jest][jest]
 
 ### Better Abstractions, Better Developer Experience
 

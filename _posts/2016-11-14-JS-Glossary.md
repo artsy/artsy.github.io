@@ -45,7 +45,7 @@ export default class SearchBar extends React.Component {
 }
 ```
 
-By providing a well encapsulated Component model, you can aggressively reduce the amount of redundant code you need to build an application. By not initially writing to the DOM, React can decide what has changed between user actions and that means you have to juggle significantly less [state](#state).
+By providing a well encapsulated Component model, you can aggressively reduce the amountimage of redundant code you need to build an application. By not initially writing to the DOM, React can decide what has changed between user actions and that means you have to juggle significantly less [state](#state).
 
 ### React Native
 

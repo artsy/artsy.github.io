@@ -7,13 +7,17 @@ categories: [javascript, emission, reactnative, force, typescript]
 series: React Native at Artsy
 ---
 
+<center>
+ <img src="/images/js2017/js.svg" style="width:300px;">
+</center>
+
 The Artsy web team have been early adopters of node, and for the last 4 years the stable stack for the Artsy website has been predominantly been Node + CoffeeScript + Express + Backbone. In 2016 the mobile team announced that it had moved to React Native, matching the web team as using JavaScript as the tools of their trade.
 
-Historically we have always had two separate dev teams for building Artsy.net and the corresponding iOS app, we call them (Art) Collector Web, and Collector Mobile. By the end of 2016 we decided to merge the teams. The merger has given way to a whole plethora of ideas about what modern JavaScript looks like and we've been experimenting with finding common patterns between web and native. 
+Historically we have always had two separate dev teams for building Artsy.net and the corresponding iOS app, we call them (Art) Collector Web, and Collector Mobile. By the end of 2016 we decided to merge the teams. The merger has given way to a whole plethora of ideas about what modern JavaScript looks like and we've been experimenting with finding common, natural patterns between web and native.
  
 This post tries to encapsulate what we consider to be our consolidated stack for web/native Artsy in 2017. 
 
-TLDR: GraphQL, TypeScript, React/React Native, Relay, Yarn, Jest, and VS Code.  
+**TLDR:** GraphQL, TypeScript, React/React Native, Relay, Yarn, Jest, and Visual Studios Code.  
 
 <!-- more -->
 
@@ -21,7 +25,12 @@ TLDR: GraphQL, TypeScript, React/React Native, Relay, Yarn, Jest, and VS Code.
 
 Our web stack has been [ezel.js][ezel] since 2013, and continues to be a mature and well thought out technology. Since then, there has been explorations on a successor to that framework using React and GraphQL with [muraljs][mural]. However, since the merger, a lot more of our focus has been on trying to find something that feels similar on both React and React Native.
 
-* TypeScript
+## TypeScript
+
+<center>
+ <img src="/images/js2017/ts.svg" style="width:300px;">
+</center>
+
   - Like Ruby, less magic, more types, better tooling
   - Inferred typing
   - Types provide documentation
@@ -36,6 +45,10 @@ Our web stack has been [ezel.js][ezel] since 2013, and continues to be a mature 
   - Looking open to extensions (e.g. Relay)
 
 ## GraphQL
+
+<center>
+ <img src="/images/js2017/graphql.svg" style="width:300px;">
+</center>
 
 GraphQL is a way to handle API requests. I consider it the successor to REST when working with front-end clients. A big claim, yeah. So, what is it?
 
@@ -79,7 +92,45 @@ We use GraphQL as an API middle-layer. It acts as an intermediate layer between 
   - Graphiql
   - Starting to see wider adoption due to GitHub
 
-* React / React Native
+## React / React Native
+
+<center>
+ <img src="/images/react-native/artsy_react_logo.svg" style="width:300px;">
+</center>
+
+React is a Facebook project which offers a uni-direction Component model that _can_ replace MVC in a front-end application. React was built out of a desire to abstract away a web page's true view hierarchy (called the DOM) so that they could make changes to all of their views and then React would handle finding the differences between view states.
+
+Its model is that you would create a set of Components to encapsulate each part for the state of the page. React makes it easy to make components that are functional in the [Functional Reactive Programming](https://en.wikipedia.org/wiki/functional_reactive_programming) sense. They act like a function which takes some specially declared state and it is rendered into HTML.
+
+
+A component optionally uses a language called [JSX](#jsx) to visualise how each component's child components are set up,here's an example of a React component using JSX [from Emission, our React Native library][search-bar]:  
+
+```js
+export default class SearchBar extends React.Component {
+  render() {
+    return (
+      <TouchableWithoutFeedback onPress={this.handleTap.bind(this)}>
+        <View style={styles.container}>
+          <Image style={styles.searchIcon} source={require('../../../images/SearchButton.png')}/>
+          <Text style={styles.text}>Search for artists and artworks...</Text>
+        </View>
+      </TouchableWithoutFeedback>
+    )
+  }
+
+  handleTap() {
+    Switchboard.presentModalViewController(this, '/search')
+  }
+}
+```
+
+By providing a well encapsulated Component model, you can aggressively reduce the amount of redundant code you need to build an application. By not initially writing to the DOM, React can decide what has changed between user actions and that means you have to juggle significantly less state.
+
+We can then build on React via React-Native to allow the same style of code to exist inside the mobile sphere, where typically you have had unique languages and tooling.
+
+React Native is an implementation of React where instead of having React's virutal DOM map to a web page's DOM, it creates a native view hierarchy. In the case of iOS that is a `UIView` hierarchy, and in Android, a `View` heirarchy.
+
+
   - React is only our view layer
   - But when you're building API-driven apps, that could be all you need
 
@@ -95,6 +146,10 @@ We use GraphQL as an API middle-layer. It acts as an intermediate layer between 
   - A lot of great tooling available 
 
 ## Relay
+
+<center>
+ <img src="/images/js2017/relay.svg" style="width:300px;">
+</center>
 
 Any front-end client has a lot of work to do on a page:
 
@@ -171,9 +226,13 @@ I'd strongly recommend taking the dive into both the [Thinking with GraphQL][thi
 
 ## Yarn
 
+<center>
+ <img src="/images/js2017/yarn.svg" style="width:300px;">
+</center>
+
 I have a lot of respect for NPM, their scale is [through the roof][npm]. They built out the foundations for a massive, thriving community. They did a great job. Like a lot of the JavaScript eco-system, their tooling is allows you to get away with a lot of things. You can have the same dependency inside the app with multiple versions, or apps with a dependency tree that is different each time you run `npm install`.
 
-We have multiple engineers who have worked on a dependency manager for half a decade, having indeterminate builds in JavaScript was something that worried us greatly. Luckily, there is Yarn.
+We have multiple engineers who have worked on a dependency manager for half a decade, having indeterminate builds in JavaScript was something that worried us greatly. Luckily, there is [Yarn][yarn].
 
 Yarn is a Facebook project that replaces the NPM [cli][cli] client. It's very new, so unlike NPM it does not have to worry about backwards compatibility. It is what I'd imagine a fresh re-write of the NPM cli would look like. 
 
@@ -183,7 +242,7 @@ Sometimes Yarn gives you pleasant surprises too, my favourite being that `yarn r
 
 Converting a codebase can be as simple as going into your project and running:
 
-```shell
+```sh
 npm install -g yarn
 yarn install
 ```
@@ -192,39 +251,57 @@ Now you have a lockfile, and are using yarn. Awesome, if you are migrating from 
 
 ## Jest
 
+<center>
+ <img src="/images/js2017/jest.svg" style="width:300px;">
+</center>
+
 One of the things that I find particularly pleasant about the JavaScript ecosystem are their testing tools. With our React Native, we came into the eco-system with fresh eyes, and it was pretty obvious that Jest was an exceptional testing framework. I hear historically Jest has been a bit meh, but it is without a doubt worth another look.
 
-**The watcher** - 
+**The watcher** - The majority of your usage of Jest is with it running in watcher mode. This mode uses your git diff as a seed for what to run tests against. Jest will use that diff to define all the files that the changed code touches, and then all of the tests that cover those files. 
 
-**Fast and safe** - 
+For example, I make a change in one source file and 60 tests run from 6 different test suites. Finishing in under a second.
 
-**Snapshots** -
+{% expanded_img /images/js2017/jest-watcher.gif %}
 
-**No config** - except when you do, supports etc
+Not all tests are as important to a run, so Jest also keeps track of which tests failed last time and will run those first next time. 
 
-**Extremely welcoming** - 
+**Fast and safe** - You think the watcher is smart? Well the way Jest handle test suites is also extremely elegant. Jest keeps track of how long each test suite took to run, and then will weigh the test suites across different processes in order to speed up the overall test suite. If Jest thinks they're all going to be really quick (like my GIF above) they will all happen in one process, as that can also be faster.
 
+Each test suite is an entirely sandboxed node virtual machine, so you cannot have tests influencing each other.
 
+**Snapshots** - Jest provides a concept called snapshots, which provides an easy way to compare JavaScript objects. One place where this really shines is with React components. [For example][emiss-gene-test]:
 
-- Git diff based watcher
-- Watcher handles interruptions
-- Fast, caches transpiled files via haste-map
-- Runs failed tests first on next run
-- Extensible and open to improvements 
-- Comprehensive amount of matchers
-- Natural support of async code
-- Handles JSON snapshot testing elgantly
-- No configuration, but you can if you want to
-- Smart, logical, mocking system for any dependencyso
-- Officially supports Babel, TypeScript, webpack
-- Has custom ESLint rules
-- Ease of porting from other testing tools via codemods
-- Meaningful error messages
-- Built-in code coverage
-- Parallel, and totally sandboxed tests
+```js
+it('looks like expected', () => {
+  const props = {
+      gene:{...}
+    }
+  
+  const tree = renderer.create(
+    <Gene geneID={props.gene.name} medium="painting" price_range="*-100000" gene={props.gene}/>
+  ).toJSON()
 
+  expect(tree).toMatchSnapshot()
+})
+```
+
+Now we will get a test failure when any changes happen in the component tree. For example, if I changed the background color to `blue` from `white`. I get a fail like this:
+
+<img src="/images/js2017/jest-snapshots.png" style="width:100%">
+
+While that example is trivial, we really want to have tests like this to ensure we understand how changes propagate throughout the app.
+
+**No config** - When we first integrated Jest, we had no config. Now, to make sure that TypeScript works how we'd like, we require some setup. Having smart defaults say a lot about the project. The documentation covers default integrations for: Babel, TypeScript and webpack. Three of the biggest modern tools for getting stuff done with node.
+
+**Comprehensive API** - Snapshots, watchers, custom matchers, useful JSON output, ESLint linters, Elegant Mocking tools and natural support for async code. All in one project.
+
+If you're interested, there is a lot of work around automating the migration between different testing frameworks in [jest-codemods][jest-codemods] - getting started has never been easier.
 
 ## Visual Studio Code
+
+<center>
+ <img src="/images/vscode/vscode_logo_artsy.svg" style="width:300px;">
+</center>
 
 Had you told me two years ago that my main editor would be a JavaScript app, I'd have bought you a beer for such a great joke. 
 
@@ -257,6 +334,7 @@ One thing that is working well for us is to gradually add project settings for o
 
 Meaning we can showcase how easy you can use an inline debugger with source-maps when working with tricky tests. That's usually a good step towards moving everyone to a consistent environment.
 
+Having a consistent environment might sound a bit corporate for a ~25 person dev team, but there's no 
 
   - Open Source
   - Process Separated
@@ -285,11 +363,11 @@ I have grown to love working with typed JavaScript to ensure soundness, with Rea
 [ezel]: /blog/2013/11/30/rendering-on-the-server-and-client-in-node-dot-js/
 [mob-graph]: /blog/2016/06/19/graphql-for-mobile/
 [graph-spec]: https://github.com/facebook/graphql
-[think-ql]: https://facebook.github.io/relay/docs/thinking-in-graphql.html
+[thinking-ql]: https://facebook.github.io/relay/docs/thinking-in-graphql.html
 [think-rl]: https://facebook.github.io/relay/docs/thinking-in-relay.html
 [npm]: http://blog.npmjs.org/post/143451680695/how-many-npm-users-are-there
 [cli]: https://en.wikipedia.org/wiki/Command-line_interface
-[yarn-script]: https://gist.github.com/orta/cb6d0b8256852c1f01ecf1d803b664c9
+[yarn-migrate]: https://gist.github.com/orta/cb6d0b8256852c1f01ecf1d803b664c9
 [yarn-example]: https://github.com/artsy/metaphysics/pull/479
 [vcode-js]: /blog/2016/08/15/vscode/
 [tm-blog]: https://twitter.com/dhh/status/492706473936314369?lang=en
@@ -306,3 +384,8 @@ I have grown to love working with typed JavaScript to ensure soundness, with Rea
 [vscode-relay]: https://github.com/alloy/vscode-relay
 [rel-theory]: https://github.com/alloy/relational-theory/
 [systems-theory]: https://github.com/orta/systems-theory/
+[emiss-gene-test]: https://github.com/artsy/emission/blob/ec565b8492540b4e33066364b415c7906ec1e028/lib/containers/__tests__/gene-tests.js#L121-L158
+[jest-codemods]: https://github.com/skovhus/jest-codemods
+
+[search-bar]: https://github.com/artsy/emission/blob/c558323e4276699925b4edb3d448812005ae6b5d/lib/components/home/search_bar.js
+[yarn]: https://yarnpkg.com
