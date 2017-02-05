@@ -9,8 +9,8 @@ series: React Native at Artsy
 
 The Artsy web team have been early adopters of node, and for the last 4 years the stable stack for the Artsy website has been predominantly been Node + CoffeeScript + Express + Backbone. In 2016 the mobile team announced that it had moved to React Native, matching the web team as using JavaScript as the tools of their trade.
 
-Historically we have always had two separate dev teams for building Artsy.net and the corresponding iOS app, we call them (Art) Collector Web, and Collector Mobile. By the end of 2016 we decided to merge the teams. The merger has given way to a whole plethora of ideas about what modern JavaScript looks like and we've been experimenting with finding common patterns between web and native.
-
+Historically we have always had two separate dev teams for building Artsy.net and the corresponding iOS app, we call them (Art) Collector Web, and Collector Mobile. By the end of 2016 we decided to merge the teams. The merger has given way to a whole plethora of ideas about what modern JavaScript looks like and we've been experimenting with finding common patterns between web and native. 
+ 
 This post tries to encapsulate what we consider to be our consolidated stack for web/native Artsy in 2017. 
 
 TLDR: GraphQL, TypeScript, React/React Native, Relay, Yarn, Jest, and VS Code.  
@@ -18,6 +18,8 @@ TLDR: GraphQL, TypeScript, React/React Native, Relay, Yarn, Jest, and VS Code.
 <!-- more -->
 
 ## Overview
+
+Our web stack has been [ezel.js][ezel] since 2013, and continues to be a mature and well thought out technology. Since then, there has been explorations on a successor to that framework using React and GraphQL with [muraljs][mural]. However, since the merger, a lot more of our focus has been on trying to find something that feels similar on both React and React Native.
 
 * TypeScript
   - Like Ruby, less magic, more types, better tooling
@@ -228,11 +230,33 @@ Had you told me two years ago that my main editor would be a JavaScript app, I'd
 
 Visual Studio Code was the app that changed my mind.
 
-I've done a longer write up on the how and why we use VS Code in [JavaScript projects][vcode-js], however here I'd like to consider more of the cultural aspect. It's common practice among web technologists to all have different editors on a project, and for their editors to generally do little work for them. A lot of this culture came from the TextMate and Rails days with the infamous [blog in 5 minutes video][tm-blog]. When I was a web developer, I also did this. 
+I've done a longer write up on the how and why we use VS Code in [JavaScript projects][vcode-js], however here I'd like to consider more of the cultural aspect. It's common practice among web technologists to all have different editors on a project, and for their editors to generally do little work for them. A lot of this culture came from the TextMate and Rails days with the infamous [blog in 15 minutes video][tm-blog]. When I was a web developer, I also did this. 
 
-When you spend a lot of time in a powerful IDE though, it gets pretty hard to go back to a bare-bones editor. VS Code sits at a good half-way point between full-IDE and text editor. You can get a lot of the flexibility from 
+When you spend a lot of time in a [powerful IDE][xcode] though, it gets pretty hard to go back to a bare-bones editor. VS Code sits at a good half-way point between full-IDE and text editor. You can get a lot of the flexibility from 
 
-One thing that is working well for us is to gradually add project settings for our apps
+One thing that is working well for us is to gradually add project settings for our apps, first we add the ability to run tests with an attached debugger by adding a `launch.json`:
+
+```json
+{
+    "name": "Run Tests With Debugger (slower, use yarn for normal work)",
+    "type": "node2",
+    "request": "launch",
+    "port": 5858,
+    "address": "localhost",
+    "sourceMaps": true,
+    "stopOnEntry": false,
+    "runtimeExecutable": null,
+    "runtimeArgs": [
+      "--debug-brk",
+      "./node_modules/.bin/jest",
+      "-i"
+    ],
+    "cwd": "${workspaceRoot}"
+}
+```
+
+Meaning we can showcase how easy you can use an inline debugger with source-maps when working with tricky tests. That's usually a good step towards moving everyone to a consistent environment.
+
 
   - Open Source
   - Process Separated
@@ -250,14 +274,15 @@ One thing that is working well for us is to gradually add project settings for o
 
 ### End
 
-- It's the facebook stack. lols.
+None of these technologies are under a year old, all of them have adoption by substantial amount of companies. Nothing feels  either controversial or novel. This is great. It feels like a lot of the interesting work for us so far has been around improving the spaces between the projects: Finding improvements for generating types [from GraphQL][graphql2ts] or [Relay][graphql2relay], adding [editor support to jest][jest-editor], adding Danger to [our dependencies][jest-danger] and improving our [tooling][vscode-rns] ]for][vscode-jest] [vscode][vscode-relay]. The front-end is still a pretty small dev team, so we want to do high impact, small projects that can make our tools drastically better. 
 
-- Relying on mostly solid multi-year old projects (which is old in web-years)
-- We help out, fixing gaps between these larger projects e.g. vscode-jest, relay fork
-- Potential for sharing code between web and native
-- All open source, all hackable
+React, React-Native, Jest, Yarn are all big Facebook projects. In the iOS world, there is a sense of wariness around building an app so heavily around [three20][three20] - which I think is a bit unfair. From my perspective, determining whether you should have something as a dependency [should be nuanced][deps], but at a minimum you should feel like you can contribute bug fixes and ideally you should be able to maintain the project if it needs it. With Facebook projects, they've shown to be really open to PRs and discussion.
 
+We're still exploring the space where we can share code between web and mobile. I'd like to hope within a few months we can write up how that is going on. For now, if you're interested in prototypes, we've been moving our React Native components to the web inside [Relational Theory][rel-theory] and [Systems Theory][sys-theory] tries bringing new ideas from Relational Theory back to React Native.
 
+I have grown to love working with typed JavaScript to ensure great tooling, with React and Relay to drastically reduce the amount of code we need to write and to provide awesome root abstractions to build on.  
+
+[ezel]: /blog/2013/11/30/rendering-on-the-server-and-client-in-node-dot-js/
 [mob-graph]: /blog/2016/06/19/graphql-for-mobile/
 [graph-spec]: https://github.com/facebook/graphql
 [think-ql]: https://facebook.github.io/relay/docs/thinking-in-graphql.html
@@ -268,4 +293,16 @@ One thing that is working well for us is to gradually add project settings for o
 [yarn-example]: https://github.com/artsy/metaphysics/pull/479
 [vcode-js]: /blog/2016/08/15/vscode/
 [tm-blog]: https://twitter.com/dhh/status/492706473936314369?lang=en
-
+[xcode]: https://developer.apple.com/xcode/
+[mural]: https://github.com/muraljs/mural
+[three20]: http://joehewitt.com/2009/03/23/the-three20-project
+[deps]: /blog/2015/09/18/Cocoa-Architecture-Dependencies/
+[graphql2relay]: https://github.com/alloy/relay2ts
+[graphql2ts]: https://github.com/avantcredit/gql2ts/blob/master/Changelog.md
+[jest-editor]: https://github.com/facebook/jest/commit/e597e5c46f8f4925d9a10c73d8eab05a2c4b8bc3
+[jest-danger]: https://github.com/facebook/jest/pull/2508
+[vscode-jest]: https://github.com/orta/vscode-jest#vscode-jest-
+[vscode-rns]: https://github.com/orta/vscode-react-native-storybooks
+[vscode-relay]: https://github.com/alloy/vscode-relay
+[rel-theory]: https://github.com/alloy/relational-theory/
+[systems-theory]: https://github.com/orta/systems-theory/
