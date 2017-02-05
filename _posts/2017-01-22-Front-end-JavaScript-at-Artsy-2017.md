@@ -280,7 +280,7 @@ React, React-Native, Jest, Yarn are all big Facebook projects. In the iOS world,
 
 We're still exploring the space where we can share code between web and mobile. I'd like to hope within a few months we can write up how that is going on. For now, if you're interested in prototypes, we've been moving our React Native components to the web inside [Relational Theory][rel-theory] and [Systems Theory][sys-theory] tries bringing new ideas from Relational Theory back to React Native.
 
-I have grown to love working with typed JavaScript to ensure great tooling, with React and Relay to drastically reduce the amount of code we need to write and to provide awesome root abstractions to build on.  
+I have grown to love working with typed JavaScript to ensure soundness, with React and Relay to drastically reduce the amount of code we need to write and to provide awesome root abstractions to build on. Mix that with a hackable editor with substantial language support and it feels like almost exclusively writing business domain logic. 
 
 [ezel]: /blog/2013/11/30/rendering-on-the-server-and-client-in-node-dot-js/
 [mob-graph]: /blog/2016/06/19/graphql-for-mobile/
