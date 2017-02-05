@@ -1,10 +1,9 @@
 ---
 layout: post
 title: "Exploration: Front-end JavaScript at Artsy in 2017"
-date: 2017-01-22 12:17
+date: 2017-02-05 12:17
 author: orta
-categories: [javascript, emission, reactnative, force, typescript]
-series: React Native at Artsy
+categories: [javascript, emission, reactnative, force, typescript, relay, react, reactnative]
 ---
 
 <center>

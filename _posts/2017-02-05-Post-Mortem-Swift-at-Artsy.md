@@ -1,9 +1,9 @@
 ---
 layout: post
 title: "Postmortem: Swift at Artsy"
-date: 2017-01-22 12:18
+date: 2017-02-05 12:18
 author: orta
-categories: [swift, eigen, eidolon, javascript, emission, reactnative]
+categories: [swift, eigen, eidolon, javascript, emission, reactnative, objectivec, uikit]
 series: React Native at Artsy
 ---
 
