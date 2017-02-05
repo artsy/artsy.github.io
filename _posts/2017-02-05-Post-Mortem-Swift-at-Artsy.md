@@ -45,6 +45,10 @@ Re-writing from scratch was not an option. That takes [a lot of time and effort]
 
 In the end, for Eigen, we came to the conclusion that we wanted to work with a component-based architecture. This architectual  choice comes from studying how other larger apps handle code-reuse. We were considering building the structure from based on JSON ( which would have ended up like Spotify's ([hub][hub]) or Hyperslo's ([Spots][spots]) ) or inspired by React ( like Bending Spoons's ([Katana][katana]) ).
 
+<center>
+ <img src="/images/js2017/swift.svg" style="width:250px;">
+</center>
+
 # Swift's upsides
 
 Had we continued with native apps via native code, we'd have put more resources behind Swift, which had quite a bit running for it:
@@ -93,6 +97,10 @@ The dominant two issues come from differences in opinions in how software should
 
 # React Native
 
+<center>
+ <img src="/images/react-native/artsy_react_logo.svg" style="width:300px;">
+</center>
+
 You may want to read our announcement of switching to [React Native][artsy-rn] in anticipation of this. However the big three reasons are:
 
 * Better developer experience.
@@ -115,7 +123,7 @@ Apple make _great_ tools. I do miss Xcode sometimes. It's cohesive, beautifully 
 
 Though it's important to note that they make tools for Apple first and then for us 3rd party devs. Outside influence obviously exists, but they're shipping whatever _they_ want and you can only influence that via Radars and through going to a conference once a year and talking directly to the dev tools team. Only the Swift language is Open Source (and [SwiftPM][swiftpm])
 
-There are so few well built, large developer tools for the Apple eco-system. Developers are wary [of][stack] [being copied by Apple][https://twitter.com/mattt/status/473544723118837760] - something so prevalent that there is a common word for it, being [Sherlocked][sherlocked]. The project I've worked on for 5 years, CocoaPods, had an announcement of being sherlocked in late-2015 - you just have to deal with it. The idea that only Apple should be shipping these kind of things kills community momentum.
+There are so few well built, large developer tools for the Apple eco-system. Developers are wary [of][stack] [being copied by Apple][copied] - something so prevalent that there is a common word for it, being [Sherlocked][sherlocked]. The project I've worked on for 5 years, CocoaPods, had an announcement of being sherlocked in late-2015 - you just have to deal with it. The idea that only Apple should be shipping these kind of things kills community momentum.
 
 <center><blockquote class="twitter-tweet" data-lang="en"><p lang="en" dir="ltr">Alfred, Dropbox, Snapchat, Parse, OpenGL, Objective-C… <br><br>Quite the body count this WWDC.</p>&mdash; Mattt (@mattt) <a href="https://twitter.com/mattt/status/473544723118837760">June 2, 2014</a></blockquote> <script async src="//platform.twitter.com/widgets.js" charset="utf-8"></script></center>
 
@@ -213,7 +221,9 @@ In our announcement we talked about the lack of nuanced post-mortems on React Na
 * Extensive communication with native code gets tricky to test and maintain
 * It makes working in native code feel like a bad job for someone to do
 
-So, should you use React Native? Maybe. If you have an API driven app, probably.
+So, should you use React Native? Maybe. *If you have an API driven app, probably.* 
+
+It's definitely worth a week of prototyping for any engineering team, then if that goes well you should look into GraphQL and Relay. They really makes React Native shine. 
 
 # Want to get started?
 
@@ -223,13 +233,19 @@ So, should you use React Native? Maybe. If you have an API driven app, probably.
 - Clone our React Native app, [Emission][emission].
 - Read the rest of our [series on React Native][series].
 
+If you'd like to look into GraphQL + Relay, but don't want to start building a server yourself, consider these GraphQL as a Services:
 
-[js-2017]: SFSDFSDDF
-[relay]: ASDASDASD
-[jest]: GSGSDGS
-[graphql]: SDFSDFSDF
-[react]: ASDASDASSD
-[typescript]: ASDASDASSD
+- [scraphold](https://scaphold.io)
+- [graphcool](https://www.graph.cool/)
+- [Learn Relay](https://www.learnrelay.org)
+
+[js-2017]: /blog/2017/01/22/Front-end-JavaScript-at-Artsy-2017/
+[relay]: /blog/2017/01/22/Front-end-JavaScript-at-Artsy-2017/#Relay
+[jest]: /blog/2017/01/22/Front-end-JavaScript-at-Artsy-2017/#Jest
+[graphql]: /blog/2017/01/22/Front-end-JavaScript-at-Artsy-2017/#GraphQL
+[react]: /blog/2017/01/22/Front-end-JavaScript-at-Artsy-2017/#React...React.Native
+[typescript]: /blog/2017/01/22/Front-end-JavaScript-at-Artsy-2017/#TypeScript
+[code]: /blog/2017/01/22/Front-end-JavaScript-at-Artsy-2017/#Visual.Studio.Code
 
 [eidolon-postmortem]: http://artsy.github.io/blog/2014/11/13/eidolon-retrospective/
 [emergence]: https://github.com/artsy/emergence
@@ -305,3 +321,4 @@ So, should you use React Native? Maybe. If you have an API driven app, probably.
 [series]: /series/react-native-at-artsy/
 [rn]: https://facebook.github.io/react-native/
 [swift-excite]: https://twitter.com/wilshipley/status/565001293975257091
+[copied]: https://twitter.com/mattt/status/473544723118837760

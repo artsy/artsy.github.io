@@ -512,22 +512,22 @@ Both take the approach of providing an optional typing system. This means you ca
 
 ### Interfaces
 
-As both [Flow](#flow) and [TypeScript](#typescript) interact with JavaScript, the mindset for applying types is through Interfaces. This is very similar to protocol oriented programming, where you only care about the responsibilities  of an object - not the specific type. Here is a Flow interface from DangerJS:
+As both [Flow](#flow) and [TypeScript](#typescript) interact with JavaScript, the mindset for applying types is through Interfaces. This is very similar to programming with protocols, where you only care about the responsibilities  of an object - not the specific type. Here is a Flow interface from DangerJS:
 
 ```js
 /** An API representation for a Code Review site */
 export interface Platform {
-/** Mainly for logging and error reporting */
-name: string;
-/** Used internally for getting PR/Repo metadata */
-ciSource: CISource;
-/** Pulls in the Code Review Metadata for inspection */
-getReviewInfo: () => Promise<any>;
-/** Pulls in the Code Review Diff, and offers a succinct user-API for it */
-getReviewDiff: () => Promise<GitDSL>;
-/** Creates a comment on the PR */
-createComment: (body: string) => Promise<?Comment>;
-[...]
+  /** Mainly for logging and error reporting */
+  name: string;
+  /** Used internally for getting PR/Repo metadata */
+  ciSource: CISource;
+  /** Pulls in the Code Review Metadata for inspection */
+  getReviewInfo: () => Promise<any>;
+  /** Pulls in the Code Review Diff, and offers a succinct user-API for it */
+  getReviewDiff: () => Promise<GitDSL>;
+  /** Creates a comment on the PR */
+  createComment: (body: string) => Promise<?Comment>;
+  [...]
 }
 ```
 

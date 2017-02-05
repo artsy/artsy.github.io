@@ -11,13 +11,13 @@ series: React Native at Artsy
  <img src="/images/js2017/js.svg" style="width:300px;">
 </center>
 
-The Artsy web team have been early adopters of node, and for the last 4 years the stable stack for the Artsy website has been predominantly been Node + CoffeeScript + Express + Backbone. In 2016 the mobile team announced that it had moved to React Native, matching the web team as using JavaScript as the tools of their trade.
+The Artsy web team have been early adopters of node, and for the last 4 years the stable stack for the Artsy website has been predominantly been Node + CoffeeScript + Express + Backbone. In 2016 the mobile team [announced][rn-at-artsy] that it had moved to React Native, matching the web team as using JavaScript as the tools of their trade.
 
 Historically we have always had two separate dev teams for building Artsy.net and the corresponding iOS app, we call them (Art) Collector Web, and Collector Mobile. By the end of 2016 we decided to merge the teams. The merger has given way to a whole plethora of ideas about what modern JavaScript looks like and we've been experimenting with finding common, natural patterns between web and native.
  
 This post tries to encapsulate what we consider to be our consolidated stack for web/native Artsy in 2017. 
 
-**TLDR:** GraphQL, TypeScript, React/React Native, Relay, Yarn, Jest, and Visual Studios Code.  
+**TLDR:** [TypeScript](#TypeScript), [GraphQL](#GraphQL), [React/React Native](#React...React.Native), [Relay](#Relay), [Yarn](#Yarn), [Jest](#Jest), and [Visual Studio Code](#Visual.Studio.Code).
 
 <!-- more -->
 
@@ -31,18 +31,29 @@ Our web stack has been [ezel.js][ezel] since 2013, and continues to be a mature 
  <img src="/images/js2017/ts.svg" style="width:300px;">
 </center>
 
-  - Like Ruby, less magic, more types, better tooling
-  - Inferred typing
-  - Types provide documentation
-  - Types provide interfaces
-  - Types can come from external definitions
-  - Types are optional, use them when we want
-  - TS is a consolidation of Future JS + Types, basically Babel + Flow
-  - Classes exist, are optional, but we use them in React
-  - Generics, Enums and union types
-  - Soundness "unsound" behavior = `any`
-  - Deep Dive - https://github.com/basarat/typescript-book
-  - Looking open to extensions (e.g. Relay)
+[TypeScript][ts] and [Flow][flow] really moved JavaScript forwards in the last few years. They both tackle the essential problems of "how can I trust my code does what I think", "how can I be sure of this change" and "how can I build better tools for JavaScript" in different ways.
+
+Yes, the title of this section is TypeScript and yet I instantly include Flow. I don't think you can, or should talk about TypeScript without understanding it's relationship to Flow. 
+
+Both [TypeScript][ts-types] and [Flow][flow-types] provide a structure for applying Types to JavaScript. 
+
+Both [TypeScript][ts-infer] and [Flow][flow-infer] will infer typing metadata from untyped data.
+
+Both [TypeScript][ts-def] and [Flow][flow-def] have systems for applying types to node modules.
+
+We initially went with Flow, as Flow is a [considerably easier sell][selling-flow] to others, as it integrates inside existing JavaScript projects with less issues. Flow acts as a separate tool to a babel-based JavaScript project, whereas TypeScript is a full on replacement for that tooling.
+
+_Why bother though?_ JavaScript has existed for decades without type annotations, and everyone seems to have got on pretty well. One of the key features that a typing system gives you is top-notch tooling. An editor can use the type interfaces to provide auto-completion, inline documentation and inline warning/errors as you work. Type systems will help catch errors before you have even pressed save.
+
+{% expanded_img /images/js2017/types.png %}
+
+What works really well for typed JavaScript is that you can easily opt out of it when you need to. Then you're back to normal "do whatever you want" JavaScript land, no problem.
+
+We moved from Flow simply because TypeScript had better integration with [Visual Studio Code][vscode-home] (VS Code). For a few months I devoted time to improving the Flow integration in VS Code, and tried learning OCaml to help out on the [Flow tool][flow-gh] itself. In the end though, when we compared to how solid VS Code felt with TypeScript - we decided it was worth converting our projects.
+
+Both TypeScript and Flow provide nearly every Type strucutre found inside Objective-C and Swift, so teaching the rest of the team how they work is easy from our native experiences.
+
+One particularly interesting part of TypeScript that we are keeping our eyes on is this [language extensibility issue][ts-extensions], if it turns out well, we will be looking into integrating the other technologies mentioned here into TypeScript itself.
 
 ## GraphQL
 
@@ -75,22 +86,11 @@ It's important to note here, the data being sent _back_ is specifically  what yo
 
 This is in stark contrast to other successors to REST APIs, the hypermedia APIs, like [HAL](http://stateless.co/hal_specification.html) and [JSON-API](http://jsonapi.org) - both of which are optimised for caching, and rely on "one model, one request" types of API access. E.g. a list of Artworks would actually contain a list of hrefs instead of the model data, and you have to fetch each model in a separate request.
 
-Hypermedias APIs have a really useful space in cross-server communications, but are extremely wasteful of the most precious resource on a front-end device - bandwidth. The sooner you can enough information to present a screen 
+Hypermedias APIs have a really useful space in cross-server communications, but are extremely wasteful of the most precious resource for a front-end device - bandwidth. [Latency matters considerably](latency), on mobile where bandwidth is spotty, and attention spans are short you need to do everything possible to show more than a loading spinner.
 
-I explored our usage of GraphQL from the perspective of a native developer [earlier in the year][mob-graph]. 
+I have previously explored our usage of GraphQL from the perspective of a native developer [in 2016][mob-graph]. So I'll leave that post to describe our implementation of a GraphQL server.
 
-We use GraphQL as an API middle-layer. It acts as an intermediate layer between multiple front-end clients and multiple back-end APIs. This means we can easily coalesce many API calls into a single request, this can be a _massive_ user experience improvement when you have a screen that requires information from varied sources before you can present anything to a user.
-
-<img src="/images/2016-06-19-graphql-for-iOS-devs/graphQL.svg" width=100%>
-
-  - Owned by front-end
-  - Moves control of what data is accessed on to clients
-  - Acts as a meta-API between many APIs
-  - Tiny data up, tiny data down
-  - Strictly typed
-  - Easy to export all schema
-  - Graphiql
-  - Starting to see wider adoption due to GitHub
+One exciting movement in the space of GraphQL is [GitHub moving to GraphQL][github-gql] for their new APIs.
 
 ## React / React Native
 
@@ -98,10 +98,9 @@ We use GraphQL as an API middle-layer. It acts as an intermediate layer between 
  <img src="/images/react-native/artsy_react_logo.svg" style="width:300px;">
 </center>
 
-React is a Facebook project which offers a uni-direction Component model that _can_ replace MVC in a front-end application. React was built out of a desire to abstract away a web page's true view hierarchy (called the DOM) so that they could make changes to all of their views and then React would handle finding the differences between view states.
+React is a Facebook project which offers a uni-direction Component model that _can_ replace MVC in a front-end application. React was built out of a desire to abstract away a web page's true view hierarchy (called the DOM) so that they could make changes to to view in memory and then React would handle finding the differences between view states.
 
-Its model is that you would create a set of Components to encapsulate each part for the state of the page. React makes it easy to make components that are functional in the [Functional Reactive Programming](https://en.wikipedia.org/wiki/functional_reactive_programming) sense. They act like a function which takes some specially declared state and it is rendered into HTML.
-
+You create a set of Components to encapsulate each part of the state of the page. React makes it easy to make components that are functional in the [Functional Reactive Programming](https://en.wikipedia.org/wiki/functional_reactive_programming) sense. They act like a function which takes some specially declared state and it is rendered into HTML.
 
 A component optionally uses a language called [JSX](#jsx) to visualise how each component's child components are set up,here's an example of a React component using JSX [from Emission, our React Native library][search-bar]:  
 
@@ -130,20 +129,10 @@ We can then build on React via React-Native to allow the same style of code to e
 
 React Native is an implementation of React where instead of having React's virutal DOM map to a web page's DOM, it creates a native view hierarchy. In the case of iOS that is a `UIView` hierarchy, and in Android, a `View` heirarchy.
 
+If you'd like to find out why the iOS team moved to React Native, check our [series of posts on React Native](/series/react-native-at-artsy/).
 
-  - React is only our view layer
-  - But when you're building API-driven apps, that could be all you need
+React is strictly only the view layer of 
 
-  - Stable, mature library, on web this is not new territory
-  - Requires a re-think of how views should be structured
-  - Separation of view hierarchy code and app logic via JSX
-
-  - One way data flow
-  - Virtual DOM
-  - There is a 4.5k word essay on our move to React Native
-
-  - Ideas like pure function makes it easy to write tests
-  - A lot of great tooling available 
 
 ## Relay
 
@@ -151,7 +140,7 @@ React Native is an implementation of React where instead of having React's virut
  <img src="/images/js2017/relay.svg" style="width:300px;">
 </center>
 
-Any front-end client has a lot of work to do on a page:
+Any front-end client has a lot of work to do on every page:
 
   * Fetching all the data for a view hierarchy.
   * Managing asynchronous state transitions and coordinating concurrent requests.
@@ -221,8 +210,7 @@ Relay handles this by having each component in your view hierarchy exposing the 
 
 The data is first looked up inside Relay's local cache, and then any un-cached items are requested from the network. The results of the query is then moved into the component via it's props. Relay will only provide the specific data each component has requested. So the `Header` component would get nothing for `this.props.gene.name`. This data-masking is a great way of ensuring the connection between component and API.
 
-I'd strongly recommend taking the dive into both the [Thinking with GraphQL][thinking-ql] and then [Thinking with Relay][think-rl] tutorials to learn more. 
-
+I'd strongly recommend taking the dive into both the [Thinking with GraphQL][thinking-ql] and then [Thinking with Relay][think-rl] tutorials to learn more. Finally, [Learn Relay](learnrelay) and [Relay for Visual Learners][relay-visual] are a great tutorials, to help you get comfortable with the concepts.
 
 ## Yarn
 
@@ -352,9 +340,9 @@ Having a consistent environment might sound a bit corporate for a ~25 person dev
 
 ### End
 
-None of these technologies are under a year old, all of them have adoption by substantial amount of companies. Nothing feels  either controversial or novel. This is great. It feels like a lot of the interesting work for us so far has been around improving the spaces between the projects: Finding improvements for generating types [from GraphQL][graphql2ts] or [Relay][graphql2relay], adding [editor support to jest][jest-editor], adding Danger to [our dependencies][jest-danger] and improving our [tooling][vscode-rns] ]for][vscode-jest] [vscode][vscode-relay]. The front-end is still a pretty small dev team, so we want to do high impact, small projects that can make our tools drastically better. 
+None of these technologies are under a year old, all of them have adoption by substantial amount of companies. Nothing feels  either controversial or novel. This is great. It feels like a lot of the interesting work for us so far has been around improving the spaces between the projects: Finding improvements for generating types [from GraphQL][graphql2ts] or [Relay][graphql2relay], adding [editor support to jest][jest-editor], adding Danger to [our dependencies][jest-danger] and improving our [tooling][vscode-rns] [for][vscode-jest] [vscode][vscode-relay]. The front-end is still a pretty small dev team, so we want to do high impact, small projects that can make our tools drastically better. 
 
-React, React-Native, Jest, Yarn are all big Facebook projects. In the iOS world, there is a sense of wariness around building an app so heavily around [three20][three20] - which I think is a bit unfair. From my perspective, determining whether you should have something as a dependency [should be nuanced][deps], but at a minimum you should feel like you can contribute bug fixes and ideally you should be able to maintain the project if it needs it. With Facebook projects, they've shown to be really open to PRs and discussion.
+React, React-Native, Jest, Yarn are all big Facebook projects. In the iOS world, there is a sense of wariness around building an app so heavily around [three20][three20] - which I think is a bit unfair. From my perspective, determining whether you should have something as a dependency [should be nuanced][deps], but at a minimum you should feel like you can contribute bug fixes and ideally you should be able to maintain the project if it needs it. With Facebook projects, they've shown to be really open to PRs and discussion, and our work in them makes us feel comfortable to maintain a fork if needed.
 
 We're still exploring the space where we can share code between web and mobile. I'd like to hope within a few months we can write up how that is going on. For now, if you're interested in prototypes, we've been moving our React Native components to the web inside [Relational Theory][rel-theory] and [Systems Theory][sys-theory] tries bringing new ideas from Relational Theory back to React Native.
 
@@ -383,9 +371,25 @@ I have grown to love working with typed JavaScript to ensure soundness, with Rea
 [vscode-rns]: https://github.com/orta/vscode-react-native-storybooks
 [vscode-relay]: https://github.com/alloy/vscode-relay
 [rel-theory]: https://github.com/alloy/relational-theory/
-[systems-theory]: https://github.com/orta/systems-theory/
+[sys-theory]: https://github.com/orta/systems-theory/
 [emiss-gene-test]: https://github.com/artsy/emission/blob/ec565b8492540b4e33066364b415c7906ec1e028/lib/containers/__tests__/gene-tests.js#L121-L158
 [jest-codemods]: https://github.com/skovhus/jest-codemods
-
 [search-bar]: https://github.com/artsy/emission/blob/c558323e4276699925b4edb3d448812005ae6b5d/lib/components/home/search_bar.js
 [yarn]: https://yarnpkg.com
+[rn-at-artsy]: /blog/2016/08/15/React-Native-at-Artsy/
+[latency]: http://blog.gigaspaces.com/amazon-found-every-100ms-of-latency-cost-them-1-in-sales/
+[github-gql]: https://githubengineering.com/the-github-graphql-api/
+[learnrelay]: https://www.learnrelay.org
+[relay-visual]: https://sgwilym.github.io/relay-visual-learners/
+[selling-flow]: https://discuss.reactjs.org/t/if-typescript-is-so-great-how-come-all-notable-reactjs-projects-use-babel/4887
+[ts-types]: http://www.typescriptlang.org/play/#src=function%20addNumbers(first%3A%20number%2C%20second%3A%20number)%20%7B%0D%0A%09return%20first%20%2B%20second%0D%0A%7D%0D%0A%0D%0AaddNumbers(1%2C%202)%0D%0A
+[flow-types]: https://flowtype.org/docs/five-simple-examples.html#adding-type-annotations
+[ts-infer]: http://www.typescriptlang.org/play/#src=var%20one%20%3D%201%0D%0A%0D%0Aone%20%3D%20%22%22%0D%0A
+[flow-infer]: https://flowtype.org/docs/classes.html#type-annotations-vs-inference
+[ts-def]: https://www.npmjs.com/%7Etypes
+[flow-def]: https://github.com/flowtype/flow-typed
+[ts]: http://www.typescriptlang.org
+[flow]: https://flowtype.org/
+[flow-gh]: https://github.com/facebook/flow
+[vscode-home]: https://code.visualstudio.com
+[ts-extensions]: https://github.com/Microsoft/TypeScript/issues/6508
