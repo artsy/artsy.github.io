@@ -95,11 +95,13 @@ The dominant two issues come from differences in opinions in how software should
 
 * **Slow.** Native development when put next to web development is slow. Application development requires full compilation cycles, and full state restart of the application that you're working on. A trivial string change in Eigen takes [25 seconds][eigen_25] to show up. When I tell some developers that time, they laugh and say I have it good.
 
-  The moment that this really stood out for me was when I [re][injection-twentytwelve]-discovered [Injection for Xcode][injection_twitter] which ruined my appetite for building apps the traditional way. It reduced an iteration cycle to about [a second][injection_time]. With Apple's resources, and the fact that Injection for Xcode has existed for years by a single developer, it's embarrassing that iOS is a [mobile platform][instant-run] with no support code reloading. I filed bug reports ([radars][what-is-radar]), they were marked as duped with no comment. I talked to Apple engineers at WWDC, the idea was dismissed as "didn't work" when it was [tried before][fix-and-continue].
-  
-  I've heard developers say they use using Playgrounds to work around some of these problems, and the Kickstarter app has probably the closest I've seen to an [actual implementation of this][kickstart_play], so check that out if you're hitting these issues.
+  <center><blockquote class="twitter-tweet" data-lang="en"><p lang="en" dir="ltr">Making a single edit in a string takes 25 seconds to see the difference in the swift parts of Eigen <a href="https://t.co/MOPGPEWqxX">pic.twitter.com/MOPGPEWqxX</a></p>&mdash; 💍rta Therox (@orta) <a href="https://twitter.com/orta/status/778242899821621249">September 20, 2016</a></blockquote></center>
 
-  The Swift compiler is slow. Yes, it will improve. One argument that it won't ever be as fast as Objective-C comes from Swift being a more complicated language to compile - it's doing more work. There is nothing like a constrained generic with an associated type, or nested classes with protocol extensions in the Objective-C world. One amazing feature that can catch you out on compile time is the type inference system, which can make it feel arbitrary about what will take longer to compile or not. We eventually [automated having our CI warn us][danger-eigen] whether the code we were adding was slow as it felt indeterminate.
+  The moment that this really stood out for me was when I [re][injection-twentytwelve]-discovered [Injection for Xcode][injection_twitter] which ruined my appetite for building apps the traditional way. It reduced an iteration cycle to about [a second][injection_time]. With Apple's resources, and the fact that Injection for Xcode has existed for years by a single developer, it's frustrating that iOS is a [mobile platform][instant-run] with no support for code reloading. I filed bug reports ([radars][what-is-radar]), they were marked as duped with no comment. I talked to Apple engineers at WWDC, the idea was dismissed as "didn't work" when it was [tried before][fix-and-continue].
+  
+  I've heard developers say they use Playgrounds to work around some of these problems, and the Kickstarter app has probably the closest I've seen to an [actual implementation of this][kickstart_play], so check that out if you're hitting these issues.
+
+  The Swift compiler is slow. Yes, it will improve. One of my favourite Swift features, inferred typing, can accidentally increase compile times non-obviously. Which can make it feel arbitrary about what code takes longer to compile or not. We eventually [automated having our CI warn us][danger-eigen] whether the code we were adding was slow as it felt hard to predict.
 
 # React Native
 
@@ -155,7 +157,7 @@ With Relay, we got an genuinely ground-breaking change in how interactions get h
 
 > References from JS 2017: [React][react], [Relay][relay]
 
-Both of these tools provide a developer experience better than iOS native tooling. React's strict state management rules allow external tools to extend a React application easily, so the onus is not on the React team to make better tools. Other projects provide tools like:[debuggers][rn-debugger], [external state viewers][reactotron], [runtime code injection][hrm], [component storyboarding][storybook] all of which can be running simultaneously at runtime. 
+Both of these tools provide a developer experience better than iOS native tooling. React's strict state management rules allow external tools to extend a React application easily, so the onus is not on the React team to make better tools. Other projects provide tools like: [debuggers][rn-debugger], [external state viewers][reactotron], [runtime code injection][hrm], [component storyboarding][storybook] all of which can be running simultaneously at runtime. 
 
 A single press of save would take your changes, inject it into your current running application, keep you in the exact same place, depending on the type of change it could re-layout your views, and so you can stay in your editor and make your changes. <em>From 25 seconds, to less than one</em>. For a lot of my work, I can put my tests, debuggers and the application on another screen, and just move my head to watch changes propagate on save.
 
