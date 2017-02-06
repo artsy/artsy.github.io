@@ -1,5 +1,5 @@
 ---
-layout: post
+layout: post_longform
 title: "Exploration: Front-end JavaScript at Artsy in 2017"
 date: 2017-02-05 12:17
 author: orta
@@ -12,7 +12,7 @@ categories: [javascript, emission, reactnative, force, typescript, relay, react,
 
 The Artsy web team have been early adopters of node, and for the last 4 years the stable stack for the Artsy website has been predominantly been Node + CoffeeScript + Express + Backbone. In 2016 the mobile team [announced][rn-at-artsy] that it had moved to React Native, matching the web team as using JavaScript as the tools of their trade.
 
-Historically we have always had two separate dev teams for building Artsy.net and the corresponding iOS app, we call them (Art) Collector Web, and Collector Mobile. By the end of 2016 we decided to merge the teams. The merger has given way to a whole plethora of ideas about what modern JavaScript looks like and we've been experimenting with finding common, natural patterns between web and native.
+Historically we have always had two separate dev teams for building Artsy.net and the corresponding iOS app, we call them (Art) Collector Web, and Collector Mobile. By the end of 2016 we decided to merge the teams. The merger has given way to a whole plethora of ideas about what contemporary JavaScript looks like and we've been experimenting with finding common, natural patterns between web and native.
  
 This post tries to encapsulate what we consider to be our consolidated stack for web/native Artsy in 2017. 
 
@@ -233,11 +233,11 @@ yarn install
 
 Now you have a lockfile, and are using yarn. Awesome, if you are migrating from a project with a shrink-wrap - I have a script which will generate a summary of the changes for you: [script][yarn-migrate], [example][yarn-example].
 
-## Jest
-
 <center>
  <img src="/images/js2017/jest.svg" style="width:300px;">
 </center>
+
+## Jest
 
 One of the things that I find particularly pleasant about the JavaScript ecosystem are their testing tools. With our React Native, we came into the ecosystem with fresh eyes, and it was pretty obvious that Jest was an exceptional testing framework. I hear historically Jest has been a bit meh, but it is without a doubt worth another look.
 
