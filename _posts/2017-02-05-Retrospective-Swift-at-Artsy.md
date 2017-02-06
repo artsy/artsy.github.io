@@ -209,7 +209,7 @@ In contrast, and this may be the last major time it happens, but people refer to
 
 # React Native, one year later
 
-In our announcement we talked about the lack of nuanced post-mortems on React Native. We're now a year in, we can at least try to help out in that space. We're sticking with React Native for the foreseeable future. It would take some _drastics_ changes in the Apple ecosystem for us to re-consider this decision. So here's our summary after 1 year.
+In our announcement we talked about the lack of nuanced post-mortems on React Native. We're now a year in, we can at least try to help out in that space. We're sticking with React Native for the foreseeable future. It would take some _drastic_ changes in the Apple ecosystem for us to re-consider this decision. So here's the summary after 1 year.
 
 * We can share concepts with web
 * Tools are built for our apps like ours
@@ -219,7 +219,9 @@ In our announcement we talked about the lack of nuanced post-mortems on React Na
 * Opens native engineers to more projects, makes yours more welcoming to others
 * Problems do, and will occur, but everything is fixable by forking
 * Extensive communication with native code gets tricky to test and maintain
-* It makes working in native code feel like a bad job for someone to do
+* We ended up re-using quite a lot of existing native code
+* It makes working in native code feel like a bad chore for someone to do
+* Spending so much time in another environment will erode native knowledge
 * We're not going to re-write other existing Apps into React Native
 * Makes a lot of sense in an [additive approach][our-rn]
 
