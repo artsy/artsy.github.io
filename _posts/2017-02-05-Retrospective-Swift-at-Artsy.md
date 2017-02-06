@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "Postmortem: Swift at Artsy"
+title: "Retrospective: Swift at Artsy"
 date: 2017-02-05 12:18
 author: orta
 categories: [swift, eigen, eidolon, javascript, emission, reactnative, objectivec, uikit]
@@ -19,7 +19,7 @@ We first started experimenting with with React Native in February 2016, and by A
 
 We're regularly asked _why_ we moved, and it was touched on briefly in our announcement but I'd like to dig in to this and try to cover a lot of our decision process. So, if you're into understanding why a small team of iOS developers with decades of experience switched to JavaScript, read on. 
 
-This post will cover: what are Artsy's apps?, swifts positives and negatives for us, React Native, and our 1-year summary.
+This post will cover: [What are Artsy's apps?][wot], Swifts [positives][swift-p] and [negatives][swift-n] for us, [React Native][react-n], and our [1-year summary][summary].
 
 <!-- more -->
 
@@ -220,6 +220,8 @@ In our announcement we talked about the lack of nuanced post-mortems on React Na
 * Problems do, and will occur, but everything is fixable by forking
 * Extensive communication with native code gets tricky to test and maintain
 * It makes working in native code feel like a bad job for someone to do
+* We're not going to re-write other existing Apps into React Native
+* Makes a lot of sense in an [additive approach][our-rn]
 
 So, should you use React Native? Maybe. *If you have an API driven app, probably.* 
 
@@ -232,12 +234,19 @@ It's definitely worth a week of prototyping for any engineering team, then if th
 - Run through the [f8 app][f8] series on  [makeitopen.com][f8-open].
 - Clone our React Native app, [Emission][emission].
 - Read the rest of our [series on React Native][series].
+- Read our summary on [our JavaScript stack choices][js-2017].
 
 If you'd like to look into GraphQL + Relay, but don't want to start building a server yourself, consider these GraphQL as a Services:
 
-- [scraphold](https://scaphold.io)
-- [graphcool](https://www.graph.cool/)
-- [Learn Relay](https://www.learnrelay.org)
+- [scraphold](https://scaphold.io).
+- [graphcool](https://www.graph.cool/).
+
+
+[wot]: /blog/2017/02/05/Retrospective-Swift-at-Artsy/#What.are.Artsy.s.apps.
+[swift-p]: /blog/2017/02/05/Retrospective-Swift-at-Artsy/#Swift.s.upsides
+[swift-n]: /blog/2017/02/05/Retrospective-Swift-at-Artsy/#Native.Downsides
+[react-n]: /blog/2017/02/05/Retrospective-Swift-at-Artsy/#React.Native
+[summary]: /blog/2017/02/05/Retrospective-Swift-at-Artsy/#React.Native..one.year.later
 
 [js-2017]: /blog/2017/01/22/Front-end-JavaScript-at-Artsy-2017/
 [relay]: /blog/2017/01/22/Front-end-JavaScript-at-Artsy-2017/#Relay
@@ -245,7 +254,7 @@ If you'd like to look into GraphQL + Relay, but don't want to start building a s
 [graphql]: /blog/2017/01/22/Front-end-JavaScript-at-Artsy-2017/#GraphQL
 [react]: /blog/2017/01/22/Front-end-JavaScript-at-Artsy-2017/#React...React.Native
 [typescript]: /blog/2017/01/22/Front-end-JavaScript-at-Artsy-2017/#TypeScript
-[code]: /blog/2017/01/22/Front-end-JavaScript-at-Artsy-2017/#Visual.Studio.Code
+[code]: /blog/2017/02/05/Front-end-JavaScript-at-Artsy-2017/#Visual.Studio.Code
 
 [eidolon-postmortem]: http://artsy.github.io/blog/2014/11/13/eidolon-retrospective/
 [emergence]: https://github.com/artsy/emergence
@@ -322,3 +331,4 @@ If you'd like to look into GraphQL + Relay, but don't want to start building a s
 [rn]: https://facebook.github.io/react-native/
 [swift-excite]: https://twitter.com/wilshipley/status/565001293975257091
 [copied]: https://twitter.com/mattt/status/473544723118837760
+[our-rn]: /blog/2016/08/24/On-Emission/

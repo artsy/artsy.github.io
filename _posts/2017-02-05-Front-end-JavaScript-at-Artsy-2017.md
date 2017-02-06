@@ -169,8 +169,8 @@ class Biography extends React.Component {
   }
 }
 
-// We take the above container, and wrap it with relay and a description of what parts
-// of a GraphQL request does the component need from the API. 
+// Take the above component `Biography`, and wrap it with a Relay Container.
+// Then provide what parts of a GraphQL request the `Biography` needs
 
 export default Relay.createContainer(Biography, {
   fragments: {
@@ -182,8 +182,8 @@ export default Relay.createContainer(Biography, {
   }
 })
 
-// Then when the Biography component is rendered, the component is given props of 
-// `gene.description` by the Relay container. 
+// When the `Biography` component is rendered, the component is given props of 
+// `gene` with a `description` by the Relay container. 
 ```
 
 Relay handles this by having each component in your view hierarchy exposing the fragments of a GraphQL query. There is a pre-render stage where all of your components fragments are brought together to make a single API request. So in the case of the Gene, it may look something like:
@@ -250,7 +250,7 @@ For example, I make a change in one source file and 60 tests run from 6 differen
 
 {% expanded_img /images/js2017/jest-watcher.gif %}
 
-Not all tests are as important to a run, so Jest also keeps track of which tests failed last time and will run those first next time. 
+Not all tests are as important to a run, so Jest also keeps track of which tests failed last time and will run those first next time. This reduces iteration time considerably.
 
 **Fast and safe** - You think the watcher is smart? Well the way Jest handle test suites is also extremely elegant. Jest keeps track of how long each test suite took to run, and then will weigh the test suites across different processes in order to speed up the overall test suite. If Jest thinks they're all going to be really quick (like my GIF above) they will all happen in one process, as that can also be faster.
 
@@ -282,7 +282,7 @@ While that example is trivial, we really want to have tests like this to ensure 
 
 **Comprehensive API** - Snapshots, watchers, custom matchers, useful JSON output, ESLint linters, Elegant Mocking tools and natural support for async code. All in one project.
 
-If you're interested, there is a lot of work around automating the migration between different testing frameworks in [jest-codemods][jest-codemods] - getting started has never been easier.
+If you're interested, there is a lot of work around automating the migration between different testing frameworks in [jest-codemods][jest-codemods] - getting started has never been easier. I'd also recommend looking at [wallaby.js][wallaby] and [vscode-jest][vscode-jest] for tooling.
 
 ## Visual Studio Code
 
@@ -294,11 +294,11 @@ Had you told me two years ago that my main editor would be a JavaScript app, I'd
 
 Visual Studio Code was the app that changed my mind.
 
-I've done a longer write up on the how and why we use VS Code in [JavaScript projects][vcode-js], however here I'd like to consider more of the cultural aspect. It's common practice among web technologists to all have different editors on a project, and for their editors to generally do little work for them. A lot of this culture came from the TextMate and Rails days with the infamous [blog in 15 minutes video][tm-blog]. When I was a web developer, I also did this. 
+I've done a longer write up on the how and why we use VS Code in [JavaScript projects][vcode-js], however here I'd like to consider the cultural aspect of the choice. It's common practice among web technologists to all have different editors on a project, and for their editors to generally do little work for them. A lot of this culture came from the TextMate and Rails days with the infamous [blog in 15 minutes video][tm-blog]. When I was a web developer, I also did this. 
 
-When you spend a lot of time in a [powerful IDE][xcode] though, it gets pretty hard to go back to a bare-bones editor. VS Code sits at a good half-way point between full-IDE and text editor. You can get a lot of the flexibility from 
+When you spend a lot of time in a [powerful IDE][xcode], it gets pretty hard to go back to a bare-bones editor. VS Code sits at a good (just past) half-way point between text editor and IDE. You can get a lot of the flexibility from a text editor, making it's good for one off files and IDEs where you have fully spec'd out projects.
 
-One thing that is working well for us is to gradually add project settings for our apps, first we add the ability to run tests with an attached debugger by adding a `launch.json`:
+Being able to have project specific setups is where VS Code really starts to shine. One thing that is working well for us is to gradually add project settings for our apps, first we add the ability to run tests with an attached debugger by adding a `launch.json`:
 
 ```json
 {
@@ -319,23 +319,11 @@ One thing that is working well for us is to gradually add project settings for o
 }
 ```
 
-Meaning we can showcase how easy you can use an inline debugger with source-maps when working with tricky tests. That's usually a good step towards moving everyone to a consistent environment.
+With this we can showcase how easy it is to use an inline debugger with source-maps, when working with tricky test logic. No more `console.log`. That's usually a great way to start moving everyone to a consistent environment. Then we add [recommended extensions][vscode-recs] to the project.
 
-Having a consistent environment might sound a bit corporate for a ~25 person dev team, but there's no 
+Trying to set a consistent  development environment might sound a bit corporate for a ~25 person dev team, but one chief advantage is that you can feel comfortable taking time at work to improve your tooling knowing it will improve the tooling of everyone else on your team. 
 
-  - Open Source
-  - Process Separated
-  - Project Oriented
-    - User and project settings
-    - Can provide consistent Artsy dev experience
-  - Carefully extensible
-  - Regular monthly updates
-  - TypeScript codebase
-  - Works really well with TypeScript
-  - Inline Debugging
-  - Inline docs
-  - Shallow to make changes in
-
+I've been exploring a consolidated Artsy VS Code extension, but 
 
 ### End
 
@@ -392,3 +380,6 @@ I have grown to love working with typed JavaScript to ensure soundness, with Rea
 [flow-gh]: https://github.com/facebook/flow
 [vscode-home]: https://code.visualstudio.com
 [ts-extensions]: https://github.com/Microsoft/TypeScript/issues/6508
+[vscode-jest]: https://github.com/orta/vscode-jest
+[wallaby]: https://wallabyjs.com
+[vscode-recs]: https://code.visualstudio.com/updates/v1_6#_workspace-extension-recommendations
