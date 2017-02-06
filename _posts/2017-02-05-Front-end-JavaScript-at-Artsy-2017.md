@@ -85,7 +85,7 @@ It's important to note here, the data being sent _back_ is specifically  what yo
 
 This is in stark contrast to other successors to REST APIs, the hypermedia APIs, like [HAL](http://stateless.co/hal_specification.html) and [JSON-API](http://jsonapi.org) - both of which are optimised for caching, and rely on "one model, one request" types of API access. E.g. a list of Artworks would actually contain a list of hrefs instead of the model data, and you have to fetch each model in a separate request.
 
-Hypermedias APIs have a really useful space in cross-server communications, but are extremely wasteful of the most precious resource for a front-end device - bandwidth. [Latency matters considerably](latency), on mobile where bandwidth is spotty, and attention spans are short you need to do everything possible to show more than a loading spinner.
+Hypermedia APIs have a really useful space in cross-server communications, but are extremely wasteful of the most precious resource for a front-end device - bandwidth. [Latency matters considerably](latency), on mobile where bandwidth is spotty, and attention spans are short you need to do everything possible to show more than a loading spinner.
 
 I have previously explored our usage of GraphQL from the perspective of a native developer [in 2016][mob-graph]. So I'll leave that post to describe our implementation of a GraphQL server.
 
