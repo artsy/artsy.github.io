@@ -15,9 +15,9 @@ Swift became public in June 2014, by August we had started using it in Artsy. By
 
 It is pretty obvious that Swift is the future of native development on Apple platforms. It was a no-brainer to then build an [appleTV app][emergence] in Swift, integrated Swift-support into our key app Eigen and built non-trivial parts of that [application in Swift][live-a].
 
-We first started experimenting with with React Native in February 2016, and by August 2016, we announced that [Artsy moved to React Native][artsy-rn] effectively meaning new code would be in JavaScript from here onwards.
+We first started experimenting with React Native in February 2016, and by August 2016, we announced that [Artsy moved to React Native][artsy-rn] effectively meaning new code would be in JavaScript from here onwards.
 
-We're regularly asked _why_ we moved, and it was touched on briefly in our announcement but I'd like to dig in to this and try to cover a lot of our decision process. So, if you're into understanding why a small team of iOS developers with decades of experience switched to JavaScript, read on. 
+We're regularly asked _why_ we moved, and it was touched on briefly in our announcement but I'd like to dig in to this and try to cover a lot of our decision process. So, if you're into understanding why a small team of iOS developers with decades of native experience switched to JavaScript, read on. 
 
 This post will cover: [What are Artsy's apps?][wot], Swifts [positives][swift-p] and [negatives][swift-n] for us, [React Native][react-n], and our [1-year summary][summary].
 
@@ -33,17 +33,23 @@ Once we came to this conclusion, our discussion came to "what can we do to fix t
 
 We have different apps with different trade-offs.
 
-[Eigen][eigen] is an app where we taken JSON data from the server, and convert it into a user interface. Each view controller can nearly always be described as a function taking data and mapping it to a UI. [Eidolon][eidolon] (our Auctions Kiosk app) which contains a lot of Artsy-wide unique business logic which is handled with local state like card reader input, or unique user identification modes. [Emergence][emergence] is a trivial-ish tvOS app which has a few view controllers, and is mostly handled by Xcode's storyboards.
+[Eigen][eigen] is an app where we take JSON data from the server, and convert it into a user interface. Each view controller can nearly always be described as a function taking data and mapping it to a UI. [Eidolon][eidolon] (our Auctions Kiosk app) which contains a lot of Artsy-wide unique business logic which is handled with local state like card reader input, or unique user identification modes. [Emergence][emergence] is a trivial-ish tvOS app which has a few view controllers, and is mostly handled by Xcode's storyboards.
 
 {% expanded_img /images/emission/eigen.svg %}
 
-Eigen is where we worry, other apps are limited in their scope, but Eigen is basically the mobile representation of Artsy. We're never _not_ going to have something like Eigen.
+Eigen is where we worried about how we were building apps, other apps are limited in their scope, but Eigen is basically the mobile representation of Artsy. We're never _not_ going to have something like Eigen.
 
 We eventually came to the conclusion that we needed to re-think our entire UIKit stack for Eigen. Strictly speaking, Objective-C was not a problem for us, our issues came from abstractions around the way we built apps.
 
-Re-writing from scratch was not an option. That takes [a lot of time and effort][rewrite], which will happily remove technical debt, but that's not our issue. We also don't need or have a big redesign. However, a lot of companies used the Objective-C -> Swift transition as a time to re-write from scratch. We asked for the experiences from developers who had opted to do this, they said it was a great marketing tool for hiring - but was a lot of pain to actually work with day to day. They tend to talk abut technical debt, and clean slates - but not that Objective-C was painful and Swift solves major architectural problems. With the notable exception of functional programming purists.
+Re-writing from scratch was not an option. That takes [a lot of time and effort][rewrite], which will happily remove technical debt, but that's not our issue. We also don't need or have a big redesign. However, a lot of companies used the Objective-C -> Swift transition as a time to re-write from scratch. We asked for the experiences from developers who had opted to do this, they said it was a great marketing tool for hiring - but was a lot of pain to actually work with day to day. They tend to talk about technical debt, and clean slates - but not that Objective-C was painful and Swift solves major architectural problems. With the notable exception of functional programming purists.
 
-In the end, for Eigen, we came to the conclusion that we wanted to work with a component-based architecture. This architectural  choice comes from studying how other larger apps handle code-reuse. We were considering building the structure from based on JSON ( which would have ended up like Spotify's ([hub][hub]) or Hyperslo's ([Spots][spots]) ) or inspired by React ( like Bending Spoons's ([Katana][katana]) ).
+In the end, for Eigen, we came to the conclusion that we wanted to work with a component-based architecture. This architectural choice comes from studying how other larger apps handle code-reuse. 
+
+We were considering:
+
+* View Controllers being a mix of Components which could be extended using protocols in Swift.
+* JSON defined Components ( which would have ended up like Spotify's ([hub][hub]) or Hyperslo's ([Spots][spots]) ). 
+* Building a Component structure heavily inspired by React ( like Bending Spoons's ([Katana][katana]) ).
 
 <center>
  <img src="/images/js2017/swift.svg" style="width:250px;">
@@ -57,17 +63,17 @@ Had we continued with native apps via native code, we'd have put more resources 
 
 * **Swift code can interact with Objective-C and can work on it's own.** We can write Swift libraries that can build on-top of our existing infrastructure to work at a higher level of abstraction. Building a component-based infrastructure via Swift could allow easy-reuse of existing code, while providing a language difference for "new app code" vs "infra." 
 
-* **People are excited about Swift.** It's an interesting, growing language, and one of the few ones non-technical people ask about. "Oh you're an iOS developer, do you use Swift?" is something I've been asked a lot. The rest of the development team  have signed up multiple times for Swift workshops and want to know what Swift is, and what it's trade-offs are.
+* **People are excited about Swift.** It's an interesting, growing language, and one of the few ones non-technical people ask about. "Oh you're an iOS developer, do you use Swift?" is something I've been asked a lot. The developers outside of the mobile team have signed up multiple times for Swift workshops and want to know what Swift is, and what it's trade-offs are.
 
 * **It's evolving** the language changes at a fast rate, with new ideas coming from, and influencing other languages. People inside the community influence and shape it's growth. There are some great claims being made [about Swift][swift-excite] by people we respect.
 
 * **Swift improves on a lot of Objective-C.** Most of the patterns that we use in Objective-C are verbose, and they can become extremely terse inside Swift. Potentially making it easier to read and understand. 
 
-* **We would be using the official route.** Apple obviously _want_ you to be using Swift, they are putting a _lot_ of resources into the language. There are smart people working on the project, and it's becomes more stable and useful every year. There aren't any _Swift-only_ APIs yet, but obviously they'll be coming.
+* **We would be using the official route.** Apple obviously _wants_ you to be using Swift, they are putting a _lot_ of resources into the language. There are smart people working on the project, and it's becomes more stable and useful every year. There aren't any _Swift-only_ APIs yet, but obviously they'll be coming.
 
-* **It's a [known-unknown][known-known] territory.** We have a lot of knowledge around building better tooling for iOS apps. From libraries like [Moya][moya], to foundational projects like [CocoaPods][cocoapods]. Coming up with, and executing dramatic tooling improvements is possible. Perhaps we had overlooked a smarter abstraction elsewhere and it was worth expanding our search.
+* **It's a [known-unknown][known-known] territory.** We have a lot of knowledge around building better tooling for iOS apps. From libraries like [Moya][moya], to foundational projects like [CocoaPods][cocoapods]. Coming up with, and executing dramatic tooling improvements is possible. Perhaps we had overlooked a smarter abstraction which would have worked around the downsides, and thus making it worth expanding our search.
 
-  This is worth continuing here, because if we end up building something which gains popularity we get the advantage of working with a lot of perspectives, and being able to gain from other people working on the same project. It's a pattern Basecamp discuss when they [talk about rails][rails] by beginning with a real project and abstracting outwards.
+  If we end up building something which gains popularity, we get the advantage of working with a lot of fresh perspectives, and being able to gain from other people working on the same project. This is what happened with [Moya][moya]. It's a pattern Basecamp discuss when they [talk about rails][rails] by beginning with a real project and abstracting outwards.
 
 # Native Downsides
 
@@ -79,7 +85,7 @@ The dominant two issues come from differences in opinions in how software should
 
   Even in Objective-C, a looser-typed language where you were not discouraged from using meta--programming, handling JSON required _a tonne_ of boilerplate laden, inelegant code when working with an API. Considering how bread-and-butter working with an API is for most 3rd party developers it should come as no surprise that the most popular CocoaPods are about handling JSON parsing, and making network requests.  
 
-  Problems which Apple, generally speaking, don't have. They use iCloud, or CloudKit, or whatever, and expect you to too aswell. The official Apple opinion was neatly summed up on the official Swift blog on how to handle JSON parsing [exhibits the problem well][swift_blog].
+  Problems which Apple, generally speaking, don't have. They use iCloud, or CloudKit, or whatever, and expect you will also. The official Apple opinion was neatly summed up on the official Swift blog on how to handle JSON parsing [exhibits the problem well][swift_blog].
 
   > Swift’s built-in language features make it easy to safely extract and work with JSON data decoded with Foundation APIs — without the need for an external library or framework.
 
@@ -335,3 +341,4 @@ If you'd like to look into GraphQL + Relay, but don't want to start building a s
 [swift-excite]: https://twitter.com/wilshipley/status/565001293975257091
 [copied]: https://twitter.com/mattt/status/473544723118837760
 [our-rn]: /blog/2016/08/24/On-Emission/
+[moya]: https://github.com/moya/moya
