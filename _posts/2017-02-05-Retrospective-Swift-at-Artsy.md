@@ -103,11 +103,12 @@ The dominant two issues come from differences in opinions in how software should
 
   The Swift compiler is slow. Yes, it will improve. One of my favourite Swift features, inferred typing, can accidentally increase compile times non-obviously. Which can make it feel arbitrary about what code takes longer to compile or not. We eventually [automated having our CI warn us][danger-eigen] whether the code we were adding was slow as it felt hard to predict.
 
-# React Native
 
 <center>
  <img src="/images/react-native/artsy_react_logo.svg" style="width:300px;">
 </center>
+
+# React Native
 
 You may want to read our announcement of switching to [React Native][artsy-rn] in anticipation of this. However the big three reasons are:
 
@@ -137,11 +138,15 @@ There are so few well built, large developer tools for the Apple ecosystem. Deve
 
 If you're going to build something amazing, only to have all support pulled out from under you once it gets popular because apple copied it and made it for free and with a full time team behind it - why bother? 
 
-This makes it tough for us, as the 3rd party community, to build useful tools on the kind of scale that is normal in other developer ecosystems. Think of Fastlane, which _needs_ a company like Twitter/Google to behind to handle the scale of usage because no-one else is fixing toolchain issues.
+This makes it tough for us, as the 3rd party community, to build useful tools on the kind of scale that is normal in other developer ecosystems.
 
 This contrasts drastically with the JavaScript ecosystem, check out my explanation of Jest - and compare Jest to either Quick or Specta. Then remember that only Apple has the power to do most of what Jest does.
 
 > Reference from JS 2017: [Jest][jest]
+
+<center>
+ <img src="/images/js2017/relay.svg" style="width:300px;">
+</center>
 
 ### Better Abstractions, Better Developer Experience
 
@@ -149,7 +154,7 @@ I've mentioned that the apps we build have problems specific to API-driven appli
 
 The React component-oriented architecture makes it very easy to build these types of applications. Born out of the [JavaScript primordial soup][js-soup], where conceptual frameworks come and go every year or so. React has been around for a while now, and seems to have a lot of stopping power.
 
-All of these frameworks have the same domain problems that our iOS apps have, external API stores, complex user device state and a mature end-of-line API (either the DOM, or UIKit.) 
+All of these frameworks have the same domain problems that our iOS apps have, external API stores, complex user device state and a mature user-interface API (either the DOM, or UIKit.) 
 
 With React, the core concept of a virtual DOM means that you can simplify a lot of complicated state-management for your application. It becomes trivial, removing the need for more complicated state-handling ideas like functional or reactive programming. 
 
@@ -157,7 +162,7 @@ With Relay, we got an genuinely ground-breaking change in how interactions get h
 
 > References from JS 2017: [React][react], [Relay][relay]
 
-Both of these tools provide a developer experience better than iOS native tooling. React's strict state management rules allow external tools to extend a React application easily, so the onus is not on the React team to make better tools. Other projects provide tools like: [debuggers][rn-debugger], [external state viewers][reactotron], [runtime code injection][hrm], [component storyboarding][storybook] all of which can be running simultaneously at runtime. 
+Both of these tools provide a developer experience better than iOS native tooling. React's strict state management rules allow external tools to extend a React application easily, so the onus is not on the React team to make better tools. Other projects provide tools like: [debuggers][rn-debugger], [external state viewers][reactotron], [runtime code injection][hrm], [component storyboarding][storybook] all of which can be running simultaneously as you arer building your application. Imagine being given the flow of all state in your app in [every bug report][logrocket]. 
 
 A single press of save would take your changes, inject it into your current running application, keep you in the exact same place, depending on the type of change it could re-layout your views, and so you can stay in your editor and make your changes. <em>From 25 seconds, to less than one</em>. For a lot of my work, I can put my tests, debuggers and the application on another screen, and just move my head to watch changes propagate on save.
 
@@ -183,13 +188,13 @@ This expansion of a mobile team developer's scope has made it much easier for us
 
 This is not something we have explored too deeply, however we expect to be able to port a lot of our React Native to Android. I got a rough prototype ported in 2 days work. By working at React-level, and allowing the React Native bindings to handle the interactions with the host OS, we've been writing cross-platform code.
 
-We consider ourselves blocked on Android support, specifically by not having an engineer in our team with _deep_ experience in Android. Moving to React Native does not obviate our native skills, you're going to be significantly better in that environment with those skills than without. As we mentioned in our announcement:
+We consider ourselves blocked on Android support, specifically by not having an engineer in our team with _deep_ experience in Android. Moving to React Native does not obviate our native skills, you're going to be significantly better in that environment with those skills than without. As we mentioned in our [announcement][artsy-rn]:
 
 > If you’re not already knowledgeable about iOS development, are not motivated to put in the time to learn about the
   platform specific details, and think making rich iOS applications with React Native will be a breeze, you’ll
   [come home from a very cold fair](http://www.dwotd.nl/2008/06/443-van-een-kouwe-kermis-thuiskomen.html) indeed. 
 
-We need someone with a similar depth of knowledge in the Android ecosystem, but we may need one or two for the entire team. The rest can continue to be a mix of Web and iOS engineers. You gain a subset of cross-platform skills using React Native. Had we continued down the path of using Swift, our skills would continue to be siloed.
+We need someone with a similar depth of knowledge in the Android ecosystem as our iOS, but we may need one or two for the entire team. The rest can continue to be a mix of Web and iOS engineers. You gain a subset of cross-platform skills using React Native. Had we continued down the path of using Swift, our skills would continue to be siloed.
 
 There is an argument that Swift will be running servers soon, and so you can re-use Swift code across platforms. I could see myself writing server-side back-end code in Swift (you're writing systems, not apps) but it has a [long way to go][ssswift]. It also isn't an argument towards using it in our native apps, we'd have to re-write servers and implement our own GraphQL and Relay stack. This also would not impact the front-end code for the web - they would still be using JavaScript.
 
@@ -344,3 +349,4 @@ If you'd like to look into GraphQL + Relay, but don't want to start building a s
 [copied]: https://twitter.com/mattt/status/473544723118837760
 [our-rn]: /blog/2016/08/24/On-Emission/
 [moya]: https://github.com/moya/moya
+[logrocket]: https://logrocket.com

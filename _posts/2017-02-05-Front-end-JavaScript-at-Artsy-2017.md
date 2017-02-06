@@ -24,11 +24,11 @@ This post tries to encapsulate what we consider to be our consolidated stack for
 
 Our web stack has been [ezel.js][ezel] since 2013, and continues to be a mature and well thought out technology. Since then, there has been explorations on a successor to that framework using React and GraphQL with [muraljs][mural]. However, since the merger, a lot more of our focus has been on trying to find something that feels similar on both React and React Native.
 
-## TypeScript
-
 <center>
  <img src="/images/js2017/ts.svg" style="width:300px;">
 </center>
+
+## TypeScript
 
 [TypeScript][ts] and [Flow][flow] really moved JavaScript forwards in the last few years. They both tackle the essential problems of "how can I trust my code does what I think", "how can I be sure of this change" and "how can I build better tools for JavaScript" in different ways.
 
@@ -54,11 +54,11 @@ Both TypeScript and Flow provide nearly every Type structure found inside Object
 
 <a name="TypeScript-Extension"></a>One particularly interesting part of TypeScript that we are keeping our eyes on is this [language extensibility issue][ts-extensions], if it turns out well, we will be looking into integrating the other technologies mentioned here into TypeScript itself.
 
-## GraphQL
-
 <center>
  <img src="/images/js2017/graphql.svg" style="width:300px;">
 </center>
+
+## GraphQL
 
 GraphQL is a way to handle API requests. I consider it the successor to REST when working with front-end clients. A big claim, yeah. So, what is it?
 
@@ -91,11 +91,11 @@ I have previously explored our usage of GraphQL from the perspective of a native
 
 One exciting movement in the space of GraphQL is [GitHub moving to GraphQL][github-gql] for their new APIs.
 
-## React / React Native
-
 <center>
  <img src="/images/react-native/artsy_react_logo.svg" style="width:300px;">
 </center>
+
+## React / React Native
 
 React is a Facebook project which offers a uni-direction Component model that _can_ replace MVC in a front-end application. React was built out of a desire to abstract away a web page's true view hierarchy (called the DOM) so that they could make changes to the view in memory and then React would handle finding the differences between view states.
 
@@ -130,14 +130,11 @@ React Native is an implementation of React where instead of having React's virtu
 
 If you'd like to find out why the iOS team moved to React Native, check our [series of posts on React Native](/series/react-native-at-artsy/).
 
-React is strictly only the view layer of 
-
-
-## Relay
-
 <center>
  <img src="/images/js2017/relay.svg" style="width:300px;">
 </center>
+
+## Relay
 
 Any front-end client has a lot of work to do on every page:
 
@@ -211,11 +208,11 @@ The data is first looked up inside Relay's local cache, and then any un-cached i
 
 I'd strongly recommend taking the dive into both the [Thinking with GraphQL][thinking-ql] and then [Thinking with Relay][think-rl] tutorials to learn more. Finally, [Learn Relay](learnrelay) and [Relay for Visual Learners][relay-visual] are great tutorials to help you get comfortable with the concepts.
 
-## Yarn
-
 <center>
  <img src="/images/js2017/yarn.svg" style="width:300px;">
 </center>
+
+## Yarn
 
 I have a lot of respect for NPM, their scale is [through the roof][npm]. They built out the foundations for a massive, thriving community. They did a great job. Like a lot of the JavaScript ecosystem, their tooling allows you to get away with a lot of things. You can have the same dependency inside the app with multiple versions, or apps with a dependency tree that is different each time you run `npm install`.
 
@@ -284,11 +281,11 @@ While that example is trivial, we really want to have tests like this to ensure 
 
 If you're interested, there is a lot of work around automating the migration between different testing frameworks in [jest-codemods][jest-codemods] - getting started has never been easier. I'd also recommend looking at [wallaby.js][wallaby] and [vscode-jest][vscode-jest] for tooling.
 
-## Visual Studio Code
-
 <center>
  <img src="/images/vscode/vscode_logo_artsy.svg" style="width:300px;">
 </center>
+
+## Visual Studio Code
 
 Had you told me two years ago that my main editor would be a JavaScript app, I'd have bought you a beer for such a great joke. 
 
