@@ -222,7 +222,7 @@ Yarn is a Facebook project that replaces the NPM [cli][cli] client. It's very ne
 
 Yarn is significantly faster, has a determinate process for setting up projects and uses a lockfile by default to ensure everyone using the project gets the exact same dependency tree. It uses NPM as a server, and so you get the same node modules as with the NPM cli.
 
-Sometimes Yarn gives you pleasant surprises too, my favourite being that `yarn run [x]` will check to see if that is a local command that you could run, saving a bunch of redundant settings.
+Sometimes Yarn gives you pleasant surprises too, my favourite being that `yarn [x]` will check to see if that is a local command that you could run, saving a bunch of redundant settings.
 
 Converting a codebase can be as simple as going into your project and running:
 
