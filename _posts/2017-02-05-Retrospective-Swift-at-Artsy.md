@@ -205,7 +205,7 @@ This isn't all doom and gloom. With Swift the language, and SwiftPM the package 
 
 One aspect of working with JavaScript that has been particularly pleasant is the idea that your language is effectively a buffet. If you want to use the latest features of the language you can opt-in to it. We've slowly added language features, while retaining backwards compatibility. First using [Babel][babel-site], then [Flow][flow-site] and finally with [TypeScript][typescript-site]. 
 
-In contrast, and this may be the last major time it happens, but people refer to the time it took to migrate [in][weeks1] [the][weeks2] [scale][weeks3] [of][weeks4] _weeks_ during the Swift 2 -> 3 migration. Having the language evolve is great, sometimes in ways that you [agree with][swift-api] and sometimes in ways [you don't][closed]. Being able to use your own version of your tools frees you to make it work for you and your business.
+In contrast, and this may be the last major time it happens, but people refer to the time it took to migrate [in][weeks1] [the][weeks2] [scale][weeks3] [of][weeks4] _weeks_ during the Swift 2 -> 3 migration. Having the language evolve is great, sometimes in ways that you [agree with][swift-api] and sometimes in ways [you don't][closed]. Being able to use your own version of your tools frees you to make it work for you and your business. We have been talking about [extending TypeScript][extend-ts] specifically for our applications.
 
 # React Native, one year later
 
@@ -250,13 +250,14 @@ If you'd like to look into GraphQL + Relay, but don't want to start building a s
 [react-n]: /blog/2017/02/05/Retrospective-Swift-at-Artsy/#React.Native
 [summary]: /blog/2017/02/05/Retrospective-Swift-at-Artsy/#React.Native..one.year.later
 
-[js-2017]: /blog/2017/01/22/Front-end-JavaScript-at-Artsy-2017/
-[relay]: /blog/2017/01/22/Front-end-JavaScript-at-Artsy-2017/#Relay
-[jest]: /blog/2017/01/22/Front-end-JavaScript-at-Artsy-2017/#Jest
-[graphql]: /blog/2017/01/22/Front-end-JavaScript-at-Artsy-2017/#GraphQL
-[react]: /blog/2017/01/22/Front-end-JavaScript-at-Artsy-2017/#React...React.Native
-[typescript]: /blog/2017/01/22/Front-end-JavaScript-at-Artsy-2017/#TypeScript
+[js-2017]:/blog/2017/02/05/Front-end-JavaScript-at-Artsy-2017/
+[relay]:/blog/2017/02/05/Front-end-JavaScript-at-Artsy-2017/#Relay
+[jest]:/blog/2017/02/05/Front-end-JavaScript-at-Artsy-2017/#Jest
+[graphql]:/blog/2017/02/05/Front-end-JavaScript-at-Artsy-2017/#GraphQL
+[react]:/blog/2017/02/05/Front-end-JavaScript-at-Artsy-2017/#React...React.Native
+[typescript]:/blog/2017/02/05/Front-end-JavaScript-at-Artsy-2017/#TypeScript
 [code]: /blog/2017/02/05/Front-end-JavaScript-at-Artsy-2017/#Visual.Studio.Code
+[extend-ts]:/blog/2017/02/05/Front-end-JavaScript-at-Artsy-2017/#TypeScript-Extension
 
 [eidolon-postmortem]: http://artsy.github.io/blog/2014/11/13/eidolon-retrospective/
 [emergence]: https://github.com/artsy/emergence

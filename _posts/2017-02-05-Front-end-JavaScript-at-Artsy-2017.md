@@ -52,7 +52,7 @@ We moved from Flow simply because TypeScript had better integration with [Visual
 
 Both TypeScript and Flow provide nearly every Type structure found inside Objective-C and Swift, so teaching the rest of the team how they work is easy from our native experiences.
 
-One particularly interesting part of TypeScript that we are keeping our eyes on is this [language extensibility issue][ts-extensions], if it turns out well, we will be looking into integrating the other technologies mentioned here into TypeScript itself.
+<a name="TypeScript-Extension"></a>One particularly interesting part of TypeScript that we are keeping our eyes on is this [language extensibility issue][ts-extensions], if it turns out well, we will be looking into integrating the other technologies mentioned here into TypeScript itself.
 
 ## GraphQL
 
