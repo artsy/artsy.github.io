@@ -79,7 +79,7 @@ Had we continued with native apps via native code, we'd have put more resources 
 
 The dominant two issues come from differences in opinions in how software should be built
 
-* **Types.** Types are useful. Overly strict typing systems make it to hard to build _quick_ (not easy) to change codebases.
+* **Types.** Types are useful. Overly strict typing systems make it too hard to _quickly_ change codebases.
 
   Strictly typed languages work _really_ well for [building systems][systems], or completely atomic apps - the sort Apple have to build on a day to day basis. When I say an atomic app, I mean one where the majority of the inputs and outputs exist within the domain of the application. Think of apps with their own filetypes, that can control inputs and outputs really easily.
 
@@ -136,7 +136,7 @@ There are so few well built, large developer tools for the Apple ecosystem. Deve
 
 <center><blockquote class="twitter-tweet" data-lang="en"><p lang="en" dir="ltr">Alfred, Dropbox, Snapchat, Parse, OpenGL, Objective-C… <br><br>Quite the body count this WWDC.</p>&mdash; Mattt (@mattt) <a href="https://twitter.com/mattt/status/473544723118837760">June 2, 2014</a></blockquote> <script async src="//platform.twitter.com/widgets.js" charset="utf-8"></script></center>
 
-If you're going to build something amazing, only to have all support pulled out from under you once it gets popular because apple copied it and made it for free and with a full time team behind it - why bother? 
+If you're going to build something amazing, only to have all support pulled out from under you once it gets popular because Apple copied it and made it for free and with a full time team behind it - why bother?
 
 This makes it tough for us, as the 3rd party community, to build useful tools on the kind of scale that is normal in other developer ecosystems.
 
@@ -227,7 +227,7 @@ In contrast, and this may be the last major time it happens, but people refer to
 In our announcement we talked about the lack of nuanced post-mortems on React Native. We're now a year in, we can at least try to help out in that space. We're sticking with React Native for the foreseeable future. It would take some _drastic_ changes in the Apple ecosystem for us to re-consider this decision. So here's the summary after 1 year.
 
 * We can share concepts with web
-* Tools are built for our apps like ours
+* Tools are built for apps like ours
 * To do it right requires engineers willing to dive deep in JS
 * You need native experience to have a polished app
 * Dependency stack is still obscenely big
