@@ -152,27 +152,27 @@ This contrasts drastically with the JavaScript ecosystem, check out my explanati
 
 I've mentioned that the apps we build have problems specific to API-driven applications. This means that the majority of our work tends to be that we have the full data already, and need to iterate to get the right styling and logic mapping correct, in doing so we want to also make it easy to re-use code.
 
-The React component-oriented architecture makes it very easy to build these types of applications. Born out of the [JavaScript primordial soup][js-soup], where conceptual frameworks come and go every year or so. React has been around for a while now, and seems to have a lot of stopping power.
+The React component-oriented architecture makes it very easy to build these types of applications. Born out of the [JavaScript primordial soup][js-soup], where conceptual frameworks come and go every year or so. React has been around for a while now, and seems to have a lot of momentum.
 
 All of these frameworks have the same domain problems that our iOS apps have, external API stores, complex user device state and a mature user-interface API (either the DOM, or UIKit.) 
 
 With React, the core concept of a virtual DOM means that you can simplify a lot of complicated state-management for your application. It becomes trivial, removing the need for more complicated state-handling ideas like functional or reactive programming. 
 
-With Relay, we got an genuinely ground-breaking change in how interactions get handled with our API. I don't want to ever work against an API without a tool like Relay.
+With Relay, we got an genuinely ground-breaking change in how interactions get handled with our API. I don't want to  work against an API without a tool like Relay again.
 
 > References from JS 2017: [React][react], [Relay][relay]
 
 Both of these tools provide a developer experience better than iOS native tooling. React's strict state management rules allow external tools to extend a React application easily, so the onus is not on the React team to make better tools. Other projects provide tools like: [debuggers][rn-debugger], [external state viewers][reactotron], [runtime code injection][hrm], [component storyboarding][storybook] all of which can be running simultaneously as you arer building your application. Imagine being given the flow of all state in your app in [every bug report][logrocket]. 
 
-A single press of save would take your changes, inject it into your current running application, keep you in the exact same place, depending on the type of change it could re-layout your views, and so you can stay in your editor and make your changes. <em>From 25 seconds, to less than one</em>. For a lot of my work, I can put my tests, debuggers and the application on another screen, and just move my head to watch changes propagate on save.
+A single press of save would take your changes, inject it into your current running application, keep you in the exact same place, depending on the type of change it could re-layout your views, and so you can stay in your editor and make your changes. <em>From 25 seconds, to less than one</em>. For a lot of my work, I can put my tests, debuggers and the application on another screen, and just move my head to watch changes propagate on pressing save.
 
-So, you're thinking _"Yeah, but JavaScript..."_ - well, we use [TypeScript][what_is_ts] and it fixes pretty much every issue with JavaScript. Add in with that it's no problem for us to write native code when we need to. The last project I did on our React Native codebase required JS <-> Swift communication. 
+So, you're thinking _"Yeah, but JavaScript..."_ - well, we use [TypeScript][what_is_ts] and it fixes pretty much every issue with JavaScript. It's also no problem for us to write native code when we need to, we are still adding to an existing native codebase. The last project I did on our React Native codebase required bi-directional JS <-> Swift communication. 
 
 React Native feels like the best of both worlds: Elegant, fast to work with application code, which the whole dev team understands. Falling back to native tooling when we think it will be best for the project.
 
 > Reference from JS 2017: [TypeScript][typescript]
 
-There's one more thing that I want to really stress around developer experience, it's really easy to write tests for our React components. Testing in JavaScript is night-and-day better than native testing. Because we can run our tests outside of the simulator (due to React's virtual DOM) we have all tests related to all the changes in git running on save.
+There's one more thing that I want to really stress around developer experience, it's really easy to write tests for our React components. Testing in JavaScript is night-and-day better than native testing. Because we can run our tests outside of the simulator (due to React's virtual DOM) we run tests whenever you press save. These tests are only the ones related to the current [changes in git][jest]. The only this we miss is visual snapshots [from the simulator][snapshots], not having to restart a simulator to run tests makes it worth it though.
 
 #### Same Tools, Different Dev
 
@@ -180,7 +180,7 @@ We wanted to stop being highly unique inside the dev team. Artsy has around 25 d
 
 This isn't a great position to be in.
 
-We wanted all developers to feel like they can contribute to any area of the company. For the past 5 years, the native mobile projects had close to zero contributions from anyone outside of the mobile team. Due to differences in tooling, and the idea that there was a cultural difference between us. Since the mobile team moved to Reach Native we have received features and bug fixes from the web team, and fit in better overall.
+We wanted all developers to feel like they can contribute to any area of the company. For the past 5 years, the native mobile projects had close to zero contributions from anyone outside of the mobile team. Due to differences in tooling, and the idea that there was a cultural difference between us. Since the mobile team moved to React Native we have received features and bug fixes from the web team, and fit in better overall.
 
 This expansion of a mobile team developer's scope has made it much easier for us to reason about finding better ways to share code with the web team. At the end of 2015, the Collector Web team introduced GraphQL to Artsy. I wrote about how this affected the [mobile team][mobile-graphql]. This acts as an API layer owned by the front-end side of Artsy. Meaning that it could contain a lot of API-derived client-specific logic. Previously, this work was done by the web team, and then consumed by mobile - now both teams build their APIs and consume them.
 
@@ -200,21 +200,23 @@ There is an argument that Swift will be running servers soon, and so you can re-
 
 With respect to Swift on Android, potentially, logic code could be shared between platforms but realistically for our setup that's just not worth it. We're moving that kind of logic into the GraphQL instance and sharing across _all_ clients, not only native platforms. If you're sharing model code, you could generate that per-project instead from the server. Since GraphQL is strongly-typed, we're doing this for both [TypeScript + GraphQL][gql2ts] and [TypeScript + Relay][vscode-relay].
 
-We don't know where this will end, but we've prototyped porting one of our view controllers from React Native [to a website][relational-rnw]. It's almost source-compatible. This such a completely different mind space from where we were a year ago.
+We don't know where this will end, but we've prototyped porting one of our view controllers from React Native [to a website][relational-rnw]. It's almost source-compatible. This such a completely different mindset from where we were a year ago.
 
 #### Owning the stack
 
 Pick an abstraction level of our application above UIKit and we can fork it. All our tools can be also be forked. We can fix our own issues.
 
-In native, there are no concepts like, _"We'll use Steipete's fork of UIKit for UIPopover rotation fixes"_ or _"My version of Xcode will run tests when you press save."_. Well, hopefully the latter [may be fixed][xcode-extensions] in time, but the "you have no choice but to wait, and maybe it won't happen" aspect is part of the problem. You have your tools given to you, in a year you get some new ones and lose some old ones. In contrast, we've built [many][vscode-jest] [extensions][vscode-rns] [for][vscode-relay] [VS][vscode-common] [Code][vscode-danger] for our own use, and helped out on [major ones][flow-vscode]. When the VS Code didn't do what I wanted, I started using [use my own fork][essence].
+In native, there are no concepts like, _"We'll use Steipete's fork of UIKit for UIPopover rotation fixes"_ or _"My version of Xcode will run tests when you press save."_. Well, hopefully the latter [may be fixed][xcode-extensions] in time, but the "you have no choice but to wait, and maybe it won't happen" aspect is part of the problem. 
+
+You have your tools given to you, in a year you get some new ones and lose some old ones. In contrast, we've built [many][vscode-jest] [extensions][vscode-rns] [for][vscode-relay] [VS][vscode-common] [Code][vscode-danger] for our own use, and helped out on [major ones][flow-vscode]. When VS Code didn't do what I wanted, I started using [use my own fork][essence].
 
 > Reference from JS 2017: [VS Code][code]
 
 In the last year, we have submitted code to major JavaScript dependencies of ours: React Native, Relay, VS Code, Jest and a few libraries in-between - fixing problems where we see them, offering features if we need them. Some of these changes are [small][vscode-toolbars], but some [are][relay-id] [big][jest-editor] [moves][react-shadow]. Being able to help out on any problem makes it much easier to live with the [593 dependencies](/blog/2016/08/15/React-Native-at-Artsy/) that using React Native brings.
 
-It's worth highlighting that all of this is done on GitHub, in the open. We can write issues, get responses, and have direct line to the people who are working on something we depend on. This is a stark contrast to the Radar system used internally at Apple, and which external developers have write-only access to. For external contributors radar is opaque, and [totally feels like a waste of time][tnw-radar]. On the other hand, a GitHub issue doesn't have to have to wait for the repo maintainers, others can get value from it and it's publicly indexed. If we had put all our effort into Radars instead of [issues like][eigen_launch] this, the whole community would be worse off.
+It's worth highlighting that all of this is done on GitHub, in the open. We can write issues, get responses, and have direct line to the people who are working on something we depend on. This is a stark contrast to the Radar system used internally at Apple, and which external developers have write-only access to. For external contributors radar is opaque, and [often feels like a waste of time][tnw-radar]. On the other hand, a GitHub issue doesn't have to wait for the repo maintainers, others can get value from it and it's publicly indexed. If we had put all our effort into Radars instead of [issues like][eigen_launch] this, the whole community would be worse off.
 
-This isn't all doom and gloom. With Swift the language, and SwiftPM the package manager, Apple are more open with the feedback cycle using tools like Slack, Mailing Lists, JIRA and Twitter.
+This isn't all doom and gloom. With Swift the language, and SwiftPM the package manager, Apple are more open with the feedback cycle using tools like [Slack][swift-pm-slack], Mailing Lists, JIRA and Twitter.
 
 One aspect of working with JavaScript that has been particularly pleasant is the idea that your language is effectively a buffet. If you want to use the latest features of the language you can opt-in to it. We've slowly added language features, while retaining backwards compatibility. First using [Babel][babel-site], then [Flow][flow-site] and finally with [TypeScript][typescript-site]. 
 
@@ -233,14 +235,15 @@ In our announcement we talked about the lack of nuanced post-mortems on React Na
 * Problems do, and will occur, but everything is fixable by forking
 * Extensive communication with native code gets tricky to test and maintain
 * We ended up re-using quite a lot of existing native code
-* It makes working in native code feel like a bad chore for someone to do
+* It makes working in native code feel more like a chore, as you lose the JS developer experience
 * Spending so much time in another environment will erode native knowledge
-* We're not going to re-write other existing Apps into React Native
-* Makes a lot of sense in an [additive approach][our-rn]
+* Makes a lot of sense in an [additive approach][our-rn] to existing apps
+* We're not making plans to re-write other Apps into React Native, they are fine as-is
+* New apps going forward we will default to React Native apps, unless there is a good reason to not
 
-So, should you use React Native? Maybe. *If you have an API driven app, probably.* 
+So, should you use React Native? Maybe. If you have an API driven app, *probably.* 
 
-It's definitely worth a week of prototyping for any engineering team, then if that goes well you should look into GraphQL and Relay. They really makes React Native shine. 
+It's definitely worth a week of prototyping for any engineering team, then if that goes well you should look into GraphQL and Relay. They really make React Native shine. 
 
 # Want to get started?
 
@@ -350,3 +353,5 @@ If you'd like to look into GraphQL + Relay, but don't want to start building a s
 [our-rn]: /blog/2016/08/24/On-Emission/
 [moya]: https://github.com/moya/moya
 [logrocket]: https://logrocket.com
+[snapshots]: https://www.objc.io/issues/15-testing/snapshot-testing/
+[swift-pm-slack]: https://lists.swift.org/pipermail/swift-build-dev/Week-of-Mon-20160530/000497.html
