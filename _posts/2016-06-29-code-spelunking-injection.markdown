@@ -191,7 +191,7 @@ From there the socket goes into runloop mode on it's on thread.
 
 As with server monitoring, the client listens for strings that begin with special prefixes:
 
-* `~` - Injects, then Re-creates the app degelate + view controller heirarchy.
+* `~` - Injects, then Re-creates the app degelate + view controller hierarchy.
 * `/` - [Loads][load_bundle_client] the bundle path that was sent in.
 * `>` - Accepts a file or directory to [be sent through the socket][sending_files_to_client].
 * `<` - Sends a requested file or directory to [through the socket][sending_files_from_client].

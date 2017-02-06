@@ -45,7 +45,7 @@ export default class SearchBar extends React.Component {
 }
 ```
 
-By providing a well encapsulated Component model, you can aggressively reduce the amountimage of redundant code you need to build an application. By not initially writing to the DOM, React can decide what has changed between user actions and that means you have to juggle significantly less [state](#state).
+By providing a well encapsulated Component model, you can aggressively reduce the amount of redundant code you need to build an application. By not initially writing to the DOM, React can decide what has changed between user actions and that means you have to juggle significantly less [state](#state).
 
 ### React Native
 
@@ -271,7 +271,7 @@ Now an ECMAScript language improvement specification moves through a series of s
 
 So a ECMAScript Stage 0 feature is going to be really new, if you're using it via a transpiler then you should expect a lot of potential API changes and code churn. The higher the number, the longer the spec has been discussed, and the more likely for the code you're transpiling to be the vanilla JavaScript code in time.
 
-The committee who discussed these improvements are the [TC39][tc39] commitee, the cool bit is that you can see [all the proposals][tc39-github] as individual GitHub repos so it's convient to browse. 
+The committee who discussed these improvements are the [TC39][tc39] committee, the cool bit is that you can see [all the proposals][tc39-github] as individual GitHub repos so it's convenient to browse. 
 
 
 ### Modules / Imports
@@ -294,7 +294,7 @@ import SwitchBoard from '../../../native_modules/switch_board'
 
 An import can either have [a default export][default-export], or a set of [exportable function/objects][export-func].
 
-You might see an import like `const _ = require("underscore")` around the internet, this is an older format for packaging JavaScript called [CommonJS][commonjs]. It was replaced by the `import` statements above because you can make guarantees about the individual items exported between module boundries. This is interesting because of [tree-shaking](#tree-shaking), which we'll get to later. 
+You might see an import like `const _ = require("underscore")` around the internet, this is an older format for packaging JavaScript called [CommonJS][commonjs]. It was replaced by the `import` statements above because you can make guarantees about the individual items exported between module boundaries. This is interesting because of [tree-shaking](#tree-shaking), which we'll get to later. 
 
 ### Classes
 

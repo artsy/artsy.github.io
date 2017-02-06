@@ -50,7 +50,7 @@ What works really well for typed JavaScript is that you can easily opt out of it
 
 We moved from Flow simply because TypeScript had better integration with [Visual Studio Code][vscode-home] (VS Code). For a few months I devoted time to improving the Flow integration in VS Code, and tried learning OCaml to help out on the [Flow tool][flow-gh] itself. In the end though, when we compared to how solid VS Code felt with TypeScript - we decided it was worth converting our projects.
 
-Both TypeScript and Flow provide nearly every Type strucutre found inside Objective-C and Swift, so teaching the rest of the team how they work is easy from our native experiences.
+Both TypeScript and Flow provide nearly every Type structure found inside Objective-C and Swift, so teaching the rest of the team how they work is easy from our native experiences.
 
 One particularly interesting part of TypeScript that we are keeping our eyes on is this [language extensibility issue][ts-extensions], if it turns out well, we will be looking into integrating the other technologies mentioned here into TypeScript itself.
 
@@ -97,11 +97,11 @@ One exciting movement in the space of GraphQL is [GitHub moving to GraphQL][gith
  <img src="/images/react-native/artsy_react_logo.svg" style="width:300px;">
 </center>
 
-React is a Facebook project which offers a uni-direction Component model that _can_ replace MVC in a front-end application. React was built out of a desire to abstract away a web page's true view hierarchy (called the DOM) so that they could make changes to to view in memory and then React would handle finding the differences between view states.
+React is a Facebook project which offers a uni-direction Component model that _can_ replace MVC in a front-end application. React was built out of a desire to abstract away a web page's true view hierarchy (called the DOM) so that they could make changes to the view in memory and then React would handle finding the differences between view states.
 
 You create a set of Components to encapsulate each part of the state of the page. React makes it easy to make components that are functional in the [Functional Reactive Programming](https://en.wikipedia.org/wiki/functional_reactive_programming) sense. They act like a function which takes some specially declared state and it is rendered into HTML.
 
-A component optionally uses a language called [JSX](#jsx) to visualise how each component's child components are set up,here's an example of a React component using JSX [from Emission, our React Native library][search-bar]:  
+A component optionally uses a language called [JSX](#jsx) to visualise how each component's child components are set up, here's an example of a React component using JSX [from Emission, our React Native library][search-bar]:  
 
 ```js
 export default class SearchBar extends React.Component {
@@ -126,7 +126,7 @@ By providing a well encapsulated Component model, you can aggressively reduce th
 
 We can then build on React via React-Native to allow the same style of code to exist inside the mobile sphere, where typically you have had unique languages and tooling.
 
-React Native is an implementation of React where instead of having React's virutal DOM map to a web page's DOM, it creates a native view hierarchy. In the case of iOS that is a `UIView` hierarchy, and in Android, a `View` heirarchy.
+React Native is an implementation of React where instead of having React's virtual DOM map to a web page's DOM, it creates a native view hierarchy. In the case of iOS that is a `UIView` hierarchy, and in Android, a `View` hierarchy.
 
 If you'd like to find out why the iOS team moved to React Native, check our [series of posts on React Native](/series/react-native-at-artsy/).
 
@@ -150,7 +150,7 @@ Any front-end client has a lot of work to do on every page:
 
 This is typically handled in a per-page basis, for example the API details, and state management between a Gene page, and an Artist page are different. In part because they have different data-models, but also that they have different correlated data. However, they do share a lot the common responsibilities mentioned above. In our native side, we struggled to find abstractions that would work across multiple pages. Relay fixes this, and does it in a shockingly elegant way. 
 
-Relay is a framework for building data-driven react apps which relies on a deep connection to GraphQL. You wrap your React components inside a Relay container, which handles the networking and setting the state for your component.
+Relay is a framework for building data-driven React apps which relies on a deep connection to GraphQL. You wrap your React components inside a Relay container, which handles the networking and setting the state for your component.
 
 ```js
 // This is a normal React component, taken directly from our app
@@ -209,7 +209,7 @@ Relay handles this by having each component in your view hierarchy exposing the 
 
 The data is first looked up inside Relay's local cache, and then any un-cached items are requested from the network. The results of the query is then moved into the component via it's props. Relay will only provide the specific data each component has requested. So the `Header` component would get nothing for `this.props.gene.name`. This data-masking is a great way of ensuring the connection between component and API.
 
-I'd strongly recommend taking the dive into both the [Thinking with GraphQL][thinking-ql] and then [Thinking with Relay][think-rl] tutorials to learn more. Finally, [Learn Relay](learnrelay) and [Relay for Visual Learners][relay-visual] are a great tutorials, to help you get comfortable with the concepts.
+I'd strongly recommend taking the dive into both the [Thinking with GraphQL][thinking-ql] and then [Thinking with Relay][think-rl] tutorials to learn more. Finally, [Learn Relay](learnrelay) and [Relay for Visual Learners][relay-visual] are great tutorials to help you get comfortable with the concepts.
 
 ## Yarn
 
@@ -217,13 +217,13 @@ I'd strongly recommend taking the dive into both the [Thinking with GraphQL][thi
  <img src="/images/js2017/yarn.svg" style="width:300px;">
 </center>
 
-I have a lot of respect for NPM, their scale is [through the roof][npm]. They built out the foundations for a massive, thriving community. They did a great job. Like a lot of the JavaScript eco-system, their tooling is allows you to get away with a lot of things. You can have the same dependency inside the app with multiple versions, or apps with a dependency tree that is different each time you run `npm install`.
+I have a lot of respect for NPM, their scale is [through the roof][npm]. They built out the foundations for a massive, thriving community. They did a great job. Like a lot of the JavaScript ecosystem, their tooling allows you to get away with a lot of things. You can have the same dependency inside the app with multiple versions, or apps with a dependency tree that is different each time you run `npm install`.
 
 We have multiple engineers who have worked on a dependency manager for half a decade, having indeterminate builds in JavaScript was something that worried us greatly. Luckily, there is [Yarn][yarn].
 
 Yarn is a Facebook project that replaces the NPM [cli][cli] client. It's very new, so unlike NPM it does not have to worry about backwards compatibility. It is what I'd imagine a fresh re-write of the NPM cli would look like. 
 
-Yarn is significantly faster, has a determinate process for setting up and project and uses a lockfile by default to ensure everyone using the project gets the exact same dependency tree. It uses NPM as a server, and so you get the same node modules as you with the NPM cli.
+Yarn is significantly faster, has a determinate process for setting up projects and uses a lockfile by default to ensure everyone using the project gets the exact same dependency tree. It uses NPM as a server, and so you get the same node modules as with the NPM cli.
 
 Sometimes Yarn gives you pleasant surprises too, my favourite being that `yarn run [x]` will check to see if that is a local command that you could run, saving a bunch of redundant settings.
 
@@ -242,7 +242,7 @@ Now you have a lockfile, and are using yarn. Awesome, if you are migrating from 
  <img src="/images/js2017/jest.svg" style="width:300px;">
 </center>
 
-One of the things that I find particularly pleasant about the JavaScript ecosystem are their testing tools. With our React Native, we came into the eco-system with fresh eyes, and it was pretty obvious that Jest was an exceptional testing framework. I hear historically Jest has been a bit meh, but it is without a doubt worth another look.
+One of the things that I find particularly pleasant about the JavaScript ecosystem are their testing tools. With our React Native, we came into the ecosystem with fresh eyes, and it was pretty obvious that Jest was an exceptional testing framework. I hear historically Jest has been a bit meh, but it is without a doubt worth another look.
 
 **The watcher** - The majority of your usage of Jest is with it running in watcher mode. This mode uses your git diff as a seed for what to run tests against. Jest will use that diff to define all the files that the changed code touches, and then all of the tests that cover those files. 
 
@@ -278,7 +278,7 @@ Now we will get a test failure when any changes happen in the component tree. Fo
 
 While that example is trivial, we really want to have tests like this to ensure we understand how changes propagate throughout the app.
 
-**No config** - When we first integrated Jest, we had no config. Now, to make sure that TypeScript works how we'd like, we require some setup. Having smart defaults say a lot about the project. The documentation covers default integrations for: Babel, TypeScript and webpack. Three of the biggest modern tools for getting stuff done with node.
+**No config** - When we first integrated Jest, we had no config. Now, to make sure that TypeScript works how we'd like, we require some setup. However, having smart defaults which works is most cases say a lot about the care and attention paid to Developer Experience from the Jest team. The documentation covers default integrations for: Babel, TypeScript and webpack. Three of the biggest modern tools for getting stuff done with node.
 
 **Comprehensive API** - Snapshots, watchers, custom matchers, useful JSON output, ESLint linters, Elegant Mocking tools and natural support for async code. All in one project.
 

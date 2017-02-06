@@ -11,7 +11,7 @@ series: React Native at Artsy
 <img src="/images/swift-in-rn/swift-in-react-native.svg" style="width:300px;">
 </center>
 
-Swift became public in June 2014, by August we had started using it in Artsy. By October, we had [Swift in production][eidolon-postmortem] channeling hundreds of thousands of dollars in auction bids. 
+Swift became public in June 2014, by August we had started using it in Artsy. By October, we had [Swift in production][eidolon-postmortem] channelling hundreds of thousands of dollars in auction bids. 
 
 It is pretty obvious that Swift is the future of native development on Apple platforms. It was a no-brainer to then build an [appleTV app][emergence] in Swift, integrated Swift-support into our key app Eigen and built non-trivial parts of that [application in Swift][live-a].
 
@@ -43,7 +43,7 @@ We eventually came to the conclusion that we needed to re-think our entire UIKit
 
 Re-writing from scratch was not an option. That takes [a lot of time and effort][rewrite], which will happily remove technical debt, but that's not our issue. We also don't need or have a big redesign. However, a lot of companies used the Objective-C -> Swift transition as a time to re-write from scratch. We asked for the experiences from developers who had opted to do this, they said it was a great marketing tool for hiring - but was a lot of pain to actually work with day to day. They tend to talk abut technical debt, and clean slates - but not that Objective-C was painful and Swift solves major architectural problems. With the notable exception of functional programming purists.
 
-In the end, for Eigen, we came to the conclusion that we wanted to work with a component-based architecture. This architectual  choice comes from studying how other larger apps handle code-reuse. We were considering building the structure from based on JSON ( which would have ended up like Spotify's ([hub][hub]) or Hyperslo's ([Spots][spots]) ) or inspired by React ( like Bending Spoons's ([Katana][katana]) ).
+In the end, for Eigen, we came to the conclusion that we wanted to work with a component-based architecture. This architectural  choice comes from studying how other larger apps handle code-reuse. We were considering building the structure from based on JSON ( which would have ended up like Spotify's ([hub][hub]) or Hyperslo's ([Spots][spots]) ) or inspired by React ( like Bending Spoons's ([Katana][katana]) ).
 
 <center>
  <img src="/images/js2017/swift.svg" style="width:250px;">
@@ -89,9 +89,9 @@ The dominant two issues come from differences in opinions in how software should
 
 * **Slow.** Native development when put next to web development is slow. Application development requires full compilation cycles, and full state restart of the application that you're working on. A trivial string change in Eigen takes [25 seconds][eigen_25] to show up. When I tell some developers that time, they laugh and say I have it good.
 
-  The moment that this really stood out for me was when I [re][injection-twentytwelve]-discovered [Injection for Xcode][injection_twitter] which ruined my appetite for building apps the traditional way. It reduced an iteration cycle to about [a second][injection_time]. With Apple's resources, and the fact that Injection for Xcode has existed for years by a single developer, it's embarrasing that iOS is a [mobile platform][instant-run] with no support code reloading. I filed bug reports ([radars][what-is-radar]), they were marked as duped with no comment. I talked to Apple engineers at WWDC, the idea was dismissed as "didn't work" when it was [tried before][fix-and-continue].
+  The moment that this really stood out for me was when I [re][injection-twentytwelve]-discovered [Injection for Xcode][injection_twitter] which ruined my appetite for building apps the traditional way. It reduced an iteration cycle to about [a second][injection_time]. With Apple's resources, and the fact that Injection for Xcode has existed for years by a single developer, it's embarrassing that iOS is a [mobile platform][instant-run] with no support code reloading. I filed bug reports ([radars][what-is-radar]), they were marked as duped with no comment. I talked to Apple engineers at WWDC, the idea was dismissed as "didn't work" when it was [tried before][fix-and-continue].
   
-  I've heard developers say they use using Playgrounds to work around some of these problems, and the Kickstarter app has probably the closest I've seen to an [actual implmentation of this][kickstart_play], so check that out if you're hitting these issues.
+  I've heard developers say they use using Playgrounds to work around some of these problems, and the Kickstarter app has probably the closest I've seen to an [actual implementation of this][kickstart_play], so check that out if you're hitting these issues.
 
   The Swift compiler is slow. Yes, it will improve. One argument that it won't ever be as fast as Objective-C comes from Swift being a more complicated language to compile - it's doing more work. There is nothing like a constrained generic with an associated type, or nested classes with protocol extensions in the Objective-C world. One amazing feature that can catch you out on compile time is the type inference system, which can make it feel arbitrary about what will take longer to compile or not. We eventually [automated having our CI warn us][danger-eigen] whether the code we were adding was slow as it felt indeterminate.
 
@@ -123,15 +123,15 @@ Apple make _great_ tools. I do miss Xcode sometimes. It's cohesive, beautifully 
 
 Though it's important to note that they make tools for Apple first and then for us 3rd party devs. Outside influence obviously exists, but they're shipping whatever _they_ want and you can only influence that via Radars and through going to a conference once a year and talking directly to the dev tools team. Only the Swift language is Open Source (and [SwiftPM][swiftpm])
 
-There are so few well built, large developer tools for the Apple eco-system. Developers are wary [of][stack] [being copied by Apple][copied] - something so prevalent that there is a common word for it, being [Sherlocked][sherlocked]. The project I've worked on for 5 years, CocoaPods, had an announcement of being sherlocked in late-2015 - you just have to deal with it. The idea that only Apple should be shipping these kind of things kills community momentum.
+There are so few well built, large developer tools for the Apple ecosystem. Developers are wary [of][stack] [being copied by Apple][copied] - something so prevalent that there is a common word for it, being [Sherlocked][sherlocked]. The project I've worked on for 5 years, CocoaPods, had an announcement of being sherlocked in late-2015 - you just have to deal with it. The idea that only Apple should be shipping these kind of things kills community momentum.
 
 <center><blockquote class="twitter-tweet" data-lang="en"><p lang="en" dir="ltr">Alfred, Dropbox, Snapchat, Parse, OpenGL, Objective-C… <br><br>Quite the body count this WWDC.</p>&mdash; Mattt (@mattt) <a href="https://twitter.com/mattt/status/473544723118837760">June 2, 2014</a></blockquote> <script async src="//platform.twitter.com/widgets.js" charset="utf-8"></script></center>
 
 If you're going to build something amazing, only to have all support pulled out from under you once it gets popular because apple copied it and made it for free and with a full time team behind it - why bother? 
 
-This makes it tough for us, as the 3rd party community, to build useful tools on the kind of scale that is normal in other developer eco-systems. Think of Fastlane, which _needs_ a company like Twitter/Google to behind to handle the scale of usage because no-one else is fixing toolchain issues.
+This makes it tough for us, as the 3rd party community, to build useful tools on the kind of scale that is normal in other developer ecosystems. Think of Fastlane, which _needs_ a company like Twitter/Google to behind to handle the scale of usage because no-one else is fixing toolchain issues.
 
-This contrasts drastically with the JavaScript eco-system, check out my explaination of Jest - and compare Jest to either Quick or Specta. Then remember that only Apple has the power to do most of what Jest does.
+This contrasts drastically with the JavaScript ecosystem, check out my explanation of Jest - and compare Jest to either Quick or Specta. Then remember that only Apple has the power to do most of what Jest does.
 
 > Reference from JS 2017: [Jest][jest]
 
@@ -149,9 +149,9 @@ With Relay, we got an genuinely ground-breaking change in how interactions get h
 
 > References from JS 2017: [React][react], [Relay][relay]
 
-Both of these tools provide a developer experience better than iOS native tooling. React's strict state management rules allow external tools to extend a React application easily, so the onus is not on the React team to make better tools. Other projects provide tools like:[debuggers][rn-debugger], [external state viewers][reactotron], [runtime code injection][hrm], [component storyboarding][storybook] all of which can be running simulatiously at runtime. 
+Both of these tools provide a developer experience better than iOS native tooling. React's strict state management rules allow external tools to extend a React application easily, so the onus is not on the React team to make better tools. Other projects provide tools like:[debuggers][rn-debugger], [external state viewers][reactotron], [runtime code injection][hrm], [component storyboarding][storybook] all of which can be running simultaneously at runtime. 
 
-A single press of save would take your changes, inject it into your current running application, keep you in the exact same place, depending on the type of change it could re-layout your views, and so you can stay in your editor and make your changes. <em>From 25 seconds, to less than one</em>. For a lot of my work, I can put my tests, debuggers and the application on another screen, and just move my head to watch changes propogate on save.
+A single press of save would take your changes, inject it into your current running application, keep you in the exact same place, depending on the type of change it could re-layout your views, and so you can stay in your editor and make your changes. <em>From 25 seconds, to less than one</em>. For a lot of my work, I can put my tests, debuggers and the application on another screen, and just move my head to watch changes propagate on save.
 
 So, you're thinking _"Yeah, but JavaScript..."_ - well, we use [TypeScript][what_is_ts] and it fixes pretty much every issue with JavaScript. Add in with that it's no problem for us to write native code when we need to. The last project I did on our React Native codebase required JS <-> Swift communication. 
 
@@ -181,7 +181,7 @@ We consider ourselves blocked on Android support, specifically by not having an 
   platform specific details, and think making rich iOS applications with React Native will be a breeze, you’ll
   [come home from a very cold fair](http://www.dwotd.nl/2008/06/443-van-een-kouwe-kermis-thuiskomen.html) indeed. 
 
-We need someone with a similar depth of knowledge in the Android eco-system, but we may need one or two for the entire team. The rest can continue to be a mix of Web and iOS engineers. You gain a subset of cross-platform skills using React Native. Had we continued down the path of using Swift, our skills would continue to be siloed.
+We need someone with a similar depth of knowledge in the Android ecosystem, but we may need one or two for the entire team. The rest can continue to be a mix of Web and iOS engineers. You gain a subset of cross-platform skills using React Native. Had we continued down the path of using Swift, our skills would continue to be siloed.
 
 There is an argument that Swift will be running servers soon, and so you can re-use Swift code across platforms. I could see myself writing server-side back-end code in Swift (you're writing systems, not apps) but it has a [long way to go][ssswift]. It also isn't an argument towards using it in our native apps, we'd have to re-write servers and implement our own GraphQL and Relay stack. This also would not impact the front-end code for the web - they would still be using JavaScript.
 
