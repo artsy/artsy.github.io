@@ -79,7 +79,7 @@ Had we continued with native apps via native code, we'd have put more resources 
 
 The dominant two issues come from differences in opinions in how software should be built
 
-* **Types.** Types are useful. Overly strict typing systems make it to hard to build _quick_ (not easy) to change codebases.
+* **Types.** Types are useful. Overly strict typing systems make it too hard to _quickly_ change codebases.
 
   Strictly typed languages work _really_ well for [building systems][systems], or completely atomic apps - the sort Apple have to build on a day to day basis. When I say an atomic app, I mean one where the majority of the inputs and outputs exist within the domain of the application. Think of apps with their own filetypes, that can control inputs and outputs really easily.
 
