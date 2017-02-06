@@ -162,7 +162,7 @@ With Relay, we got an genuinely ground-breaking change in how interactions get h
 
 > References from JS 2017: [React][react], [Relay][relay]
 
-Both of these tools provide a developer experience better than iOS native tooling. React's strict state management rules allow external tools to extend a React application easily, so the onus is not on the React team to make better tools. Other projects provide tools like: [debuggers][rn-debugger], [external state viewers][reactotron], [runtime code injection][hrm], [component storyboarding][storybook] all of which can be running simultaneously as you arer building your application. Imagine being given the flow of all state in your app in [every bug report][logrocket]. 
+Both of these tools provide a developer experience better than iOS native tooling. React's strict state management rules allow external tools to extend a React application easily, so the onus is not on the React team to make better tools. Other projects provide tools like: [debuggers][rn-debugger], [external state viewers][reactotron], [runtime code injection][hrm], [component storyboarding][storybook] all of which can be running simultaneously as you are building your application. Imagine being given the flow of all state in your app in [every bug report][logrocket].
 
 A single press of save would take your changes, inject it into your current running application, keep you in the exact same place, depending on the type of change it could re-layout your views, and so you can stay in your editor and make your changes. <em>From 25 seconds, to less than one</em>. For a lot of my work, I can put my tests, debuggers and the application on another screen, and just move my head to watch changes propagate on pressing save.
 
@@ -172,7 +172,7 @@ React Native feels like the best of both worlds: Elegant, fast to work with appl
 
 > Reference from JS 2017: [TypeScript][typescript]
 
-There's one more thing that I want to really stress around developer experience, it's really easy to write tests for our React components. Testing in JavaScript is night-and-day better than native testing. Because we can run our tests outside of the simulator (due to React's virtual DOM) we run tests whenever you press save. These tests are only the ones related to the current [changes in git][jest]. The only this we miss is visual snapshots [from the simulator][snapshots], not having to restart a simulator to run tests makes it worth it though.
+There's one more thing that I want to really stress around developer experience, it's really easy to write tests for our React components. Testing in JavaScript is night-and-day better than native testing. Because we can run our tests outside of the simulator (due to React's virtual DOM) we run tests whenever you press save. These tests are only the ones related to the current [changes in git][jest]. The only thing we miss is visual snapshots [from the simulator][snapshots], not having to restart a simulator to run tests makes it worth it though.
 
 #### Same Tools, Different Dev
 
