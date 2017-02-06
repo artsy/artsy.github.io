@@ -104,7 +104,7 @@ This contrasts sharply with working on Fastlane, where we're willing to take the
 
 We got burned by working with Swift too early, but coming back at Swift 2.0 feels good. We just started introducing Swift into our Objective-C codebases, as it's looking like the tooling has matured.
 
-We spent a good chunk of time over the last 6 months discussing and testing out React-Native as an approach for building apps. It's turning into an amazing platform, but for us it's not mature enough to start building apps with it as a foundation.
+We spent a good chunk of time over the last 6 months discussing and testing out React Native as an approach for building apps. It's turning into an amazing platform, but for us it's not mature enough to start building apps with it as a foundation.
 
 ## Not All Dependencies are Third Party
 

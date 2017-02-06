@@ -271,7 +271,7 @@ Now an ECMAScript language improvement specification moves through a series of s
 
 So a ECMAScript Stage 0 feature is going to be really new, if you're using it via a transpiler then you should expect a lot of potential API changes and code churn. The higher the number, the longer the spec has been discussed, and the more likely for the code you're transpiling to be the vanilla JavaScript code in time.
 
-The committee who discussed these improvements are the [TC39][tc39] commitee, the cool bit is that you can see [all the proposals][tc39-github] as individual GitHub repos so it's convient to browse. 
+The committee who discussed these improvements are the [TC39][tc39] committee, the cool bit is that you can see [all the proposals][tc39-github] as individual GitHub repos so it's convenient to browse. 
 
 
 ### Modules / Imports
@@ -294,7 +294,7 @@ import SwitchBoard from '../../../native_modules/switch_board'
 
 An import can either have [a default export][default-export], or a set of [exportable function/objects][export-func].
 
-You might see an import like `const _ = require("underscore")` around the internet, this is an older format for packaging JavaScript called [CommonJS][commonjs]. It was replaced by the `import` statements above because you can make guarantees about the individual items exported between module boundries. This is interesting because of [tree-shaking](#tree-shaking), which we'll get to later. 
+You might see an import like `const _ = require("underscore")` around the internet, this is an older format for packaging JavaScript called [CommonJS][commonjs]. It was replaced by the `import` statements above because you can make guarantees about the individual items exported between module boundaries. This is interesting because of [tree-shaking](#tree-shaking), which we'll get to later. 
 
 ### Classes
 
@@ -512,22 +512,22 @@ Both take the approach of providing an optional typing system. This means you ca
 
 ### Interfaces
 
-As both [Flow](#flow) and [TypeScript](#typescript) interact with JavaScript, the mindset for applying types is through Interfaces. This is very similar to protocol oriented programming, where you only care about the responsibilities  of an object - not the specific type. Here is a Flow interface from DangerJS:
+As both [Flow](#flow) and [TypeScript](#typescript) interact with JavaScript, the mindset for applying types is through Interfaces. This is very similar to programming with protocols, where you only care about the responsibilities  of an object - not the specific type. Here is a Flow interface from DangerJS:
 
 ```js
 /** An API representation for a Code Review site */
 export interface Platform {
-/** Mainly for logging and error reporting */
-name: string;
-/** Used internally for getting PR/Repo metadata */
-ciSource: CISource;
-/** Pulls in the Code Review Metadata for inspection */
-getReviewInfo: () => Promise<any>;
-/** Pulls in the Code Review Diff, and offers a succinct user-API for it */
-getReviewDiff: () => Promise<GitDSL>;
-/** Creates a comment on the PR */
-createComment: (body: string) => Promise<?Comment>;
-[...]
+  /** Mainly for logging and error reporting */
+  name: string;
+  /** Used internally for getting PR/Repo metadata */
+  ciSource: CISource;
+  /** Pulls in the Code Review Metadata for inspection */
+  getReviewInfo: () => Promise<any>;
+  /** Pulls in the Code Review Diff, and offers a succinct user-API for it */
+  getReviewDiff: () => Promise<GitDSL>;
+  /** Creates a comment on the PR */
+  createComment: (body: string) => Promise<?Comment>;
+  [...]
 }
 ```
 
@@ -572,7 +572,7 @@ Both TypeScript and Flow offer a tool to provide external definitions for their 
 
 Flow-Typed is new, so it's not really got many definitions at all. Typings on the other hand has quite a lot, so in our React Native we use typings to get auto-complete for our libraries.
 
----
+### JavaScript Fatigue
 
 So that's my glossary, there's a lot of interesting projects out in the JS world. 
 
