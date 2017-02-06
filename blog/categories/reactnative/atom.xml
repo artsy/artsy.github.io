@@ -4,7 +4,7 @@
   <title><![CDATA[Category: reactnative | Artsy Engineering]]></title>
   <link href="http://artsy.github.io/blog/categories/reactnative/atom.xml" rel="self"/>
   <link href="http://artsy.github.io/"/>
-  <updated>2017-02-01T19:46:28+00:00</updated>
+  <updated>2017-02-06T17:34:09+00:00</updated>
   <id>http://artsy.github.io/</id>
   <author>
     <name><![CDATA[]]></name>
@@ -12,6 +12,640 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Retrospective: Swift at Artsy]]></title>
+    <link href="http://artsy.github.io/blog/2017/02/05/Retrospective-Swift-at-Artsy/"/>
+    <updated>2017-02-05T12:18:00+00:00</updated>
+    <id>http://artsy.github.io/blog/2017/02/05/Retrospective-Swift-at-Artsy</id>
+    <content type="html"><![CDATA[<center>
+<img src="/images/swift-in-rn/swift-in-react-native.svg" style="width:300px;">
+</center>
+
+
+<p>Swift became public in June 2014, by August we had started using it in Artsy. By October, we had <a href="http://artsy.github.io/blog/2014/11/13/eidolon-retrospective/">Swift in production</a> channelling hundreds of thousands of dollars in auction bids.</p>
+
+<p>It is pretty obvious that Swift is the future of native development on Apple platforms. It was a no-brainer to then build an <a href="https://github.com/artsy/emergence">appleTV app</a> in Swift, integrated Swift-support into our key app Eigen and built non-trivial parts of that <a href="http://artsy.github.io/blog/2016/08/09/the-tech-behind-live-auction-integration/">application in Swift</a>.</p>
+
+<p>We first started experimenting with React Native in February 2016, and by August 2016, we announced that <a href="/blog/2016/08/15/React-Native-at-Artsy/">Artsy moved to React Native</a> effectively meaning new code would be in JavaScript from here onwards.</p>
+
+<p>We're regularly asked <em>why</em> we moved, and it was touched on briefly in our announcement but I'd like to dig in to this and try to cover a lot of our decision process. So, if you're into understanding why a small team of iOS developers with decades of native experience switched to JavaScript, read on.</p>
+
+<p>This post will cover: <a href="/blog/2017/02/05/Retrospective-Swift-at-Artsy/#What.are.Artsy.s.apps.">What are Artsy's apps?</a>, Swifts <a href="/blog/2017/02/05/Retrospective-Swift-at-Artsy/#Swift.s.upsides">positives</a> and <a href="/blog/2017/02/05/Retrospective-Swift-at-Artsy/#Native.Downsides">negatives</a> for us, <a href="/blog/2017/02/05/Retrospective-Swift-at-Artsy/#React.Native">React Native</a>, and our <a href="/blog/2017/02/05/Retrospective-Swift-at-Artsy/#React.Native..one.year.later">1-year summary</a>.</p>
+
+<!-- more -->
+
+
+<p>We were finding that our current patterns of building apps were not scaling as the team and app scope grew. Building anything inside Eigen rarely re-used existing native code, and progressively took longer to build features. Our app and test target build times were increasing, till eventually it would take 2 iOS engineers to build a feature in a similar time-frame as a single web engineer. Our iOS engineers have a lot of experience across many platforms, are well versed in best practices and understand the value of building better tools to make it faster. We had the knowledge, but we weren't finding ourselves in a great position product development wise.</p>
+
+<p>By <a href="https://github.com/artsy/mobile/issues/22">March 2015</a>, we gave up trying to keep pace with the web.</p>
+
+<p>Once we came to this conclusion, our discussion came to "what can we do to fix this?" Over the course of the 2015 winter break we explored ideas on how we could write more re-usable code.</p>
+
+<a name="What.are.Artsy.s.apps."></a>
+<h1>What are Artsy's apps?</h1>
+
+<p>We have different apps with different trade-offs.</p>
+
+<p><a href="https://github.com/artsy/eigen">Eigen</a> is an app where we take JSON data from the server, and convert it into a user interface. Each view controller can nearly always be described as a function taking data and mapping it to a UI. <a href="https://github.com/artsy/eidolon">Eidolon</a> (our Auctions Kiosk app) which contains a lot of Artsy-wide unique business logic which is handled with local state like card reader input, or unique user identification modes. <a href="https://github.com/artsy/emergence">Emergence</a> is a trivial-ish tvOS app which has a few view controllers, and is mostly handled by Xcode's storyboards.</p>
+
+<p></div></div><a href='/images/emission/eigen.svg'><img src="/images/emission/eigen.svg"></a><div class='meta-container'><header>&nbsp;</header></div><div class='date-container'>&nbsp;</div><div class='content-container'><div class='entry-content'></p>
+
+<p>Eigen is where we worried about how we were building apps, other apps are limited in their scope, but Eigen is basically the mobile representation of Artsy. We're never <em>not</em> going to have something like Eigen.</p>
+
+<p>We eventually came to the conclusion that we needed to re-think our entire UIKit stack for Eigen. Strictly speaking, Objective-C was not a problem for us, our issues came from abstractions around the way we built apps.</p>
+
+<p>Re-writing from scratch was not an option. That takes <a href="https://www.joelonsoftware.com/2000/04/06/things-you-should-never-do-part-i/">a lot of time and effort</a>, which will happily remove technical debt, but that's not our issue. We also don't need or have a big redesign. However, a lot of companies used the Objective-C -> Swift transition as a time to re-write from scratch. We asked for the experiences from developers who had opted to do this, they said it was a great marketing tool for hiring - but was a lot of pain to actually work with day to day. They tend to talk about technical debt, and clean slates - but not that Objective-C was painful and Swift solves major architectural problems. With the notable exception of functional programming purists.</p>
+
+<p>In the end, for Eigen, we came to the conclusion that we wanted to work with a component-based architecture. This architectural choice comes from studying how other larger apps handle code-reuse.</p>
+
+<p>We were considering:</p>
+
+<ul>
+<li>View Controllers being a mix of Components which could be extended using protocols in Swift.</li>
+<li>JSON defined Components ( which would have ended up like Spotify's (<a href="https://cocoapods.org/pods/HubFramework">hub</a>) or Hyperslo's (<a href="https://cocoapods.org/pods/Spots">Spots</a>) ).</li>
+<li>Building a Component structure heavily inspired by React ( like Bending Spoons's (<a href="https://cocoapods.org/pods/Katana">Katana</a>) ).</li>
+</ul>
+
+
+<center>
+ <img src="/images/js2017/swift.svg" style="width:250px;">
+</center>
+
+
+<a name="Swift.s.upsides"></a>
+<h1>Swift's upsides</h1>
+
+<p>Had we continued with native apps via native code, we'd have put more resources behind Swift, which had quite a bit running for it:</p>
+
+<ul>
+<li><p><strong>It was consistent with our existing code.</strong> We wrote hundreds of thousands of lines of code in Objective-C and maybe around a hundred thousand of Swift. The majority of the team had 5+ years of Cocoa experience and no-one needs to essentially argue that <em>continuing</em> with that has value.</p></li>
+<li><p><strong>Swift code can interact with Objective-C and can work on it's own.</strong> We can write Swift libraries that can build on-top of our existing infrastructure to work at a higher level of abstraction. Building a component-based infrastructure via Swift could allow easy-reuse of existing code, while providing a language difference for "new app code" vs "infra."</p></li>
+<li><p><strong>People are excited about Swift.</strong> It's an interesting, growing language, and one of the few ones non-technical people ask about. "Oh you're an iOS developer, do you use Swift?" is something I've been asked a lot. The developers outside of the mobile team have signed up multiple times for Swift workshops and want to know what Swift is, and what it's trade-offs are.</p></li>
+<li><p><strong>It's evolving</strong> the language changes at a fast rate, with new ideas coming from, and influencing other languages. People inside the community influence and shape it's growth. There are some great claims being made <a href="https://twitter.com/wilshipley/status/565001293975257091">about Swift</a> by people we respect.</p></li>
+<li><p><strong>Swift improves on a lot of Objective-C.</strong> Most of the patterns that we use in Objective-C are verbose, and they can become extremely terse inside Swift. Potentially making it easier to read and understand.</p></li>
+<li><p><strong>We would be using the official route.</strong> Apple obviously <em>wants</em> you to be using Swift, they are putting a <em>lot</em> of resources into the language. There are smart people working on the project, and it's becomes more stable and useful every year. There aren't any <em>Swift-only</em> APIs yet, but obviously they'll be coming.</p></li>
+<li><p><strong>It's a <a href="https://en.wikipedia.org/wiki/There_are_known_knowns">known-unknown</a> territory.</strong> We have a lot of knowledge around building better tooling for iOS apps. From libraries like <a href="https://github.com/moya/moya">Moya</a>, to foundational projects like <a href="https://cocoapods.org">CocoaPods</a>. Coming up with, and executing dramatic tooling improvements is possible. Perhaps we had overlooked a smarter abstraction which would have worked around the downsides, and thus making it worth expanding our search.</p>
+
+<p>If we end up building something which gains popularity, we get the advantage of working with a lot of fresh perspectives, and being able to gain from other people working on the same project. This is what happened with <a href="https://github.com/moya/moya">Moya</a>. It's a pattern Basecamp discuss when they <a href="https://signalvnoise.com/posts/660-ask-37signals-the-genesis-and-benefits-of-rails">talk about rails</a> by beginning with a real project and abstracting outwards.</p></li>
+</ul>
+
+
+<a name="Native.Downsides"></a>
+<h1>Native Downsides</h1>
+
+<p>The dominant two issues come from differences in opinions in how software should be built</p>
+
+<ul>
+<li><p><strong>Types.</strong> Types are useful. Overly strict typing systems make it to hard to build <em>quick</em> (not easy) to change codebases.</p>
+
+<p>Strictly typed languages work <em>really</em> well for <a href="http://mjtsai.com/blog/2014/10/14/hypothetical-objective-c-3-0/#comment-2177091">building systems</a>, or completely atomic apps - the sort Apple have to build on a day to day basis. When I say an atomic app, I mean one where the majority of the inputs and outputs exist within the domain of the application. Think of apps with their own filetypes, that can control inputs and outputs really easily.</p>
+
+<p>Even in Objective-C, a looser-typed language where you were not discouraged from using meta--programming, handling JSON required <em>a tonne</em> of boilerplate laden, inelegant code when working with an API. Considering how bread-and-butter working with an API is for most 3rd party developers it should come as no surprise that the most popular CocoaPods are about handling JSON parsing, and making network requests.</p>
+
+<p>Problems which Apple, generally speaking, don't have. They use iCloud, or CloudKit, or whatever, and expect you will also. The official Apple opinion was neatly summed up on the official Swift blog on how to handle JSON parsing <a href="https://developer.apple.com/swift/blog/?id=37">exhibits the problem well</a>.</p>
+
+<blockquote><p>Swift’s built-in language features make it easy to safely extract and work with JSON data decoded with Foundation APIs — without the need for an external library or framework.</p></blockquote>
+
+<p>They do, but it's not great code to write nor maintain. I don't know anyone who does what they recommend in production.</p>
+
+<p>The stricter type system in Swift made it harder to work on JSON-driven apps.</p></li>
+<li><p><strong>Slow.</strong> Native development when put next to web development is slow. Application development requires full compilation cycles, and full state restart of the application that you're working on. A trivial string change in Eigen takes <a href="https://twitter.com/orta/status/778242899821621249">25 seconds</a> to show up. When I tell some developers that time, they laugh and say I have it good.</p>
+
+<p><center><blockquote class="twitter-tweet" data-lang="en"><p lang="en" dir="ltr">Making a single edit in a string takes 25 seconds to see the difference in the swift parts of Eigen <a href="https://t.co/MOPGPEWqxX">pic.twitter.com/MOPGPEWqxX</a></p>&mdash; 💍rta Therox (@orta) <a href="https://twitter.com/orta/status/778242899821621249">September 20, 2016</a></blockquote></center></p>
+
+<p>The moment that this really stood out for me was when I <a href="https://twitter.com/orta/status/271559616888967168">re</a>-discovered <a href="https://twitter.com/orta/status/705890397810257921">Injection for Xcode</a> which ruined my appetite for building apps the traditional way. It reduced an iteration cycle to about <a href="https://twitter.com/orta/status/706165678177390592">a second</a>. With Apple's resources, and the fact that Injection for Xcode has existed for years by a single developer, it's frustrating that iOS is a <a href="https://developer.android.com/studio/run/index.html#instant-run">mobile platform</a> with no support for code reloading. I filed bug reports (<a href="https://forums.developer.apple.com/thread/8796">radars</a>), they were marked as duped with no comment. I talked to Apple engineers at WWDC, the idea was dismissed as "didn't work" when it was <a href="http://stpeterandpaul.ca/tiger/documentation/DeveloperTools/Conceptual/XcodeUserGuide/Contents/Resources/en.lproj/06_06_db_fix_and_continue/chapter_44_section_1.html">tried before</a>.</p>
+
+<p>I've heard developers say they use Playgrounds to work around some of these problems, and the Kickstarter app has probably the closest I've seen to an <a href="https://github.com/kickstarter/ios-oss/tree/master/Kickstarter-iOS.playground/Pages">actual implementation of this</a>, so check that out if you're hitting these issues.</p>
+
+<p>The Swift compiler is slow. Yes, it will improve. One of my favourite Swift features, inferred typing, can accidentally increase compile times non-obviously. Which can make it feel arbitrary about what code takes longer to compile or not. We eventually <a href="https://github.com/artsy/eigen/pull/1465">automated having our CI warn us</a> whether the code we were adding was slow as it felt hard to predict.</p></li>
+</ul>
+
+
+<center>
+ <img src="/images/react-native/artsy_react_logo.svg" style="width:300px;">
+</center>
+
+
+<a name="React.Native"></a>
+<h1>React Native</h1>
+
+<p>You may want to read our announcement of switching to <a href="/blog/2016/08/15/React-Native-at-Artsy/">React Native</a> in anticipation of this. However the big three reasons are:</p>
+
+<ul>
+<li>Better developer experience.</li>
+<li>Same conceptual levels as the rest of the team.</li>
+<li>Ownership of the whole stack.</li>
+</ul>
+
+
+<p>However, the key part of this post is how does this compare to native development? Also, have these arguments stood up to the test of time a year later?</p>
+
+<p><em>Sidenote:</em> I found it hard to write this without being able to comprehensively reference what we are doing now, and so, I'll be referencing a sibling article: <a href="/blog/2017/02/05/Front-end-JavaScript-at-Artsy-2017/">JS 2017</a>.</p>
+
+<a name="Developer.Experience"></a>
+<h3>Developer Experience</h3>
+
+<p>The JavaScript ecosystem cares about how someone using the tool will feel. This is a part of what separates the good from the great in the community. It's not enough to just provide a great API, and comprehensive documentation but it should substantially improve the way you work.</p>
+
+<blockquote><p>References from JS 2017: <a href="/blog/2017/02/05/Front-end-JavaScript-at-Artsy-2017/#Relay">Relay</a>, <a href="/blog/2017/02/05/Front-end-JavaScript-at-Artsy-2017/#Jest">Jest</a></p></blockquote>
+
+<p>As <em>everyone</em> inside the community has both the ability and the tools to contribute to the ecosystem you get better tools.</p>
+
+<p>Apple make <em>great</em> tools. I do miss Xcode sometimes. It's cohesive, beautifully designed and doesn't show it's age. It's a perfect Mac citizen.</p>
+
+<p>Though it's important to note that they make tools for Apple first and then for us 3rd party devs. Outside influence obviously exists, but they're shipping whatever <em>they</em> want and you can only influence that via Radars and through going to a conference once a year and talking directly to the dev tools team. Only the Swift language is Open Source (and <a href="https://github.com/apple/swift-package-manager">SwiftPM</a>)</p>
+
+<p>There are so few well built, large developer tools for the Apple ecosystem. Developers are wary <a href="https://twitter.com/orta/status/608013279433138176">of</a> <a href="https://twitter.com/mattt/status/473544723118837760">being copied by Apple</a> - something so prevalent that there is a common word for it, being <a href="https://www.cocoanetics.com/2011/06/on-getting-sherlocked/">Sherlocked</a>. The project I've worked on for 5 years, CocoaPods, had an announcement of being sherlocked in late-2015 - you just have to deal with it. The idea that only Apple should be shipping these kind of things kills community momentum.</p>
+
+<center><blockquote class="twitter-tweet" data-lang="en"><p lang="en" dir="ltr">Alfred, Dropbox, Snapchat, Parse, OpenGL, Objective-C… <br><br>Quite the body count this WWDC.</p>&mdash; Mattt (@mattt) <a href="https://twitter.com/mattt/status/473544723118837760">June 2, 2014</a></blockquote> <script async src="//platform.twitter.com/widgets.js" charset="utf-8"></script></center>
+
+
+<p>If you're going to build something amazing, only to have all support pulled out from under you once it gets popular because apple copied it and made it for free and with a full time team behind it - why bother?</p>
+
+<p>This makes it tough for us, as the 3rd party community, to build useful tools on the kind of scale that is normal in other developer ecosystems.</p>
+
+<p>This contrasts drastically with the JavaScript ecosystem, check out my explanation of Jest - and compare Jest to either Quick or Specta. Then remember that only Apple has the power to do most of what Jest does.</p>
+
+<blockquote><p>Reference from JS 2017: <a href="/blog/2017/02/05/Front-end-JavaScript-at-Artsy-2017/#Jest">Jest</a></p></blockquote>
+
+<center>
+ <img src="/images/js2017/relay.svg" style="width:300px;">
+</center>
+
+
+<a name="Better.Abstractions..Better.Developer.Experience"></a>
+<h3>Better Abstractions, Better Developer Experience</h3>
+
+<p>I've mentioned that the apps we build have problems specific to API-driven applications. This means that the majority of our work tends to be that we have the full data already, and need to iterate to get the right styling and logic mapping correct, in doing so we want to also make it easy to re-use code.</p>
+
+<p>The React component-oriented architecture makes it very easy to build these types of applications. Born out of the <a href="/blog/2016/11/14/JS-Glossary/#javascript-fatigue">JavaScript primordial soup</a>, where conceptual frameworks come and go every year or so. React has been around for a while now, and seems to have a lot of momentum.</p>
+
+<p>All of these frameworks have the same domain problems that our iOS apps have, external API stores, complex user device state and a mature user-interface API (either the DOM, or UIKit.)</p>
+
+<p>With React, the core concept of a virtual DOM means that you can simplify a lot of complicated state-management for your application. It becomes trivial, removing the need for more complicated state-handling ideas like functional or reactive programming.</p>
+
+<p>With Relay, we got an genuinely ground-breaking change in how interactions get handled with our API. I don't want to  work against an API without a tool like Relay again.</p>
+
+<blockquote><p>References from JS 2017: <a href="/blog/2017/02/05/Front-end-JavaScript-at-Artsy-2017/#React...React.Native">React</a>, <a href="/blog/2017/02/05/Front-end-JavaScript-at-Artsy-2017/#Relay">Relay</a></p></blockquote>
+
+<p>Both of these tools provide a developer experience better than iOS native tooling. React's strict state management rules allow external tools to extend a React application easily, so the onus is not on the React team to make better tools. Other projects provide tools like: <a href="https://github.com/jhen0409/react-native-debugger">debuggers</a>, <a href="https://github.com/infinitered/reactotron">external state viewers</a>, <a href="https://github.com/gaearon/react-hot-loader">runtime code injection</a>, <a href="https://github.com/storybooks/react-storybook">component storyboarding</a> all of which can be running simultaneously as you arer building your application. Imagine being given the flow of all state in your app in <a href="https://logrocket.com">every bug report</a>.</p>
+
+<p>A single press of save would take your changes, inject it into your current running application, keep you in the exact same place, depending on the type of change it could re-layout your views, and so you can stay in your editor and make your changes. <em>From 25 seconds, to less than one</em>. For a lot of my work, I can put my tests, debuggers and the application on another screen, and just move my head to watch changes propagate on pressing save.</p>
+
+<p>So, you're thinking <em>"Yeah, but JavaScript..."</em> - well, we use <a href="http://typescriptlang.org">TypeScript</a> and it fixes pretty much every issue with JavaScript. It's also no problem for us to write native code when we need to, we are still adding to an existing native codebase. The last project I did on our React Native codebase required bi-directional JS <-> Swift communication.</p>
+
+<p>React Native feels like the best of both worlds: Elegant, fast to work with application code, which the whole dev team understands. Falling back to native tooling when we think it will be best for the project.</p>
+
+<blockquote><p>Reference from JS 2017: <a href="/blog/2017/02/05/Front-end-JavaScript-at-Artsy-2017/#TypeScript">TypeScript</a></p></blockquote>
+
+<p>There's one more thing that I want to really stress around developer experience, it's really easy to write tests for our React components. Testing in JavaScript is night-and-day better than native testing. Because we can run our tests outside of the simulator (due to React's virtual DOM) we run tests whenever you press save. These tests are only the ones related to the current <a href="/blog/2017/02/05/Front-end-JavaScript-at-Artsy-2017/#Jest">changes in git</a>. The only this we miss is visual snapshots <a href="https://www.objc.io/issues/15-testing/snapshot-testing/">from the simulator</a>, not having to restart a simulator to run tests makes it worth it though.</p>
+
+<a name="Same.Tools..Different.Dev"></a>
+<h4>Same Tools, Different Dev</h4>
+
+<p>We wanted to stop being highly unique inside the dev team. Artsy has around 25 developers, the majority of which work with Ruby and JavaScript on a day-to-day basis. The mobile team was the single development team that didn't make their own API changes, used different toolchains and were much slower in shipping anything.</p>
+
+<p>This isn't a great position to be in.</p>
+
+<p>We wanted all developers to feel like they can contribute to any area of the company. For the past 5 years, the native mobile projects had close to zero contributions from anyone outside of the mobile team. Due to differences in tooling, and the idea that there was a cultural difference between us. Since the mobile team moved to React Native we have received features and bug fixes from the web team, and fit in better overall.</p>
+
+<p>This expansion of a mobile team developer's scope has made it much easier for us to reason about finding better ways to share code with the web team. At the end of 2015, the Collector Web team introduced GraphQL to Artsy. I wrote about how this affected the <a href="http://artsy.github.io/blog/2016/06/19/graphql-for-mobile/">mobile team</a>. This acts as an API layer owned by the front-end side of Artsy. Meaning that it could contain a lot of API-derived client-specific logic. Previously, this work was done by the web team, and then consumed by mobile - now both teams build their APIs and consume them.</p>
+
+<blockquote><p>Reference from JS 2017: <a href="/blog/2017/02/05/Front-end-JavaScript-at-Artsy-2017/#GraphQL">GraphQL</a></p></blockquote>
+
+<p>This is not something we have explored too deeply, however we expect to be able to port a lot of our React Native to Android. I got a rough prototype ported in 2 days work. By working at React-level, and allowing the React Native bindings to handle the interactions with the host OS, we've been writing cross-platform code.</p>
+
+<p>We consider ourselves blocked on Android support, specifically by not having an engineer in our team with <em>deep</em> experience in Android. Moving to React Native does not obviate our native skills, you're going to be significantly better in that environment with those skills than without. As we mentioned in our <a href="/blog/2016/08/15/React-Native-at-Artsy/">announcement</a>:</p>
+
+<blockquote><p>If you’re not already knowledgeable about iOS development, are not motivated to put in the time to learn about the
+  platform specific details, and think making rich iOS applications with React Native will be a breeze, you’ll
+  <a href="http://www.dwotd.nl/2008/06/443-van-een-kouwe-kermis-thuiskomen.html">come home from a very cold fair</a> indeed.</p></blockquote>
+
+<p>We need someone with a similar depth of knowledge in the Android ecosystem as our iOS, but we may need one or two for the entire team. The rest can continue to be a mix of Web and iOS engineers. You gain a subset of cross-platform skills using React Native. Had we continued down the path of using Swift, our skills would continue to be siloed.</p>
+
+<p>There is an argument that Swift will be running servers soon, and so you can re-use Swift code across platforms. I could see myself writing server-side back-end code in Swift (you're writing systems, not apps) but it has a <a href="https://ashfurrow.com/blog/swift-on-linux/">long way to go</a>. It also isn't an argument towards using it in our native apps, we'd have to re-write servers and implement our own GraphQL and Relay stack. This also would not impact the front-end code for the web - they would still be using JavaScript.</p>
+
+<p>With respect to Swift on Android, potentially, logic code could be shared between platforms but realistically for our setup that's just not worth it. We're moving that kind of logic into the GraphQL instance and sharing across <em>all</em> clients, not only native platforms. If you're sharing model code, you could generate that per-project instead from the server. Since GraphQL is strongly-typed, we're doing this for both <a href="https://github.com/alloy/relational-theory/pull/18">TypeScript + GraphQL</a> and <a href="https://github.com/alloy/vscode-relay">TypeScript + Relay</a>.</p>
+
+<p>We don't know where this will end, but we've prototyped porting one of our view controllers from React Native <a href="https://github.com/alloy/relational-theory/pull/16">to a website</a>. It's almost source-compatible. This such a completely different mindset from where we were a year ago.</p>
+
+<a name="Owning.the.stack"></a>
+<h4>Owning the stack</h4>
+
+<p>Pick an abstraction level of our application above UIKit and we can fork it. All our tools can be also be forked. We can fix our own issues.</p>
+
+<p>In native, there are no concepts like, <em>"We'll use Steipete's fork of UIKit for UIPopover rotation fixes"</em> or <em>"My version of Xcode will run tests when you press save."</em>. Well, hopefully the latter <a href="https://twitter.com/orta/status/790589579552296966">may be fixed</a> in time, but the "you have no choice but to wait, and maybe it won't happen" aspect is part of the problem.</p>
+
+<p>You have your tools given to you, in a year you get some new ones and lose some old ones. In contrast, we've built <a href="https://github.com/orta/vscode-jest#vscode-jest-">many</a> <a href="https://github.com/orta/vscode-react-native-storybooks">extensions</a> <a href="https://github.com/alloy/vscode-relay">for</a> <a href="https://github.com/orta/vscode-ios-common-files">VS</a> <a href="https://github.com/orta/vscode-danger">Code</a> for our own use, and helped out on <a href="https://github.com/flowtype/flow-for-vscode/blob/master/CHANGELOG.md">major ones</a>. When VS Code didn't do what I wanted, I started using <a href="https://github.com/orta/Essence">use my own fork</a>.</p>
+
+<blockquote><p>Reference from JS 2017: <a href="/blog/2017/02/05/Front-end-JavaScript-at-Artsy-2017/#Visual.Studio.Code">VS Code</a></p></blockquote>
+
+<p>In the last year, we have submitted code to major JavaScript dependencies of ours: React Native, Relay, VS Code, Jest and a few libraries in-between - fixing problems where we see them, offering features if we need them. Some of these changes are <a href="https://github.com/Microsoft/vscode/pull/12628">small</a>, but some <a href="https://github.com/facebook/relay/issues/1061">are</a> <a href="https://github.com/facebook/jest/pull/2192">big</a> <a href="https://github.com/facebook/react-native/pull/6114">moves</a>. Being able to help out on any problem makes it much easier to live with the <a href="/blog/2016/08/15/React-Native-at-Artsy/">593 dependencies</a> that using React Native brings.</p>
+
+<p>It's worth highlighting that all of this is done on GitHub, in the open. We can write issues, get responses, and have direct line to the people who are working on something we depend on. This is a stark contrast to the Radar system used internally at Apple, and which external developers have write-only access to. For external contributors radar is opaque, and <a href="https://thenextweb.com/apple/2012/04/13/app-developers-frustrated-with-bug-reporting-tools-call-on-apple-to-fix-radar-or-gtfo/">often feels like a waste of time</a>. On the other hand, a GitHub issue doesn't have to wait for the repo maintainers, others can get value from it and it's publicly indexed. If we had put all our effort into Radars instead of <a href="https://github.com/artsy/eigen/issues/586">issues like</a> this, the whole community would be worse off.</p>
+
+<p>This isn't all doom and gloom. With Swift the language, and SwiftPM the package manager, Apple are more open with the feedback cycle using tools like <a href="https://lists.swift.org/pipermail/swift-build-dev/Week-of-Mon-20160530/000497.html">Slack</a>, Mailing Lists, JIRA and Twitter.</p>
+
+<p>One aspect of working with JavaScript that has been particularly pleasant is the idea that your language is effectively a buffet. If you want to use the latest features of the language you can opt-in to it. We've slowly added language features, while retaining backwards compatibility. First using <a href="https://babeljs.io">Babel</a>, then <a href="https://flowtype.org">Flow</a> and finally with <a href="http://www.typescriptlang.org">TypeScript</a>.</p>
+
+<p>In contrast, and this may be the last major time it happens, but people refer to the time it took to migrate <a href="https://engblog.nextdoor.com/migrating-to-swift-3-7add0ce0655#.rvyrohyhq">in</a> <a href="https://tech.zalando.com/blog/app-migration-to-swift-3/">the</a> <a href="https://github.com/kickstarter/ios-oss/pull/26">scale</a> <a href="https://twitter.com/guidomb/status/817363981216129025">of</a> <em>weeks</em> during the Swift 2 -> 3 migration. Having the language evolve is great, sometimes in ways that you <a href="https://swift.org/documentation/api-design-guidelines/">agree with</a> and sometimes in ways <a href="http://mjtsai.com/blog/2016/07/17/swift-classes-to-be-non-publicly-subclassable-by-default/">you don't</a>. Being able to use your own version of your tools frees you to make it work for you and your business. We have been talking about <a href="/blog/2017/02/05/Front-end-JavaScript-at-Artsy-2017/#TypeScript-Extension">extending TypeScript</a> specifically for our applications.</p>
+
+<a name="React.Native..one.year.later"></a>
+<h1>React Native, one year later</h1>
+
+<p>In our announcement we talked about the lack of nuanced post-mortems on React Native. We're now a year in, we can at least try to help out in that space. We're sticking with React Native for the foreseeable future. It would take some <em>drastic</em> changes in the Apple ecosystem for us to re-consider this decision. So here's the summary after 1 year.</p>
+
+<ul>
+<li>We can share concepts with web</li>
+<li>Tools are built for our apps like ours</li>
+<li>To do it right requires engineers willing to dive deep in JS</li>
+<li>You need native experience to have a polished app</li>
+<li>Dependency stack is still obscenely big</li>
+<li>Opens native engineers to more projects, makes yours more welcoming to others</li>
+<li>Problems do, and will occur, but everything is fixable by forking</li>
+<li>Extensive communication with native code gets tricky to test and maintain</li>
+<li>We ended up re-using quite a lot of existing native code</li>
+<li>It makes working in native code feel more like a chore, as you lose the JS developer experience</li>
+<li>Spending so much time in another environment will erode native knowledge</li>
+<li>Makes a lot of sense in an <a href="/blog/2016/08/24/On-Emission/">additive approach</a> to existing apps</li>
+<li>We're not making plans to re-write other Apps into React Native, they are fine as-is</li>
+<li>New apps going forward we will default to React Native apps, unless there is a good reason to not</li>
+</ul>
+
+
+<p>So, should you use React Native? Maybe. If you have an API driven app, <em>probably.</em></p>
+
+<p>It's definitely worth a week of prototyping for any engineering team, then if that goes well you should look into GraphQL and Relay. They really make React Native shine.</p>
+
+<a name="Want.to.get.started."></a>
+<h1>Want to get started?</h1>
+
+<ul>
+<li>Here's the <a href="https://facebook.github.io/react-native/">official site</a>.</li>
+<li>These <a href="https://egghead.io/courses/react-native-fundamentals">two</a> <a href="https://egghead.io/courses/build-a-react-native-todo-application">series</a> are high-quality. I studied JavaScript by watching hours of egghead videos.</li>
+<li>Run through the <a href="https://github.com/fbsamples/f8app/">f8 app</a> series on  <a href="http://makeitopen.com/">makeitopen.com</a>.</li>
+<li>Clone our React Native app, <a href="https://github.com/artsy/emission/">Emission</a>.</li>
+<li>Read the rest of our <a href="/series/react-native-at-artsy/">series on React Native</a>.</li>
+<li>Read our summary on <a href="/blog/2017/02/05/Front-end-JavaScript-at-Artsy-2017/">our JavaScript stack choices</a>.</li>
+</ul>
+
+
+<p>If you'd like to look into GraphQL + Relay, but don't want to start building a server yourself, consider these GraphQL as a Services:</p>
+
+<ul>
+<li><a href="https://scaphold.io">scraphold</a>.</li>
+<li><a href="https://www.graph.cool/">graphcool</a>.</li>
+</ul>
+
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Exploration: Front-end JavaScript at Artsy in 2017]]></title>
+    <link href="http://artsy.github.io/blog/2017/02/05/Front-end-JavaScript-at-Artsy-2017/"/>
+    <updated>2017-02-05T12:17:00+00:00</updated>
+    <id>http://artsy.github.io/blog/2017/02/05/Front-end-JavaScript-at-Artsy-2017</id>
+    <content type="html"><![CDATA[<center>
+ <img src="/images/js2017/js.svg" style="width:300px;">
+</center>
+
+
+<p>The Artsy web team have been early adopters of node, and for the last 4 years the stable stack for the Artsy website has been predominantly been Node + CoffeeScript + Express + Backbone. In 2016 the mobile team <a href="/blog/2016/08/15/React-Native-at-Artsy/">announced</a> that it had moved to React Native, matching the web team as using JavaScript as the tools of their trade.</p>
+
+<p>Historically we have always had two separate dev teams for building Artsy.net and the corresponding iOS app, we call them (Art) Collector Web, and Collector Mobile. By the end of 2016 we decided to merge the teams. The merger has given way to a whole plethora of ideas about what modern JavaScript looks like and we've been experimenting with finding common, natural patterns between web and native.</p>
+
+<p>This post tries to encapsulate what we consider to be our consolidated stack for web/native Artsy in 2017.</p>
+
+<p><strong>TLDR:</strong> <a href="#TypeScript">TypeScript</a>, <a href="#GraphQL">GraphQL</a>, <a href="#React...React.Native">React/React Native</a>, <a href="#Relay">Relay</a>, <a href="#Yarn">Yarn</a>, <a href="#Jest">Jest</a>, and <a href="#Visual.Studio.Code">Visual Studio Code</a>.</p>
+
+<!-- more -->
+
+
+<a name="Overview"></a>
+<h2>Overview</h2>
+
+<p>Our web stack has been <a href="/blog/2013/11/30/rendering-on-the-server-and-client-in-node-dot-js/">ezel.js</a> since 2013, and continues to be a mature and well thought out technology. Since then, there has been explorations on a successor to that framework using React and GraphQL with <a href="https://github.com/muraljs/mural">muraljs</a>. However, since the merger, a lot more of our focus has been on trying to find something that feels similar on both React and React Native.</p>
+
+<center>
+ <img src="/images/js2017/ts.svg" style="width:300px;">
+</center>
+
+
+<a name="TypeScript"></a>
+<h2>TypeScript</h2>
+
+<p><a href="http://www.typescriptlang.org">TypeScript</a> and <a href="https://flowtype.org/">Flow</a> really moved JavaScript forwards in the last few years. They both tackle the essential problems of "how can I trust my code does what I think", "how can I be sure of this change" and "how can I build better tools for JavaScript" in different ways.</p>
+
+<p>Yes, the title of this section is TypeScript and yet I instantly include Flow. I don't think you can, or should talk about TypeScript without understanding it's relationship to Flow.</p>
+
+<p>Both <a href="http://www.typescriptlang.org/play/#src=function%20addNumbers(first%3A%20number%2C%20second%3A%20number)%20%7B%0D%0A%09return%20first%20%2B%20second%0D%0A%7D%0D%0A%0D%0AaddNumbers(1%2C%202)%0D%0A">TypeScript</a> and <a href="https://flowtype.org/docs/five-simple-examples.html#adding-type-annotations">Flow</a> provide a structure for applying Types to JavaScript.</p>
+
+<p>Both <a href="http://www.typescriptlang.org/play/#src=var%20one%20%3D%201%0D%0A%0D%0Aone%20%3D%20%22%22%0D%0A">TypeScript</a> and <a href="https://flowtype.org/docs/classes.html#type-annotations-vs-inference">Flow</a> will infer typing metadata from untyped data.</p>
+
+<p>Both <a href="https://www.npmjs.com/%7Etypes">TypeScript</a> and <a href="https://github.com/flowtype/flow-typed">Flow</a> have systems for applying types to node modules.</p>
+
+<p>We initially went with Flow, as Flow is a <a href="https://discuss.reactjs.org/t/if-typescript-is-so-great-how-come-all-notable-reactjs-projects-use-babel/4887">considerably easier sell</a> to others, as it integrates inside existing JavaScript projects with less issues. Flow acts as a separate tool to a babel-based JavaScript project, whereas TypeScript is a full on replacement for that tooling.</p>
+
+<p><em>Why bother though?</em> JavaScript has existed for decades without type annotations, and everyone seems to have got on pretty well. One of the key features that a typing system gives you is top-notch tooling. An editor can use the type interfaces to provide auto-completion, inline documentation and inline warning/errors as you work. Type systems will help catch errors before you have even pressed save.</p>
+
+<p></div></div><a href='/images/js2017/types.png'><img src="/images/js2017/types.png"></a><div class='meta-container'><header>&nbsp;</header></div><div class='date-container'>&nbsp;</div><div class='content-container'><div class='entry-content'></p>
+
+<p>What works really well for typed JavaScript is that you can easily opt out of it when you need to. Then you're back to normal "do whatever you want" JavaScript land, no problem.</p>
+
+<p>We moved from Flow simply because TypeScript had better integration with <a href="https://code.visualstudio.com">Visual Studio Code</a> (VS Code). For a few months I devoted time to improving the Flow integration in VS Code, and tried learning OCaml to help out on the <a href="https://github.com/facebook/flow">Flow tool</a> itself. In the end though, when we compared to how solid VS Code felt with TypeScript - we decided it was worth converting our projects.</p>
+
+<p>Both TypeScript and Flow provide nearly every Type structure found inside Objective-C and Swift, so teaching the rest of the team how they work is easy from our native experiences.</p>
+
+<p><a name="TypeScript-Extension"></a>One particularly interesting part of TypeScript that we are keeping our eyes on is this <a href="https://github.com/Microsoft/TypeScript/issues/6508">language extensibility issue</a>, if it turns out well, we will be looking into integrating the other technologies mentioned here into TypeScript itself.</p>
+
+<center>
+ <img src="/images/js2017/graphql.svg" style="width:300px;">
+</center>
+
+
+<a name="GraphQL"></a>
+<h2>GraphQL</h2>
+
+<p>GraphQL is a way to handle API requests. I consider it the successor to REST when working with front-end clients. A big claim, yeah. So, what is it?</p>
+
+<p>Officially <a href="https://github.com/facebook/graphql">GraphQL is a specification</a>. A server can conform to the GraphQL spec, and then clients can make queries against it. Think of it a bit like how SQL is a standardized way of doing database queries across multiple databases types.</p>
+
+<p>As a client, you <a href="https://github.com/artsy/eigen/blob/dac7c80b66b600f9a45aaae6095544fe420f0bbc/Artsy/Networking/ARRouter.m#L1011">send</a> a "<a href="http://graphql.org/docs/getting-started/#queries">JSON-shaped query</a>" structure, which is hierarchical and easy to read:</p>
+
+<pre><code class="json">{
+  artwork(id: "kimber-berry-as-close-to-magic-as-you-can-get") {
+    id
+    additional_information
+
+    is_price_hidden
+    is_inquireable
+  }
+}
+</code></pre>
+
+<blockquote><p>This will search for a <a href="https://www.artsy.net/artwork/kimber-berry-as-close-to-magic-as-you-can-get">specific artwork</a>, with the response JSON as the Artwork's <code>id</code>, <code>additional_information</code>, <code>is_price_hidden</code> and <code>is_inquireable</code>.</p></blockquote>
+
+<p>It's important to note here, the data being sent <em>back</em> is specifically  what you ask for. This is not defined on the server as a <em>short</em> or <em>embedded</em> version of a model, but the specific data the client requested. When bandwidth and speed is crucial, this is the other way in which GraphQL vastly improves an app-user's experience.</p>
+
+<p>This is in stark contrast to other successors to REST APIs, the hypermedia APIs, like <a href="http://stateless.co/hal_specification.html">HAL</a> and <a href="http://jsonapi.org">JSON-API</a> - both of which are optimised for caching, and rely on "one model, one request" types of API access. E.g. a list of Artworks would actually contain a list of hrefs instead of the model data, and you have to fetch each model in a separate request.</p>
+
+<p>Hypermedia APIs have a really useful space in cross-server communications, but are extremely wasteful of the most precious resource for a front-end device - bandwidth. <a href="latency">Latency matters considerably</a>, on mobile where bandwidth is spotty, and attention spans are short you need to do everything possible to show more than a loading spinner.</p>
+
+<p>I have previously explored our usage of GraphQL from the perspective of a native developer <a href="/blog/2016/06/19/graphql-for-mobile/">in 2016</a>. So I'll leave that post to describe our implementation of a GraphQL server.</p>
+
+<p>One exciting movement in the space of GraphQL is <a href="https://githubengineering.com/the-github-graphql-api/">GitHub moving to GraphQL</a> for their new APIs.</p>
+
+<center>
+ <img src="/images/react-native/artsy_react_logo.svg" style="width:300px;">
+</center>
+
+
+<a name="React...React.Native"></a>
+<h2>React / React Native</h2>
+
+<p>React is a Facebook project which offers a uni-direction Component model that <em>can</em> replace MVC in a front-end application. React was built out of a desire to abstract away a web page's true view hierarchy (called the DOM) so that they could make changes to the view in memory and then React would handle finding the differences between view states.</p>
+
+<p>You create a set of Components to encapsulate each part of the state of the page. React makes it easy to make components that are functional in the <a href="https://en.wikipedia.org/wiki/functional_reactive_programming">Functional Reactive Programming</a> sense. They act like a function which takes some specially declared state and it is rendered into HTML.</p>
+
+<p>A component optionally uses a language called <a href="#jsx">JSX</a> to visualise how each component's child components are set up, here's an example of a React component using JSX <a href="https://github.com/artsy/emission/blob/c558323e4276699925b4edb3d448812005ae6b5d/lib/components/home/search_bar.js">from Emission, our React Native library</a>:</p>
+
+<pre><code class="js">export default class SearchBar extends React.Component {
+  render() {
+    return (
+      &lt;TouchableWithoutFeedback onPress={this.handleTap.bind(this)}&gt;
+        &lt;View style={styles.container}&gt;
+          &lt;Image style={styles.searchIcon} source={require('../../../images/SearchButton.png')}/&gt;
+          &lt;Text style={styles.text}&gt;Search for artists and artworks...&lt;/Text&gt;
+        &lt;/View&gt;
+      &lt;/TouchableWithoutFeedback&gt;
+    )
+  }
+
+  handleTap() {
+    Switchboard.presentModalViewController(this, '/search')
+  }
+}
+</code></pre>
+
+<p>By providing a well encapsulated Component model, you can aggressively reduce the amount of redundant code you need to build an application. By not initially writing to the DOM, React can decide what has changed between user actions and that means you have to juggle significantly less state.</p>
+
+<p>We can then build on React via React-Native to allow the same style of code to exist inside the mobile sphere, where typically you have had unique languages and tooling.</p>
+
+<p>React Native is an implementation of React where instead of having React's virtual DOM map to a web page's DOM, it creates a native view hierarchy. In the case of iOS that is a <code>UIView</code> hierarchy, and in Android, a <code>View</code> hierarchy.</p>
+
+<p>If you'd like to find out why the iOS team moved to React Native, check our <a href="/series/react-native-at-artsy/">series of posts on React Native</a>.</p>
+
+<center>
+ <img src="/images/js2017/relay.svg" style="width:300px;">
+</center>
+
+
+<a name="Relay"></a>
+<h2>Relay</h2>
+
+<p>Any front-end client has a lot of work to do on every page:</p>
+
+<ul>
+<li>Fetching all the data for a view hierarchy.</li>
+<li>Managing asynchronous state transitions and coordinating concurrent requests.</li>
+<li>Managing errors.</li>
+<li>Retrying failed requests.</li>
+<li>Updating the local cache after receiving new results/changes the server objects responses.</li>
+<li>Optimistically updating the UI while waiting for the server to respond to mutations.</li>
+</ul>
+
+
+<p>This is typically handled in a per-page basis, for example the API details, and state management between a Gene page, and an Artist page are different. In part because they have different data-models, but also that they have different correlated data. However, they do share a lot the common responsibilities mentioned above. In our native side, we struggled to find abstractions that would work across multiple pages. Relay fixes this, and does it in a shockingly elegant way.</p>
+
+<p>Relay is a framework for building data-driven React apps which relies on a deep connection to GraphQL. You wrap your React components inside a Relay container, which handles the networking and setting the state for your component.</p>
+
+<pre><code class="js">// This is a normal React component, taken directly from our app
+// It will optionally show a description if one exists on a gene.
+
+class Biography extends React.Component {
+  render() {
+    const gene = this.props.gene
+    if (!gene.description) { return null }
+
+    return (
+      &lt;View&gt;
+        &lt;SerifText style={styles.blurb} numberOfLines={0}&gt;{gene.description}&lt;/SerifText&gt;
+      &lt;/View&gt;
+    )
+  }
+}
+
+// Take the above component `Biography`, and wrap it with a Relay Container.
+// Then provide what parts of a GraphQL request the `Biography` needs
+
+export default Relay.createContainer(Biography, {
+  fragments: {
+    gene: () =&gt; Relay.QL`
+      fragment on Gene {
+        description
+      }
+    `,
+  }
+})
+
+// When the `Biography` component is rendered, the component is given props of 
+// `gene` with a `description` by the Relay container. 
+</code></pre>
+
+<p>Relay handles this by having each component in your view hierarchy exposing the fragments of a GraphQL query. There is a pre-render stage where all of your components fragments are brought together to make a single API request. So in the case of the Gene, it may look something like:</p>
+
+<pre><code class="json">{
+  gene(id: "the-fantastic") {
+    // could have come from the root component's fragment
+    id
+    name 
+
+    // came from the above Header fragment
+    description 
+
+    // could have come from a RelatedArtists component's fragment
+    trending_artists {
+      name
+      href
+    }
+  }
+}
+</code></pre>
+
+<p>The data is first looked up inside Relay's local cache, and then any un-cached items are requested from the network. The results of the query is then moved into the component via it's props. Relay will only provide the specific data each component has requested. So the <code>Header</code> component would get nothing for <code>this.props.gene.name</code>. This data-masking is a great way of ensuring the connection between component and API.</p>
+
+<p>I'd strongly recommend taking the dive into both the <a href="https://facebook.github.io/relay/docs/thinking-in-graphql.html">Thinking with GraphQL</a> and then <a href="https://facebook.github.io/relay/docs/thinking-in-relay.html">Thinking with Relay</a> tutorials to learn more. Finally, <a href="learnrelay">Learn Relay</a> and <a href="https://sgwilym.github.io/relay-visual-learners/">Relay for Visual Learners</a> are great tutorials to help you get comfortable with the concepts.</p>
+
+<center>
+ <img src="/images/js2017/yarn.svg" style="width:300px;">
+</center>
+
+
+<a name="Yarn"></a>
+<h2>Yarn</h2>
+
+<p>I have a lot of respect for NPM, their scale is <a href="http://blog.npmjs.org/post/143451680695/how-many-npm-users-are-there">through the roof</a>. They built out the foundations for a massive, thriving community. They did a great job. Like a lot of the JavaScript ecosystem, their tooling allows you to get away with a lot of things. You can have the same dependency inside the app with multiple versions, or apps with a dependency tree that is different each time you run <code>npm install</code>.</p>
+
+<p>We have multiple engineers who have worked on a dependency manager for half a decade, having indeterminate builds in JavaScript was something that worried us greatly. Luckily, there is <a href="https://yarnpkg.com">Yarn</a>.</p>
+
+<p>Yarn is a Facebook project that replaces the NPM <a href="https://en.wikipedia.org/wiki/Command-line_interface">cli</a> client. It's very new, so unlike NPM it does not have to worry about backwards compatibility. It is what I'd imagine a fresh re-write of the NPM cli would look like.</p>
+
+<p>Yarn is significantly faster, has a determinate process for setting up projects and uses a lockfile by default to ensure everyone using the project gets the exact same dependency tree. It uses NPM as a server, and so you get the same node modules as with the NPM cli.</p>
+
+<p>Sometimes Yarn gives you pleasant surprises too, my favourite being that <code>yarn [x]</code> will check to see if that is a local command that you could run, saving a bunch of redundant settings.</p>
+
+<p>Converting a codebase can be as simple as going into your project and running:</p>
+
+<pre><code class="sh">npm install -g yarn
+yarn install
+</code></pre>
+
+<p>Now you have a lockfile, and are using yarn. Awesome, if you are migrating from a project with a shrink-wrap - I have a script which will generate a summary of the changes for you: <a href="https://gist.github.com/orta/cb6d0b8256852c1f01ecf1d803b664c9">script</a>, <a href="https://github.com/artsy/metaphysics/pull/479">example</a>.</p>
+
+<a name="Jest"></a>
+<h2>Jest</h2>
+
+<center>
+ <img src="/images/js2017/jest.svg" style="width:300px;">
+</center>
+
+
+<p>One of the things that I find particularly pleasant about the JavaScript ecosystem are their testing tools. With our React Native, we came into the ecosystem with fresh eyes, and it was pretty obvious that Jest was an exceptional testing framework. I hear historically Jest has been a bit meh, but it is without a doubt worth another look.</p>
+
+<p><strong>The watcher</strong> - The majority of your usage of Jest is with it running in watcher mode. This mode uses your git diff as a seed for what to run tests against. Jest will use that diff to define all the files that the changed code touches, and then all of the tests that cover those files.</p>
+
+<p>For example, I make a change in one source file and 60 tests run from 6 different test suites. Finishing in under a second.</p>
+
+<p></div></div><a href='/images/js2017/jest-watcher.gif'><img src="/images/js2017/jest-watcher.gif"></a><div class='meta-container'><header>&nbsp;</header></div><div class='date-container'>&nbsp;</div><div class='content-container'><div class='entry-content'></p>
+
+<p>Not all tests are as important to a run, so Jest also keeps track of which tests failed last time and will run those first next time. This reduces iteration time considerably.</p>
+
+<p><strong>Fast and safe</strong> - You think the watcher is smart? Well the way Jest handle test suites is also extremely elegant. Jest keeps track of how long each test suite took to run, and then will weigh the test suites across different processes in order to speed up the overall test suite. If Jest thinks they're all going to be really quick (like my GIF above) they will all happen in one process, as that can also be faster.</p>
+
+<p>Each test suite is an entirely sandboxed node virtual machine, so you cannot have tests influencing each other.</p>
+
+<p><strong>Snapshots</strong> - Jest provides a concept called snapshots, which provides an easy way to compare JavaScript objects. One place where this really shines is with React components. <a href="https://github.com/artsy/emission/blob/ec565b8492540b4e33066364b415c7906ec1e028/lib/containers/__tests__/gene-tests.js#L121-L158">For example</a>:</p>
+
+<pre><code class="js">it('looks like expected', () =&gt; {
+  const props = {
+      gene:{...}
+    }
+
+  const tree = renderer.create(
+    &lt;Gene geneID={props.gene.name} medium="painting" price_range="*-100000" gene={props.gene}/&gt;
+  ).toJSON()
+
+  expect(tree).toMatchSnapshot()
+})
+</code></pre>
+
+<p>Now we will get a test failure when any changes happen in the component tree. For example, if I changed the background color to <code>blue</code> from <code>white</code>. I get a fail like this:</p>
+
+<p><img src="/images/js2017/jest-snapshots.png" style="width:100%"></p>
+
+<p>While that example is trivial, we really want to have tests like this to ensure we understand how changes propagate throughout the app.</p>
+
+<p><strong>No config</strong> - When we first integrated Jest, we had no config. Now, to make sure that TypeScript works how we'd like, we require some setup. However, having smart defaults which works in most cases say a lot about the care and attention paid to Developer Experience from the Jest team. The documentation covers default integrations for: Babel, TypeScript and webpack. Three of the biggest modern tools for getting stuff done with node.</p>
+
+<p><strong>Comprehensive API</strong> - Snapshots, watchers, custom matchers, useful JSON output, ESLint linters, Elegant Mocking tools and natural support for async code. All in one project.</p>
+
+<p>If you're interested, there is a lot of work around automating the migration between different testing frameworks in <a href="https://github.com/skovhus/jest-codemods">jest-codemods</a> - getting started has never been easier. I'd also recommend looking at <a href="https://wallabyjs.com">wallaby.js</a> and <a href="https://github.com/orta/vscode-jest#vscode-jest-">vscode-jest</a> for tooling.</p>
+
+<center>
+ <img src="/images/vscode/vscode_logo_artsy.svg" style="width:300px;">
+</center>
+
+
+<a name="Visual.Studio.Code"></a>
+<h2>Visual Studio Code</h2>
+
+<p>Had you told me two years ago that my main editor would be a JavaScript app, I'd have bought you a beer for such a great joke.</p>
+
+<p>Visual Studio Code was the app that changed my mind.</p>
+
+<p>I've done a longer write up on the how and why we use VS Code in <a href="/blog/2016/08/15/vscode/">JavaScript projects</a>, however here I'd like to consider the cultural aspect of the choice. It's common practice among web technologists to all have different editors on a project, and for their editors to generally do little work for them. A lot of this culture came from the TextMate and Rails days with the infamous <a href="https://twitter.com/dhh/status/492706473936314369?lang=en">blog in 15 minutes video</a>. When I was a web developer, I also did this.</p>
+
+<p>When you spend a lot of time in a <a href="https://developer.apple.com/xcode/">powerful IDE</a>, it gets pretty hard to go back to a bare-bones editor. VS Code sits at a good (just past) half-way point between text editor and IDE. You can get a lot of the flexibility from a text editor, making it's good for one off files and IDEs where you have fully spec'd out projects.</p>
+
+<p>Being able to have project specific setups is where VS Code really starts to shine. One thing that is working well for us is to gradually add project settings for our apps, first we add the ability to run tests with an attached debugger by adding a <code>launch.json</code>:</p>
+
+<pre><code class="json">{
+    "name": "Run Tests With Debugger (slower, use yarn for normal work)",
+    "type": "node2",
+    "request": "launch",
+    "port": 5858,
+    "address": "localhost",
+    "sourceMaps": true,
+    "stopOnEntry": false,
+    "runtimeExecutable": null,
+    "runtimeArgs": [
+      "--debug-brk",
+      "./node_modules/.bin/jest",
+      "-i"
+    ],
+    "cwd": "${workspaceRoot}"
+}
+</code></pre>
+
+<p>With this we can showcase how easy it is to use an inline debugger with source-maps, when working with tricky test logic. No more <code>console.log</code>. That's usually a great way to start moving everyone to a consistent environment. Then we add <a href="https://code.visualstudio.com/updates/v1_6#_workspace-extension-recommendations">recommended extensions</a> to the project.</p>
+
+<p>Trying to set a consistent  development environment might sound a bit corporate for a ~25 person dev team, but one chief advantage is that you can feel comfortable taking time at work to improve your tooling knowing it will improve the tooling of everyone else on your team.</p>
+
+<p>I've been exploring a consolidated Artsy VS Code extension, but</p>
+
+<a name="End"></a>
+<h3>End</h3>
+
+<p>None of these technologies are under a year old, all of them have adoption by substantial amount of companies. Nothing feels  either controversial or novel. This is great. It feels like a lot of the interesting work for us so far has been around improving the spaces between the projects: Finding improvements for generating types <a href="https://github.com/avantcredit/gql2ts/blob/master/Changelog.md">from GraphQL</a> or <a href="https://github.com/alloy/relay2ts">Relay</a>, adding <a href="https://github.com/facebook/jest/commit/e597e5c46f8f4925d9a10c73d8eab05a2c4b8bc3">editor support to jest</a>, adding Danger to <a href="https://github.com/facebook/jest/pull/2508">our dependencies</a> and improving our <a href="https://github.com/orta/vscode-react-native-storybooks">tooling</a> <a href="https://github.com/orta/vscode-jest#vscode-jest-">for</a> <a href="https://github.com/alloy/vscode-relay">vscode</a>. The front-end is still a pretty small dev team, so we want to do high impact, small projects that can make our tools drastically better.</p>
+
+<p>React, React-Native, Jest, Yarn are all big Facebook projects. In the iOS world, there is a sense of wariness around building an app so heavily around Facebook tech, based on <a href="http://joehewitt.com/2009/03/23/the-three20-project">three20</a> - which I think is a bit unfair. From my perspective, determining whether you should have something as a dependency <a href="/blog/2015/09/18/Cocoa-Architecture-Dependencies/">should be nuanced</a>, but at a minimum you should feel like you can contribute bug fixes and ideally you should be able to maintain the project if it needs it. With Facebook projects, they've shown to be really open to PRs and discussion, and our work in them makes us feel comfortable to maintain a fork if needed.</p>
+
+<p>We're still exploring the space where we can share code between web and mobile. I'd like to hope within a few months we can write up how that is going on. For now, if you're interested in prototypes, we've been moving our React Native components to the web inside <a href="https://github.com/alloy/relational-theory/">Relational Theory</a> and <a href="https://github.com/orta/systems-theory/">Systems Theory</a> tries bringing new ideas from Relational Theory back to React Native.</p>
+
+<p>I have grown to love working with typed JavaScript to ensure soundness, with React and Relay to drastically reduce the amount of code we need to write and to provide awesome root abstractions to build on. Mix that with a hackable editor with substantial language support and it feels like almost exclusively writing business domain logic.</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[On our implementation of React Native]]></title>
