@@ -61,15 +61,15 @@ Had we continued with native apps via native code, we'd have put more resources 
 
 * **It was consistent with our existing code.** We wrote hundreds of thousands of lines of code in Objective-C and maybe around a hundred thousand of Swift. The majority of the team had 5+ years of Cocoa experience and no-one needs to essentially argue that _continuing_ with that has value.
 
-* **Swift code can interact with Objective-C and can work on it's own.** We can write Swift libraries that can build on-top of our existing infrastructure to work at a higher level of abstraction. Building a component-based infrastructure via Swift could allow easy-reuse of existing code, while providing a language difference for "new app code" vs "infra." 
+* **Swift code can interact with Objective-C and can work on its own.** We can write Swift libraries that can build on-top of our existing infrastructure to work at a higher level of abstraction. Building a component-based infrastructure via Swift could allow easy-reuse of existing code, while providing a language difference for "new app code" vs "infra." 
 
-* **People are excited about Swift.** It's an interesting, growing language, and one of the few ones non-technical people ask about. "Oh you're an iOS developer, do you use Swift?" is something I've been asked a lot. The developers outside of the mobile team have signed up multiple times for Swift workshops and want to know what Swift is, and what it's trade-offs are.
+* **People are excited about Swift.** It's an interesting, growing language, and one of the few ones non-technical people ask about. "Oh you're an iOS developer, do you use Swift?" is something I've been asked a lot. The developers outside of the mobile team have signed up multiple times for Swift workshops and want to know what Swift is, and what its trade-offs are.
 
-* **It's evolving** the language changes at a fast rate, with new ideas coming from, and influencing other languages. People inside the community influence and shape it's growth. There are some great claims being made [about Swift][swift-excite] by people we respect.
+* **It's evolving** the language changes at a fast rate, with new ideas coming from, and influencing other languages. People inside the community influence and shape its growth. There are some great claims being made [about Swift][swift-excite] by people we respect.
 
 * **Swift improves on a lot of Objective-C.** Most of the patterns that we use in Objective-C are verbose, and they can become extremely terse inside Swift. Potentially making it easier to read and understand. 
 
-* **We would be using the official route.** Apple obviously _wants_ you to be using Swift, they are putting a _lot_ of resources into the language. There are smart people working on the project, and it's becomes more stable and useful every year. There aren't any _Swift-only_ APIs yet, but obviously they'll be coming.
+* **We would be using the official route.** Apple obviously _wants_ you to be using Swift, they are putting a _lot_ of resources into the language. There are smart people working on the project, and it's become more stable and useful every year. There aren't any _Swift-only_ APIs yet, but obviously they'll be coming.
 
 * **It's a [known-unknown][known-known] territory.** We have a lot of knowledge around building better tooling for iOS apps. From libraries like [Moya][moya], to foundational projects like [CocoaPods][cocoapods]. Coming up with, and executing dramatic tooling improvements is possible. Perhaps we had overlooked a smarter abstraction which would have worked around the downsides, and thus making it worth expanding our search.
 
@@ -128,7 +128,7 @@ The JavaScript ecosystem cares about how someone using the tool will feel. This 
 
 As _everyone_ inside the community has both the ability and the tools to contribute to the ecosystem you get better tools. 
 
-Apple make _great_ tools. I do miss Xcode sometimes. It's cohesive, beautifully designed and doesn't show it's age. It's a perfect Mac citizen.
+Apple make _great_ tools. I do miss Xcode sometimes. It's cohesive, beautifully designed and doesn't show its age. It's a perfect Mac citizen.
 
 Though it's important to note that they make tools for Apple first and then for us 3rd party devs. Outside influence obviously exists, but they're shipping whatever _they_ want and you can only influence that via Radars and through going to a conference once a year and talking directly to the dev tools team. Only the Swift language is Open Source (and [SwiftPM][swiftpm])
 
