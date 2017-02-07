@@ -13,7 +13,7 @@ series: React Native at Artsy
 
 Swift became public in June 2014, by August we had started using it in Artsy. By October, we had [Swift in production][eidolon-postmortem] channelling hundreds of thousands of dollars in auction bids. 
 
-It is pretty obvious that Swift is the future of native development on Apple platforms. It was a no-brainer to then build an [appleTV app][emergence] in Swift, integrated Swift-support into our key app Eigen and built non-trivial parts of that [application in Swift][live-a].
+It is pretty obvious that Swift is the future of native development on Apple platforms. It was a no-brainer to then build an [Apple TV app][emergence] in Swift, integrated Swift-support into our key app Eigen and built non-trivial parts of that [application in Swift][live-a].
 
 We first started experimenting with React Native in February 2016, and by August 2016, we announced that [Artsy moved to React Native][artsy-rn] effectively meaning new code would be in JavaScript from here onwards.
 
