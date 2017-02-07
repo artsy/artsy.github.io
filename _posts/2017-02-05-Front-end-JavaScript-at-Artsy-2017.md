@@ -206,7 +206,7 @@ Relay handles this by having each component in your view hierarchy exposing the 
 
 The data is first looked up inside Relay's local cache, and then any un-cached items are requested from the network. The results of the query is then moved into the component via it's props. Relay will only provide the specific data each component has requested. So the `Header` component would get nothing for `this.props.gene.name`. This data-masking is a great way of ensuring the connection between component and API.
 
-I'd strongly recommend taking the dive into both the [Thinking with GraphQL][thinking-ql] and then [Thinking with Relay][think-rl] tutorials to learn more. Finally, [Learn Relay](learnrelay) and [Relay for Visual Learners][relay-visual] are great tutorials to help you get comfortable with the concepts.
+I'd strongly recommend taking the dive into both the [Thinking with GraphQL][thinking-ql] and then [Thinking with Relay][think-rl] tutorials to learn more. Finally, [Learn Relay][learnrelay] and [Relay for Visual Learners][relay-visual] are great tutorials to help you get comfortable with the concepts.
 
 <center>
  <img src="/images/js2017/yarn.svg" style="width:300px;">
@@ -320,7 +320,7 @@ With this we can showcase how easy it is to use an inline debugger with source-m
 
 Trying to set a consistent  development environment might sound a bit corporate for a ~25 person dev team, but one chief advantage is that you can feel comfortable taking time at work to improve your tooling knowing it will improve the tooling of everyone else on your team. 
 
-I've been exploring a consolidated Artsy VS Code extension, but 
+I've been exploring a consolidated [Artsy VS Code][artsy-vscode] extension to handle extension dependencies and small tasks, but it's still early days. It's awesome that I can even think at that level of abstraction though. 
 
 ### End
 
@@ -380,3 +380,4 @@ I have grown to love working with typed JavaScript to ensure soundness, with Rea
 [vscode-jest]: https://github.com/orta/vscode-jest
 [wallaby]: https://wallabyjs.com
 [vscode-recs]: https://code.visualstudio.com/updates/v1_6#_workspace-extension-recommendations
+[artsy-vscode]: https://github.com/artsy/vscode-artsy
