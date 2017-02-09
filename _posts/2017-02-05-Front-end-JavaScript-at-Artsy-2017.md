@@ -145,7 +145,7 @@ Any front-end client has a lot of work to do on every page:
   * Updating the local cache after receiving new results/changes the server objects responses.
   * Optimistically updating the UI while waiting for the server to respond to mutations.
 
-This is typically handled in a per-page basis, for example the API details, and state management between a Gene page, and an Artist page are different. In part because they have different data-models, but also that they have different correlated data. However, they do share a lot the common responsibilities mentioned above. In our native side, we struggled to find abstractions that would work across multiple pages. Relay fixes this, and does it in a shockingly elegant way. 
+This is typically handled in a per-page basis, for example the API details, and state management between a Gene page, and an Artist page are different. In part because they have different data-models, but also that they have different correlated data. However, they do share a lot of the common responsibilities mentioned above. In our native side, we struggled to find abstractions that would work across multiple pages. Relay fixes this, and does it in a shockingly elegant way.
 
 Relay is a framework for building data-driven React apps which relies on a deep connection to GraphQL. You wrap your React components inside a Relay container, which handles the networking and setting the state for your component.
 
@@ -293,7 +293,7 @@ Visual Studio Code was the app that changed my mind.
 
 I've done a longer write up on the how and why we use VS Code in [JavaScript projects][vcode-js], however here I'd like to consider the cultural aspect of the choice. It's common practice among web technologists to all have different editors on a project, and for their editors to generally do little work for them. A lot of this culture came from the TextMate and Rails days with the infamous [blog in 15 minutes video][tm-blog]. When I was a web developer, I also did this. 
 
-When you spend a lot of time in a [powerful IDE][xcode], it gets pretty hard to go back to a bare-bones editor. VS Code sits at a good (just past) half-way point between text editor and IDE. You can get a lot of the flexibility from a text editor, making it's good for one off files and IDEs where you have fully spec'd out projects.
+When you spend a lot of time in a [powerful IDE][xcode], it gets pretty hard to go back to a bare-bones editor. VS Code sits at a good (just past) half-way point between text editor and IDE. You can get a lot of the flexibility from a text editor, making it good for one off files and IDEs where you have fully spec'd out projects.
 
 Being able to have project specific setups is where VS Code really starts to shine. One thing that is working well for us is to gradually add project settings for our apps, first we add the ability to run tests with an attached debugger by adding a `launch.json`:
 
