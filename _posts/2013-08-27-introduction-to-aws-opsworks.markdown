@@ -1,5 +1,5 @@
 ---
-layout: post
+layout: post_longform
 title: "Introduction to AWS OpsWorks"
 date: 2013-08-27 12:31
 comments: true
@@ -15,10 +15,9 @@ After scratching our heads about exactly what that meant, we tried it anyway. If
 
 Artsy has been experimenting with OpsWorks for a few months now and recently adopted it for the production [artsy.net](http://artsy.net) site. We're excited to share what we've learned in the process.
 
-{% include expanded_img.html url="/images/2013-08-27-introduction-to-aws-opsworks/opsworks.png" title="OpsWorks overview" %}
-
 <!-- more -->
 
+{% expanded_img /images/2013-08-27-introduction-to-aws-opsworks/opsworks.png %}
 
 ## Why OpsWorks?
 
@@ -28,7 +27,7 @@ But this simplicity comes at a cost. Your application's architecture is constrai
 
 Conversely, OpsWorks offers higher-level control than [CloudFormation](https://aws.amazon.com/cloudformation/) or than managing EC2 instances and related services directly. By focusing on the most commonly used AWS services, instance types, and architectures, it can provide greater automation and more robust tools for configuration, authorization, scaling, and monitoring. Amazon CTO [Werner Vogels](http://www.allthingsdistributed.com/2013/02/aws-opsworks.html) rendered it thus:
 
-{% include expanded_img.html url="/images/2013-08-27-introduction-to-aws-opsworks/aws_control.png" title="How OpsWorks fits in AWS offerings" %}
+<img src="/images/2013-08-27-introduction-to-aws-opsworks/aws_control.png" alt="How OpsWorks fits in AWS offerings">
 
 Historically, Artsy delegated dev-ops concerns to Heroku. They worried about infrastructure, freeing us to focus on our application's higher-level goals. Increasingly though, we were forced to work around limitations of the platform's performance, architecture, and customizability. (We even blogged about it [here](http://artsy.github.io/blog/2012/01/31/beyond-heroku-satellite-delayed-job-workers-on-ec2/), [here](http://artsy.github.io/blog/2012/11/15/how-to-monitor-503s-and-timeout-on-heroku/), [here](http://artsy.github.io/blog/2012/12/13/beat-heroku-60-seconds-application-boot-timeout-with-a-proxy/), [here](http://artsy.github.io/blog/2013/02/01/master-heroku-command-line-with-heroku-commander/), and [here](http://artsy.github.io/blog/2013/02/17/impact-of-heroku-routing-mesh-and-random-routing/).) Rather than continue to work against the platform, we turned to OpsWorks for greater flexibility while keeping administrative burden low.
 
@@ -54,7 +53,7 @@ If your app employs a common architecture, you can probably use the OpsWorks das
 
 You can find [detailed walk-throughs](http://docs.aws.amazon.com/opsworks/latest/userguide/walkthroughs.html) of a few such common use cases in the OpsWorks docs.
 
-{% include expanded_img.html url="/images/2013-08-27-introduction-to-aws-opsworks/standard_instances.png" title="PHP app instances (image from AWS blog)" %}
+<img src="/images/2013-08-27-introduction-to-aws-opsworks/standard_instances.png" />
 
 If the built-in layers don't quite satisfy your needs, there are several facilities for customization. But first, it's useful to understand how OpsWorks manages your instances.
 
@@ -65,25 +64,24 @@ OpsWorks uses [Chef](http://www.opscode.com/chef/) to configure EC2 instances. I
 
 For example, the recipes that set up an HAProxy instance look like this:
 
-{% include expanded_img.html url="/images/2013-08-27-introduction-to-aws-opsworks/haproxy_recipes.png" title="Built-in recipes for the HAProxy layer" %}
-
+{% expanded_img /images/2013-08-27-introduction-to-aws-opsworks/haproxy_recipes.png %}
 
 ### Overriding configuration "attributes"
 
 Chef cookbooks accept parameters in the form of "node attributes." The default attributes will serve you well in most cases. To override them, edit the stack's [_custom Chef JSON_](http://docs.aws.amazon.com/opsworks/latest/userguide/workingstacks-json.html). For example, to configure Unicorn to run 8 workers instead of 16 and Memcached to bind to port 11212 instead of 11211, you'd enter the following for your stack's custom JSON:
 
-{% include expanded_img.html url="/images/2013-08-27-introduction-to-aws-opsworks/custom_json.png"  title ='{"rails:" {"max_pool_size": 8}, "memcached": {"port": 11212}}' %}
+{% expanded_img url="/images/2013-08-27-introduction-to-aws-opsworks/custom_json.png" %}
 
 
 ### Custom cookbooks
 
 If setting node attributes isn't sufficient, you can go further and override the files written out by your layer's recipes. Simply toggle the _Use custom Chef cookbooks_ option in your stack settings and provide a link to a git, subversion, S3, or HTTP location for your [custom cookbooks](http://docs.aws.amazon.com/opsworks/latest/userguide/workingcookbook-installingcustom-enable.html).
 
-{% include expanded_img.html url="/images/2013-08-27-introduction-to-aws-opsworks/custom_cookbooks.png" title="Enabling custom cookbooks" %}
+{% expanded_img /images/2013-08-27-introduction-to-aws-opsworks/custom_cookbooks.png" title="Enabling custom cookbooks" %}
 
 Your custom cookbooks bundle can also contain original or [borrowed](http://docs.opscode.com/essentials_cookbooks.html) recipes that perform any other custom configuration. Tell OpsWorks when to run your recipes by associating them with the desired events in your layer settings. For example, we use custom recipes at our Rails layer's _setup_ stage to perform additional Nginx configuration, install a JavaScript runtime, and send logs to [Papertrail](https://papertrailapp.com/).
 
-{% include expanded_img.html url="/images/2013-08-27-introduction-to-aws-opsworks/custom_recipes.png" title="custom Chef recipes" %}
+{% expanded_img /images/2013-08-27-introduction-to-aws-opsworks/custom_recipes.png" title="custom Chef recipes" %}
 
 OpsWorks shares details about the entire stack with recipes via node attributes, allowing custom recipes to connect to other instances as required.
 
@@ -92,7 +90,7 @@ OpsWorks shares details about the entire stack with recipes via node attributes,
 
 If the built-in layers don't satisfy your needs even after customization, you can create custom layers. The base OpsWorks configuration is provided (for SSH authorization, monitoring, etc.) and your custom recipes do the rest. For example, we created a custom layer to process background jobs:
 
-{% include expanded_img.html url="/images/2013-08-27-introduction-to-aws-opsworks/custom_layer.png" title="custom background jobs layer" %}
+{% expanded_img /images/2013-08-27-introduction-to-aws-opsworks/custom_layer.png" title="custom background jobs layer" %}
 
 Down the road, we might introduce additional layers for Redis, Solr, or MongoDB. (Even better, AWS may introduce built-in support for these.)
 
@@ -103,7 +101,7 @@ OpsWorks makes most [EC2 instance types](http://docs.aws.amazon.com/AWSEC2/lates
 
 While not a rigorous comparison, the experience of one of our particularly memory-constrained applications illustrates this. The application's responses took an average of 638 milliseconds when running on Heroku's ["2x" (1 GB) dynos](https://devcenter.heroku.com/articles/dyno-size). The same application responded in only 134 milliseconds on OpsWorks-managed _m1.large_ instances (with 7.5 GB). That's a ~80% (5x) improvement!
 
-{% include expanded_img.html url="/images/2013-08-27-introduction-to-aws-opsworks/new_relic_comparison.png" title="OpsWorks performance superimposed on Heroku performance (chart: New Relic)" %}
+{% expanded_img /images/2013-08-27-introduction-to-aws-opsworks/new_relic_comparison.png" title="OpsWorks performance superimposed on Heroku performance (chart: New Relic)" %}
 
 
 ## Troubleshooting
@@ -125,9 +123,9 @@ OpsWorks instances can be launched in multiple AWS availability zones for greate
 
 Especially useful is the automatic scaling, which can be time-based or load-based. This nicely matches  the horizontal scaling needs of our app: we've chosen to run additional Rails app servers during peak business hours, and additional background workers when load on existing servers exceeds a certain threshold.
 
-{% include expanded_img.html url="/images/2013-08-27-introduction-to-aws-opsworks/time-based_scaling.png" title ="time-based scaling" %}
+{% expanded_img /images/2013-08-27-introduction-to-aws-opsworks/time-based_scaling.png" title ="time-based scaling" %}
 
-{% include expanded_img.html url="/images/2013-08-27-introduction-to-aws-opsworks/load-based_scaling.png" title="load-based scaling" %}
+{% expanded_img /images/2013-08-27-introduction-to-aws-opsworks/load-based_scaling.png" title="load-based scaling" %}
 
 When background workers are busy, new instances spin up automatically to tackle the growing queue. _That_ is dev-ops gold.
 
@@ -136,7 +134,7 @@ When background workers are busy, new instances spin up automatically to tackle 
 
 OpsWorks provides a monitoring view of each stack, with CPU, memory, load, and process statistics aggregated by layer. You can drill down to individual instances and review periods anywhere from 1 hour to 2 weeks long.
 
-{% include expanded_img.html url="/images/2013-08-27-introduction-to-aws-opsworks/monitoring.png" title="OpsWorks monitoring view" %}
+{% expanded_img /images/2013-08-27-introduction-to-aws-opsworks/monitoring.png" title="OpsWorks monitoring view" %}
 
 We haven't tried it, but OpsWorks also offers a built-in [Ganglia layer](http://docs.aws.amazon.com/opsworks/latest/userguide/workinglayers-ganglia.html) that automatically collects metrics from each of your stack's instances.
 
@@ -149,7 +147,7 @@ You might be noticing a theme here: OpsWorks leverages AWS's other tools and ser
 
 [Identity and Access Management (IAM)](http://aws.amazon.com/iam/) allows you to define individual user accounts within an umbrella account for your organization. These users can be authorized for varying levels of access to your OpsWorks stacks. From the _Permissions_ view of each stack, you can then grant them SSH and _sudo_ rights on an individual basis.
 
-{% include expanded_img.html url="/images/2013-08-27-introduction-to-aws-opsworks/permissions.png" title="OpsWorks permissions view" %}
+{% expanded_img /images/2013-08-27-introduction-to-aws-opsworks/permissions.png" title="OpsWorks permissions view" %}
 
 
 Other tools such as the [EC2 Dashboard](https://console.aws.amazon.com/ec2) and [AWS API](http://docs.aws.amazon.com/AWSRubySDK/latest/frames.html) work as you'd hope, with all of the usual functions being applicable to your OpsWorks-managed instances and other services like elastic IPs and EBS volumes.

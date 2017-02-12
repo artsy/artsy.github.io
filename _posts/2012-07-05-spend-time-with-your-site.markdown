@@ -28,7 +28,7 @@ We've tried some best practices to overcome these tendencies. User feedback is e
 
 **It's our site, as a slideshow.**
 
-{% include expanded_img.html url="/images/2012-07-05-spend-time-with-your-site/slideshow_screenshot.jpg" title="Artsy as a slideshow" %}
+{% expanded_img /images/2012-07-05-spend-time-with-your-site/slideshow_screenshot.jpg" title="Artsy as a slideshow" %}
 
 That's all. Our wall-mounted display shows the same web page that a visitor to our site recently requested. Every 20 seconds, it refreshes and shows a new, more recently requested page.
 
