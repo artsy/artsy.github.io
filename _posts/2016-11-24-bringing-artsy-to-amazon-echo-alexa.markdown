@@ -265,6 +265,10 @@ I configured the "Service Endpoint" in the Alexa Skill configuration to point to
 
 I deployed the lambda function with `apex deploy` and test the skill with `apex invoke` or from the Alexa test UI.
 
+Each time we do a `apex deploy` it will create a new version of our function and will update `$LATEST` [Lambda alias](http://docs.aws.amazon.com/lambda/latest/dg/versioning-aliases.html). One way to handle versioning is to create a `$PROD` Lambda alias and point to `$PROD` when setting function in "Service Endpoint" step and each time we want to upate prod we need to update `$PROD` alias to point to latest version.
+
+Also note that after each deploy with apex we need to set environment variables for the newly created version.
+
 Logs didn't appear in AWS Cloudwatch with the execution policy created by default, I had to give the IAM "alexa-artsy" role more access to "arn:aws:logs:*:*:*" via an additional inline policy.
 
 ```json
@@ -303,6 +307,8 @@ I just try to [talk to it](https://www.youtube.com/watch?v=FYVOAU35Sio).
 This took several weeks of back-and-forth. I should have gone through the [Alexa Skills Kit Voice Interface and User Experience Testing for Custom Skills](https://developer.amazon.com/public/solutions/alexa/alexa-skills-kit/docs/alexa-skills-kit-voice-interface-and-user-experience-testing) more thoroughly, but even after reading it a few times it wasn't obvious what the reviewers wanted.
 
 ![certified dashboard](/images/2016-11-30-bringing-artsy-to-amazon-echo-alexa/certified-dashboard.png)
+
+Keep in mind that you need to go through certification process only if you are changing descriptions and details of the skill. If you updated the lambda function without modifying `utterances` or `schema` you don't have to go through certification process.
 
 Here's a list of my mistakes.
 
