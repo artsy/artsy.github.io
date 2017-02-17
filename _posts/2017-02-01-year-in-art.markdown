@@ -6,7 +6,7 @@ author: eve
 categories: [javascript]
 ---
 
-Artsy's end of year features are an annual chance to walk through highlights of the year while also exploring front-end experiments. Created in collaboration with UBS and designed by Owen Dodd, [The Year In Art 2016](http://artsy.net/year-in-art-2016) presents an interactive timeline of singular moments in art and culture over the past year.
+Artsy's end of year features are an annual chance to walk through highlights of the year while also exploring front-end experiments. Created in collaboration with UBS and designed by Owen Dodd, [The Year In Art 2016](https://www.artsy.net/2016-year-in-art) presents an interactive timeline of singular moments in art and culture over the past year.
 
 ![2017 Year In Art Animation Sample](/images/2017-02-01-year-in-art/blog-eoy-headeranimation.gif)
 
@@ -16,7 +16,7 @@ Achieving this effect required animating elements in response both to the size o
 
 <!-- more -->
 
-Because each element in the animation opens out from the center, and because the entire container is transparent, the sections needed to adjust their height rather than simply sliding out of view. Furthermore, the entire animation needed be responsive, and able to it’s place easily on page when it's refreshing or resized.
+Because each element in the animation opens out from the center, and because the entire container is transparent, the sections needed to adjust their height rather than simply sliding out of view. Furthermore, the entire animation needed to be responsive, and able to adjust it’s place easily on page when refreshing or resized.
 
 Essentially we needed a way to know where in our scroll position the top of each section 'enters' the window, which is also the point at which it should become visible. This functionality is close to [Waypoints](https://github.com/imakewebthings/waypoints), a library we use often at Artsy, but that option wasn't going to work in this case. Because each section was actually in the viewport already, just at 0px tall, the library wouldn’t recognize an element's ‘entering’ the frame (because it’s already there).
 
@@ -67,7 +67,7 @@ Now that we’re able to scroll, how do we know where we are?  This calls for an
     return closest
 ```
 
-This method gives us the index of the section nearest to the top of our window at any given moment, allowing us to identify and manipulate both the active element and the ones immediately surrounding it. Check out the full implementation of this project on [Github](https://github.com/artsy/force/tree/master/apps/editorial_features/components/eoy).
+This method gives us the index of the section nearest to the top of our window at any given moment, allowing us to identify and manipulate both the active element and the ones immediately surrounding it. Check out the full implementation of this project on [GitHub](https://github.com/artsy/force/tree/master/apps/editorial_features/components/eoy).
 
 Additionally, be sure to check out previous features created by Artsy in collaboration with UBS:
 
