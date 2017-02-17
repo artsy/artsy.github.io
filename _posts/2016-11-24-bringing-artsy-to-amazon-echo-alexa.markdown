@@ -16,7 +16,7 @@ In this post I'll dig a little inside the Alexa software platform and go over th
 <iframe width="280" height="280" src="https://www.youtube.com/embed/zi3OubNiV9U" frameborder="0" allowfullscreen></iframe>
 </a>
 
-Find the [Artsy skill in the Alexa app](http://alexa.amazon.com/spa/index.html#skills/dp/B01MYLJO1N) and [the complete Skill code on Github](https://github.com/artsy/elderfield).
+Find the [Artsy skill in the Alexa app](http://alexa.amazon.com/spa/index.html#skills/dp/B01MYLJO1N) and [the complete Skill code on Github](https://github.com/artsy/elderfield). And if you just want to learn to write a skill quickly, watch [@dblock live-code a skill in this video](https://www.youtube.com/watch?v=pzM4jv7k7Rg).
 
 <!-- more -->
 
