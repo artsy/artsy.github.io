@@ -28,7 +28,7 @@ To write an action get the [actions SDK](https://developers.google.com/actions/d
 
 The actions SDK can be called from any node.js application, or with some help from [google-actions-server](https://github.com/manekinekko/google-actions-server) (GAS) via boilerplate code in the [google-actions-starter](https://github.com/manekinekko/google-actions-starter) library.
 
-An `action.json` that describes the action, including the invocation trigger or the text-to-speech voice.
+An `action.json` that describes the actions, including the invocation trigger for each action and the text-to-speech voice for the agent to use.
 
 ```json
 {
@@ -50,7 +50,7 @@ An `action.json` that describes the action, including the invocation trigger or 
 }
 ```
 
-The action implementation lives in `lib/action.js` that imports and creates a new instance of `google-actions-server`.
+The action implementation lives in `lib/action.js` that imports and creates a new instance of `google-actions-server`, binds intents to functions and issues questions with `agent.ask` or sends final responses with `assistant.tell`.
 
 ```js
 import { ActionServer } from '@manekinekko/google-actions-server';
@@ -65,14 +65,25 @@ class ArtsyAction {
   }
 
   welcomeIntent(assistant) {
-    // implementation details
+    return this.agent.randomGreeting();
   }
 
   textIntent(assistant) {
-    // implementation details
+    var query = assistant.getRawInput();
+
+    // TODO: respond to a query
+
+    assistant.tell('You said ' + query + '.');
+  }
+
+  listen() {
+    // the welcome intent is invoked when the user says "talk to Artsy"
+    this.agent.welcome(this.welcomeIntent.bind(this));
+    // the text action is invoked for any spoken text
+    this.agent.intent(ActionServer.intent.action.TEXT, this.textIntent.bind(this));
+    return this.agent.listen();
   }
 }
-
 
 module.exports = (new ArtsyAction()).listen();
 ```
@@ -93,11 +104,41 @@ describe('Artsy', () => {
     action.close();
   });
 
-  it('responds to an invalid payload', () => {
+  it('asks the name of the artist when launched', () => {
     return request(action)
       .post('/')
-      .expect(400).then((response) => {
-        expect(response.text).to.eql('Action Error: Missing inputs from request body');
+      .send({
+        inputs: [{
+          intent: 'assistant.intent.action.MAIN',
+          raw_inputs: [{
+            input_type: 2,
+            query: "OK Google, talk to Artsy."
+          }]
+        }]
+      })
+      .expect(200).then((response) => {
+        var ssml = response.body.expected_inputs[0].input_prompt.initial_prompts[0].ssml;
+        expect(ssml).to.eql(`What is the name of the artist you would like to hear about?`);
+      });
+  });
+
+  it('repeats a query', () => {
+    return request(action)
+      .post('/')
+      .send({
+        inputs: [{
+          intent: 'assistant.intent.action.TEXT',
+          raw_inputs: [{
+            input_type: 2,
+            query: "hello world"
+          }],
+          arguments: []
+        }]
+      })
+      .expect(200).then((response) => {
+        expect(response.body.expect_user_response).to.equal(false);
+        var ssml = response.body.final_response.speech_response.text_to_speech;
+        expect(ssml).to.equal('You said hello world.');
       });
   });
 });
