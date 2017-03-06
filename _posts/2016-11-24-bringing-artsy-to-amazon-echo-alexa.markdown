@@ -6,6 +6,8 @@ comments: true
 author: db
 categories: [Alexa, Amazon Echo]
 ---
+tl;dr You can try Artsy on your Amazon Echo now, say "Alexa, enable Artsy" or see [alexa.artsy.net](http://alexa.artsy.net) for more info.
+
 With its powerful automatic speech recognizer, accurate natural language understanding and outstanding text-to-speech capabilities, the Amazon Echo, nicknamed "Alexa", always impressed me. While not the first in its category and introduced in late 2014, Alexa was the first consumer device in my home to truly enable the conversation between human and machine. It was stationary, always listening for a wake word, and clearly outperformed all previous attempts when it came to the ability to receive commands from the other side of the apartment.
 
 Alexa knows about the weather, but it doesn't know much about art.
