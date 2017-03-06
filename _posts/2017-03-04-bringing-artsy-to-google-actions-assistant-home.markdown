@@ -8,7 +8,7 @@ categories: [Google Home, Google Assistant, Google Actions]
 ---
 Last month we [brought Artsy to Amazon Alexa](/2016/11/30/bringing-artsy-to-amazon-echo-alexa/). In this post we'll repeat that process and enable Artsy for Google Assistant, including Google Home.
 
-tl;dr You can try Artsy on your Google Home now, say "Ok Google, talk to Artsy".
+tl;dr You can try Artsy on your Google Home now, say "Ok Google, talk to Artsy" or see [assistant.artsy.net](http://assistant.artsy.net) for more info.
 
 <center><img src='/images/2017-03-04-bringing-artsy-to-google-actions-assistant-home/google-home.png'></center>
 
