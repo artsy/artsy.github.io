@@ -10,7 +10,7 @@ Last month we [brought Artsy to Amazon Alexa](/2016/11/30/bringing-artsy-to-amaz
 
 tl;dr You can try Artsy on your Google Home now, say "Ok Google, talk to Artsy" or see [assistant.artsy.net](http://assistant.artsy.net) for more info.
 
-<center><img src='/images/2017-03-04-bringing-artsy-to-google-actions-assistant-home/google-home.png'></center>
+<iframe width="560" height="315" src="https://www.youtube.com/embed/i9EpF18xZqQ?ecver=1" frameborder="0" allowfullscreen></iframe>
 
 <!-- more -->
 
