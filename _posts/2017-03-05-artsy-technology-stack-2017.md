@@ -7,9 +7,9 @@ author: orta
 series: Artsy Tech Stack
 ---
 
-Artsy has now grown past 160 team members and our Engineering organization is now 30? strong. [WIP] For a brief overview of what the company has accomplished in the last few years, check out our [2013](http://2013.artsy.net) and [2014](http://2014.artsy.net) reviews.
-
-I'd like to comprehensively cover what, and how we make the technical side of Artsy work.
+Artsy was launched in 2012 as the Art Genome Project. By 2014 we had 230,000 works of art from 600 museums and institutions and launched our first business, a subscription service for commercial galleries with over 80,000 works for sale and partnerships with 37 art fairs and a handful of benefit auctions. That year collectors from 82 countries inquired on over $5.5B of art. By 2015 we doubled our for sale inventory and aggregated 4,000 of the world's leading galleries and 60 art fairs. We also launched two new businesses: commercial auctions and online media. Lastly, in 2016 we doubled our paid gallery network size to become the largest gallery network in the world and grew to become the most-read online art publication in the world as our highly engaging editorial traffic ballooned 320% and as we launched a live auction and a consignments service with the major auction houses.
+  
+Artsy has now grown past 160 team members and our Engineering organization is now 29 engineers, including 4 leads, 3 directors and a CTO. In this post, I'd like to comprehensively cover what, and how we make the technical and human sides of Artsy work.
 
 <!-- more -->
 
@@ -21,9 +21,9 @@ The Platform "practice" has remained as a way to coordinate and share work among
 
 # Artsy Tech Infrastructure
 
-## Front-End + API
+We're going to try and cover this business by business, there are places where there is an overlap, in which case I  
 
-In 2015, [dB][db] published our [2015 technology stack][tech2015], in the core Artsy products, though there are a few interesting changes.
+## Partner Subscriptions
 
 What you see today when you go to [artsy.net](https://artsy.net) is a website built with [Ezel.js](http://ezeljs.com), which is a boilerplate for [Backbone](http://backbonejs.org) projects running on [Node](https://nodejs.org) and using [Express](http://expressjs.com) and [Browserify](http://browserify.org). We used to have separate projects for mobile and desktop web, but now they [are merged][force_merge_pr]. It is hosted on [Heroku](http://heroku.com) and uses [Redis](http://redis.io) for caching. Assets, including artwork images, are served from [Amazon S3](http://aws.amazon.com/s3/) via the [CloudFront CDN](http://aws.amazon.com/cloudfront).
 
@@ -35,25 +35,30 @@ Most modern code for both the website, and the iOS app use an orchestration laye
 
 We continue to have a [public HAL+JSON API](https://developers.artsy.net) for external developers. This API is in active use for a few production services inside Artsy.
 
-## CMS + Writer
 
-We have three major content management systems:
+[CMS: One for Partners to upload Show, Fair, Artist and Artwork metadata.]
+[Genoming: One for in-house Genomers to handle connecting artworks together.]
 
-* One for Partners to upload Show, Fair, Artist and Artwork metadata.
-* One for Editorial, and Partners for writing articles for our magazine.
-* One for in-house Genomers to handle connecting artworks together.
 
-[CMS]
+## Auctions
+
+[Auctions setup/set down infra]
+[Live]
+
+## Editorial
+
 [Writer]
-[Genome tool]
+[One offs, UBS]
+[]
 
-## Analytics
+
+# Analytics
 
 We have consolidated a lot of our analytics tooling into RedShift
 
 [confirm with Will]
 
-## Platform Services
+# Platform Services
 
 As Artsy's business has grown more complex, so has the data and concepts handled by its core API. We've begun supporting certain product areas with separate, dedicated API services, and even extracting existing API domains into separate services when practical. These services tend to expose simple [REST](https://en.wikipedia.org/wiki/Representational_state_transfer)-ful HTTP APIs, maintain separate data sources, and even do their own [authentication](/blog/2016/10/26/jwt-artsy-journey/). This has certain advantages:
 
