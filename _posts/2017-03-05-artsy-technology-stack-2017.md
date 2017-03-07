@@ -78,12 +78,17 @@ https://github.com/artsy/ohm/
 [One offs, UBS]
 []
 
+<<<<<<< HEAD
+
+# Data Pipeline
+
+We use a set of [Rake](https://github.com/ruby/rake) tasks run on [Jenkins](https://wiki.jenkins-ci.org/display/JENKINS/Build+Flow+Plugin) to move data from several MongoDB and PostgreSQL databases to [AWS RedShift](https://aws.amazon.com/redshift) via [S3](https://aws.amazon.com/s3/). We also store application usage data provided by [Segment Warehouses](https://segment.com/warehouses) as well as data from vendors such as [Salesforce](https://www.salesforce.com/) and [Sailthru](http://www.sailthru.com/).
+
+For production data services like recommendations we leverage [Apache Spark](http://spark.apache.org/) and [Cloudera Hadoop](https://www.cloudera.com/products/open-source/apache-hadoop.html).
 
 # Analytics
 
-We have consolidated a lot of our analytics tooling into RedShift
-
-[confirm with Will]
+For general data access and dashboarding we have [Looker](https://looker.com/). For more in-depth analysis, we use [Jupyter Notebooks](https://ipython.org/notebook.html) or [RStudio](https://www.rstudio.com/).
 
 # Platform Services
 
