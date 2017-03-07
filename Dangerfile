@@ -15,14 +15,14 @@ avoid_exact_words = [
   { word: "localhost:4000", reason: "You may have left an internal link in the markdown" }
 ]
 
-markdowns = (git.modified_files + git.created_files).select { |file| file.start_with? "blog" }
+markdowns = (git.modified_files + git.added_files).select { |file| file.start_with? "_posts/" }
 
 # This could do with some code golfing sometime
 markdowns.each do |file|
   lines = File.read(file).lines
   lines.each do |l|
     avoid_exact_words.each do |avoid|
-      warn(reason, file: file, line: l) if l.include? avoid[:word]
+      warn(avoid[:reason], file: file, line: l) if l.include? avoid[:word]
     end
   end
 end
