@@ -78,12 +78,19 @@ https://github.com/artsy/ohm/
 [One offs, UBS]
 []
 
+# Data Pipeline
+
+Data generally flows from consumer applications and services into [AWS RedShift](https://aws.amazon.com/redshift).  We use a set of [rake](https://github.com/ruby/rake) tasks run on [Jenkins](https://wiki.jenkins-ci.org/display/JENKINS/Build+Flow+Plugin) to move data from our several MongoDB and PostgreSQL databases to Redshift via [S3](https://aws.amazon.com/s3/). These rake tasks shell out to [psql](https://www.postgresql.org/docs/9.3/static/sql-copy.html) or [mongo-export](https://docs.mongodb.com/manual/reference/program/mongoexport/) to generate CSV files for a list of services and upload them to an S3 bucket, then load those CSV files plus others found in that bucket (placed there by other services) into Redshift.  If a [Redshift copy](http://docs.aws.amazon.com/redshift/latest/dg/r_COPY.html) fails due to data changes we sample the CSV and generate a working schema from its contents.
+
+We also store application usage data provided by [Segment Warehouses](https://segment.com/warehouses) as well as data from vendors such as [Salesforce](https://www.salesforce.com/) and [Sailthru](http://www.sailthru.com/).
+
+For production data services such as recommendations we leverage [Apache Spark](http://spark.apache.org/) and [Cloudera Hadoop](https://www.cloudera.com/products/open-source/apache-hadoop.html).
 
 # Analytics
 
-We have consolidated a lot of our analytics tooling into RedShift
+For general data access and dashboarding we have [Looker](https://looker.com/), which empowers all non-engineers to access all of our data.  At the time of writing, there are 50 users running 3,500 queries a day against Redshift via Looker. We've found it expedient to precompute common denormalized views, and to create our own session rollups from raw pageviews and events for the additional flexibility it gives us in understanding user behavior.
 
-[confirm with Will]
+For more in-depth work, we use [Jupyter Notebooks](https://ipython.org/notebook.html) to connect to our Redshift cluster and by default to [pandas](http://pandas.pydata.org/), [sci-kit learn](http://scikit-learn.org/stable/), and [pyplot](http://matplotlib.org/api/pyplot_api.html) for data analysis.
 
 # Platform Services
 
