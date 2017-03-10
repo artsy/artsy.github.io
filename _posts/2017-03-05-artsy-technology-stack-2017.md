@@ -90,7 +90,7 @@ For production data processing (such as recommendations) and large-scale machine
 
 For general data access and dashboarding we have [Looker](https://looker.com/), which empowers all non-engineers to access all of our data.  At the time of writing, there are 50 users running 3,500 queries a day against Redshift via Looker. We've found it expedient to precompute common denormalized views, and to create our own session rollups from raw pageviews and events for the additional flexibility it gives us in understanding user behavior.
 
-For more in-depth work, we use [Jupyter Notebooks](https://ipython.org/notebook.html) to connect to our Redshift cluster and by default to [pandas](http://pandas.pydata.org/), [sci-kit learn](http://scikit-learn.org/stable/), and [pyplot](http://matplotlib.org/api/pyplot_api.html) for data analysis.
+For more in-depth work, we use [Jupyter Notebooks](https://ipython.org/notebook.html) to connect to our Redshift cluster and by default import [pandas](http://pandas.pydata.org/), [sci-kit learn](http://scikit-learn.org/stable/), and [pyplot](http://matplotlib.org/api/pyplot_api.html) for data analysis.
 
 # Search
 
