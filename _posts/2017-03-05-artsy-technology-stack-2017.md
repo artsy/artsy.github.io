@@ -98,13 +98,17 @@ Data generally flows from consumer applications and services into [AWS RedShift]
 
 We also store application usage data provided by [Segment Warehouses](https://segment.com/warehouses) as well as data from vendors such as [Salesforce](https://www.salesforce.com/) and [Sailthru](http://www.sailthru.com/).
 
-For production data services such as recommendations we leverage [Apache Spark](http://spark.apache.org/) and [Cloudera Hadoop](https://www.cloudera.com/products/open-source/apache-hadoop.html).
+For production data processing (such as recommendations) and large-scale machine learning we leverage [Apache Spark](http://spark.apache.org/) and [Cloudera Hadoop](https://www.cloudera.com/products/open-source/apache-hadoop.html). This setup has improved performance and capacity ten fold over our older in-house system.
 
 # Analytics
 
 For general data access and dashboarding we have [Looker](https://looker.com/), which empowers all non-engineers to access all of our data.  At the time of writing, there are 50 users running 3,500 queries a day against Redshift via Looker. We've found it expedient to precompute common denormalized views, and to create our own session rollups from raw pageviews and events for the additional flexibility it gives us in understanding user behavior.
 
-For more in-depth work, we use [Jupyter Notebooks](https://ipython.org/notebook.html) to connect to our Redshift cluster and by default to [pandas](http://pandas.pydata.org/), [sci-kit learn](http://scikit-learn.org/stable/), and [pyplot](http://matplotlib.org/api/pyplot_api.html) for data analysis.
+For more in-depth work, we use [Jupyter Notebooks](https://ipython.org/notebook.html) to connect to our Redshift cluster and by default import [pandas](http://pandas.pydata.org/), [sci-kit learn](http://scikit-learn.org/stable/), and [pyplot](http://matplotlib.org/api/pyplot_api.html) for data analysis.
+
+# Search
+
+We completed our full migration from [Solr](http://lucene.apache.org/solr/) to [Elasticsearch](https://www.elastic.co/) in the last 18 months, and now use the latter across artsy.net, from all our artwork filter interfaces through to our real-time artwork similarity feature. Elasticsearch gives us high availability clustering features out of the box and easy horizontal scaling.
 
 # Platform Services
 
@@ -124,12 +128,9 @@ At our size and complexity, a single code base is simply impractical. So, we've 
 
 We've also explored alternate communication patterns, so systems aren't as dependent on each other's APIs. Recently we've begun publishing a stream of interesting data events from our core systems. Other systems can simply subscribe to the notifications they care about, so the source system doesn't need to be concerned about integrating with one more destination. After experimenting with [Kafka](https://kafka.apache.org/) but finding it hard to manage, we switched to [RabbitMQ](https://www.rabbitmq.com/) for this purpose.
 
-[criteria for extracting services]
+## Provisioning
 
-## Hosting
-
-[deployment via Kubernetes]
-[talk with anil]
+We use an open source in-house [Docker](https://www.docker.com/) workflow toolkit called [Hokusai](https://github.com/artsy/hokusai) to manage containerised deployment via a [Kubernetes](https://kubernetes.io/) cluster. All our new infrastructure is configured in code using [Terraform](https://www.terraform.io/). This new workflow is reducing our dependence on Heroku, giving us more flexibility in our deployments and a more efficient use of server resources.
 
 ## One-offs
 
