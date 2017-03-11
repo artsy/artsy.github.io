@@ -12,6 +12,8 @@ prose.check_spelling
 avoid_exact_words = [
   { word: "Github", reason: "Please use GitHub, capital 'H'" },
   { word: "Cocoapods", reason: "Please use CocoaPods, capital 'P'" },
+  { word: "Javascript", reason: "Please use JavaScript, capital 'S'" },
+  { word: "Typescript", reason: "Please use TypeScript, capital 'S'" },
   { word: "localhost:4000", reason: "You may have left an internal link in the markdown" }
 ]
 

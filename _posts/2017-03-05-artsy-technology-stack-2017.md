@@ -33,7 +33,7 @@ What you see today when you go to [artsy.net](https://artsy.net) is a website bu
 
 What you see today when you open the Artsy iOS app is a mix of Objective-C, Swift and React Native. Objective-C and Swift continue to provide a lot of over-arching cross-View Controller code. While individual representations of Artsy resources tend to be built in React Native. All of our React Native code uses Relay to handle API integration.
 
-Our core API serves the public facets of our product, many of our own internal applications, and even [some of your own projects](https://developers.artsy.net/). It's built with [Ruby](https://www.ruby-lang.org/en/), [Rack](http://rack.github.io/), [Rails](http://rubyonrails.org/), and [Grape](https://github.com/intridea/grape) serving primarily JSON. The API is hosted on [AWS OpsWorks](http://aws.amazon.com/opsworks) and retrieves data from several [MongoDB](http://www.mongodb.com) databases hosted with [Compose](https://www.compose.io). It also uses [Memcached](http://memcached.org) for caching and [Redis](https://redis.io/) for background queues. We used to employ [Apache Solr](http://lucene.apache.org/solr) and even [Google Custom Search](https://www.google.com/cse) for the many search functions, but have since consolidated on [Elasticsearch](https://www.elastic.co).
+Our core API serves the public facets of our product, many of our own internal applications, and even [some of your own projects](https://developers.artsy.net/). It's built with [Ruby](https://www.ruby-lang.org/en/), [Rack](http://rack.github.io/), [Rails][rails], and [Grape](https://github.com/intridea/grape) serving primarily JSON. The API is hosted on [AWS OpsWorks](http://aws.amazon.com/opsworks) and retrieves data from several [MongoDB](http://www.mongodb.com) databases hosted with [Compose](https://www.compose.io). It also uses [Memcached](http://memcached.org) for caching and [Redis](https://redis.io/) for background queues. We used to employ [Apache Solr](http://lucene.apache.org/solr) and even [Google Custom Search](https://www.google.com/cse) for the many search functions, but have since consolidated on [Elasticsearch](https://www.elastic.co).
 
 Most modern code for both the website, and the iOS app use an orchestration layer which is powered by [GraphQL][graphQL]. Our GraphQL server is an [Express](http://expressjs.com) app, using [express-graphql][express-graphql] to provide a single API end-point. The GraphQL API does not access our data directly, but forwards requests to the core API or other services. We have been migrating shared display logic into the GraphQL server, to make it easier to build consistent clients.
 
@@ -45,7 +45,7 @@ There is more to this than just the consumer facing side though, we have a home-
 
 This CMS use stable, mature technologies like [Rails][rails], [Bootstrap][bootstrap], [Turbolinks][turbolinks], [CoffeeScript][coffee] and 
 
-We have an in-house image processing project (rails, sidekiq, redis, rmagick, imagemagick)
+We have an in-house image processing project (rails, sidekiq, redis, rmagick, imagemagick) 
 
 Partners are billed via 
 https://github.com/artsy/induction/
@@ -67,6 +67,20 @@ https://github.com/artsy/radiation
 https://github.com/artsy/helix/
 
 ## Auctions
+
+Artsy's Auctions business started with charity auctions. Charity auctions are simpler to map digitally: they have less bids, are more free form in terms of bid increments, have less artworks for sale, they happen slower and the people running them are less risk-averse as they tend to be one-off annual events instead of regular occurrences.
+
+Initially we modeled these Auctions inside the core API, however as we started implementing commercial auctions with a real-time component, we call these "Live Auctions", the differences in the scale of the domain made it worth moving the logic around an auction into a separate micro-service.
+
+The entire stack for Auctions is covered extensively in [The Tech Behind Live Auction Integration][live-auctions], however I will briefly cover it here too.
+
+The core API for a commercial auction is a [Scala][scala] micro-service. It uses the [Akka][akka] technology suite for distributed computing. It stores information in an append-only storage engine, based on [Akka Persistence][akka-p], with a small library we developed called [Atomic Store][atomic-store]. Communication with external clients can either be done via a REST API, or via WebSockets powered by [Akka Distributed Pub/Sub][akka-pub]
+
+People visiting a Live Auction on the web are interacting with a [universal](https://medium.com/@mjackson/universal-javascript-4761051b7ae9#.ev1yd3juy) [React](https://facebook.github.io/react/)+[Redux](http://redux.js.org/) JavaScript app, served from an [Express](http://expressjs.com/) server.
+
+People visiting a Live Auction on iOS are interacting with a Swift using [Interstellar], [Starscream] and [SwiftyJSON].
+
+Auctions 
 
 [Auctions setup/set down infra]
 https://github.com/artsy/ohm/
@@ -110,6 +124,8 @@ At our size and complexity, a single code base is simply impractical. So, we've 
 
 We've also explored alternate communication patterns, so systems aren't as dependent on each other's APIs. Recently we've begun publishing a stream of interesting data events from our core systems. Other systems can simply subscribe to the notifications they care about, so the source system doesn't need to be concerned about integrating with one more destination. After experimenting with [Kafka](https://kafka.apache.org/) but finding it hard to manage, we switched to [RabbitMQ](https://www.rabbitmq.com/) for this purpose.
 
+[criteria for extracting services]
+
 ## Hosting
 
 [deployment via Kubernetes]
@@ -123,6 +139,7 @@ We've also explored alternate communication patterns, so systems aren't as depen
 
 ## Culture
 
+[prod / staging deploys via ci]
 [Remote workers vs office]
 [Slack]
 [Diverse?]
@@ -146,3 +163,13 @@ These transitions haven't come in the form of big re-writes, but as incremental 
 [zenhub]: LINK
 [trying-react]: /blog/2015/04/08/creating-a-dynamic-single-page-app-for-our-genome-team-using-react/
 [aws]: /blog/2013/08/27/introduction-to-aws-opsworks/
+[rails]: http://rubyonrails.org/ 
+[scala]: scala
+[live-auctions]: SDFSDFSD
+[akka]: http://doc.akka.io/docs/akka/current/intro/what-is-akka.html
+[akka-p]: http://doc.akka.io/docs/akka/current/scala/persistence.html
+[atomic-store]: https://github.com/artsy/atomic-store
+[akka-pub]: http://doc.akka.io/docs/akka/current/scala/distributed-pub-sub.html
+[Interstellar]: 
+[Starscream]:
+[SwiftyJSON]: 
