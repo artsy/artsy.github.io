@@ -128,9 +128,9 @@ At our size and complexity, a single code base is simply impractical. So, we've 
 
 We've also explored alternate communication patterns, so systems aren't as dependent on each other's APIs. Recently we've begun publishing a stream of interesting data events from our core systems. Other systems can simply subscribe to the notifications they care about, so the source system doesn't need to be concerned about integrating with one more destination. After experimenting with [Kafka](https://kafka.apache.org/) but finding it hard to manage, we switched to [RabbitMQ](https://www.rabbitmq.com/) for this purpose.
 
-## Provisioning
+## Operations
 
-We use an open source in-house [Docker](https://www.docker.com/) workflow toolkit called [Hokusai](https://github.com/artsy/hokusai) to manage containerised deployment via a [Kubernetes](https://kubernetes.io/) cluster. All our new infrastructure is configured in code using [Terraform](https://www.terraform.io/). This new workflow is reducing our dependence on Heroku, giving us more flexibility in our deployments and a more efficient use of server resources.
+All our new AWS infrastructure is configured in code using [Terraform](https://www.terraform.io/). This approach has allowed us to quickly replicate entire deployments along with their dependencies and has increased visibility into the state of our infrastructure across our teams.  We started developing an open source [Docker](https://www.docker.com/) workflow toolkit named [Hokusai](https://github.com/artsy/hokusai) in order to manage a containerized workflow, CI and deployment to [Kubernetes](https://kubernetes.io/). Our Kubernetes clusters are managed using [Kops](https://github.com/kubernetes/kops) and similarly provisioned using Terraform. This new workflow is reducing our dependence on Heroku, giving us more flexibility in our deployments and a more efficient use of server resources.
 
 ## One-offs
 
