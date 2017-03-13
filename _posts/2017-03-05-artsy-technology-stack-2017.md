@@ -41,7 +41,7 @@ We continue to have a [public HAL+JSON API](https://developers.artsy.net) for ex
 
 ### Partner Facing
 
-There is more to this than just the consumer facing side though, we have a home-grown Content Management System (CMS) for gallery and institution partners. This CMS allows our partners to upload Show, Fair, Artist and Artwork metadata to our API. 
+There is more to the business than just the consumer facing side though, we have a home-grown Content Management System (CMS) for gallery and institution partners. This CMS allows our partners to upload Show, Fair, Artist and Artwork metadata to our API. 
 
 This CMS use stable, mature technologies like [Rails][rails], [Bootstrap][bootstrap], [Turbolinks][turbolinks], [CoffeeScript][coffee] and 
 
@@ -57,7 +57,7 @@ Fairs? https://github.com/artsy/waves
 
 ### Communications
 
-Art collectors inquire on an artworks though our internal messaging system. This can be either thought an API call, or through emails. For 
+Art collectors inquire on an artworks though our internal messaging system. This can be either though an API call, or through emails. We started building that out inside the core API, but have moved this into it's own micro-service. It is the role of this project to
 
 https://github.com/artsy/radiation
 
@@ -102,7 +102,7 @@ For production data processing (such as recommendations) and large-scale machine
 
 # Analytics
 
-For general data access and dashboarding we have [Looker](https://looker.com/), which empowers all non-engineers to access all of our data.  At the time of writing, there are 50 users running 3,500 queries a day against Redshift via Looker. We've found it expedient to precompute common denormalized views, and to create our own session rollups from raw pageviews and events for the additional flexibility it gives us in understanding user behavior.
+For general data access and dashboarding we have [Looker](https://looker.com/), which empowers all non-engineers to access all of our data.  At the time of writing, there are 50 users running 3,500 queries a day against Redshift via Looker. We've found it expedient to pre-compute common denormalized views, and to create our own session rollups from raw pageviews and events for the additional flexibility it gives us in understanding user behavior.
 
 For more in-depth work, we use [Jupyter Notebooks](https://ipython.org/notebook.html) to connect to our Redshift cluster and by default import [pandas](http://pandas.pydata.org/), [sci-kit learn](http://scikit-learn.org/stable/), and [pyplot](http://matplotlib.org/api/pyplot_api.html) for data analysis.
 
