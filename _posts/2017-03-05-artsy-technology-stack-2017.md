@@ -41,9 +41,17 @@ We continue to have a [public HAL+JSON API](https://developers.artsy.net) for ex
 
 ### Partner Facing
 
-There is more to the business than just the consumer facing side though, we have a home-grown Content Management System (CMS) for gallery and institution partners. This CMS allows our partners to upload Show, Fair, Artist and Artwork metadata to our API. 
+There is more to the business than just the consumer facing side though, we have a home-grown Content Management System (CMS) for gallery and institution partners. This CMS allows our partners to upload shows, fair booths, artists, and artwork metadata to our API.
 
-This CMS use stable, mature technologies like [Rails][rails], [Bootstrap][bootstrap], [Turbolinks][turbolinks], [CoffeeScript][coffee] and 
+This CMS is based on stable, mature technologies like [Rails](http://rubyonrails.org/), [Bootstrap](http://getbootstrap.com/), [Turbolinks](https://github.com/turbolinks/turbolinks) and [CoffeeScript](http://coffeescript.org/), and gradually adopts modern client-side technologies like [React](https://facebook.github.io/react/) and [Browserify](http://browserify.org).
+
+There are smaller CMSes for specific use cases, that all use the same infrastructure 
+
+ * Starting Auctions
+ * Configuring Fairs
+ * Handling Billing
+ * Creating internal reports on Galleries or Users
+ * Creating and updating genomes (see [Trying out React][])
 
 We have an in-house image processing project (rails, sidekiq, redis, rmagick, imagemagick) 
 
@@ -57,7 +65,7 @@ Fairs? https://github.com/artsy/waves
 
 ### Communications
 
-Art collectors inquire on an artworks though our internal messaging system. This can be either though an API call, or through emails. We started building that out inside the core API, but have moved this into it's own micro-service. It is the role of this project to
+We have a system that manages conversation between different parties. It receives messages via API or Email, finds or creates the conversation based on email's recipients and forwards them to the proper emails/users in that conversation. It's doesn't know anything about the context of the emails/messages which makes it a generic system for any type of conversation. Currently it's used to manage conversations started by an inquiry on an Artwork.
 
 https://github.com/artsy/radiation
 
@@ -126,7 +134,7 @@ Balancing these out are some very real disadvantages:
 
 At our size and complexity, a single code base is simply impractical. So, we've tried to be consistent in the coding, deployment, monitoring, and logging practices of these services. The more repeatable and disciplined our process, the less overhead is introduced by additional systems.
 
-We've also explored alternate communication patterns, so systems aren't as dependent on each other's APIs. Recently we've begun publishing a stream of interesting data events from our core systems. Other systems can simply subscribe to the notifications they care about, so the source system doesn't need to be concerned about integrating with one more destination. After experimenting with [Kafka](https://kafka.apache.org/) but finding it hard to manage, we switched to [RabbitMQ](https://www.rabbitmq.com/) for this purpose.
+We've also explored alternate communication patterns, so systems aren't as dependent on each other's APIs. Recently we've begun publishing a stream of interesting data events from our core systems. Other systems can simply subscribe to the notifications they care about, so the source system doesn't need to be concerned about integrating with one more destination. After experimenting with [Kafka](https://kafka.apache.org/) but finding it hard to manage, we switched to [RabbitMQ](https://www.rabbitmq.com/) for this purpose. To provide consistency when publishing events we have [our own gem][eventservice].
 
 ## Operations
 
@@ -140,14 +148,32 @@ All our new AWS infrastructure is configured in code using [Terraform](https://w
 
 ## Culture
 
-[prod / staging deploys via ci]
+#### Constant Staging Deployment
+
+In some of our apps we have switched to PR based deployments via CIs. In this case, on Artsy's repository, we would have master and release branches. master is the default branch and all the PRs are made to master. 
+
+Once a PR is reviewed and merged to master. It will automatically get deployed on staging, if the tests in CI pass.
+
+Once we are ready to deploy to production, we create a PR from master to release branch, this way we know what commits are going to be deployed in this release. Once this PR is merged, CI will automatically deploy the release branch to production.
+
+#### Slack
+
+Originally the engineering team used IRC, but in 2015 we switched to Slack and encouraged its use throughout the whole company. We're now averaging about 16k Slack messages a day inside Artsy. 
+
+This started out small but as the Artsy team grew, so did the number of locations where people worked. Encouraging people to move from disparate private conversations in different messaging clients to using slack channels has really made it easier to keep people in the loop. It's made it possible to have the serendipitous collaboration which you could get by overhearing something important nearby physically.
+
+### Global Oppertunities
+
+When hiring 
+
+
 [Remote workers vs office]
 [Slack]
 [Diverse?]
 
 # Trends
 
-By the end of 2016, almost every major front-end aspect of Artsy was [Open Source by Default][oss-default]. This means the entire working process is done in the open, from developer PRs to QA. In order to work in the open but still keep details private, we create a private GitHu  b repo for each front-end team that represents cross-project issues and team milestones. This is done using [ZenHub][zenhub], and is managed by Engineering leads and Product Managers.
+By the end of 2016, almost every major front-end aspect of Artsy was [Open Source by Default][oss-default]. This means the entire working process is done in the open, from developer PRs to QA. In order to work in the open but still keep details private, we create a private GitHub repo for each front-end team that represents cross-project issues and team milestones. This is done using [ZenHub][zenhub], and is managed by Engineering leads and Product Managers.
 
 Consistently over the [last 2 years][trying-react], our front-end code has moved towards using React across all platforms. As well as a trend towards stricter JavaScript languages like TypeScript over CoffeeScript in order to provide better tooling.
 
@@ -174,3 +200,5 @@ These transitions haven't come in the form of big re-writes, but as incremental 
 [Interstellar]: 
 [Starscream]:
 [SwiftyJSON]: 
+[eventservice]: https://github.com/artsy/artsy-eventservice
+[Trying out React]: /blog/2015/04/08/creating-a-dynamic-single-page-app-for-our-genome-team-using-react/
