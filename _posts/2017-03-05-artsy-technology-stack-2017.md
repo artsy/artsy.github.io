@@ -142,7 +142,16 @@ All our new AWS infrastructure is configured in code using [Terraform](https://w
 
 ## One-offs
 
-[Messaging: Facebook, Alexa, Google Home]
+### Messaging
+
+We've explored Artsy on messaging platforms, these one-off projects make great technology test-beds:
+
+* [Google Home][biesenbach]  (see [Bringing Artsy to Google Assistant "Home" with Actions][home])
+* [Alexa][elderfield]  (see [Bringing Artsy to Amazon Echo "Alexa"][alexa])
+* [Facebook Chat Bot][mitosis]
+
+From the opposite side, we have explored 
+
 [Slackbots: PR assignees]
 [Team Nav]
 
@@ -202,3 +211,7 @@ These transitions haven't come in the form of big re-writes, but as incremental 
 [SwiftyJSON]: 
 [eventservice]: https://github.com/artsy/artsy-eventservice
 [Trying out React]: /blog/2015/04/08/creating-a-dynamic-single-page-app-for-our-genome-team-using-react/
+[mitosis]: https://github.com/artsy/mitosis
+[biesenbach]: https://github.com/artsy/biesenbach
+[alexa]: /blog/2016/11/30/bringing-artsy-to-amazon-echo-alexa/
+[home]: /blog/2017/03/04/bringing-artsy-to-google-actions-assistant-home/
