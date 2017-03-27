@@ -11,5 +11,5 @@ gem 'pry'
 
 group :distribution do
   gem 'danger'
-  gem 'danger-prose', git: 'https://github.com/dbgrandi/danger-prose'
+  gem 'danger-prose'
 end
