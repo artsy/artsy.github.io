@@ -12,5 +12,5 @@ gem 'jekyll-lunr-js-search', git: 'https://github.com/ashfurrow/jekyll-lunr-js-s
 
 group :distribution do
   gem 'danger'
-  gem 'danger-prose', git: 'https://github.com/dbgrandi/danger-prose'
+  gem 'danger-prose'
 end
