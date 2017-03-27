@@ -45,7 +45,7 @@ There is more to the business than just the consumer facing side though, we have
 
 This CMS is based on stable, mature technologies like [Rails](http://rubyonrails.org/), [Bootstrap](http://getbootstrap.com/), [Turbolinks](https://github.com/turbolinks/turbolinks) and [CoffeeScript](http://coffeescript.org/), and gradually adopts modern client-side technologies like [React](https://facebook.github.io/react/) and [Browserify](http://browserify.org).
 
-There are smaller CMSes for specific use cases, that all use the same infrastructure 
+There are smaller CMSes for specific use cases, that all use the [same Ruby infrastructure][watt]
 
  * Starting Auctions
  * Configuring Fairs
@@ -173,7 +173,7 @@ This started out small but as the Artsy team grew, so did the number of location
 
 ### Global Oppertunities
 
-When hiring 
+Our dev team now has contributors in Berlin, Seattle, Minneapolis, London
 
 
 [Remote workers vs office]
@@ -215,3 +215,4 @@ These transitions haven't come in the form of big re-writes, but as incremental 
 [biesenbach]: https://github.com/artsy/biesenbach
 [alexa]: /blog/2016/11/30/bringing-artsy-to-amazon-echo-alexa/
 [home]: /blog/2017/03/04/bringing-artsy-to-google-actions-assistant-home/
+[watt]: https://github.com/artsy/watt
