@@ -63,7 +63,7 @@ The vast customer-facing business is powered by a Content Management System (CMS
 
 CMS applications are based on stable, mature technologies like [Rails](http://rubyonrails.org), [Bootstrap](http://getbootstrap.com), [Turbolinks](https://github.com/turbolinks/turbolinks) and [CoffeeScript](http://coffeescript.org), and gradually adopts modern client-side technologies like [React](https://facebook.github.io/react) and [Browserify](http://browserify.org). They share a lot of common infrastructure.
 
-We have a generic image-processing service in-house, which uses Rails, Sidekiq, Redis, and RMagick with ImageMagick. It receives image processing requests from many Artsy applications and generates thumbnails, tiles and watermarks images on S3.
+We have a generic image-processing service in-house, which uses [Rails](http://rubyonrails.org), [Sidekiq](https://github.com/mperham/sidekiq/), [Redis](https://redis.io), and [RMagick](https://github.com/rmagick/rmagick) with [ImageMagick](http://www.imagemagick.org/script/index.php). It receives image processing requests from many Artsy applications and generates thumbnails, tiles and watermarks images on S3.
 
 ## Collector-Facing
 
@@ -73,13 +73,13 @@ Collectors inquire on artworks and engage in a conversation with a partner. For 
 
 Artsy's Auctions business started with charity auctions. Charity auctions are simpler to map digitally: they have less bids, are more free form in terms of bid increments, have less artworks for sale, they happen slower and the people running them are less risk-averse as they tend to be one-off annual events instead of regular occurrences. We therefore modeled these Auctions inside the core API. As we started implementing commercial auctions with a real-time component (we call these "Live Auctions") the differences in the scale of the domain made it worth moving the logic around an auction into a separate micro-service.
 
-The core API for a commercial auction is a Scala micro-service that uses Akka for distributed computing. It stores information in an append-only storage engine, based on Akka Persistence, with a small library we developed called [atomic-store](https://github.com/artsy/atomic-store). Communication with external clients can either be done via a REST API, or via WebSockets powered by Akka Distributed Pub/Sub. People visiting a Live Auction on the web are interacting with a [universal](https://medium.com/@mjackson/universal-javascript-4761051b7ae9#.ev1yd3juy) [React](https://facebook.github.io/react)+[Redux](http://redux.js.org) JavaScript app, served from an [Express](http://expressjs.com) server. Bidders visiting a Live Auction on iOS are interacting with a Swift application built with [interstellar](https://github.com/JensRavens/Interstellar), [Starscream](https://github.com/daltoniam/starscream) and [SwiftyJSON](https://github.com/SwiftyJSON/SwiftyJSON).
+The core API for a commercial auction is a Scala micro-service that uses [Akka](http://akka.io) for distributed computing. It stores information in an append-only storage engine, based on Akka Persistence, with a small library we developed called [atomic-store](https://github.com/artsy/atomic-store). Communication with external clients can either be done via a REST API, or via WebSockets powered by Akka Distributed Pub/Sub. People visiting a Live Auction on the web are interacting with a [universal](https://medium.com/@mjackson/universal-javascript-4761051b7ae9#.ev1yd3juy) [React](https://facebook.github.io/react)+[Redux](http://redux.js.org) JavaScript app, served from an [Express](http://expressjs.com) server. Bidders visiting a Live Auction on iOS are interacting with a Swift application built with [Interstellar](https://github.com/JensRavens/Interstellar), [Starscream](https://github.com/daltoniam/starscream) and [SwiftyJSON](https://github.com/SwiftyJSON/SwiftyJSON).
 
 A more detailed overview of the Auctions stack can be found in [The Tech Behind Live Auction Integration](/blog/2016/08/09/the-tech-behind-live-auction-integration).
 
 ## Editorial
 
-We've built our own, lean editorial platform, which uses MongoDB and Express to serve a private JSON API consumed by our applications. This [code is open-source](https://github.com/artsy/positron).
+We've built our own, lean editorial platform, which uses [MongoDB](https://www.mongodb.com) and [Express](http://expressjs.com) to serve a private JSON API consumed by our applications. This [code is open-source](https://github.com/artsy/positron).
 
 ## Data Pipeline
 
@@ -139,15 +139,15 @@ In some of our newer apps we have switched to PR based deployments via CIs. In t
 
 Originally the engineering team used IRC, but in 2015 we switched to Slack and encouraged its use throughout the whole company. We're now averaging about 16,000 Slack messages a day inside Artsy.
 
-This started out small but as the Artsy team grew, so did the number of locations where people worked. Encouraging people to move from disparate private conversations in different messaging clients to using slack channels has really made it easier to keep people in the loop. It's made it possible to have the serendipitous collaboration which you could get by overhearing something important nearby physically.
+Slack usage started out small, but as the Artsy team grew, so did the number of locations where people worked. Encouraging people to move from disparate private conversations in different messaging clients to using slack channels has really made it easier to keep people in the loop. It's made it possible to have the serendipitous collaboration you get by overhearing something important nearby physically.
 
 ## Global Engineering
 
-While most Engineers live in New York, our Engineering team has now contributors in Berlin, Seattle, Minneapolis and London.
+While most Engineers live in New York, our Engineering team has now contributors in Berlin, Seattle, Minneapolis and London. We've not shyed away from hiring regardless of locations. 
 
 <TODO: remote workers vs. office workers>
 
-To help people know each-other across the company we developed and open-sourced a [team navigator](https://github.com/artsy/team-navigator). We also facilitate meetings between any three people across the company with a tool called [sup](https://github.com/ilyakava/sup).
+To help people know each-other across the company we developed and open-sourced a [team navigator](https://github.com/artsy/team-navigator). We also facilitate weekly meetings between any three people across the company with a tool called [sup](https://github.com/ilyakava/sup).
 
 ## Diversity
 
