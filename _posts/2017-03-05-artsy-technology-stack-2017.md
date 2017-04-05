@@ -92,7 +92,7 @@ A more detailed overview of the Auctions stack can be found in [The Tech Behind 
 
 ## Publishing
 
-Our in-house editorial team and partners use an [open-source](https://github.com/artsy/positron) platform called Writer (which we've built) to publish rich content across the web. Writer is split in two parts: the editorial-focused CMS and a JSON API that stores and distributes content separately from the rest of Artsy's stack.
+Our in-house editorial team and partners use an [open-source](https://github.com/artsy/positron) platform called "Writer" (which we've built) to publish rich content across the web. Writer is split in two parts: the editorial-focused CMS and a JSON API that stores and distributes content separately from the rest of Artsy's stack.
 
 Writer's frontend is built with [Ezel.js](http://ezeljs.com), which is a boilerplate for [Backbone](http://backbonejs.org) projects running on [Node](https://nodejs.org) and using [Express](http://expressjs.com) and [Browserify](http://browserify.org). We also heavily use [React](https://facebook.github.io/react) and write in [CoffeeScript](http://coffeescript.org). Writer's backend exposes [REST](https://en.wikipedia.org/wiki/Representational_state_transfer)-based and [GraphQL](http://graphql.org) APIs that are consumed by our applications.
 
