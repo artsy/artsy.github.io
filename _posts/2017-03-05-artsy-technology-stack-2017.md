@@ -1,9 +1,9 @@
 ---
-layout: post
+layout: post_longform
 title: Artsy's Technology Stack, 2017
 date: 2017-03-05
 categories: [Technology, eigen, force, gravity]
-author: orta
+author: [orta, artsy_engineering]
 series: Artsy Tech Stack
 ---
 
@@ -17,17 +17,23 @@ By 2015 we doubled our "for sale" inventory and aggregated 4,000 of the world's 
 
 Finally, in 2016 we, again, doubled our paid gallery network size to become the largest gallery network in the world and grew to become the most-read online art publication as our highly engaging editorial traffic ballooned 320%. We also launched a platform to bid in live auctions and a consignments service with most major auction houses.
 
+
 # The Artsy Business in 2017
 
-In 2017 Artsy has three businesses at various stages of development and revenue: _Listings_, _Auctions_ and _Content_.
+In 2017 Artsy has three businesses at various stages of development and revenue: _Auctions_, _Content_ and _Listings_.
 
-* _Listings_: Galleries, Fairs and Institutions subscribe to Artsy for a fee because we bring a very large audience of art collectors and enthusiasts to their virtual doors.
 * _Auctions_: Auction houses and charities use Artsy as a sales channel for a commission because collectors want to discover and buy art in a single, central platform that excels at surfacing the art they want from a global market.
 * _Content_: Brands pay Artsy to reach the first art audience at scale by enabling evergreen content online and for offline engagement during art world events.
+* _Listings_: Galleries, Fairs and Institutions subscribe to Artsy for a fee because we bring a very large audience of art collectors and enthusiasts to their virtual doors.
 
 The Artsy team is now 160 employees across three offices in New York, Berlin and London. The Engineering organization is now 29 engineers, including 4 leads, 3 directors and a CTO. In this post, we'd like to comprehensively cover what, and how we make the technical and human sides of Artsy businesses work.
 
 <!-- more -->
+
+<center>
+ <img src="/images/tech-2017/businesses.svg" style="width:100%;">
+</center>
+
 
 # Organizational Structures
 
@@ -35,9 +41,16 @@ In 2016, we [updated the Engineering organization](/blog/2016/03/28/artsy-engine
 
 The Platform "practice" has remained as a way to coordinate and share work among product teams, as well as monitor and upgrade Artsy's platform over time. Most platform engineers operate from within product teams, while a few focusing on data and infrastructure form a core, dedicated Platform team.
 
-<TODO: insert organizational graph here>
+<center>
+ <img src="/images/tech-2017/engineering-teams.svg" style="width:100%;">
+</center>
 
 # Artsy Technology Infrastructure
+
+<center>
+ <img src="/images/tech-2017/languages.svg" style="width:100%;">
+</center>
+
 
 ## User Facing
 
@@ -49,7 +62,7 @@ What you see today when you open the [Artsy iOS app](https://itunes.apple.com/us
 
 You can also find Artsy on [Alexa](http://alexa.atsy.net) and [Google Home](http://assistant.artsy.net), which are both open-source Node.js applications.
 
-Our core API serves the public facets of our product, many of our own internal applications, and even [some of your own projects](https://developers.artsy.net). It's built with [Ruby](https://www.ruby-lang.org/en), [Rack](http://rack.github.io), [Rails][rails], and [Grape](https://github.com/intridea/grape) serving primarily JSON. The API is hosted on [AWS OpsWorks](http://aws.amazon.com/opsworks) and retrieves data from several [MongoDB](http://www.mongodb.com) databases hosted with [Compose](https://www.compose.io). It also uses [Memcached](http://memcached.org) for caching and [Redis](https://redis.io) for background queues. It runs background jobs with [delayed_job](https://github.com/collectiveidea/delayed_job). We used to employ [Apache Solr](http://lucene.apache.org/solr) and even [Google Custom Search](https://www.google.com/cse) for the many search functions, but have since consolidated on [Elasticsearch](https://www.elastic.co).
+Our core API serves the public facets of our product, many of our own internal applications, and even [some of your own projects](https://developers.artsy.net). It's built with [Ruby](https://www.ruby-lang.org/en), [Rack](http://rack.github.io), [Rails](http://rubyonrails.org), and [Grape](https://github.com/intridea/grape) serving primarily JSON. The API is hosted on [AWS OpsWorks](http://aws.amazon.com/opsworks) and retrieves data from several [MongoDB](http://www.mongodb.com) databases hosted with [Compose](https://www.compose.io). It also uses [Memcached](http://memcached.org) for caching and [Redis](https://redis.io) for background queues. It runs background jobs with [delayed_job](https://github.com/collectiveidea/delayed_job). We used to employ [Apache Solr](http://lucene.apache.org/solr) and even [Google Custom Search](https://www.google.com/cse) for the many search functions, but have since consolidated on [Elasticsearch](https://www.elastic.co).
 
 Most modern code for both the website and the iOS app use an orchestration layer which is powered by [GraphQL](http://graphql.org). Our GraphQL server is an [Express](http://expressjs.com) app, using [express-graphql](https://github.com/graphql/express-graphql) to provide a single API end-point. The API does not access our data directly, but forwards requests to the core API or other services. We have been migrating shared display logic into the GraphQL server, to make it easier to build consistent clients. This [code is open-source](https://github.com/artsy/metaphysics).
 
@@ -133,7 +146,7 @@ Sometimes it makes sense to keep some details private for competitive reasons. W
 
 Most development workflow tries to mimic large open-source project development where most work happens on forks and is pull-requested into an Artsy repository shared by everyone. Typically an engineer will start a project, application or service and is automatically its benevolent dictator. They will add continuous integration and will ask other engineers on the team to code review everything from day one. Others will join and entire teams may take over. Continuous deployment and other operational infrastructure will get setup early.
 
-In some of our newer apps we have switched to PR based deployments via CIs. In this case, on Artsy's repository, we would have _master_ and _release_ branches where _master_ is the default branch and all the PRs are made to master. Once a PR is reviewed and merged to _master_ it will automatically get deployed on staging. Production deployment is a pull request from _master_ to a _release_ branch, this way we know what commits are going to be deployed in this release. Once this is merged, CI will automatically deploy the _release_ branch to production.
+In some of our newer apps we have switched to PR based deployments via CIs. In this case, on Artsy's repository, we would have _master_ and _release_ branches where _master_ is the default branch and all the PRs are made to master. Once a PR is reviewed and merged to _master_ it will automatically get deployed on staging. Production deployment is a pull request from _master_ to a _release_ branch, this way we know what commits are going to be deployed in this release. Once merged, CI will automatically deploy the _release_ branch to production.
 
 ## Slack
 
@@ -141,17 +154,11 @@ Originally the engineering team used IRC, but in 2015 we switched to Slack and e
 
 Slack usage started out small, but as the Artsy team grew, so did the number of locations where people worked. Encouraging people to move from disparate private conversations in different messaging clients to using slack channels has really made it easier to keep people in the loop. It's made it possible to have the serendipitous collaboration you get by overhearing something important nearby physically.
 
-## Global Engineering
+## Global Engineering 
 
-While most Engineers live in New York, our Engineering team has now contributors in Berlin, Seattle, Minneapolis and London. We've not shyed away from hiring regardless of locations. 
-
-<TODO: remote workers vs. office workers>
+While most Engineers live in New York, our Engineering team has now contributors in Berlin, Seattle, Minneapolis, Boston and London. We've not shied away from hiring regardless of locations. 
 
 To help people know each-other across the company we developed and open-sourced a [team navigator](https://github.com/artsy/team-navigator). We also facilitate weekly meetings between any three people across the company with a tool called [sup](https://github.com/ilyakava/sup).
-
-## Diversity
-
-<TODO: insert stats>
 
 # Closing Remarks
 
