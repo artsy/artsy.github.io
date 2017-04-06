@@ -1,6 +1,6 @@
 [![Build Status](https://travis-ci.org/artsy/artsy.github.io.svg)](https://travis-ci.org/artsy/artsy.github.io)
 
-The Artsy OSS page and the blog runs on top of a default jekyll install. If you'd like an overview of jekyll their [website rocks](http://jekyllrb.com/).
+The Artsy OSS page and the blog runs on top of a default jekyll install. If you would like an overview of jekyll their [website rocks](http://jekyllrb.com/).
 
 ## Setup
 
@@ -23,11 +23,11 @@ Categories are generated when the ENV var `PRODUCTION` = `"YES"`.
 
 ## Deploying
 
-Travis CI will automatically deploy when new commits are pushed to the `source` branch, so you shouldn't need to deploy from your local computer. However, if you need to deploy locally, the `rake deploy` command is available. 
+Travis CI will automatically deploy when new commits are pushed to the `source` branch, so you should not need to deploy from your local computer. However, if you need to deploy locally, the `rake deploy` command is available. 
 
 ## Adding an Author
 
-Authors are key-value stored, so you'll need to give yourself a key inside [_config.yml](_config.yml) - for example:
+Authors are key-value stored, so you will need to give yourself a key inside [_config.yml](_config.yml) - for example:
 
 ```yaml
   joey:
@@ -42,7 +42,7 @@ Everything but name is optional.
 ## Authoring an Article
 
 TLDR
-_To generate a new post, create a new file in the `_posts` directory. Be sure to add your name as the author of the post and include several categories to file the post under. Here's a sample header YAML:_
+_To generate a new post, create a new file in the `_posts` directory. Be sure to add your name as the author of the post and include several categories to file the post under. Here is a sample header YAML:_
 
 ```yaml
 ---
