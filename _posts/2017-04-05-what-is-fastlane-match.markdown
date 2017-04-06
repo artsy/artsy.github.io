@@ -1,12 +1,12 @@
 ---
 layout: post
-title: "What is Fastlane Match?"
+title: "What is fastlane match?"
 date: 2017-04-05 12:17
 author: orta
 categories: [mobile, ios, energy, fastlane]
 ---
 
-Like anyone working on a non-trivial app in the iOS world who values their time, we use Fastlane. [Fastlane][] is a suite
+Like anyone working on a non-trivial app in the iOS world who values their time, we use fastlane. [fastlane][] is a suite
 of tools that makes it much simpler to automate the very manual processes provided by Apple for deployment.
 
 We've adopted it in a relatively piece-meal manner in different projects, converting custom in-house code to something 
@@ -169,7 +169,7 @@ $ tree mobile_fastlane_match
 ## So, what is Match doing here?
 
 1. match creates a new key (the `*.p12`) - normally you would generate one of these through Keychain, and the entire team would 
-   to share this. We keep ours in [1password][]. It needs to be used consistently when request certificates from Apple 
+   to share this. We keep ours in team [1Password][]. It needs to be used consistently when request certificates from Apple 
    though the "Request a Certificate from a Certificate Authority" part of getting your certs set up.
 
 2. Using [cert][]: match will use this key [to create a signing request][signing] for you.
