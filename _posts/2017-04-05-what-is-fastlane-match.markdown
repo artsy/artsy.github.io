@@ -12,9 +12,9 @@ of tools that makes it much simpler to automate the very manual processes provid
 We've adopted it in a relatively piece-meal manner in different projects, converting custom in-house code to something 
 provided by the gem.  Over time we found what pieces of the suite work for us. [I've adopted another today][pr]: [match][].
 
-Match automates setting up your iOS projects for code signing. One of the most arduous orthogonal tasks which every dev team learns and then forgets.
+match automates setting up your iOS projects for code signing. One of the most arduous orthogonal tasks which every dev team learns and then forgets.
 
-In using Match, we have given away a bit of control with code signing, and so this post is going to dig into; what we used 
+In using match, we have given away a bit of control with code signing, and so this post is going to dig into; what we used 
 to have, and how it works now with match instead.
 
 <!-- more -->
