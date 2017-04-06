@@ -14,6 +14,7 @@ avoid_exact_words = [
   { word: "Cocoapods", reason: "Please use CocoaPods, capital 'P'" },
   { word: "Javascript", reason: "Please use JavaScript, capital 'S'" },
   { word: "Typescript", reason: "Please use TypeScript, capital 'S'" },
+  { word: "Fastlane", reason: "Please use fastlane, lowercase 'f'" },
   { word: "localhost:4000", reason: "You may have left an internal link in the markdown" }
 ]
 
