@@ -76,7 +76,7 @@ Pretty neat, huh? It handles the centralization and migration of certificates. T
 * There is tooling which makes it easy to see the state of all the code signing process.
 
 A year later, on a project which gets no-where near as much developer attention, I discovered that we had got multiple 
-parts of the certs, keys and profiles wrong when updating our central repo. So, for [this project][folio]. I have switched to use match.
+parts of the certs, keys and profiles wrong when updating our central repo. So, for [this project][folio], I have switched to use match.
 
 --- 
 
@@ -194,7 +194,7 @@ but for one when we're deploying _maybe_ a beta once a month or two (_eek! sorry
 back to do some work, the world has shifted a bit.
 
 We do lose the fact that we know someone has specifically set everything up to work right at some point, but given how 
-Xcode updates, [WWDR updates][wwrd] and certificate expirations tend to crop up - it can be frustrating to maintain.
+Xcode updates, [WWDR updates][wwdr] and certificate expirations tend to crop up - it can be frustrating to maintain.
 
 So would I move [Eigen][] to match? Maybe, next time something breaks. Till then I think new apps, and less-often updated 
 apps should use match.
