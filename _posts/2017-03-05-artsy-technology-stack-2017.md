@@ -90,9 +90,13 @@ The core API for a commercial auction is a Scala micro-service that uses [Akka](
 
 A more detailed overview of the Auctions stack can be found in [The Tech Behind Live Auction Integration](/blog/2016/08/09/the-tech-behind-live-auction-integration).
 
-## Editorial
+## Publishing
 
-We've built our own, lean editorial platform, which uses [MongoDB](https://www.mongodb.com) and [Express](http://expressjs.com) to serve a private JSON API consumed by our applications. This [code is open-source](https://github.com/artsy/positron).
+Our in-house editorial team and partners use an [open-source](https://github.com/artsy/positron) platform called "Writer" (which we've built) to publish rich content across the web. Writer is split in two parts: the editorial-focused CMS and a JSON API that stores and distributes content separately from the rest of Artsy's stack.
+
+Writer's frontend is built with [Ezel.js](http://ezeljs.com), which is a boilerplate for [Backbone](http://backbonejs.org) projects running on [Node](https://nodejs.org) and using [Express](http://expressjs.com) and [Browserify](http://browserify.org). We also heavily use [React](https://facebook.github.io/react) and write in [CoffeeScript](http://coffeescript.org). Writer's backend exposes [REST](https://en.wikipedia.org/wiki/Representational_state_transfer)-based and [GraphQL](http://graphql.org) APIs that are consumed by our applications.
+
+You can see Writer being put to work when you see articles on [www.artsy.net](https://www.artsy.net), Facebook Instant Articles, Google AMP, RSS, Apple News, and email. We handle the distribution and display in all of these channels. We also support brand sponsorship deals and produce front-end heavy projects such as [Year in Art 2016](https://www.artsy.net/2016-year-in-art), and [Year in Art 2015](https://www.artsy.net/article/artsy-editorial-2015-the-year-in-art).
 
 ## Data Pipeline
 
