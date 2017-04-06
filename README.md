@@ -1,6 +1,6 @@
 [![Build Status](https://travis-ci.org/artsy/artsy.github.io.svg)](https://travis-ci.org/artsy/artsy.github.io)
 
-The Artsy OSS page and the blog run on top of a default jekyll install. If you'd like an overview of jekyll their [website rocks](http://jekyllrb.com/).
+The Artsy OSS page and the blog runs on top of a default jekyll install. If you'd like an overview of jekyll their [website rocks](http://jekyllrb.com/).
 
 ## Setup
 
@@ -42,7 +42,7 @@ Everything but name is optional.
 ## Authoring an Article
 
 TLDR
-_To generate a new post, create a new file in the `_posts` directory. Be sure to add your name as the author of the post and include a couple of categories to file the post under. Here's some sample header YAML:_
+_To generate a new post, create a new file in the `_posts` directory. Be sure to add your name as the author of the post and include several categories to file the post under. Here's a sample header YAML:_
 
 ```yaml
 ---
