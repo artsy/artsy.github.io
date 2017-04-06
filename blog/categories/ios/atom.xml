@@ -4,7 +4,7 @@
   <title><![CDATA[Category: ios | Artsy Engineering]]></title>
   <link href="http://artsy.github.io/blog/categories/ios/atom.xml" rel="self"/>
   <link href="http://artsy.github.io/"/>
-  <updated>2017-04-06T08:23:02+00:00</updated>
+  <updated>2017-04-06T09:12:27+00:00</updated>
   <id>http://artsy.github.io/</id>
   <author>
     <name><![CDATA[]]></name>
@@ -12,6 +12,201 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[What is fastlane match?]]></title>
+    <link href="http://artsy.github.io/blog/2017/04/05/what-is-fastlane-match/"/>
+    <updated>2017-04-05T12:17:00+00:00</updated>
+    <id>http://artsy.github.io/blog/2017/04/05/what-is-fastlane-match</id>
+    <content type="html"><![CDATA[<p>Like anyone working on a non-trivial app in the iOS world who values their time, we use fastlane. <a href="https://fastlane.tools">fastlane</a> is a suite
+of tools that makes it much simpler to automate the very manual processes provided by Apple for deployment.</p>
+
+<p>We've adopted it in a relatively piece-meal manner in different projects, converting custom in-house code to something
+provided by the gem.  Over time we found what pieces of the suite work for us. <a href="https://github.com/artsy/energy/pull/266">I've adopted another today</a>: <a href="https://github.com/fastlane/fastlane/tree/master/match">match</a>.</p>
+
+<p>Match automates setting up your iOS projects for code signing. One of the most arduous orthogonal tasks which every dev team learns and then forgets.</p>
+
+<p>In using Match, we have given away a bit of control with code signing, and so this post is going to dig into; what we used
+to have, and how it works now with match instead.</p>
+
+<!-- more -->
+
+
+<p>When match came out, I knew this was a 🌟 idea.</p>
+
+<ul>
+<li>Automatically generate the right certificates and keys for your different apps and environments.</li>
+<li>Take all your developer certificates and keys, move them to a central place accessible via private git repos.</li>
+<li>Encrypt all your certs and keys, the team just needs to share one password.</li>
+<li>Migrate all of those keys on both the developer's and CI's computers.</li>
+</ul>
+
+
+<p>You can now have a consistent signing setup between how you work, and how your CI runs. After understanding this, I migrated
+Artsy's app store apps to deploy via <a href="https://circleci.com">Circle CI</a>. We initially gave match a shot, but ended up having issues with supporting
+multiple apps. So, I replicated the core ideas in match into our Fastfile. It looked like this:</p>
+
+<pre><code class="ruby">lane :setup_for_app_store do
+  app_name = "eigen"
+  signing_root = "signing"
+
+  `git clone https://github.com/artsy/mobile_code_signing.git #{signing_root}`
+
+  # prints out the codesigning identities
+  system "security find-identity -v -p codesigning"
+
+  # Install the iOS distribution certificate, -A
+  system "security import #{signing_root}/ios_distribution.cer  -k ~/Library/Keychains/login.keychain -A"
+
+  # Move our provisioning profile in
+  profile_path = File.expand_path("~") + "/Library/MobileDevice/Provisioning Profiles/"
+  destination = profile_path + "/" + app_name + ".mobileprovision"
+  profile = Dir.glob(signing_root + "/profiles/" + app_name + "/*").first
+
+  # Ensure folder exists
+  unless File.directory?(profile_path)
+    FileUtils.mkdir_p(profile_path)
+  end
+
+  # Migrate it in
+  FileUtils.copy profile, destination
+  puts "Installed Profile"
+
+  # Install the key
+  key = Dir.glob(signing_root + "/keys/" + app_name + "/*").first
+  system "security import #{key} -k ~/Library/Keychains/login.keychain -P #{ENV['MATCH_PASSWORD']}  -A "
+
+  # prints out the codesigning identities
+  system "security find-identity -v -p codesigning"
+
+  # Clean-up
+  `rm -rf #{signing_root}`
+end
+</code></pre>
+
+<p>Pretty neat, huh? It handles the centralization and migration of certificates. The trade-off against match is:</p>
+
+<ul>
+<li>We continue to maintain our own certificates, keys and provisioning profiles.</li>
+<li>There is no easy way to update these.</li>
+<li>There is tooling which makes it easy to see the state of all the code signing process.</li>
+</ul>
+
+
+<p>A year later, on a project which gets no-where near as much developer attention, I discovered that we had got multiple
+parts of the certs, keys and profiles wrong when updating our central repo. So, for <a href="http://folio.artsy.net">this project</a>. I have switched to use match.</p>
+
+<hr />
+
+<a name="So.how.does.it.work.now."></a>
+<h1>So how does it work now?</h1>
+
+<p>First, I ran <code>bundle exec fastlane appstore</code> and <code>bundle exec fastlane dev</code>.</p>
+
+<p>This creates the certificates, keys and profiles on iTunes connect and gives you output similar to this:</p>
+
+<pre><code class="sh">
++-----------------------+------------------------------------------------+
+|                        Summary for match 2.25.0                        |
++-----------------------+------------------------------------------------+
+| readonly              | true                                           |
+| git_url               | https://github.com/artsy/mobile_fastlane_match |
+| type                  | appstore                                       |
+| git_branch            | master                                         |
+| app_identifier        | sy.art.folio                                   |
+| username              | it@artsymail.com                               |
+| keychain_name         | login.keychain                                 |
+| team_id               | 23KMWZ572J                                     |
+| team_name             | Art.sy Inc.                                    |
+| verbose               | false                                          |
+| force                 | false                                          |
+| skip_confirmation     | false                                          |
+| shallow_clone         | false                                          |
+| force_for_new_devices | false                                          |
+| skip_docs             | false                                          |
+| platform              | ios                                            |
++-----------------------+------------------------------------------------+
+
++-------------------+-----------------------------------------------+
+|                       Installed Certificate                       |
++-------------------+-----------------------------------------------+
+| User ID           | 23KMWZ572J                                    |
+| Common Name       | iPhone Distribution: Art.sy Inc. (23KMWZ572J) |
+| Organisation Unit | 23KMWZ572J                                    |
+| Organisation      | Art.sy Inc.                                   |
+| Country           | US                                            |
+| Start Datetime    | Apr  4 13:59:06 2017 GMT                      |
+| End Datetime      | Apr  4 13:59:06 2018 GMT                      |
++-------------------+-----------------------------------------------+
+
++---------------------+-----------------------------------------+-------------------------------------------------------------------------------------------------------------+
+|                                                                       Installed Provisioning Profile                                                                        |
++---------------------+-----------------------------------------+-------------------------------------------------------------------------------------------------------------+
+| Parameter           | Environment Variable                    | Value                                                                                                       |
++---------------------+-----------------------------------------+-------------------------------------------------------------------------------------------------------------+
+| App Identifier      |                                         | sy.art.folio                                                                                                |
+| Type                |                                         | appstore                                                                                                    |
+| Platform            |                                         | ios                                                                                                         |
+| Profile UUID        | sigh_sy.art.folio_appstore              | b045df0f-a691-4b7a-ac34-8349a3684030                                                                        |
+| Profile Name        | sigh_sy.art.folio_appstore_profile-name | match AppStore sy.art.folio                                                                                 |
+| Profile Path        | sigh_sy.art.folio_appstore_profile-path | /Users/orta/Library/MobileDevice/Provisioning Profiles/b045df0f-a691-4b7a-ac34-8349a3684030.mobileprovision |
+| Development Team ID | sigh_sy.art.folio_appstore_team-id      | 23KMWZ572J                                                                                                  |
++---------------------+-----------------------------------------+-------------------------------------------------------------------------------------------------------------+
+</code></pre>
+
+<p>Which at a glimpse gives a lot of the most useful information about how all the pieces come together. The new repo looks like this:</p>
+
+<pre><code class="sh">$ tree mobile_fastlane_match
+
+├── README.md
+├── certs
+│   ├── development
+│   │   ├── P4K6FACAUD.cer
+│   │   └── P4K6FACAUD.p12
+│   └── distribution
+│       ├── N5BMJ28RQ2.cer
+│       └── N5BMJ28RQ2.p12
+├── match_version.txt
+└── profiles
+    ├── appstore
+    │   └── AppStore_sy.art.folio.mobileprovision
+    └── development
+        └── Development_sy.art.folio.mobileprovision
+</code></pre>
+
+<a name="So..what.is.Match.doing.here."></a>
+<h2>So, what is Match doing here?</h2>
+
+<ol>
+<li><p>match creates a new key (the <code>*.p12</code>) - normally you would generate one of these through Keychain, and the entire team would
+to share this. We keep ours in team <a href="http://1password.com">1Password</a>. It needs to be used consistently when request certificates from Apple
+though the "Request a Certificate from a Certificate Authority" part of getting your certs set up.</p></li>
+<li><p>Using <a href="https://github.com/fastlane/fastlane/tree/master/cert">cert</a>: match will use this key <a href="https://github.com/fastlane/fastlane/blob/14dea61e4c81bf9be13bb86c09aa225c6e572618/cert/lib/cert/runner.rb#L141">to create a signing request</a> for you.</p></li>
+<li><p>Using <a href="https://github.com/fastlane/fastlane/tree/master/cert">cert</a>: match will generate a certificate for <a href="https://github.com/fastlane/fastlane/blob/14dea61e4c81bf9be13bb86c09aa225c6e572618/cert/lib/cert/runner.rb#L79">development or distribution</a> for you.</p></li>
+<li><p>Using <a href="https://github.com/fastlane/fastlane/tree/master/cert">cert</a>: match will <a href="https://github.com/fastlane/fastlane/blob/14dea61e4c81bf9be13bb86c09aa225c6e572618/match/lib/match/runner.rb#L133">generate a Provisioning Profile</a> using your certificate and data pulled from your Xcode Project.
+In my case, for development and distribution.</p>
+
+<p>These profiles are tied directly to one app and the certificate in step 3. For development, all devices in the dev center are also added.</p></li>
+<li><p>These files are then installed in their various methods.</p></li>
+<li><p>These files are then moved into your git repo, a commit is made for you, then pushed and the repo is removed from your computer.</p></li>
+</ol>
+
+
+<p>This process is nice, because this ^ is a lot of work. I only had to run a command.</p>
+
+<p>It would take at about 30 minutes to do this if I knew exactly what I wanted through the web interface + Keychain.</p>
+
+<p>We currently need to do this for every app. This works fine for the app where we are deploying multiple betas a month,
+but for one when we're deploying <em>maybe</em> a beta once a month or two (<em>eek! sorry...</em>) then it feels like every time you've come
+back to do some work, the world has shifted a bit.</p>
+
+<p>We do lose the fact that we know someone has specifically set everything up to work right at some point, but given how
+Xcode updates, [WWDR updates][wwrd] and certificate expirations tend to crop up - it can be frustrating to maintain.</p>
+
+<p>So would I move <a href="https://github.com/artsy/eigen">Eigen</a> to match? Maybe, next time something breaks. Till then I think new apps, and less-often updated
+apps should use match.</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Xcode 8 Manual Codesigning with Fastlane]]></title>
@@ -183,24 +378,6 @@
 
 
 <p></div></div><iframe width='100%' height='600' src='https://www.youtube.com/embed/EBtzqx1YRBg ' frameborder='0' allowfullscreen></iframe><div class='meta-container'><header>&nbsp;</header></div><div class='content-container'><div class='entry-content'></p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Learn Swift at Artsy, Beginners Lesson One]]></title>
-    <link href="http://artsy.github.io/blog/2016/08/15/swift-at-artsy-beginners-lesson-one/"/>
-    <updated>2016-08-15T21:18:00+00:00</updated>
-    <id>http://artsy.github.io/blog/2016/08/15/swift-at-artsy-beginners-lesson-one</id>
-    <content type="html"><![CDATA[<p>Last August, Orta and I <a href="http://artsy.github.io/blog/2016/01/26/swift-at-artsy/">led a course at Artsy</a> to teach our colleagues Swift. There were two parallel groups of learners: a "beginners" group who had never coded before, and an "informed" group who already knew how to code. This year, we're leading the course again with a slight twist: we're repeating the course for absolute beginners, and we're introduce a new course for anyone who completed last year's beginner course.</p>
-
-<p>We're really excited both to help new colleagues take their first steps into programming, and to help returning colleagues continue their journey.</p>
-
-<p>Today was lesson one of the beginner group, and I have a <a href="https://youtu.be/OLdSg0XpFqA">screen recording</a> of my walkthrough of <a href="https://github.com/artsy/Swift-at-Artsy/tree/master/Beginners/Lesson%20One">lesson one's material</a>.</p>
-
-<!-- more -->
-
-
-<p></div></div><iframe width='100%' height='600' src='https://www.youtube.com/embed/OLdSg0XpFqA ' frameborder='0' allowfullscreen></iframe><div class='meta-container'><header>&nbsp;</header></div><div class='content-container'><div class='entry-content'></p>
 ]]></content>
   </entry>
   
