@@ -23,10 +23,14 @@ Finally, in 2016 we, again, doubled our paid gallery network size to become the 
 In 2017 Artsy has three businesses at various stages of development and revenue: _Auctions_, _Content_ and _Listings_.
 
 * _Auctions_: Auction houses and charities use Artsy as a sales channel for a commission because collectors want to discover and buy art in a single, central platform that excels at surfacing the art they want from a global market.
+
+
 * _Content_: Brands pay Artsy to reach the first art audience at scale by enabling evergreen content online and for offline engagement during art world events.
+
+
 * _Listings_: Galleries, Fairs and Institutions subscribe to Artsy for a fee because we bring a very large audience of art collectors and enthusiasts to their virtual doors.
 
-The Artsy team is now 160 employees across three offices in New York, Berlin and London. The Engineering organization is now 29 engineers, including 4 leads, 3 directors and a CTO. In this post, we'd like to comprehensively cover what, and how we make the technical and human sides of Artsy businesses work.
+The Artsy team is now 160 employees across three offices in New York, Berlin and London. The Engineering organization is now 28 engineers, including 4 leads, 3 directors and a CTO. In this post, we'd like to comprehensively cover what, and how we make the technical and human sides of Artsy businesses work.
 
 <!-- more -->
 
@@ -36,6 +40,7 @@ The Artsy team is now 160 employees across three offices in New York, Berlin and
 
 
 # Organizational Structures
+
 
 In 2016, we [updated the Engineering organization](/blog/2016/03/28/artsy-engineering-organization-stack) to be oriented around product verticals. We used to focus more on practices to groups engineers working with the same technologies across product teams to facilitate knowledge sharing and avoid redundant efforts. 
 
@@ -49,14 +54,13 @@ The Platform "practice" has remained as a way to coordinate and share work among
 
 # Artsy Technology Infrastructure
 
-<center>
- <img src="/images/tech-2017/languages.svg" style="width:100%;">
-</center>
+
+{% include full_svg.html url="/images/tech-2017/artsy-stack.svg" title="OK" style="width:100%;" %}
 
 
 ## User Facing
 
-A lot of the user-facing focus includes being able to present interfaces with a quality worthy of art.
+A lot of the user-facing focus is on being able to present interfaces with a quality worthy of art.
 
 What you see today when you go to [www.artsy.net](https://artsy.net) is a website built with [Ezel.js](http://ezeljs.com), which is a boilerplate for [Backbone](http://backbonejs.org) projects running on [Node](https://nodejs.org) and using [Express](http://expressjs.com) and [Browserify](http://browserify.org). We used to have separate projects for mobile and desktop web, but they [are now merged](https://github.com/artsy/force/pull/890). The combined app is hosted on [Heroku](http://heroku.com) and uses [Redi3s](http://redis.io) for caching. Assets, including artwork images, are served from [Amazon S3](http://aws.amazon.com/s3) via the [CloudFront CDN](http://aws.amazon.com/cloudfront). This [code is open-source](https://github.com/artsy/force).
 
@@ -66,13 +70,16 @@ You can also find Artsy on [Alexa](http://alexa.atsy.net) and [Google Home](http
 
 Our core API serves the public facets of our product, many of our own internal applications, and even [some of your own projects](https://developers.artsy.net). It's built with [Ruby](https://www.ruby-lang.org/en), [Rack](http://rack.github.io), [Rails](http://rubyonrails.org), and [Grape](https://github.com/intridea/grape) serving primarily JSON. The API is hosted on [AWS OpsWorks](http://aws.amazon.com/opsworks) and retrieves data from several [MongoDB](http://www.mongodb.com) databases hosted with [Compose](https://www.compose.io). It also uses [Memcached](http://memcached.org) for caching and [Redis](https://redis.io) for background queues. It runs background jobs with [delayed_job](https://github.com/collectiveidea/delayed_job). We used to employ [Apache Solr](http://lucene.apache.org/solr) and even [Google Custom Search](https://www.google.com/cse) for the many search functions, but have since consolidated on [Elasticsearch](https://www.elastic.co).
 
-This server has two versions of our core API, v1 a REST API which has access to all resources, and v2 a [hypermedia](http://apievangelist.com/2014/01/07/what-is-a-hypermedia-api/) API which powers [developers.artsy.net](https://developers.artsy.net) is used in most contemporary code.
-
 Most modern code for both the website and the iOS app use an orchestration layer which is powered by [GraphQL](http://graphql.org). Our GraphQL server is an [Express](http://expressjs.com) app, using [express-graphql](https://github.com/graphql/express-graphql) to provide a single API end-point. The API does not access our data directly, but forwards requests to the core API or other services. We have been migrating shared display logic into the GraphQL server, to make it easier to build consistent clients. This [code is open-source](https://github.com/artsy/metaphysics).
 
-Consistently, our front-end code has moved towards using React across all platforms along with introducing stricter JavaScript languages like TypeScript over CoffeeScript in order to provide better tooling.
+Consistently, our front-end code [has moved towards](/blog/2017/02/05/Front-end-JavaScript-at-Artsy-2017/) using React across all platforms along with introducing stricter JavaScript languages like TypeScript over CoffeeScript in order to provide better tooling.
 
-We continue to have a [public HAL+JSON API](https://developers.artsy.net) for external developers. This API is in active use for a few production services inside Artsy and the [website is open-source](https://github.com/artsy/doppler), too.
+We continue to have a [public HAL+JSON API](https://developers.artsy.net) for external developers. This API is in active use for contemporary production services inside Artsy and the [website is open-source](https://github.com/artsy/doppler), too.
+
+
+<center>
+ <img src="/images/tech-2017/languages.svg" style="width:100%;">
+</center>
 
 ## Partner-Facing
 
@@ -142,6 +149,8 @@ We've also explored alternate communication patterns, so systems aren't as depen
 
 All our recent AWS infrastructure is configured in code using [Terraform](https://www.terraform.io). This approach has allowed us to quickly replicate entire deployments along with their dependencies and has increased visibility into the state of our infrastructure across our teams. We started developing an open source [Docker](https://www.docker.com) workflow toolkit named [Hokusai](https://github.com/artsy/hokusai) in order to manage a containerized workflow, CI and deployment to [Kubernetes](https://kubernetes.io). Our Kubernetes clusters are managed using [Kops](https://github.com/kubernetes/kops) and similarly provisioned using Terraform. This new workflow is reducing our dependence on Heroku, giving us more flexibility in our deployments and a more efficient use of server resources.
 
-# Closing Remarks
+## Closing Remarks
 
-<TODO: >
+Like any attempts at mapping something as large as the daily work for a thirty-ish person engineering team, [the map is not the territory](https://en.wikipedia.org/wiki/Map–territory_relation). However, the exploration is worth the time it takes to keep notes for reading again in the next two years.
+
+If you're interested in helping us make this an even longer post in two more years, or _more interestingly_ shorter - we nearly always have a [position open for engineer](https://www.artsy.net/jobs). 
