@@ -37,7 +37,9 @@ The Artsy team is now 160 employees across three offices in New York, Berlin and
 
 # Organizational Structures
 
-In 2016, we [updated the Engineering organization](/blog/2016/03/28/artsy-engineering-organization-stack) to be oriented around product verticals. Since then, web and mobile "practices" have largely been subsumed into these separate product teams. Mobile's increasing reliance on React Native has aligned nicely with web tooling. It no longer made sense to keep the teams separate, so where product teams used to have 2 separate sub-teams of engineers, they've now merged into 1.
+In 2016, we [updated the Engineering organization](/blog/2016/03/28/artsy-engineering-organization-stack) to be oriented around product verticals. We used to focus more on practices to groups engineers working with the same technologies across product teams to facilitate knowledge sharing and avoid redundant efforts. 
+
+Since then, web and mobile "practices" have largely been subsumed into the separate product teams. Mobile's increasing reliance on React Native has aligned nicely with web tooling. It no longer made sense to keep the teams separate, so where product teams used to have 2 separate sub-teams of engineers, they've now merged into 1.
 
 The Platform "practice" has remained as a way to coordinate and share work among product teams, as well as monitor and upgrade Artsy's platform over time. Most platform engineers operate from within product teams, while a few focusing on data and infrastructure form a core, dedicated Platform team.
 
@@ -60,9 +62,11 @@ What you see today when you go to [www.artsy.net](https://artsy.net) is a websit
 
 What you see today when you open the [Artsy iOS app](https://itunes.apple.com/us/app/artsy-collect-and-bid-on-fine-art-design/id703796080?mt=8) is a mix of Objective-C, Swift and React Native. Objective-C and Swift continue to provide a lot of over-arching cross-View Controller code. While individual representations of Artsy resources tend to be built in React Native. All of our React Native code uses Relay to handle API integration. This [code is open-source](https://github.com/artsy/eigen).
 
-You can also find Artsy on [Alexa](http://alexa.atsy.net) and [Google Home](http://assistant.artsy.net), which are both open-source Node.js applications.
+You can also find Artsy on [Alexa](http://alexa.atsy.net) and [Google Home](http://assistant.artsy.net), which are both open-source Node.js applications. There is also an open-source [Apple TV](https://github.com/artsy/emergence/) app built in Swift.
 
 Our core API serves the public facets of our product, many of our own internal applications, and even [some of your own projects](https://developers.artsy.net). It's built with [Ruby](https://www.ruby-lang.org/en), [Rack](http://rack.github.io), [Rails](http://rubyonrails.org), and [Grape](https://github.com/intridea/grape) serving primarily JSON. The API is hosted on [AWS OpsWorks](http://aws.amazon.com/opsworks) and retrieves data from several [MongoDB](http://www.mongodb.com) databases hosted with [Compose](https://www.compose.io). It also uses [Memcached](http://memcached.org) for caching and [Redis](https://redis.io) for background queues. It runs background jobs with [delayed_job](https://github.com/collectiveidea/delayed_job). We used to employ [Apache Solr](http://lucene.apache.org/solr) and even [Google Custom Search](https://www.google.com/cse) for the many search functions, but have since consolidated on [Elasticsearch](https://www.elastic.co).
+
+This server has two versions of our core API, v1 a REST API which has access to all resources, and v2 a [hypermedia](http://apievangelist.com/2014/01/07/what-is-a-hypermedia-api/) API which powers [developers.artsy.net](https://developers.artsy.net) is used in most contemporary code.
 
 Most modern code for both the website and the iOS app use an orchestration layer which is powered by [GraphQL](http://graphql.org). Our GraphQL server is an [Express](http://expressjs.com) app, using [express-graphql](https://github.com/graphql/express-graphql) to provide a single API end-point. The API does not access our data directly, but forwards requests to the core API or other services. We have been migrating shared display logic into the GraphQL server, to make it easier to build consistent clients. This [code is open-source](https://github.com/artsy/metaphysics).
 
@@ -72,7 +76,7 @@ We continue to have a [public HAL+JSON API](https://developers.artsy.net) for ex
 
 ## Partner-Facing
 
-The vast customer-facing business is powered by a Content Management System (CMS) for gallery and institutional partners. This CMS lets them upload and manager gallery shows, fair booths, create artists, and edit artwork metadata. All CMS components talk to our core API. We also have a number of CMS-like internal applications to manage partners, auctions, art genomes, configuring fairs or performing recurrent billing (we use Stripe for storing and charging credit cards and ACH) with invoicing.
+The vast customer-facing business is powered by a Content Management System (CMS) for gallery and institutional partners. This CMS lets them upload and manage gallery shows, fair booths, create artists, and edit artwork metadata. All CMS components talk to our core API. We also have a number of CMS-like internal applications to manage partners, auctions, art genomes, configuring fairs or performing recurrent billing (we use Stripe for storing and charging credit cards and ACH) with invoicing.
 
 CMS applications are based on stable, mature technologies like [Rails](http://rubyonrails.org), [Bootstrap](http://getbootstrap.com), [Turbolinks](https://github.com/turbolinks/turbolinks) and [CoffeeScript](http://coffeescript.org), and gradually adopts modern client-side technologies like [React](https://facebook.github.io/react) and [Browserify](http://browserify.org). They share a lot of common infrastructure.
 
@@ -80,11 +84,11 @@ We have a generic image-processing service in-house, which uses [Rails](http://r
 
 ## Collector-Facing
 
-Collectors inquire on artworks and engage in a conversation with a partner. For this purpose we have built a generic messaging system that manages communications between different parties. It receives messages via API or e-mail, finds or creates a conversation based on the recipients and forwards them to the proper addresses in that conversation. It's doesn't assume anything about the contents of the messages, which makes it a generic system for any type of conversation. The conversations surface to our partners via CMS.
+Collectors inquire on artworks and engage in conversations with partners. For this purpose we have built a generic messaging system that manages communications between different parties. It receives messages via API or e-mail, finds or creates a conversation based on the recipients and forwards them to the proper addresses in that conversation. Its doesn't assume anything about the contents of the messages, which makes it a generic system for any type of conversation. The conversations surface to our partners via CMS.
 
 ## Running Auctions
 
-Artsy's Auctions business started with charity auctions. Charity auctions are simpler to map digitally: they have less bids, are more free form in terms of bid increments, have less artworks for sale, they happen slower and the people running them are less risk-averse as they tend to be one-off annual events instead of regular occurrences. We therefore modeled these Auctions inside the core API. As we started implementing commercial auctions with a real-time component (we call these "Live Auctions") the differences in the scale of the domain made it worth moving the logic around an auction into a separate micro-service.
+Artsy's Auctions business started with charity auctions. Charity auctions are simpler to map digitally: they have less bids, are more free form in terms of bid increments, have less artworks for sale, they happen slower and the people running them are less risk-averse as they tend to be one-off annual events instead of regular occurrences. We therefore modeled these Auctions inside the core API. As we started implementing commercial auctions with a real-time component (we call these "Live Auctions") the differences in the scale of the domain made it worth moving the logic around auctions into a separate micro-service.
 
 The core API for a commercial auction is a Scala micro-service that uses [Akka](http://akka.io) for distributed computing. It stores information in an append-only storage engine, based on Akka Persistence, with a small library we developed called [atomic-store](https://github.com/artsy/atomic-store). Communication with external clients can either be done via a REST API, or via WebSockets powered by Akka Distributed Pub/Sub. People visiting a Live Auction on the web are interacting with a [universal](https://medium.com/@mjackson/universal-javascript-4761051b7ae9#.ev1yd3juy) [React](https://facebook.github.io/react)+[Redux](http://redux.js.org) JavaScript app, served from an [Express](http://expressjs.com) server. Bidders visiting a Live Auction on iOS are interacting with a Swift application built with [Interstellar](https://github.com/JensRavens/Interstellar), [Starscream](https://github.com/daltoniam/starscream) and [SwiftyJSON](https://github.com/SwiftyJSON/SwiftyJSON).
 
@@ -104,7 +108,7 @@ Data generally flows from consumer applications and services into [AWS RedShift]
 
 We also store application usage data provided by [Segment Warehouses](https://segment.com/warehouses) as well as data from vendors such as [Salesforce](https://www.salesforce.com) and [Sailthru](http://www.sailthru.com).
 
-For production data processing (such as recommendations), large-scale machine learning or even simpler parallel processing such as generating website sitemaps, we have own own Hadoop cluster configured and managed by [Cloudera Manager](https://www.cloudera.com/products/product-components/cloudera-manager.html) and running on EC2. We leverage [Apache Spark](http://spark.apache.org) and [Hadoop](https://www.cloudera.com/products/open-source/apache-hadoop.html) with some [Ooozie](http://oozie.apache.org) workflow scheduling. The same data pipeline that writes data to S3 also pumps data to HDFS with either Ruby code or [Sqoop](http://sqoop.apache.org) and is read by Spark jobs written in Scala using [Hive](https://hive.apache.org). Spark has improved performance and capacity tenfold over our older in-house systems and we will be moving all lengthy processing implemented in Ruby to this system gradually.
+For production data processing (such as recommendations), large-scale machine learning or even simpler parallel processing such as generating website sitemaps, we have our own Hadoop cluster configured and managed by [Cloudera Manager](https://www.cloudera.com/products/product-components/cloudera-manager.html) and running on EC2. We leverage [Apache Spark](http://spark.apache.org) and [Hadoop](https://www.cloudera.com/products/open-source/apache-hadoop.html) with some [Ooozie](http://oozie.apache.org) workflow scheduling. The same data pipeline that writes data to S3 also pumps data to HDFS with either Ruby code or [Sqoop](http://sqoop.apache.org) and is read by Spark jobs written in Scala using [Hive](https://hive.apache.org). Spark has improved performance and capacity tenfold over our older in-house systems and we will be moving all lengthy processing implemented in Ruby to this system gradually.
 
 ## Analytics
 
@@ -114,7 +118,7 @@ For more in-depth work, we use [Jupyter Notebooks](https://ipython.org/notebook.
 
 ## Search
 
-We completed our full migration from [Solr](http://lucene.apache.org/solr) to [Elasticsearch](https://www.elastic.co) in the last 18 months, and now use the latter across artsy.net, from all our artwork filter interfaces through to our real-time artwork similarity feature. Elasticsearch gives us high availability clustering features out of the box and easy horizontal scaling.
+We completed our full migration from [Solr](http://lucene.apache.org/solr) to [Elasticsearch](https://www.elastic.co) in the last 18 months, and now use Elasticsearch across all front-ends. This ranges from our artwork filter interfaces through to our real-time artwork similarity features. Elasticsearch gives us high availability clustering features out of the box and easy horizontal scaling on demand.
 
 ## Platform Services
 
@@ -132,37 +136,11 @@ Balancing these out are some very real disadvantages:
 
 At our size and complexity, a single code base is simply impractical. So, we've tried to be consistent in the coding, deployment, monitoring, and logging practices of these services. The more repeatable and disciplined our process, the less overhead is introduced by additional systems.
 
-We've also explored alternate communication patterns, so systems aren't as dependent on each other's APIs. Recently we've begun publishing a stream of interesting data events from our core systems. Other systems can simply subscribe to the notifications they care about, so the source system doesn't need to be concerned about integrating with one more destination. After experimenting with [Kafka](https://kafka.apache.org) but finding it hard to manage, we switched to [RabbitMQ](https://www.rabbitmq.com) for this purpose. To provide consistency when publishing events we have [our own gem](https://github.com/artsy/artsy-eventservice).
+We've also explored alternate communication patterns, so systems aren't as dependent on each other's APIs. Recently we've begun publishing a stream of data events from our core systems that other systems can consume. Other systems can simply subscribe to the notifications they care about, so the source system doesn't need to be concerned about integrating with one more destination. After experimenting with [Kafka](https://kafka.apache.org) but finding it hard to manage, we switched to [RabbitMQ](https://www.rabbitmq.com) for this purpose. To provide consistency when publishing events we have [our own gem](https://github.com/artsy/artsy-eventservice).
 
 ## Operations
 
 All our recent AWS infrastructure is configured in code using [Terraform](https://www.terraform.io). This approach has allowed us to quickly replicate entire deployments along with their dependencies and has increased visibility into the state of our infrastructure across our teams. We started developing an open source [Docker](https://www.docker.com) workflow toolkit named [Hokusai](https://github.com/artsy/hokusai) in order to manage a containerized workflow, CI and deployment to [Kubernetes](https://kubernetes.io). Our Kubernetes clusters are managed using [Kops](https://github.com/kubernetes/kops) and similarly provisioned using Terraform. This new workflow is reducing our dependence on Heroku, giving us more flexibility in our deployments and a more efficient use of server resources.
-
-# People and Culture
-
-## Open Source by Default
-
-By the end of 2016, almost every major front-end application at Artsy was [Open Source by Default](http://code.dblock.org/2015/02/09/becoming-open-source-by-default.html). This means looking for reasons for something to be closed-source as opposed to reasons to be open. Our entire working process is done in the open, from developer PRs to QA. This post was also written collaboratively and in the open as you can see [here](https://github.com/artsy/artsy.github.io/pull/325).
-
-Sometimes it makes sense to keep some details private for competitive reasons. We therefore also create a private GitHub repository for front-end teams that require cross-project issues and team milestones. This is done using [ZenHub](https://www.zenhub.com), and is managed by Engineering leads and Product Managers.
-
-## Developer Workflow
-
-Most development workflow tries to mimic large open-source project development where most work happens on forks and is pull-requested into an Artsy repository shared by everyone. Typically an engineer will start a project, application or service and is automatically its benevolent dictator. They will add continuous integration and will ask other engineers on the team to code review everything from day one. Others will join and entire teams may take over. Continuous deployment and other operational infrastructure will get setup early.
-
-In some of our newer apps we have switched to PR based deployments via CIs. In this case, on Artsy's repository, we would have _master_ and _release_ branches where _master_ is the default branch and all the PRs are made to master. Once a PR is reviewed and merged to _master_ it will automatically get deployed on staging. Production deployment is a pull request from _master_ to a _release_ branch, this way we know what commits are going to be deployed in this release. Once merged, CI will automatically deploy the _release_ branch to production.
-
-## Slack
-
-Originally the engineering team used IRC, but in 2015 we switched to Slack and encouraged its use throughout the whole company. We're now averaging about 16,000 Slack messages a day inside Artsy.
-
-Slack usage started out small, but as the Artsy team grew, so did the number of locations where people worked. Encouraging people to move from disparate private conversations in different messaging clients to using slack channels has really made it easier to keep people in the loop. It's made it possible to have the serendipitous collaboration you get by overhearing something important nearby physically.
-
-## Global Engineering 
-
-While most Engineers live in New York, our Engineering team has now contributors in Berlin, Seattle, Minneapolis, Boston and London. We've not shied away from hiring regardless of locations. 
-
-To help people know each-other across the company we developed and open-sourced a [team navigator](https://github.com/artsy/team-navigator). We also facilitate weekly meetings between any three people across the company with a tool called [sup](https://github.com/ilyakava/sup).
 
 # Closing Remarks
 
