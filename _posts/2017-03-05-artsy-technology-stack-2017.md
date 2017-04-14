@@ -20,7 +20,9 @@ Finally, in 2016 we, again, doubled our paid gallery network size to become the 
 
 # The Artsy Business in 2017
 
-In 2017 Artsy has three businesses at various stages of development and revenue: _Auctions_, _Content_ and _Listings_.
+Artsy in 2017 is a very wide platform and it can be challenging to characterize simply. But when you boil it down to its essence, Artsy offers information and a marketplace. Our written content and fair coverage keep people informed about the art world, and the Art Genome powers our tools for exploration. Through our partnerships with the major player in the art market, galleries and auction houses, we offer our users a unified platform for buying and selling art.
+
+Internally we consider Artsy to have three businesses: _Auctions_, _Content_ and _Listings_.
 
 * _Auctions_: Auction houses and charities use Artsy as a sales channel for a commission because collectors want to discover and buy art in a single, central platform that excels at surfacing the art they want from a global market.
 
@@ -30,7 +32,7 @@ In 2017 Artsy has three businesses at various stages of development and revenue:
 
 * _Listings_: Galleries, Fairs and Institutions subscribe to Artsy for a fee because we bring a very large audience of art collectors and enthusiasts to their virtual doors.
 
-The Artsy team is now 160 employees across three offices in New York, Berlin and London. The Engineering organization is now 28 engineers, including 4 leads, 3 directors and a CTO. In this post, we'd like to comprehensively cover what, and how we make the technical and human sides of Artsy businesses work.
+The Artsy team is now 166 employees across three offices in New York, Berlin and London. The Engineering organization is now 28 engineers, including 4 leads, 3 directors and a CTO. In this post, we'd like to comprehensively cover what, and how we make the technical and human sides of Artsy businesses work.
 
 <!-- more -->
 
@@ -42,7 +44,7 @@ The Artsy team is now 160 employees across three offices in New York, Berlin and
 # Organizational Structures
 
 
-In 2016, we [updated the Engineering organization](/blog/2016/03/28/artsy-engineering-organization-stack) to be oriented around product verticals. We used to focus more on practices to groups engineers working with the same technologies across product teams to facilitate knowledge sharing and avoid redundant efforts. 
+In 2016, we [updated the Engineering organization](/blog/2016/03/28/artsy-engineering-organization-stack) to be oriented around product verticals for businesses. We used to focus more on practices to groups engineers working with the same technologies across product teams to facilitate knowledge sharing and avoid redundant efforts. 
 
 Since then, web and mobile "practices" have largely been subsumed into the separate product teams. Mobile's increasing reliance on React Native has aligned nicely with web tooling. It no longer made sense to keep the teams separate, so where product teams used to have 2 separate sub-teams of engineers, they've now merged into 1.
 
@@ -55,7 +57,7 @@ The Platform "practice" has remained as a way to coordinate and share work among
 # Artsy Technology Infrastructure
 
 
-{% include full_svg.html url="/images/tech-2017/artsy-stack.svg" title="OK" style="width:100%;" %}
+{% include full_svg.html url="/images/tech-2017/artsy-stack.svg" title="The Artsy Tech Stack 2017" style="width:100%;" %}
 
 
 ## User Facing
@@ -68,7 +70,7 @@ What you see today when you open the [Artsy iOS app](https://itunes.apple.com/us
 
 You can also find Artsy on [Alexa](http://alexa.artsy.net) and [Google Home](http://assistant.artsy.net), which are both open-source Node.js applications. There is also an open-source [Apple TV](https://github.com/artsy/emergence/) app built in Swift.
 
-Our core API serves the public facets of our product, many of our own internal applications, and even [some of your own projects](https://developers.artsy.net). It's built with [Ruby](https://www.ruby-lang.org/en), [Rack](http://rack.github.io), [Rails](http://rubyonrails.org), and [Grape](https://github.com/intridea/grape) serving primarily JSON. The API is hosted on [AWS OpsWorks](http://aws.amazon.com/opsworks) and retrieves data from several [MongoDB](http://www.mongodb.com) databases hosted with [Compose](https://www.compose.io). It also uses [Memcached](http://memcached.org) for caching and [Redis](https://redis.io) for background queues. It runs background jobs with [delayed_job](https://github.com/collectiveidea/delayed_job). We used to employ [Apache Solr](http://lucene.apache.org/solr) and even [Google Custom Search](https://www.google.com/cse) for the many search functions, but have since consolidated on [Elasticsearch](https://www.elastic.co).
+Our core API serves the public facets of our product, many of our own internal applications, and even [some of your own projects](https://developers.artsy.net). It's built with [Ruby](https://www.ruby-lang.org/en), [Rack](http://rack.github.io), [Rails](http://rubyonrails.org), and [Grape](https://github.com/intridea/grape) serving primarily JSON. The API is hosted on [AWS OpsWorks](http://aws.amazon.com/opsworks) and retrieves data from several [MongoDB](http://www.mongodb.com) databases hosted with [Compose](https://www.compose.io). It also uses [Memcached](http://memcached.org) for caching and [Redis](https://redis.io) for background queues with [Sidekiq](https://github.com/mperham/sidekiq/). It runs background jobs with [delayed_job](https://github.com/collectiveidea/delayed_job). We used to employ [Apache Solr](http://lucene.apache.org/solr) and even [Google Custom Search](https://www.google.com/cse) for the many search functions, but have since consolidated on [Elasticsearch](https://www.elastic.co).
 
 Most modern code for both the website and the iOS app use an orchestration layer which is powered by [GraphQL](http://graphql.org) to streamline their data fetching and reduce front-end complexity. Our GraphQL server is an [Express](http://expressjs.com) app, using [express-graphql](https://github.com/graphql/express-graphql) to provide a single API end-point. The API does not access our data directly, but forwards requests to the core API or other services. We have been migrating shared display logic into the GraphQL server, to make it easier to build consistent clients. This [code is open-source](https://github.com/artsy/metaphysics).
 
