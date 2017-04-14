@@ -15,7 +15,7 @@ By 2014 we had 230,000 works of art from 600 museums and institutions and launch
 
 By 2015 we doubled our "for sale" inventory and aggregated 4,000 of the world's leading galleries and 60 art fairs. We also launched two new businesses: commercial auctions and online media.
 
-Finally, in 2016 we, again, doubled our paid gallery network size to become the largest gallery network in the world and grew to become the most-read online art publication as our highly engaging editorial traffic ballooned 320%. We also launched a platform to bid in live auctions and a consignments service with most major auction houses.
+Finally, in 2016 we, again, doubled our paid gallery network size to become the largest gallery network in the world and grew to become the most-read online art publication as our highly engaging editorial traffic ballooned 320%. We also launched a platform to bid in live auctions and a consignments service with all major auction houses.
 
 
 # The Artsy Business in 2017
@@ -44,7 +44,7 @@ The Artsy team is now 166 employees across three offices in New York, Berlin and
 # Organizational Structures
 
 
-In 2016, we [updated the Engineering organization](/blog/2016/03/28/artsy-engineering-organization-stack) to be oriented around product verticals for businesses. We used to focus more on practices to groups engineers working with the same technologies across product teams to facilitate knowledge sharing and avoid redundant efforts. 
+In 2016, we [updated the Engineering organization](/blog/2016/03/28/artsy-engineering-organization-stack) to be oriented around product verticals for businesses. We used to focus more on practices to group engineers working with the same technologies across product teams to facilitate knowledge sharing and avoid redundant efforts. 
 
 Since then, web and mobile "practices" have largely been subsumed into the separate product teams. Mobile's increasing reliance on React Native has aligned nicely with web tooling. It no longer made sense to keep the teams separate, so where product teams used to have 2 separate sub-teams of engineers, they've now merged into 1.
 
