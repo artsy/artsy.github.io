@@ -153,4 +153,4 @@ All our recent AWS infrastructure is configured in code using [Terraform](https:
 
 Like any attempts at mapping something as large as the daily work for a thirty-ish person engineering team, [the map is not the territory](https://en.wikipedia.org/wiki/Map–territory_relation). However, the exploration is worth the time it takes to keep notes for reading again in the next two years.
 
-If you're interested in helping us make this an even longer post in two more years, or _more interestingly_ shorter - we nearly always have a [position open for engineer](https://www.artsy.net/jobs). 
+If you're interested in helping us make this an even longer post in two more years, or _more interestingly_ shorter - we nearly always have a [position open for engineers](https://www.artsy.net/jobs).
