@@ -31,7 +31,7 @@ When the live auction actually begins, participants and Artsy staff interact wit
 
 ## The web app: Prediction
 
-Our bidder and operator web interfaces are implemented in an application we call Prediction, a [universal](https://medium.com/@mjackson/universal-javascript-4761051b7ae9#.ev1yd3juy) [React](https://facebook.github.io/react/)+[Redux](http://redux.js.org/) Javascript app, served from an [Express](http://expressjs.com/) server. Using React allowed us to completely share our view layer code for prerendering in the server and making updates in the client.
+Our bidder and operator web interfaces are implemented in an application we call Prediction, a [universal](https://medium.com/@mjackson/universal-javascript-4761051b7ae9#.ev1yd3juy) [React](https://facebook.github.io/react/)+[Redux](http://redux.js.org/) JavaScript app, served from an [Express](http://expressjs.com/) server. Using React allowed us to completely share our view layer code for pre-rendering in the server and making updates in the client.
 
 ![Prediction Bidder UI](/images/2016-08-09-the-tech-behind-live-auction-integration/Prediction Bidder Screenshot.png)
 
@@ -65,6 +65,6 @@ We relied on our automated test suites, as well as thorough manual testing by th
 
 # Reflection
 
-In the process of architecting our LAI product, we had to make some tough decisions in the face of new challenges. Chief among these were the decisions on where on the spectrum of bleeding-edge technology versus tried-and-true choices to land, for many of our subcomponents. Bleeding-edge tech often offers more elegant and performant solutions, but at the cost of learning curve and risk of immaturity. We also had to carefully prioritize functionality. Choosing wisely througout the process was critical to shipping on time. The rationale behind these decisions and their outcomes will be the result of future pieces.
+In the process of architecting our LAI product, we had to make some tough decisions in the face of new challenges. Chief among these were the decisions on where on the spectrum of bleeding-edge technology versus tried-and-true choices to land, for many of our subcomponents. Bleeding-edge tech often offers more elegant and performant solutions, but at the cost of learning curve and risk of immaturity. We also had to carefully prioritize functionality. Choosing wisely throughout the process was critical to shipping on time. The rationale behind these decisions and their outcomes will be the result of future pieces.
 
 To close, I want to express huge thanks to the auctions product & engineering team for putting in long hours to design, implement, and troubleshoot the software; the auctions arts team for providing the domain knowledge and operational feedback; and our broader Artsy engineering team, at least half of whom directly contributed code to this effort.
