@@ -99,20 +99,24 @@ I'll cover a quick API overview, then talk about how you can work with these:
 * Handles plugin management
 * Provides a set of utility functions that would often get used
 
+The API differs between the JS and Ruby version, not drastically - but there are no plugins for Danger JS yet. That's still a bit away.
+
 ## OK, got it.
 
 So, what kinds of tests can you write?
 
 * Checking for changes to a specific file
   
-  For example, checking for a CHANGELOG. This was the first rule imagined for Danger, and the first rule ever run.
+  Checking for a CHANGELOG. This was the first rule imagined for Danger, I add it to every project.
 
   The first implementation of this rule can just be a check if `CHANGELOG.md` is modified in any PR, that can then be
   revised to also check whether there are git changes related to your app. Then documentation, README, tooling updates
   don't require an entry. We also check if the PR title says "trivial" and skip the CHANGELOG check.
 
-  Another example around this is pinging specific people when a file has changed, or failing if a file that's never meant
-  to be modified is changed.
+  If you're interested in standardizing on the [keepachangelog.com][usechange] format there is [danger-changelog][danger-changelog].
+
+  Some other examples around this is pinging specific people when a file has changed, or failing if a file that's never meant
+  to be modified is changed. 
 
 * Checking the results of command-line tools
 
@@ -120,9 +124,50 @@ So, what kinds of tests can you write?
   modified during the PR. As someone known for writing loose and quick, having a machine provide some automatic feedback
   makes it easy to not waste my reviewers time.
 
-  This is done by the [danger-prose][prose] plugin, which wraps both an npm module and a python egg. It handles installing
-  and running the CLI, then converts the output into markdown for github.
+  This is done by the [danger-prose][prose] plugin, which wraps both an [npm module][mdspell] and a [python egg][proselint]. 
+  The plugin handles installing and running the CLI, then converts the output into markdown for github.
 
-* 
+* Handling build artifacts
+
+  If Danger runs after the build process, you can read build logs to provide better feedback. This can range from taking 
+  the results of a test run and posting what has failed (e.g. [danger-junit][junit]), to finding specific strings inside
+  build logs and highlighting them. 
+  
+  In our native iOS app, when a developer accidentally adds code which accesses the network in a test. That is logged out
+  during the build. Then later, danger will read the logs to find any mentions of this and post it in the comment.
+
+* PR Metadata
+
+  Every team's workflow is different, but it's pretty common to use a tool other than code review for keeping track of a project's momentum. You can use Danger to warn people that they haven't included a Trello, or JIRA ticket reference on
+  every PR.
+
+  A similar approach could be to warn if someone is sending a PR to a branch other than the preferred branch. This works
+  well if you use the git-flow model for branches.
+
+  We nearly always add a check to see if someone is assigned to a PR, and warn it it's unassigned in front-end projects. 
+
+* Using the platform API
+
+  There's no limits here, by using the API from your platform you can perform any sorts of checks. In the Danger repo
+  we use the GitHub API to note whether someone is in the Danger org, to remind the core team to invite them to the org
+  after submitting a PR.
+
+## Introducing Danger
+
+OK, hopefully that's got you thinking "ah, I know a process I can automate".
+
+It can be easy to try and jump straight from no Dangerfile to a many-hundred lined complex set of cultural rules. I'd advise against introducing a long list of rules for Danger all at once. In my experience, gradual integration works better. The entire team may have agreed on the changes upfront, but slower adoption has worked better for teams new to working with Danger.
+
+At Artsy we've found that first just integrating Danger with a single simple rule (like checking for a CHANGELOG entry) then starting to introduce them piece-meal from different contributors has made it easier to go from "Ah, we shouldn't do that again" to "Oh, we could make a Danger rule for that" to "Here's the PR". 
+
+That is your end goal, making it so that everyone feels like it's easy to add and amend the rules as a project evolves. Making dramatic changes erodes that feeling, making regular small ones improves it.
+
+
+
 
 [prose]: https://github.com/dbgrandi/danger-prose 
+[proselint]: https://github.com/amperser/proselint/
+[mdspell]: https://github.com/lukeapage/node-markdown-spellcheck
+[junit]: https://github.com/orta/danger-junit
+[usechange]: http://keepachangelog.com/en/0.3.0/
+[danger-changelog]: https://github.com/dblock/danger-changelog
