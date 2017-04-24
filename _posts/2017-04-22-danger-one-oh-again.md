@@ -1,24 +1,20 @@
 ---
 layout: post_longform
 title: Danger 1.0, 2.0 and 3.0.
-date: 2017-22-14
+date: 2017-04-22
 categories: [culture, danger]
 author: orta
 ---
 
 # Welcome Danger 1.0, again.
 
-- Original Problem
-  Danger came out of two needs. One from the needs of a growing dev team working together full-time, and the other from the needs of a completely asymmetric large Open Source project.
-  
-  - A work environment  dev team is a complex place.
-  - You grow, and to grow safely you add process.
-  - Process is a mixed bag, it's a net benefit at the tradeoff of individual's time.
-  - You want to grow your team guided by smart applications of process. 
+Danger came out of two needs. One from the needs of a growing dev team working together full-time, and the other from the needs of a completely asymmetric large Open Source project.
 
-  On the other hand, working on a large open source project, its very easy to feel overwhelmed at the amount of work you have to do on a daily basis. When you don't want to be maintaining it as a 2nd full-time job.
+A work environment  dev team is a complex place. You naturally grow, and to grow safely you add process. Process is a mixed bag, it's a net benefit at the trade-off of individual's time vs team cohesion. You want to grow your team guided by smart applications of process. 
 
-  So what do you do? Well in a work environment you don't really have a choice, as a team you hold each other to the rules that you set. In OSS, you sacrifice your spare time or you can find time at work, you could stop or you could burn out.
+On the other hand, working on a large open source project, it's very easy to feel overwhelmed at the amount of work that needs to get done on a daily basis. The growth of your team probably doesn't tie to the amount of work that needs to be done. Especially if you're like me and you don't want to be maintaining OSS as a 2nd full-time job.
+
+So what do you do? Well in a work environment you don't really have a choice, as a team you hold each other to the rules that you set. In OSS, you sacrifice your spare time or you can find time at work, you could stop or you could burn out.
 
 And this is the environment in which the idea of Danger was incubated.
 
@@ -28,9 +24,9 @@ Today mark version 1.0 of the second version of Danger. I'm going to cover what 
 
 Danger came from a need to customise the GitHub workflow for pull requests. In a work context, we wanted to add process like CHANGELOGs and be more thorough about testing. In Open Source, we needed to stop asking the same things to drive-by contributors. Their patches are valuable for sure, but asking for the same changes each time gets tiring.
 
-In both cases you want a way to give instant feedback for things that are not use "Unit Tests have failed" or "Code could not compile". However, it's hard to give feedback that says "You have not added a CHANGELOG entry in the right format", typically CI would only provide a binary: true or false response to the changes for review. We want a more shades of grey.
+In both cases you want a way to give instant feedback for things that are "Unit Tests have failed" or "Code could not compile". However, it's hard to give feedback that says "You have not added a CHANGELOG entry in the right format", typically CI would only provide a binary: true or false response to the changes for review. We want a more shades of grey.
 
-### What does Danger _really_ do?
+### What does Danger do?
 
 Danger acts as a way of creating unit tests at code review level. It gives you the ability to write tests that say: "was this file changed", "did the contents of new files include this string", "does the build log include a warning we know is bad news" then the results of those tests are moved back into the place you're talking about the code.
 
@@ -42,37 +38,35 @@ Danger runs your code, and provides a set of easy to use APIs for you to build t
 * Changes from GitHub/GitLab/BitBucket
 * Interacting with Danger
 
-By making per-project rules with these APIs, you can pretty much cover most rote tasks involved in code review. To make it easy for anyone to run Danger in on every pull request Danger was made to run during continuous integration.
+By making per-project rules with these APIs, you can cover most rote tasks involved in code review. To make it easy for anyone to run Danger in on every pull request Danger was made to run during continuous integration.
 
 ## OK, so "2 versions of Danger"?
 
-* First version was in Ruby
-* Used due to familiarity of tools + hard iOS community tooling tends to get built in Ruby
-* Exploration of
-  * feedback techniques
-  * tools necessary to get things done
+I first implemented Danger in Ruby. Ruby is a great language for building terminal apps, in the iOS community it's the language in which the largest OSS projects are built in. So, as someone used to building apps there, it wasn't really a debate.
 
-Ultimately I started to feel three main pain-points:
+The Ruby build of Danger is now at 5.x with over 80 releases, it's a solid exploration into code review automation. Ultimately though, I started to feel three main pain-points:
 
-* At work, we moved our mobile team to React Native, and other teams were also consolidating on JavaScript everywhere.
+* At Artsy, we moved our mobile team to React Native, and other teams were also consolidating on JavaScript everywhere. It fekt weird using a Ruby inside a strictly JS only context. 
 
-* Trying to re-create the environment of a PR was tricky from the CI. For example most providers are good at about saving on space and bandwidth during a run, and Danger often has to ruin that in order to replicate the PR locally.
+* Trying to re-create the environment of a PR was tricky from inside the CI. For example most providers are good at about saving on space and bandwidth during a run, and Danger often has to ruin that in order to replicate the PR locally.
 
-* I wanted to explore server-side Dangerfiles.
+* I wanted to explore server-side Dangerfiles. I wouldn't feel comfortable hosting a server that allows anyone to run their own Ruby code. It's really not built with sandboxing in mind.
 
 ## JavaScript
 
-I explored the idea of having JavaScript based Dangerfiles inside the Ruby version of Danger. I did this by bridging Danger's Ruby objects into a JavaScript and allowing bi-directional communication between the two. This handled some of the immediate needs, but proved inadequate when working with JavaScript's limited API and ignored all other JavaScript tooling. Realistically, to use JavaScript properly, you need node modules and npm.
+First I explored the idea of having JavaScript based Dangerfiles inside the Ruby version of Danger. I did this by bridging Danger's Ruby objects into a JavaScript and allowing bi-directional communication between the two. This handled some of the immediate needs, but proved inadequate when working with JavaScript's limited API and ignored all other JavaScript tooling. Realistically, to use JavaScript properly, you need node modules and npm.
 
 So 8 months ago I decided it was worth starting from scratch and re-created Danger in JavaScript. I had time to consider what I would do differently, and this time I added one key additional restraints on the system. Data can only come from an API.
 
-This constraint negates one of the key problems with running running a Dangerfile on a server - having to have a copy of the code and the PR's environment, the other being sandboxing.
+This constraint negates one of the key problems with running running a Dangerfile on a server - having to have a copy of the code and the PR's environment. JavaScript has a much simpler model for evaluating, importing and exporting code and so whitelisting tools 
 
 # 1.0 is my middle name
 
-Any software project used in production should probably be 1.0, but a library needs documentation to be 1.0.
+Any software project used in production should probably be 1.0, but in addition to production use a library needs documentation to be 1.0.
 
-As both Danger's 
+Calling Danger production ready means doing the entire [Defensive OSS][defense] process: Documentation, Guides, API Reference, Website and Logo.
+
+Once each version of Danger had started to mature to a point that the user-facing aspect stopped changing I started focusing on the documentation engine and website. In both cases, a considerable amount of documentation is generated from the source code of Danger. I'm a big fan of keeping 
 
 # So what can I do with Danger?
 
@@ -116,7 +110,7 @@ So, what kinds of tests can you write?
   If you're interested in standardizing on the [keepachangelog.com][usechange] format there is [danger-changelog][danger-changelog].
 
   Some other examples around this is pinging specific people when a file has changed, or failing if a file that's never meant
-  to be modified is changed. 
+  to be modified is changed, warning about potential semantic version updates for changes to specific files.
 
 * Checking the results of command-line tools
 
@@ -160,9 +154,13 @@ It can be easy to try and jump straight from no Dangerfile to a many-hundred lin
 
 At Artsy we've found that first just integrating Danger with a single simple rule (like checking for a CHANGELOG entry) then starting to introduce them piece-meal from different contributors has made it easier to go from "Ah, we shouldn't do that again" to "Oh, we could make a Danger rule for that" to "Here's the PR". 
 
-That is your end goal, making it so that everyone feels like it's easy to add and amend the rules as a project evolves. Making dramatic changes erodes that feeling, making regular small ones improves it.
+## Onwards and Upwards
 
+With the JavaScript version of Danger in a great place ready for production, I can start more serious work on Peril. Peril is a web-service that runs Dangerfiles against GitHub events. Those events span from a new user being created, to a new issue on a repo. Peril lets you run your own complex rules across an entire org. This can be a really powerful orchestration layer.
 
+I'd like to also add a scheduler to it, so that you can run your own health checks on all your repos. For example I'd like to be able to check that whoever owns a project is still working for the company.
+
+With hosted Danger, suddenly it's possible to start thinking at organization culture as opposed to just one project. 
 
 
 [prose]: https://github.com/dbgrandi/danger-prose 
@@ -171,3 +169,4 @@ That is your end goal, making it so that everyone feels like it's easy to add an
 [junit]: https://github.com/orta/danger-junit
 [usechange]: http://keepachangelog.com/en/0.3.0/
 [danger-changelog]: https://github.com/dblock/danger-changelog
+[defense]: http://artsy.github.io/blog/2016/07/03/handling-big-projects/
