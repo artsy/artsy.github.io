@@ -38,7 +38,7 @@ Danger runs your code, and provides a set of easy to use APIs for you to build t
 * Changes from GitHub/GitLab/BitBucket
 * Interacting with Danger
 
-By making per-project rules with these APIs, you can cover most rote tasks involved in code review. To make it easy for anyone to run Danger in on every pull request Danger was made to run during continuous integration.
+By making per-project rules with these APIs, you can cover most rote tasks involved in code review. To make it easy for anyone to run Danger on every pull request, Danger was made to run during continuous integration.
 
 ## OK, so "2 versions of Danger"?
 
@@ -46,7 +46,7 @@ I first implemented Danger in Ruby. Ruby is a great language for building termin
 
 The Ruby build of Danger is now at 5.x with over 80 releases, it's a solid exploration into code review automation. Ultimately though, I started to feel three main pain-points:
 
-* At Artsy, we moved our mobile team to React Native, and other teams were also consolidating on JavaScript everywhere. It fekt weird using a Ruby inside a strictly JS only context. 
+* At Artsy, we moved our mobile team to React Native, and other teams were also consolidating on JavaScript everywhere. It felt weird using a Ruby inside a strictly JS only context. 
 
 * Trying to re-create the environment of a PR was tricky from inside the CI. For example most providers are good at about saving on space and bandwidth during a run, and Danger often has to ruin that in order to replicate the PR locally.
 
@@ -92,6 +92,18 @@ I'll cover a quick API overview, then talk about how you can work with these:
 * Handle running other Dangerfiles
 * Handles plugin management
 * Provides a set of utility functions that would often get used
+
+### Messaging
+
+* Leave warnings, messages and markdown comments
+* Leave errors, marking the build as failed
+* Post any of the above of the above inside a file
+* Create a GitHub review, and use the above messaging
+
+### Plugins
+
+* Infrastructure for shared rules
+* Opens up the ability to validate tricky things with an easy API
 
 The API differs between the JS and Ruby version, not drastically - but there are no plugins for Danger JS yet. That's still a bit away.
 
