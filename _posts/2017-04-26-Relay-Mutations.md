@@ -6,7 +6,7 @@ categories: [relay, graphql, JavaScript, guest]
 author: nik
 ---
 
-> Hey there everyone, it took us two years to [make our](https://github.com/artsy/metaphysics/pull/583) GraphQL implementation support any mutations and we still don't have any Relay mutations yet.
+> Hey there everyone, it took us two years to [make our](https://github.com/artsy/metaphysics/pull/583) GraphQL implementation support any mutations. We opted to keep it read-only for quite a long time because we use GraphQL to consolidate multiple APIs, but as we start new projects as GraphQL + databases then understanding mutations becomes much more important.
 >
 > Last month, I talked with the team at [Graph.cool](https://www.graph.cool/) about having them talk through Relay mutations comprehensively as a guest post on the Artsy Engineering blog. So, I'm really excited to introduce this great post on the topic by [Nikolas Burk](http://twitter.com/nikolasburk).
 >
@@ -16,7 +16,7 @@ author: nik
 
 [Relay](https://facebook.github.io/relay/) is a powerful GraphQL client for React and React Native applications. It was open sourced by Facebook alongside GraphQL in 2015 and is a great tool for supporting you with managing your app's data layer.
 
-In this post, we are going to explore how Relay mutations work by the example of a React Native app, the code can be found on [GitHub](https://github.com/graphcool-examples/react-native-relay-pokedex-example). Our sample application is a simple _Pokedex_, where users can manage their Pokemons.
+In this post, we are going to explore how Relay mutations work by looking at a React Native app. The code can be found on [GitHub](https://github.com/graphcool-examples/react-native-relay-pokedex-example). Our sample application is a simple _Pokedex_, where users can manage their Pokemons.
 
 ![](http://i.imgur.com/S21GfEo.png)
 
@@ -283,7 +283,7 @@ getConfigs() {
 
 Relay has a lot of benefits that make it a very compelling framework to use for state management and interaction with GraphQL APIs. Its major strengths are a highly optimized cache, thoughtful UI integration as well as the declarative API for data fetching and mutations. 
 
-The initial version of Relay came with a notable learning curve due to lots of magic happening behind the scenes. However, Facebook recently released the first alpha version of [Relay v1.0](https://github.com/facebook/relay/releases/tag/v1.0.0-alpha.1) (_Modern Relay_) with the goal of making Relay generally more approachable. The documentation is still scarce, but Facebook seems to be dedicated in investing their resources to make sure that Relay will see even more adoption in the future.
+The initial version of Relay came with a notable learning curve due to lots of magic happening behind the scenes. However, Facebook recently released the first release candidates of [Relay v1.0.0](https://github.com/facebook/relay/releases/) (_Relay Modern_) with the goal of making Relay generally more approachable. The documentation is still scarce, but Facebook seems to be dedicated in investing their resources to make sure that Relay will see even more adoption in the future.
 
 It's worth noting that Relay isn't the only available GraphQL client. Apollo Client is a great alternative which is a lot easier to get started with. [For a detailed comparison please refer to this article.](https://www.graph.cool/docs/tutorials/relay-vs-apollo-iechu0shia/)
 
