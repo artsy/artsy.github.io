@@ -283,7 +283,7 @@ getConfigs() {
 
 Relay has a lot of benefits that make it a very compelling framework to use for state management and interaction with GraphQL APIs. Its major strengths are a highly optimized cache, thoughtful UI integration as well as the declarative API for data fetching and mutations. 
 
-The initial version of Relay came with a notable learning curve due to lots of magic happening behind the scenes. However, Facebook recently released the first release candidates of [Relay v1.0.0](https://github.com/facebook/relay/releases/) (_Relay Modern_) with the goal of making Relay generally more approachable. The documentation is still scarce, but Facebook seems to be dedicated in investing their resources to make sure that Relay will see even more adoption in the future.
+The initial version of Relay came with a notable learning curve due to lots of magic happening behind the scenes. However, Facebook recently released the first release candidates of [Relay v1.0.0](https://github.com/facebook/relay/releases/) (_Relay Modern_) with the [goal of making Relay generally more approachable](https://code.facebook.com/posts/1362748677097871).
 
 It's worth noting that Relay isn't the only available GraphQL client. Apollo Client is a great alternative which is a lot easier to get started with. [For a detailed comparison please refer to this article.](https://www.graph.cool/docs/tutorials/relay-vs-apollo-iechu0shia/)
 
