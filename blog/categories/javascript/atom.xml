@@ -4,7 +4,7 @@
   <title><![CDATA[Category: javascript | Artsy Engineering]]></title>
   <link href="http://artsy.github.io/blog/categories/javascript/atom.xml" rel="self"/>
   <link href="http://artsy.github.io/"/>
-  <updated>2017-04-24T16:10:11+00:00</updated>
+  <updated>2017-05-01T17:17:07+00:00</updated>
   <id>http://artsy.github.io/</id>
   <author>
     <name><![CDATA[]]></name>
@@ -12,6 +12,298 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Relay Mutations]]></title>
+    <link href="http://artsy.github.io/blog/2017/04/26/Relay-Mutations/"/>
+    <updated>2017-04-26T00:00:00+00:00</updated>
+    <id>http://artsy.github.io/blog/2017/04/26/Relay-Mutations</id>
+    <content type="html"><![CDATA[<blockquote><p>Hey there everyone, it took us two years to <a href="https://github.com/artsy/metaphysics/pull/583">make our</a> GraphQL implementation support any mutations. We opted to keep it read-only for quite a long time because we use GraphQL to consolidate multiple APIs, but as we start new projects as GraphQL + databases then understanding mutations becomes much more important.</p>
+
+<p>Last month, I talked with the team at <a href="https://www.graph.cool/">Graph.cool</a> about having them talk through Relay mutations comprehensively as a guest post on the Artsy Engineering blog. So, I'm really excited to introduce this great post on the topic by <a href="http://twitter.com/nikolasburk">Nikolas Burk</a>.</p>
+
+<p>-- Orta</p></blockquote>
+
+<a name="The.Magic.behind.Relay.Mutations"></a>
+<h1>The Magic behind Relay Mutations</h1>
+
+<p><a href="https://facebook.github.io/relay/">Relay</a> is a powerful GraphQL client for React and React Native applications. It was open sourced by Facebook alongside GraphQL in 2015 and is a great tool for supporting you with managing your app's data layer.</p>
+
+<p>In this post, we are going to explore how Relay mutations work by looking at a React Native app. The code can be found on <a href="https://github.com/graphcool-examples/react-native-relay-pokedex-example">GitHub</a>. Our sample application is a simple <em>Pokedex</em>, where users can manage their Pokemons.</p>
+
+<p><img src="http://i.imgur.com/S21GfEo.png" alt="" /></p>
+
+<blockquote><p>Note: We're going to assume a basic familiarity with GraphQL in this article. If you haven't heard of GraphQL before, the <a href="www.graphql.org">documentation</a> and the <a href="http://artsy.github.io/blog/2016/06/19/graphql-for-mobile/">GraphQL for iOS Developers</a> post are great places to start. If you're interested in learning more about Relay in general, head over to <a href="www.learnrelay.org">Learn Relay</a> for a comprehensive tutorial.</p></blockquote>
+
+<!-- more -->
+
+
+<p>If you want to run the example with your own GraphQL server, you can use <a href="https://www.graph.cool/graphql-up/">graphql-up</a> to quickly spin one up yourself from within your browser. Simply click the pink button and follow the instructions on the website.</p>
+
+<p><a href="https://www.graph.cool/graphql-up/new?source=https://raw.githubusercontent.com/graphcool-examples/react-native-relay-pokedex-example/master/pokedex.schema"><img src="http://static.graph.cool/images/graphql-up.svg" alt="graphql-up" /></a></p>
+
+<a name="Relay.-.A.brief.Overview"></a>
+<h2>Relay - A brief Overview</h2>
+
+<p>Relay is the most sophisticated GraphQL client available at the moment. Like GraphQL, it has been used and battle-tested internally by Facebook for many years before it was open sourced.</p>
+
+<p>Relay surely isn't the easiest framework to learn - but when used correctly, it takes care of managing large parts of your app's data layer in a consistent and reliable manner! It therefore is particularly well-suited for complex applications with lots of data interdependencies and provides outstanding longterm developer productivity.</p>
+
+<a name="Declarative.API.and.Colocation"></a>
+<h3>Declarative API and Colocation</h3>
+
+<p>With Relay, React components specify their data requirements in a declarative fashion, making use of GraphQL <em>fragments</em>.</p>
+
+<blockquote><p>A <a href="https://learngraphql.com/basics/fragments">GraphQL fragment</a> is a selection of fields on a GraphQL type. You can use them to define <em>reusable sub-parts</em> of queries or mutations.</p></blockquote>
+
+<p>Considering the <code>PokemonDetails</code> view above, we need to display the Pokemon's name and image. The fragment that represents these data requirements looks as follows:</p>
+
+<pre><code>fragment PokemonDetails on Node {
+  ... on Pokemon {
+    id
+    name
+    url
+  }
+}
+</code></pre>
+
+<p>Note that the <code>id</code> is required so that Relay can identify the objects in the cache, so it's included in the payload as well (even if it's not displayed on the UI).</p>
+
+<p>These fragments are kept in the same file as the React component, so UI and data requirements are <em>colocated</em>. Relay then uses a <a href="https://facebook.github.io/react/docs/higher-order-components.html">higher-order component</a> called <a href="https://facebook.github.io/relay/docs/guides-containers.html#content"><code>Relay.Container</code></a>, to wrap the component along with its data requirements. From this point, the developer doesn't have to worry about the data any more! It will be fetched behind the scenes and is made available to the component via its props.</p>
+
+<a name="Build-time.Schema.Validation"></a>
+<h3>Build-time Schema Validation</h3>
+
+<p>Another great feature of Relay that ensures developer productivity is  <em>schema validation</em>. At build time, Relay checks your GraphQL queries, fragments and mutations to ensure their compatibility with the GraphQL API. It is thus able to catch any typos or other schema-related errors before you run (or even worse: deploy) your app, saving your users from unpleasant experiences. Note that the schema validation step requires a <a href="https://facebook.github.io/relay/docs/guides-babel-plugin.html">Babel Relay Plugin</a>.</p>
+
+<a name="Mutations.in.Relay"></a>
+<h2>Mutations in Relay</h2>
+
+<a name="GraphQL.Recap"></a>
+<h3>GraphQL Recap</h3>
+
+<p>In GraphQL, a <em>mutation</em> is the only way to create, update or delete data on the server - they effectively are the GraphQL abstraction for <em>changing state</em> in your backend.</p>
+
+<p>As an example, creating a new Pokemon in our sample app uses the following mutation:</p>
+
+<pre><code>mutation CreatePokemon($name: String!, $url: String!) {
+  createPokemon(input: {
+    name: $name,
+    url: $url
+  }) {
+    # payload of the mutation (will be returned by the server)
+    pokemon {
+      id 
+    }
+  }
+}
+</code></pre>
+
+<p>Notice that mutations, similar to queries, also require a <em>payload</em> to be specified. This payload represents the information that we'd like to have returned from the server after the mutation was performed. In the above example, we're asking for the <code>id</code> of the new <code>pokemon</code>.</p>
+
+<a name="The.Magic:.Declarative.Mutations....."></a>
+<h3>The Magic: Declarative Mutations 🔮</h3>
+
+<p>Relay doesn't (yet) give the developer the ability to manually modify the data that it stores internally. Instead, with every change, it requires a declarative <em>description</em> of how the local cache should be updated after the change happened in the form of a <a href="https://facebook.github.io/relay/docs/guides-mutations.html#content">mutation</a> and then takes care of the update under the hood.</p>
+
+<p>The description is provided by subclassing <code>Relay.Mutation</code> and implementing (at least) four methods that help Relay to properly update the local store:</p>
+
+<ul>
+<li><code>getMutation()</code>: the name of the mutation (from the GraphQL schema)</li>
+<li><code>getVariables()</code>: the input variables for the mutation</li>
+<li><code>getFatQuery()</code>: a GraphQL query that fetches all data that potentially was changed due to the mutation</li>
+<li><code>getConfigs()</code>: a precise specification how the mutation should be incorporated into the cache</li>
+</ul>
+
+
+<p>In the following, we'll take a deeper look at the different kinds of mutations in our sample app, which are used for creating, updating and deleting Pokemons.</p>
+
+<blockquote><p>Note: We're using the <a href="https://www.graph.cool/docs/reference/relay-api/overview-aizoong9ah">Graphcool Relay API</a> for this example. If you used <code>graphql-up</code> to create your own backend, you can explore the API by pasting the endpoint for the Relay API into the address bar of a browser.</p></blockquote>
+
+<a name="Creating.a.new.Pokemon:..code.RANGE_ADD..code."></a>
+<h3>Creating a new Pokemon: <code>RANGE_ADD</code></h3>
+
+<p><img src="http://i.imgur.com/yskx5KU.png" alt="" /></p>
+
+<p>Let's walk through the different methods and understand what information we have to provide so that Relay can successfully merge the newly created Pokemon into its store.</p>
+
+<p>The first two methods, <code>getMutation()</code> and <code>getVariables()</code> are relatively obvious and can be retrieved directly from the documentation where the API is described.</p>
+
+<p>The implementations look as follows:</p>
+
+<pre><code class="js">getMutation() {
+  return Relay.QL`mutation { createPokemon }`
+}
+
+getVariables() {
+  return {
+    name: this.props.name,
+    url: this.props.url,
+  }
+}
+</code></pre>
+
+<p>Notice that the <code>props</code> of a <code>Relay.Mutation</code> are passed through its constructor. Here, we simply provide the <code>name</code> and the <code>url</code> of the Pokemon that is to be created.</p>
+
+<p>Now, on to the interesting parts. In <code>getFatQuery()</code>, we need to specify the parts that might change due to the mutation. Here, we simply specify the <code>viewer</code>:</p>
+
+<pre><code class="js">getFatQuery() {
+  return Relay.QL`
+    fragment on CreatePokemonPayload {
+      viewer {
+        allPokemons
+      }
+    }
+  `
+}
+</code></pre>
+
+<p>Notice that <em>every</em> subfield of <code>allPokemons</code> is also automatically included with this approach. In our example app, <code>allPokemons</code> is the only point we expect to change after our mutation is performed.</p>
+
+<p>Finally, in <code>getConfigs()</code>, we need to specify the <a href="https://facebook.github.io/relay/docs/guides-mutations.html#mutator-configuration">mutator configurations</a>, telling Relay exactly how the new data should be incorporated into the cache. This is where the magic happens:</p>
+
+<pre><code class="js">getConfigs() {
+  return [{
+    type: 'RANGE_ADD',
+    parentName: 'viewer',
+    parentID: this.props.viewerId,
+    connectionName: 'allPokemons',
+    edgeName: 'edge',
+    rangeBehaviors: {
+      '': 'append'
+    }
+  }]
+}
+</code></pre>
+
+<p>We first express that we want to <em>add</em> the node using <code>RANGE_ADD</code> for the <code>type</code> (there are 5 different types in total).</p>
+
+<p>Relay internally represents the stored data as a graph, so the remaining information expresses where exactly the new node should be hooked into the existing structure.</p>
+
+<p>Let's consider the shape of the data before we move on:</p>
+
+<pre><code>viewer {
+  allPokemons {
+    edges {
+      node {
+        id
+        name
+      }
+    }
+  }
+}
+</code></pre>
+
+<p>Here we clearly see the direct connection between <code>viewer</code> and the Pokemons goes through <code>allPokemons</code> <em>connection</em>, so the <em>parent</em> of the new Pokemon is the <code>viewer</code>. The name of that connection is <code>allPokemons</code>, and lastly the <code>edgeName</code> is taken from the payload of the mutation.</p>
+
+<p>The last piece, <code>rangeBehaviors</code>, specifies whether we want to <em>append</em> or <em>prepend</em> the new node.</p>
+
+<p>Executing the mutation is as simple as calling <code>commitUpdate</code> on the <code>relay</code> prop that's injected to each component being wrapped with a <code>Relay.Container</code>. An instance of the mutation and the expected variables are passed as arguments to the constructor:</p>
+
+<pre><code class="js">_sendCreatePokemonMutation = () =&gt; {
+  const createPokemonMutation = new CreatePokemonMutation({
+    viewerId: this.props.viewer.id,
+    name: this.state.pokemonName,
+    url: this.state.pokemonUrl,
+  })
+  this.props.relay.commitUpdate(createPokemonMutation)
+}
+</code></pre>
+
+<a name="Updating.a.Pokemon:..code.FIELDS_CHANGE..code."></a>
+<h3>Updating a Pokemon: <code>FIELDS_CHANGE</code></h3>
+
+<p>Like with creating a Pokemon, <code>getMutation()</code> and <code>getVariables()</code> are trivial to implement and can be derived directly from the API documentation:</p>
+
+<pre><code class="js">getMutation() {
+  return Relay.QL`mutation { updatePokemon }`
+}
+
+getVariables() {
+  return {
+    id: this.props.id,
+    name: this.props.name,
+    url: this.props.url,
+  }
+}
+</code></pre>
+
+<p>In <code>getFatQuery()</code>, we only include the <code>pokemon</code> which includes the updated info this time, since that is the only part we expect to change after our mutation:</p>
+
+<pre><code class="js">getFatQuery() {
+  return Relay.QL`
+    fragment on UpdatePokemonPayload {
+      pokemon
+    }
+  `
+}
+</code></pre>
+
+<p>Finally, <code>getConfigs()</code>, this time specifies a mutator configuration of type <code>FIELDS_CHANGE</code> since we're only updating properties on a single Pokemon:</p>
+
+<pre><code class="js">getConfigs() {
+  return [{
+    type: 'FIELDS_CHANGE',
+    fieldIDs: {
+      pokemon: this.props.id,
+    }
+  }]
+}
+</code></pre>
+
+<p>As sole additional piece of info, we declare the ID of the Pokemon that is being updated so that Relay has this information available when receiving the new Pokemon data.</p>
+
+<a name="Deleting.a.Pokemon:..code.NODE_DELETE..code."></a>
+<h3>Deleting a Pokemon: <code>NODE_DELETE</code></h3>
+
+<p>As before, <code>getMutation()</code> and <code>getVariables()</code> are self-explanatory:</p>
+
+<pre><code class="js">getMutation() {
+  return Relay.QL`mutation { deletePokemon }`
+}
+
+getVariables() {
+  return {
+    id: this.props.id,
+  }
+}
+</code></pre>
+
+<p>Then, in <code>getFatQuery()</code>, we need to retrieve the <code>pokemon</code> from the mutation payload:</p>
+
+<pre><code class="js">getFatQuery() {
+  return Relay.QL`
+    fragment on DeletePokemonPayload {
+      pokemon
+    }
+  `
+}
+</code></pre>
+
+<p>In <code>getConfigs()</code>, we're getting to know another mutator configuration type called <code>NODE_DELETE</code>. This one requires a <code>parentName</code> as well as a <code>connectionName</code>, both coming from the mutation payload and specifying where that node existed in Relay's data graph. Another requirement, that is specifically relevant for the implementation of a GraphQL server, is that the mutation payload of a deleting mutation always needs to return the <code>id</code> of the deleted node so that Relay can find that node in its store. Taking all of this together, our implementation of <code>getConfigs()</code> can be written like so:</p>
+
+<pre><code class="js">getConfigs() {
+  return [{
+    type: 'NODE_DELETE',
+    parentName: 'pokemon',
+    connectionName: 'edge',
+    deletedIDFieldName: 'deletedId'
+  }]
+}
+</code></pre>
+
+<a name="Wrapping.Up"></a>
+<h2>Wrapping Up</h2>
+
+<p>Relay has a lot of benefits that make it a very compelling framework to use for state management and interaction with GraphQL APIs. Its major strengths are a highly optimized cache, thoughtful UI integration as well as the declarative API for data fetching and mutations.</p>
+
+<p>The initial version of Relay came with a notable learning curve due to lots of magic happening behind the scenes. However, Facebook recently released the first release candidates of <a href="https://github.com/facebook/relay/releases/">Relay v1.0.0</a> (<em>Relay Modern</em>) with the <a href="https://code.facebook.com/posts/1362748677097871">goal of making Relay generally more approachable</a>.</p>
+
+<p>It's worth noting that Relay isn't the only available GraphQL client. Apollo Client is a great alternative which is a lot easier to get started with. <a href="https://www.graph.cool/docs/tutorials/relay-vs-apollo-iechu0shia/">For a detailed comparison please refer to this article.</a></p>
+
+<p>If you want to learn more about GraphQL and want to stay up-to-date with the latest news of the GraphQL community, subscribe to <a href="https://graphqlweekly.com/">GraphQL Weekly</a>.</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Workshop: React Native]]></title>
@@ -1028,633 +1320,6 @@ yarn install
 <li><a href="https://www.artsy.net/2015-year-in-art">2015 Year in Art</a>..</li>
 <li><a href="https://www.artsy.net/article/artsy-editorial-uncovering-the-surprisingly-secret-world-of-art-auctions">Video Series: The Art Market (in Four Parts)</a></li>
 </ul>
-
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[JavaScript Glossary for 2017]]></title>
-    <link href="http://artsy.github.io/blog/2016/11/14/JS-Glossary/"/>
-    <updated>2016-11-14T12:17:00+00:00</updated>
-    <id>http://artsy.github.io/blog/2016/11/14/JS-Glossary</id>
-    <content type="html"><![CDATA[<p>Getting to grips with the entire JavaScript ecosystem is a tough job when you're getting started. Coming from the native mobile space, there's a lot to learn. I've spent a few months immersed in the environment now, and can try summerize a lot of topics. This should make it easier to find more information when you need it. This post is semi-opinionated, with links for further reading so you can get a different perspective too.</p>
-
-<p>This post focus specifically on the JavaScript tooling around React Native projects, but is applicable to all JavaScript projects.</p>
-
-<!-- more -->
-
-
-<p>Lets start with the entire reason we are using JavaScript for mobile in the first place: React and React Native,</p>
-
-<a name="React"></a>
-<h1>React</h1>
-
-<a name="React"></a>
-<h3>React</h3>
-
-<p>React is a Facebook project which offers a uni-direction Component model that <em>can</em> replace MVC in a front-end application. React was built out of a desire to abstract away a web page's true view hierarchy (called the DOM) so that they could make changes to all of their views and then React would handle finding the differences between view states.</p>
-
-<p>Its model is that you would create a set of Components to encapsulate each part for the state of the page. React makes it easy to make components that are functional in the <a href="https://en.wikipedia.org/wiki/functional_reactive_programming">Functional Reactive Programming</a> sense. They act like a function which takes some specially declared state and it is rendered into HTML.</p>
-
-<p>A component optionally uses a language called <a href="#jsx">JSX</a> to visualise how each component's child components are set up,here's an example of a React component using JSX <a href="https://github.com/artsy/emission/blob/c558323e4276699925b4edb3d448812005ae6b5d/lib/components/home/search_bar.js">from Emission, our React Native library</a>:</p>
-
-<pre><code class="js">export default class SearchBar extends React.Component {
-  render() {
-    return (
-      &lt;TouchableWithoutFeedback onPress={this.handleTap.bind(this)}&gt;
-        &lt;View style={styles.container}&gt;
-          &lt;Image style={styles.searchIcon} source={require('../../../images/SearchButton.png')}/&gt;
-          &lt;Text style={styles.text}&gt;Search for artists and artworks...&lt;/Text&gt;
-        &lt;/View&gt;
-      &lt;/TouchableWithoutFeedback&gt;
-    )
-  }
-
-  handleTap() {
-    Switchboard.presentModalViewController(this, '/search')
-  }
-}
-</code></pre>
-
-<p>By providing a well encapsulated Component model, you can aggressively reduce the amount of redundant code you need to build an application. By not initially writing to the DOM, React can decide what has changed between user actions and that means you have to juggle significantly less <a href="#state">state</a>.</p>
-
-<a name="React.Native"></a>
-<h3>React Native</h3>
-
-<p>I came to this conclusion early this year that writing native apps using compiled code is a pain, and it's been amazing to be able to work in React Native in contrast.</p>
-
-<p>React Native is an implementation of React where instead of having it abstract a web page's DOM, it creates a native view hierarchy. In the case of iOS that is a UIView hierarchy. Note that it does not handle View Controllers. The MVC model from Apple's Cocoa framework does not directly map into React Natives. I've wrote about how we <a href="http://artsy.github.io/blog/2016/08/24/On-Emission/">bridge that gap earlier</a>.</p>
-
-<p>React Native is cross platform. You write JavaScript like above, which React Native transforms into a native view hierarchy. That view hierarchy could be on a Samsung TV, a Windows phone or Android instead.</p>
-
-<p>It's a smart move, most "Make apps in JS" try to have a native-like experience where they replicate the platform's UI in HTML. However, this technique tends to feel unnatural very easily. If I showed you our app, you could not distinguish between a view controller in React Native, Swift or Objective-C.</p>
-
-<a name="App.State"></a>
-<h3>App State</h3>
-
-<p>Think of every variable inside your application, that is your application's state. You could not make an app worth using without state. In MVC, MVVM, VIPER and other native patterns, there is no consistent way to handle changes in those variables. React uses a common state pattern though the use of specific terminology: "<a href="#props">props</a>", "<a href="#context">context</a>" and "<a href="#state-again">state</a>".</p>
-
-<p>Yes, the "state" and "state" thing is a little confusing, we'll get to it.</p>
-
-<a name="Props"></a>
-<h3>Props</h3>
-
-<p>Props are chunks of app state that are passed into your component from a parent component. In <a href="#jsx">JSX</a> this is represented as an XML attribute.</p>
-
-<p>Let's check out <a href="https://github.com/artsy/emission/blob/c558323e4276699925b4edb3d448812005ae6b5d/lib/components/artist/header.js">an example</a>:</p>
-
-<pre><code class="js">export default class Header extends React.Component {
-  [...]
-  render() {
-    return (
-        &lt;View style={styles.followButton}&gt;
-            &lt;InvertedButton text={this.state.following ? 'Following' : 'Follow'}
-                            selected={this.state.following}
-                            onPress={this.handleFollowChange} /&gt;
-        &lt;/View&gt;
-    )
-  }
-}
-</code></pre>
-
-<p>See the <code>InvertedButton</code> component, it has three <code>props</code> being passed in: <code>text</code>, <code>selected</code> and <code>onPress</code>. If any of those props were to change the entire <code>InvertedButton</code> component would be re-rendered to the native view hierarchy. These <code>props</code> are the key to passing data downwards through your hierarchy. Note: you cannot access the parent component (without passing it in as a prop.)</p>
-
-<p>You should therefore consider <code>props</code> as immutable bits of app state relevant to the component it's being passed into.</p>
-
-<a name="State-again"></a>
-<h3>State-again</h3>
-
-<p>A component also has a <code>state</code> attribute. The key to understanding the difference between <code>props</code> and <code>state</code> is: <code>state</code> is something controlled within that component that can change - <code>props</code> do not.</p>
-
-<p>The above example is a pretty good example of this, when this component is first added to the hierarchy, we send a networking request to get whether you are following something or not. The parent component (<code>Header</code>) does not need to update when we know whether you are following or not, but the <code>InvertedButton</code> does. So, it is <code>state</code> for the parent, but a <code>prop</code> for the <code>InvertedButton</code>. This means changing the state for <code>following</code> will only cause a re-render in the button.</p>
-
-<p>So state is something which changes within a component, which <em>could</em> be used as <code>props</code> for it's children. Examples of this are around handling animation progress, whether you're following something, selection indices and any kind of networking which we do outside of <a href="#relay">Relay</a>.</p>
-
-<p>If you'd like to read more, there is a much deeper explanation in <a href="https://github.com/uberVU/react-guide/blob/master/props-vs-state.md#props-vs-state">uberVU/react-guide</a></p>
-
-<a name="Context"></a>
-<h3>Context</h3>
-
-<p><a href="https://facebook.github.io/react/docs/context.html">The docs</a> are pretty specific about context:</p>
-
-<blockquote><p>If you aren't an experienced React developer, don't use context. There is usually a better way to implement functionality just using props and state.</p></blockquote>
-
-<p>Seems to be something that you should only be using in really, really specific places. If you need it, you don't need this glossary.</p>
-
-<a name="JSX"></a>
-<h3>JSX</h3>
-
-<p>As we'll find out later, modern JavaScript is a collection of different ideas, and using <a href="#babel">Babel</a> - you can add them at will into your projects. JSX is one such feature, it is a way of describing nested data using XML-like syntax. These are used inside React's render function to express a component's children and their <a href="#props">props</a>.</p>
-
-<p>Under the hood, JSX is quite simple, with code looking like this:</p>
-
-<pre><code class="js">const element = (
-  &lt;h1 className="greeting"&gt;
-    Hello, world!
-  &lt;/h1&gt;
-);
-</code></pre>
-
-<p>Turning into</p>
-
-<pre><code class="js">const element = React.createElement(
-  'h1',
-  {className: 'greeting'},
-  'Hello, world!'
-);
-</code></pre>
-
-<p>Where <code>createElement</code> comes from the React <a href="#module">module</a>. You can find out more in <a href="https://facebook.github.io/react/docs/introducing-jsx.html">the React docs</a></p>
-
-<a name="Libraries"></a>
-<h1>Libraries</h1>
-
-<a name="GraphQL"></a>
-<h3>GraphQL</h3>
-
-<p>TLDR: An API format for requesting only the data you want, and getting back just that.</p>
-
-<p>If you want the longer explanation, I wrote a <a href="/blog/2016/06/19/graphql-for-mobile/">blog post on it</a>.</p>
-
-<a name="Relay"></a>
-<h3>Relay</h3>
-
-<p>Relay is what makes working in our React Native app shine. It is a library that allows a component to describe small chunks of a networking request it would need to render. Relay would then look through your component hierarchy, take all the networking fragments, make a single GraphQL request for all the data. Once it has the data, Relay passes in the response as <a href="#props">props</a> to all of the components in the tree.</p>
-
-<p>This means you can throw away a significant amount of glue code.</p>
-
-<a name="Redux"></a>
-<h3>Redux</h3>
-
-<p>Redux is a state management pattern, it builds on top of React's "state is only passed down" concept, and creates a single way to handle triggering changes to your state. I'm afraid I don't have any experience with it, so I can't provide much context. I feel like <a href="http://www.youhavetolearncomputers.com/blog/2015/9/15/a-conceptual-overview-of-redux-or-how-i-fell-in-love-with-a-javascript-state-container">this post</a> covers it well though.</p>
-
-<a name="Tooling"></a>
-<h1>Tooling</h1>
-
-<a name="Node"></a>
-<h3>Node</h3>
-
-<p>Node is the JavaScript implementation from Google's Chrome (called v8) with an expanded API for doing useful systems tooling. It is a pretty recent creation, so it started off with an entirely asynchronous API for any potentially blocking code.</p>
-
-<p>For web developers this was a big boon, you could share code between the browser and the server. The non-blocking API meant it was much easier to write faster servers, and there are lots of big companies putting a lot of time and money into improving the speed of JavaScript every day.</p>
-
-<p>Node has an interesting history of ownership, I won't cover it here, but <a href="http://anandmanisankar.com/posts/nodejs-iojs-why-the-fork/">this link</a> provides some context.</p>
-
-<a name="NPM"></a>
-<h3>NPM</h3>
-
-<p>NPM is the Node Package Manager. It is shipped with node, but it is a completely different project and team. NPM the project is ran by a private company.</p>
-
-<p>NPM is one of the first dependency managers to offer the ability to install multiple versions of the same library inside your app. This contributes considerably to the issue of the number of dependencies inside any app's ecosystem.</p>
-
-<p>JavaScript people will always complain about NPM, but people will always complain about their build tools. Dependency Manager's especially. From an outsider's view, it nearly always does what you expect, has a great team behind it and has more available dependencies than any other.</p>
-
-<p>NPM works with a <code>Package.json</code> file as the key file to represent all the different dependencies, version, authors and misc project metadata.</p>
-
-<a name="Yarn"></a>
-<h3>Yarn</h3>
-
-<p>Yarn is a NPM replacement (ish) by Facebook. It's very new. It solves three problems, which were particularly annoying to me personally.</p>
-
-<ul>
-<li>It flattens dependencies - this means that you're less likely to have multiple versions of the same library in your app.</li>
-<li>It uses a lockfile by default - this means that everyone on your team gets the same build, instead of maybe getting it.</li>
-<li>It is significantly faster.</li>
-</ul>
-
-
-<p>It uses the NPM infrastructure for downloading <a href="#modules">modules</a>, and works with the exact same <code>Package.json</code>. I moved most of our projects to it.</p>
-
-<a name="Babel"></a>
-<h3>Babel</h3>
-
-<p>I mentioned JSX a few times above. JSX is not a part of JavaScript, it is transpiled from your source code (as XML-like code) into real JavaScript. The tool that does this is Babel.</p>
-
-<p>Babel is a generic JavaScript transpilation engine. It does not provide any translation by default, but instead offers a plugin system for others to hook in their own transpilation steps. This becomes important because a lot of JavaScript features have staggered releases between browsers and you can't always guarantee each JavaScript runtime will have the features you want to use.</p>
-
-<p>Babel's plugins can be configured inside your <code>Package.json</code>. To ship your code to the world, you then create a script of some sort to convert your source code into "olde world" JavaScript via Babel.</p>
-
-<p>In the case of a react-native project, Babel is happening behind the scenes.</p>
-
-<a name="Webpack"></a>
-<h3>Webpack</h3>
-
-<p>A JavaScript source code &amp; resource package manager. It can be easy to confuse Babel + Webpack, so in simple:</p>
-
-<ul>
-<li>Babel will directly transform your source code file by file</li>
-<li>Webpack will take source code and merge it all into one file</li>
-</ul>
-
-
-<p>They work at different scopes. Webpack is mainly a web front-end tool, and isn't used in React Native. However, you'll come across it, and it's better to know the scope of it's domain.</p>
-
-<a name="ESLint"></a>
-<h3>ESLint</h3>
-
-<p>How can you be sure your syntax is correct? JavaScript has a really powerful and extensible linter called ESLint. It parses your JavaScript and offers warnings and errors around your syntax. You can use this to provide a consistent codebase, or in my case, to be lazy with your formatting. Fixing a lot of issues is one command away. I have <a href="https://artsy.github.io/blog/2016/08/15/vscode/">my editor</a> auto indent using ESLint every time I press save.</p>
-
-<a name="Development"></a>
-<h1>Development</h1>
-
-<a name="Live.Reload"></a>
-<h3>Live Reload</h3>
-
-<p>This is a common feature in JavaScript tooling. If you press save in a source file then some action is taken. Live Reloading tends to be a more blunt action, for example reloading the current view from scratch, or running all of the tests related to the file.</p>
-
-<a name="Hot-Reloading"></a>
-<h3>Hot-Reloading</h3>
-
-<p>Hot Reloading is more rare, because it's significantly harder. Hot Reloading for React projects is injecting new functions into the running application, and keeping it in the same state.</p>
-
-<p>For example if you had a filled-in form on your screen, you could make styling changes inside your source file and the text inside the form would not change. Hot reloading is amazing.</p>
-
-<a name="Haste.Map"></a>
-<h3>Haste Map</h3>
-
-<p>Part of what makes React Native support Hot Reloading, and allows <a href="#jest">Jest</a> to understand changes for testing is by using a Haste Map. A Haste Map is a dependency resolver for JavaScript, looking through every function to know how it connects to every other function within the JavaScript project.</p>
-
-<p>With the dependencies mapped, it becomes possible to know what functions would need replacing or testing when you press save after writing some changes. This is why it takes a bit of time to start up a React Native project.</p>
-
-<p>The public API is deprecated, you shouldn't use it in your projects, but the <a href="https://github.com/facebookarchive/node-haste/tree/master#node-haste-">old README is still around</a>.</p>
-
-<a name="Testing"></a>
-<h1>Testing</h1>
-
-<a name="Jest"></a>
-<h3>Jest</h3>
-
-<p>Facebook have their own test runner called Jest. It builds on <a href="https://jasmine.github.io">Jasmine</a>, and offers a few features that kick ass for me:</p>
-
-<ul>
-<li>Re-runs failing tests first</li>
-<li>Assumes all tests unrelated to changes are green and doesn't run them</li>
-<li>Watch mode that works reliably</li>
-</ul>
-
-
-<p>I miss these features when I'm not in a Jest project.</p>
-
-<a name="Jest.Snapshots"></a>
-<h3>Jest Snapshots</h3>
-
-<p>Jest has a feature called Jest Snapshots, that allows you to take "snapshots" of JavaScript objects, and then verify they are they are the same as they were last time. In iOS we <a href="https://www.objc.io/issues/15-testing/snapshot-testing/">used visual snapshot</a> testing a lot.</p>
-
-<a name="VSCode-Jest"></a>
-<h3>VSCode-Jest</h3>
-
-<p>I created a project to auto-run Jest inside projects that use it as a test runner when using Visual Studio Code: <a href="https://github.com/orta/vscode-jest">vscode-jest</a>. I've wrote about our usage of VS Code <a href="https://artsy.github.io/blog/2016/08/15/vscode/">on this blog series</a> also.</p>
-
-<a name="JavaScript.the.Language"></a>
-<h1>JavaScript the Language</h1>
-
-<p>I'm always told that JavaScript was created in 10 days, which is a cute anecdote, but JavaScript has evolved for the next 21 years. The JavaScript you wrote 10 years ago would still run, however modern JavaScript is an amazing and expressive programming language once you start using modern features.</p>
-
-<p>Sometimes these features aren't available in <a href="#node">node</a>, or your browser's JavaScript engine, you can work around this by using a transpiler, which takes your source code and backports the features you are using to an older version of JavaScript.</p>
-
-<a name="ES6"></a>
-<h3>ES6</h3>
-
-<p>JavaScript is run by a committee. Around the time that people were starting to talk about HTML5 and CSS3, work was started on a new specification for JavaScript called ECMAScript 6.</p>
-
-<p>ES6 represents the first point at which JavaScript really started to take a lot of the best features from transpile to JavaScript languages like CoffeeScript. Making it feasible for larger systems programming to be possible in vanilla JavaScript.</p>
-
-<a name="ES2016"></a>
-<h3>ES2016</h3>
-
-<p>It took forever for <a href="#es6">ES6</a> to come out, and every time they created / amended a specification there were multiple implementations of the specification available for transpiling via <a href="#babel">babel</a>. This I can imagine was frustrating for developers wanting to use new features, and specification authors trying to put out documentation for discussion as a work in progress. This happened a lot <a href="#promises">with the Promises</a> API.</p>
-
-<p>To fix this they opted to discuss specification features on a year basis. So that specifications could be smaller and more focused, instead of major multi-year projects. Quite a SemVer jump from 6 to 2016.</p>
-
-<a name="Stages"></a>
-<h3>Stages</h3>
-
-<p>Turns out that didn't work out too well, so the terminology changed again. The change is mainly to set expectations between the Specification authors and developers transpiling those specifications into their apps.</p>
-
-<p>Now an ECMAScript language improvement specification moves through a series of stages, depending on their maturity. I <a href="https://twitter.com/logicoder/status/799919558429736960">believe starting</a> at 0, and working up to 4. 0 Idea, 1 Proposal, 2 Draft, 3 Accepted and 4 Done.</p>
-
-<p>So a ECMAScript Stage 0 feature is going to be really new, if you're using it via a transpiler then you should expect a lot of potential API changes and code churn. The higher the number, the longer the spec has been discussed, and the more likely for the code you're transpiling to be the vanilla JavaScript code in time.</p>
-
-<p>The committee who discussed these improvements are the <a href="http://ecma-international.org/memento/TC39.htm">TC39</a> committee, the cool bit is that you can see <a href="https://github.com/tc39">all the proposals</a> as individual GitHub repos so it's convenient to browse.</p>
-
-<a name="Modules...Imports"></a>
-<h3>Modules / Imports</h3>
-
-<p>A modules is the terminology for a group of JavaScript code. Terminology can get confusing, as the import structure for a library is very similar to importing a local file.</p>
-
-<p>You can import a module using syntax like <code>import { thin, other } from "thingy"</code>. Here's some examples <a href="https://github.com/artsy/emission/blob/master/lib/components/artist/shows/show.js#L4-L9">from our project</a>:</p>
-
-<pre><code class="js">// Import modules
-import Relay from 'react-relay'
-import React from 'react'
-// Import two items from the react-native module 
-import { View, TouchableWithoutFeedback } from 'react-native'
-
-// Import the default class from a local file
-import ImageView from '../../opaque_image_view'
-import SwitchBoard from '../../../native_modules/switch_board'
-</code></pre>
-
-<p>An import can either have <a href="https://github.com/danger/danger-js/blob/61557ac7b6de37ef9a7e4a1aa0c0cbe0bd00977d/source/ci_source/Fake.js#L6">a default export</a>, or a set of <a href="https://github.com/artsy/Mitosis/blob/0c1d73055122bd61559df3b1a2913cf4e272b4ed/source/bot/artsy-api.js#L31-L94">exportable function/objects</a>.</p>
-
-<p>You might see an import like <code>const _ = require("underscore")</code> around the internet, this is an older format for packaging JavaScript called <a href="https://www.wikiwand.com/en/CommonJS">CommonJS</a>. It was replaced by the <code>import</code> statements above because you can make guarantees about the individual items exported between module boundaries. This is interesting because of <a href="#tree-shaking">tree-shaking</a>, which we'll get to later.</p>
-
-<a name="Classes"></a>
-<h3>Classes</h3>
-
-<p>Modern JavaScript has classes introduced in <a href="#es6">es6</a>, this means that instead of writing something like:</p>
-
-<pre><code class="js">const danger = {
-  name: "Danger",
-  hello: function () {
-    console.log("Hi!")
-  }
-}
-
-danger.hello();
-</code></pre>
-
-<p>Instead you could write:</p>
-
-<pre><code class="js">class Person {
-  constructor(name) {
-    this.name = name
-  }
-  hello() {
-    console.log("Hi!")
-  }
-}
-
-const danger = new Person("danger")
-danger.hello()
-</code></pre>
-
-<p>Classes provide the option of doing object-oriented programming, which is still a solid way to write code. Classes provide a simple tool for making interfaces, which is really useful when you're working to the <a href="http://www.amazon.com/gp/product/0201633612?ie=UTF8&amp;camp=213733&amp;creative=393185&amp;creativeASIN=0201633612&amp;linkCode=shr&amp;tag=eejs-20&amp;linkId=5S2XB3C32NLP7IVQ">Gang of Four</a> principals:</p>
-
-<blockquote><p>“Program to an interface, not an implementation,” and “favor object composition over class inheritance.”</p></blockquote>
-
-<a name="Prototypical"></a>
-<h3>Prototypical</h3>
-
-<p>So, classes - it took 20ish years before they happened? Before that JavaScript was basically only a prototype-based language. This meant you created "objects" but that they were just effectively just key-value stores, and you used functions to do everything else.</p>
-
-<p>The language is a great fit for functional programming, I ended up building <a href="https://github.com/artsy/Mitosis/">an Artsy chat bot</a> using only functions by accident. Really, a few days into it when I started looking for an example class to show in this post I realised I didn't have one. Whereas in Danger I do almost exclusive OOP in JavaScript, sometimes the project fits the paradigm too.</p>
-
-<p>A really good, and highly opinionated post on the values of prototypical/functional programming in JavaScript is <a href="https://medium.com/javascript-scene/the-two-pillars-of-javascript-ee6f3281e7f3#.knm7xb7zr">The Two Pillars of JavaScript</a> - I agree with a lot of it.</p>
-
-<a name="Mutablilty"></a>
-<h3>Mutablilty</h3>
-
-<p>JavaScript has had a keyword <code>var</code> to indicate a variable forever. You should basically never use this. I've never written one this year, except by accident. It's a keyword that has a really confusing scope, leading to odd bugs. <a href="#es6">ES6</a> brought two replacements, both of which will give you a little bit of cognitive dissonance if you have a lot of Swift experience.</p>
-
-<p><code>let</code> - the replacement for <code>var</code>, this is a <em>mutable</em> variable, you can replace the value of a <code>let</code>. The scope of a <code>let</code> is exactly what you think from every other programming language.
-<code>const</code> - this is a <code>let</code> that won't allow you to change the <em>value</em>. So it creates a mutable object (all JS objects are mutable) but you cannot replace the object from the initial assignment.</p>
-
-<a name="This"></a>
-<h3>This</h3>
-
-<p>The keyword <code>this</code> is a tricky one. It is confusing because <code>this</code> gets assigned to the object that invokes the function where you use <code>this</code>.</p>
-
-<p>It's confusing because you may have a function inside a class, and would expect <code>this</code> to be the instance to which the function is attached to, but it very easily could not be. For <a href="https://github.com/artsy/emission/blob/c558323e4276699925b4edb3d448812005ae6b5d/lib/components/artist/articles/article.js#L11-L22">example</a>:</p>
-
-<pre><code class="js">class Article extends React.Component {
-  handleTap() {
-    SwitchBoard.presentNavigationViewController(this, this.props.article.href)
-  }
-
-  render() {
-    [...]
-    return (
-      &lt;View style={styles.container}&gt;
-        &lt;TouchableWithoutFeedback onPress={this.handleTap}&gt;
-</code></pre>
-
-<p>In the above example <code>this</code> inside <code>handleTap</code> does not refer to the instance of Article. Tricky right?</p>
-
-<p>There are two "easy" fixes, <a href="http://exploringjs.com/es6/ch_arrow-functions.html">using arrow functions</a> instead if normal functions:</p>
-
-<pre><code class="js">class Article extends React.Component {
-  handleTap = () =&gt; {
-    SwitchBoard.presentNavigationViewController(this, this.props.article.href)
-  }
-  [...]
-</code></pre>
-
-<p>Or you can use the <code>bind</code> function to ensure that <code>this</code> inside the function is what you want it to be.</p>
-
-<pre><code class="js">class Article extends React.Component {
-  [...]
-
-  render() {
-    [...]
-    return (
-      &lt;View style={styles.container}&gt;
-        &lt;TouchableWithoutFeedback onPress={this.handleTap.bind(this)}&gt;
-</code></pre>
-
-<p>This is a great in-depth explanation of the way it works: <a href="https://toddmotto.com/understanding-the-this-keyword-in-javascript/">Understanding the “this” keyword in JavaScript</a>.</p>
-
-<a name="Strict.Mode"></a>
-<h3>Strict Mode</h3>
-
-<p>Introduced in ECMAScript 5.1, it provides a way to <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Strict_mode">opt-in to more errors</a> inside the JavaScript runtime. As you're likely to be using both a linter and a transpiler to keep your source clean, I'm less worried about including it on every page.</p>
-
-<a name="Destructuring"></a>
-<h3>Destructuring</h3>
-
-<p>Object destructuring is one of those things that saves a little bit of code all the time. It's especially useful given the amount of time you spend passing around plain old JavaScript objects. This is something that CoffeeScript took from Ruby:</p>
-
-<pre><code class="js">&gt; const [orta, danger] = [33, 23]
-undefined
-&gt; danger
-23
-&gt; orta
-33
-</code></pre>
-
-<p>or for an Object</p>
-
-<pre><code>&gt; const user = { name: "Danger", age: 27 }
-undefined
-&gt; const { name,  age }  = user
-undefined
-&gt; name
-'Danger'
-&gt; age
-27
-</code></pre>
-
-<p>This makes it really easy to pull out subsets of existing objects and set them as variables.</p>
-
-<a name="Arrow.Functions"></a>
-<h3>Arrow Functions</h3>
-
-<p>In JavaScript a function has always looked like:</p>
-
-<pre><code class="js">function(arg1, arg2) {
-  [...]
-}
-</code></pre>
-
-<p>This gets frustrating when you're doing functional-style programming, where you use closures for mapping, filtering and others. So instead <a href="#es6">ES6</a> introduced terser ways of doing this. So I'm going to write the same function multiple times:</p>
-
-<pre><code class="js">// The way it's always been
-function (lhs, rhs) {
-    return lhs.order &gt; rhs.order
-}
-
-// An arrow function version
-(lhs, rhs) =&gt; {
-    return lhs.order &gt; rhs.order
-}
-
-// An implicit return, and no braced one-liner arrow function
-(lhs, rhs) =&gt; lhs.order &gt; rhs.order 
-</code></pre>
-
-<a name="Promises"></a>
-<h3>Promises</h3>
-
-<p><a href="#node">Node</a> is renowned for having a non-blocking API from day one. The way they worked around this is by using callbacks everywhere. This can work out pretty well, but eventually maintaining and controlling your callbacks turns into it's own problem. This can be extra tricky around handing errors.</p>
-
-<p>One way to fix this is to have a Promise API, Promises offer consistent ways to handle errors wand callback chaining.</p>
-
-<p>JavaScript now has a built-in a Promise API, this means every library can work to one API when handling any kind of asynchronous task. I'm not sure what ECMA Specification brought it in. This makes it really easy to make consistent code between libraries. However, more importantly, it makes it possible to have async/await.</p>
-
-<a name="Async.Await"></a>
-<h3>Async/Await</h3>
-
-<p>Once Promises were in, then a language construct could be created for using them elegantly. They work by declaring the entire function to be an <code>async</code> function. An async function is a function which pretends to be synchronous, but behind the scenes is waiting for specific promises to resolve asynchronously.</p>
-
-<p>There are a few rules for an <code>async</code> function:</p>
-
-<ul>
-<li>You cannot use <code>await</code> inside a function that has not been declared <code>async</code>.</li>
-<li>Anything you do return will be implicitly wrapped in a Promise</li>
-<li>Non-async functions can just handle the promise an <code>async</code> function returns</li>
-</ul>
-
-
-<p>So, a typical <code>async</code> function</p>
-
-<pre><code class="js">  async getReviewInfo() : Promise&lt;any&gt; {              // this function will do async
-    const details = await this.getPullRequestInfo()   // wait for the promise in getPullRequestInfo to resolve 
-    return await details.json()                       // wait for the promise in json to resolve
-  }                                                   // return the json
-</code></pre>
-
-<p>You aren't always given a promise to work with as not all APIs support promises and callbacks, wrapping a callback function is pretty simple:</p>
-
-<pre><code class="js">  readFile(path: String): Promise&lt;string&gt; {                       // returns a promise with a string
-    return new Promise((resolve: any, reject: any) =&gt; {           // create a new promise, with 2 callbacks
-      fs.readFile(path, "utf8", (err: Error, data: string) =&gt; {   // do the work
-        if (err) { return reject(err) }                           // did it fail? reject the promise
-        resolve(data)                                             // did it pass? resolve the promise
-      })
-    })
-  }
-</code></pre>
-
-<p>The <code>await</code> part of an <code>async</code> function using <code>await readFile</code> will now wait on the synchronous execution until the promise has resolved. This makes complicated code look very simple.</p>
-
-<a name="Tree.Shaking"></a>
-<h3>Tree Shaking</h3>
-
-<p>All development ecosystems have trade-offs which shape their culture. For web developers reducing the amount of JavaScript they send to a client is an easy, and vital part of their day job. This started with minifying their source code, e.g. reducing the number of characters but having the same behavior.</p>
-
-<p>The current state of the art is tree-shaking, wherein you can know what functions are unused and remove those from the source code before shipping the code to a client. A <a href="#haste-map">haste-map</a> is one way to handle these dependencies, but it's not the only one. <a href="http://rollupjs.org/">Rollup</a> is considered the de-facto ruler of the space, but it is in <a href="#babel">babel</a> and <a href="#babel">webpack</a> also.</p>
-
-<p>Does this affect you if you're using React Native? Not really, but it's an interesting part of the ecosystem you should be aware of.</p>
-
-<a name="Types"></a>
-<h1>Types</h1>
-
-<p>Types can provide an amazing developer experience, as an editor can understand the shape of all the object's inside your project. This can make it possible to build rich refactoring, static analysis or auto-complete experiences without relying on a runtime.</p>
-
-<p>For JavaScript there are two main ways to use types. <a href="#flow">Flow</a> and <a href="#typescript">TypeScript</a>. Both are amazing choices for building non-trivial applications. IMO, these two projects are what makes JavaScript a real systems language.</p>
-
-<p>Both take the approach of providing an optional typing system. This means you can choose to add types to existing applications bit by bit. By doing that you can easily add either to an existing project and progressively add types to unstructured data.</p>
-
-<a name="Interfaces"></a>
-<h3>Interfaces</h3>
-
-<p>As both <a href="#flow">Flow</a> and <a href="#typescript">TypeScript</a> interact with JavaScript, the mindset for applying types is through Interfaces. This is very similar to programming with protocols, where you only care about the responsibilities  of an object - not the specific type. Here is a Flow interface from DangerJS:</p>
-
-<pre><code class="js">/** An API representation for a Code Review site */
-export interface Platform {
-  /** Mainly for logging and error reporting */
-  name: string;
-  /** Used internally for getting PR/Repo metadata */
-  ciSource: CISource;
-  /** Pulls in the Code Review Metadata for inspection */
-  getReviewInfo: () =&gt; Promise&lt;any&gt;;
-  /** Pulls in the Code Review Diff, and offers a succinct user-API for it */
-  getReviewDiff: () =&gt; Promise&lt;GitDSL&gt;;
-  /** Creates a comment on the PR */
-  createComment: (body: string) =&gt; Promise&lt;?Comment&gt;;
-  [...]
-}
-</code></pre>
-
-<p>This interface defines the shape of an object, e.g. what functions/properties it will it have. Using interfaces means that you can expose the least amount of about an object, but you can be certain that if someone refactors the object and changes any interface properties - it provide errors.</p>
-
-<a name="Flow"></a>
-<h3>Flow</h3>
-
-<p><a href="https://flowtype.org">Flow</a> is a fascinating tool that infers types through-out your codebase. Our React Native uses a lot of Flow, we have a lot of <a href="#eslint">linter rules</a> for it too, so instead of writing a function like:</p>
-
-<pre><code class="js">function getPlatformForEnv(env, source) {
-return [...]
-}
-</code></pre>
-
-<p>We would write it like this:</p>
-
-<pre><code class="js">function getPlatformForEnv(env: Env, source: CISource): ?Platform {
-return [...]
-}
-</code></pre>
-
-<p>Wherein we now have interfaces for our arguments and the return value of the function. This means better error message from Flow, and better auto-complete in your editor.</p>
-
-<a name="TypeScript"></a>
-<h3>TypeScript</h3>
-
-<p>TypeScript is a typed language that compiles JavaScript by Microsoft. It's awesome, it has all of the advantages that I talked about with Flow and a lot more. With TypeScript you can get a much more consistent build environment (you are not picking and choosing different features of ES6) as Microsoft implement all of it into TypeScript.</p>
-
-<p>We opted to go for JS + Flow for Artsy's React Native mainly because we could incrementally add types, and you can find a lot more examples of JavaScript on the internet. It also is the way in which React Native is built, so you get the ecosystem advantage.</p>
-
-<p>That said, if we start a new React Native from scratch project, I would pitch that we should use TypeScript after my experiences with <a href="https://github.com/Microsoft/vscode/pull/12628">making PRs</a> to VS Code. TypeScript feels more comprehensive, I got better error messages and VS Code is very well optimised for working in TypeScript projects.</p>
-
-<a name="Typings.Flow-Typed"></a>
-<h3>Typings/Flow-Typed</h3>
-
-<p>Shockingly, not all JavaScript <a href="#modules">modules</a> ship with a typed interface for others. This makes it a pain to work with any code outside your perfectly crafted/typed codebase. This isn't optimal, especially in JavaScript where you rely on so many external libraries.</p>
-
-<p>Meaning that you can either look up the function definitions in their individual docs, or you can read through the source. This breaks your programming flow.</p>
-
-<p>Both TypeScript and Flow offer a tool to provide external definitions for their libraries. For typescript that is <a href="https://github.com/typings/typings">typings</a> and for Flow, <a href="https://github.com/flowtype/flow-typed/">flow-typed</a>. These tools pull into your project definition files that tell TypeScript/Flow what each module's input/outputs are shaped like, and provides inline documentation for them.</p>
-
-<p>Flow-Typed is new, so it's not really got many definitions at all. Typings on the other hand has quite a lot, so in our React Native we use typings to get auto-complete for our libraries.</p>
-
-<a name="JavaScript.Fatigue"></a>
-<h3>JavaScript Fatigue</h3>
-
-<p>So that's my glossary, there's a lot of interesting projects out in the JS world.</p>
-
-<p>They have a term "<a href="http://www.confluentforms.com/2016/01/javascript-churn-technology-investment-effect.html">JavaScript fatigue</a>" which represents the concept of the churn in choosing and learning from so many projects. This is very real, which is something we're taking into account. Given the amount of flexibility in the ecosystem, it's really easy to create anything you want. If I wanted to implement a simplified version of Swift's guard function for our JavaScript, I could probably do it in about 2 days using a Babel plugin, then we can opt-in on any project we want.</p>
-
-<p>This can make it easy to freeze and flip the table, but it also makes JavaScript a weird, kind of ideal, primordial soup where some <em>extremely</em> interesting ideas come out. It's your job to use your smarts to decide which are the ideas which will evolve further, then help them stablize and mature.</p>
-
-<script>
-// Ain't optimal, but it does it for now, need to figure a better way in the future.
-$("a[name]").each(function(i, el){
-  var $el = $(el)
-  $el.attr("name", $el.attr("name").toLowerCase().replace(".", "-"))
-})
-</script>
-
-
 
 ]]></content>
   </entry>
