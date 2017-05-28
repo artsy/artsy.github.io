@@ -12,7 +12,7 @@ So I automated it. Using Travis CI and fastlane.
 
 <!-- more -->
 
-Travis CI (and Circle CI) now have the ability to run scheduled runs. This is great for one-off tasks like uploading an app to Apple's Testflight on a weekly basis.
+Travis CI (and Circle CI) now have the ability [to be scheduled][schedule]. This is great for one-off tasks like uploading an app to Apple's Testflight on a weekly basis.
 
 I wanted this to exist outside of our current CI environment for two reasons:
 
@@ -237,7 +237,7 @@ end
 
 Automatically deploying is a good pattern for encouraging more deploys of an app which has only been deployed once. It's a pattern we could also move to in some of our other apps too, if it feels good. If you're interested in if something has changed since this post was authored, the repo is here: https://github.com/artsy/emission-nebula so you can read out the Fastfile and we'll answer questions you have inside GitHub issues on it.
 
-The most annoying part about building this is that an iteration takes ~20 minutes, so make sure you also have another (easily interrupted) task to do at the same time.
+The most annoying part about building deployment changes are that an iteration takes ~20 minutes, so make sure you also have another (easily interrupted) task to do at the same time.
 
 [em_app]: https://github.com/artsy/emission/tree/master/Example
 [how_emission]: /blog/2016/08/24/On-Emission/
@@ -247,3 +247,4 @@ The most annoying part about building this is that an iteration takes ~20 minute
 [fastlane match]: /blog/2017/04/05/what-is-fastlane-match/
 [gym]: https://github.com/fastlane/fastlane/tree/master/gym
 [fastlane pilot]: https://github.com/fastlane/fastlane/tree/master/pilot
+[schedule]: https://docs.travis-ci.com/user/cron-jobs/
