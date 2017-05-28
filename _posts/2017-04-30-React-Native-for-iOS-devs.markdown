@@ -11,11 +11,20 @@ React Native is a new native library that vastly changes the way in which you ca
 
 We've been doing it now for over a year, and have really started to slow down on drastic changes inside the codebase. This is great because it means we're spending less time trying to get things to work, and more time building on top of a working setup.
 
-This article will try to cover an awful lot, so free up 15 minutes, make a tea and then come back to this. 
+This article will try to cover an awful lot, so free up 15 minutes, make a tea and then come back to this. It's worth your time if you're interested in all the hype around React Native.
 
-Overview of what React Native is: 
+<!-- more -->
 
-* Learn once, write anywhere
+React Native is a way to write React apps app that run as native programs. It bridges the JavaScript React code that you write with native UIView elements. React Native has two main aims:
+
+* Learn Once, Write Anywhere.
+* Make a native developer experience as fast as the web developer's.
+
+"Learn Once, Write Anywhere" is a play on Java's "Write Once, Run Anywhere" - something that has not worked well for user-interface heavy mobile clients. The idea of running the same code everywhere encourages platform-less APIs which water down the positives of each platform.
+
+"Learn once" in this context is that you can re-use the same ideas and tools across many platforms. You don't lose your ability to write the same user experiences as you can with native code, but you can re-use your skills from different platforms in different contexts. That is the "Write Anywhere."
+
+
 * React (JS Lib) + React Native (Obj-C / Java)
 * JS runtime runs on webkit - it is not node, but you could barely tell.
 * JS runtime talks to native components through the RN bridge
@@ -23,7 +32,14 @@ Overview of what React Native is:
 * trade-off on performance is that all JS work is done off main thread, all UI layout is done on BG thread natively 
 * very hard to write blocking code
 
-React 
+# React 
+
+React offers a uni-direction Component model that _can_ handle what is traditionally handled by the MVC paradigm. The library was created originally for the web, where updates at the equivalent of UIView level are considered slow. React provides a diffing engine for a tree of components that would _eventually_ be represented as HTML, allowing you to write the end-state of your interface and React would apply the difference to only the HTML that changes.
+
+This pattern is applied by providing a consistent way to represent a component's state. Imagine if every UIView subclass had a "setState" function where you applied 
+
+React was built out of a desire to abstract away a web page's true view hierarchy (called the DOM) so that they could make changes to all of their views and then React would handle finding the differences between view states.
+
 
 - Composition as the core concept
 - React as diff engine
@@ -189,7 +205,30 @@ When to choose React Native?
 - Lots of apps don't bother with all the hard stuff though.
 - For me, any app whose main job is to take an API and turn it into data should probably be a react native app.
 - Apple gives a lot of polish on it's dev tools, but at the price of a closed system.
-- Working in RN gives you the chance to have more of your app easier to build, simpler to reason with
+
+
+Now that I am reasonably proficient with the trade-offs, if I would use React Native
+
+- An app whose sole purpose is to consume an external resource: e.g. an API.
+- An app that doesn't easily fit into a single storyboard.
+- Any app where Android is a hard requirement, because we don't have an android team, we can get it 70% of the way before we have to have someone with deep skills on the team.
+ 
+I wouldn't use React Native if I were writing:
+
+- A non-traditional app: e.g. a watchOS/iMessage/macOS app.
+
+These are not platforms that are well tested, and kept up to date by the ever-changing node world. You can do it, but you will definitely have to get your hands dirty in the React Native source-code for the platform..
+
+- An encrypted chat client
+- Apps for a bank
+- Apps that interact with life-critical systems like health
+
+
+Not because you are shipping the source code for your app inside the app, that's never stopped websites handling the above. The bridging between runtimes is leaky, and is a great place vector for attacking your application. 
+
+- Working in RN gives you the chance to have more of your app easier to de-silo your mobile engineering teams, making it simpler to write code across all teams because you have  with
+
+
 
 Brownfield
 
