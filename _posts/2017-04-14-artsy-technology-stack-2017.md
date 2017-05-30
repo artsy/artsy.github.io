@@ -1,5 +1,5 @@
 ---
-layout: post_longform
+layout: epic
 title: Artsy's Technology Stack, 2017
 date: 2017-04-14
 categories: [Technology, eigen, force, gravity]
@@ -56,7 +56,7 @@ The Platform "practice" has remained as a way to coordinate and share work among
 
 # Artsy Technology Infrastructure 2017 - Splitting the Monolith
 
-{% include full_svg.html url="/images/tech-2017/artsy-stack.svg" title="The Artsy Tech Stack 2017" style="width:100%;" %}
+{% include epic_img.html url="/images/tech-2017/artsy-stack.svg" title="The Artsy Tech Stack 2017" style="width:100%;" %}
 
 ## User Facing
 
