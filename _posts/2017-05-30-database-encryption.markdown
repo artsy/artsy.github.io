@@ -7,7 +7,7 @@ author: ashkan
 categories: [Databse, Encryption, Security]
 ---
 
-Recently after examining the data stored in one of our systems, we noticed that while originally this system wasn't designed to include sensative data, over the time it ended up including some sensative information and we need to encrypt the data.
+Recently after examining the data stored in one of our systems, we noticed that while originally this system wasn't designed to include sensitive data, over the time it ended up including some sensitive information and we need to encrypt the data.
 
 While our systems were safe by other means, because of the issue above we decided to encrypt the database behind it to cover the cases when people end up accessing our database directly.
 
