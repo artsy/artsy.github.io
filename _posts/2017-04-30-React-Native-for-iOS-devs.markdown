@@ -157,7 +157,7 @@ OK, no joke, don't skip this, you can do try React Native right now.
 # Install the JavaScript tools you'll need
 brew install nodejs yarn
 # You'll want Visual Studio Code to work on this
-brew cask install vscode
+brew cask install visual-studio-code
 # Create a new react-native project in the folder rn-example-app
 yarn create react-native rn-example-app
 ```
