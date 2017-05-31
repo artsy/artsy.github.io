@@ -1,36 +1,38 @@
 ---
 layout: post_longform
 title: Intro to React Native for an iOS Developer
-date: 2017-04-30
+date: 2017-05-30
 categories: [Technology, emission, react-native, react, javascript]
 author: orta
 series: React Native at Artsy
 ---
 
-React Native is a new native library that vastly changes the way in which you can create applications. The majority of the information and tutorials on the subject come from the angle of "you are a web developer, and want to do native" - which is how it was introduced inside Artsy.
+React Native is a new native library that vastly changes the way in which you can create applications. The majority of the information and tutorials on the subject come from the angle of _"you are a web developer, and want to do native"_.
 
-We've been doing it now for over a year, and have really started to slow down on drastic changes inside the codebase. This is great because it means we're spending less time trying to get things to work, and more time building on top of a working setup.
+This makes sense, given that the size of that audience is much bigger, and far more open in the idea of writing apps using JavaScript. However, this is not how React Native was introduced inside Artsy. The push came from the native team. 
+
+We've been doing it now for over a year, and have started to slow down on drastic changes inside the codebase. This is great because it means we're spending less time trying to get things to work, and more time building on top of a working setup.
+
+I'd like to try cover a lot of the common questions we get asked about:
+
+* What is React Native?
+* How do you use React Native?
+* When is React Native a good technology choice?
+
+From the perspective of a native team of developers.
 
 This article will try to cover an awful lot, so free up 15 minutes, make a tea and then come back to this. It's worth your time if you're interested in all the hype around React Native.
 
 <!-- more -->
 
-React Native is a way to write React apps app that run as native programs. It bridges the JavaScript React code that you write with native UIView elements. React Native has two main aims:
+At the highest level, React Native is a way to write React apps that run as native programs. You write your app's code in JavaScript, and React Native bridges that code with native UIView elements. React Native has two stated aims:
 
 * Learn Once, Write Anywhere.
 * Make a native developer experience as fast as the web developer's.
 
-"Learn Once, Write Anywhere" is a play on Java's "Write Once, Run Anywhere" - something that has not worked well for user-interface heavy mobile clients. The idea of running the same code everywhere encourages platform-less APIs which water down the positives of each platform.
+_"Learn Once, Write Anywhere"_ is a play on Java's _"Write Once, Run Anywhere"_ - something that has not worked well for user-interface heavy mobile clients. The idea of running the same code everywhere encourages platform-less APIs which water down the positives of each platform.
 
-"Learn once" in this context is that you can re-use the same ideas and tools across many platforms. You don't lose your ability to write the same user experiences as you can with native code, but you can re-use your skills from different platforms in different contexts. That is the "Write Anywhere."
-
-
-* React (JS Lib) + React Native (Obj-C / Java)
-* JS runtime runs on webkit - it is not node, but you could barely tell.
-* JS runtime talks to native components through the RN bridge
-* Any native code can be bridged, passes back into the JS world via async APIs
-* trade-off on performance is that all JS work is done off main thread, all UI layout is done on BG thread natively 
-* very hard to write blocking code
+_"Learn once"_ in this context means that you can re-use the same ideas and tools across many platforms. You don't lose your ability to write the same user experiences as you can with native code, but you can re-use your existing skills from different platforms in different contexts. That is the _"Write Anywhere."_
 
 # React 
 
@@ -40,30 +42,136 @@ This pattern is applied by providing a consistent way to represent a component's
 
 React was built out of a desire to abstract away a web page's true view hierarchy (called the DOM) so that they could make changes to all of their views and then React would handle finding the differences between view states.
 
+[ 
+  Diagram:
+    Component tree on one side, App prototype on the other
+    Mouse-overing a component or view in the app would select both and show props
+    Should be 1-1 with view to components
+]
 
-- Composition as the core concept
-- React as diff engine
-- Singular definitions of state and props
-- Provides a singular object model for web, which aims to cut across responsibilities like 
+This kind of tree structure should feel quite similar to the view tree that you see inside a tool like Reveal, or inside the Xcode visual inspector.
 
-React Native
+React uses composition of these components to handle complexity, this also should feel quite similar to iOS development. The screen on an iOS app is typically made up of `UIView`s, and `UIViewController`s which exist inside a tree. A `UIViewController` itself doesn't have a visual representation, but it exists to manipulate data, handle actions and the view structure.
 
-- Separates React from React DOM
-- Components as Views + View Controllers
-- Show how a component tree can be mapped very easily to MVC paradigm
+A component can be both view and view controller.
+
+[
+  Diagram:
+    UIView + UIViewController tree
+    Component Tree
+    App Prototype
+
+    A component with no visual side highlighted, and maybe should be a 
+    different color 
+]
+
+By merging the responsibilities of a `UIView` and `UIViewController` into a Component, there is a consistent way to work with all aspects of your app. Let's take a trivial example. Downloading some data from the network and showing it on a screen.
+
+In UIKit you would:
+
+* You would create a component which makes the API request on it's `viewDidLoad`
+* While the request is sent you present a set of views for loading
+* When the API request has returned you remove the loading screen
+* You take the data from the request and create a view hierarchy then present that
+
+In React you would:
+
+* You would create a component which makes the API request on it's `onMount`
+* While the request is sent you render another component for showing loading
+* The results come back and you change your "state" on the main component with the API request
+* The state change re-runs your render method, which passes the API "state" down to the component for your page
+
+They are conceptually very similar. React does two key things differently:
+
+* Handle "state" change on any component
+* Handle view destructuring/structuring
+
+So, I've been quoting "state", I should explain this. There are two types of "state" inside React, and I've been using the quoted term to refer to both for simplicity till now.
+
+> There are two types of data that control a component: `props` and `state`. `props` are set by the parent and they are fixed throughout the lifetime of a component. For data that is going to change, we have to use `state`.
+
+from docs/state.html in RN
+
+So in our case above, getting the API results only changes the state on the component which makes the request. However, the results are passed down into the props _(properties)_ of the component's children as any further changes to the API data (for example if you were polling for updates) would result in a re-render of the child-components.
+
+* Handle view destructuring/structuring
+
+Because of the consolidated rules around state management React can quite easily know when there have been changes throughout your component tree and to call `render` for those components. `render` is the function where you declare the tree of children for a component.
+
+> The flow in React is one-directional. We maintain a hierarchy of components, in which each component depends only on its parent and its own internal state. We do this with properties: data is passed from a parent to its children in a top-down manner. If an ancestor component relies on the state of its descendant, one should pass down a callback to be used by the descendant to update the ancestor.
+
+from docs/communication-ios.html in RN
+
+So Reacts paradigm is a component tree, where the `render` function of a component passes down one component's state into the props of the children.
+
+# React Native
+
+React was built for the web - but some-one realised that they could de-couple the React component tree from the HTML output, and instead that could be a tree of UIView's.
+
+That is the core idea of React Native. Bridge the React component tree to native primitives. React Native runs on a lot of platforms:
+
+* iOS
+* Android
+* VR
+* macOS
+* Windows
+* Ubuntu
+
+Each of these platforms will have their own way of showing some text e.g.
+
+* `UILabel` for iOS
+* `Label` for Android
+* ??? for VR
+* `NSTextField` for macOS
+* ??? for Windows
+* ??? for Ubuntu
+
+But when working at React-level, you would use the component `Text`. This means you can work at a cross-platform level, by relying on the primitives provided by each implementation of React Native.
+
+For iOS, this works by using a JavaScript runtime (running via JavaScriptCore in your app) which sends messages across a bridge that handles the native `UIView` hierarchy. 
+
+[
+  Graph
+    JS Runtime - Bridge - Native Views
+]
+
+This bridging is how you get a lot of the positive aspects of working with the JavaScript tooling eco-system. The JavaScript runtime can be updated independent of the application, so long as it expects to be working with the same bridging version. This is how React can safely have a reliable version of [Injection for Xcode][].
+
+Like any cross-platform abstraction, React Native can be leaky. To write a cross-platform app that purely lives inside JS Runtime, you have to write React-only code. React + React Native doesn't have ways to handle primitives like `UINavigationController` - they want your entire app to be represented as a series of components that can be mapped across many platforms. 
+
+This isn't optimal when you're coming in from the native world - where you're used to building platform-specific experiences, and are genuinely excited at the prospect of platform-specific APIs. Generally you can look for other teams who have felt the same and are willing to write native-bridged code that's specific to iOS. Shout-out to [Wix][] and [AirBnB][] who are doing great work in this space.
+
+Is this a critical problem against React Native? I don't think so, we've added native abstractions where it was the right decision and we've used JavaScript when it was the right decision. For example, our `Image` component is a bridged native component that uses `SDWebImage` under the hood so that we can share an image cache with the rest of the app.
+
 - Uses flexbox for layouts, which is way simpler and less likely to be buggy than auto layout
 
-Ten minutes to try out React
+## Ten minutes to try out React
 
-Don't skip this, you can do this right now.
+OK, no joke, don't skip this, you can do try React Native right now.
 
-- Install node
-- Install yarn
-- `yarn create react-native`
+[Split this into two]
+
+```sh
+# If you don't have homebrew
+[homebrew install one-liner]
+# Install the JavaScript tools you'll need
+brew install nodejs yarn
+# You'll want Visual Studio Code to work on this
+brew cask install vscode
+# Create a new react-native project in the folder rn-example-app
+yarn create react-native rn-example-app
+```
+
+You'll need `node` and `yarn` installed globally so you can run JavaScript and handle dependency management respectively. I'd strongly recommend using Microsoft's Visual Studio Code as a generic source code editor.
+
+Then you can create the sample code. Once all the installing has finished. You can follow along with the next section.
+
 - Install VS Code
 - Show how to edit a component
 - Explain how to turn on HMR
 - Make them edit something again, see the changes live
+
+
 
 So what is going on?
 
@@ -74,13 +182,25 @@ So what is going on?
 
 Writing JavaScript
 
+JavaScript is a deceptively simple language with a lot of weird gotchas, which makes it easy to be disparaging against. Especially coming from the native world, where you are used to type systems and low-level programming. 
+
+I think it's safe to say that the majority of JavaScript's warts are fixed by tooling nowadays. Tools like ESLint, TSLint, Babel, Prettier, TypeScript and Flow make it difficult to write bad code, and the JavaScript community really comes together to fix it's own problems. This differs from the [Sword of Damocles][] that [exists for big OSS projects][retro-swift-sherlock] in the iOS community.
+
+These inter-linked, composable tools basically represent the entire idea of the JavaScript community. You add them to your project, and your project gets littered with all these small config files that eventually create the kind of cohesive tooling that you would expect from a single vendor.
+
+The good part is that they are interchangable, we switched from Flow to TypeScript with roughly 2 week's work to work, then a week to get right. The bad side is that the configuration aspects of these projects feels like something you do once, then forget until it needs to change.
+
+
+
 - Simple and complex, flawed but fixed
 - Tooling does a really good job of keeping really bad JS code out of your app
 - Language that allows for many types of programming
 - JS is a lot of very simple tools built on top of each other, which creates a tower of dependencies
 - Always evolving, tools to let you pick and choose what features you want
-[[[[[[[[[[[[=Some useful JS terms:
-]
+
+
+Some useful JS terms:
+
   - Destructuring
   - x
   - y
@@ -246,3 +366,9 @@ I would probably start with this boiler-plate, but I am a domain expert now. In 
 (etc etc)
 
 In the same kind of way that you had to become comfortable with project management inside Xcode, or understanding what an LLVM error meant you had to change. Boilerplates give you more, but require a higher base knowledge. I wrote one app for Artsy in just JavaScript, and I really disliked the experience. I won't make that mistake again.
+
+[Injection for Xcode]: ???
+[Sword of Damocles]: ???
+[retro-swift-sherlock]: ???
+[AirBnB]: ???
+[Wix]: ???
