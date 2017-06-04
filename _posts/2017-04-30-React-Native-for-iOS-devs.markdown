@@ -9,7 +9,7 @@ series: React Native at Artsy
 
 React Native is a new native library that vastly changes the way in which you can create applications. The majority of the information and tutorials on the subject come from the angle of _"you are a web developer, and want to do native"_.
 
-This makes sense, given that the size of that audience is much bigger, and far more open in the idea of writing apps using JavaScript. However, this is not how React Native was introduced inside Artsy. The push came from the native team. 
+This makes sense, given that the size of that audience is much bigger, and far more open in the idea of writing apps using JavaScript. For web developers it opens a new space to work, for native developers it provides However, this is not how React Native was introduced inside Artsy. The push came from the native team. 
 
 We've been doing it now for over a year, and have started to slow down on drastic changes inside the codebase. This is great because it means we're spending less time trying to get things to work, and more time building on top of a working setup.
 
@@ -67,9 +67,9 @@ A component can be both view and view controller.
 
 By merging the responsibilities of a `UIView` and `UIViewController` into a Component, there is a consistent way to work with all aspects of your app. Let's take a trivial example. Downloading some data from the network and showing it on a screen.
 
-In UIKit you would:
+In UIKit-world you would:
 
-* You would create a component which makes the API request on it's `viewDidLoad`
+* You would create a UIViewController which makes the API request on it's `viewDidLoad`
 * While the request is sent you present a set of views for loading
 * When the API request has returned you remove the loading screen
 * You take the data from the request and create a view hierarchy then present that
@@ -102,7 +102,10 @@ Because of the consolidated rules around state management React can quite easily
 
 from docs/communication-ios.html in RN
 
-So Reacts paradigm is a component tree, where the `render` function of a component passes down one component's state into the props of the children.
+Props are treated as the equivalent as a Swift `let` variable in this case, any changes to props require an new version of the component to exist in the tree and thus `render` is called.
+
+
+So, in summary: React's paradigm is a component tree, where the `render` function of a component passes down one component's state into the props of the children.
 
 # React Native
 
@@ -135,7 +138,7 @@ For iOS, this works by using a JavaScript runtime (running via JavaScriptCore in
     JS Runtime - Bridge - Native Views
 ]
 
-This bridging is how you get a lot of the positive aspects of working with the JavaScript tooling eco-system. The JavaScript runtime can be updated independent of the application, so long as it expects to be working with the same bridging version. This is how React can safely have a reliable version of [Injection for Xcode][].
+This bridging is how you get a lot of the positive aspects of working with the JavaScript tooling eco-system. The JavaScript used by React can be updated independent of the app, but so long as it is working with the same native bridge version. This is how React can safely have a reliable version of [Injection for Xcode][].
 
 Like any cross-platform abstraction, React Native can be leaky. To write a cross-platform app that purely lives inside JS Runtime, you have to write React-only code. React + React Native doesn't have ways to handle primitives like `UINavigationController` - they want your entire app to be represented as a series of components that can be mapped across many platforms. 
 
@@ -153,50 +156,64 @@ OK, no joke, don't skip this, you can do try React Native right now.
 
 ```sh
 # If you don't have homebrew
-[homebrew install one-liner]
+# /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
+
 # Install the JavaScript tools you'll need
 brew install nodejs yarn
 # You'll want Visual Studio Code to work on this
 brew cask install visual-studio-code
-# Create a new react-native project in the folder rn-example-app
-yarn create react-native rn-example-app
+# Install the React Native CLI
+yarn global add react-native-cli
+# Create a React Native project
+react-native-cli
+# Kick off creating a new React Native project called TrendingArtists
+react-native init TrendingArtists
 ```
 
-You'll need `node` and `yarn` installed globally so you can run JavaScript and handle dependency management respectively. I'd strongly recommend using Microsoft's Visual Studio Code as a generic source code editor.
+You'll need `node` and `yarn` installed globally so you can run JavaScript and handle dependency management respectively. I'd strongly recommend using Microsoft's Visual Studio Code as a generic source code editor for React Native.
 
 Then you can create the sample code. Once all the installing has finished. You can follow along with the next section.
 
-- Install VS Code
+```sh
+# Go into our new folder 
+cd TrendingArtists
+
+```
+
+- Open VS Code, drag the folder into it
+- Run `react-native start ios` to compile the iOS app, then to start the packager
 - Show how to edit a component
 - Explain how to turn on HMR
 - Make them edit something again, see the changes live
 
-
-
 So what is going on?
+
+React Native will 
 
 - RNP as dev server
 - Create React Native
 - JSX as HTML in JS
 - JSX is basically a pretty way to write `React.createElement`
 
-Writing JavaScript
+## Writing JavaScript
 
 JavaScript is a deceptively simple language with a lot of weird gotchas, which makes it easy to be disparaging against. Especially coming from the native world, where you are used to type systems and low-level programming. 
 
 I think it's safe to say that the majority of JavaScript's warts are fixed by tooling nowadays. Tools like ESLint, TSLint, Babel, Prettier, TypeScript and Flow make it difficult to write bad code, and the JavaScript community really comes together to fix it's own problems. This differs from the [Sword of Damocles][] that [exists for big OSS projects][retro-swift-sherlock] in the iOS community.
 
+[
+  table
+    ESLint/TSLint: does this
+    Babel: Does that
+    Prettier: Etc
+]
+
 These inter-linked, composable tools basically represent the entire idea of the JavaScript community. You add them to your project, and your project gets littered with all these small config files that eventually create the kind of cohesive tooling that you would expect from a single vendor.
 
-The good part is that they are interchangable, we switched from Flow to TypeScript with roughly 2 week's work to work, then a week to get right. The bad side is that the configuration aspects of these projects feels like something you do once, then forget until it needs to change.
+The good part is that they are interchangeable, we switched from Flow to TypeScript with roughly 2 week's work, then a week to come close to perfect for example. The bad side is that the configuration aspects of these projects feels like something you do once, then forget until it needs to change.
 
+The defaults that React Native set you up with are *really solid*, it's just if you come from a typed environment like all iOS engineers have - basic JavaScript just not enough.
 
-
-- Simple and complex, flawed but fixed
-- Tooling does a really good job of keeping really bad JS code out of your app
-- Language that allows for many types of programming
-- JS is a lot of very simple tools built on top of each other, which creates a tower of dependencies
-- Always evolving, tools to let you pick and choose what features you want
 
 
 Some useful JS terms:
@@ -205,12 +222,17 @@ Some useful JS terms:
   - x
   - y
 
-Node
+## Node (Capital N?)
 
-- No standard library
-  - + and - of this
-- Open and chaotic ecosystem
-- Often flipped by new ideas and paradigms
+There are two main environments for writing JavaScript in: the browser, and inside node. Node is the JavaScript runtime from Google Chrome (called V8, their version of JavaScriptCore) with a UNIX-like baseline set of APIs. It provides relatively few primitives, and it is expected that you would use a node module for anything particularly high level.
+
+A node module is a set of JavaScript files with a particular structure. Generally, there is a `package.json` to describe the library, and an `index.js` with the code for the library. Libraries can be as small as a single-function to typical a "XYZKit" you would expect from CocoaPods. As JavaScript tends to be bundled and minified based on code used, developers mainly worry about the overall filesize of their library. You would use a package manager like NPM or Yarn to manage these dependencies. Node modules have the unique, and very dangerous idea of allowing multiple versions of the same library to exist inside your application. This "fixes" the problem of dependency hell, at the cost of many potential runtime issues.
+
+When writing JavaScript with React Native, you are using node modules, but _strictly speaking_ you are not writing a node app. The code that you write is executed inside JavaScriptCore and so doesn't have access to the UNIX-like API from node. 
+
+This can make it a bit confusing about whether you can or can't use a library from NPM. This also gets a bit more tricky, for example your tests _are_ running inside node. So, it's fine for your tests to use all of those APIs and libraries, but not your app's code. So far, from my experience this hasn't been a problem, in part because of how we use React Native (mainly API -> UI). I researched all of this during the creation of this post, and I hadn't really noticed the mismatch during active development.
+
+
 
 General overview of terms you'll be interested in WRT node:
 
@@ -225,7 +247,7 @@ General overview of terms you'll be interested in WRT node:
 - Lodash (underscore)
 - Relay 
 
-Web Style Development Experiene
+Web Style Development Experience
 
 - For the web "tooling" != IDE
 - The UNIX idea of small individual libs
@@ -234,7 +256,6 @@ Web Style Development Experiene
   - Typed JS with inference
   - Tooling like nuclide / vscode
   - Safe dependency management in Yarn (and now in npm)
-  
 
 Tooling
 
@@ -257,7 +278,7 @@ There are two ways to write tests for your react native code: in process and out
 - Native side: Probably one person making XCTest, one person trying to get some improvements in Xcode each year
 
 - JS side: Instant, can run at the same time as your app
-- Native side: Requires stopping your app, running tests, then restarting the work
+- Native side: Requires stopping your app, running tests, then restarting your work
 
 We had a few native tests, but very quickly we stopped running them. 
 
@@ -293,16 +314,18 @@ Doing it right per platform
 
 - note somewhere that our imageviews use SDWebImage to share cache
 
-Create React App
+## Create React Native App
 
-Ironically after this, one of the biggest projects to happen in RN in the last 6 months is CRNA. This is the super easy to get started RN experience. It's what we used earlier to get started.
+One of the biggest projects to happen in the React Native world in the last 6 months is Create React Native App (CRNA). This is the "super easy to get started" React Native experience. 
 
-- Makes one big assumption: you will not write native code.
-- Remove this assumption and you can really tighten the tooling at JS level.
-- Leaves the native side of it to Expo
-- Expo is another company, but all the code is OSS - and they seem nice
-- Can handle compiling and shipping your app for you from the cloud
-- You can eject from CRNA to your own app at any time
+Remember that most of the people coming to React Native are web developers, and the idea of writing Objective-C/Swift/Java to them is unappealing. CRNA actually removes the ability for you to write native code, and trades that with letting a company called Expo do it for you.
+
+Expo are a pretty new company, whose work is entirely open source. They've done a lot of interesting work in the community, and as individuals they are well respected for contributions to React Native the library - and a bunch of related libraries. You can use the Expo app from the App Store to run your CRNA project on any iOS/Android device instantly, and the app has a lot more baseline UI components to work with than React Native does on its own.
+
+With CRNA you are giving up control of the native side, but gaining a lot on the ease-of-use side. CRNA doesn't force the project to stay this way though, you can eject your app from the Expo and start adding native code to the app. 
+
+Why did I even mention this? Well, if you're looking at React Native for a greenfield app (e.g. something new), CRNA may be your best option. When you're getting started, less options is better, and this is the optimal setup according to the React Native team. 
+
 
 Animations
 
