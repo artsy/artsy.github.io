@@ -326,30 +326,56 @@ With CRNA you are giving up control of the native side, but gaining a lot on the
 
 Why did I even mention this? Well, if you're looking at React Native for a greenfield app (e.g. something new), CRNA may be your best option. When you're getting started, less options is better, and this is the optimal setup according to the React Native team. 
 
+## Animations
 
-Animations
+A question which regularly comes up is "How can React Native handle animations?" - at this point the answer is "well enough for 80% of all apps, it's enough for ours." 
 
-- React Native probably isn't the right tooling for building something like Garageband. 
-- Excels at handling user state -> user interface
-- However, most apps are using pretty small animations here and there and React Native handles those _really, really well_.
-- Provides a tonne of primitives to allow writing declaritive animations
+There are two primitives for animation from React Native:
 
-Places where React Native hasn't fit for us
+* `Animated` - This is a fine-grained API for handling changes ( we use this on our buttons for making the transition animations the same as our native ones. )
+* `LayoutAnimation` - This API feels a little bit like `UIView +animate:` - in that you can tell tje layout engine that the next update should be animated instead of replaced.
 
-- So far, nowhere. Lols. Can't be true overall though.
-- Something like our Kiosk app isn't an amazing fit
-- Storyboards is a great abstraction for this kind of app, it has lots of obviously connected screens
-- However, if we could have re-used our components from another app really easily, it'd probably have been easier to write, significantly easier to maintain. We'd also have considerably more contributions from people outside of the core two developers who worked on it.
+These provide enough for a most usecases, but there is a more direct API and a few more JS-level techniques that you can use if you are really starting to feel like you're dropping frames inside a specific animation.
 
-When to choose React Native?
+## Places where React Native hasn't fit for us
+
+So far, nowhere. 
+
+Note though, the types of apps we create are exclusively API driven, with a unique visual style which totally covers the exposed UI surface. React Native is a great fit for this kind of app.
+
+Our main app Eigen, is a `UIViewController` browser, and React Native components are just one type of `UIViewController` that can be browsed. Nearly every `UIViewController` is the representation of an API endpoint, so React Native + Relay is a great match.
+
+I used to say that our Kiosk app, Eidolon, might not be a good fit because of it's reliance on handling a credit-card reader and that the app was good fit for being a storyboard-driven app. However, I'm not so sure about this anymore. The project React Storybooks is not a direct replacement for storyboards, but as a live-programming/prototyping environment it's 👍. The credit-card reader is already wrapped into a Reactive paradigm, going one step further and making it a JavaScript EventEmitter isn't a big-jump.
+
+Our tvOS app Emergence could probably be re-wrote in a week at this point. Is it worth a re-write? No. If I had to write it from scratch, would I use React Native? Probably, but it would depend on how stable tvOS support feels.
+
+Our oldest app, Energy, is an app for keeping your portfolio of artworks with you at all times. Again, API -> UI. It's an app which currently has a lot of demands on running offline. This is the only part that makes me a bit unsure what that could look like with respect to moving the interface to React Native.
+
+## When to choose React Native?
 
 - Maybe update this post WWDC?
-- React Native provides a cross platform API, and so it can fall into a usual watered down version of the API it abstracts. 
-- Lots of apps don't bother with all the hard stuff though.
-- For me, any app whose main job is to take an API and turn it into data should probably be a react native app.
-- Apple gives a lot of polish on it's dev tools, but at the price of a closed system.
+
+React Native provides a cross platform API, and so it can fall into a watered down version of the API it abstracts. This means that it can be a bit more work than normal to use obviously iOS-specific features like `UIUserActivity`, `CSSearchableIndex` or `UIUserNotification`s.
+
+That's not enough of a downside to contrast against:
+
+* A *significantly* better way to handle state and user-interfaces
+* The potential to write code that is cross-platform, and also share ideas with the web
+* An open development environment that respects your time
+
+Especially when there is an Xcode project which you can use to do whatever you want with, you just need to learn how to jump back and forth between the two worlds.
+
+React Native is a great fit for apps that:
+
+* Are driven by an API, or an obvious state-store
+* Want to have a unique look and feel
+
+Here's the final thing. When React Native was proposed as an option for us, the majority of our mobile dev team were not exactly excited at the prospect of using it. As we grew to understand the positive changes it was bringing for us, and our users, I at least was really happy that Alloy was willing to say "I think this could work."
+
+It's less risky now, but it's obviously a big dependency inside your app. Ideally, someone in your team should be able to feel comfortable reading, and potentially fixing code inside React Native the library. 
 
 
+<!--
 Now that I am reasonably proficient with the trade-offs, if I would use React Native
 
 - An app whose sole purpose is to consume an external resource: e.g. an API.
@@ -370,25 +396,26 @@ These are not platforms that are well tested, and kept up to date by the ever-ch
 Not because you are shipping the source code for your app inside the app, that's never stopped websites handling the above. The bridging between runtimes is leaky, and is a great place vector for attacking your application. 
 
 - Working in RN gives you the chance to have more of your app easier to de-silo your mobile engineering teams, making it simpler to write code across all teams because you have  with
+-->
 
 
 
-Brownfield
+## Integrating in to an Existing app
 
-If you're thinking of adding RN to an existing app, first read [on emission][]. We think of our RN to be a series of components which are consumed by our app as a CocoaPod.
+If you're thinking of adding RN to an existing app, first read [on emission][]. We think of our RN to be a series of components which are consumed by our app as a CocoaPod. This is the same pattern Airbnb, and Facebook used.
 
-Greenfield
+## Greenfield
 
-I'd probably start with a CRNA app, it's a good starting point. I feel safe that I can eject out of the environment provided when the app becomes complex enough to warrant native code
+I'd recommend start with a CRNA app, it's a good starting point. I feel safe that I can eject out of the environment provided when the app becomes complex enough to warrant native code.
 
-I would probably start with this boiler-plate, but I am a domain expert now. In order to feel comfortable with it, you'll need to be comfortable with 
+I personally would probably start with this boiler-plate, but I am a domain expert now. In order to feel comfortable with it, you'll need to be comfortable with 
 
 * TypeScript
 * Babel
 * JavaScript
 (etc etc)
 
-In the same kind of way that you had to become comfortable with project management inside Xcode, or understanding what an LLVM error meant you had to change. Boilerplates give you more, but require a higher base knowledge. I wrote one app for Artsy in just JavaScript, and I really disliked the experience. I won't make that mistake again.
+In the same kind of way that you had to become comfortable with project management inside Xcode, or understanding what an LLVM error meant you had to change. Boilerplates give you more, but require a higher baseline knowledge. I wrote one app for Artsy in just JavaScript, and the lack of dev-time safety made me feel far less experienced than I am. I'd rather not make that mistake again.
 
 [Injection for Xcode]: ???
 [Sword of Damocles]: ???
