@@ -51,25 +51,26 @@ React was built out of a desire to abstract away a web page's true view hierarch
 
 This kind of tree structure should feel quite similar to the view tree that you see inside a tool like Reveal, or inside the Xcode visual inspector.
 
-React uses composition of these components to handle complexity, this also should feel quite similar to iOS development. The screen on an iOS app is typically made up of `UIView`s, and `UIViewController`s which exist inside a tree. A `UIViewController` itself doesn't have a visual representation, but it exists to manipulate data, handle actions and the view structure.
+Instead of MVC, React uses composition of components to handle complexity, oddly enough - this should feel quite similar to iOS development. The screen of an iOS app is typically made up of `UIView`s, and `UIViewController`s which exist inside interlinked trees of hierarchy. A `UIViewController` itself doesn't have a visual representation, but exists to manipulate data, handle actions and the view structure for views who do.
 
 A component can be both view and view controller.
 
 [
-  Diagram:
-    UIView + UIViewController tree
+  multi-step diagram:
+    UIView tree ->
+    UIView + UIViewController tree ->
     Component Tree
+
     App Prototype
 
-    A component with no visual side highlighted, and maybe should be a 
-    different color 
+    In the component tree 
 ]
 
 By merging the responsibilities of a `UIView` and `UIViewController` into a Component, there is a consistent way to work with all aspects of your app. Let's take a trivial example. Downloading some data from the network and showing it on a screen.
 
 In UIKit-world you would:
 
-* You would create a UIViewController which makes the API request on it's `viewDidLoad`
+* You would create a `UIViewController` which makes the API request on it's `viewDidLoad`
 * While the request is sent you present a set of views for loading
 * When the API request has returned you remove the loading screen
 * You take the data from the request and create a view hierarchy then present that
@@ -104,7 +105,6 @@ from docs/communication-ios.html in RN
 
 Props are treated as the equivalent as a Swift `let` variable in this case, any changes to props require an new version of the component to exist in the tree and thus `render` is called.
 
-
 So, in summary: React's paradigm is a component tree, where the `render` function of a component passes down one component's state into the props of the children.
 
 # React Native
@@ -115,6 +115,7 @@ That is the core idea of React Native. Bridge the React component tree to native
 
 * iOS
 * Android
+* tvOS
 * VR
 * macOS
 * Windows
@@ -122,8 +123,8 @@ That is the core idea of React Native. Bridge the React component tree to native
 
 Each of these platforms will have their own way of showing some text e.g.
 
-* `UILabel` for iOS
-* `Label` for Android
+* `UILabel` for iOS and tvOS
+* `Textfield` for Android
 * ??? for VR
 * `NSTextField` for macOS
 * ??? for Windows
@@ -308,7 +309,7 @@ Doing it right per platform
 - RN is a focused UI framework 
 - Does not hinder you from making apps with traditionally native features: e.g. NSUserActivity, Spotlight etc
 - Making some of these features requires crossing the bridge back to native land and having the work done there
-- _We_ still think in terms of UIViewControllers which have a react view tree, not there is an app react component with sub-react components as view controllers.
+- _We_ still think in terms of `UIViewControllers` which have a react view tree, not there is an app react component with sub-react components as view controllers.
 
 - RN provides some pretty clever ways to handle cross-platform 
 
