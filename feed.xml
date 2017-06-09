@@ -5,9 +5,234 @@
     <description></description>
     <link>http://artsy.github.io/</link>
     <atom:link href="http://artsy.github.io/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Mon, 29 May 2017 11:09:48 +0000</pubDate>
-    <lastBuildDate>Mon, 29 May 2017 11:09:48 +0000</lastBuildDate>
+    <pubDate>Fri, 09 Jun 2017 23:05:25 +0100</pubDate>
+    <lastBuildDate>Fri, 09 Jun 2017 23:05:25 +0100</lastBuildDate>
     <generator>Jekyll v2.5.3</generator>
+    
+      <item>
+        <title>Encrypting ActiveRecord Fields Without Downtime.</title>
+        <description>&lt;p&gt;After examining the data stored in one of our high-throughput systems, we realized it might include sensitive user data. To reduce the number of people that are technically able to access the data and reduce the risks associated with a potential data theft, decided to encrypt certain database fields.&lt;/p&gt;
+
+&lt;a name=&quot;Our.Goal&quot;&gt;&lt;/a&gt;
+&lt;h1&gt;Our Goal&lt;/h1&gt;
+
+&lt;p&gt;Encrypt sensitive fields without any downtime.&lt;/p&gt;
+
+&lt;!-- more --&gt;
+
+
+&lt;a name=&quot;Approach&quot;&gt;&lt;/a&gt;
+&lt;h1&gt;Approach&lt;/h1&gt;
+
+&lt;p&gt;While we wanted to encrypt existing rows, new rows were constantly being added. In order to achieve zero downtown we have devised the following path:&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;Add new &lt;em&gt;encrypted&lt;/em&gt; fields to the database.&lt;/li&gt;
+&lt;li&gt;Start populating new &lt;em&gt;encrypted&lt;/em&gt; fields with &lt;em&gt;encrypted&lt;/em&gt; values while still populating &lt;em&gt;un-encrypted&lt;/em&gt; fields.&lt;/li&gt;
+&lt;li&gt;In the background, migrate existing records by populating their &lt;em&gt;encrypted&lt;/em&gt; fields.&lt;/li&gt;
+&lt;li&gt;Refactor to use &lt;em&gt;encrypted&lt;/em&gt; fields.&lt;/li&gt;
+&lt;li&gt;Drop &lt;em&gt;un-encrypted&lt;/em&gt; fields.&lt;/li&gt;
+&lt;/ol&gt;
+
+
+&lt;p&gt;Each step above was relatively simple and was tested properly before moving to the next step.&lt;/p&gt;
+
+&lt;a name=&quot;Choosing.an.Encryption.Library&quot;&gt;&lt;/a&gt;
+&lt;h2&gt;Choosing an Encryption Library&lt;/h2&gt;
+
+&lt;p&gt;We looked at a few gems, mainly &lt;a href=&quot;https://github.com/attr-encrypted/attr_encrypted&quot;&gt;attr_encrypted&lt;/a&gt;, &lt;a href=&quot;https://github.com/jmazzi/crypt_keeper&quot;&gt;crypt_keeper&lt;/a&gt; and &lt;a href=&quot;https://github.com/rocketjob/symmetric-encryption&quot;&gt;symmetric-encryption&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;While all these libraries were reliable, we used &lt;a href=&quot;https://github.com/rocketjob/symmetric-encryption&quot;&gt;symmetric-encryption&lt;/a&gt;, based on its robust &lt;a href=&quot;https://rocketjob.github.io/symmetric-encryption/&quot;&gt;documentation&lt;/a&gt;, ease of use and easy integration with other libraries (in our case &lt;code&gt;ActiveRecord&lt;/code&gt;). It provides some useful &lt;a href=&quot;https://rocketjob.github.io/symmetric-encryption/rake_tasks.html&quot;&gt;Rake tasks&lt;/a&gt; for configurations inside/outside of Heroku. Overall &lt;code&gt;symmetric-encryption&lt;/code&gt; seemed really 🔒 .&lt;/p&gt;
+
+&lt;a name=&quot;Configuration&quot;&gt;&lt;/a&gt;
+&lt;h2&gt;Configuration&lt;/h2&gt;
+
+&lt;p&gt;The &lt;code&gt;config/symmetric-encryption.yml&lt;/code&gt; file is used to define what algorithm to use and where to find the related keys for different environments.&lt;/p&gt;
+
+&lt;p&gt;Symmetric Encryption uses OpenSSL to encrypt and decrypt the data which means we are able to use any of the algorithms supported by OpenSSL. We used &lt;code&gt;aes-256-cbc&lt;/code&gt; which is also the recommended default algorithm.&lt;/p&gt;
+
+&lt;p&gt;In order to create a new set of keys:&lt;/p&gt;
+
+&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
+&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;bash&#39;&gt;&lt;span class=&#39;line&#39;&gt;rails generate symmetric_encryption:new_keys production
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
+
+
+&lt;p&gt;Above command will create an encryption key and an Initialization Vector (&lt;a href=&quot;https://en.wikipedia.org/wiki/Initialization_vector&quot;&gt;IV&lt;/a&gt;). Generated key &lt;strong&gt;must not&lt;/strong&gt; be committed into source code. Depending on how your application is deployed, there are two approaches for storing this key. In both scenarios encryption keys are encrypted before storing on file/environment variable. Secret used for encrypting the encryption key itself can be committed into source code.&lt;/p&gt;
+
+&lt;p&gt;To access sensitive data, a malicious party would require access to:&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;The database,&lt;/li&gt;
+&lt;li&gt;Our source code,&lt;/li&gt;
+&lt;li&gt;Encryption keys from files or configuration&lt;/li&gt;
+&lt;/ul&gt;
+
+
+&lt;a name=&quot;Outside.of.Heroku&quot;&gt;&lt;/a&gt;
+&lt;h3&gt;Outside of Heroku&lt;/h3&gt;
+
+&lt;p&gt;Key can be stored in a file on disk outside of source code. We can use &lt;code&gt;key_filename&lt;/code&gt; in configuration &lt;code&gt;yml&lt;/code&gt; to point to this file. In this scenario we would use the operating system to limit access to key file.&lt;/p&gt;
+
+&lt;p&gt;Here is a sample configuration file:&lt;/p&gt;
+
+&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;6&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;7&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;8&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;9&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;10&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;11&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;12&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;13&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;14&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;15&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;16&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;17&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;18&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;19&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;20&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;21&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;22&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;23&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;24&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;25&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;26&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;27&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;28&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;29&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;30&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;31&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;32&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;33&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;34&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;35&lt;/span&gt;
+&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;yaml&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;c1&quot;&gt;#config/symmetric_encryption.yml&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;l-Scalar-Plain&quot;&gt;production&lt;/span&gt;&lt;span class=&quot;p-Indicator&quot;&gt;:&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;c1&quot;&gt;# Since the key to encrypt and decrypt with must NOT be stored along with the&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;c1&quot;&gt;# source code, we only hold a RSA key that is used to unlock the file&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;c1&quot;&gt;# containing the actual symmetric encryption key&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;c1&quot;&gt;#&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;c1&quot;&gt;# Sample RSA Key, DO NOT use this RSA key, generate a new one using&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;c1&quot;&gt;#    openssl genrsa 2048&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;l-Scalar-Plain&quot;&gt;private_rsa_key&lt;/span&gt;&lt;span class=&quot;p-Indicator&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p-Indicator&quot;&gt;|&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;     &lt;span class=&quot;no&quot;&gt;-----BEGIN RSA PRIVATE KEY-----&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;     &lt;span class=&quot;no&quot;&gt;MIIEpAIBAAKCAQEAxIL9H/jYUGpA38v6PowRSRJEo3aNVXULNM....&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;     &lt;span class=&quot;no&quot;&gt;r1URaMAun2PfAB4g2N/kEZTExgeOGqXjFhvvjdzl97ux2cTyZhaTXg==&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;     &lt;span class=&quot;no&quot;&gt;-----END RSA PRIVATE KEY-----&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;c1&quot;&gt;# List Symmetric Key files in the order of current / latest first&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;l-Scalar-Plain&quot;&gt;ciphers&lt;/span&gt;&lt;span class=&quot;p-Indicator&quot;&gt;:&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;     &lt;span class=&quot;p-Indicator&quot;&gt;-&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;        &lt;span class=&quot;c1&quot;&gt;# Filename containing Symmetric Encryption Key encrypted using the&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;        &lt;span class=&quot;c1&quot;&gt;# RSA public key derived from the private key above&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;        &lt;span class=&quot;l-Scalar-Plain&quot;&gt;key_filename&lt;/span&gt;&lt;span class=&quot;p-Indicator&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;l-Scalar-Plain&quot;&gt;/etc/rails/.rails.key&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;        &lt;span class=&quot;l-Scalar-Plain&quot;&gt;iv_filename&lt;/span&gt;&lt;span class=&quot;p-Indicator&quot;&gt;:&lt;/span&gt;  &lt;span class=&quot;l-Scalar-Plain&quot;&gt;/etc/rails/.rails.iv&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;        &lt;span class=&quot;c1&quot;&gt;# Encryption cipher_name&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;        &lt;span class=&quot;c1&quot;&gt;#   Recommended values:&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;        &lt;span class=&quot;c1&quot;&gt;#      aes-256-cbc&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;        &lt;span class=&quot;c1&quot;&gt;#         256 AES CBC Algorithm. Very strong&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;        &lt;span class=&quot;c1&quot;&gt;#         Ruby 1.8.7 MRI Approximately 100,000 encryptions or decryptions per second&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;        &lt;span class=&quot;c1&quot;&gt;#         JRuby 1.6.7 with Ruby 1.8.7 Approximately 22,000 encryptions or decryptions per second&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;        &lt;span class=&quot;c1&quot;&gt;#      aes-128-cbc&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;        &lt;span class=&quot;c1&quot;&gt;#         128 AES CBC Algorithm. Less strong.&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;        &lt;span class=&quot;c1&quot;&gt;#         Ruby 1.8.7 MRI Approximately 100,000 encryptions or decryptions per second&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;        &lt;span class=&quot;c1&quot;&gt;#         JRuby 1.6.7 with Ruby 1.8.7 Approximately 22,000 encryptions or decryptions per second&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;        &lt;span class=&quot;l-Scalar-Plain&quot;&gt;cipher_name&lt;/span&gt;&lt;span class=&quot;p-Indicator&quot;&gt;:&lt;/span&gt;  &lt;span class=&quot;l-Scalar-Plain&quot;&gt;aes-256-cbc&lt;/span&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
+
+
+&lt;a name=&quot;On.Heroku&quot;&gt;&lt;/a&gt;
+&lt;h3&gt;On Heroku&lt;/h3&gt;
+
+&lt;p&gt;Since the filesystem on Heroku is &lt;a href=&quot;https://devcenter.heroku.com/articles/dynos#ephemeral-filesystem&quot;&gt;ephemeral&lt;/a&gt;, &lt;code&gt;symmetric-encryption&lt;/code&gt; suggests to set encryption key as an environment variable. Configuration is same as above except we replace &lt;code&gt;key_filename&lt;/code&gt; with &lt;code&gt;encrypted_key: &quot;&amp;lt;%= ENV[&#39;PRODUCTION_ENCRYPTION_KEY1&#39;] %&amp;gt;&quot;&lt;/code&gt;.&lt;/p&gt;
+
+&lt;p&gt;You can use the following rake task to generate a Heroku-specific configuration file:&lt;/p&gt;
+
+&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
+&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;yaml&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;l-Scalar-Plain&quot;&gt;rails g symmetric_encryption:heroku_config&lt;/span&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
+
+
+&lt;p&gt;This creates a &lt;code&gt;config/symmetric-encryption.yml&lt;/code&gt; file and also outputs commands you can run to set the &lt;em&gt;encrypted&lt;/em&gt; encryption key on Heroku as an environment variable.&lt;/p&gt;
+
+&lt;a name=&quot;ActiveRecord.Integration&quot;&gt;&lt;/a&gt;
+&lt;h3&gt;ActiveRecord Integration&lt;/h3&gt;
+
+&lt;p&gt;Symmetric Encryption provides a seamless integration with &lt;code&gt;ActiveRecord&lt;/code&gt;. We can use &lt;code&gt;attr_encrypted&lt;/code&gt; helper method to define &lt;em&gt;encrypted&lt;/em&gt; fields. Let&#39;s say we wanted to encrypt a &lt;code&gt;Note&lt;/code&gt; model that has &lt;code&gt;note&lt;/code&gt; and &lt;code&gt;subject&lt;/code&gt;. You can add the following to your &lt;code&gt;ActiveRecord&lt;/code&gt; model:&lt;/p&gt;
+
+&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
+&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;ruby&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;c1&quot;&gt;# app/models/note.rb&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;n&quot;&gt;attr_encrypted&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;:note&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;n&quot;&gt;attr_encrypted&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;:subject&lt;/span&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
+
+
+&lt;p&gt;This means whenever you set &lt;code&gt;note&lt;/code&gt; for this model &lt;code&gt;symmetric-encryption&lt;/code&gt; will set &lt;code&gt;encrypted_note&lt;/code&gt; field in the database. Whenever you retrieve an instance of this model, &lt;code&gt;symmetric-encryption&lt;/code&gt; will decrypt &lt;code&gt;encrypted_note&lt;/code&gt; field and you can access &lt;em&gt;decrypted&lt;/em&gt; value by just accessing &lt;code&gt;note&lt;/code&gt;.&lt;/p&gt;
+
+&lt;p&gt;In our case we couldn&#39;t use this helper immediately. Using encrypted_attr would prevent us from directly accessing the existing, un-encrypted fields in our database (which is necessary through step 3 in our approach). To work around this, we started by adding. a &lt;code&gt;before_validation&lt;/code&gt; callback to our model to set encrypted fields based on un-encrypted ones.&lt;/p&gt;
+
+&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;6&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;7&lt;/span&gt;
+&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;ruby&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;c1&quot;&gt;# app/models/note.rb&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;n&quot;&gt;before_validation&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;:encrypt_notes_fields&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;encrypt_note_fields&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nb&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;encrypted_note&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;SymmetricEncryption&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;encrypt&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;note&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kp&quot;&gt;true&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kp&quot;&gt;true&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;:string&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nb&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;encrypted_subject&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;SymmetricEncryption&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;encrypt&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;subject&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kp&quot;&gt;true&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kp&quot;&gt;true&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;:string&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
+
+
+&lt;p&gt;In the above code &lt;code&gt;SymmetricEncryption.encrypt(note, true, true, :string)&lt;/code&gt; means encrypt &lt;code&gt;note&lt;/code&gt; field, use random IV(Initialization Vector), compress the string and also use string when decrypting.&lt;/p&gt;
+
+&lt;p&gt;Once we got to the 4th step and stopped populating/reading un-encrypted fields we can easily switch above to&lt;/p&gt;
+
+&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
+&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;ruby&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;c1&quot;&gt;# app/models/note.rb&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;n&quot;&gt;attr_encrypted&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;:note&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;n&quot;&gt;attr_encrypted&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;:subject&lt;/span&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
+
+
+&lt;a name=&quot;Query.encrypted.fields&quot;&gt;&lt;/a&gt;
+&lt;h1&gt;Query encrypted fields&lt;/h1&gt;
+
+&lt;p&gt;Generally when we encrypt a field we can&#39;t do a partial query on the content of that field. On the other hand if we use the same IV each time we encrypt a value, we can do an exact match query. Using same IV means encrypting the same value always end up with the same encrypted string. If exact match query is not something you need, the recommended approach is to use random IV for each encryption.&lt;/p&gt;
+
+&lt;a name=&quot;Conclusion&quot;&gt;&lt;/a&gt;
+&lt;h1&gt;Conclusion&lt;/h1&gt;
+
+&lt;p&gt;With this approach we were able to encrypt a database with ~1.5 million rows without any downtime in about a week.&lt;/p&gt;
+</description>
+        <pubDate>Tue, 30 May 2017 11:03:00 +0100</pubDate>
+        <link>http://artsy.github.io/blog/2017/05/30/database-encryption/</link>
+        <guid isPermaLink="true">http://artsy.github.io/blog/2017/05/30/database-encryption/</guid>
+        
+        
+        <category>database</category>
+        
+        <category>encryption</category>
+        
+        <category>security</category>
+        
+      </item>
     
       <item>
         <title>iOS Retrospectives</title>
@@ -66,7 +291,7 @@
 
 &lt;p&gt;Remember that the benefits of a retrospective aren&#39;t limited to learning from a single mistake; retrospectives encourage a &lt;em&gt;culture&lt;/em&gt; of learning from mistakes, which (as Edmonson discovered in hospital settings) is far more valuable.&lt;/p&gt;
 </description>
-        <pubDate>Sat, 27 May 2017 00:00:00 +0000</pubDate>
+        <pubDate>Sat, 27 May 2017 00:00:00 +0100</pubDate>
         <link>http://artsy.github.io/blog/2017/05/27/ios-retrospectives/</link>
         <guid isPermaLink="true">http://artsy.github.io/blog/2017/05/27/ios-retrospectives/</guid>
         
@@ -492,7 +717,7 @@
 
 &lt;p&gt;If you want to learn more about GraphQL and want to stay up-to-date with the latest news of the GraphQL community, subscribe to &lt;a href=&quot;https://graphqlweekly.com/&quot;&gt;GraphQL Weekly&lt;/a&gt;.&lt;/p&gt;
 </description>
-        <pubDate>Wed, 26 Apr 2017 00:00:00 +0000</pubDate>
+        <pubDate>Wed, 26 Apr 2017 00:00:00 +0100</pubDate>
         <link>http://artsy.github.io/blog/2017/04/26/Relay-Mutations/</link>
         <guid isPermaLink="true">http://artsy.github.io/blog/2017/04/26/Relay-Mutations/</guid>
         
@@ -734,7 +959,7 @@
 
 &lt;p&gt;We notably sort works by iconicity in &lt;a href=&quot;https://www.artsy.net/search?q=banksy&quot;&gt;search results&lt;/a&gt; and in the carousel on top of artist pages. We also have made it available in our &lt;a href=&quot;https://developers.artsy.net&quot;&gt;public API&lt;/a&gt;.&lt;/p&gt;
 </description>
-        <pubDate>Fri, 21 Apr 2017 00:00:00 +0000</pubDate>
+        <pubDate>Fri, 21 Apr 2017 00:00:00 +0100</pubDate>
         <link>http://artsy.github.io/blog/2017/04/21/calculating-the-importance-of-an-artwork-with-apache-spark/</link>
         <guid isPermaLink="true">http://artsy.github.io/blog/2017/04/21/calculating-the-importance-of-an-artwork-with-apache-spark/</guid>
         
@@ -921,7 +1146,7 @@
 
 &lt;p&gt;If you&#39;re interested in helping us make this an even longer post in two more years, or &lt;em&gt;more interestingly&lt;/em&gt; shorter - we nearly always have a &lt;a href=&quot;https://www.artsy.net/jobs&quot;&gt;position open for engineers&lt;/a&gt;.&lt;/p&gt;
 </description>
-        <pubDate>Fri, 14 Apr 2017 00:00:00 +0000</pubDate>
+        <pubDate>Fri, 14 Apr 2017 00:00:00 +0100</pubDate>
         <link>http://artsy.github.io/blog/2017/04/14/artsy-technology-stack-2017/</link>
         <guid isPermaLink="true">http://artsy.github.io/blog/2017/04/14/artsy-technology-stack-2017/</guid>
         
@@ -1242,7 +1467,7 @@ Xcode updates, &lt;a href=&quot;http://stackoverflow.com/questions/4057241/iphon
 &lt;p&gt;So would I move &lt;a href=&quot;https://github.com/artsy/eigen&quot;&gt;Eigen&lt;/a&gt; to match? Maybe, next time something breaks. Till then I think new apps, and less-often updated
 apps should use match.&lt;/p&gt;
 </description>
-        <pubDate>Wed, 05 Apr 2017 12:17:00 +0000</pubDate>
+        <pubDate>Wed, 05 Apr 2017 12:17:00 +0100</pubDate>
         <link>http://artsy.github.io/blog/2017/04/05/what-is-fastlane-match/</link>
         <guid isPermaLink="true">http://artsy.github.io/blog/2017/04/05/what-is-fastlane-match/</guid>
         
@@ -1597,7 +1822,7 @@ apps should use match.&lt;/p&gt;
 
 &lt;p&gt;We schedule a workflow for each sitemap in Spark with Oozie. Each sitemap job completes in under 5 minutes, which is pretty remarkable given where we started. It will also easily scale to many multiples of our current size as our data continues to grow.&lt;/p&gt;
 </description>
-        <pubDate>Sun, 02 Apr 2017 00:00:00 +0000</pubDate>
+        <pubDate>Sun, 02 Apr 2017 00:00:00 +0100</pubDate>
         <link>http://artsy.github.io/blog/2017/04/02/generating-sitemaps-with-apache-spark/</link>
         <guid isPermaLink="true">http://artsy.github.io/blog/2017/04/02/generating-sitemaps-with-apache-spark/</guid>
         
@@ -2677,478 +2902,6 @@ E.g. in our case this will represent &lt;code&gt;/artist/:artistID&lt;/code&gt;.
         <category>swift</category>
         
         <category>uikit</category>
-        
-      </item>
-    
-      <item>
-        <title>Exploration: Front-end JavaScript at Artsy in 2017</title>
-        <description>&lt;center&gt;
- &lt;img src=&quot;/images/js2017/js.svg&quot; style=&quot;width:300px;&quot;&gt;
-&lt;/center&gt;
-
-
-&lt;p&gt;The Artsy web team have been early adopters of node, and for the last 4 years the stable stack for the Artsy website has been predominantly been Node + CoffeeScript + Express + Backbone. In 2016 the mobile team &lt;a href=&quot;/blog/2016/08/15/React-Native-at-Artsy/&quot;&gt;announced&lt;/a&gt; that it had moved to React Native, matching the web team as using JavaScript as the tools of their trade.&lt;/p&gt;
-
-&lt;p&gt;Historically we have always had two separate dev teams for building Artsy.net and the corresponding iOS app, we call them (Art) Collector Web, and Collector Mobile. By the end of 2016 we decided to merge the teams. The merger has given way to a whole plethora of ideas about what contemporary JavaScript looks like and we&#39;ve been experimenting with finding common, natural patterns between web and native.&lt;/p&gt;
-
-&lt;p&gt;This post tries to encapsulate what we consider to be our consolidated stack for web/native Artsy in 2017.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;TLDR:&lt;/strong&gt; &lt;a href=&quot;#TypeScript&quot;&gt;TypeScript&lt;/a&gt;, &lt;a href=&quot;#GraphQL&quot;&gt;GraphQL&lt;/a&gt;, &lt;a href=&quot;#React...React.Native&quot;&gt;React/React Native&lt;/a&gt;, &lt;a href=&quot;#Relay&quot;&gt;Relay&lt;/a&gt;, &lt;a href=&quot;#Yarn&quot;&gt;Yarn&lt;/a&gt;, &lt;a href=&quot;#Jest&quot;&gt;Jest&lt;/a&gt;, and &lt;a href=&quot;#Visual.Studio.Code&quot;&gt;Visual Studio Code&lt;/a&gt;.&lt;/p&gt;
-
-&lt;!-- more --&gt;
-
-
-&lt;a name=&quot;Overview&quot;&gt;&lt;/a&gt;
-&lt;h2&gt;Overview&lt;/h2&gt;
-
-&lt;p&gt;Our web stack has been &lt;a href=&quot;/blog/2013/11/30/rendering-on-the-server-and-client-in-node-dot-js/&quot;&gt;ezel.js&lt;/a&gt; since 2013, and continues to be a mature and well thought out technology. Since then, there has been explorations on a successor to that framework using React and GraphQL with &lt;a href=&quot;https://github.com/muraljs/mural&quot;&gt;muraljs&lt;/a&gt;. However, since the merger, a lot more of our focus has been on trying to find something that feels similar on both React and React Native.&lt;/p&gt;
-
-&lt;center&gt;
- &lt;img src=&quot;/images/js2017/ts.svg&quot; style=&quot;width:300px;&quot;&gt;
-&lt;/center&gt;
-
-
-&lt;a name=&quot;TypeScript&quot;&gt;&lt;/a&gt;
-&lt;h2&gt;TypeScript&lt;/h2&gt;
-
-&lt;p&gt;&lt;a href=&quot;http://www.typescriptlang.org&quot;&gt;TypeScript&lt;/a&gt; and &lt;a href=&quot;https://flowtype.org/&quot;&gt;Flow&lt;/a&gt; really moved JavaScript forwards in the last few years. They both tackle the essential problems of &quot;how can I trust my code does what I think&quot;, &quot;how can I be sure of this change&quot; and &quot;how can I build better tools for JavaScript&quot; in different ways.&lt;/p&gt;
-
-&lt;p&gt;Yes, the title of this section is TypeScript and yet I instantly include Flow. I don&#39;t think you can, or should talk about TypeScript without understanding it&#39;s relationship to Flow.&lt;/p&gt;
-
-&lt;p&gt;Both &lt;a href=&quot;http://www.typescriptlang.org/play/#src=function%20addNumbers(first%3A%20number%2C%20second%3A%20number)%20%7B%0D%0A%09return%20first%20%2B%20second%0D%0A%7D%0D%0A%0D%0AaddNumbers(1%2C%202)%0D%0A&quot;&gt;TypeScript&lt;/a&gt; and &lt;a href=&quot;https://flowtype.org/docs/five-simple-examples.html#adding-type-annotations&quot;&gt;Flow&lt;/a&gt; provide a structure for applying Types to JavaScript.&lt;/p&gt;
-
-&lt;p&gt;Both &lt;a href=&quot;http://www.typescriptlang.org/play/#src=var%20one%20%3D%201%0D%0A%0D%0Aone%20%3D%20%22%22%0D%0A&quot;&gt;TypeScript&lt;/a&gt; and &lt;a href=&quot;https://flowtype.org/docs/classes.html#type-annotations-vs-inference&quot;&gt;Flow&lt;/a&gt; will infer typing metadata from untyped data.&lt;/p&gt;
-
-&lt;p&gt;Both &lt;a href=&quot;https://www.npmjs.com/%7Etypes&quot;&gt;TypeScript&lt;/a&gt; and &lt;a href=&quot;https://github.com/flowtype/flow-typed&quot;&gt;Flow&lt;/a&gt; have systems for applying types to node modules.&lt;/p&gt;
-
-&lt;p&gt;We initially went with Flow, as Flow is a &lt;a href=&quot;https://discuss.reactjs.org/t/if-typescript-is-so-great-how-come-all-notable-reactjs-projects-use-babel/4887&quot;&gt;considerably easier sell&lt;/a&gt; to others, as it integrates inside existing JavaScript projects with less issues. Flow acts as a separate tool to a babel-based JavaScript project, whereas TypeScript is a full on replacement for that tooling.&lt;/p&gt;
-
-&lt;p&gt;&lt;em&gt;Why bother though?&lt;/em&gt; JavaScript has existed for decades without type annotations, and everyone seems to have got on pretty well. One of the key features that a typing system gives you is top-notch tooling. An editor can use the type interfaces to provide auto-completion, inline documentation and inline warning/errors as you work. Type systems will help catch errors before you have even pressed save.&lt;/p&gt;
-
-&lt;p&gt;&lt;/div&gt;&lt;/div&gt;&lt;a href=&#39;/images/js2017/types.png&#39;&gt;&lt;img src=&quot;/images/js2017/types.png&quot;&gt;&lt;/a&gt;&lt;div class=&#39;meta-container&#39;&gt;&lt;header&gt;&amp;nbsp;&lt;/header&gt;&lt;/div&gt;&lt;div class=&#39;date-container&#39;&gt;&amp;nbsp;&lt;/div&gt;&lt;div class=&#39;content-container&#39;&gt;&lt;div class=&#39;entry-content&#39;&gt;&lt;/p&gt;
-
-&lt;p&gt;What works really well for typed JavaScript is that you can easily opt out of it when you need to. Then you&#39;re back to normal &quot;do whatever you want&quot; JavaScript land, no problem.&lt;/p&gt;
-
-&lt;p&gt;We moved from Flow simply because TypeScript had better integration with &lt;a href=&quot;https://code.visualstudio.com&quot;&gt;Visual Studio Code&lt;/a&gt; (VS Code). For a few months I devoted time to improving the Flow integration in VS Code, and tried learning OCaml to help out on the &lt;a href=&quot;https://github.com/facebook/flow&quot;&gt;Flow tool&lt;/a&gt; itself. In the end though, when we compared to how solid VS Code felt with TypeScript - we decided it was worth converting our projects.&lt;/p&gt;
-
-&lt;p&gt;Both TypeScript and Flow provide nearly every Type structure found inside Objective-C and Swift, so teaching the rest of the team how they work is easy from our native experiences.&lt;/p&gt;
-
-&lt;p&gt;&lt;a name=&quot;TypeScript-Extension&quot;&gt;&lt;/a&gt;One particularly interesting part of TypeScript that we are keeping our eyes on is this &lt;a href=&quot;https://github.com/Microsoft/TypeScript/issues/6508&quot;&gt;language extensibility issue&lt;/a&gt;, if it turns out well, we will be looking into integrating the other technologies mentioned here into TypeScript itself.&lt;/p&gt;
-
-&lt;center&gt;
- &lt;img src=&quot;/images/js2017/graphql.svg&quot; style=&quot;width:300px;&quot;&gt;
-&lt;/center&gt;
-
-
-&lt;a name=&quot;GraphQL&quot;&gt;&lt;/a&gt;
-&lt;h2&gt;GraphQL&lt;/h2&gt;
-
-&lt;p&gt;GraphQL is a way to handle API requests. I consider it the successor to REST when working with front-end clients. A big claim, yeah. So, what is it?&lt;/p&gt;
-
-&lt;p&gt;Officially &lt;a href=&quot;https://github.com/facebook/graphql&quot;&gt;GraphQL is a specification&lt;/a&gt;. A server can conform to the GraphQL spec, and then clients can make queries against it. Think of it a bit like how SQL is a standardized way of doing database queries across multiple databases types.&lt;/p&gt;
-
-&lt;p&gt;As a client, you &lt;a href=&quot;https://github.com/artsy/eigen/blob/dac7c80b66b600f9a45aaae6095544fe420f0bbc/Artsy/Networking/ARRouter.m#L1011&quot;&gt;send&lt;/a&gt; a &quot;&lt;a href=&quot;http://graphql.org/docs/getting-started/#queries&quot;&gt;JSON-shaped query&lt;/a&gt;&quot; structure, which is hierarchical and easy to read:&lt;/p&gt;
-
-&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;6&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;7&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;8&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;9&lt;/span&gt;
-&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;json&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;err&quot;&gt;artwork(id:&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;&amp;quot;kimber-berry-as-close-to-magic-as-you-can-get&amp;quot;&lt;/span&gt;&lt;span class=&quot;err&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;err&quot;&gt;id&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;err&quot;&gt;additional_information&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;err&quot;&gt;is_price_hidden&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;err&quot;&gt;is_inquireable&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
-
-
-&lt;blockquote&gt;&lt;p&gt;This will search for a &lt;a href=&quot;https://www.artsy.net/artwork/kimber-berry-as-close-to-magic-as-you-can-get&quot;&gt;specific artwork&lt;/a&gt;, with the response JSON as the Artwork&#39;s &lt;code&gt;id&lt;/code&gt;, &lt;code&gt;additional_information&lt;/code&gt;, &lt;code&gt;is_price_hidden&lt;/code&gt; and &lt;code&gt;is_inquireable&lt;/code&gt;.&lt;/p&gt;&lt;/blockquote&gt;
-
-&lt;p&gt;It&#39;s important to note here, the data being sent &lt;em&gt;back&lt;/em&gt; is specifically  what you ask for. This is not defined on the server as a &lt;em&gt;short&lt;/em&gt; or &lt;em&gt;embedded&lt;/em&gt; version of a model, but the specific data the client requested. When bandwidth and speed is crucial, this is the other way in which GraphQL vastly improves an app-user&#39;s experience.&lt;/p&gt;
-
-&lt;p&gt;This is in stark contrast to other successors to REST APIs, the hypermedia APIs, like &lt;a href=&quot;http://stateless.co/hal_specification.html&quot;&gt;HAL&lt;/a&gt; and &lt;a href=&quot;http://jsonapi.org&quot;&gt;JSON-API&lt;/a&gt; - both of which are optimised for caching, and rely on &quot;one model, one request&quot; types of API access. E.g. a list of Artworks would actually contain a list of hrefs instead of the model data, and you have to fetch each model in a separate request.&lt;/p&gt;
-
-&lt;p&gt;Hypermedia APIs have a really useful space in cross-server communications, but are extremely wasteful of the most precious resource for a front-end device - bandwidth. &lt;a href=&quot;latency&quot;&gt;Latency matters considerably&lt;/a&gt;, on mobile where bandwidth is spotty, and attention spans are short you need to do everything possible to show more than a loading spinner.&lt;/p&gt;
-
-&lt;p&gt;I have previously explored our usage of GraphQL from the perspective of a native developer &lt;a href=&quot;/blog/2016/06/19/graphql-for-mobile/&quot;&gt;in 2016&lt;/a&gt;. So I&#39;ll leave that post to describe our implementation of a GraphQL server.&lt;/p&gt;
-
-&lt;p&gt;One exciting movement in the space of GraphQL is &lt;a href=&quot;https://githubengineering.com/the-github-graphql-api/&quot;&gt;GitHub moving to GraphQL&lt;/a&gt; for their new APIs.&lt;/p&gt;
-
-&lt;center&gt;
- &lt;img src=&quot;/images/react-native/artsy_react_logo.svg&quot; style=&quot;width:300px;&quot;&gt;
-&lt;/center&gt;
-
-
-&lt;a name=&quot;React...React.Native&quot;&gt;&lt;/a&gt;
-&lt;h2&gt;React / React Native&lt;/h2&gt;
-
-&lt;p&gt;React is a Facebook project which offers a uni-direction Component model that &lt;em&gt;can&lt;/em&gt; replace MVC in a front-end application. React was built out of a desire to abstract away a web page&#39;s true view hierarchy (called the DOM) so that they could make changes to the view in memory and then React would handle finding the differences between view states.&lt;/p&gt;
-
-&lt;p&gt;You create a set of Components to encapsulate each part of the state of the page. React makes it easy to make components that are functional in the &lt;a href=&quot;https://en.wikipedia.org/wiki/functional_reactive_programming&quot;&gt;Functional Reactive Programming&lt;/a&gt; sense. They act like a function which takes some specially declared state and it is rendered into HTML.&lt;/p&gt;
-
-&lt;p&gt;A component optionally uses a language called &lt;a href=&quot;#jsx&quot;&gt;JSX&lt;/a&gt; to visualise how each component&#39;s child components are set up, here&#39;s an example of a React component using JSX &lt;a href=&quot;https://github.com/artsy/emission/blob/c558323e4276699925b4edb3d448812005ae6b5d/lib/components/home/search_bar.js&quot;&gt;from Emission, our React Native library&lt;/a&gt;:&lt;/p&gt;
-
-&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;6&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;7&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;8&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;9&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;10&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;11&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;12&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;13&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;14&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;15&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;16&lt;/span&gt;
-&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;js&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;kr&quot;&gt;export&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;default&lt;/span&gt; &lt;span class=&quot;kr&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;SearchBar&lt;/span&gt; &lt;span class=&quot;kr&quot;&gt;extends&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;React&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;Component&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nx&quot;&gt;render&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;TouchableWithoutFeedback&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;onPress&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;this&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;handleTap&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;bind&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;this&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)}&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;        &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;View&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;style&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;styles&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;container&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;          &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;Image&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;style&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;styles&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;searchIcon&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;source&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;require&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;../../../images/SearchButton.png&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)}&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;/&amp;gt;&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;          &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;Text&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;style&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;styles&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;text&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;Search&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;artists&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;artworks&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;...&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;err&quot;&gt;/Text&amp;gt;&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;        &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;err&quot;&gt;/View&amp;gt;&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;err&quot;&gt;/TouchableWithoutFeedback&amp;gt;&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nx&quot;&gt;handleTap&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nx&quot;&gt;Switchboard&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;presentModalViewController&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;this&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;/search&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
-
-
-&lt;p&gt;By providing a well encapsulated Component model, you can aggressively reduce the amount of redundant code you need to build an application. By not initially writing to the DOM, React can decide what has changed between user actions and that means you have to juggle significantly less state.&lt;/p&gt;
-
-&lt;p&gt;We can then build on React via React-Native to allow the same style of code to exist inside the mobile sphere, where typically you have had unique languages and tooling.&lt;/p&gt;
-
-&lt;p&gt;React Native is an implementation of React where instead of having React&#39;s virtual DOM map to a web page&#39;s DOM, it creates a native view hierarchy. In the case of iOS that is a &lt;code&gt;UIView&lt;/code&gt; hierarchy, and in Android, a &lt;code&gt;View&lt;/code&gt; hierarchy.&lt;/p&gt;
-
-&lt;p&gt;If you&#39;d like to find out why the iOS team moved to React Native, check our &lt;a href=&quot;/series/react-native-at-artsy/&quot;&gt;series of posts on React Native&lt;/a&gt;.&lt;/p&gt;
-
-&lt;center&gt;
- &lt;img src=&quot;/images/js2017/relay.svg&quot; style=&quot;width:300px;&quot;&gt;
-&lt;/center&gt;
-
-
-&lt;a name=&quot;Relay&quot;&gt;&lt;/a&gt;
-&lt;h2&gt;Relay&lt;/h2&gt;
-
-&lt;p&gt;Any front-end client has a lot of work to do on every page:&lt;/p&gt;
-
-&lt;ul&gt;
-&lt;li&gt;Fetching all the data for a view hierarchy.&lt;/li&gt;
-&lt;li&gt;Managing asynchronous state transitions and coordinating concurrent requests.&lt;/li&gt;
-&lt;li&gt;Managing errors.&lt;/li&gt;
-&lt;li&gt;Retrying failed requests.&lt;/li&gt;
-&lt;li&gt;Updating the local cache after receiving new results/changes the server objects responses.&lt;/li&gt;
-&lt;li&gt;Optimistically updating the UI while waiting for the server to respond to mutations.&lt;/li&gt;
-&lt;/ul&gt;
-
-
-&lt;p&gt;This is typically handled in a per-page basis, for example the API details, and state management between a Gene page, and an Artist page are different. In part because they have different data-models, but also that they have different correlated data. However, they do share a lot of the common responsibilities mentioned above. In our native side, we struggled to find abstractions that would work across multiple pages. Relay fixes this, and does it in a shockingly elegant way.&lt;/p&gt;
-
-&lt;p&gt;Relay is a framework for building data-driven React apps which relies on a deep connection to GraphQL. You wrap your React components inside a Relay container, which handles the networking and setting the state for your component.&lt;/p&gt;
-
-&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;6&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;7&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;8&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;9&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;10&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;11&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;12&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;13&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;14&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;15&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;16&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;17&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;18&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;19&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;20&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;21&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;22&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;23&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;24&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;25&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;26&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;27&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;28&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;29&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;30&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;31&lt;/span&gt;
-&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;js&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;c1&quot;&gt;// This is a normal React component, taken directly from our app&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;c1&quot;&gt;// It will optionally show a description if one exists on a gene.&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;kr&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;Biography&lt;/span&gt; &lt;span class=&quot;kr&quot;&gt;extends&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;React&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;Component&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nx&quot;&gt;render&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;kr&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;gene&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;this&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;props&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;gene&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;!&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;gene&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;description&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;kc&quot;&gt;null&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;View&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;        &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;SerifText&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;style&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;styles&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;blurb&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;numberOfLines&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;gene&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;description&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;err&quot;&gt;/SerifText&amp;gt;&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;err&quot;&gt;/View&amp;gt;&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;c1&quot;&gt;// Take the above component `Biography`, and wrap it with a Relay Container.&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;c1&quot;&gt;// Then provide what parts of a GraphQL request the `Biography` needs&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;kr&quot;&gt;export&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;default&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;Relay&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;createContainer&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;Biography&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nx&quot;&gt;fragments&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nx&quot;&gt;gene&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;Relay&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;QL&lt;/span&gt;&lt;span class=&quot;err&quot;&gt;`&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;nx&quot;&gt;fragment&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;on&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;Gene&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;        &lt;span class=&quot;nx&quot;&gt;description&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;err&quot;&gt;`&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;})&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;c1&quot;&gt;// When the `Biography` component is rendered, the component is given props of &lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;c1&quot;&gt;// `gene` with a `description` by the Relay container. &lt;/span&gt;
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
-
-
-&lt;p&gt;Relay handles this by having each component in your view hierarchy exposing the fragments of a GraphQL query. There is a pre-render stage where all of your components fragments are brought together to make a single API request. So in the case of the Gene, it may look something like:&lt;/p&gt;
-
-&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;6&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;7&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;8&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;9&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;10&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;11&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;12&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;13&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;14&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;15&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;16&lt;/span&gt;
-&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;json&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;err&quot;&gt;gene(id:&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;&amp;quot;the-fantastic&amp;quot;&lt;/span&gt;&lt;span class=&quot;err&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;err&quot;&gt;//&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;could&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;have&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;come&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;the&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;root&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;component&amp;#39;s&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;fragment&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;err&quot;&gt;id&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;err&quot;&gt;name&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;err&quot;&gt;//&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;came&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;the&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;above&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;Header&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;fragment&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;err&quot;&gt;description&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;err&quot;&gt;//&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;could&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;have&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;come&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;a&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;RelatedArtists&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;component&amp;#39;s&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;fragment&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;err&quot;&gt;trending_artists&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;{&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;err&quot;&gt;name&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;err&quot;&gt;href&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;err&quot;&gt;}&lt;/span&gt;
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
-
-
-&lt;p&gt;&lt;/p&gt;
-
-&lt;p&gt;The data is first looked up inside Relay&#39;s local cache, and then any un-cached items are requested from the network. The results of the query is then moved into the component via it&#39;s props. Relay will only provide the specific data each component has requested. So the &lt;code&gt;Header&lt;/code&gt; component would get nothing for &lt;code&gt;this.props.gene.name&lt;/code&gt;. This data-masking is a great way of ensuring the connection between component and API.&lt;/p&gt;
-
-&lt;p&gt;I&#39;d strongly recommend taking the dive into both the &lt;a href=&quot;https://facebook.github.io/relay/docs/thinking-in-graphql.html&quot;&gt;Thinking with GraphQL&lt;/a&gt; and then &lt;a href=&quot;https://facebook.github.io/relay/docs/thinking-in-relay.html&quot;&gt;Thinking with Relay&lt;/a&gt; tutorials to learn more. Finally, &lt;a href=&quot;https://www.learnrelay.org&quot;&gt;Learn Relay&lt;/a&gt; and &lt;a href=&quot;https://sgwilym.github.io/relay-visual-learners/&quot;&gt;Relay for Visual Learners&lt;/a&gt; are great tutorials to help you get comfortable with the concepts.&lt;/p&gt;
-
-&lt;center&gt;
- &lt;img src=&quot;/images/js2017/yarn.svg&quot; style=&quot;width:300px;&quot;&gt;
-&lt;/center&gt;
-
-
-&lt;a name=&quot;Yarn&quot;&gt;&lt;/a&gt;
-&lt;h2&gt;Yarn&lt;/h2&gt;
-
-&lt;p&gt;I have a lot of respect for NPM, their scale is &lt;a href=&quot;http://blog.npmjs.org/post/143451680695/how-many-npm-users-are-there&quot;&gt;through the roof&lt;/a&gt;. They built out the foundations for a massive, thriving community. They did a great job. Like a lot of the JavaScript ecosystem, their tooling allows you to get away with a lot of things. You can have the same dependency inside the app with multiple versions, or apps with a dependency tree that is different each time you run &lt;code&gt;npm install&lt;/code&gt;.&lt;/p&gt;
-
-&lt;p&gt;We have multiple engineers who have worked on a dependency manager for half a decade, having indeterminate builds in JavaScript was something that worried us greatly. Luckily, there is &lt;a href=&quot;https://yarnpkg.com&quot;&gt;Yarn&lt;/a&gt;.&lt;/p&gt;
-
-&lt;p&gt;Yarn is a Facebook project that replaces the NPM &lt;a href=&quot;https://en.wikipedia.org/wiki/Command-line_interface&quot;&gt;cli&lt;/a&gt; client. It&#39;s very new, so unlike NPM it does not have to worry about backwards compatibility. It is what I&#39;d imagine a fresh re-write of the NPM cli would look like.&lt;/p&gt;
-
-&lt;p&gt;Yarn is significantly faster, has a determinate process for setting up projects and uses a lockfile by default to ensure everyone using the project gets the exact same dependency tree. It uses NPM as a server, and so you get the same node modules as with the NPM cli.&lt;/p&gt;
-
-&lt;p&gt;Sometimes Yarn gives you pleasant surprises too, my favourite being that &lt;code&gt;yarn [x]&lt;/code&gt; will check to see if that is a local command that you could run, saving a bunch of redundant settings.&lt;/p&gt;
-
-&lt;p&gt;Converting a codebase can be as simple as going into your project and running:&lt;/p&gt;
-
-&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
-&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;sh&#39;&gt;&lt;span class=&#39;line&#39;&gt;npm install -g yarn
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;yarn install
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
-
-
-&lt;p&gt;Now you have a lockfile, and are using yarn. Awesome, if you are migrating from a project with a shrink-wrap - I have a script which will generate a summary of the changes for you: &lt;a href=&quot;https://gist.github.com/orta/cb6d0b8256852c1f01ecf1d803b664c9&quot;&gt;script&lt;/a&gt;, &lt;a href=&quot;https://github.com/artsy/metaphysics/pull/479&quot;&gt;example&lt;/a&gt;.&lt;/p&gt;
-
-&lt;center&gt;
- &lt;img src=&quot;/images/js2017/jest.svg&quot; style=&quot;width:300px;&quot;&gt;
-&lt;/center&gt;
-
-
-&lt;a name=&quot;Jest&quot;&gt;&lt;/a&gt;
-&lt;h2&gt;Jest&lt;/h2&gt;
-
-&lt;p&gt;One of the things that I find particularly pleasant about the JavaScript ecosystem are their testing tools. With our React Native, we came into the ecosystem with fresh eyes, and it was pretty obvious that Jest was an exceptional testing framework. I hear historically Jest has been a bit meh, but it is without a doubt worth another look.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;The watcher&lt;/strong&gt; - The majority of your usage of Jest is with it running in watcher mode. This mode uses your git diff as a seed for what to run tests against. Jest will use that diff to define all the files that the changed code touches, and then all of the tests that cover those files.&lt;/p&gt;
-
-&lt;p&gt;For example, I make a change in one source file and 60 tests run from 6 different test suites. Finishing in under a second.&lt;/p&gt;
-
-&lt;p&gt;&lt;/div&gt;&lt;/div&gt;&lt;a href=&#39;/images/js2017/jest-watcher.gif&#39;&gt;&lt;img src=&quot;/images/js2017/jest-watcher.gif&quot;&gt;&lt;/a&gt;&lt;div class=&#39;meta-container&#39;&gt;&lt;header&gt;&amp;nbsp;&lt;/header&gt;&lt;/div&gt;&lt;div class=&#39;date-container&#39;&gt;&amp;nbsp;&lt;/div&gt;&lt;div class=&#39;content-container&#39;&gt;&lt;div class=&#39;entry-content&#39;&gt;&lt;/p&gt;
-
-&lt;p&gt;Not all tests are as important to a run, so Jest also keeps track of which tests failed last time and will run those first next time. This reduces iteration time considerably.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Fast and safe&lt;/strong&gt; - You think the watcher is smart? Well the way Jest handle test suites is also extremely elegant. Jest keeps track of how long each test suite took to run, and then will weigh the test suites across different processes in order to speed up the overall test suite. If Jest thinks they&#39;re all going to be really quick (like my GIF above) they will all happen in one process, as that can also be faster.&lt;/p&gt;
-
-&lt;p&gt;Each test suite is an entirely sandboxed node virtual machine, so you cannot have tests influencing each other.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Snapshots&lt;/strong&gt; - Jest provides a concept called snapshots, which provides an easy way to compare JavaScript objects. One place where this really shines is with React components. &lt;a href=&quot;https://github.com/artsy/emission/blob/ec565b8492540b4e33066364b415c7906ec1e028/lib/containers/__tests__/gene-tests.js#L121-L158&quot;&gt;For example&lt;/a&gt;:&lt;/p&gt;
-
-&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;6&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;7&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;8&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;9&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;10&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;11&lt;/span&gt;
-&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;js&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;nx&quot;&gt;it&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;looks like expected&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;kr&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;props&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;nx&quot;&gt;gene&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{...}&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;kr&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;tree&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;renderer&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;create&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;Gene&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;geneID&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;props&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;gene&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;medium&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;painting&amp;quot;&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;price_range&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;*-100000&amp;quot;&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;gene&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;props&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;gene&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;/&amp;gt;&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;p&quot;&gt;).&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;toJSON&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nx&quot;&gt;expect&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;tree&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;).&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;toMatchSnapshot&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;})&lt;/span&gt;
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
-
-
-&lt;p&gt;Now we will get a test failure when any changes happen in the component tree. For example, if I changed the background color to &lt;code&gt;blue&lt;/code&gt; from &lt;code&gt;white&lt;/code&gt;. I get a fail like this:&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;/images/js2017/jest-snapshots.png&quot; style=&quot;width:100%&quot;&gt;&lt;/p&gt;
-
-&lt;p&gt;While that example is trivial, we really want to have tests like this to ensure we understand how changes propagate throughout the app.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;No config&lt;/strong&gt; - When we first integrated Jest, we had no config. Now, to make sure that TypeScript works how we&#39;d like, we require some setup. However, having smart defaults which works in most cases say a lot about the care and attention paid to Developer Experience from the Jest team. The documentation covers default integrations for: Babel, TypeScript and webpack. Three of the biggest modern tools for getting stuff done with node.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Comprehensive API&lt;/strong&gt; - Snapshots, watchers, custom matchers, useful JSON output, ESLint linters, Elegant Mocking tools and natural support for async code. All in one project.&lt;/p&gt;
-
-&lt;p&gt;If you&#39;re interested, there is a lot of work around automating the migration between different testing frameworks in &lt;a href=&quot;https://github.com/skovhus/jest-codemods&quot;&gt;jest-codemods&lt;/a&gt; - getting started has never been easier. I&#39;d also recommend looking at &lt;a href=&quot;https://wallabyjs.com&quot;&gt;wallaby.js&lt;/a&gt; and &lt;a href=&quot;https://github.com/orta/vscode-jest&quot;&gt;vscode-jest&lt;/a&gt; for tooling.&lt;/p&gt;
-
-&lt;center&gt;
- &lt;img src=&quot;/images/vscode/vscode_logo_artsy.svg&quot; style=&quot;width:300px;&quot;&gt;
-&lt;/center&gt;
-
-
-&lt;a name=&quot;Visual.Studio.Code&quot;&gt;&lt;/a&gt;
-&lt;h2&gt;Visual Studio Code&lt;/h2&gt;
-
-&lt;p&gt;Had you told me two years ago that my main editor would be a JavaScript app, I&#39;d have bought you a beer for such a great joke.&lt;/p&gt;
-
-&lt;p&gt;Visual Studio Code was the app that changed my mind.&lt;/p&gt;
-
-&lt;p&gt;I&#39;ve done a longer write up on the how and why we use VS Code in &lt;a href=&quot;/blog/2016/08/15/vscode/&quot;&gt;JavaScript projects&lt;/a&gt;, however here I&#39;d like to consider the cultural aspect of the choice. It&#39;s common practice among web technologists to all have different editors on a project, and for their editors to generally do little work for them. A lot of this culture came from the TextMate and Rails days with the infamous &lt;a href=&quot;https://twitter.com/dhh/status/492706473936314369?lang=en&quot;&gt;blog in 15 minutes video&lt;/a&gt;. When I was a web developer, I also did this.&lt;/p&gt;
-
-&lt;p&gt;When you spend a lot of time in a &lt;a href=&quot;https://developer.apple.com/xcode/&quot;&gt;powerful IDE&lt;/a&gt;, it gets pretty hard to go back to a bare-bones editor. VS Code sits at a good (just past) half-way point between text editor and IDE. You can get a lot of the flexibility from a text editor, making it good for one off files and IDEs where you have fully spec&#39;d out projects.&lt;/p&gt;
-
-&lt;p&gt;Being able to have project specific setups is where VS Code really starts to shine. One thing that is working well for us is to gradually add project settings for our apps, first we add the ability to run tests with an attached debugger by adding a &lt;code&gt;launch.json&lt;/code&gt;:&lt;/p&gt;
-
-&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;6&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;7&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;8&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;9&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;10&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;11&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;12&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;13&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;14&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;15&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;16&lt;/span&gt;
-&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;json&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nt&quot;&gt;&amp;quot;name&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;Run Tests With Debugger (slower, use yarn for normal work)&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nt&quot;&gt;&amp;quot;type&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;node2&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nt&quot;&gt;&amp;quot;request&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;launch&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nt&quot;&gt;&amp;quot;port&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;5858&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nt&quot;&gt;&amp;quot;address&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;localhost&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nt&quot;&gt;&amp;quot;sourceMaps&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;kc&quot;&gt;true&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nt&quot;&gt;&amp;quot;stopOnEntry&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;kc&quot;&gt;false&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nt&quot;&gt;&amp;quot;runtimeExecutable&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;kc&quot;&gt;null&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nt&quot;&gt;&amp;quot;runtimeArgs&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;s2&quot;&gt;&amp;quot;--debug-brk&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;s2&quot;&gt;&amp;quot;./node_modules/.bin/jest&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;s2&quot;&gt;&amp;quot;-i&amp;quot;&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;p&quot;&gt;],&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nt&quot;&gt;&amp;quot;cwd&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;${workspaceRoot}&amp;quot;&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
-
-
-&lt;p&gt;With this we can showcase how easy it is to use an inline debugger with source-maps, when working with tricky test logic. No more &lt;code&gt;console.log&lt;/code&gt;. That&#39;s usually a great way to start moving everyone to a consistent environment. Then we add &lt;a href=&quot;https://code.visualstudio.com/updates/v1_6#_workspace-extension-recommendations&quot;&gt;recommended extensions&lt;/a&gt; to the project.&lt;/p&gt;
-
-&lt;p&gt;Trying to set a consistent  development environment might sound a bit corporate for a ~25 person dev team, but one chief advantage is that you can feel comfortable taking time at work to improve your tooling knowing it will improve the tooling of everyone else on your team.&lt;/p&gt;
-
-&lt;p&gt;I&#39;ve been exploring a consolidated &lt;a href=&quot;https://github.com/artsy/vscode-artsy&quot;&gt;Artsy VS Code&lt;/a&gt; extension to handle extension dependencies and small tasks, but it&#39;s still early days. It&#39;s awesome that I can even think at that level of abstraction though.&lt;/p&gt;
-
-&lt;a name=&quot;End&quot;&gt;&lt;/a&gt;
-&lt;h3&gt;End&lt;/h3&gt;
-
-&lt;p&gt;None of these technologies are under a year old, all of them have adoption by substantial amount of companies. Nothing feels  either controversial or novel. This is great. It feels like a lot of the interesting work for us so far has been around improving the spaces between the projects: Finding improvements for generating types &lt;a href=&quot;https://github.com/avantcredit/gql2ts/blob/master/Changelog.md&quot;&gt;from GraphQL&lt;/a&gt; or &lt;a href=&quot;https://github.com/alloy/relay2ts&quot;&gt;Relay&lt;/a&gt;, adding &lt;a href=&quot;https://github.com/facebook/jest/commit/e597e5c46f8f4925d9a10c73d8eab05a2c4b8bc3&quot;&gt;editor support to jest&lt;/a&gt;, adding Danger to &lt;a href=&quot;https://github.com/facebook/jest/pull/2508&quot;&gt;our dependencies&lt;/a&gt; and improving our &lt;a href=&quot;https://github.com/orta/vscode-react-native-storybooks&quot;&gt;tooling&lt;/a&gt; &lt;a href=&quot;https://github.com/orta/vscode-jest&quot;&gt;for&lt;/a&gt; &lt;a href=&quot;https://github.com/alloy/vscode-relay&quot;&gt;vscode&lt;/a&gt;. The front-end is still a pretty small dev team, so we want to do high impact, small projects that can make our tools drastically better.&lt;/p&gt;
-
-&lt;p&gt;React, React-Native, Jest, Yarn are all big Facebook projects. In the iOS world, there is a sense of wariness around building an app so heavily around Facebook tech, based on &lt;a href=&quot;http://joehewitt.com/2009/03/23/the-three20-project&quot;&gt;three20&lt;/a&gt; - which I think is a bit unfair. From my perspective, determining whether you should have something as a dependency &lt;a href=&quot;/blog/2015/09/18/Cocoa-Architecture-Dependencies/&quot;&gt;should be nuanced&lt;/a&gt;, but at a minimum you should feel like you can contribute bug fixes and ideally you should be able to maintain the project if it needs it. With Facebook projects, they&#39;ve shown to be really open to PRs and discussion, and our work in them makes us feel comfortable to maintain a fork if needed.&lt;/p&gt;
-
-&lt;p&gt;We&#39;re still exploring the space where we can share code between web and mobile. I&#39;d like to hope within a few months we can write up how that is going on. For now, if you&#39;re interested in prototypes, we&#39;ve been moving our React Native components to the web inside &lt;a href=&quot;https://github.com/alloy/relational-theory/&quot;&gt;Relational Theory&lt;/a&gt; and &lt;a href=&quot;https://github.com/orta/systems-theory/&quot;&gt;Systems Theory&lt;/a&gt; tries bringing new ideas from Relational Theory back to React Native.&lt;/p&gt;
-
-&lt;p&gt;I have grown to love working with typed JavaScript to ensure soundness, with React and Relay to drastically reduce the amount of code we need to write and to provide awesome root abstractions to build on. Mix that with a hackable editor with substantial language support and it feels like almost exclusively writing business domain logic.&lt;/p&gt;
-</description>
-        <pubDate>Sun, 05 Feb 2017 12:17:00 +0000</pubDate>
-        <link>http://artsy.github.io/blog/2017/02/05/Front-end-JavaScript-at-Artsy-2017/</link>
-        <guid isPermaLink="true">http://artsy.github.io/blog/2017/02/05/Front-end-JavaScript-at-Artsy-2017/</guid>
-        
-        
-        <category>emission</category>
-        
-        <category>force</category>
-        
-        <category>javascript</category>
-        
-        <category>react</category>
-        
-        <category>reactnative</category>
-        
-        <category>relay</category>
-        
-        <category>typescript</category>
         
       </item>
     
