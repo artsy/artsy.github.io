@@ -7,7 +7,7 @@ author: ashkan
 categories: [Database, Encryption, Security]
 ---
 
-After examining the data stored in one of our high-throughput systems, we realized it might include sensitive user data. To reduce the number of people that are technically able to access the data and reduce the risks associated with a potential data theft, decided to encrypt certain database fields.
+After examining the data stored in one of our high-throughput systems, we realized it might include sensitive user data. To reduce the number of people that are technically able to access the data and reduce the risks associated with a potential data theft, we decided to encrypt certain database fields.
 
 # Our Goal
 Encrypt sensitive fields without any downtime.
@@ -115,7 +115,7 @@ attr_encrypted :subject
 
 This means whenever you set `note` for this model `symmetric-encryption` will set `encrypted_note` field in the database. Whenever you retrieve an instance of this model, `symmetric-encryption` will decrypt `encrypted_note` field and you can access _decrypted_ value by just accessing `note`.
 
-In our case we couldn't use this helper immediately. Using encrypted_attr would prevent us from directly accessing the existing, un-encrypted fields in our database (which is necessary through step 3 in our approach). To work around this, we started by adding. a `before_validation` callback to our model to set encrypted fields based on un-encrypted ones.
+In our case we couldn't use this helper immediately. Using encrypted_attr would prevent us from directly accessing the existing, un-encrypted fields in our database (which is necessary through step 3 in our approach). To work around this, we started by adding a `before_validation` callback to our model to set encrypted fields based on un-encrypted ones.
 
 ```ruby
 # app/models/note.rb
