@@ -8,7 +8,7 @@ author: ash
 
 In the 1990s, Harvard researcher Amy Edmonson made the unexpected discovery that in hospitals, [higher performing teams reported making more mistakes](https://www.researchgate.net/publication/250959492_Learning_from_Mistakes_Is_Easier_Said_Than_Done_Group_and_Organizational_Influences_on_the_Detection_and_Correction_of_Human_Error). This is unexpected because one would assume that _better_ performers would make _fewer_ mistakes. In fact, the number of mistakes isn't what distinguishes higher-performing teams, but rather it's their attitude towards discussing – and learning from – their failures.
 
-I've spent the past eight months reading more about [psychological safety](https://en.wikipedia.org/wiki/Psychological_safety): the shared belief that team members won't be punished for speaking up with mistakes or questions or ideas. As a result, I've been trying to operationalize psychological safety on my own team, and part of that includes discussing and learning from our mistakes. At Artsy, we candidly discuss site outages or production bugs on the web, but haven't historically been great at communicating about iOS problems. 
+I've spent the past eight months reading more about [psychological safety](https://en.wikipedia.org/wiki/Psychological_safety): the shared belief that team members won't be punished for speaking up with mistakes or questions or ideas. As a result, I've been trying to operationalize psychological safety on my own team, and part of that includes discussing and learning from our mistakes. At Artsy, we candidly discuss site outages or production bugs on the web, but haven't historically been great at communicating about iOS problems.
 
 I want to start doing more retrospectives after things go wrong. So this week, I held my first iOS retrospective.
 
@@ -43,7 +43,7 @@ I invited our Auctions dev team to the meeting and our product manager, but I ma
 
 After the meeting, I addressed the follow-up items. In our case, this involved fixing a problem where our staging servers use data that's not reprepsentive of the data used in production. Additionally, we've made changes to how we test certain scenarious in our iOS app.
 
-Finally, I shared the document with the wider team. In this case, it was the Auctions Operations team. As a developer, I want to empower my teammates to understand why software sometimes behaves unexpectedly. 
+Finally, I shared the document with the wider team. In this case, it was the Auctions Operations team. As a developer, I want to empower my teammates to understand why software sometimes behaves unexpectedly.
 
 ---
 
