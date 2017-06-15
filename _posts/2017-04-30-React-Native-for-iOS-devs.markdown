@@ -1,5 +1,5 @@
 ---
-layout: post_longform
+layout: epic
 title: Intro to React Native for an iOS Developer
 date: 2017-05-30
 categories: [Technology, emission, react-native, react, javascript]
@@ -13,13 +13,12 @@ This makes sense, given that the size of that audience is much bigger, and far m
 
 We've been doing it now for over a year, and have started to slow down on drastic changes inside the codebase. This is great because it means we're spending less time trying to get things to work, and more time building on top of a working setup.
 
-I'd like to try cover a lot of the common questions we get asked about:
+I'd like to try cover a lot of the common questions we get asked about from the perspective of native developers:
 
 * What is React Native?
 * How do you use React Native?
 * When is React Native a good technology choice?
 
-From the perspective of a native team of developers.
 
 This article will try to cover an awful lot, so free up 15 minutes, make a tea and then come back to this. It's worth your time if you're interested in all the hype around React Native.
 
@@ -70,14 +69,14 @@ By merging the responsibilities of a `UIView` and `UIViewController` into a Comp
 
 In UIKit-world you would:
 
-* You would create a `UIViewController` which makes the API request on it's `viewDidLoad`
+* Create a `UIViewController` which makes the API request on it's `viewDidLoad`
 * While the request is sent you present a set of views for loading
 * When the API request has returned you remove the loading screen
 * You take the data from the request and create a view hierarchy then present that
 
 In React you would:
 
-* You would create a component which makes the API request on it's `onMount`
+* Create a component which makes the API request on it's `onMount`
 * While the request is sent you render another component for showing loading
 * The results come back and you change your "state" on the main component with the API request
 * The state change re-runs your render method, which passes the API "state" down to the component for your page
@@ -123,12 +122,12 @@ That is the core idea of React Native. Bridge the React component tree to native
 
 Each of these platforms will have their own way of showing some text e.g.
 
-* `UILabel` for iOS and tvOS
-* `Textfield` for Android
-* ??? for VR
-* `NSTextField` for macOS
-* ??? for Windows
-* ??? for Ubuntu
+* `RCTText` for iOS and tvOS - [which uses NSTextStorage, and drawRect](https://github.com/facebook/react-native/blob/master/Libraries/Text/RCTText.m#L117)
+* `Textfield` for Android - which uses [Canvas and a DrawCommand](https://github.com/facebook/react-native/blob/master/ReactAndroid/src/main/java/com/facebook/react/flat/DrawTextLayout.java)
+* `Three.js view primitive` for VR - which uses [BitmapFontGeometry](https://github.com/facebook/react-vr/blob/1f037c118b2088f7881c240fdfd6c204de8b2c65/OVRUI/src/UIView/UIView.js#L221) + [Shaders](https://github.com/facebook/react-vr/blob/master/OVRUI/src/SDFFont/SDFFont.js)
+* `RCTText` for macOS [which also uses NSTextStorage, and drawRect](https://github.com/ptmt/react-native-macos/blob/f3ce1d124e32a95e48ed26c05865e150714887da/Libraries/Text/RCTText.m#L182)
+* `ReactTextShadowNode` for Windows - which uses a [RichTextBlock](https://github.com/Microsoft/react-native-windows/blob/2cc697859c80f59350e9613565a975023ae1046e/ReactWindows/ReactNative/Views/Text/ReactTextShadowNode.cs#L252)
+* `QQuickItem` for Ubuntu - Which uses [QString to render](https://github.com/CanonicalLtd/react-native/blob/98e0ce38cdcb8c489a064c436a353be754e95f89/ReactUbuntu/runtime/src/reactrawtextmanager.cpp#L84)
 
 But when working at React-level, you would use the component `Text`. This means you can work at a cross-platform level, by relying on the primitives provided by each implementation of React Native.
 
@@ -336,7 +335,7 @@ There are two primitives for animation from React Native:
 * `Animated` - This is a fine-grained API for handling changes ( we use this on our buttons for making the transition animations the same as our native ones. )
 * `LayoutAnimation` - This API feels a little bit like `UIView +animate:` - in that you can tell tje layout engine that the next update should be animated instead of replaced.
 
-These provide enough for a most usecases, but there is a more direct API and a few more JS-level techniques that you can use if you are really starting to feel like you're dropping frames inside a specific animation.
+These provide enough for a most use-cases, but there is a more direct API and a few more JS-level techniques that you can use if you are really starting to feel like you're dropping frames inside a specific animation.
 
 ## Places where React Native hasn't fit for us
 
