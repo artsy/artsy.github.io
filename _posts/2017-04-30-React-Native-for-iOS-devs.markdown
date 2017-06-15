@@ -44,18 +44,18 @@ React was built out of a desire to abstract away a web page's true view hierarch
 </article>
 <article style='display: flex; flex-flow:row;'>
 
-<img style='flex:1' src="/images/what-is-rn/simple-overview-render.png" height=544/>
+<img style='flex:1; margin-top: 20px; margin-right:20px;' src="/images/what-is-rn/simple-overview-render.png" width=269 height=474/>
 <div style='flex:1'>
 {% include_relative svgs/rn/simple-component-overview.svg %}
 </div>
 
 <div style='flex:1' id='simple-components'>
-  <div class="component" id='sc-v' data-props="{ query: 'Tracy', results: [{ name: 'Tracy Emin', url: 'img/tracy.png' }, { name: 'Tom Thompson', url: 'img/tom-t.png' }, { name: 'Tom Sachs', url: 'img/tom-s.png' }] }"><p>View</p>
+  <div class="component" style="height:474; margin-top: 20px;" id='sc-v' data-props="{ query: 'Tracy', results: [{ name: 'Tracy Emin', url: 'img/tracy.png' }, { name: 'Tom Thompson', url: 'img/tom-t.png' }, { name: 'Tom Sachs', url: 'img/tom-s.png' }] }"><p>View</p>
     <div class="component" id='sc-v-textfield' data-props="{ text: 'Tracy' }"><p>SearchQueryInput</p></div>
     <div class="component" id='sc-v-results' data-props="{ results: [{ name: 'Tracy Emin', url: 'img/tracy.png' }, { name: 'Tom Thompson', url: 'img/tom-t.png' }, { name: 'Tom Sachs', url: 'img/tom-s.png' }] }"><p>SearchResults</p>
-      <div class="component" id='r-v-results-tracey' data-props="{ name: 'Tracy Emin', url: 'img/tracy.png' }" ><p>ArtistResult</p></div>
-      <div class="component" id='r-v-results-tom-t' data-props="{ name: 'Tom Thompson', url: 'img/tom-t.png' }" ><p>ArtistResult</p></div>
-      <div class="component" id='r-v-results-tom-s' data-props="{ name: 'Tom Sachs', url: 'img/tom-s.png' }" ><p>ArtistResult</p></div>
+      <div class="component" id='sc-v-results-tracey' data-props="{ name: 'Tracy Emin', url: 'img/tracy.png' }" ><p>ArtistResult</p></div>
+      <div class="component" id='sc-v-results-tom-t' data-props="{ name: 'Tom Thompson', url: 'img/tom-t.png' }" ><p>ArtistResult</p></div>
+      <div class="component" id='sc-v-results-tom-s' data-props="{ name: 'Tom Sachs', url: 'img/tom-s.png' }" ><p>ArtistResult</p></div>
     </div>
     <div class="component" id='sc-v-done' data-state="{ onTap: () => void }"><p>Button</p></div>
   </div>
@@ -63,10 +63,13 @@ React was built out of a desire to abstract away a web page's true view hierarch
 
 <script>
 $("svg").find("g#React > rect").hover(function(){
-    console.log(this.id)
-    
+  var newID = this.id.replace(/^r-/, "sc-")
+  $(this).attr("stroke", "black")
+  $("#" + newID).css("background-color", "red")
 }, function () {
-
+  var newID = this.id.replace(/^r-/, "sc-")
+  $(this).attr("stroke", "none")
+  $("#" + newID).css("background-color", "white")
 });
 </script>
 
@@ -318,8 +321,6 @@ These inter-linked, composable tools basically represent the entire idea of the 
 
 The good part is that they are interchangeable, we switched from Flow to TypeScript with roughly 2 week's work, then a week to come close to perfect for example. The bad side is that the configuration aspects of these projects feels like something you do once, then forget until it needs to change.
 
-The defaults that React Native template have are _really solid_, it's just if you come from a typed environment like all iOS engineers have - basic JavaScript just not enough.
-
 I wrote up a glossary of terms from JavaScript when I first started understanding the community, you can [find it here][js-glossary].
 
 ## Node.js
@@ -363,44 +364,42 @@ The compile and reboot cycle of native apps is particularly painful when you are
 
 ## JS Tooling
 
-Facebook's tooling 
+Facebook's tooling is 👍. They have an IDE-like text editor called Nuclide, which is built on GitHub's text editor Atom. If you're using the default setup for React Native then you'll probably have a good time with it.
 
--   Nuclide is good, but not good enough
--   Flow is good, but editor support is not good enough
--   We use TypeScript but it is a bit of a battle **today**
--   TypeScript + VS Code is basically Xcode level of quality, just less polished but more reliable and open source.
--   Newest release of RN includes some of our work on making 
--   node community is great at automation: linters and formatters work reliably and inside your editor
--   Debugging is tricky, but feasible. O2.
+We opted for using TypeScript to provide a type system to our React Native - I covered why inside [Retrospective: Swift at Artsy][swift-at-artsy]. It's got substantially easier to use TypeScript with React Native since version 0.45 includes work from Artsy and [futurice][] making it possible via config settings alone.
 
-Testing
+We choose TypeScript because of how well VS Code and TypeScript integrate. It provides an Xcode-like level of integration. Which, IMO, is a high barrier. It's definitely less polished, but it's Open Source - which is a very fair trade-off to me.
 
--   Testing on native is a nightmare
--   Apple's tooling for tests has always been bad
+The node community is great at simple automation, we have code formatters and language linters that will auto-fix your code as you press save. We have pre-commit, pre-push hooks that are set up automatically when you start using the project. It means you spend less time thinking about trivial details that add up. It's wonderful.
 
-There are two ways to write tests for your react native code: in process and out of process. E.g. in JS side, or in native side. 
+Debugging our code is still a really tricky problem, we initially had all our debugging set up inside VS Code but eventually it got reliable and people moved back to `console.log` or using the debugger inside Chrome. For what it's worth, the type of code we've been writing has been much easier to debug as it is significantly simpler. It's not been a pressing problem.
 
--   JS side: Choice of many test runners, built with hundreds of people involved in multi-year test runners
--   Native side: Probably one person making XCTest, one person trying to get some improvements in Xcode each year
+# Testing
 
--   JS side: Instant, can run at the same time as your app
--   Native side: Requires stopping your app, running tests, then restarting your work
+Testing was never a priority in the iOS world. I feel like it's always getting better with each Xcode version, particularly the change in Xcode 9 which allows tests to run in another simulator without turning off your app.
 
-We had a few native tests, but very quickly we stopped running them. 
+We really put a lot of time and patience into our native testing on iOS. Coming from that world, to the absolute ease of testing in the JavaScript world is pretty breath-taking. Check out my [coverage of Jest's features][artsy-jest].
 
--   We use Jest for all these reasons (quote JS post)
+There are two ways to write tests for your React Native code: in process and out of process. E.g. from the JavaScript side, or in native side.
 
--   CI process is just a linux box
--   CI takes ~3m
+-   JS side: Choice of many Open Source test runners, built with hundreds of people involved in multi-year test runners.
 
-Deployment
+-   Native side: Probably one or two people making XCTest, one person trying to get some improvements in Xcode each year. Closed source.
 
--   Because JS is separate from app, JS can be updated separately
--   JS is not dynamically changing application via swizzling etc - just new JS talking to existing native code
--   This means you _can_ ship a different version of the JS to your app, but not all features can be shipped to old clients
--   We don't do it, for our ~month cadence, 2 day review time is OK
--   We do use it for having betas using different builds of the JS runtime. No need to deploy to testflight on every commit when we can ship just the JS and make our own commit chooser.
--   Deployment is tricky because you have two version number for _your_ RN: the version of the components, and the version of your native bridge
+We tried out a few native tests, but very quickly we stopped running them. Mainly as we were spending most of our time in a JavaScript environment, so tests would need to run in Xcode. As we don't need a Mac to run our tests, we can use linux CI servers and get 3-4 minute CI runs.
+
+# Deployment
+
+This one is a bit tricky to get your head around at first. As React Native is a client-side library that you don't make source-code changes to, which interacts with JavaScript that you bundle with the app (or use the React Native Packager at dev-time.) Then the JavaScript part of your application is just a file that can be updated, amended or fixed at any time.
+
+This is not dynamically swizzing or fishhooking methods, you can ship new JavaScript code to your app which can interact with the exact same version of your React Native library.
+
+This is what makes it possible to ship bug fixes to your app as fast as the web. We use this, but only for admin users. They can choose the JavaScript for any commit on master, or any active pull request inside a beta version of our app.
+
+Our app release cadence is still about a month long, moving to React Native hasn't changed that. We've automated the entire process, so it's a cultural artifact rather than technical. So a day or two for the App Store review is fine, ideally our betas should be getting longer than that for testing.
+
+This is a little bit tricky though. Because you can write expose native code which interacts with your JavaScript, this creates a link between the native API that is available and the JavaScript that uses it. So, you still need to ship native code. 
+
 
 Doing it right per platform
 
@@ -550,3 +549,6 @@ In the same kind of way that you had to become comfortable with project manageme
 [8]: https://www.youtube.com/watch?v=tWitQoPgs8w
 [emission]: https://github.com/artsy/emission/
 [js-glossary]: ???
+[swift-at-artsy]: ???
+[futurice]: ???
+[artsy-jest]: ???
