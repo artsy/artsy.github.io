@@ -36,20 +36,37 @@ _"Learn once"_ in this context means that you can re-use the same ideas and tool
 
 React offers a uni-direction Component model that _can_ handle what is traditionally handled by the MVC paradigm. The library was created originally for the web, where updates at the equivalent of UIView level are considered slow. React provides a diffing engine for a tree of components that would _eventually_ be represented as HTML, allowing you to write the end-state of your interface and React would apply the difference to only the HTML that changes.
 
-This pattern is applied by providing a consistent way to represent a component's state. Imagine if every UIView subclass had a "setState" function where you applied 
+This pattern is applied by providing a consistent way to represent a component's state. Imagine if every UIView subclass had a "`setState`" function where you applied 
 
 React was built out of a desire to abstract away a web page's true view hierarchy (called the DOM) so that they could make changes to all of their views and then React would handle finding the differences between view states.
 
 
 </article>
+<article style='display: flex; flex-flow:row;'>
 
-<article style="height: 80%">
-
+<img style='flex:1' src="/images/what-is-rn/simple-overview-render.png" height=544/>
+<div style='flex:1'>
 {% include_relative svgs/rn/simple-component-overview.svg %}
+</div>
+
+<div style='flex:1' id='simple-components'>
+  <div class="component" id='sc-v' data-props="{ query: 'Tracy', results: [{ name: 'Tracy Emin', url: 'img/tracy.png' }, { name: 'Tom Thompson', url: 'img/tom-t.png' }, { name: 'Tom Sachs', url: 'img/tom-s.png' }] }"><p>View</p>
+    <div class="component" id='sc-v-textfield' data-props="{ text: 'Tracy' }"><p>SearchQueryInput</p></div>
+    <div class="component" id='sc-v-results' data-props="{ results: [{ name: 'Tracy Emin', url: 'img/tracy.png' }, { name: 'Tom Thompson', url: 'img/tom-t.png' }, { name: 'Tom Sachs', url: 'img/tom-s.png' }] }"><p>SearchResults</p>
+      <div class="component" id='r-v-results-tracey' data-props="{ name: 'Tracy Emin', url: 'img/tracy.png' }" ><p>ArtistResult</p></div>
+      <div class="component" id='r-v-results-tom-t' data-props="{ name: 'Tom Thompson', url: 'img/tom-t.png' }" ><p>ArtistResult</p></div>
+      <div class="component" id='r-v-results-tom-s' data-props="{ name: 'Tom Sachs', url: 'img/tom-s.png' }" ><p>ArtistResult</p></div>
+    </div>
+    <div class="component" id='sc-v-done' data-state="{ onTap: () => void }"><p>Button</p></div>
+  </div>
+</div>
 
 <script>
-$("svg").find("g").click(function(){
-    alert("Lolol");
+$("svg").find("g#React > rect").hover(function(){
+    console.log(this.id)
+    
+}, function () {
+
 });
 </script>
 
@@ -163,53 +180,126 @@ This isn't optimal when you're coming in from the native world - where you're us
 
 Is this a critical problem against React Native? I don't think so, we've added native abstractions where it was the right decision and we've used JavaScript when it was the right decision. For example, our `Image` component is a bridged native component that uses `SDWebImage` under the hood so that we can share an image cache with the rest of the app.
 
--   Uses flexbox for layouts, which is way simpler and less likely to be buggy than auto layout
-
 ## Ten minutes to try out React
 
-OK, no joke, don't skip this, you can do try React Native right now.
+OK, no joke, don't skip this, you can do try React Native right now. This will require some terminal skills, it shouldn't be much more than you'd have used with CocoaPods though.
 
-[Split this into two]
+</article>
+<article style='display: flex; flex-flow:row;'>
+<div style='flex:1'>
 
 ```sh
 # If you don't have homebrew
-# /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
+# see [homebrew site]
 
 # Install the JavaScript tools you'll need
 brew install nodejs yarn
+
 # You'll want Visual Studio Code to work on this
 brew cask install visual-studio-code
+
 # Install the React Native CLI
 yarn global add react-native-cli
-# Create a React Native project
-react-native-cli
-# Kick off creating a new React Native project called TrendingArtists
+
+# Create a new React Native
+# project called TrendingArtists
 react-native init TrendingArtists
 ```
 
-You'll need `node` and `yarn` installed globally so you can run JavaScript and handle dependency management respectively. I'd strongly recommend using Microsoft's Visual Studio Code as a generic source code editor for React Native.
+</div>
+<div style='flex:1'>
 
-Then you can create the sample code. Once all the installing has finished. You can follow along with the next section.
+<p>You'll need <code>node</code> and <code>yarn</code> installed globally so you can run JavaScript and handle dependency management respectively.<p>
+
+<p>For working inside a JavaScript project, I'd strongly recommend using Microsoft's <a href='https://code.visualstudio.com'>Visual Studio Code</a>, it does a great job for React Native.</p>
+
+<p>Next up we're going to make the initial project and look around, so once all the installing has finished. You can follow along with the next section.</p>
+
+</div>
+</article>
+<article class='post'>
+
+Alright, so that should do a lot of downloading, and you'll have a new folder with a fully set up project for iOS and Android. We'll be focusing on the iOS side.
+
+So, open up `TrendingArtists` in your editor and inside your terminal with `cd TrendingArtists`. From the terminal you can get the Xcode project compiled, and opened inside the iOS simulator with `react-native start ios`. 
+
+This first uses `xcodebuild` to compile the native app found in `ios/TrendingArtists.xcodeproj` it will then load up the the React Native Packager. We'll cover that later, for now, think of it as JavaScript file change watcher.
+
+Once a simulator has popped up, and you see the "Welcome to React Native" screen. Now that we've got "an app" running. Let's take a moment to look through what we got.
+
+
+</article>
+<article style='display: flex; flex-flow: row;'>
+<div style='flex:1'>
+
 
 ```sh
-# Go into our new folder 
-cd TrendingArtists
+$ tree .
+
+├── __tests__
+│   ├── index.android.js
+│   └── index.ios.js
+├── android - [snipped]
+├── app.json
+├── index.android.js
+├── index.ios.js
+├── ios
+│   ├── TrendingArtists
+│   │   ├── AppDelegate.h
+│   │   ├── AppDelegate.m
+│   │   ├── Base.lproj
+│   │   │   └── LaunchScreen.xib
+│   │   ├── Images.xcassets
+│   │   │   └── AppIcon.appiconset
+│   │   │       └── Contents.json
+│   │   ├── Info.plist
+│   │   └── main.m
+│   ├── TrendingArtists-tvOS
+│   │   └── Info.plist
+│   ├── TrendingArtists-tvOSTests
+│   │   └── Info.plist
+│   ├── TrendingArtists.xcodeproj
+│   │   ├── project.pbxproj
+│   │   ├── project.xcworkspace
+│   │   │   ├── contents.xcworkspacedata
+│   └── TrendingArtistsTests
+│       ├── Info.plist
+│       └── TrendingArtistsTests.m
+├── jsconfig.json
+├── package.json
+├── node_modules [x million files snipped]
+└── yarn.lock
 ```
 
--   Open VS Code, drag the folder into it
--   Run `react-native start ios` to compile the iOS app, then to start the packager
--   Show how to edit a component
--   Explain how to turn on HMR
--   Make them edit something again, see the changes live
+</div>
+<div style='flex:1'>
 
-So what is going on?
+<p><strong>What are we looking at?</strong></p>
 
-React Native will 
+<p>First up - we have some test files, these files are unique per platform - though they do have the same code right now. In React Native imports can resolve to be different per-platform, which is why you see <code>.android.js</code> or <code>.ios.js</code>.</p>
 
--   RNP as dev server
--   Create React Native
--   JSX as HTML in JS
--   JSX is basically a pretty way to write `React.createElement`
+<p>The next important files are: <code>index.android.js</code> and <code>index.ios.js</code>. These are the launching point for this app, so it's in there you'll find the code for what we're seeing.</p>
+
+<p>In the <code>ios</code> folder, we have the native side of React Native. Looks pretty empty from here, but when you open the workspace you'll note that it is referring to a lot of <code>xcproject</code>s which are inside your <code>node_modules</code> folder.</p>
+
+<p>The Xcode project is really barebones, it's just an <code>AppDelegate</code> that creates a <code>UIView</code> subclass. You can see that it references <code>index.ios.js</code> which is where your JavaScript side starts.</p>
+
+<p>Then you have the <code>Package.json</code> which is like an Xcodeproj + Podfile in one, and the <code>node_modules</code> folder. Which houses all your JavaScript dependencies.</p>
+
+</div>
+</article>
+<article class='post'>
+
+I'd like to show you how to make a change appear instantly. In your iOS Simulator, perform a shake gesture (<code>cmd + ctrl + z</code>) and in the React Native debug menu, hit "Enable Live Reload". Once you're back in an app, do another shake gesture, and turn on "Hot Reloading".
+
+Now you can go into your text editor and change some of the words inside `index.ios.js` - those changes will be reflected almost instantly. You can do this for almost anything, almost anywhere. We're been working [on Emission][emission] for over a year, and this is still close to instant in every place we work.
+
+If you'd like to go through a tutorial from this point, I'd recommend these:
+
+- The React Native site
+- [look for other tutorials]
+
+We're going to back to talking about the hows and whys.
 
 ## Writing JavaScript
 
@@ -224,42 +314,44 @@ I think it's safe to say that the majority of JavaScript's warts are fixed by to
     Prettier: Etc
 ]
 
-These inter-linked, composable tools basically represent the entire idea of the JavaScript community. You add them to your project, and your project gets littered with all these small config files that eventually create the kind of cohesive tooling that you would expect from a single vendor.
+These inter-linked, composable tools basically represent the entire idea of the JavaScript community. You add them to your project, and your project gets littered with all these small config files that eventually creates the kind of cohesive tooling that you would expect from a single vendor.
 
 The good part is that they are interchangeable, we switched from Flow to TypeScript with roughly 2 week's work, then a week to come close to perfect for example. The bad side is that the configuration aspects of these projects feels like something you do once, then forget until it needs to change.
 
-The defaults that React Native set you up with are _really solid_, it's just if you come from a typed environment like all iOS engineers have - basic JavaScript just not enough.
+The defaults that React Native template have are _really solid_, it's just if you come from a typed environment like all iOS engineers have - basic JavaScript just not enough.
 
-Some useful JS terms:
+I wrote up a glossary of terms from JavaScript when I first started understanding the community, you can [find it here][js-glossary].
 
--   Destructuring
--   x
--   y
+## Node.js
 
-## Node (Capital N?)
+There are two main environments for writing JavaScript in: the browser, and inside Node. Node is the JavaScript runtime from Google Chrome (called V8, their version of JavaScriptCore) with a UNIX-like baseline set of APIs.
 
-There are two main environments for writing JavaScript in: the browser, and inside node. Node is the JavaScript runtime from Google Chrome (called V8, their version of JavaScriptCore) with a UNIX-like baseline set of APIs. It provides relatively few primitives, and it is expected that you would use a node module for anything particularly high level.
+It provides relatively few APIs, it is expected that you would use a node module for anything particularly high level. the principal being that a standard library (like Foundation in iOS) is always going to be out of date, and incompatible with what web-browsers ship.
 
-A node module is a set of JavaScript files with a particular structure. Generally, there is a `package.json` to describe the library, and an `index.js` with the code for the library. Libraries can be as small as a single-function to typical a "XYZKit" you would expect from CocoaPods. As JavaScript tends to be bundled and minified based on code used, developers mainly worry about the overall filesize of their library. You would use a package manager like NPM or Yarn to manage these dependencies. Node modules have the unique, and very dangerous idea of allowing multiple versions of the same library to exist inside your application. This "fixes" the problem of dependency hell, at the cost of many potential runtime issues.
+A node module is a set of JavaScript files with a particular structure. Generally, there is a `package.json` to describe the library, and an `index.js` with the code for the library. Libraries can be as small as a single-function to typical a "XYZKit" you would expect from CocoaPods. As JavaScript tends to be bundled and minified based on code used, developers mainly worry about the overall file-size of their library. You would use a package manager like NPM or Yarn to manage these dependencies. Node modules have the unique, and very dangerous idea of allowing multiple versions of the same library to exist inside your application. This "fixes" the problem of dependency hell, at the cost of many potential runtime issues.
 
 When writing JavaScript with React Native, you are using node modules, but _strictly speaking_ you are not writing a node app. The code that you write is executed inside JavaScriptCore and so doesn't have access to the UNIX-like API from node. 
 
 This can make it a bit confusing about whether you can or can't use a library from NPM. This also gets a bit more tricky, for example your tests _are_ running inside node. So, it's fine for your tests to use all of those APIs and libraries, but not your app's code. So far, from my experience this hasn't been a problem, in part because of how we use React Native (mainly API -> UI). I researched all of this during the creation of this post, and I hadn't really noticed the mismatch during active development.
 
-General overview of terms you'll be interested in WRT node:
+If you want to spend some time browsing around and understanding the JS world, here's a few jump-off points;
 
--   Node
 -   NPM
+-   Yarn
 -   Babel
 -   Sourcemaps
 -   Reflux
 -   Redux
 -   Flow
 -   TypeScript
--   Lodash (underscore)
+-   Lodash
 -   Relay 
+-   Prettier
+-   Jest
 
-Web Style Development Experience
+# Web Style Development Experience
+
+The compile and reboot cycle of native apps is particularly painful when you are sitting next to a web engineer. React Native aims to re-use a lot of the JavaScript tooling to 
 
 -   For the web "tooling" != IDE
 -   The UNIX idea of small individual libs
@@ -269,7 +361,9 @@ Web Style Development Experience
     -   Tooling like nuclide / vscode
     -   Safe dependency management in Yarn (and now in npm)
 
-Tooling
+## JS Tooling
+
+Facebook's tooling 
 
 -   Nuclide is good, but not good enough
 -   Flow is good, but editor support is not good enough
@@ -347,6 +441,10 @@ There are two primitives for animation from React Native:
 -   `LayoutAnimation` - This API feels a little bit like `UIView +animate:` - in that you can tell tje layout engine that the next update should be animated instead of replaced.
 
 These provide enough for a most use-cases, but there is a more direct API and a few more JS-level techniques that you can use if you are really starting to feel like you're dropping frames inside a specific animation.
+
+## Facebook patent clause
+
+[TODO]
 
 ## Places where React Native hasn't fit for us
 
@@ -431,9 +529,9 @@ In the same kind of way that you had to become comfortable with project manageme
 
 [retro-swift-sherlock]: ???
 
-[airbnb]: ???
+[Airbnb]: ???
 
-[wix]: ???
+[Xix]: ???
 
 [1]: https://github.com/facebook/react-native/blob/559805d0b04da99b80a0813917b7eaa2716faa4c/Libraries/Text/RCTText.m#L117
 
@@ -450,3 +548,5 @@ In the same kind of way that you had to become comfortable with project manageme
 [7]: https://github.com/CanonicalLtd/react-native/blob/98e0ce38cdcb8c489a064c436a353be754e95f89/ReactUbuntu/runtime/src/reactrawtextmanager.cpp#L84
 
 [8]: https://www.youtube.com/watch?v=tWitQoPgs8w
+[emission]: https://github.com/artsy/emission/
+[js-glossary]: ???

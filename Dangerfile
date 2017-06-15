@@ -17,6 +17,7 @@ avoid_exact_words = [
   { word: 'Fastlane', reason: "Please use fastlane, lowercase 'f'" },
   { word: 'localhost:4000', reason: 'You may have left an internal link in the markdown' },
   { word: '[]: ???', reason: 'You\'ve missed a link' }
+  { word: '[TODO]', reason: 'You may have missed a TODO here' }
 ]
 
 active_files = (git.modified_files + git.added_files)
