@@ -62,15 +62,33 @@ React was built out of a desire to abstract away a web page's true view hierarch
 </div>
 
 <script>
+
+var highlight = function(id) {
+  $("#r-" + id).attr("stroke", "black")
+  $("#sc-" + id).css("background-color", "red")
+}
+var unHighlight = function(id) {
+  $("#r-" + id).attr("stroke", "none")
+  $("#sc-" + id).css("background-color", "white")
+}
+
+
 $("svg").find("g#React > rect").hover(function(){
-  var newID = this.id.replace(/^r-/, "sc-")
-  $(this).attr("stroke", "black")
-  $("#" + newID).css("background-color", "red")
+    var newID = this.id.replace(/^r-/, "")
+    highlight(newID)
 }, function () {
-  var newID = this.id.replace(/^r-/, "sc-")
-  $(this).attr("stroke", "none")
-  $("#" + newID).css("background-color", "white")
+    var newID = this.id.replace(/^r-/, "")
+    unHighlight(newID)
 });
+
+$(".component").hover(function(){
+    var newID = this.id.replace(/^sc-/, "")
+    highlight(newID)
+}, function () {
+    var newID = this.id.replace(/^sc-/, "")
+    unHighlight(newID)
+});
+
 </script>
 
 </article>
