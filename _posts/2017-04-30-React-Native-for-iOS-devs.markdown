@@ -45,14 +45,16 @@ React was built out of a desire to abstract away a web page's true view hierarch
 <article style='display: flex; flex-flow:row;'>
 
 <img style='flex:1; margin-top: 20px; margin-right:20px;' src="/images/what-is-rn/simple-overview-render.png" width=269 height=474/>
-<div style='flex:1'>
+<!-- This include path doesn't work for RSS etc, needs to change-->
+<div style='flex:1'><center>
 {% include_relative svgs/rn/simple-component-overview.svg %}
-</div>
+</center></div>
 
 <div style='flex:1' id='simple-components'>
-  <div class="component" style="height:474; margin-top: 20px;" id='sc-v' data-props="{ query: 'Tracy', results: [{ name: 'Tracy Emin', url: 'img/tracy.png' }, { name: 'Tom Thompson', url: 'img/tom-t.png' }, { name: 'Tom Sachs', url: 'img/tom-s.png' }] }"><p>View</p>
+
+  <div class="component" style="height:474px; width: 269px; margin-top: 20px;" id='sc-v' data-props="{ query: 'Tracy', results: [{ name: 'Tracy Emin', url: 'img/tracy.png' }, { name: 'Tom Thompson', url: 'img/tom-t.png' }, { name: 'Tom Sachs', url: 'img/tom-s.png' }] }"><p>View</p>
     <div class="component" id='sc-v-textfield' data-props="{ text: 'Tracy' }"><p>SearchQueryInput</p></div>
-    <div class="component" id='sc-v-results' data-props="{ results: [{ name: 'Tracy Emin', url: 'img/tracy.png' }, { name: 'Tom Thompson', url: 'img/tom-t.png' }, { name: 'Tom Sachs', url: 'img/tom-s.png' }] }"><p>SearchResults</p>
+    <div class="component" id='sc-v-results' data-props="{}"><p>ScrollView</p>
       <div class="component" id='sc-v-results-tracey' data-props="{ name: 'Tracy Emin', url: 'img/tracy.png' }" ><p>ArtistResult</p></div>
       <div class="component" id='sc-v-results-tom-t' data-props="{ name: 'Tom Thompson', url: 'img/tom-t.png' }" ><p>ArtistResult</p></div>
       <div class="component" id='sc-v-results-tom-s' data-props="{ name: 'Tom Sachs', url: 'img/tom-s.png' }" ><p>ArtistResult</p></div>
@@ -71,7 +73,6 @@ var unHighlight = function(id) {
   $("#r-" + id).attr("stroke", "none")
   $("#sc-" + id).css("background-color", "white")
 }
-
 
 $("svg").find("g#React > rect").hover(function(){
     var newID = this.id.replace(/^r-/, "")
@@ -94,31 +95,63 @@ $(".component").hover(function(){
 </article>
 <article class="post">
 
-
-[ 
-  Diagram:
-    Component tree on one side, App prototype on the other
-    Mouse-overing a component or view in the app would select both and show props
-    Should be 1-1 with view to components
-]
+[TODO] Show the state
 
 This kind of tree structure should feel quite similar to the view tree that you see inside a tool like Reveal, or inside the Xcode visual inspector.
+
+This is a *simplified* version of what that code for the component above looks like, you can see the [full file here](https://github.com/artsy/emission/blob/c1ccd63ec9f70c2817186cb555bfd874c375912a/src/lib/components/consignments/components/artist_search_results.tsx).
+
+{% raw %}
+<!-- The {{ and }} get eaten by mustache -->
+```js
+import * as React from "react"
+import { ScrollView, Text, Image, View } from "react-native"
+
+import TextInput from "./text_input"
+
+export default class SearchResults extends React.Component {
+
+  render() {
+    return (
+      <View>
+        <TextInput text={{ value: props.query }} searching={props.searching} />
+        <ScrollView>
+          {props.results.map(rowForResult)}
+        </ScrollView>
+      </View>
+    )
+  }
+
+  rowForResult(result) {
+    return (
+      <Result>
+        <Image source={{ uri: result.url }} />
+        <Text>{result.name}</Text>
+      </Result>
+    )
+  }
+}
+```
+{% endraw %}
+
+> You're looking at a subclass of `React.Component` with two functions, `render` and `rowForResult`. `render` is the key function for defining your tree.
 
 Instead of MVC, React uses composition of components to handle complexity, oddly enough - this should feel quite similar to iOS development. The screen of an iOS app is typically made up of `UIView`s, and `UIViewController`s which exist inside interlinked trees of hierarchy. A `UIViewController` itself doesn't have a visual representation, but exists to manipulate data, handle actions and the view structure for views who do.
 
 A component can be both view and view controller.
 
+```
 [
   multi-step diagram:
     UIView tree ->
     UIView + UIViewController tree ->
     Component Tree
-
+    -
     App Prototype
-
+    -
     In the component tree 
-
 ]
+```
 
 By merging the responsibilities of a `UIView` and `UIViewController` into a Component, there is a consistent way to work with all aspects of your app. Let's take a trivial example. Downloading some data from the network and showing it on a screen.
 
@@ -136,10 +169,9 @@ In React you would:
 -   The results come back and you change your "state" on the main component with the API request
 -   The state change re-runs your render method, which passes the API "state" down to the component for your page
 
-They are conceptually very similar. React does two key things differently:
+They are conceptually very similar. React does two key things differently: Handle "state" changes on any component, and handle view creation/addition and removal.
 
--   Handle "state" change on any component
--   Handle view destructuring/structuring
+###   Handle "state" change on any component
 
 So, I've been quoting "state", I should explain this. There are two types of "state" inside React, and I've been using the quoted term to refer to both for simplicity till now.
 
@@ -149,7 +181,7 @@ So, I've been quoting "state", I should explain this. There are two types of "st
 
 So in our case above, getting the API results only changes the state on the component which makes the request. However, the results are passed down into the props _(properties)_ of the component's children as any further changes to the API data (for example if you were polling for updates) would result in a re-render of the child-components.
 
-- Handle view destructuring/structuring
+### Handle view management
 
 Because of the consolidated rules around state management React can quite easily know when there have been changes throughout your component tree and to call `render` for those components. `render` is the function where you declare the tree of children for a component.
 
@@ -167,13 +199,8 @@ React was built for the web - but some-one realised that they could de-couple th
 
 That is the core idea of React Native. Bridge the React component tree to native primitives. React Native runs on a lot of platforms:
 
--   iOS
--   Android
--   tvOS
--   VR
--   macOS
--   Windows
--   Ubuntu
+-   Officially: iOS, Android, tvOS, VR
+-   Unofficially: macOS, Windows, Ubuntu
 
 Each of these platforms will have their own way of showing some text e.g.
 
@@ -195,7 +222,7 @@ For iOS, this works by using a JavaScript runtime (running via JavaScriptCore in
 
 This bridging is how you get a lot of the positive aspects of working with the JavaScript tooling eco-system. The JavaScript used by React can be updated independent of the app, but so long as it is working with the same native bridge version. This is how React can safely have a reliable version of [Injection for Xcode][].
 
-Like any cross-platform abstraction, React Native can be leaky. To write a cross-platform app that purely lives inside JS Runtime, you have to write React-only code. React + React Native doesn't have ways to handle primitives like `UINavigationController` - they want your entire app to be represented as a series of components that can be mapped across many platforms. 
+Like any cross-platform abstraction, React Native can be leaky. To write a cross-platform app that purely lives inside JS Runtime, you have to write React-only code. React and React Native doesn't have ways to handle primitives like `UINavigationController` - they want your entire app to be represented as a series of components that can be mapped across many platforms. 
 
 This isn't optimal when you're coming in from the native world - where you're used to building platform-specific experiences, and are genuinely excited at the prospect of platform-specific APIs. Generally you can look for other teams who have felt the same and are willing to write native-bridged code that's specific to iOS. Shout-out to [Wix][] and [AirBnB][] who are doing great work in this space.
 
