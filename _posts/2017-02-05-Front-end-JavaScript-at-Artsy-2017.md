@@ -1,9 +1,10 @@
 ---
-layout: post_longform
+layout: epic
 title: "Exploration: Front-end JavaScript at Artsy in 2017"
 date: 2017-02-05 12:17
 author: orta
 categories: [javascript, emission, reactnative, force, typescript, relay, react, reactnative]
+series: React Native at Artsy
 ---
 
 <center>
@@ -44,7 +45,8 @@ We initially went with Flow, as Flow is a [considerably easier sell][selling-flo
 
 _Why bother though?_ JavaScript has existed for decades without type annotations, and everyone seems to have got on pretty well. One of the key features that a typing system gives you is top-notch tooling. An editor can use the type interfaces to provide auto-completion, inline documentation and inline warning/errors as you work. Type systems will help catch errors before you have even pressed save.
 
-{% expanded_img /images/js2017/types.png %}
+{% include epic_img.html url="/images/js2017/types.png" title="The Artsy Tech Stack 2017" style="width:100%;" %}
+
 
 What works really well for typed JavaScript is that you can easily opt out of it when you need to. Then you're back to normal "do whatever you want" JavaScript land, no problem.
 
@@ -245,7 +247,7 @@ One of the things that I find particularly pleasant about the JavaScript ecosyst
 
 For example, I make a change in one source file and 60 tests run from 6 different test suites. Finishing in under a second.
 
-{% expanded_img /images/js2017/jest-watcher.gif %}
+{% include epic_img.html url="/images/js2017/jest-watcher.gif" title="Jest's awesome watch mode" style="width:100%;" %}
 
 Not all tests are as important to a run, so Jest also keeps track of which tests failed last time and will run those first next time. This reduces iteration time considerably.
 
