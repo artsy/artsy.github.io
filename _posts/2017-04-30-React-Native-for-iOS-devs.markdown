@@ -238,7 +238,7 @@ OK, no joke, don't skip this, you can do try React Native right now. This will r
 
 ```sh
 # If you don't have homebrew
-# see [homebrew site]
+# see https://brew.sh
 
 # Install the JavaScript tools you'll need
 brew install nodejs yarn
