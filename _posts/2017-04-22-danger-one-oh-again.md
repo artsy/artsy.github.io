@@ -10,7 +10,7 @@ Danger came out of two needs. One from the needs of a growing dev team working t
 
 A work environment dev team is a complex place. You naturally grow, and to grow safely you add process. Process is a mixed bag, it's a net benefit at the trade-off of individual's time vs team cohesion. You want to grow your team guided by smart applications of process. 
 
-On the other hand, working on a large open source project, it's very easy to feel overwhelmed at the amount of work that needs to get done on a daily basis. The growth of your OSS team probably doesn't tie to the amount of work that needs to be done. Especially if you're like me, and you don't want to be maintaining OSS as a 2nd full-time job.
+On the other hand, working on a large open source project, it's easy to feel overwhelmed at the amount of work that needs to get done on a daily basis. The growth of your OSS team probably doesn't tie to the amount of work that needs to be done. Especially if you're like me, and you don't want to be maintaining OSS as a 2nd full-time job.
 
 So what do you do? Well in a work environment you don't really have a choice, as a team you hold each other to the rules that you set. In OSS, you sacrifice your spare time or you can find time at work, you could stop or you could burn out.
 
@@ -115,13 +115,13 @@ The API differs between the JS and Ruby version, not drastically - but there are
 
 ## OK, got it.
 
-So, what kinds of tests can you write?
+Let's cover a few examples of the kind of tests can you write.
 
 #### Checking for changes to a specific file
 
 Checking for a CHANGELOG. This was the first rule imagined for Danger, I add it to every project.
 
-The first implementation of this rule can just be a check if `CHANGELOG.md` is modified in any PR, that can then be
+The first implementation of this rule can just be a check if the file `CHANGELOG.md` is modified in any PR, that can then be
 revised to also check whether there are git changes related to your app. Then documentation, README, tooling updates
 don't require an entry. We also check if the PR title says "trivial" and skip the CHANGELOG check.
 
@@ -166,17 +166,25 @@ after submitting a PR.
 
 ## Introducing Danger
 
-OK, hopefully that's got you thinking "ah, I know a process I can automate".
+OK, maybe that's got you thinking _"ah, I know a process I can automate"_.
 
 It can be easy to try and jump straight from no Dangerfile to a many-hundred lined complex set of cultural rules. I'd advise against introducing a long list of rules for Danger all at once. In my experience, gradual integration works better. The entire team may have agreed on the changes upfront, but slower adoption has worked better for teams new to working with Danger.
 
 At Artsy we've found that first just integrating Danger with a single simple rule (like checking for a CHANGELOG entry) then starting to introduce them piece-meal from different contributors has made it easier to go from "Ah, we shouldn't do that again" to "Oh, we could make a Danger rule for that" to "Here's the PR". 
 
+## Which Danger should I use?
+
+This definitely depends on the project, but here's the main gist:
+
+* **Danger Ruby** is more mature, has more features, a solid plugin eco-system and covers more platforms. It's in a great place and is unlikely to have breaking changes from this point onwards.
+
+* **Danger JS** has a bigger potential for growth, is "stable enough", you can create plugins and will be able to do things that the Ruby version could not - eventually. Right now it only works with GitHub.
+
 ## Onwards and Upwards
 
-With the JavaScript version of Danger in a great place ready for production, I can start more serious work on Peril. Peril is a web-service that runs Dangerfiles against GitHub events. Those events span from a new user being created, to a new issue on a repo. Peril lets you run your own complex rules across an entire org. This can be a really powerful orchestration layer.
+With the JavaScript version of Danger in a great place ready for production, I can start more serious work on [Peril][peril]. Peril is a hosted web-service that runs Dangerfiles against GitHub events, see [the VISION.md][peril-vision]. Those events span from a new user being created, to a new issue on a repo. Peril lets you run your own complex rules across an entire org. This can be a really powerful way to audit and improve entire-company culture.
 
-We started using Peril in Artsy last week. So it's starting to become a thing.
+We started using Peril in Artsy [last week][peril-reaction]. So it's starting to become a thing internally. 
 
 [prose]: https://github.com/dbgrandi/danger-prose 
 [proselint]: https://github.com/amperser/proselint/
@@ -185,3 +193,6 @@ We started using Peril in Artsy last week. So it's starting to become a thing.
 [usechange]: http://keepachangelog.com/en/0.3.0/
 [danger-changelog]: https://github.com/dblock/danger-changelog
 [defense]: http://artsy.github.io/blog/2016/07/03/handling-big-projects/
+[peril-vision]: https://github.com/danger/peril/blob/master/VISION.md
+[peril]: https://github.com/danger/peril#peril
+[peril-reaction]: https://github.com/artsy/reaction-force/pull/184
