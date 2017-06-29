@@ -4,6 +4,7 @@ title: Danger
 date: 2017-04-22
 categories: [culture, danger]
 author: orta
+css: danger
 ---
 
 Danger came out of two needs. One from the needs of a growing dev team working together full-time, and the other from the needs of a completely asymmetric large Open Source project.
@@ -184,8 +185,16 @@ This definitely depends on the project, but here's the main gist:
 
 With the JavaScript version of Danger in a great place ready for production, I can start more serious work on [Peril][peril]. Peril is a hosted web-service that runs Dangerfiles against GitHub events, see [the VISION.md][peril-vision]. Those events span from a new user being created, to a new issue on a repo. Peril lets you run your own complex rules across an entire org. This can be a really powerful way to audit and improve entire-company culture.
 
-We started using Peril in Artsy [last week][peril-reaction]. So it's starting to become a thing internally. 
+We started using Peril in Artsy [last week][peril-reaction]. So it's starting to become a thing internally. It'll be awesome to explore the idea of org-wide rules. 
 
+I think we're starting with making sure we assign someone on a PR. 
+
+So give Danger a shot, and if you're bold. give [Peril][peril] a shot.
+
+---
+
+This post uses the CC license image from [this tweet](https://twitter.com/CloudyConway/status/880426417024114688) with some changes to make it fit with the design of the blog. Thanks [Vexorian](https://www.patreon.com/vexorian). 
+ 
 [prose]: https://github.com/dbgrandi/danger-prose 
 [proselint]: https://github.com/amperser/proselint/
 [mdspell]: https://github.com/lukeapage/node-markdown-spellcheck
