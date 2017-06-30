@@ -1,7 +1,7 @@
 ---
 layout: epic
 title: Danger
-date: 2017-04-22
+date: 2017-06-30
 categories: [culture, danger]
 author: orta
 css: danger
