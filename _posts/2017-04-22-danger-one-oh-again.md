@@ -67,6 +67,8 @@ This constraint negates one of the key problems with running running a Dangerfil
 
 In addition, JavaScript has a much simpler model for evaluating, importing and exporting code and so whitelisting modules and functions can be feasible for a hosted version of Danger. 
 
+<center><img src ="/images/danger/danger.png" style="width:50%"></center>
+
 # 1.0 is my middle name
 
 Any software project used in production should probably be 1.0, but in addition to production use a library needs documentation to be 1.0.
@@ -175,19 +177,18 @@ At Artsy we've found that first just integrating Danger with a single simple rul
 
 ## Which Danger should I use?
 
-This definitely depends on the project, but here's the main gist:
+This definitely depends on the project, there's a longer discussion [on the site](http://danger.systems/js/js-vs-ruby.html) too, but here's the main gist:
 
 * **Danger Ruby** is more mature, has more features, a solid plugin eco-system and covers more platforms. It's in a great place and is unlikely to have breaking changes from this point onwards.
 
 * **Danger JS** has a bigger potential for growth, is "stable enough", you can create plugins and will be able to do things that the Ruby version could not - eventually. Right now it only works with GitHub.
 
+
 ## Onwards and Upwards
 
 With the JavaScript version of Danger in a great place ready for production, I can start more serious work on [Peril][peril]. Peril is a hosted web-service that runs Dangerfiles against GitHub events, see [the VISION.md][peril-vision]. Those events span from a new user being created, to a new issue on a repo. Peril lets you run your own complex rules across an entire org. This can be a really powerful way to audit and improve entire-company culture.
 
-We started using Peril in Artsy [last week][peril-reaction]. So it's starting to become a thing internally. It'll be awesome to explore the idea of org-wide rules. 
-
-I think we're starting with making sure we assign someone on a PR. 
+We started using Peril in Artsy [last week][peril-reaction]. So it's starting to become a thing internally. It'll be awesome to explore the idea of org-wide rules. I think we're starting with making sure we assign someone on a PR. 
 
 So give Danger a shot, and if you're bold. give [Peril][peril] a shot.
 
