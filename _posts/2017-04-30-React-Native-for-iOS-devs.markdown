@@ -10,9 +10,9 @@ css: what-is-react-native
 
 React Native is a new native library that vastly changes the way in which you can create applications. The majority of the information and tutorials on the subject come from the angle of _"you are a web developer, and want to do native"_.
 
-This makes sense, given that the size of that audience is much bigger, and far more open in the idea of writing apps using JavaScript. For web developers it opens a new space to work, for native developers it provides However, this is not how React Native was introduced inside Artsy. The push came from the native team. 
+This makes sense, given that the size of that audience is much bigger, and far more open in the idea of writing apps using JavaScript. For web developers it opens a new creative spaces to work, however for native developers it provides a way to work with different tools on the same problem. Considering that most developers with a few years on the platform will be comfortable with the Xcode toolset, recommending a change this drastic is a tough sell.
 
-We've been doing it now for over a year, and have started to slow down on drastic changes inside the codebase. This is great because it means we're spending less time trying to get things to work, and more time building on top of a working setup.
+We've been using React Native now for about a year and a half, and have started to slow down on sweeping changes inside the codebase. This is great because it means we're spending less time trying to get things to work, and more time building on top of a working setup. Now that we're settled, it's time to start deeply understanding what happens with React Native.
 
 I'd like to try cover a lot of the common questions we get asked about from the perspective of native developers:
 
@@ -29,21 +29,27 @@ At the highest level, React Native is a way to write React apps that run as nati
 -   Learn Once, Write Anywhere.
 -   Make a native developer experience as fast as the web developer's.
 
-_"Learn Once, Write Anywhere"_ is a play on Java's _"Write Once, Run Anywhere"_ - something that has not worked well for user-interface heavy mobile clients. The idea of running the same code everywhere encourages platform-less APIs which water down the positives of each platform.
+**"Learn Once, Write Anywhere"** is a play on Java's _"Write Once, Run Anywhere"_ - something that has not worked well for user-interface heavy mobile clients. The idea of running the same code everywhere encourages platform-less APIs which water down the positives of each platform.
 
-_"Learn once"_ in this context means that you can re-use the same ideas and tools across many platforms. You don't lose your ability to write the same user experiences as you can with native code, but you can re-use your existing skills from different platforms in different contexts. That is the _"Write Anywhere."_
+**"Learn once"** in this context means that you can re-use the same ideas and tools across many platforms. You don't lose your ability to write the same user experiences as you can with native code, but you can re-use your existing skills across different platforms. That is the **"Write Anywhere"** aspect.
+
+React Native makes it feasible to share a lot of code between iOS, Android and Web. It is not a panacea for making a cross-platform app though, cross platform is not an _explicit_ goal of the project. The project moves towards making the best per-platform apps.
+
+To make a developer experience **as fast as the web developer's** you need to really reflect on how slow native development is. Even before Swift double/triple/quadrupled the time to compile an app, a change in one part of the app required a full restart of the simulator, and for the developer to get back into the same position to see the changes. As a web developer you would just refresh the browser. For example with the simplest Xcode iOS app template, I made a single line change and did an incremental rebuild and it took 9 seconds to get me back into my app with the new change, on a 2015 MacBook Pro. 9 seconds per change leaves a lot of time to lose focus, and discourages playfulness.
+
+If those are the state goals of React Native specifically, what are the goals of React?
+
 
 # React
 
-React offers a uni-direction Component model that _can_ handle what is traditionally handled by the MVC paradigm. The library was created originally for the web, where updates at the equivalent of UIView level are considered slow. React provides a diffing engine for a tree of components that would _eventually_ be represented as HTML, allowing you to write the end-state of your interface and React would apply the difference to only the HTML that changes.
+React provides a single-direction Component model that _can_ handle what is traditionally handled by the MVC paradigm. The library was created originally for the web, where updates at the equivalent of UIView level are considered slow. React provides a diffing engine for a tree of components that would _eventually_ be represented as HTML, allowing you to write the end-state of your interface and React would apply the difference to only the HTML that changes.
 
 This pattern is applied by providing a consistent way to represent a component's state. Imagine if every UIView subclass had a "`setState`" function where you applied 
 
 React was built out of a desire to abstract away a web page's true view hierarchy (called the DOM) so that they could make changes to all of their views and then React would handle finding the differences between view states.
 
-
 </article>
-<article style='display: flex; flex-flow:row;'>
+<article style='display: flex; flex-flow:row; position: absolute; left:10px; right: 10px; height: 360px;'>
 
 <img style='flex:1; margin-top: 20px; margin-right:20px;' src="/images/what-is-rn/simple-overview-render.png" width=269 height=474/>
 <!-- This include path doesn't work for RSS etc, needs to change-->
@@ -53,22 +59,44 @@ React was built out of a desire to abstract away a web page's true view hierarch
 
 <div style='flex:1' id='simple-components'>
 
-  <div class="component" style="height:474px; width: 269px; margin-top: 20px;" id='sc-v' data-props="{ query: 'Tracy', results: [{ name: 'Tracy Emin', url: 'img/tracy.png' }, { name: 'Tom Thompson', url: 'img/tom-t.png' }, { name: 'Tom Sachs', url: 'img/tom-s.png' }] }"><p>View</p>
-    <div class="component" id='sc-v-textfield' data-props="{ text: 'Tracy' }"><p>SearchQueryInput</p></div>
-    <div class="component" id='sc-v-results' data-props="{}"><p>ScrollView</p>
-      <div class="component" id='sc-v-results-tracey' data-props="{ name: 'Tracy Emin', url: 'img/tracy.png' }" ><p>ArtistResult</p></div>
-      <div class="component" id='sc-v-results-tom-t' data-props="{ name: 'Tom Thompson', url: 'img/tom-t.png' }" ><p>ArtistResult</p></div>
-      <div class="component" id='sc-v-results-tom-s' data-props="{ name: 'Tom Sachs', url: 'img/tom-s.png' }" ><p>ArtistResult</p></div>
+  <div class="component" style="height:474px; width: 269px; margin-top: 20px;" id='sc-v' data-props="{ query: 'Tracy', results: [{ name: 'Tracy Emin', url: 'img/tracy.png' }, { name: 'Tom Thompson', url: 'img/tom-t.png' }, { name: 'Tom Sachs', url: 'img/tom-s.png' }] }" data-title="View"><p>View</p>
+    <div class="component" id='sc-v-textfield' data-props="{ text: 'Tracy' }" data-title="SearchQueryInput"><p>SearchQueryInput</p></div>
+    <div class="component" id='sc-v-results' data-props="{}" data-title="ScrollView"><p>ScrollView</p>
+      <div class="component" id='sc-v-results-tracey' data-props="{ name: 'Tracy Emin', url: 'img/tracy.png' }" data-title="ArtistResult"><p>ArtistResult</p></div>
+      <div class="component" id='sc-v-results-tom-t' data-props="{ name: 'Tom Thompson', url: 'img/tom-t.png' }" data-title="ArtistResult"><p>ArtistResult</p></div>
+      <div class="component" id='sc-v-results-tom-s' data-props="{ name: 'Tom Sachs', url: 'img/tom-s.png' }" data-title="ArtistResult"><p>ArtistResult</p></div>
     </div>
-    <div class="component" id='sc-v-done' data-state="{ onTap: () => void }"><p>Button</p></div>
+    <div class="component" id='sc-v-done' data-props="{ onTap: function(){} }" data-title="Button"><p>Button</p></div>
   </div>
 </div>
+<div id='simple-components-props' style='flex:1' >
+  <code><pre>// Mouse over for props
+{
+  ...
+}
+  </pre></code>
+</div>
+
 
 <script>
+var JSONWithFuncs = function(key, val) {
+  if (typeof val === 'function') {
+    return "() => void" 
+  }
+  return val;
+};
 
 var highlight = function(id) {
-  $("#r-" + id).attr("stroke", "black")
-  $("#sc-" + id).css("background-color", "red")
+  var $svgComponent = $("#r-" + id)
+  var $component = $("#sc-" + id)
+
+  $svgComponent.attr("stroke", "black")
+  $component.css("background-color", "red")
+
+  var props = $component.data("props")
+  var object = eval("(" + props + ")")
+  var formatString = JSON.stringify(object, JSONWithFuncs, "  ")
+  $("#simple-components-props pre").text("// Props for " + $component.data("title") + "\n\n" + formatString) 
 }
 var unHighlight = function(id) {
   $("#r-" + id).attr("stroke", "none")
@@ -90,13 +118,9 @@ $(".component").hover(function(){
     var newID = this.id.replace(/^sc-/, "")
     unHighlight(newID)
 });
-
 </script>
-
 </article>
-<article class="post">
-
-[TODO] Show the state
+<article class="post" style="margin-top: 620px">
 
 This kind of tree structure should feel quite similar to the view tree that you see inside a tool like Reveal, or inside the Xcode visual inspector.
 
@@ -105,14 +129,19 @@ This is a *simplified* version of what that code for the component above looks l
 {% raw %}
 <!-- The {{ and }} get eaten by mustache -->
 ```js
+// Import React, and native Components from React Native
 import * as React from "react"
 import { ScrollView, Text, Image, View } from "react-native"
 
+// Re-use our existing search Text Input component
 import TextInput from "./text_input"
 
+// Exports a React component called Search Results from this file
 export default class SearchResults extends React.Component {
 
+  // The tree of components that this component represents
   render() {
+    // Returns a JSX tree
     return (
       <View>
         <TextInput text={{ value: props.query }} searching={props.searching} />
@@ -122,7 +151,7 @@ export default class SearchResults extends React.Component {
       </View>
     )
   }
-
+  // Returns a single component for a row
   rowForResult(result) {
     return (
       <Result>
@@ -139,7 +168,7 @@ export default class SearchResults extends React.Component {
 
 Instead of MVC, React uses composition of components to handle complexity, oddly enough - this should feel quite similar to iOS development. The screen of an iOS app is typically made up of `UIView`s, and `UIViewController`s which exist inside interlinked trees of hierarchy. A `UIViewController` itself doesn't have a visual representation, but exists to manipulate data, handle actions and the view structure for views who do.
 
-A component can be both view and view controller.
+A with this context: a React component can be both view and view controller.
 
 ```
 [
@@ -172,7 +201,7 @@ In React you would:
 
 They are conceptually very similar. React does two key things differently: Handle "state" changes on any component, and handle view creation/addition and removal.
 
-###   Handle "state" change on any component
+## Handle "state" change
 
 So, I've been quoting "state", I should explain this. There are two types of "state" inside React, and I've been using the quoted term to refer to both for simplicity till now.
 
@@ -182,7 +211,9 @@ So, I've been quoting "state", I should explain this. There are two types of "st
 
 So in our case above, getting the API results only changes the state on the component which makes the request. However, the results are passed down into the props _(properties)_ of the component's children as any further changes to the API data (for example if you were polling for updates) would result in a re-render of the child-components.
 
-### Handle view management
+So for the lifetime of that top-level component, the changes due to the API request are put in state. Then the results are passed down to it's children as props. This means the children can potentially change when an API response is recieved.
+
+## Handle view management
 
 Because of the consolidated rules around state management React can quite easily know when there have been changes throughout your component tree and to call `render` for those components. `render` is the function where you declare the tree of children for a component.
 
@@ -212,16 +243,16 @@ Each of these platforms will have their own way of showing some text e.g.
 -   `ReactTextShadowNode` for Windows - which uses a [RichTextBlock][6]
 -   `QQuickItem` for Ubuntu - Which uses [QString to render][7]
 
-But when working at React-level, you would use the component `Text`. This means you can work at a cross-platform level, by relying on the primitives provided by each implementation of React Native.
+But when working at React-level, you would use the component `Text`. This means you work at a "React in JS" level, and rely on the primitives provided by each implementation of React Native.
 
-For iOS, this works by using a JavaScript runtime (running via JavaScriptCore in your app) which sends messages across a bridge that handles the native `UIView` hierarchy. 
+For iOS, this works by using a JavaScript runtime (running via JavaScriptCore in your app) which sends [messages across a bridge][nick-msg] that handles the native `UIView` hierarchy. Most of the messaging work is handled inside the `RCTUIViewManager` which receives calls like `createView:viewName:rootTag:props:`, `setChildren:reactTags:`, `updateView:viewName:props:` and `createAnimatedNode:config`. Thses 
 
 [
   Graph
     JS Runtime - Bridge - Native Views
 ]
 
-This bridging is how you get a lot of the positive aspects of working with the JavaScript tooling eco-system. The JavaScript used by React can be updated independent of the app, but so long as it is working with the same native bridge version. This is how React can safely have a reliable version of [Injection for Xcode][].
+This bridging is how you get a lot of the positive aspects of working with the JavaScript tooling ecosystem. The JavaScript used by React can be updated independent of the app, but so long as it is working with the same native bridge version. This is how React can safely have a reliable version of [Injection for Xcode][].
 
 Like any cross-platform abstraction, React Native can be leaky. To write a cross-platform app that purely lives inside JS Runtime, you have to write React-only code. React and React Native doesn't have ways to handle primitives like `UINavigationController` - they want your entire app to be represented as a series of components that can be mapped across many platforms. 
 
@@ -598,3 +629,4 @@ In the same kind of way that you had to become comfortable with project manageme
 [swift-at-artsy]: ???
 [futurice]: ???
 [artsy-jest]: ???
+[nick-msg]: https://twitter.com/nicklockwood/status/876130867177033730
