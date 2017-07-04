@@ -424,7 +424,7 @@ I wrote up a glossary of terms from JavaScript when I first started understandin
 
 Syntax wise, TypeScript doesn't have enums with associated types, which I like, nor implicit trailing closures. As a trade-off though TypeScript has [union types][union], which work really well for data-modeling. One particular thing I like a lot is that the code you read is so much simpler, as all symbols that you use need to be defined in that file.
 
-If there's one major flaw with the JavaScript code we have wrote so far, it's the complicated ugliness surrounding the `this` keyword. It is [genuinely complicated][this], and a good source of dev-time errors for me. No linters can really catch those errors, so it becomes frustraing.
+If there's one major flaw with the JavaScript code we have wrote so far, it's the complicated ugliness surrounding the `this` keyword. It is [genuinely complicated][this], and a good source of dev-time errors for me. No linters can really catch those errors, so it becomes frustrating.
 
 ## Node.js
 
@@ -523,9 +523,13 @@ These provide enough for a most use-cases, but there is a more direct API and a 
 
 What if Facebook stop maintaining React Native? Today it obviously doesn't look like it, but if you're talking the next 5 years - maybe it's not that rosy. The JavaScript world moves real fast, 5 years ago React didn't exist and Node still hadn't had it's [big divorce][iojs] and [re-married][iojs-together]. 
 
-Our perspective on dependencies has been that [you should always own then][own-deps] in the sense that you have an understanding of how they work technically and culturally.
+Our perspective on dependencies has been that [you should always own then][own-deps] in the sense that you have an understanding of how they work technically and culturally. This means for the larger projects, you should feel comfortable being able to make PRs back to the project, or feel comfortable that the vendor will fix bugs for you. The latter is not necessarily something that Facebook will be doing for you. They specifically call out that React Native is being built in the open, but that they are building and working on things that affect Facebook in production and then look at larger platform issues. You can get a sense of this by reading [the React Native roadmap][rn-roadmap]. These aims cover the rest of this year, and next year they'll re-evaluate.
 
-[TODO]
+We're pretty comfortable that if Facebook stop committing to React Native tomorrow, we (as Artsy) can continue to keep the project stable and at the same place across iOS releases. There'd be a learning curve, but we're not the only company that'd be willing to do this too: AirBnb, Expo, Uber, Microsoft, GeekyAnts and Wix all participate at [a very granular level][react-monthly] and would probably make sure that the code you ship today will work with iOS 12 and so on - as they need that too. Should you rely on that? If you're small enough (we have 5 engineers with native experience) then I think it's reasonable. 
+
+As a relevant example, Three20 had a very [reasonable deprecation path][nimbus], it's just that a lot of people didn't have the technical ability to migrate off. Frameworks like React Native and Three20 lower the barrier to entry considerably. The trade-off is that once you end up having to leave those frameworks, you have a pretty big learning curve to the baseline OS frameworks.
+
+From my perspective, in Artsy there are only 2-3 projects that are 5 years old (Artsy was roughly founded in 2010) and I know a few of those are [getting split into new apps][tech-stack]. I'm not sure if *we* need to be looking _that far_ ahead. Our keystone [iOS app, Eigen][eigen] was started in 2013, and has already gone through 2 complete internal transformations as our requirements and opportunities change. It's very feasible that in 4 years we'll be at a very different place again. We choose to not turn down something that so drastically improves our developer and end user experience for that risk.
 
 ## Performance
 
@@ -651,3 +655,8 @@ In the same kind of way that you had to become comfortable with project manageme
 [WebStorm]: http://jetbrains.com/webstorm
 [xctest]: https://github.com/apple/swift-corelibs-xctest
 [DangerJS]: http://danger.systems/js/
+[rn-roadmap]: https://github.com/facebook/react-native/wiki/Roadmap
+[react-monthly]: https://facebook.github.io/react-native/blog/2017/06/21/react-native-monthly-1.html
+[tech-stack]: /blog/2017/04/14/artsy-technology-stack-2017/
+[eigen]: https://github.com/artsy/eigen
+[nimbus]: https://github.com/jverkoey/nimbus/wiki/Three20-Migration-Guide
