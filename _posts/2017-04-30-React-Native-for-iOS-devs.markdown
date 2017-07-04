@@ -54,16 +54,12 @@ This pattern is applied by providing a consistent way to represent a component's
 React was built out of a desire to abstract away a web page's true view hierarchy (called the DOM) so that they could make changes to all of their views and then React would handle finding the differences between view states.
 
 </article>
-<article class="desktop-only" style='display: flex; flex-flow:row; position: absolute; left:10px; right: 10px; height: 360px;'>
-
-<img style='flex:1; margin-top: 20px; margin-right:20px;' src="/images/what-is-rn/simple-overview-render.png" width=269 height=474/>
-<!-- This include path doesn't work for RSS etc, needs to change-->
-<div style='flex:1'><center>
-{% include_relative svgs/rn/simple-component-overview.svg %}
-</center></div>
-
+<article class="desktop-only" style='display: flex; flex-flow:row; position: absolute; left:10px; right: 10px; height: 360px; min-width: 1200px;'>
+<div style='flex:1; text-align:center;'>
+<img style=' margin-top: 20px; margin-right:20px;' src="/images/what-is-rn/simple-overview-render.png" width=269 height=474/>
+</div>
+<div style='flex:1'><center>{% include svg/rn/simple-component-overview.svg %}</center></div>
 <div style='flex:1' id='simple-components'>
-
   <div class="component" style="height:474px; width: 269px; margin-top: 20px;" id='sc-v' data-props="{ query: 'Tracy', results: [{ name: 'Tracy Emin', url: 'img/tracy.png' }, { name: 'Tom Thompson', url: 'img/tom-t.png' }, { name: 'Tom Sachs', url: 'img/tom-s.png' }] }" data-title="View"><p>View</p>
     <div class="component" id='sc-v-textfield' data-props="{ text: 'Tracy' }" data-title="SearchQueryInput"><p>SearchQueryInput</p></div>
     <div class="component" id='sc-v-results' data-props="{}" data-title="ScrollView"><p>ScrollView</p>
@@ -74,8 +70,8 @@ React was built out of a desire to abstract away a web page's true view hierarch
     <div class="component" id='sc-v-done' data-props="{ onTap: function(){} }" data-title="Button"><p>Button</p></div>
   </div>
 </div>
-<div id='simple-components-props' style='flex:1' >
-  <code><pre>// Hover on prototype for props
+<div id='simple-components-props' style='flex:1; ' >
+  <code><pre style="margin-top: 20px; width: 269px; height:452px;">// Hover on prototype for props
 {
   ...
 }
@@ -134,11 +130,11 @@ This is a *simplified* version of what that code for the component above looks l
 {% raw %}
 <!-- The {{ and }} get eaten by mustache -->
 ```js
-// Import React, and native Components from React Native
+// Import React, and native components from React Native
 import * as React from "react"
 import { ScrollView, Text, Image, View } from "react-native"
 
-// Re-use our existing search Text Input component
+// Re-use our existing search TextInput component
 import TextInput from "./text_input"
 
 // Exports a React component called Search Results from this file
@@ -171,24 +167,11 @@ export default class SearchResults extends React.Component {
 
 > You're looking at a subclass of `React.Component` with two functions, `render` and `rowForResult`. `render` is the key function for defining your tree.
 
-Instead of MVC, React uses composition of components to handle complexity - this should feel quite similar to iOS development. The screen of an iOS app is typically made up of `UIView`s, and `UIViewController`s which exist inside interlinked trees of hierarchy. A `UIViewController` itself doesn't have a visual representation, but exists to manipulate data, handle actions and the view structure for views who do.
+Instead of MVC, React uses composition of components to handle complexity - this should feel quite similar to iOS development. The screen of an iOS app is typically made up of `UIView`s, and `UIViewController`s which exist as 2 interlinked trees of hierarchy. A `UIViewController` itself doesn't have a visual representation, but exists to manipulate data, handle actions and the view structure for `UIViews` who do. 
 
-[TODO]
+By merging the responsibilities of a `UIView` and `UIViewController` into a Component, there is a consistent way to work with all aspects of your app. 
 
-```
-[
-  multi-step diagram:
-    UIView tree ->
-    UIView + UIViewController tree ->
-    Component Tree
-    -
-    App Prototype
-    -
-    In the component tree 
-]
-```
-
-By merging the responsibilities of a `UIView` and `UIViewController` into a Component, there is a consistent way to work with all aspects of your app. Let's take a trivial example. Downloading some data from the network and showing it on a screen.
+To try undestand this, Let's take a trivial example. Downloading some data from the network and showing it on a screen.
 
 In UIKit-world you would:
 
@@ -206,7 +189,7 @@ In React you would:
 
 They are conceptually very similar. React does two key things differently: Handle "state" changes on any component, and handle view creation/addition and removal.
 
-## Handle "State" Change
+## Handling "State" Changes
 
 So, I've been quoting "state", I should explain this. There are two types of "state" inside React, and I've been using the quoted term to refer to both for simplicity till now.
 
@@ -218,7 +201,7 @@ So in our case above, getting the API results only changes the state on the comp
 
 So for the lifetime of that top-level component, the changes due to the API request are put in state. Then the results are passed down to it's children as props. This means the children can potentially change when an API response is received.
 
-## Handleing View mManagement
+## Handling View Management
 
 Because of the consolidated rules around state management React can quite easily know when there have been changes throughout your component tree and to call `render` for those components. `render` is the function where you declare the tree of children for a component.
 
@@ -232,7 +215,7 @@ So, in summary: React's paradigm is a component tree, where the `render` functio
 
 # React Native
 
-React was built for the web - but some-one realised that they could de-couple the React component tree from the HTML output, and instead that could be a tree of `UIView`'s.
+React was built for the web - but [some-one realised][intro-rn] that they could de-couple the React component tree from the HTML output, and instead that could be a tree of `UIView`'s.
 
 That is the core idea of React Native. Bridge the React component tree to native primitives. React Native runs on a lot of platforms:
 
@@ -250,15 +233,9 @@ Each of these platforms will have their own way of showing some text e.g.
 
 But when working at React-level, you would use the component `Text`. This means you work at a "React in JS" level, and rely on the primitives provided by each implementation of React Native.
 
-For iOS, this works by using a JavaScript runtime (running via JavaScriptCore in your app) which sends [messages across a bridge][nick-msg] that handles the native `UIView` hierarchy. Most of the messaging work is handled inside the `RCTUIViewManager` which receives calls like `createView:viewName:rootTag:props:`, `setChildren:reactTags:`, `updateView:viewName:props:` and `createAnimatedNode:config`. Thses 
+For iOS, this works by using a JavaScript runtime (running via JavaScriptCore in your app) which sends [messages across a bridge][nick-msg] that handles the native `UIView` hierarchy. Most of the messaging work is handled inside the `RCTUIViewManager` which receives calls like `createView:viewName:rootTag:props:`, `setChildren:reactTags:`, `updateView:viewName:props:` and `createAnimatedNode:config`.
 
-[TODO]
-[
-  Graph
-    JS Runtime - Bridge - Native Views
-]
-
-This bridging is how you get a lot of the positive aspects of working with the JavaScript tooling ecosystem. The JavaScript used by React can be updated independent of the app, but so long as it is working with the same native bridge version. This is how React can safely have a reliable version of [Injection for Xcode][].
+This bridging is how you get a lot of the positive aspects of working with the JavaScript tooling ecosystem. The JavaScript used by React can be updated independent of the app, but so long as it is working with the same native bridge version. This bridging technique is how React can safely have a reliable version of [Injection for Xcode][]. It re-evaluates your JavaScript code, and that triggers a new set of messages to the native side.
 
 Like any cross-platform abstraction, React Native can be leaky. To write a cross-platform app that purely lives inside JS Runtime, you have to write React-only code. React and React Native doesn't have ways to handle primitives like `UINavigationController` - they want your entire app to be represented as a series of components that can be mapped across many platforms. 
 
@@ -272,7 +249,7 @@ OK, no joke, don't skip this, you can do try React Native right now. This will r
 
 </article>
 <article class="desktop-only" style='display: flex; flex-flow:row;'>
-<div style='flex:1'>
+<div style='flex:1; display: block;'>
 
 ```sh
 # If you don't have homebrew
@@ -293,7 +270,7 @@ react-native init TrendingArtists
 ```
 
 </div>
-<div class="desktop-only" style='flex:1'>
+<div class="desktop-only" style='flex:1; display: block;'>
 
 <p>You'll need <code>node</code> and <code>yarn</code> installed globally so you can run JavaScript and handle dependency management respectively.<p>
 
@@ -316,7 +293,7 @@ Once a simulator has popped up, and you see the "Welcome to React Native" screen
 
 </article>
 <article class="desktop-only" style='display: flex; flex-flow: row;'>
-<div class="desktop-only" style='flex:1'>
+<div class="desktop-only" style='flex:1; display: block;'>
 
 
 ```sh
@@ -358,7 +335,7 @@ $ tree .
 ```
 
 </div>
-<div class="desktop-only" style='flex:1'>
+<div class="desktop-only" style='flex:1; display: block;'>
 
 <p><strong>What are we looking at?</strong></p>
 
@@ -382,10 +359,12 @@ Now you can go into your text editor and change some of the words inside `index.
 
 If you'd like to go through a tutorial from this point, I'd recommend these:
 
-- The React Native site
-- [look for other tutorials]
+- [The React Native site][rn-tut]
+- [Egghead.io - React Native][egg-rn]
+- [React Native Express][rn-expres]
+- [Building the f8 2016 app][makeitopen]
 
-We're going to back to talking about the hows and whys.
+We're now going to back to talking about the hows and whys. Good luck with those tutorials though - [you've got this :D][you-got-this]
 
 ## Writing JavaScript
 
@@ -479,22 +458,15 @@ This is a little bit tricky though. Because you can write expose native code whi
 
 ## Doing it right per platform 
 
-[TODO]
+I've used the term cross platform quite flippantly in this article to describe code that can run on many platforms. We've tried thinking of it as React Native gives us the ability to think in cross platform terms. We now have most of our app's root view controllers in React Native, which means we could make a pretty simple Android app re-using that code with a pretty small amount of effort.
 
--   RN gives you the ability to think in cross-platform
--   Most devs are JS people trying to ship to Android/iOS
--   They're interested in getting it done vs getting it right
--   show my navigation issue
+We don't though. The apps we make *need* to fit the platform and feel like the best experience you can get, when you're potentially buying a [> $100,000 artwork][artwork-search]. We'd need an Android engineer with a lot of experience to work on the app, they'd need to be able to work on React Native for Android when we hit roadblocks and to provide useful context on how the app should feel. _BTW, if this is you - get in touch ;)_. To do the platform right, we may already have some cross platform code - but it isn't going to the app we want without native code.
 
--   Doing it right will inevitably require native code
--   RN is a focused UI framework 
--   Does not hinder you from making apps with traditionally native features: e.g. NSUserActivity, Spotlight etc
--   Making some of these features requires crossing the bridge back to native land and having the work done there
--   _We_ still think in terms of `UIViewControllers` which have a react view tree, not there is an app react component with sub-react components as view controllers.
+So, where does the cross-platform aspect come from? For a lot of users of React Native, native development has _always_ been unavailable to them, and now it's not as React Native has lowered the barrier to entry. This means many people are aiming to make cross-platform React Native apps that are entirely in JavaScript ( see [Create React Native App][crna]. ) They are just trying to get _something_ shipped, which could be different from what *you the reader* are probably doing. As a native dev, you're probably more interested in making something really fit the platform and shine. Lots of probablys, yes, but it fits the questions we're being asked.
 
--   RN provides some pretty clever ways to handle cross-platform 
+Both aspects of this are reasonable. React Native will let you do both. While React Native encourages you to think entirely at the V in MVC only, we still structure our React Native into `UIViewController`s and still support unique iOS features via native code.
 
--   note somewhere that our imageviews use SDWebImage to share cache
+One place where this difference in perspective shows up is with navigation. In iOS it's pretty straight forwards: use `UINavigationController`. For React Native, it's actually _really tricky_, check out [this issue where I write up all the trade-offs][nav-options] for the current set of APIs. Some of this is just a statement that figuring out the right abstraction is hard here, the other is that a lot of big apps are also at the same size as ours with ~2 years of React Native adoption.
 
 ## Create React Native App
 
@@ -550,11 +522,19 @@ We found that the majority of our view controllers do a lot of work on init, the
 
 This has come up a few times in discussion, Facebook have a bit of a custom license for their open source. Back in 2015, they made changes to the license that makes is problem for everyone but patent trolls. You can find a bunch of resources for further reading [on this gist][react-patents]. 
 
+## React Dependencies
+
+This comes up in every post we make on React Native, because it's always worth mentioning. React Native has [51 dependencies][rn-deps], which when resolved comes up to [around ~650 dependent][libs-rn-deps] projects. This is a _lot_ of dependencies. Remember that the JavaScript ecosystem does not have the [equivalent of Foundation][foundation], and so to create a standard library, you use dependencies. 
+
+A dependency can be as small as [a single function][lodash-a], or as fully featured as React Native. So it doesn't really help to know the number in terms of anything other than "it's a lot". In this case, it is just the culture of JavaScript and node to work in this fashion. It's like if you had to ship your version of Foundation and Cocoa with your app, instead of relying on the one's built into the OS. First you'd have to pay the [memory and load time][mik-load-time] price for it in your app, and then you have a bazillion dependencies you don't need like iAd or SpriteKit.
+
+These unused dependencies [can be removed at deploy time][rollupjs], but React Native is not at this point yet.
+
 ## Places where React Native hasn't fit for us
 
-So far, nowhere. 
+My first draft had notes on some of our mobile apps where we thought it might not fit. After some discussion, we changed out mind. So then our answer: Nowhere. 
 
-Note though, the types of apps we create are exclusively API driven, with a unique visual style which totally covers the exposed UI surface. React Native is a *great fit* for this kind of app.
+Note though, *the types of apps we create are exclusively API driven, with a unique visual style which totally covers the exposed UI surface. React Native is a great fit for this kind of app*.
 
 Our main app Eigen, is a `UIViewController` browser, and React Native components are just one type of `UIViewController` that can be browsed. Nearly every `UIViewController` is the representation of an API endpoint, so React Native + Relay is a great match.
 
@@ -593,7 +573,7 @@ If you're thinking of adding RN to an existing app, first read [on emission][]. 
 
 ## Greenfield
 
-I'd recommend start with a CRNA app, it's a good starting point. I feel safe that I can eject out of the environment provided when the app becomes complex enough to warrant native code.
+I'd recommend start with a CRNA app, it's a good starting point. I would feel safe that [you can eject][eject] out of the environment provided when the app becomes complex enough to warrant native code.
 
 I personally would probably start with this boiler-plate, but I am a domain expert now. In order to feel comfortable with it, you'll need to be comfortable with 
 
@@ -660,3 +640,19 @@ In the same kind of way that you had to become comfortable with project manageme
 [tech-stack]: /blog/2017/04/14/artsy-technology-stack-2017/
 [eigen]: https://github.com/artsy/eigen
 [nimbus]: https://github.com/jverkoey/nimbus/wiki/Three20-Migration-Guide
+[artwork-search]: https://www.artsy.net/collect?color=lightblue&price_range=50000.00-%2A&sort=-prices
+[crna]: #Create.React.Native.App
+[nav-options]: https://github.com/artsy/emission/issues/501
+[eject]: https://github.com/react-community/create-react-native-app/blob/master/EJECTING.md
+[egg-rn]: https://egghead.io/browse/frameworks/react-native
+[rn-tut]: https://facebook.github.io/react-native/docs/tutorial.html
+[rn-expres]: http://www.reactnativeexpress.com
+[makeitopen]: http://makeitopen.com
+[you-got-this]: /images/what-is-rn/you-have-got-this.gif
+[intro-rn]: https://youtu.be/KVZ-P-ZI6W4?t=12m54s
+[rn-deps]: https://www.npmjs.com/package/react-native
+[libs-rn-deps]: https://libraries.io/npm/react-native/0.46.0-rc.2/tree
+[foundation]: https://developer.apple.com/documentation/foundation
+[lodash-a]: https://yarnpkg.com/en/packages?q=lodash-a&p=1
+[mik-load-time]: https://twitter.com/mikeal/status/874711319412330496
+[rollupjs]: https://rollupjs.org
