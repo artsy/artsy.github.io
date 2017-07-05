@@ -143,10 +143,9 @@ export default class SearchResults extends React.Component {
 
   // The tree of components that this component represents
   render() {
-    // This is JSX code: it a transformer that converts code from HTML like
-    // brackets into a specific method call. E.g  `<Text font="Garamond" />`
-    // turns into; `React.createElement('div', {font: 'Garamond'}, null)`
-    //
+    // This is JSX code, JSX is a source-code transformer that converts code from 
+    // HTML-like brackets into a specific method call. E.g  `<Text font="Garamond" />`
+    // turns into; `React.createElement('Text', {font: 'Garamond'}, null)`
     return (
       <View>
         <TextInput text={{ value: props.query }} searching={props.searching} />
