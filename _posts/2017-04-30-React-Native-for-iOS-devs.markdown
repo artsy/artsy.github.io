@@ -10,17 +10,17 @@ css: what-is-react-native
 
 React Native is a new native library that vastly changes the way in which you can create applications. The majority of the information and tutorials on the subject come from the angle of _"you are a web developer, and want to do native"_.
 
-This makes sense, given that the size of that audience is much bigger, and far more open in the idea of writing apps using JavaScript. For web developers it opens a new creative spaces to work, however for native developers it provides a way to work with different tools on the same problem. Considering that most developers with a few years on the platform will be comfortable with the Xcode toolset, recommending a change this drastic is a tough sell.
+This makes sense, given that the size of that audience is much bigger, and far more open in the idea of writing apps using JavaScript. For web developers it opens a new creative space to work, however for native developers it provides a way to work with different tools on the same problem. Considering that most developers with a few years on the platform will be comfortable with the Xcode toolset, recommending a change this drastic is a tough sell.
 
 We've been using React Native now for about a year and a half, and have started to slow down on sweeping changes inside the codebase. This is great because it means we're spending less time trying to get things to work, and more time building on top of a solid foundations. Now that we're settled, it's time to start deeply understanding what happens with React Native.
 
-I'd like to try cover a lot of the common questions we get asked about from the perspective of native developers:
+I'd like cover a lot of the common questions we get asked about from the perspective of native developers:
 
 -   What is React Native?
 -   How do you use React Native?
 -   When is React Native a good technology choice?
 
-This article will try to cover an awful lot, so free up 15 minutes, make a tea and then come back to this. It's worth your time if you're interested in all the hype around React Native.
+This article covers an awful lot, so free up at least 30 minutes, make a tea and then come back to this on your computer. It's worth your time if you're interested in all the hype around React Native.
 
 <!-- more -->
 
@@ -39,19 +39,20 @@ At the highest level, React Native is a way to write React apps that run as nati
 
 **"Learn once"** in this context means that you can re-use the same ideas and tools across many platforms. You don't lose your ability to write the same user experiences as you can with native code, but you can re-use your existing skills across different platforms. That is the **"Write Anywhere"** aspect.
 
-React Native makes it feasible to share a lot of code between iOS, Android and Web. It is not a panacea for making a cross-platform app though, cross platform is not an _explicit_ goal of the project. The project moves towards making the best per-platform apps.
+React Native makes it feasible to share a lot of code between iOS, Android and Web. It is not a panacea for making a cross-platform app though, cross-platform is not an _explicit_ goal of the project. The project moves towards making the best per-platform apps.
 
 To make a developer experience **as fast as the web developer's** you need to really reflect on how slow native development is. Even before Swift double/triple/quadrupled the time to compile an app, a change in one part of the app required a full restart of the simulator, and for the developer to get back into the same position to see the changes. As a web developer you would just refresh the browser. For example with the simplest Xcode iOS app template, I made a single line change and did an incremental rebuild and it took 9 seconds to get me back into my app with the new change, on a 2015 MacBook Pro. 9 seconds per change leaves a lot of time to lose focus, and discourages playfulness.
 
-If those are the state goals of React Native specifically, what are the goals of React?
+If those are the stated goals of React Native specifically, what are the goals of React?
 
 # React
 
-React provides a single-direction Component model that _can_ handle what is traditionally handled by the MVC paradigm. The library was created originally for the web, where updates at the equivalent of UIView level are considered slow. React provides a diffing engine for a tree of components that would _eventually_ be represented as HTML, allowing you to write the end-state of your interface and React would apply the difference to only the HTML that changes.
-
-This pattern is applied by providing a consistent way to represent a component's state. Imagine if every UIView subclass had a "`setState`" function where you applied 
+React provides a single-direction Component model that _can_ handle what is traditionally handled by the MVC paradigm. The library was created originally for the web, where updates at the equivalent of `UIView` level are considered slow. React provides a diffing engine for a tree of components that would _eventually_ be represented as HTML, allowing you to write the end-state of your interface and React would apply the difference to only the HTML that changes.
 
 React was built out of a desire to abstract away a web page's true view hierarchy (called the DOM) so that they could make changes to all of their views and then React would handle finding the differences between view states.
+
+This pattern is applied by providing a consistent way to represent a component's state. Imagine if every `UIView` subclass had a "`setState`" function where you can send a subset of all available options (backgroundColor, frame, alpha, etc) and then eventually UIKit would re-concile all changes to all views in batches.
+
 
 </article>
 <article class="desktop-only" style='display: flex; flex-flow:row; position: absolute; left:10px; right: 10px; height: 360px; min-width: 1200px;'>
@@ -142,7 +143,10 @@ export default class SearchResults extends React.Component {
 
   // The tree of components that this component represents
   render() {
-    // Returns a JSX tree
+    // This is JSX code: it a transformer that converts code from HTML like
+    // brackets into a specific method call. E.g  `<Text font="Garamond" />`
+    // turns into; `React.createElement('div', {font: 'Garamond'}, null)`
+    //
     return (
       <View>
         <TextInput text={{ value: props.query }} searching={props.searching} />
@@ -171,18 +175,18 @@ Instead of MVC, React uses composition of components to handle complexity - this
 
 By merging the responsibilities of a `UIView` and `UIViewController` into a Component, there is a consistent way to work with all aspects of your app. 
 
-To try undestand this, Let's take a trivial example. Downloading some data from the network and showing it on a screen.
+To try to undestand this, let's take a trivial example. Downloading some data from the network and showing it on a screen.
 
 In UIKit-world you would:
 
--   Create a `UIViewController` which makes the API request on it's `viewDidLoad`
+-   Create a `UIViewController` which makes the API request on its `viewDidLoad`
 -   While the request is sent you present a set of views for loading
 -   When the API request has returned you remove the loading screen
 -   You take the data from the request and create a view hierarchy then present that
 
 In React you would:
 
--   Create a component which makes the API request on it's `onMount`
+-   Create a component which makes the API request on its `onMount`
 -   While the request is sent you render another component for showing loading
 -   The results come back and you change your "state" on the main component with the API request
 -   The state change re-runs your render method, which passes the API "state" down to the component for your page
@@ -209,7 +213,7 @@ Because of the consolidated rules around state management React can quite easily
 
 > [React Native - Communication between native and React Native](https://facebook.github.io/react-native/docs/communication-ios.html)
 
-Props are treated as the equivalent as a Swift `let` variable in this case, any changes to props require an new version of the component to exist in the tree and thus `render` is called.
+Props are treated as the equivalent of a Swift `let` variable in this case, any changes to props require an new version of the component to exist in the tree and thus `render` is called.
 
 So, in summary: React's paradigm is a component tree, where the `render` function of a component passes down one component's state into the props of the children.
 
@@ -245,7 +249,7 @@ Is this a critical problem against React Native? I don't think so, we've added n
 
 ## Ten minutes to try out React
 
-OK, no joke, don't skip this, you can do try React Native right now. This will require some terminal skills, it shouldn't be much more than you'd have used with CocoaPods though.
+OK, no joke, don't skip this bit, you try React Native right now. This will require some terminal skills, and about 5 minutes, it shouldn't be more complex than using CocoaPods via the terminal.
 
 </article>
 <article class="desktop-only" style='display: flex; flex-flow:row;'>
@@ -286,9 +290,9 @@ Alright, so that should do a lot of downloading, and you'll have a new folder wi
 
 So, open up `TrendingArtists` in your editor and inside your terminal with `cd TrendingArtists`. From the terminal you can get the Xcode project compiled, and opened inside the iOS simulator with `react-native start ios`. 
 
-This first uses `xcodebuild` to compile the native app found in `ios/TrendingArtists.xcodeproj` it will then load up the the React Native Packager. We'll cover that later, for now, think of it as JavaScript file change watcher.
+This first uses `xcodebuild` to compile the native app found in `ios/TrendingArtists.xcodeproj` it will then load up the the React Native Packager. We'll cover that later, for now, think of it as a JavaScript file change watcher.
 
-Once a simulator has popped up, and you see the "Welcome to React Native" screen. Now that we've got "an app" running. Let's take a moment to look through what we got.
+Once a simulator has popped up, you'll see the "Welcome to React Native" screen. Now that we've got "an app" running. Let's take a moment to look through what we got.
 
 
 </article>
@@ -347,15 +351,15 @@ $ tree .
 
 <p>The Xcode project is really barebones, it's just an <code>AppDelegate</code> that creates a <code>UIView</code> subclass. You can see that it references <code>index.ios.js</code> which is where your JavaScript side starts.</p>
 
-<p>Then you have the <code>Package.json</code> which is like an Xcodeproj + Podfile in one, and the <code>node_modules</code> folder. Which houses all your JavaScript dependencies.</p>
+<p>Then you have the <code>package.json</code> which is like an Xcodeproj + Podfile in one, and the <code>node_modules</code> folder. Which houses all your JavaScript dependencies.</p>
 
 </div>
 </article>
 <article class='post'>
 
-I'd like to show you how to make a change appear instantly. In your iOS Simulator, perform a shake gesture (<code>cmd + ctrl + z</code>) and in the React Native debug menu, hit "Enable Live Reload". Once you're back in an app, do another shake gesture, and turn on "Hot Reloading".
+I'd like to show you how to make a change appear instantly. In your iOS Simulator, perform a shake gesture (<code>cmd + ctrl + z</code>) and in the React Native debug menu, hit "Enable Hot Reloading". It will trigger a reload of all your JS code again.
 
-Now you can go into your text editor and change some of the words inside `index.ios.js` - those changes will be reflected almost instantly. You can do this for almost anything, almost anywhere. We're been working [on Emission][emission] for over a year, and this is still close to instant in every place we work.
+Now you can go into your text editor and change some of the words inside `index.ios.js` - those changes will be reflected almost instantly. You can do this for almost anything, almost anywhere. We've been working [on Emission][emission] for over a year, and this is still close to instant in every part of the codebase.
 
 If you'd like to go through a tutorial from this point, I'd recommend these:
 
@@ -368,7 +372,7 @@ We're now going to back to talking about the hows and whys. Good luck with those
 
 ## Writing JavaScript
 
-JavaScript is a deceptively simple language with a lot of weird gotchas, which makes it easy to be disparaging against. Especially coming from the native world, where you are used to type systems and low-level programming. 
+JavaScript is a deceptively simple language with a lot of weird gotchas, which makes it easy to be disparaging against. Especially coming from the native world, where you are used to type systems and lower-level programming. 
 
 I think it's safe to say that the majority of JavaScript's warts are fixed by tooling nowadays. Tools like ESLint, TSLint, Babel, Prettier, TypeScript and Flow make it difficult to write bad code, and the JavaScript community really comes together to fix it's own problems. This differs from the [Sword of Damocles][] that [exists for big OSS projects][retro-swift-sherlock] in the iOS community. Here's a collection of tools that we use every day in the JS world:
 </article>
@@ -380,7 +384,7 @@ I think it's safe to say that the majority of JavaScript's warts are fixed by to
 | [Babel][] | Transform source code | You can pick and choose language features |
 | [TypeScript][] | Transform source code | Microsoft choose all your language features |
 | [NPM][] | CocoaPods for JS | Make your own standard library |
-| [Yarn][] | Bundler for JS | An NPM compatible re-think of the NPM CLI |
+| [Yarn][] | Improved CocoaPods for JS | An NPM compatible re-think of the NPM CLI |
 | [ESLint][] | Static code linter | Makes it hard to write bad code in JS |
 | [TSLint][] | Static code linter | Makes it hard to write bad code in TS |
 | [prettier][] | Code formatter | Never argue about syntax for JS/TS/CSS/JSON |
@@ -395,15 +399,17 @@ I think it's safe to say that the majority of JavaScript's warts are fixed by to
 
 These inter-linked, composable tools basically represent the entire idea of the JavaScript community. You add them to your project, and your project gets all these small config files that eventually creates the kind of cohesive tooling that you would expect from a single vendor in a native environment.
 
-The good part is that they are interchangeable, for example, we switched from Flow to TypeScript with roughly 2 week's work, then a week to come close to perfect. The bad side is that the configuration aspects of these projects feels like something you do once, then forget until it needs to change.
+The good part is that they are interchangeable, for example, we switched from Flow to TypeScript with roughly 2 weeks work, then a week to come close to perfect. The bad side is that the configuration aspects of these projects feels like something you do once, then forget until it needs to change.
 
 I wrote up a glossary of terms from JavaScript when I first started understanding the community, you can [find it here][js-glossary].
 
 *"But JavaScript is such a downgrade compared to Swift"*, I hear you echoing from the back. This is my own perspective but I consider my workflow in TypeScript to be significantly better than working in Swift. My code is statically analyzed as I type, it is auto-styled as I save, my tests are instant, permanently running and show inside my editor at all times, it's portable across platforms, it's quick to execute and embarrassingly fast to compile. I can contribute to all of these tools to improve them. I'd rather work in that environment.
 
-Syntax wise, TypeScript doesn't have enums with associated types, which I like, nor implicit trailing closures. As a trade-off though TypeScript has [union types][union], which work really well for data-modeling. One particular thing I like a lot is that the code you read is so much simpler, as all symbols that you use need to be defined in that file.
+Syntax wise, TypeScript doesn't have enums with associated types, which I like, nor implicit trailing closures. As a trade-off though TypeScript has [union types][union], which work really well for data-modeling. 
 
-If there's one major flaw with the JavaScript code we have wrote so far, it's the complicated ugliness surrounding the `this` keyword. It is [genuinely complicated][this], and a good source of dev-time errors for me. No linters can really catch those errors, so it becomes frustrating.
+One particular thing I like a lot about JavaScript that the code you read is generally simpler, as nearly all symbols that you use need to be defined in that file. This is because you can only import a single file, instead of an entire target. Meaning if you include a library, you either import the functions you want, or the library as a whole and then extract the functions, and variables that you want.
+
+If there's one major flaw with the JavaScript code we have written so far, it's the complicated ugliness surrounding the `this` keyword. It is [genuinely complicated][this], and a good source of dev-time errors for me. No linters can really catch those errors, so it becomes frustrating.
 
 ## Node.js
 
@@ -411,7 +417,7 @@ There are two main environments for writing JavaScript in: the browser, and insi
 
 It provides relatively few APIs, it is expected that you would use a node module for anything particularly high level. the principal being that a standard library (like Foundation in iOS) is always going to be out of date, and incompatible with what web-browsers ship.
 
-A node module is a set of JavaScript files with a particular structure. Generally, there is a `package.json` to describe the library, and an `index.js` with the code for the library. Libraries can be as small as a single-function to typical a "XYZKit" you would expect from CocoaPods. As JavaScript tends to be bundled and minified based on code used, developers mainly worry about the overall file-size of their library. You would use a package manager like NPM or Yarn to manage these dependencies. Node modules have the unique, and very dangerous idea of allowing multiple versions of the same library to exist inside your application. This "fixes" the problem of dependency hell, at the cost of many potential runtime issues.
+A node module is a set of JavaScript files with a particular structure. Generally, there is a `package.json` to describe the library, and an `index.js` with the code for the library. Libraries can be as small as a single-function to typical a "XYZKit" you would expect from CocoaPods. As JavaScript tends to be bundled and minified based on code used, developers mainly worry about the overall file-size of their library. You would use a package manager like NPM or Yarn to manage these dependencies. Node modules have the unique, and dangerous idea of allowing multiple versions of the same library to exist inside your application. This "fixes" the problem of dependency hell, at the cost of potential runtime issues. Here's a full [explanation of the pattern][npm-deps].
 
 When writing JavaScript with React Native, you are using node modules, but _strictly speaking_ you are not writing a node app. The code that you write is executed inside JavaScriptCore and so doesn't have access to the UNIX-like API from node. 
 
@@ -427,7 +433,7 @@ We choose TypeScript because of how well VS Code and TypeScript integrate. It pr
 
 The node community is great at automation, we have code formatters and language linters that will auto-fix your code as you press save. We have pre-commit, pre-push hooks that are set up automatically when you start using the project. It means you spend less time thinking about trivial details that add up. It's wonderful.
 
-Debugging our code is still a really tricky problem, we initially had all our debugging set up inside VS Code but eventually it got reliable and people moved back to `console.log` or using the debugger inside Chrome. For what it's worth, the type of code we've been writing has been much easier to debug as it is significantly simpler. It's not been a pressing problem.
+We use the debugging tools built into Chrome for our React Native, instead of something like LLDB. It supports all of the kinds of runtime introspection you would expect from Xcode.
 
 # Testing
 
@@ -445,24 +451,25 @@ We tried out a few native tests, but very quickly we stopped running them. Mainl
 
 # Deployment
 
-This one is a bit tricky to get your head around at first. As React Native is a client-side library that you don't make source-code changes to, which interacts with JavaScript that you bundle with the app (or use the React Native Packager at dev-time.) Then the JavaScript part of your application is just a file that can be updated, amended or fixed at any time.
+This one is a bit tricky to get your head around at first. React Native is a client-side native library that you don't make source-code changes to, which interacts with the JavaScript that you bundle with the app (or use the React Native Packager at dev-time.) The JavaScript part of your application is just a file that can be updated, amended or fixed at any time.
 
 This is not dynamically swizzing or fishhooking methods, you can ship new JavaScript code to your app which can interact with the exact same version of your React Native library.
 
-This is what makes it possible to ship bug fixes to your app as fast as the web. We use this, but only for admin users. They can choose the JavaScript for any commit on master, or any active pull request inside a beta version of our app.
+The "deploy my JS anytime" idea is a little bit tricky though, because you can expose native code to your JavaScript. By exposing new functions, you end up with a "versioned bridge" where you make sure that the native functions your JavaScript expects actually exist. So you need to keep track of _when_ you can update the JavaScript and the exposed native functions. 
+
+This is what makes it possible to ship bug fixes to your app as fast as the web. We use this, but only for admin users. They can choose the JavaScript for any commit on master, or any active pull request inside a beta version of our app. We don't ship bug fixes to deployed apps, but we use this ability to provide a simple version of Testflight for our JavaScript code.
 
 Our app release cadence is still about a month long, moving to React Native hasn't changed that. We've automated the entire process, so it's a cultural artifact rather than technical. So a day or two for the App Store review is fine, ideally our betas should be getting longer than that for testing.
 
-This is a little bit tricky though. Because you can write expose native code which interacts with your JavaScript, this creates a link between the native API that is available and the JavaScript that uses it. So, you still need to ship native code. 
-
-
 ## Doing it right per platform 
 
-I've used the term cross platform quite flippantly in this article to describe code that can run on many platforms. We've tried thinking of it as React Native gives us the ability to think in cross platform terms. We now have most of our app's root view controllers in React Native, which means we could make a pretty simple Android app re-using that code with a pretty small amount of effort.
+I've used the term cross-platform quite flippantly in this article to describe code that can run on many platforms. We've tried thinking of it as React Native gives us the ability to think in cross-platform terms. We now have most of our app's root view controllers in React Native, which means we could make a pretty simple Android app re-using that code with a pretty small amount of effort.
 
-We don't though. The apps we make *need* to fit the platform and feel like the best experience you can get, when you're potentially buying a [> $100,000 artwork][artwork-search]. We'd need an Android engineer with a lot of experience to work on the app, they'd need to be able to work on React Native for Android when we hit roadblocks and to provide useful context on how the app should feel. _BTW, if this is you - get in touch ;)_. To do the platform right, we may already have some cross platform code - but it isn't going to the app we want without native code.
+We don't though. The apps we make *need* to fit the platform and feel like the best experience you can get, when you're potentially buying a [> $100,000 artwork][artwork-search]. We'd need an Android engineer with a lot of experience to work on the app, they'd need to be able to work on React Native for Android when we hit roadblocks and to provide useful context on how the app should feel. _BTW, if this is you - get in touch (orta@artsymail.com) ;)_. 
 
-So, where does the cross-platform aspect come from? For a lot of users of React Native, native development has _always_ been unavailable to them, and now it's not as React Native has lowered the barrier to entry. This means many people are aiming to make cross-platform React Native apps that are entirely in JavaScript ( see [Create React Native App][crna]. ) They are just trying to get _something_ shipped, which could be different from what *you the reader* are probably doing. As a native dev, you're probably more interested in making something really fit the platform and shine. Lots of probablys, yes, but it fits the questions we're being asked.
+We already have some cross-platform code to get us started - but it won't feel like the app we want to create until there is native code to take that React and make it shine.
+
+So, where does the cross-platform aspect come from? For most users of React Native, native development has _always_ been unavailable to them, and now it's not, because React Native has lowered the barrier to entry. This means many people are aiming to make cross-platform React Native apps that are entirely in JavaScript ( see [Create React Native App][crna]. ) They are just trying to get _something_ shipped, which could be different from what *you the reader* are probably doing. As a native dev, you're probably more interested in making something really fit the platform and shine. Lots of probablys, yes, but it fits the questions we're being asked.
 
 Both aspects of this are reasonable. React Native will let you do both. While React Native encourages you to think entirely at the V in MVC only, we still structure our React Native into `UIViewController`s and still support unique iOS features via native code.
 
@@ -476,7 +483,7 @@ Remember that most of the people coming to React Native are web developers, and 
 
 Expo are a pretty new company, whose work is entirely open source. They've done a lot of interesting work in the community, and as individuals they are well respected for contributions to React Native the library - and a bunch of related libraries. You can use the Expo app from the App Store to run your CRNA project on any iOS/Android device instantly, and the app has a lot more baseline UI components to work with than React Native does on its own.
 
-With CRNA you are giving up control of the native side, but gaining a lot on the ease-of-use side. CRNA doesn't force the project to stay this way though, you can eject your app from the Expo and start adding native code to the app. 
+With CRNA you are giving up control of the native side, but gaining a lot on the ease-of-use side. CRNA doesn't force the project to stay this way though, you can eject your app from using Expo and start adding native code to the app. 
 
 Why did I even mention this? Well, if you're looking at React Native for a greenfield app (e.g. something new), CRNA may be your best option. When you're getting started, less options is better, and this is the optimal setup according to the React Native team. 
 
@@ -487,17 +494,17 @@ A question which regularly comes up is "How can React Native handle animations?"
 There are two primitives for animation from React Native:
 
 -   `Animated` - This is a fine-grained API for handling changes ( we use this on our buttons for making the transition animations the same as our native ones. )
--   `LayoutAnimation` - This API feels a little bit like `UIView +animate:` - in that you can tell tje layout engine that the next update should be animated instead of replaced.
+-   `LayoutAnimation` - This API feels a little bit like `UIView +animate:` - in that you can tell the layout engine that the next update should be animated instead of replaced.
 
-These provide enough for a most use-cases, but there is a more direct API and a few more JS-level techniques that you can use if you are really starting to feel like you're dropping frames inside a specific animation.
+These provide enough for most use-cases, but there is a more direct API and a few more JS-level techniques that you can use if you are really starting to feel like you're dropping frames inside a specific animation.
 
 ## The long-term aspects of React Native
 
 What if Facebook stop maintaining React Native? Today it obviously doesn't look like it, but if you're talking the next 5 years - maybe it's not that rosy. The JavaScript world moves real fast, 5 years ago React didn't exist and Node still hadn't had it's [big divorce][iojs] and [re-married][iojs-together]. 
 
-Our perspective on dependencies has been that [you should always own then][own-deps] in the sense that you have an understanding of how they work technically and culturally. This means for the larger projects, you should feel comfortable being able to make PRs back to the project, or feel comfortable that the vendor will fix bugs for you. The latter is not necessarily something that Facebook will be doing for you. They specifically call out that React Native is being built in the open, but that they are building and working on things that affect Facebook in production and then look at larger platform issues. You can get a sense of this by reading [the React Native roadmap][rn-roadmap]. These aims cover the rest of this year, and next year they'll re-evaluate.
+Our perspective on dependencies has been that [you should always own them][own-deps] in the sense that you have an understanding of how they work technically and culturally. This means for the larger projects, you should feel comfortable being able to make PRs back to the project, or feel comfortable that the vendor will fix bugs for you. The latter is not necessarily something that Facebook will be doing for you. They specifically call out that React Native is being built in the open, but that they are building and working on things that affect Facebook in production and then look at larger platform issues. You can get a sense of this by reading [the React Native roadmap][rn-roadmap]. These aims cover the rest of this year, and next year they'll re-evaluate.
 
-We're pretty comfortable that if Facebook stop committing to React Native tomorrow, we (as Artsy) can continue to keep the project stable and at the same place across iOS releases. There'd be a learning curve, but we're not the only company that'd be willing to do this too: AirBnb, Expo, Uber, Microsoft, GeekyAnts and Wix all participate at [a very granular level][react-monthly] and would probably make sure that the code you ship today will work with iOS 12 and so on - as they need that too. Should you rely on that? If you're small enough (we have 5 engineers with native experience) then I think it's reasonable. 
+We're pretty comfortable that if Facebook stop committing to React Native tomorrow, we (as Artsy) can continue to keep the project stable and at the same place across iOS releases. There'd be a learning curve, but we're not the only company that'd be willing to do this too: AirBnb, Expo, Uber, Microsoft, GeekyAnts and Wix all participate at [a very granular level][react-monthly] and would probably make sure that the code you ship today will work with iOS 12 and so on - as they need that too. Should you rely on that? If you're small enough then I think it's reasonable. If you're a medium sized company, I think you should have at least one engineer who understands and can deep dive into the dependency. 
 
 As a relevant example, Three20 had a very [reasonable deprecation path][nimbus], it's just that a lot of people didn't have the technical ability to migrate off. Frameworks like React Native and Three20 lower the barrier to entry considerably. The trade-off is that once you end up having to leave those frameworks, you have a pretty big learning curve to the baseline OS frameworks.
 
@@ -505,13 +512,13 @@ From my perspective, in Artsy there are only 2-3 projects that are 5 years old (
 
 ## Performance
 
-Your app is now running a lot of it's code in JavaScript, isn't that slower? It's definitely true that your compiled JS will not be as fast as Objective-C or Swift. We haven't benchmarked our before/after view controllers because it's not a fair comparison, we switched [from REST to GrahpQL][graphql-ios] at the same time. Our networking time was reduced so drastically, that it's hard to talk about the JS vs native performance.
+Your app is now running a lot of its code in JavaScript, isn't that slower? It's definitely true that your compiled JS will not be as fast as Objective-C or Swift. We haven't benchmarked our before/after view controllers because it's not a fair comparison, we switched [from REST to GrahpQL][graphql-ios] at the same time. Our networking time was reduced so drastically, that it's hard to talk about the JS vs native performance.
 
 However there are a few advantages to running your app in JavaScript:
 
-* There is no main thread, you cannot write blocking code
+* There is no main thread, you cannot write the UIKit UI thread
 * There is no need to recreate JSON into native representations
-* A lot of the hard work in React Native (layout, view manipulation) is done natively
+* A lot of the hard work in React Native (layout, view manipulation) is done natively and in it's own off-main thread
 * For critical code, you can move to native, we did this for our image thumbnails
 
 One place that doesn't feel good writing in JavaScript is scroll events. This code has to generally be performance critical. This affects you when you want to have fancy transitions in your view controllers, however the animations API uses native code and with some careful consideration it's very feasible to re-write those scroll events into a declarative API.
@@ -520,7 +527,7 @@ We found that the majority of our view controllers do a lot of work on init, the
 
 ## Facebook patent clause
 
-This has come up a few times in discussion, Facebook have a bit of a custom license for their open source. Back in 2015, they made changes to the license that makes is problem for everyone but patent trolls. You can find a bunch of resources for further reading [on this gist][react-patents]. 
+This has come up a few times in discussion, Facebook have a bit of a custom license for their open source. Back in 2015, they made changes to the license that makes this no problem for everyone but patent trolls. You can find a bunch of resources for further reading [on this gist][react-patents]. 
 
 ## React Dependencies
 
@@ -532,7 +539,7 @@ These unused dependencies [can be removed at deploy time][rollupjs], but React N
 
 ## Places where React Native hasn't fit for us
 
-My first draft had notes on some of our mobile apps where we thought it might not fit. After some discussion, we changed out mind. So then our answer: Nowhere. 
+My first draft had notes on some of our mobile apps where we thought it might not fit. After some discussion, we changed our mind. So then our answer: Nowhere. 
 
 Note though, *the types of apps we create are exclusively API driven, with a unique visual style which totally covers the exposed UI surface. React Native is a great fit for this kind of app*.
 
@@ -546,9 +553,9 @@ Our oldest app, Energy, is an app for keeping your portfolio of artworks with yo
 
 ## When to choose React Native?
 
-React Native provides a cross platform API, and so it can fall into a watered down version of the API it abstracts. This means that it can be a bit more work than normal to use obviously iOS-specific features like `ARKit`, `UIUserActivity`, `CSSearchableIndex` or `UIUserNotification`s.
+React Native provides a cross-platform API, and so it can fall into a watered down version of the API it abstracts. This means that it can be a bit more work than normal to use obviously iOS-specific features like `ARKit`, `UIUserActivity`, `CSSearchableIndex` or `UIUserNotification`s.
 
-I say more work, because you definitely can still use them, but that that transitions between your React code and your native code will require a bit more work that had you always been writing it natively.
+I say more work, because you definitely can still use them, but that that transitions between your React code and your native code will require a bit more work than had you always been writing it natively.
 
 That's not enough of a downside to contrast against:
 
@@ -563,26 +570,29 @@ React Native is a great fit for apps that:
 -   Are driven by an API, or an obvious state-store
 -   Want to have a unique look and feel
 
-Here's the final thing. When React Native was proposed as an option for us, the majority of our mobile dev team were not exactly excited at the prospect of using it. As we grew to understand the positive changes it was bringing for us, and our users, I was really happy that Alloy was willing to say *"I think this could work."*
+Here's the final thing. When React Native was proposed as an option for us, the majority of our mobile dev team were not exactly excited at the prospect of using it. As we grew to understand the positive changes it was bringing for us, and our users, I was really happy that [Eloy][alloy] was willing to say *"I think this could work."*
 
 It's less risky now, but it's obviously a big dependency inside your app. Ideally, someone in your team should be able to feel comfortable reading, and potentially fixing code inside React Native for the platforms you ship.
 
-## Integrating in to an Existing app
+## Integrating into an Existing app
 
-If you're thinking of adding RN to an existing app, first read [on emission][]. We think of our RN to be a series of components which are consumed by our app as a CocoaPod. This is the same pattern Airbnb, and Facebook used. Then, check out AirBnB's experiences [in this video][8].
+If you're thinking of adding React Native to an existing app, first read [on emission][]. Our usage of React Native is that it offers a series of components which are consumed by our app as a CocoaPod. This CocoaPods exposes `UIViewController`s which can be used anywhere inside the app. This is the probably same pattern Airbnb, and Facebook use.
+
+After you've read post, check out AirBnB's experiences [in this video][8].
 
 ## Greenfield
 
-I'd recommend start with a CRNA app, it's a good starting point. I would feel safe that [you can eject][eject] out of the environment provided when the app becomes complex enough to warrant native code.
+I'd recommend to start with a CRNA app, it's a good starting point. I would feel safe that [you can eject][eject] out of the environment provided when the app becomes complex enough to warrant native code.
 
-I personally would probably start with this boiler-plate, but I am a domain expert now. In order to feel comfortable with it, you'll need to be comfortable with 
+# Wrap-up
 
--   TypeScript
--   Babel
--   JavaScript
-    (etc etc)
+This is the right place for a big call to action, where I declare that React Native is the future for all development and that it fixes all problems. I'm not going to do that. I think React Native is definitely the right choice for our team, and there are many apps that could have been created faster and cheaper by using React Native.
 
-In the same kind of way that you had to become comfortable with project management inside Xcode, or understanding what an LLVM error meant you had to change. Boilerplates give you more, but require a higher baseline knowledge. I wrote one app for Artsy in just JavaScript, and the lack of dev-time safety made me feel far less experienced than I am. I'd rather not make that mistake again.
+It's safe to say we all were initially put off by JavaScript, but TypeScript has grown to be my favourite language, knocking Ruby off that pedestal. [Maybe that could change][ruby-types] as my opinions change as facts change. 
+
+React Native well thought out library, that can really help build better products, if you understand the right way to apply it. It can help you be cross-platform on mobile, but also cross-platform with the web. Our React Native project has a sibling project on the web with the [exact same setup][reaction], so any improvements in one move to the other.
+
+If you're considering a new app, or a grand re-write. React Native should be classed as one of your options.
 
 [injection for xcode]: http://johnholdsworth.com/injection.html?index=438
 
@@ -656,3 +666,7 @@ In the same kind of way that you had to become comfortable with project manageme
 [lodash-a]: https://yarnpkg.com/en/packages?q=lodash-a&p=1
 [mik-load-time]: https://twitter.com/mikeal/status/874711319412330496
 [rollupjs]: https://rollupjs.org
+[npm-deps]: https://lexi-lambda.github.io/blog/2016/08/24/understanding-the-npm-dependency-model/
+[alloy]: http://twitter.com/alloy
+[ruby-types]: https://bugs.ruby-lang.org/issues/9999
+[reaction]: https://github.com/artsy/reaction
