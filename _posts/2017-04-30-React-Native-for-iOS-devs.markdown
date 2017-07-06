@@ -628,9 +628,9 @@ I'd recommend to start with a CRNA app, it's a good starting point. I would feel
 
 This is the right place for a big call to action, where I declare that React Native is the future for all development and that it fixes all problems. I'm not going to do that. I think React Native is definitely the right choice for our team, and there are many apps that could have been created faster and cheaper by using React Native.
 
-It's safe to say we all were initially put off by JavaScript, but TypeScript has grown to be my favourite language, knocking Ruby off that pedestal. [Maybe that could change][ruby-types] as my opinions change as facts change. 
+It's safe to say we all were initially put off by JavaScript, but TypeScript has grown to be my favourite language, knocking Ruby off that pedestal. [There's potential that could change][ruby-types] but we can only live in the present. 
 
-React Native well thought out library, that can really help build better products, if you understand the right way to apply it. It can help you be cross-platform on mobile, but also cross-platform with the web. Our React Native project has a sibling project on the web with the [exact same setup][reaction], so any improvements in one move to the other.
+For us, React Native is a well thought out library, that can really help build better products when you understand the right way to apply it. It can help you be cross-platform on mobile, but also cross-platform with the web. For example, our React Native project has a sibling project on the web with the [exact same setup][reaction], so any improvements in one move to the other. Which was unimaginable 2 years ago. We can truly consider sharing logic and ideas with the web.
 
 If you're considering a new app, or a grand re-write. React Native should be considered as one of your options.
 
