@@ -20,7 +20,7 @@ I'd like cover a lot of the common questions we get asked about from the perspec
 -   How do you use React Native?
 -   When is React Native a good technology choice?
 
-This article covers an awful lot, so free up at least 30 minutes, make a tea and then come back to this on your computer. It's worth your time if you're interested in all the hype around React Native.
+This article covers an awful lot, so free up at least 45 minutes, make a tea and then come back to this on your computer. It's worth your time if you're interested in all the hype around React Native.
 
 <!-- more -->
 
