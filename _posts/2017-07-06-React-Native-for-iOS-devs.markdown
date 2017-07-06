@@ -540,7 +540,7 @@ These provide enough for most use-cases, but there is a more direct API and a fe
 
 ## The long-term aspects of React Native
 
-What if Facebook stop maintaining React Native? Today it obviously doesn't look like it, but if you're talking the next 5 years - maybe it's not that rosy. The JavaScript world moves real fast, 5 years ago React didn't exist and Node still hadn't had it's [big divorce][iojs] and [ot back together][iojs-together].
+What if Facebook stop maintaining React Native? Today it obviously doesn't look like it, but if you're talking the next 5 years - maybe it's not that rosy. The JavaScript world moves real fast, 5 years ago React didn't exist and Node still hadn't had its [big divorce][iojs] and [got back together][iojs-together].
 
 Our perspective on dependencies has been that [you should always own them][own-deps] in the sense that you have an understanding of how they work technically and culturally. This means for the larger projects, you should feel comfortable being able to make PRs back to the project, or feel comfortable that the vendor will fix bugs for you. The latter is not necessarily something that Facebook will be doing for you. They specifically call out that React Native is being built in the open, but that they are building and working on things that affect Facebook in production and then look at larger platform issues. You can get a sense of this by reading [the React Native roadmap][rn-roadmap]. These aims cover the rest of this year, and next year they'll re-evaluate.
 
@@ -550,7 +550,7 @@ As a relevant example, Three20 had a very [reasonable deprecation path][nimbus],
 
 From my perspective, in Artsy there are only 2-3 projects that are 5 years old (Artsy was roughly founded in 2010) and I know a few of those are [getting split into new apps][tech-stack]. I'm not sure if *we* need to be looking _that far_ ahead. Our keystone [iOS app, Eigen][eigen] was started in 2013, and has already gone through 2 complete internal transformations as our requirements and opportunities change. It's very feasible that in 4 years we'll be at a very different place again. We choose to not turn down something that so drastically improves our developer and speed for end users for that risk.
 
-That said, Facebook indeed seem to be really happy with React, and React Native - making this questiona useful hypotherical. Facebook are moving more big projects to use it internally, and there is a great discussion on how that is ongoing in [this React Conf keynote from Jing Chen][fb-brown].
+That said, Facebook indeed seem to be really happy with React, and React Native - making this question a useful hypothetical. Facebook are moving more big projects to use it internally, and there is a great discussion on how that is ongoing in [this React Conf keynote from Jing Chen][fb-brown].
 
 ## Performance
 
