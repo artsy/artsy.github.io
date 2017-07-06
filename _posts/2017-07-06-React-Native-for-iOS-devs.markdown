@@ -540,7 +540,7 @@ These provide enough for most use-cases, but there is a more direct API and a fe
 
 ## The long-term aspects of React Native
 
-What if Facebook stop maintaining React Native? Today it obviously doesn't look like it, but if you're talking the next 5 years - maybe it's not that rosy. The JavaScript world moves real fast, 5 years ago React didn't exist and Node still hadn't had it's [big divorce][iojs] and [ot back together][iojs-together].
+What if Facebook stop maintaining React Native? Today it obviously doesn't look like it, but if you're talking the next 5 years - maybe it's not that rosy. The JavaScript world moves real fast, 5 years ago React didn't exist and Node still hadn't had its [big divorce][iojs] and [got back together][iojs-together].
 
 Our perspective on dependencies has been that [you should always own them][own-deps] in the sense that you have an understanding of how they work technically and culturally. This means for the larger projects, you should feel comfortable being able to make PRs back to the project, or feel comfortable that the vendor will fix bugs for you. The latter is not necessarily something that Facebook will be doing for you. They specifically call out that React Native is being built in the open, but that they are building and working on things that affect Facebook in production and then look at larger platform issues. You can get a sense of this by reading [the React Native roadmap][rn-roadmap]. These aims cover the rest of this year, and next year they'll re-evaluate.
 
