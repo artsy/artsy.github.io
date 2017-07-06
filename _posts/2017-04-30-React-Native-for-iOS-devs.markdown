@@ -152,21 +152,27 @@ export default class SearchResults extends React.Component {
     // turns into; `React.createElement('Text', {font: 'Garamond'}, null)`
     return (
       <View>
-        <SearchQueryInput text={{ value: props.query }}  />
+        <SearchQueryInput text={{ value: props.query }} onChange={this.onQueryChange.bind(this)}/>
         <ScrollView>
           {props.results.map(rowForResult)}
         </ScrollView>
       </View>
     )
   }
-  // Returns a single component for a row
+
+  // Returns a single component for a row in the search
   rowForResult(result) {
     return (
-      <Result>
+      <ArtistResult>
         <Image source={{ uri: result.url }} />
         <Text>{result.name}</Text>
-      </Result>
+      </ArtistResult>
     )
+  }
+
+  // A function to handle changes to the search query
+  onQueryChange(query) {
+    ...
   }
 }
 ```
