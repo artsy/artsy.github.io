@@ -553,7 +553,9 @@ However there are a few advantages to running your app in JavaScript:
 * A lot of the hard work in React Native (layout, view manipulation) is done natively and in it's own off-main thread
 * For critical code, you can move to native, we did this for our [image thumbnails][opaque_img]
 
-One place that doesn't feel good writing in JavaScript is scroll events. This code has to generally be performance critical. This affects you when you want to have fancy transitions in your view controllers, however the animations API uses native code and with some careful consideration it's very feasible to re-write those scroll events into a declarative API.
+One place that doesn't feel good writing in JavaScript is scroll events. This code has to generally be performance critical. This affects you when you want to have fancy transitions in your view controllers, however the animations API uses native code and with some careful consideration it's very feasible to re-write those scroll events into a declarative API. 
+
+Sometimes you can look for better abstractions in React Native, the new [ListView][] component provides quite a lot of the behavior you might want to use scroll events for, other times you may want to outright create a native view then expose that as a component.
 
 We found that the majority of our view controllers do a lot of work on init, then generally don't do anymore heavy lifting. So aside from our custom image thumbnails, we've not hit a point where we've had to move any code to be native in a year and a half.
 
@@ -726,3 +728,4 @@ If you're considering a new app, or a grand re-write. React Native should be cla
 [ash-feels]: https://ashfurrow.com/blog/swift-vs-react-native-feels/
 [Relay]: https://facebook.github.io/relay/
 [on-emission]: /blog/2016/08/24/On-Emission/
+[ListView]: https://facebook.github.io/react-native/docs/listview.html
