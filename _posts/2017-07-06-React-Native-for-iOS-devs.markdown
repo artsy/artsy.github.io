@@ -130,7 +130,7 @@ $(".component").hover(function(){
 </article>
 <article class="post" style="margin-top: 620px">
 
-This kind of tree structure should feel quite similar to the `UIView` tree that you see inside a tool like Reveal, or inside the Xcode visual inspector. Next up I want to show you 
+This kind of tree structure should feel quite similar to the `UIView` tree that you see inside a tool like Reveal, or inside the Xcode visual inspector. Next up I want to show you what the code for this would look like in JavaScript:
 
 {% raw %}
 <!-- The {{ and }} get eaten by mustache -->
