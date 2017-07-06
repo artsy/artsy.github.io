@@ -740,3 +740,4 @@ If you're considering a new app, or a grand re-write. React Native should be con
 [on-emission]: /blog/2016/08/24/On-Emission/
 [ListView]: https://facebook.github.io/react-native/docs/listview.html
 [search-results]: https://github.com/artsy/emission/blob/e4bbde386d54bc8ca73565d667e2701ab0fad0f0/src/lib/Components/Consignments/Components/ArtistSearchResults.tsx
+[Metro Bundler]: https://github.com/facebook/metro-bundler/
