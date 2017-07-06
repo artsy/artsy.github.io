@@ -57,7 +57,7 @@ To get a sense of what this feels like, I've created a simplified version of the
 
 
 <div class="expand-please">
-<p>You may need to expand the width of this window to see the full diagram.</p>
+<p>Warning: You may need to expand the width of this window to see the full diagram.</p>
 </div>
 
 </article>
