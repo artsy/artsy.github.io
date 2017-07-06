@@ -53,6 +53,12 @@ React was built out of a desire to abstract away a web page's true view hierarch
 
 This pattern is applied by providing a consistent way to represent a component's state. Imagine if every `UIView` subclass had a "`setState`" function where you can send a subset of all available options (backgroundColor, frame, alpha, etc) and then eventually UIKit would re-concile all changes to all views in batches.
 
+To get a sense of what this feels like, I've created a simplified version of the React components for one of the screens in our app, the  [full implementation is here][search-results]. You can see the original design, a prototype of how that is then split into components, then the tree strucutre for those components and finally the props for each component. 
+
+
+<div class="expand-please">
+<p>You may need to expand the width of this window to see the full diagram.</p>
+</div>
 
 </article>
 <article class="desktop-only" style='display: flex; flex-flow:row; position: absolute; left:10px; right: 10px; height: 360px; min-width: 1200px;'>
@@ -61,9 +67,9 @@ This pattern is applied by providing a consistent way to represent a component's
 </div>
 <div style='flex:1'><center>{% include svg/rn/simple-component-overview.svg %}</center></div>
 <div style='flex:1' id='simple-components'>
-  <div class="component" style="height:474px; width: 269px; margin-top: 20px;" id='sc-v' data-props="{ query: 'Tracy', results: [{ name: 'Tracy Emin', url: 'img/tracy.png' }, { name: 'Tom Thompson', url: 'img/tom-t.png' }, { name: 'Tom Sachs', url: 'img/tom-s.png' }] }" data-title="View"><p>View</p>
-    <div class="component" id='sc-v-textfield' data-props="{ text: 'Tracy' }" data-title="SearchQueryInput"><p>SearchQueryInput</p></div>
-    <div class="component" id='sc-v-results' data-props="{}" data-title="ScrollView"><p>ScrollView</p>
+  <div class="component" style="height:474px; width: 249px; margin-top: 20px;" id='sc-v' data-props="{ query: 'Tracy', results: [{ name: 'Tracy Emin', url: 'img/tracy.png' }, { name: 'Tom Thompson', url: 'img/tom-t.png' }, { name: 'Tom Sachs', url: 'img/tom-s.png' }] }" data-title="View"><p>View</p>
+    <div class="component" id='sc-v-textfield' data-props="{ text: 'Tracy', onChange: function(){} }" data-title="SearchQueryInput"><p>SearchQueryInput</p></div>
+    <div class="component" id='sc-v-results' data-props="{ scrollEnabled: false }" data-title="ScrollView"><p>ScrollView</p>
       <div class="component" id='sc-v-results-tracey' data-props="{ name: 'Tracy Emin', url: 'img/tracy.png' }" data-title="ArtistResult"><p>ArtistResult</p></div>
       <div class="component" id='sc-v-results-tom-t' data-props="{ name: 'Tom Thompson', url: 'img/tom-t.png' }" data-title="ArtistResult"><p>ArtistResult</p></div>
       <div class="component" id='sc-v-results-tom-s' data-props="{ name: 'Tom Sachs', url: 'img/tom-s.png' }" data-title="ArtistResult"><p>ArtistResult</p></div>
@@ -93,16 +99,16 @@ var highlight = function(id) {
   var $component = $("#sc-" + id)
 
   $svgComponent.attr("stroke", "black")
-  $component.css("background-color", "red")
+  $component.addClass("highlight")
 
   var props = $component.data("props")
   var object = eval("(" + props + ")")
-  var formatString = JSON.stringify(object, JSONWithFuncs, "  ")
+  var formatString = JSON.stringify(object, JSONWithFuncs, "  ").replace('"() => void"', "() => void")
   $("#simple-components-props pre").text("// Props for " + $component.data("title") + "\n\n" + formatString) 
 }
 var unHighlight = function(id) {
   $("#r-" + id).attr("stroke", "none")
-  $("#sc-" + id).css("background-color", "white")
+  $("#sc-" + id).removeClass("highlight")
 }
 
 $("svg").find("g#React > rect").hover(function(){
@@ -125,8 +131,6 @@ $(".component").hover(function(){
 <article class="post" style="margin-top: 620px">
 
 This kind of tree structure should feel quite similar to the view tree that you see inside a tool like Reveal, or inside the Xcode visual inspector.
-
-This is a *simplified* version of what that code for the component above looks like, you can see the [full file here](https://github.com/artsy/emission/blob/c1ccd63ec9f70c2817186cb555bfd874c375912a/src/lib/components/consignments/components/artist_search_results.tsx).
 
 {% raw %}
 <!-- The {{ and }} get eaten by mustache -->
@@ -729,3 +733,4 @@ If you're considering a new app, or a grand re-write. React Native should be cla
 [Relay]: https://facebook.github.io/relay/
 [on-emission]: /blog/2016/08/24/On-Emission/
 [ListView]: https://facebook.github.io/react-native/docs/listview.html
+[search-results]: https://github.com/artsy/emission/blob/e4bbde386d54bc8ca73565d667e2701ab0fad0f0/src/lib/Components/Consignments/Components/ArtistSearchResults.tsx
