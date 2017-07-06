@@ -130,7 +130,7 @@ $(".component").hover(function(){
 </article>
 <article class="post" style="margin-top: 620px">
 
-This kind of tree structure should feel quite similar to the view tree that you see inside a tool like Reveal, or inside the Xcode visual inspector.
+This kind of tree structure should feel quite similar to the `UIView` tree that you see inside a tool like Reveal, or inside the Xcode visual inspector. Next up I want to show you 
 
 {% raw %}
 <!-- The {{ and }} get eaten by mustache -->
@@ -152,7 +152,7 @@ export default class SearchResults extends React.Component {
     // turns into; `React.createElement('Text', {font: 'Garamond'}, null)`
     return (
       <View>
-        <TextInput text={{ value: props.query }} searching={props.searching} />
+        <SearchQueryInput text={{ value: props.query }}  />
         <ScrollView>
           {props.results.map(rowForResult)}
         </ScrollView>
@@ -632,7 +632,7 @@ It's safe to say we all were initially put off by JavaScript, but TypeScript has
 
 React Native well thought out library, that can really help build better products, if you understand the right way to apply it. It can help you be cross-platform on mobile, but also cross-platform with the web. Our React Native project has a sibling project on the web with the [exact same setup][reaction], so any improvements in one move to the other.
 
-If you're considering a new app, or a grand re-write. React Native should be classed as one of your options.
+If you're considering a new app, or a grand re-write. React Native should be considered as one of your options.
 
 [injection for xcode]: http://johnholdsworth.com/injection.html?index=438
 
