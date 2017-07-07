@@ -406,7 +406,7 @@ If you'd like to go through a tutorial from this point, I'd recommend these:
 - [React Native Express][rn-expres]
 - [Building the f8 2016 app][makeitopen]
 
-We're now going to back to talking about the hows and whys. Good luck with those tutorials though - [you've got this :D][you-got-this]
+We're now going back to talking about the hows and whys. Good luck with those tutorials though - [you've got this :D][you-got-this]
 
 ## Writing JavaScript
 
