@@ -260,7 +260,7 @@ Each of these platforms will have their own way of showing some text e.g.
 
 But when working at React-level, you would use the component `Text`. This means you work at a "React in JS" level, and rely on the primitives provided by each implementation of React Native.
 
-For iOS, this works by using a JavaScript runtime (running via JavaScriptCore in your app) which sends [messages across a bridge][nick-msg] that handles the native `UIView` hierarchy. Most of the messaging work is handled inside the `RCTUIViewManager` which receives calls like `createView:viewName:rootTag:props:`, `setChildren:reactTags:`, `updateView:viewName:props:` and `createAnimatedNode:config`.
+For iOS, this works by using a JavaScript runtime (running via JavaScriptCore in your app) which sends [messages across a bridge][nick-msg] that handles the native `UIView` hierarchy. Most of the messaging work is handled inside the `RCTUIManager` which receives calls like `createView:viewName:rootTag:props:`, `setChildren:reactTags:`, `updateView:viewName:props:` and `createAnimatedNode:config`.
 
 This bridging is how you get a lot of the positive aspects of working with the JavaScript tooling ecosystem. The JavaScript used by React can be updated independent of the app, but so long as it is working with the same native bridge version. This bridging technique is how React can safely have a reliable version of [Injection for Xcode][]. It re-evaluates your JavaScript code, and that triggers a new set of messages to the native side.
 
