@@ -136,6 +136,12 @@ For example let's take the artist: Ana Mendieta ([artsy.net/artist/ana-mendieta]
 
 Lucky for this editathon, both [Artsy Artist ID][artist-id], and [TAGP ID][tagp-id] were already inside the controlled vocabulary. This mean we could think about how to connect items rather than how we can pitch that is worth connecting them at all.
 
+We used Wikipedia to keep track of all [the useful links][dash], n
+
+We ended up with three projects on the Wikidata side, after being given an overview 
+
+( Focusing on )
+
 
 [meetup-msg]: https://www.meetup.com/CocoaPods-NYC/messages/boards/thread/50940969
 [afem]: http://www.artandfeminism.org
@@ -146,3 +152,4 @@ Lucky for this editathon, both [Artsy Artist ID][artist-id], and [TAGP ID][tagp-
 [artist-id]: https://www.wikidata.org/wiki/Property:P2042
 [tagp-id]: https://www.wikidata.org/wiki/Property:P2411
 [Wikidata]: https://www.wikidata.org/wiki/Wikidata:Main_Page
+[dash]: https://en.wikipedia.org/wiki/Wikipedia:Meetup/NYC/Artsy_ArtAndFeminism
