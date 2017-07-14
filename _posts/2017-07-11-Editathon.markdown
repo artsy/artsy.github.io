@@ -96,23 +96,30 @@ For example let's take the artist: Ana Mendieta ([artsy.net/artist/ana-mendieta]
         "rank": "normal"
       }
     ],
+    
     [...]
-    "P3630": [
+
+    // This is used in our example below
+    "P27": [
       {
+        "id": "Q463639$5B578566-EEC7-45F9-9007-612E98CA2D59",
         "mainsnak": {
-          "snaktype": "value",
-          "property": "P3630",
+          "datatype": "wikibase-item",
           "datavalue": {
-            "value": "321458",
-            "type": "string"
+            "type": "wikibase-entityid",
+            "value": {
+              "entity-type": "item",
+              "id": "Q30",
+              "numeric-id": 30
+            }
           },
-          "datatype": "external-id"
+          "property": "P27",
+          "snaktype": "value"
         },
-        "type": "statement",
-        "id": "Q463639$6D91AE1F-6552-432C-948D-D5CEB834E77C",
-        "rank": "normal"
+        "rank": "normal",
+        "type": "statement"
       }
-    ]
+    ],
   },
 
   // Internal links to this document
@@ -133,6 +140,27 @@ For example let's take the artist: Ana Mendieta ([artsy.net/artist/ana-mendieta]
   }
 }
 ```
+
+The database is created with the the notion of "[semantic triples](https://en.wikipedia.org/wiki/Semantic_triple)", which was new to me.
+The idea being that each `Item` (corresponding to a Q id (`Q463639`)) has a bunch of associated `Statements` of the form:
+
+> subject — predicate — object
+
+Which means…
+
+> `<this thing>` `<has some relationship to>` `<that thing>`
+
+For example…
+
+> `Q463639` `P27` `Q30`
+
+In plain English…
+
+> **Ana Mendietta** has a **country of citizenship** which is **United States of America**
+
+In essence, a Wikidata `Item` is just some structured data around a big bag of triples, like the above.
+
+# Artsy + Wikidata
 
 Lucky for this editathon, both [Artsy Artist ID][artist-id], and [TAGP ID][tagp-id] were already inside the controlled vocabulary. This mean we could think about how to connect items rather than how we can pitch that is worth connecting them at all.
 
