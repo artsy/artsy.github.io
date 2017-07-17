@@ -16,7 +16,7 @@ I'm willing to give it another shot though, and so I got around to creating a si
 <!-- more -->
 
 <div><div class="comment"><div class="comment-header"><a class="comment-username" href="https://github.com/orta"><img src="https://avatars6.githubusercontent.com/u/49038?v=4" alt="" width="40" height="40">orta</a> commented <a class="comment-date" href="https://github.com/artsy/artsy.github.io/issues/355#issuecomment-313158506">2 days ago</a></div><div class="comment-body"><p>Comments can be worth a shot.</p>
-<p>With a static site it can be a bit tricky, but with some JavaScript and a node server thinking than  <g-emoji alias="+1" fallback-src="https://assets-cdn.github.com/images/icons/emoji/unicode/1f44d.png" ios-version="6.0">👍</g-emoji>.</p></div></div></div>
+<p>With a static site like ours it can be a bit tricky, but with an external server and some simple JavaScript it can work out <g-emoji alias="+1" fallback-src="https://assets-cdn.github.com/images/icons/emoji/unicode/1f44d.png" ios-version="6.0">👍</g-emoji>.</p></div></div></div>
 
 # Getting set up
 
