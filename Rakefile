@@ -42,6 +42,7 @@ EOS
     end
 
     puts 'Updated _config.yml with new episode. Please configure.'
+    sh 'open _config.yml'
   end
 end
 
