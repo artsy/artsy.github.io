@@ -118,7 +118,7 @@ You have good admin tools: you can edit comments, block and report problematic u
 
 People will be using their developer accounts, which I'd like to hope they will take pride in. You're probably more likely to get high quality responses. The lack of threading is a bit of a shame in this context, but we've lived with it in GitHub Issues for this long, so I'm OK with this.
 
-This setup makes it trivial to drop comments from the blog anytime, and you still have all the comments around in a constructive way after. We don't have to hope that another services has export features and open data. Everything is [open data][bigquery].
+This setup makes it trivial to drop comments from the blog anytime, and you still have all the comments around in a constructive way after. We don't have to hope that other services have export features and open data. Everything public is [open data][bigquery] on GitHub.
 
 So: low maintenance, works on static sites, data isn't silo-ed and it's more likely to result in positive interactions.
 
