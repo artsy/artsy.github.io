@@ -100,6 +100,16 @@ No-one is going to award this JavaScript with a prize for elegance, but it works
 
 The full PR for these changes is here: [artsy.github.io#363][pr] - and you can see the current [HTML/JS here][current].
 
+# Styling
+
+The style of our comments are built to evoke the GitHub UI for issues. This is done to prime people for a relatively different type of comment creation, but still feel like it's a part of the Artsy OSS style.
+
+<img src="/images/comments-are-on/example-comment.png">
+
+
+<div><div class="comment"><div class="comment-header"><a class="comment-username" href="https://github.com/orta"><img src="https://avatars6.githubusercontent.com/u/49038?v=4" alt="" width="40" height="40">orta</a> commented <a class="comment-date" href="https://github.com/artsy/artsy.github.io/issues/355#issuecomment-313158506">10 days ago</a></div><div class="comment-body"><p>This is done and dusted.</p>
+</div></div></div>
+
 # Why GitHub?
 
 It's easier for you to keep track of the conversations, you're likely already having a lot of conversations in a place like GitHub. This means you can use the same flow and tools as your daily job, not relying on a third party service's emails.
