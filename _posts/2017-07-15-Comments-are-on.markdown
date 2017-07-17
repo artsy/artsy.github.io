@@ -118,9 +118,9 @@ You have good admin tools: you can edit comments, block and report problematic u
 
 People will be using their developer accounts, which I'd like to hope they will take pride in. You're probably more likely to get high quality responses. The lack of threading is a bit of a shame in this context, but we've lived with it in GitHub Issues for this long, so I'm OK with this.
 
-This setup makes it trivial to drop comments from the blog anytime, and you still have all the comments around in a constructive way after.
+This setup makes it trivial to drop comments from the blog anytime, and you still have all the comments around in a constructive way after. We don't have to hope that another services has export features and open data. Everything is [open data][bigquery].
 
-So: low maintenance, data isn't silo-ed and it's more likely to result in positive interactions.
+So: low maintenance, works on static sites, data isn't silo-ed and it's more likely to result in positive interactions.
 
 [def-oss]: /blog/2016/07/03/handling-big-projects/
 [gh-commentify]: https://github.com/orta/gh-commentify
@@ -131,3 +131,4 @@ So: low maintenance, data isn't silo-ed and it's more likely to result in positi
 [current]: https://github.com/artsy/artsy.github.io/blob/source/_includes/gh_comments.html
 [pr]: https://github.com/artsy/artsy.github.io/pull/363
 [ArtsyOpenSource]: https://twitter.com/ArtsyOpenSource/
+[bigquery]: https://github.com/blog/2298-github-data-ready-for-you-to-explore-with-bigquery
