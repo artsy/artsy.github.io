@@ -4,7 +4,7 @@
   <title><![CDATA[Category: javascript | Artsy Engineering]]></title>
   <link href="http://artsy.github.io/blog/categories/javascript/atom.xml" rel="self"/>
   <link href="http://artsy.github.io/"/>
-  <updated>2017-07-15T22:00:18-04:00</updated>
+  <updated>2017-07-17T14:07:11+00:00</updated>
   <id>http://artsy.github.io/</id>
   <author>
     <name><![CDATA[]]></name>
@@ -14,9 +14,141 @@
 
   
   <entry>
+    <title type="html"><![CDATA[Using GitHub Issues for Blog Comments]]></title>
+    <link href="http://artsy.github.io/blog/2017/07/15/Comments-are-on/"/>
+    <updated>2017-07-15T00:00:00+00:00</updated>
+    <id>http://artsy.github.io/blog/2017/07/15/Comments-are-on</id>
+    <content type="html"><![CDATA[<p>I've worked on a few large-scale OSS projects, and I believe that people find it easier to just leave a comment and rely on a contributor to explain a problem rather than consulting the documentation. I consider doing everything you can to make people find their own answers a strong part of <a href="/blog/2016/07/03/handling-big-projects/">defensive open source</a>.</p>
+
+<p>For the posts I write, I have an even lower tolerance for comments. For example, I added the ability to turn off comments per-post and haven't allowed comments on any posts I've written here. A lot of transitory discussion around an article happens on twitter via <a href="https://twitter.com/ArtsyOpenSource/">@ArtsyOpenSource</a>.</p>
+
+<p>I'm willing to give it another shot though, and so I got around to creating a simple system for allowing opt-in comments on posts using GitHub Issues. The rest of this post will be about how you can do it also, and a bit about why I think GitHub Issues are a happy medium for the comments.</p>
+
+<!-- more -->
+
+
+
+
+<div><div class="comment"><div class="comment-header"><a class="comment-username" href="https://github.com/orta"><img src="https://avatars6.githubusercontent.com/u/49038?v=4" alt="" width="40" height="40">orta</a> commented <a class="comment-date" href="https://github.com/artsy/artsy.github.io/issues/355#issuecomment-313158506">2 days ago</a></div><div class="comment-body"><p>Comments can be worth a shot.</p>
+<p>With a static site it can be a bit tricky, but with some JavaScript and a node server thinking than  <g-emoji alias="+1" fallback-src="https://assets-cdn.github.com/images/icons/emoji/unicode/1f44d.png" ios-version="6.0">👍</g-emoji>.</p></div></div></div>
+
+
+<a name="Getting.set.up"></a>
+<h1>Getting set up</h1>
+
+<p>The general concept is that you have some JavaScript in your page which requests a list of comments from GitHub. These are available as a JSON API, you can grab that then style the results. Sounds easy right?</p>
+
+<p>Turns out to be a bit more complicated. GitHub's API has rate-limits for IP addresses, and they're reasonably low. So, you'll want to use authenticated requests, but you don't really want to include your access tokens inside the JavaScript on your blog.</p>
+
+<p>I've worked around this with a project called <a href="https://github.com/orta/gh-commentify">gh-commentify</a>, a node app whose job is to wrap your comment API requests with an access token. You can create your own instance on heroku using <a href="https://heroku.com/deploy?template=https://github.com/orta/gh-commentify">this link</a>. It get's scoped to a single org/user, so you can avoid others using your heroku instance.</p>
+
+<p>From there you need to be able to declare in a post what issue it is hooked up to. This blog uses Jekyll, which has <a href="https://jekyllrb.com/docs/frontmatter/">YAML Front Matter</a> on posts. So, I edited our post templates to detect for a key <code>comment_id</code>.</p>
+
+<p>From there you need to grab the comments JSON, and move them into the DOM.</p>
+
+<p>I based my work on these two posts:</p>
+
+<ul>
+<li><a href="http://ivanzuzak.info/2011/02/18/github-hosted-comments-for-github-hosted-blogs.html">GitHub hosted comments for GitHub hosted blogs</a></li>
+<li><a href="http://donw.io/post/github-comments/">Replacing Disqus with Github Comments</a></li>
+</ul>
+
+
+<p>However this version is more reliable (GitHub authenticated requests) and has fewer dependencies (no jQuery for example).</p>
+
+<p>
+<code>html
+{% if page.comment_id %}
+  &lt;article class='post'&gt;
+    {% include gh_comments.html %}
+  &lt;/article&gt;
+{% endif %}
+</code>
+</p>
+
+<p>This then imports the required JavaScript into the page. It feels a lot like this;</p>
+
+<p></p>
+
+<pre><code class="javascript">var writeToComment = function(element, html) {
+  var element = document.createElement(element)
+  element.innerHTML = html
+  document.getElementById("comments").appendChild(element)
+}
+
+var loadComments = function(data) {
+  writeToComment("h2", "Comments")
+
+  for (var i = 0; i &lt; data.length; i++) {
+    var commentHTML = [...]
+    writeToComment("div", commentHTML)
+  }
+
+  var callToAction = [...]
+  writeToComment("div", callToAction)
+}
+
+var writeFirstComment = function() {
+  var callToAction = [...]
+  writeToComment("div", callToAction)
+}
+
+// This is mostly there now: http://caniuse.com/#feat=fetch
+if (window.fetch) {
+  var url =
+    "https://artsy-blog-gh-commentify.herokuapp.com/repos/artsy/artsy.github.io/issues/{{ page.comment_id }}/comments"
+
+  window
+    .fetch(url, { Accept: "application/vnd.github.v3.html+json" })
+    .then(function(response) {
+      return response.json()
+    })
+    .then(function(json) {
+      if(json.length) {
+        loadComments(json)
+      } else {
+        writeFirstComment()
+      }
+    })
+}
+</code></pre>
+
+<p></p>
+
+<p>No-one is going to award this JavaScript with a prize for elegance, but it works just fine. That's basically it, you can edit the DOM however you want.</p>
+
+<p>The full PR for these changes is here: <a href="https://github.com/artsy/artsy.github.io/pull/363">artsy.github.io#363</a> - and you can see the current <a href="https://github.com/artsy/artsy.github.io/blob/source/_includes/gh_comments.html">HTML/JS here</a>.</p>
+
+<a name="Styling"></a>
+<h1>Styling</h1>
+
+<p>The style of our comments are built to evoke the GitHub UI for issues. This is done to prime people for a relatively different type of comment creation, but still feel like it's a part of the Artsy OSS style.</p>
+
+<p><img src="/images/comments-are-on/example-comment.png"></p>
+
+<div><div class="comment"><div class="comment-header"><a class="comment-username" href="https://github.com/orta"><img src="https://avatars6.githubusercontent.com/u/49038?v=4" alt="" width="40" height="40">orta</a> commented <a class="comment-date" href="https://github.com/artsy/artsy.github.io/issues/355#issuecomment-313158506">10 days ago</a></div><div class="comment-body"><p>This is done and dusted.</p>
+</div></div></div>
+
+
+<a name="Why.GitHub."></a>
+<h1>Why GitHub?</h1>
+
+<p>It's easier for you to keep track of the conversations, you're likely already having a lot of conversations in a place like GitHub. This means you can use the same flow and tools as your daily job, not relying on a third party service's emails.</p>
+
+<p>You have good admin tools: you can edit comments, block and report problematic users. These are tools that you have for all repos.</p>
+
+<p>People will be using their developer accounts, which I'd like to hope they will take pride in. You're probably more likely to get high quality responses. The lack of threading is a bit of a shame in this context, but we've lived with it in GitHub Issues for this long, so I'm OK with this.</p>
+
+<p>This setup makes it trivial to drop comments from the blog anytime, and you still have all the comments around in a constructive way after. We don't have to</p>
+
+<p>So: low maintenance, data isn't silo-ed and it's more likely to result in positive interactions.</p>
+]]></content>
+  </entry>
+  
+  <entry>
     <title type="html"><![CDATA[Intro to React Native for an iOS Developer]]></title>
     <link href="http://artsy.github.io/blog/2017/07/06/React-Native-for-iOS-devs/"/>
-    <updated>2017-07-06T00:00:00-04:00</updated>
+    <updated>2017-07-06T00:00:00+00:00</updated>
     <id>http://artsy.github.io/blog/2017/07/06/React-Native-for-iOS-devs</id>
     <content type="html"><![CDATA[<p>React Native is a new native library that vastly changes the way in which you can create applications. The majority of the information and tutorials on the subject come from the angle of <em>"you are a web developer, and want to do native"</em>.</p>
 
@@ -303,7 +435,7 @@ export default class SearchResults extends React.Component {
 <li>Create a <code>UIViewController</code> subclass, which makes the API request on its <code>viewDidLoad</code></li>
 <li>While the request is sent you present a set of views during loading</li>
 <li>When the API request has returned, you convert the data into native model objects, remove the loading screen</li>
-<li>You then create a new view heirarchy for your model, and pass down attributes of the model to those views</li>
+<li>You then create a new view hierarchy for your model, and pass down attributes of the model to those views</li>
 </ul>
 
 
@@ -330,7 +462,7 @@ export default class SearchResults extends React.Component {
 
 <p>So in our case above, getting the API results only changes the state on the component which makes the request. However, the results are passed down into the props <em>(properties)</em> of the component's children as any further changes to the API data (for example if you were polling for updates) would result in a re-render of the child-components.</p>
 
-<p>So for the lifetime of that top-level component, the changes due to the API request are put in state. Then the results are passed down to it's children as props. This means the children can potentially change when an API response is received.</p>
+<p>So for the lifetime of that top-level component, the changes due to the API request are put in state. Then the results are passed down to its children as props. This means the children can potentially change when an API response is received.</p>
 
 <p>This is a hard abstraction to grok outright, so it's good to take a second opinion. I felt that <a href="https://github.com/arjunsk/react-guide/blob/3bde47efae5dd8e238d0e8176083bd6d1ca03bb3/props-vs-state.md#props-vs-state">this guide from uberVU</a> as well as the official docs above explain it in different ways. Which can help ground your understanding. Overall, these are the rules:</p>
 
@@ -388,7 +520,7 @@ export default class SearchResults extends React.Component {
 
 <p><a href="https://facebook.github.io/react-native/docs/communication-ios.html">React Native - Communication between native and React Native</a></p></blockquote>
 
-<p>Props are treated as the equivalent of a Swift <code>let</code> variable in this case, any changes to props require an new version of the component to exist in the tree and thus <code>render</code> is called.</p>
+<p>Props are treated as the equivalent of a Swift <code>let</code> variable in this case, any changes to props require a new version of the component to exist in the tree and thus <code>render</code> is called.</p>
 
 <p>So, in summary: React's paradigm is a component tree, where the <code>render</code> function of a component passes down one component's state into the props of the children.</p>
 
@@ -433,9 +565,9 @@ export default class SearchResults extends React.Component {
 
 <ul>
 <li><a href="https://github.com/artsy/emission/blob/e4bbde386d54bc8ca73565d667e2701ab0fad0f0/src/lib/Components/OpaqueImageView.tsx#L50-L135">Declaring a JavaScript component</a> to represent your native component</li>
-<li><a href="https://github.com/artsy/emission/blob/e4bbde386d54bc8ca73565d667e2701ab0fad0f0/src/lib/Components/OpaqueImageView.tsx#L135">Let React Native know</a> you mean to reference native code for your component</li>
-<li><a href="https://github.com/artsy/emission/blob/e4bbde386d54bc8ca73565d667e2701ab0fad0f0/Pod/Classes/OpaqueImageViewComponent/AROpaqueImageView.h">Create a native view</a> with the same interface as your props</li>
-<li><a href="https://github.com/artsy/emission/blob/e4bbde386d54bc8ca73565d667e2701ab0fad0f0/Pod/Classes/OpaqueImageViewComponent/AROpaqueImageViewManager.m#L25-L41">Use bridging macros</a> to expose your interface to JavaScript</li>
+<li><a href="https://github.com/artsy/emission/blob/e4bbde386d54bc8ca73565d667e2701ab0fad0f0/src/lib/Components/OpaqueImageView.tsx#L135">Letting React Native know</a> you mean to reference native code for your component</li>
+<li><a href="https://github.com/artsy/emission/blob/e4bbde386d54bc8ca73565d667e2701ab0fad0f0/Pod/Classes/OpaqueImageViewComponent/AROpaqueImageView.h">Creating a native view</a> with the same interface as your props</li>
+<li><a href="https://github.com/artsy/emission/blob/e4bbde386d54bc8ca73565d667e2701ab0fad0f0/Pod/Classes/OpaqueImageViewComponent/AROpaqueImageViewManager.m#L25-L41">Using bridging macros</a> to expose your interface to JavaScript</li>
 </ul>
 
 
@@ -494,7 +626,7 @@ react-native init TrendingArtists
 
 <p>The <code>run-ios</code> command first uses <code>xcodebuild</code> to compile the native app found in <code>ios/TrendingArtists.xcodeproj</code> it will then load up the the React Native Packager. We'll cover that later, for now, think of it as a JavaScript file change watcher.</p>
 
-<p>Once a simulator has popped up, you'll see the "Welcome to React Native" screen. Now that we've got "an app" running. It will take a minute or too to parse all your JavaScript. So then let's take a moment to look through what we have in our file system now.</p>
+<p>Once a simulator has popped up, you'll see the "Welcome to React Native" screen. Now that we've got "an app" running. It will take a minute or two to parse all your JavaScript. So then let's take a moment to look through what we have in our file system now.</p>
 
 <p></article>
 <article class="desktop-only" style='display: flex; flex-flow: row;'></p>
@@ -671,7 +803,7 @@ $ tree .
 <p></center></article>
 <article class='post'></p>
 
-<p>These inter-linked, composable tools basically represent the entire idea of the JavaScript community. You add them to your project, and your project gets all these small config files that eventually creates the kind of cohesive tooling that you would expect from a single vendor in a native environment.</p>
+<p>These inter-linked, composable tools basically represent the entire idea of the JavaScript community. You add them to your project, and your project gets all these small config files that eventually create the kind of cohesive tooling that you would expect from a single vendor in a native environment.</p>
 
 <p>The good part is that they are interchangeable, for example, we switched from Flow to TypeScript with roughly 2 weeks work, then a week to come close to perfect. The bad side is that the configuration aspects of these projects feels like something you do once, then forget until it needs to change.</p>
 
@@ -690,9 +822,9 @@ $ tree .
 
 <p>Next to React Native, there are two main environments for writing JavaScript in: the browser, and inside Node. Node is the JavaScript runtime from Google Chrome (called V8, their version of JavaScriptCore) with a UNIX-like baseline set of APIs.</p>
 
-<p>It provides relatively few APIs, it is expected that you would use an NPM module for anything particularly high level. The principal being that a standard library (like Foundation in iOS) is always going to be out of date, and incompatible with what web-browsers ship.</p>
+<p>It provides relatively few APIs, it is expected that you would use an NPM module for anything particularly high level. The principle being that a standard library (like Foundation in iOS) is always going to be out of date, and incompatible with what web-browsers ship.</p>
 
-<p>An NPM module is a set of JavaScript files with a particular structure. Generally, there is a <code>package.json</code> to describe the library, and an <code>index.js</code> with the code for the library. Libraries can be as small as a single-function to typical a "XYZKit" you would expect from a CocoaPod. As JavaScript tends to be bundled and minified based on code used, developers mainly worry about the overall file-size of their library. You would use a package manager like NPM or Yarn to manage these dependencies. Node modules have the unique, and dangerous idea of allowing multiple versions of the same library to exist inside your application. This "fixes" the problem of dependency hell, at the cost of potential runtime issues. Here's a full <a href="https://lexi-lambda.github.io/blog/2016/08/24/understanding-the-npm-dependency-model/">explanation of the pattern</a>.</p>
+<p>An NPM module is a set of JavaScript files with a particular structure. Generally, there is a <code>package.json</code> to describe the library, and an <code>index.js</code> with the code for the library. Libraries can be as small as a single-function to a typical "XYZKit" you would expect from a CocoaPod. As JavaScript tends to be bundled and minified based on code used, developers mainly worry about the overall file-size of their library. You would use a package manager like NPM or Yarn to manage these dependencies. Node modules have the unique, and dangerous idea of allowing multiple versions of the same library to exist inside your application. This "fixes" the problem of dependency hell, at the cost of potential runtime issues. Here's a full <a href="https://lexi-lambda.github.io/blog/2016/08/24/understanding-the-npm-dependency-model/">explanation of the pattern</a>.</p>
 
 <p>When writing JavaScript with React Native, you are using node modules, but <em>strictly speaking</em> you are not writing a node app. The code that you write is executed inside JavaScriptCore and so doesn't have access to the UNIX-like API from node.</p>
 
@@ -750,7 +882,7 @@ $ tree .
 
 <p>We already have some cross-platform code to get us started - but it won't feel like the app we want to create until there is native code to take that React and make it shine.</p>
 
-<p>So, where does the cross-platform aspect come from? For most users of React Native, native development has <em>always</em> been unavailable to them, and now it's not, because React Native has lowered the barrier to entry. This means many people are aiming to make cross-platform React Native apps that are entirely in JavaScript ( see <a href="#Create.React.Native.App">Create React Native App</a>. ) They are just trying to get <em>something</em> shipped, which could be different from what <em>you the reader</em> are probably doing. As a native dev, you're probably more interested in making something really fit the platform and shine. Lots of probablys, yes, but it fits the questions we're being asked.</p>
+<p>So, where does the cross-platform aspect come from? For most users of React Native, native development has <em>always</em> been unavailable to them, and now it's not, because React Native has lowered the barrier to entry. This means many people are aiming to make cross-platform React Native apps that are entirely in JavaScript (see <a href="#Create.React.Native.App">Create React Native App</a>.) They are just trying to get <em>something</em> shipped, which could be different from what <em>you the reader</em> are probably doing. As a native dev, you're probably more interested in making something really fit the platform and shine. Lots of probablys, yes, but it fits the questions we're being asked.</p>
 
 <p>Both aspects of this are reasonable. React Native will let you do both. While React Native encourages you to think entirely at the V in MVC only, we still structure our React Native into <code>UIViewController</code>s and still support unique iOS features via native code.</p>
 
@@ -777,7 +909,7 @@ $ tree .
 <p>There are two primitives for animation from React Native:</p>
 
 <ul>
-<li><code>Animated</code> - This is a fine-grained API for handling changes ( we use this in <a href="https://github.com/artsy/emission/blob/e4bbde386d54bc8ca73565d667e2701ab0fad0f0/src/lib/Components/Buttons/InvertedButton.tsx#L40-L48">our buttons</a> and <a href="https://github.com/artsy/emission/blob/e4bbde386d54bc8ca73565d667e2701ab0fad0f0/src/lib/Components/Home/ArtistRails/ArtistRail.tsx#L63-L73">view transitions</a>.)</li>
+<li><code>Animated</code> - This is a fine-grained API for handling changes (we use this in <a href="https://github.com/artsy/emission/blob/e4bbde386d54bc8ca73565d667e2701ab0fad0f0/src/lib/Components/Buttons/InvertedButton.tsx#L40-L48">our buttons</a> and <a href="https://github.com/artsy/emission/blob/e4bbde386d54bc8ca73565d667e2701ab0fad0f0/src/lib/Components/Home/ArtistRails/ArtistRail.tsx#L63-L73">view transitions</a>.)</li>
 <li><code>LayoutAnimation</code> - This API feels a little bit like <code>UIView +animate:</code> - in that you can tell the layout engine that the next update should be animated instead of replaced. (we use this to <a href="https://github.com/artsy/emission/blob/e4bbde386d54bc8ca73565d667e2701ab0fad0f0/src/lib/Components/Home/ArtworkRails/ArtworkRail.tsx#L77-L80">handle view expansion</a>)</li>
 </ul>
 
@@ -809,16 +941,16 @@ $ tree .
 <ul>
 <li>There is no main thread, so you cannot block the UIKit UI thread</li>
 <li>There is no need to recreate JSON into native representations</li>
-<li>A lot of the hard work in React Native (layout, view manipulation) is done natively and in it's own off-main thread</li>
+<li>A lot of the hard work in React Native (layout, view manipulation) is done natively and in its own off-main thread</li>
 <li>For critical code, you can move to native, we did this for our <a href="https://github.com/artsy/emission/commit/a404ccf1519ec79fc0bfadf6e572d990caa0a9ec">image thumbnails</a></li>
 </ul>
 
 
 <p>One place that doesn't feel good writing in JavaScript is scroll events. This code has to generally be performance critical. This affects you when you want to have fancy transitions in your view controllers, however the animations API uses native code and with some careful consideration it's very feasible to re-write those scroll events into a declarative API.</p>
 
-<p>Sometimes you can look for better abstractions in React Native, the new <a href="https://facebook.github.io/react-native/docs/listview.html">ListView</a> component provides quite a lot of the behavior you might want to use scroll events for, other times you may want to outright create a native view then expose that as a component.</p>
+<p>Sometimes you can look for better abstractions in React Native, the new <a href="https://facebook.github.io/react-native/docs/listview.html">ListView</a> component provides quite a lot of the behavior you might want to use scroll events for, other times you may want to outright create a native view and then expose that as a component.</p>
 
-<p>We found that the majority of our view controllers do a lot of work on init, then generally don't do anymore heavy lifting. So aside from our custom image thumbnails, we've not hit a point where we've had to move any code to be native in a year and a half.</p>
+<p>We found that the majority of our view controllers do a lot of work on init, then generally don't do any more heavy lifting. So aside from our custom image thumbnails, we've not hit a point where we've had to move any code to be native in a year and a half.</p>
 
 <a name="Facebook.patent.clause"></a>
 <h2>Facebook patent clause</h2>
@@ -830,7 +962,7 @@ $ tree .
 
 <p>This comes up in every post we make on React Native, because it's always worth mentioning. React Native has <a href="https://www.npmjs.com/package/react-native">51 dependencies</a>, which when resolved comes up to <a href="https://libraries.io/npm/react-native/0.46.0-rc.2/tree">around ~650 dependent</a> projects. This is a <em>lot</em> of dependencies. Remember that the JavaScript ecosystem does not have the <a href="https://developer.apple.com/documentation/foundation">equivalent of Foundation</a>, and so to create a standard library, you use dependencies.</p>
 
-<p>A dependency can be as small as <a href="https://yarnpkg.com/en/packages?q=lodash-a&amp;p=1">a single function</a>, or as fully featured as React Native. So it doesn't really help to know the number in terms of anything other than "it's a lot". In this case, it is just the culture of JavaScript and node to work in this fashion. It's like if you had to ship your version of Foundation and Cocoa with your app, instead of relying on the one's built into the OS. First you'd have to pay the <a href="https://twitter.com/mikeal/status/874711319412330496">memory and load time</a> price for it in your app, and then you have a bazillion dependencies you don't need like iAd or SpriteKit.</p>
+<p>A dependency can be as small as <a href="https://yarnpkg.com/en/packages?q=lodash-a&amp;p=1">a single function</a>, or as fully featured as React Native. So it doesn't really help to know the number in terms of anything other than "it's a lot". In this case, it is just the culture of JavaScript and node to work in this fashion. It's like if you had to ship your version of Foundation and Cocoa with your app, instead of relying on the ones built into the OS. First you'd have to pay the <a href="https://twitter.com/mikeal/status/874711319412330496">memory and load time</a> price for it in your app, and then you have a bazillion dependencies you don't need like iAd or SpriteKit.</p>
 
 <p>These unused dependencies <a href="https://rollupjs.org">can be removed at deploy time</a>, but React Native is not at this point yet.</p>
 
@@ -843,7 +975,7 @@ $ tree .
 
 <p>Our main app Eigen, is a <code>UIViewController</code> browser, and React Native components are just one type of <code>UIViewController</code> that can be browsed. Nearly every <code>UIViewController</code> is the representation of an API endpoint, so React Native + <a href="https://facebook.github.io/relay/">Relay</a> is a great match.</p>
 
-<p>I used to say that <a href="http://artsy.github.io/blog/2014/11/13/eidolon-retrospective/">our Kiosk app, Eidolon</a>, might not be a good fit because of it's reliance on handling a credit-card reader and that the app was good fit for being a storyboard-driven app. However, I'm not so sure about this anymore.</p>
+<p>I used to say that <a href="http://artsy.github.io/blog/2014/11/13/eidolon-retrospective/">our Kiosk app, Eidolon</a>, might not be a good fit because of its reliance on handling a credit-card reader and that the app was good fit for being a storyboard-driven app. However, I'm not so sure about this anymore.</p>
 
 <p>The project <a href="https://storybook.js.org">React Storybooks</a> is not a direct replacement for storyboards, but as a live-programming/prototyping environment it's 👍. The credit-card reader is already wrapped into a Reactive paradigm, going one step further and making it a JavaScript EventEmitter isn't a big-jump.</p>
 
@@ -856,7 +988,7 @@ $ tree .
 
 <p>React Native provides a cross-platform API, and so it can fall into a watered down version of the API it abstracts. This means that it can be a bit more work than normal to use obviously iOS-specific features like <code>ARKit</code>, <code>UIUserActivity</code>, <code>CSSearchableIndex</code> or <code>UIUserNotification</code>s.</p>
 
-<p>I say more work, because you definitely can still use them, but that that transitions between your React code and your native code will require a bit more work than had you always been writing it natively.</p>
+<p>I say more work, because you definitely can still use them, but that transitions between your React code and your native code will require a bit more work than had you always been writing it natively.</p>
 
 <p>That's not enough of a downside to contrast against:</p>
 
@@ -902,14 +1034,14 @@ $ tree .
 
 <p>For us, React Native is a well thought out library, that can really help build better products when you understand the right way to apply it. It can help you be cross-platform on mobile, but also cross-platform with the web. For example, our React Native project has a sibling project on the web with the <a href="https://github.com/artsy/reaction">exact same setup</a>, so any improvements in one move to the other. Which was unimaginable 2 years ago. We can truly consider sharing logic and ideas with the web.</p>
 
-<p>If you're considering a new app, or a grand re-write. React Native should be considered as one of your options.</p>
+<p>If you're considering a new app, or a grand re-write, React Native should be considered as one of your options.</p>
 ]]></content>
   </entry>
   
   <entry>
     <title type="html"><![CDATA[Relay Mutations]]></title>
     <link href="http://artsy.github.io/blog/2017/04/26/Relay-Mutations/"/>
-    <updated>2017-04-26T00:00:00-04:00</updated>
+    <updated>2017-04-26T00:00:00+00:00</updated>
     <id>http://artsy.github.io/blog/2017/04/26/Relay-Mutations</id>
     <content type="html"><![CDATA[<blockquote><p>Hey there everyone, it took us two years to <a href="https://github.com/artsy/metaphysics/pull/583">make our</a> GraphQL implementation support any mutations. We opted to keep it read-only for quite a long time because we use GraphQL to consolidate multiple APIs, but as we start new projects as GraphQL + databases then understanding mutations becomes much more important.</p>
 
@@ -1201,7 +1333,7 @@ getVariables() {
   <entry>
     <title type="html"><![CDATA[Workshop: React Native]]></title>
     <link href="http://artsy.github.io/blog/2017/02/06/React-Native-Workshop/"/>
-    <updated>2017-02-06T12:18:00-05:00</updated>
+    <updated>2017-02-06T12:18:00+00:00</updated>
     <id>http://artsy.github.io/blog/2017/02/06/React-Native-Workshop</id>
     <content type="html"><![CDATA[<p>Hey there, so you've decided to take a look at React Native? Well, last week I ran a workshop inside Artsy on <a href="https://facebook.github.io/react-native/">React Native</a> and <a href="https://facebook.github.io/relay/">Relay</a>.</p>
 
@@ -1510,7 +1642,7 @@ curl -L https://github.com/artsy/Artsy-OSSUIFonts/raw/master/Pod/Assets/texgyrea
   <entry>
     <title type="html"><![CDATA[Retrospective: Swift at Artsy]]></title>
     <link href="http://artsy.github.io/blog/2017/02/05/Retrospective-Swift-at-Artsy/"/>
-    <updated>2017-02-05T12:18:00-05:00</updated>
+    <updated>2017-02-05T12:18:00+00:00</updated>
     <id>http://artsy.github.io/blog/2017/02/05/Retrospective-Swift-at-Artsy</id>
     <content type="html"><![CDATA[<center>
 <img src="/images/swift-in-rn/swift-in-react-native.svg" style="width:300px;">
@@ -1792,362 +1924,6 @@ curl -L https://github.com/artsy/Artsy-OSSUIFonts/raw/master/Pod/Assets/texgyrea
 <li><a href="https://www.graph.cool/">graphcool</a>.</li>
 </ul>
 
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Exploration: Front-end JavaScript at Artsy in 2017]]></title>
-    <link href="http://artsy.github.io/blog/2017/02/05/Front-end-JavaScript-at-Artsy-2017/"/>
-    <updated>2017-02-05T12:17:00-05:00</updated>
-    <id>http://artsy.github.io/blog/2017/02/05/Front-end-JavaScript-at-Artsy-2017</id>
-    <content type="html"><![CDATA[<center>
- <img src="/images/js2017/js.svg" style="width:300px;">
-</center>
-
-
-<p>The Artsy web team have been early adopters of node, and for the last 4 years the stable stack for the Artsy website has been predominantly been Node + CoffeeScript + Express + Backbone. In 2016 the mobile team <a href="/blog/2016/08/15/React-Native-at-Artsy/">announced</a> that it had moved to React Native, matching the web team as using JavaScript as the tools of their trade.</p>
-
-<p>Historically we have always had two separate dev teams for building Artsy.net and the corresponding iOS app, we call them (Art) Collector Web, and Collector Mobile. By the end of 2016 we decided to merge the teams. The merger has given way to a whole plethora of ideas about what contemporary JavaScript looks like and we've been experimenting with finding common, natural patterns between web and native.</p>
-
-<p>This post tries to encapsulate what we consider to be our consolidated stack for web/native Artsy in 2017.</p>
-
-<p><strong>TLDR:</strong> <a href="#TypeScript">TypeScript</a>, <a href="#GraphQL">GraphQL</a>, <a href="#React...React.Native">React/React Native</a>, <a href="#Relay">Relay</a>, <a href="#Yarn">Yarn</a>, <a href="#Jest">Jest</a>, and <a href="#Visual.Studio.Code">Visual Studio Code</a>.</p>
-
-<!-- more -->
-
-
-<a name="Overview"></a>
-<h2>Overview</h2>
-
-<p>Our web stack has been <a href="/blog/2013/11/30/rendering-on-the-server-and-client-in-node-dot-js/">ezel.js</a> since 2013, and continues to be a mature and well thought out technology. Since then, there has been explorations on a successor to that framework using React and GraphQL with <a href="https://github.com/muraljs/mural">muraljs</a>. However, since the merger, a lot more of our focus has been on trying to find something that feels similar on both React and React Native.</p>
-
-<center>
- <img src="/images/js2017/ts.svg" style="width:300px;">
-</center>
-
-
-<a name="TypeScript"></a>
-<h2>TypeScript</h2>
-
-<p><a href="http://www.typescriptlang.org">TypeScript</a> and <a href="https://flowtype.org/">Flow</a> really moved JavaScript forwards in the last few years. They both tackle the essential problems of "how can I trust my code does what I think", "how can I be sure of this change" and "how can I build better tools for JavaScript" in different ways.</p>
-
-<p>Yes, the title of this section is TypeScript and yet I instantly include Flow. I don't think you can, or should talk about TypeScript without understanding it's relationship to Flow.</p>
-
-<p>Both <a href="http://www.typescriptlang.org/play/#src=function%20addNumbers(first%3A%20number%2C%20second%3A%20number)%20%7B%0D%0A%09return%20first%20%2B%20second%0D%0A%7D%0D%0A%0D%0AaddNumbers(1%2C%202)%0D%0A">TypeScript</a> and <a href="https://flowtype.org/docs/five-simple-examples.html#adding-type-annotations">Flow</a> provide a structure for applying Types to JavaScript.</p>
-
-<p>Both <a href="http://www.typescriptlang.org/play/#src=var%20one%20%3D%201%0D%0A%0D%0Aone%20%3D%20%22%22%0D%0A">TypeScript</a> and <a href="https://flowtype.org/docs/classes.html#type-annotations-vs-inference">Flow</a> will infer typing metadata from untyped data.</p>
-
-<p>Both <a href="https://www.npmjs.com/%7Etypes">TypeScript</a> and <a href="https://github.com/flowtype/flow-typed">Flow</a> have systems for applying types to node modules.</p>
-
-<p>We initially went with Flow, as Flow is a <a href="https://discuss.reactjs.org/t/if-typescript-is-so-great-how-come-all-notable-reactjs-projects-use-babel/4887">considerably easier sell</a> to others, as it integrates inside existing JavaScript projects with less issues. Flow acts as a separate tool to a babel-based JavaScript project, whereas TypeScript is a full on replacement for that tooling.</p>
-
-<p><em>Why bother though?</em> JavaScript has existed for decades without type annotations, and everyone seems to have got on pretty well. One of the key features that a typing system gives you is top-notch tooling. An editor can use the type interfaces to provide auto-completion, inline documentation and inline warning/errors as you work. Type systems will help catch errors before you have even pressed save.</p>
-
-<p></article>
-<a href='/images/js2017/types.png' style="">
-  <img src="/images/js2017/types.png" alt="The Artsy Tech Stack 2017" style="width:100%;">
-</a>
-<article class="post">
-</p>
-
-<p>What works really well for typed JavaScript is that you can easily opt out of it when you need to. Then you're back to normal "do whatever you want" JavaScript land, no problem.</p>
-
-<p>We moved from Flow simply because TypeScript had better integration with <a href="https://code.visualstudio.com">Visual Studio Code</a> (VS Code). For a few months I devoted time to improving the Flow integration in VS Code, and tried learning OCaml to help out on the <a href="https://github.com/facebook/flow">Flow tool</a> itself. In the end though, when we compared to how solid VS Code felt with TypeScript - we decided it was worth converting our projects.</p>
-
-<p>Both TypeScript and Flow provide nearly every Type structure found inside Objective-C and Swift, so teaching the rest of the team how they work is easy from our native experiences.</p>
-
-<p><a name="TypeScript-Extension"></a>One particularly interesting part of TypeScript that we are keeping our eyes on is this <a href="https://github.com/Microsoft/TypeScript/issues/6508">language extensibility issue</a>, if it turns out well, we will be looking into integrating the other technologies mentioned here into TypeScript itself.</p>
-
-<center>
- <img src="/images/js2017/graphql.svg" style="width:300px;">
-</center>
-
-
-<a name="GraphQL"></a>
-<h2>GraphQL</h2>
-
-<p>GraphQL is a way to handle API requests. I consider it the successor to REST when working with front-end clients. A big claim, yeah. So, what is it?</p>
-
-<p>Officially <a href="https://github.com/facebook/graphql">GraphQL is a specification</a>. A server can conform to the GraphQL spec, and then clients can make queries against it. Think of it a bit like how SQL is a standardized way of doing database queries across multiple databases types.</p>
-
-<p>As a client, you <a href="https://github.com/artsy/eigen/blob/dac7c80b66b600f9a45aaae6095544fe420f0bbc/Artsy/Networking/ARRouter.m#L1011">send</a> a "<a href="http://graphql.org/docs/getting-started/#queries">JSON-shaped query</a>" structure, which is hierarchical and easy to read:</p>
-
-<pre><code class="json">{
-  artwork(id: "kimber-berry-as-close-to-magic-as-you-can-get") {
-    id
-    additional_information
-
-    is_price_hidden
-    is_inquireable
-  }
-}
-</code></pre>
-
-<blockquote><p>This will search for a <a href="https://www.artsy.net/artwork/kimber-berry-as-close-to-magic-as-you-can-get">specific artwork</a>, with the response JSON as the Artwork's <code>id</code>, <code>additional_information</code>, <code>is_price_hidden</code> and <code>is_inquireable</code>.</p></blockquote>
-
-<p>It's important to note here, the data being sent <em>back</em> is specifically  what you ask for. This is not defined on the server as a <em>short</em> or <em>embedded</em> version of a model, but the specific data the client requested. When bandwidth and speed is crucial, this is the other way in which GraphQL vastly improves an app-user's experience.</p>
-
-<p>This is in stark contrast to other successors to REST APIs, the hypermedia APIs, like <a href="http://stateless.co/hal_specification.html">HAL</a> and <a href="http://jsonapi.org">JSON-API</a> - both of which are optimised for caching, and rely on "one model, one request" types of API access. E.g. a list of Artworks would actually contain a list of hrefs instead of the model data, and you have to fetch each model in a separate request.</p>
-
-<p>Hypermedia APIs have a really useful space in cross-server communications, but are extremely wasteful of the most precious resource for a front-end device - bandwidth. <a href="latency">Latency matters considerably</a>, on mobile where bandwidth is spotty, and attention spans are short you need to do everything possible to show more than a loading spinner.</p>
-
-<p>I have previously explored our usage of GraphQL from the perspective of a native developer <a href="/blog/2016/06/19/graphql-for-mobile/">in 2016</a>. So I'll leave that post to describe our implementation of a GraphQL server.</p>
-
-<p>One exciting movement in the space of GraphQL is <a href="https://githubengineering.com/the-github-graphql-api/">GitHub moving to GraphQL</a> for their new APIs.</p>
-
-<center>
- <img src="/images/react-native/artsy_react_logo.svg" style="width:300px;">
-</center>
-
-
-<a name="React...React.Native"></a>
-<h2>React / React Native</h2>
-
-<p>React is a Facebook project which offers a uni-direction Component model that <em>can</em> replace MVC in a front-end application. React was built out of a desire to abstract away a web page's true view hierarchy (called the DOM) so that they could make changes to the view in memory and then React would handle finding the differences between view states.</p>
-
-<p>You create a set of Components to encapsulate each part of the state of the page. React makes it easy to make components that are functional in the <a href="https://en.wikipedia.org/wiki/functional_reactive_programming">Functional Reactive Programming</a> sense. They act like a function which takes some specially declared state and it is rendered into HTML.</p>
-
-<p>A component optionally uses a language called <a href="#jsx">JSX</a> to visualise how each component's child components are set up, here's an example of a React component using JSX <a href="https://github.com/artsy/emission/blob/c558323e4276699925b4edb3d448812005ae6b5d/lib/components/home/search_bar.js">from Emission, our React Native library</a>:</p>
-
-<pre><code class="js">export default class SearchBar extends React.Component {
-  render() {
-    return (
-      &lt;TouchableWithoutFeedback onPress={this.handleTap.bind(this)}&gt;
-        &lt;View style={styles.container}&gt;
-          &lt;Image style={styles.searchIcon} source={require('../../../images/SearchButton.png')}/&gt;
-          &lt;Text style={styles.text}&gt;Search for artists and artworks...&lt;/Text&gt;
-        &lt;/View&gt;
-      &lt;/TouchableWithoutFeedback&gt;
-    )
-  }
-
-  handleTap() {
-    Switchboard.presentModalViewController(this, '/search')
-  }
-}
-</code></pre>
-
-<p>By providing a well encapsulated Component model, you can aggressively reduce the amount of redundant code you need to build an application. By not initially writing to the DOM, React can decide what has changed between user actions and that means you have to juggle significantly less state.</p>
-
-<p>We can then build on React via React-Native to allow the same style of code to exist inside the mobile sphere, where typically you have had unique languages and tooling.</p>
-
-<p>React Native is an implementation of React where instead of having React's virtual DOM map to a web page's DOM, it creates a native view hierarchy. In the case of iOS that is a <code>UIView</code> hierarchy, and in Android, a <code>View</code> hierarchy.</p>
-
-<p>If you'd like to find out why the iOS team moved to React Native, check our <a href="/series/react-native-at-artsy/">series of posts on React Native</a>.</p>
-
-<center>
- <img src="/images/js2017/relay.svg" style="width:300px;">
-</center>
-
-
-<a name="Relay"></a>
-<h2>Relay</h2>
-
-<p>Any front-end client has a lot of work to do on every page:</p>
-
-<ul>
-<li>Fetching all the data for a view hierarchy.</li>
-<li>Managing asynchronous state transitions and coordinating concurrent requests.</li>
-<li>Managing errors.</li>
-<li>Retrying failed requests.</li>
-<li>Updating the local cache after receiving new results/changes the server objects responses.</li>
-<li>Optimistically updating the UI while waiting for the server to respond to mutations.</li>
-</ul>
-
-
-<p>This is typically handled in a per-page basis, for example the API details, and state management between a Gene page, and an Artist page are different. In part because they have different data-models, but also that they have different correlated data. However, they do share a lot of the common responsibilities mentioned above. In our native side, we struggled to find abstractions that would work across multiple pages. Relay fixes this, and does it in a shockingly elegant way.</p>
-
-<p>Relay is a framework for building data-driven React apps which relies on a deep connection to GraphQL. You wrap your React components inside a Relay container, which handles the networking and setting the state for your component.</p>
-
-<pre><code class="js">// This is a normal React component, taken directly from our app
-// It will optionally show a description if one exists on a gene.
-
-class Biography extends React.Component {
-  render() {
-    const gene = this.props.gene
-    if (!gene.description) { return null }
-
-    return (
-      &lt;View&gt;
-        &lt;SerifText style={styles.blurb} numberOfLines={0}&gt;{gene.description}&lt;/SerifText&gt;
-      &lt;/View&gt;
-    )
-  }
-}
-
-// Take the above component `Biography`, and wrap it with a Relay Container.
-// Then provide what parts of a GraphQL request the `Biography` needs
-
-export default Relay.createContainer(Biography, {
-  fragments: {
-    gene: () =&gt; Relay.QL`
-      fragment on Gene {
-        description
-      }
-    `,
-  }
-})
-
-// When the `Biography` component is rendered, the component is given props of 
-// `gene` with a `description` by the Relay container. 
-</code></pre>
-
-<p>Relay handles this by having each component in your view hierarchy exposing the fragments of a GraphQL query. There is a pre-render stage where all of your components fragments are brought together to make a single API request. So in the case of the Gene, it may look something like:</p>
-
-<pre><code class="json">{
-  gene(id: "the-fantastic") {
-    // could have come from the root component's fragment
-    id
-    name 
-
-    // came from the above Header fragment
-    description 
-
-    // could have come from a RelatedArtists component's fragment
-    trending_artists {
-      name
-      href
-    }
-  }
-}
-</code></pre>
-
-<p>The data is first looked up inside Relay's local cache, and then any un-cached items are requested from the network. The results of the query is then moved into the component via it's props. Relay will only provide the specific data each component has requested. So the <code>Header</code> component would get nothing for <code>this.props.gene.name</code>. This data-masking is a great way of ensuring the connection between component and API.</p>
-
-<p>I'd strongly recommend taking the dive into both the <a href="https://facebook.github.io/relay/docs/thinking-in-graphql.html">Thinking with GraphQL</a> and then <a href="https://facebook.github.io/relay/docs/thinking-in-relay.html">Thinking with Relay</a> tutorials to learn more. Finally, <a href="https://www.learnrelay.org">Learn Relay</a> and <a href="https://sgwilym.github.io/relay-visual-learners/">Relay for Visual Learners</a> are great tutorials to help you get comfortable with the concepts.</p>
-
-<center>
- <img src="/images/js2017/yarn.svg" style="width:300px;">
-</center>
-
-
-<a name="Yarn"></a>
-<h2>Yarn</h2>
-
-<p>I have a lot of respect for NPM, their scale is <a href="http://blog.npmjs.org/post/143451680695/how-many-npm-users-are-there">through the roof</a>. They built out the foundations for a massive, thriving community. They did a great job. Like a lot of the JavaScript ecosystem, their tooling allows you to get away with a lot of things. You can have the same dependency inside the app with multiple versions, or apps with a dependency tree that is different each time you run <code>npm install</code>.</p>
-
-<p>We have multiple engineers who have worked on a dependency manager for half a decade, having indeterminate builds in JavaScript was something that worried us greatly. Luckily, there is <a href="https://yarnpkg.com">Yarn</a>.</p>
-
-<p>Yarn is a Facebook project that replaces the NPM <a href="https://en.wikipedia.org/wiki/Command-line_interface">cli</a> client. It's very new, so unlike NPM it does not have to worry about backwards compatibility. It is what I'd imagine a fresh re-write of the NPM cli would look like.</p>
-
-<p>Yarn is significantly faster, has a determinate process for setting up projects and uses a lockfile by default to ensure everyone using the project gets the exact same dependency tree. It uses NPM as a server, and so you get the same node modules as with the NPM cli.</p>
-
-<p>Sometimes Yarn gives you pleasant surprises too, my favourite being that <code>yarn [x]</code> will check to see if that is a local command that you could run, saving a bunch of redundant settings.</p>
-
-<p>Converting a codebase can be as simple as going into your project and running:</p>
-
-<pre><code class="sh">npm install -g yarn
-yarn install
-</code></pre>
-
-<p>Now you have a lockfile, and are using yarn. Awesome, if you are migrating from a project with a shrink-wrap - I have a script which will generate a summary of the changes for you: <a href="https://gist.github.com/orta/cb6d0b8256852c1f01ecf1d803b664c9">script</a>, <a href="https://github.com/artsy/metaphysics/pull/479">example</a>.</p>
-
-<center>
- <img src="/images/js2017/jest.svg" style="width:300px;">
-</center>
-
-
-<a name="Jest"></a>
-<h2>Jest</h2>
-
-<p>One of the things that I find particularly pleasant about the JavaScript ecosystem are their testing tools. With our React Native, we came into the ecosystem with fresh eyes, and it was pretty obvious that Jest was an exceptional testing framework. I hear historically Jest has been a bit meh, but it is without a doubt worth another look.</p>
-
-<p><strong>The watcher</strong> - The majority of your usage of Jest is with it running in watcher mode. This mode uses your git diff as a seed for what to run tests against. Jest will use that diff to define all the files that the changed code touches, and then all of the tests that cover those files.</p>
-
-<p>For example, I make a change in one source file and 60 tests run from 6 different test suites. Finishing in under a second.</p>
-
-<p></article>
-<a href='/images/js2017/jest-watcher.gif' style="">
-  <img src="/images/js2017/jest-watcher.gif" alt="Jest's awesome watch mode" style="width:100%;">
-</a>
-<article class="post">
-</p>
-
-<p>Not all tests are as important to a run, so Jest also keeps track of which tests failed last time and will run those first next time. This reduces iteration time considerably.</p>
-
-<p><strong>Fast and safe</strong> - You think the watcher is smart? Well the way Jest handle test suites is also extremely elegant. Jest keeps track of how long each test suite took to run, and then will weigh the test suites across different processes in order to speed up the overall test suite. If Jest thinks they're all going to be really quick (like my GIF above) they will all happen in one process, as that can also be faster.</p>
-
-<p>Each test suite is an entirely sandboxed node virtual machine, so you cannot have tests influencing each other.</p>
-
-<p><strong>Snapshots</strong> - Jest provides a concept called snapshots, which provides an easy way to compare JavaScript objects. One place where this really shines is with React components. <a href="https://github.com/artsy/emission/blob/ec565b8492540b4e33066364b415c7906ec1e028/lib/containers/__tests__/gene-tests.js#L121-L158">For example</a>:</p>
-
-<pre><code class="js">it('looks like expected', () =&gt; {
-  const props = {
-      gene:{...}
-    }
-
-  const tree = renderer.create(
-    &lt;Gene geneID={props.gene.name} medium="painting" price_range="*-100000" gene={props.gene}/&gt;
-  ).toJSON()
-
-  expect(tree).toMatchSnapshot()
-})
-</code></pre>
-
-<p>Now we will get a test failure when any changes happen in the component tree. For example, if I changed the background color to <code>blue</code> from <code>white</code>. I get a fail like this:</p>
-
-<p><img src="/images/js2017/jest-snapshots.png" style="width:100%"></p>
-
-<p>While that example is trivial, we really want to have tests like this to ensure we understand how changes propagate throughout the app.</p>
-
-<p><strong>No config</strong> - When we first integrated Jest, we had no config. Now, to make sure that TypeScript works how we'd like, we require some setup. However, having smart defaults which works in most cases say a lot about the care and attention paid to Developer Experience from the Jest team. The documentation covers default integrations for: Babel, TypeScript and webpack. Three of the biggest modern tools for getting stuff done with node.</p>
-
-<p><strong>Comprehensive API</strong> - Snapshots, watchers, custom matchers, useful JSON output, ESLint linters, Elegant Mocking tools and natural support for async code. All in one project.</p>
-
-<p>If you're interested, there is a lot of work around automating the migration between different testing frameworks in <a href="https://github.com/skovhus/jest-codemods">jest-codemods</a> - getting started has never been easier. I'd also recommend looking at <a href="https://wallabyjs.com">wallaby.js</a> and <a href="https://github.com/orta/vscode-jest#vscode-jest-">vscode-jest</a> for tooling.</p>
-
-<center>
- <img src="/images/vscode/vscode_logo_artsy.svg" style="width:300px;">
-</center>
-
-
-<a name="Visual.Studio.Code"></a>
-<h2>Visual Studio Code</h2>
-
-<p>Had you told me two years ago that my main editor would be a JavaScript app, I'd have bought you a beer for such a great joke.</p>
-
-<p>Visual Studio Code was the app that changed my mind.</p>
-
-<p>I've done a longer write up on the how and why we use VS Code in <a href="/blog/2016/08/15/vscode/">JavaScript projects</a>, however here I'd like to consider the cultural aspect of the choice. It's common practice among web technologists to all have different editors on a project, and for their editors to generally do little work for them. A lot of this culture came from the TextMate and Rails days with the infamous <a href="https://twitter.com/dhh/status/492706473936314369?lang=en">blog in 15 minutes video</a>. When I was a web developer, I also did this.</p>
-
-<p>When you spend a lot of time in a <a href="https://developer.apple.com/xcode/">powerful IDE</a>, it gets pretty hard to go back to a bare-bones editor. VS Code sits at a good (just past) half-way point between text editor and IDE. You can get a lot of the flexibility from a text editor, making it good for one off files and IDEs where you have fully spec'd out projects.</p>
-
-<p>Being able to have project specific setups is where VS Code really starts to shine. One thing that is working well for us is to gradually add project settings for our apps, first we add the ability to run tests with an attached debugger by adding a <code>launch.json</code>:</p>
-
-<pre><code class="json">{
-    "name": "Run Tests With Debugger (slower, use yarn for normal work)",
-    "type": "node2",
-    "request": "launch",
-    "port": 5858,
-    "address": "localhost",
-    "sourceMaps": true,
-    "stopOnEntry": false,
-    "runtimeExecutable": null,
-    "runtimeArgs": [
-      "--debug-brk",
-      "./node_modules/.bin/jest",
-      "-i"
-    ],
-    "cwd": "${workspaceRoot}"
-}
-</code></pre>
-
-<p>With this we can showcase how easy it is to use an inline debugger with source-maps, when working with tricky test logic. No more <code>console.log</code>. That's usually a great way to start moving everyone to a consistent environment. Then we add <a href="https://code.visualstudio.com/updates/v1_6#_workspace-extension-recommendations">recommended extensions</a> to the project.</p>
-
-<p>Trying to set a consistent  development environment might sound a bit corporate for a ~25 person dev team, but one chief advantage is that you can feel comfortable taking time at work to improve your tooling knowing it will improve the tooling of everyone else on your team.</p>
-
-<p>I've been exploring a consolidated <a href="https://github.com/artsy/vscode-artsy">Artsy VS Code</a> extension to handle extension dependencies and small tasks, but it's still early days. It's awesome that I can even think at that level of abstraction though.</p>
-
-<a name="End"></a>
-<h3>End</h3>
-
-<p>None of these technologies are under a year old, all of them have adoption by substantial amount of companies. Nothing feels  either controversial or novel. This is great. It feels like a lot of the interesting work for us so far has been around improving the spaces between the projects: Finding improvements for generating types <a href="https://github.com/avantcredit/gql2ts/blob/master/Changelog.md">from GraphQL</a> or <a href="https://github.com/alloy/relay2ts">Relay</a>, adding <a href="https://github.com/facebook/jest/commit/e597e5c46f8f4925d9a10c73d8eab05a2c4b8bc3">editor support to jest</a>, adding Danger to <a href="https://github.com/facebook/jest/pull/2508">our dependencies</a> and improving our <a href="https://github.com/orta/vscode-react-native-storybooks">tooling</a> <a href="https://github.com/orta/vscode-jest#vscode-jest-">for</a> <a href="https://github.com/alloy/vscode-relay">vscode</a>. The front-end is still a pretty small dev team, so we want to do high impact, small projects that can make our tools drastically better.</p>
-
-<p>React, React-Native, Jest, Yarn are all big Facebook projects. In the iOS world, there is a sense of wariness around building an app so heavily around Facebook tech, based on <a href="http://joehewitt.com/2009/03/23/the-three20-project">three20</a> - which I think is a bit unfair. From my perspective, determining whether you should have something as a dependency <a href="/blog/2015/09/18/Cocoa-Architecture-Dependencies/">should be nuanced</a>, but at a minimum you should feel like you can contribute bug fixes and ideally you should be able to maintain the project if it needs it. With Facebook projects, they've shown to be really open to PRs and discussion, and our work in them makes us feel comfortable to maintain a fork if needed.</p>
-
-<p>We're still exploring the space where we can share code between web and mobile. I'd like to hope within a few months we can write up how that is going on. For now, if you're interested in prototypes, we've been moving our React Native components to the web inside <a href="https://github.com/alloy/relational-theory/">Relational Theory</a> and <a href="https://github.com/orta/systems-theory/">Systems Theory</a> tries bringing new ideas from Relational Theory back to React Native.</p>
-
-<p>I have grown to love working with typed JavaScript to ensure soundness, with React and Relay to drastically reduce the amount of code we need to write and to provide awesome root abstractions to build on. Mix that with a hackable editor with substantial language support and it feels like almost exclusively writing business domain logic.</p>
 ]]></content>
   </entry>
   
