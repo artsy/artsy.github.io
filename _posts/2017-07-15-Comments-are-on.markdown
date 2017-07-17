@@ -9,7 +9,7 @@ comment_id: 364
 
 I've worked on a few large-scale OSS projects, and I believe that people find it easier to just leave a comment and rely on a contributor to explain a problem rather than consulting the documentation. I consider doing everything you can to make people find their own answers a strong part of [defensive open source][def-oss].
 
-I have an even lower tolerance for comments on posts I write. Once I started using this blog, I added the ability to turn off comments per-post and haven't allowed comments on any posts I've written.
+For the posts I write, I have an even lower tolerance for comments. For example, I added the ability to turn off comments per-post and haven't allowed comments on any posts I've written here. A lot of transitory discussion around an article happens on twitter via [@ArtsyOpenSource][ArtsyOpenSource].
 
 I'm willing to give it another shot though, and so I got around to creating a simple system for allowing opt-in comments on posts using GitHub Issues. The rest of this post will be about how you can do it also, and a bit about why I think GitHub Issues are a happy medium for the comments.
 
@@ -120,3 +120,4 @@ So: low maintenance, data isn't silo-ed and it's more likely to result in positi
 [gh-2017]: http://donw.io/post/github-comments/
 [current]: https://github.com/artsy/artsy.github.io/blob/source/_includes/gh_comments.html
 [pr]: https://github.com/artsy/artsy.github.io/pull/363
+[ArtsyOpenSource]: https://twitter.com/ArtsyOpenSource/
