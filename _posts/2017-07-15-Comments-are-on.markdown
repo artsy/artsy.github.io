@@ -24,7 +24,7 @@ The general concept is that you have some JavaScript in your page which requests
 
 Turns out to be a bit more complicated. GitHub's API has rate-limits for IP addresses, and they're reasonably low. So, you'll want to use authenticated requests, but you don't really want to include your access tokens inside the JavaScript on your blog.
 
-I've worked around this with a project called [gh-commentify][], a node app whose job is to wrap your comment API requests with an access token. You can create your own instance on heroku using [this link][]. It get's scoped to a single org/user, so you can avoid others using your heroku instance.
+I've worked around this with a project called [gh-commentify][], a node app whose job is to wrap your comment API requests with an access token. You can create your own instance on heroku using [this link][]. It gets scoped to a single org/user, so you can avoid others using your heroku instance for their blog.
 
 From there you need to be able to declare in a post what issue it is hooked up to. This blog uses Jekyll, which has [YAML Front Matter][yaml-fm] on posts. So, I edited our post templates to look for a key `comment_id`.
 
