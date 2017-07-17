@@ -12,6 +12,39 @@ task :build do
   sh 'PRODUCTION="YES" jekyll build -d _gh-pages'
 end
 
+namespace :podcast do
+  desc 'Adds a new '
+  task :new_episode do
+    require 'mp3info'
+    require 'pathname'
+
+    mp3_path = ARGV.last
+
+    abort 'Please specify a path to the MP3.' if mp3_path.nil?
+
+    duration = ''
+    Mp3Info.open(mp3_path) do |mp3|
+      duration = Time.at(mp3.length).utc.strftime("%H:%M:%S")
+    end
+    filesize = File.stat(mp3_path).size
+
+    output = <<-EOS
+   - title:
+     date:
+     description:
+     podcast_url:
+     file_byte_length: #{filesize}
+     duration: #{duration}
+EOS
+
+    File.open('_config.yml', 'a') do |file|
+      file.write(output)
+    end
+
+    puts 'Updated _config.yml with new episode. Please configure.'
+  end
+end
+
 # Deprecated, but leaving shortcut in because I'm sure Orta, at least, has this
 # in his muscle-memory.
 task :init => :bootstrap
