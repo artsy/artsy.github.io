@@ -26,7 +26,7 @@ Turns out to be a bit more complicated. GitHub's API has rate-limits for IP addr
 
 I've worked around this with a project called [gh-commentify][], a node app whose job is to wrap your comment API requests with an access token. You can create your own instance on heroku using [this link][]. It get's scoped to a single org/user, so you can avoid others using your heroku instance.
 
-From there you need to be able to declare in a post what issue it is hooked up to. This blog uses Jekyll, which has [YAML Front Matter][yaml-fm] on posts. So, I edited our post templates to detect for a key `comment_id`.
+From there you need to be able to declare in a post what issue it is hooked up to. This blog uses Jekyll, which has [YAML Front Matter][yaml-fm] on posts. So, I edited our post templates to look for a key `comment_id`.
 
 From there you need to grab the comments JSON, and move them into the DOM.
 
@@ -47,7 +47,7 @@ However this version is more reliable (GitHub authenticated requests) and has fe
 ```
 {% endraw %}
 
-This then imports the required JavaScript into the page. It feels a lot like this;
+This then imports the required JavaScript into the page. It feels a lot like this:
 
 {% raw %}
 
@@ -118,7 +118,7 @@ You have good admin tools: you can edit comments, block and report problematic u
 
 People will be using their developer accounts, which I'd like to hope they will take pride in. You're probably more likely to get high quality responses. The lack of threading is a bit of a shame in this context, but we've lived with it in GitHub Issues for this long, so I'm OK with this.
 
-This setup makes it trivial to drop comments from the blog anytime, and you still have all the comments around in a constructive way after. We don't have to 
+This setup makes it trivial to drop comments from the blog anytime, and you still have all the comments around in a constructive way after.
 
 So: low maintenance, data isn't silo-ed and it's more likely to result in positive interactions.
 
