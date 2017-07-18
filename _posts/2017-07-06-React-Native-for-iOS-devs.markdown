@@ -309,13 +309,15 @@ react-native init TrendingArtists
 ```
 
 </div>
-<div class="desktop-only" style='flex:1; display: block;'>
+<div id='installing-node' class="desktop-only" style='flex:1; display: block;'>
 
 <p>You'll need <code>node</code> and <code>yarn</code> installed globally so you can run JavaScript and handle dependency management respectively.<p>
 
 <p>For working inside a JavaScript project, I'd strongly recommend using Microsoft's <a href='https://code.visualstudio.com'>Visual Studio Code</a>, it does a great job for React Native.</p>
 
 <p>Next up we're going to make the initial project and look around, so once all the installing has finished. You can follow along with the next section.</p>
+
+<p>If the command `react-native` isn't working, <a href='https://github.com/keitaito'>@keitaito</a> has some useful advice in the [comments](#comments).</p>
 
 </div>
 </article>
