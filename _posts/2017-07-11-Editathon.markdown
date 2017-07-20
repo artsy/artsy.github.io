@@ -6,7 +6,7 @@ categories: [Technology, emission, reaction, react-native, react, javascript]
 author: orta
 ---
 
-Artsy has always had a focus on Arts meet Science, and we [hosted a meet-up last weekend][meetup-msg] that really hits on both. We had a collection of Artsy Staff, members of [Art + Feminism][afem] NYC, the CocoaPods Peer Lab and volunteers from Wikimedia all helping.
+Artsy has always had a focus on Arts meet Science, and we [hosted a meet-up last weekend][meetup-msg] that really hits on both. We had a collection of Artsy Staff, members of [Art + Feminism][afem] NYC, the [CocoaPods Peer Lab][peer-lab], [NY Arts Practicum][nyap] and volunteers from Wikimedia all helping.
 
 
 We came with two aims:
@@ -20,7 +20,7 @@ I helped out with the second part, and the rest of this post will be about the l
 
 # What is Wikidata?
 
-Everyone knows Wikipedia, but less people know about [Wikidata][]. I learned about it in the process of helping set up this meetup. Wikidata is a structured document store for generic items. The lexicon of keys that can go into a document are handled by community consensus.
+Everyone knows Wikipedia, but fewer people know about [Wikidata][]. I learned about it in the process of helping set up this meetup. Wikidata is a structured document store for generic items. The lexicon of keys that can go into a document are handled by community consensus.
 
 For example let's take the artist: Ana Mendieta ([artsy.net/artist/ana-mendieta][am]) in (truncated) [JSON representation][ana-json] inside Wikidata:
 
@@ -164,12 +164,88 @@ In essence, a Wikidata `Item` is just some structured data around a big bag of t
 
 Lucky for this editathon, both [Artsy Artist ID][artist-id], and [TAGP ID][tagp-id] were already inside the controlled vocabulary. This mean we could think about how to connect items rather than how we can pitch that is worth connecting them at all.
 
-We used Wikipedia to keep track of all [the useful links][dash], n
+We used Wikipedia to keep track of all [the useful links][dash] to share among contributors. 
 
-We ended up with three projects on the Wikidata side, after being given an overview 
+As the majority of us were new to the Wikidata, we scoped our projects to "get something small done." We ended up with three projects on the Wikidata side:
 
-( Focusing on )
+* Edit some wikidata items manually to understand the process.
+* Understand QuickStatements in order to do mass-updates of Wikidata items from Artsy data.
+* Explore using pywikibot to ensure that updated Artsy details can be kept in sync with Wikidata.
 
+# Outcomes
+
+We got some changes to Wikidata. 🎉.
+
+[TODO: mention the export from CSV and the data]
+
+# Updating Wikidata with data from Artsy
+
+After spending some time familiarizing ourselves with the process of manually creating and editing Items, we moved onto some basic [QuickStatement][qs] updates. QuickStatments are a simple text based interface for updating multiple items and properties at once.
+
+We ended up writing what would be the script for a single data item based on hardcoded values:
+
+```sh
+# COMPACT VERSION -- see below for annotated version
+CREATE
+LAST	Len	"Amina Benbouchta"
+LAST	Den	"Moroccan contemporary artist"
+LAST	P2042	"amina-benbouchta"
+LAST	P106	Q483501	S2042	"amina-benbouchta"
+LAST	P106	Q1281618	S2042	"amina-benbouchta"
+LAST	P21	Q6581072	S2042	"amina-benbouchta"
+LAST	P27	Q1028	S2042	"amina-benbouchta"
+LAST	P569	+1963-01-01T00:00:00Z/9	S2042	"amina-benbouchta"
+
+# ANNOTATED VERSION
+
+# create new Item
+CREATE
+
+# add a label in English to the last created item
+LAST	Len	"Amina Benbouchta"
+
+# add a description in English
+LAST	Den	"Moroccan contemporary artist"
+
+# add an Artsy Artist ID
+LAST	P2042	"amina-benbouchta"
+
+# add occupation (e.g. artist: Q483501, painter: Q1028181, sculptor: Q1281618, photographer: Q33231)
+# and source these statements to Artsy (source 2042)
+LAST	P106	Q483501	S2042	"amina-benbouchta"
+LAST	P106	Q1281618	S2042	"amina-benbouchta"
+
+# add sex or gender (e.g. female: Q6581072; nonbinary: not in Wikidata yet)
+LAST	P21	Q6581072	S2042	"amina-benbouchta"
+
+# add country of citizenship (e.g. USA: Q30, Morocco: Q1028)
+LAST	P27	Q1028	S2042	"amina-benbouchta"
+
+# add birthdate (precision: /9=year /10=month /11=day)
+LAST	P569	+1963-01-01T00:00:00Z/9	S2042	"amina-benbouchta"
+```
+
+By the end of the day we were able to enter basic biographical facts from Artsy's CSVs into Wikidata in one fell swoop, by batching up several QuickStatement instructions. In the future, we could write an Artsy data to QuickStatement script to handle larger imports.
+
+[TODO: note the lack of nuance on the gender that we wanted to improve]]
+
+# Using pywikibot to update Wikidata 
+
+We created a [PAWS][] Python script that would take metadata from the CSVs Artsy provided on Genes and added that data to existing Wikidata documents. You can get our bot [on GitHub][bot]. 
+
+Most of the work is inside a Jupyter Notebook, which you can get a full preview of [on GitHub][jn]
+
+<img src="/images/editathon/jupyternotebook.png">
+
+I loved the idea of having code showing the incremental process as it's being eval'd. We got the bot to a point where it could edit a Wikidata item based on it data exported from Artsy.
+
+# Upcoming ideas
+
+We discussed what Artsy can do next, we have an idea of how we can connect our data to confirmed data on Wikidata by keeping the Wikidata QID inside our databases too. This means that we can safely keep that up to date.
+
+We would love to do this again, it was exciting to have the project introduced to us - and we really get what they're trying to do. We want to host another, and you should come if you're in NYC!
+
+[TODO: shareing open data - https://github.com/artsy/the-art-genome-project]
 
 [meetup-msg]: https://www.meetup.com/CocoaPods-NYC/messages/boards/thread/50940969
 [afem]: http://www.artandfeminism.org
@@ -181,3 +257,9 @@ We ended up with three projects on the Wikidata side, after being given an overv
 [tagp-id]: https://www.wikidata.org/wiki/Property:P2411
 [Wikidata]: https://www.wikidata.org/wiki/Wikidata:Main_Page
 [dash]: https://en.wikipedia.org/wiki/Wikipedia:Meetup/NYC/Artsy_ArtAndFeminism
+[peer-lab]: /blog/2015/08/10/peer-lab/
+[nyap]: http://www.artspracticum.org
+[qs]: https://tools.wmflabs.org/wikidata-todo/quick_statements.php
+[jn]: https://github.com/orta/artsy-wikidata-bot/blob/master/Artsy%2BGenes%2Bto%2BWikiData.ipynb
+[PAWS]: https://www.wikidata.org/wiki/Wikidata:Pywikibot_-_Python_3_Tutorial
+[bot]: https://github.com/orta/artsy-wikidata-bot
