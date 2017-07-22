@@ -140,7 +140,7 @@ If you're going to build something amazing, only to have all support pulled out 
 
 This makes it tough for us, as the 3rd party community, to build useful tools on the kind of scale that is normal in other developer ecosystems.
 
-This contrasts drastically with the JavaScript ecosystem, check out my explanation of Jest - and compare Jest to either Quick or Specta. Then remember that only Apple has the power to do most of what Jest does.
+This contrasts drastically with the JavaScript ecosystem, check out my explanation of Jest - and compare Jest to either Quick or Specta. Then remind yourself that only Apple has the power to do most of what Jest does.
 
 > Reference from JS 2017: [Jest][jest]
 
