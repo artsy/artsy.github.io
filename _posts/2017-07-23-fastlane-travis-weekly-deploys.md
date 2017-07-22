@@ -4,6 +4,7 @@ title: Deploying your app on a weekly basis via fastlane + Travis CI
 date: 2017-07-23
 author: orta
 categories: [mobile, ios, emission, fastlane]
+css: fastlane
 ---
 
 We have a few apps now, but one of them isn't really used by anyone other than developers. This is [our React Native host app][em_app]. We built our React Native components [as a library][how_emission] to be consumed by our other apps. Our development environment for these components is a unique app that acts as a host for the React Native components. It's effectively a long tableview.
