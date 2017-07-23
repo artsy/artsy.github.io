@@ -22,7 +22,6 @@ As the JavaScript is continuously deployed, the native side of the app rarely ge
 I wanted this to exist outside of our current CI environment for two reasons:
 
 * Our CI is already [using AppHub][pr_deploy] to deploy the JavaScript parts of our React Native on a per-commit basis. It's complicated enough as it is, without adding a lot more process.
-
 * Our CI is currently running on Linux boxes, and so everything is fast and stable. Deploying using the main repo would force us to use macOS which would slow down our processes.
 
 The downside of this choice is that the process of uploading is not inside the main repo, and can go out of sync with the main app.
@@ -63,7 +62,7 @@ script:
 - bundle exec fastlane ship
 ```
 
-Note the `- bundle update`. As fastlane, locking their versions doesn't make much sense over long time periods . 
+Note the `- bundle update`. As fastlane works against iTunes connect which is always changing locking the version doesn't make much sense. 
 
 ## Ensuring signing will work.
 
@@ -76,9 +75,9 @@ git_url "https://#{ENV['GITHUB_SUBMODULES_USER']}@github.com/artsy/mobile_fastla
 # git_url "https://github.com/artsy/mobile_fastlane_match"
 ```
 
-That's what's great about building a DSL that which sits above a real programming language, you give users a lot of flexibility. 
+This is one of the highlights on fastlane's choice in building a DSL that which sits above a real programming language, you give users a lot of flexibility.
 
-Next up, I added a fastlane lane for code signing, and keychain setup. This just calls two functions.
+Next up, I added a fastlane lane for code signing, and keychain setup. This just calls two setup functions.
 
 ```ruby
 lane :setup_signing do
@@ -100,10 +99,10 @@ end
 
 ## Creating the build and shipping it to Testflight
 
-This is handled by [fastlane gym][gym].
+This is handled by [fastlane gym][gym] at the start of the main lane.
 
 ```ruby
-# You can run `bundle exec fastlane build` to test the build process locally.
+# You can run `bundle exec fastlane ship` to test the build process locally.
 lane :ship do
   # Run the code signing lane
   setup_signing
@@ -175,7 +174,7 @@ end
 
 That wraps up setting up the CI. Once you've confirmed everything has worked, you can add the scheduler inside Travis and expect to see a slack notification in a week.
 
-By the end of the process, our Fastfile looked like:
+By the end of the process, our `Fastfile` looked like:
 
 ```ruby
 # This is documented in the Artsy Blog: 
