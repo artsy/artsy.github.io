@@ -17,8 +17,10 @@ namespace :podcast do
   task :new_episode do
     require 'mp3info'
     require 'pathname'
+    require 'aws-sdk'
 
     mp3_path = ARGV.last
+    file_name = File.basename(mp3_path)
 
     abort 'Please specify a path to the MP3.' if mp3_path.nil?
 
@@ -28,11 +30,17 @@ namespace :podcast do
     end
     filesize = File.stat(mp3_path).size
 
+    puts 'Uploading episode to S3 bucket.'
+    s3 = Aws::S3::Resource.new(region: 'us-east-1')
+    s3_upload = s3.bucket('artsy-engineering-podcast').object(file_name)
+    unless s3_upload.upload_file(mp3_path) abort "Upload failed."
+    puts 'Upload completed.'
+
     output = <<-EOS
    - title:
-     date:
+     date: #{Time.now.strftime("%Y-%m-%d")}
      description:
-     podcast_url:
+     podcast_url: http://artsy-engineering-podcast.s3.amazonaws.com/#{file_name}
      file_byte_length: #{filesize}
      duration: #{duration}
 EOS
