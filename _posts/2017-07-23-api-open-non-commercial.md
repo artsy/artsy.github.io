@@ -4,7 +4,6 @@ title: Artsy API Ready for Production Non-Commercial Use
 date: 2017-07-23
 categories: [API, Open-Source]
 author: orta
-comment_id: 364
 ---
 
 About 3 years ago, dB. announced that Artsy [had a public API](/blog/2014/09/12/designing-the-public-artsy-api/). 
