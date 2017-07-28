@@ -1,7 +1,7 @@
 ---
 layout: epic
 title: Deploying your app on a weekly basis via fastlane + Travis CI
-date: 2017-07-23
+date: 2017-07-31
 author: orta
 categories: [mobile, ios, emission, fastlane]
 css: fastlane
@@ -39,7 +39,7 @@ Finally I needed to document the process, which is what you're reading.
 
 ## Downloading and setting up the application
 
-My initial thoughts were to use a submodule, but that option provides little advantage over cloning the repo itself so it's done inline. Our dependencies for the app live in Rubygems (Fastlane/CocoaPods), NPM (React Native) and CocoaPods (Artsy Mobile code), so I use the `before_install` and `before_script` section of the `.travis.yml` to set up our dependencies:
+My initial thoughts were to use a submodule, but that option provides little advantage over cloning the repo itself so it's done inline. Our dependencies for the app live in Rubygems (fastlane/CocoaPods), NPM (React Native) and CocoaPods (Artsy Mobile code), so I use the `before_install` and `before_script` section of the `.travis.yml` to set up our dependencies:
 
 ```yml
 # Use a Mac build please
@@ -58,11 +58,10 @@ before_script:
 # tested one by one during development
 script:
 - bundle exec fastlane validate_env_vars
-- bundle exec fastlane stamp_plist
-- bundle exec fastlane ship
+- bundle exec fastlane ci_deploy
 ```
 
-Note the `- bundle update`. As fastlane works against iTunes connect which is always changing locking the version doesn't make much sense. 
+Note the `- bundle update`. As fastlane works against unofficial iTunes connect which is always changing, it's safer to always use the most recent release. 
 
 ## Ensuring signing will work.
 
@@ -81,19 +80,9 @@ Next up, I added a fastlane lane for code signing, and keychain setup. This just
 
 ```ruby
 lane :setup_signing do
-  create_keychain(
-    name: ENV['MATCH_KEYCHAIN_NAME'],
-    password: ENV['MATCH_PASSWORD'],
-    default_keychain: true,
-    unlock: true,
-    timeout: 3600,
-    add_to_search_list: true
-  )
+  setup_travis
 
-  match(type: 'appstore',
-        keychain_name: ENV['MATCH_KEYCHAIN_NAME'],
-        keychain_password: ENV['MATCH_PASSWORD'],
-        readonly: true)
+  match(type: 'appstore')
 end
 ```
 
@@ -102,14 +91,13 @@ end
 This is handled by [fastlane gym][gym] at the start of the main lane.
 
 ```ruby
-# You can run `bundle exec fastlane ship` to test the build process locally.
+# The main job for Fastlane in this repo, you can run this on your computer
+# You can run it via `bundle exec fastlane ship`
 lane :ship do
-  # Run the code signing lane
-  setup_signing
-
   # We were having issues with building an a few folders deep.
   # The /Pods bit is because we can rely on it being there, see
   # this link: https://docs.fastlane.tools/advanced/#directory-behavior
+  #
   Dir.chdir('../emission/Example/Pods') do
     gym workspace: 'Emission.xcworkspace',
         configuration: 'Deploy',
@@ -122,7 +110,7 @@ end
 
 It uses a scheme for deploys, which prioritises using AppHub over a local React Native server. Gym handles a lot of CLI ugliness for us, and works well.
 
-Sending the app to Testflight involves a little bit of work:
+Sending the app to Testflight involves a a few lines:
 
 ```ruby
 # Get the last 10 lines of the CHANGELOG for Testflight
@@ -130,7 +118,7 @@ changelog = '../emission/CHANGELOG.md'
 upcoming_release_notes = File.read(changelog).split("\n### ").first
 
 # Ship to testflight
-pilot changelog: upcoming_release_notes
+pilot(changelog: upcoming_release_notes)
 ```
 
 This lets the deploy process figure out what the latest release version is, and how many builds have shipped for that version. Then those can be used to set the build version and create a tag associated with it.
@@ -147,7 +135,7 @@ I don't know when we'll need it today, but it's always good to be able to go bac
 # inside the emission repo, instead of our own.
 Dir.chdir('../emission/Example/') do
   tag = "deploy-#{latest_version}-#{build_version}"
-  sh "git tag #{tag}"
+  add_git_tag(tag)
 
   if ENV['GITHUB_SUBMODULES_USER']
     writable_remote = "https://#{ENV['GITHUB_SUBMODULES_USER']}@github.com/artsy/emission.git"
@@ -155,7 +143,7 @@ Dir.chdir('../emission/Example/') do
   else
     sh 'git remote add http https://github.com/artsy/emission.git'
   end
-  sh "git push http #{tag}"
+  push_git_tags(remote: 'http')
 end
 ```
 
@@ -178,8 +166,7 @@ By the end of the process, our `Fastfile` looked like:
 
 ```ruby
 # This is documented in the Artsy Blog: 
-# http://artsy.github.io/blog/2017/07/23/fastlane-travis-weekly-deploys/
-
+# http://artsy.github.io/blog/2017/07/31/fastlane-travis-weekly-deploys/
 lane :setup do
   Dir.chdir('..') do
     sh 'rm -rf emission' if Dir.exist? 'Emission'
@@ -196,17 +183,24 @@ lane :setup do
   end
 end
 
-# The main job for Fastlane in this repo.
-lane :ship do
+# Lets the CI run a bunch of jobs, and share ENV vars between them
+lane :ci_deploy do
   setup_signing
+  stamp_plist
+  ship
+end
 
+# The main job for Fastlane in this repo, you can run this on your computer
+# You can run it via `bundle exec fastlane ship`
+lane :ship do
   # We were having issues with building an a few folders deep.
   # The /Pods bit is because we can rely on it being there, see
   # this link: https://docs.fastlane.tools/advanced/#directory-behavior
+  #
   Dir.chdir('../emission/Example/Pods') do
-    gym workspace: 'Emission.xcworkspace',
+    gym(workspace: 'Emission.xcworkspace',
         configuration: 'Deploy',
-        scheme: 'Emission'
+        scheme: 'Emission')
   end
 
   # Get the last 10 lines of the CHANGELOG for Testflight
@@ -214,7 +208,7 @@ lane :ship do
   upcoming_release_notes = File.read(changelog).split("\n### ").first
 
   # Ship to testflight
-  pilot changelog: upcoming_release_notes
+  pilot(changelog: upcoming_release_notes)
 
   # Log into iTunes connect, get the latest version of the app we shipped, and how many builds we've sent
   Spaceship::Tunes.login(ENV['FASTLANE_USERNAME'], ENV['FASTLANE_PASSWORD'])
@@ -228,7 +222,7 @@ lane :ship do
   # inside the emission repo, instead of our own.
   Dir.chdir('../emission/Example/') do
     tag = "deploy-#{latest_version}-#{build_version}"
-    sh "git tag #{tag}"
+    add_git_tag(tag)
 
     if ENV['GITHUB_SUBMODULES_USER']
       writable_remote = "https://#{ENV['GITHUB_SUBMODULES_USER']}@github.com/artsy/emission.git"
@@ -236,7 +230,8 @@ lane :ship do
     else
       sh 'git remote add http https://github.com/artsy/emission.git'
     end
-    sh "git push http #{tag}"
+
+    push_git_tags(remote: 'http')
   end
 
   slack message: 'There is a new Emission beta available on Testflight.',
@@ -254,19 +249,8 @@ end
 
 # Used by CI, will not sneakily update (the CI only has read-only access to the repo anyway)
 lane :setup_signing do
-  create_keychain(
-    name: ENV['MATCH_KEYCHAIN_NAME'],
-    password: ENV['MATCH_PASSWORD'],
-    default_keychain: true,
-    unlock: true,
-    timeout: 3600,
-    add_to_search_list: true
-  )
-
-  match(type: 'appstore',
-        keychain_name: ENV['MATCH_KEYCHAIN_NAME'],
-        keychain_password: ENV['MATCH_PASSWORD'],
-        readonly: true)
+  setup_travis
+  match(type: 'appstore')
 end
 
 # Minor plist modifications
@@ -278,6 +262,7 @@ lane :stamp_plist do
   `/usr/libexec/PlistBuddy -c "Set CFBundleVersion #{build_number}" "#{plist}"`
 end
 
+# Mainly so we don't forget to include these vars in the future
 lane :validate_env_vars do
   unless ENV['FASTLANE_USERNAME'] && ENV['FASTLANE_PASSWORD'] && ENV['MATCH_PASSWORD']
     raise 'You need to set FASTLANE_USERNAME, FASTLANE_PASSWORD and MATCH_PASSWORD in your environment'
@@ -288,13 +273,12 @@ lane :validate_env_vars do
   end
 end
 
-# If the weekly task fails, then ship a message
+# If the weekly task fails, then ship a message, a success would also send
 error do |_, exception|
-  slack message: "Error Deploying Emission: #{exception}",
+  slack(message: "Error Deploying Emission: #{exception}",
         success: false,
-        payload: { Output: exception.error_info.to_s }
+        payload: { Output: exception.error_info.to_s })
 end
-
 ```
 
 Automatically deploying is a good pattern for encouraging more deploys of an app which has only been deployed once. It's a pattern we could also move to in some of our other apps too, if it feels good. If you're interested in if something has changed since this post was authored, the repo is here: https://github.com/artsy/emission-nebula so you can read out the Fastfile and we'll answer questions you have inside GitHub issues on it.
