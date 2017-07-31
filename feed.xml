@@ -5,9 +5,504 @@
     <description></description>
     <link>http://artsy.github.io/</link>
     <atom:link href="http://artsy.github.io/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Wed, 26 Jul 2017 18:25:00 +0000</pubDate>
-    <lastBuildDate>Wed, 26 Jul 2017 18:25:00 +0000</lastBuildDate>
+    <pubDate>Mon, 31 Jul 2017 14:31:07 -0400</pubDate>
+    <lastBuildDate>Mon, 31 Jul 2017 14:31:07 -0400</lastBuildDate>
     <generator>Jekyll v2.5.3</generator>
+    
+      <item>
+        <title>Deploying your app on a weekly basis via fastlane + Travis CI</title>
+        <description>&lt;p&gt;We have a few apps now, but one of them isn&#39;t really used by anyone other than developers. This is &lt;a href=&quot;https://github.com/artsy/emission/tree/master/Example&quot;&gt;our React Native host app&lt;/a&gt;. We built our React Native components &lt;a href=&quot;/blog/2016/08/24/On-Emission/&quot;&gt;as a library&lt;/a&gt; to be consumed by our other apps. Our development environment for these components is a unique app that acts as a host for the React Native components. It&#39;s effectively a long tableview.&lt;/p&gt;
+
+&lt;p&gt;This app is often updated for developers, but never deployed to beta users inside Artsy. So I automated it. Using Travis CI and fastlane. This post covers how I got that set up.&lt;/p&gt;
+
+&lt;!-- more --&gt;
+
+
+
+
+&lt;center&gt;
+  &lt;img src=&quot;/images/fastlane-weekly/screenshot.png&quot; width=300&gt;
+&lt;/center&gt;
+
+
+&lt;p&gt;As the JavaScript is continuously deployed, the native side of the app rarely gets a deploy. In order to ensure an up-to-date version of the app, I used the &lt;a href=&quot;https://docs.travis-ci.com/user/cron-jobs/&quot;&gt;scheduler&lt;/a&gt; now available in Travis CI, and Circle CI. This is a perfect use-case for one-off tasks like uploading an app to Apple&#39;s Testflight on a weekly basis.&lt;/p&gt;
+
+&lt;p&gt;I wanted this to exist outside of our current CI environment for two reasons:&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;Our CI is already &lt;a href=&quot;https://github.com/artsy/emission/pull/263&quot;&gt;using AppHub&lt;/a&gt; to deploy the JavaScript parts of our React Native on a per-commit basis. It&#39;s complicated enough as it is, without adding a lot more process.&lt;/li&gt;
+&lt;li&gt;Our CI is currently running on Linux boxes, and so everything is fast and stable. Deploying using the main repo would force us to use macOS which would slow down our processes.&lt;/li&gt;
+&lt;/ul&gt;
+
+
+&lt;p&gt;The downside of this choice is that the process of uploading is not inside the main repo, and can go out of sync with the main app.&lt;/p&gt;
+
+&lt;a name=&quot;Setup&quot;&gt;&lt;/a&gt;
+&lt;h2&gt;Setup&lt;/h2&gt;
+
+&lt;p&gt;I created a new repo, and added the &lt;a href=&quot;https://github.com/artsy/emission-nebula/commit/4d18a11629e097c71b9a375465c754abf45f62d6&quot;&gt;usual LICENSE and README&lt;/a&gt;, then started &lt;a href=&quot;https://github.com/artsy/emission-nebula/pull/1&quot;&gt;working on a PR&lt;/a&gt; that added the initial support for CI to run. Here are the general steps I needed to make work:&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;Downloading and setting up the application.&lt;/li&gt;
+&lt;li&gt;Ensuring signing will work.&lt;/li&gt;
+&lt;li&gt;Creating the build and shipping it to Testflight.&lt;/li&gt;
+&lt;li&gt;Notifications that it passed or succeeded.&lt;/li&gt;
+&lt;/ul&gt;
+
+
+&lt;p&gt;Finally I needed to document the process, which is what you&#39;re reading.&lt;/p&gt;
+
+&lt;a name=&quot;Downloading.and.setting.up.the.application&quot;&gt;&lt;/a&gt;
+&lt;h2&gt;Downloading and setting up the application&lt;/h2&gt;
+
+&lt;p&gt;My initial thoughts were to use a submodule, but that option provides little advantage over cloning the repo itself so it&#39;s done inline. Our dependencies for the app live in Rubygems (fastlane/CocoaPods), NPM (React Native) and CocoaPods (Artsy Mobile code), so I use the &lt;code&gt;before_install&lt;/code&gt; and &lt;code&gt;before_script&lt;/code&gt; section of the &lt;code&gt;.travis.yml&lt;/code&gt; to set up our dependencies:&lt;/p&gt;
+
+&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;6&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;7&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;8&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;9&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;10&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;11&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;12&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;13&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;14&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;15&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;16&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;17&lt;/span&gt;
+&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;yaml&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;c1&quot;&gt;# Use a Mac build please&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;l-Scalar-Plain&quot;&gt;language&lt;/span&gt;&lt;span class=&quot;p-Indicator&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;l-Scalar-Plain&quot;&gt;objective-c&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;l-Scalar-Plain&quot;&gt;osx_image&lt;/span&gt;&lt;span class=&quot;p-Indicator&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;l-Scalar-Plain&quot;&gt;xcode8.2&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;c1&quot;&gt;# Ensure that Fastlane is at the latest version&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;l-Scalar-Plain&quot;&gt;before_install&lt;/span&gt;&lt;span class=&quot;p-Indicator&quot;&gt;:&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p-Indicator&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;l-Scalar-Plain&quot;&gt;bundle update&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;c1&quot;&gt;# Let fastlane set up the other dependency managers&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;l-Scalar-Plain&quot;&gt;before_script&lt;/span&gt;&lt;span class=&quot;p-Indicator&quot;&gt;:&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p-Indicator&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;l-Scalar-Plain&quot;&gt;bundle exec fastlane setup&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;c1&quot;&gt;# Separate fastlane lanes so that they can be individually&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;c1&quot;&gt;# tested one by one during development&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;l-Scalar-Plain&quot;&gt;script&lt;/span&gt;&lt;span class=&quot;p-Indicator&quot;&gt;:&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p-Indicator&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;l-Scalar-Plain&quot;&gt;bundle exec fastlane validate_env_vars&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p-Indicator&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;l-Scalar-Plain&quot;&gt;bundle exec fastlane ci_deploy&lt;/span&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
+
+
+&lt;p&gt;Note the &lt;code&gt;- bundle update&lt;/code&gt;. As fastlane works against unofficial iTunes connect which is always changing, it&#39;s safer to always use the most recent release.&lt;/p&gt;
+
+&lt;a name=&quot;Ensuring.signing.will.work.&quot;&gt;&lt;/a&gt;
+&lt;h2&gt;Ensuring signing will work.&lt;/h2&gt;
+
+&lt;p&gt;This one is a bit tricker, luckily I&#39;ve already set up one of our apps to use &lt;a href=&quot;/blog/2017/04/05/what-is-fastlane-match/&quot;&gt;fastlane match&lt;/a&gt; and I can re-use that infrastructure. As it is a private repo, Travis did not have access to clone the repo. I fixed this by creating an access token for a user with read-only access to our match-codesigning repo, then exposed this as a private environment variable in CI which the Matchfile uses. E.g.&lt;/p&gt;
+
+&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
+&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;ruby&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;n&quot;&gt;git_url&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;https://&lt;/span&gt;&lt;span class=&quot;si&quot;&gt;#{&lt;/span&gt;&lt;span class=&quot;no&quot;&gt;ENV&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;GITHUB_SUBMODULES_USER&amp;#39;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;]&lt;/span&gt;&lt;span class=&quot;si&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;@github.com/artsy/mobile_fastlane_match&amp;quot;&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;c1&quot;&gt;# Instead of &lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;c1&quot;&gt;# git_url &amp;quot;https://github.com/artsy/mobile_fastlane_match&amp;quot;&lt;/span&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
+
+
+&lt;p&gt;This is one of the highlights on fastlane&#39;s choice in building a DSL that which sits above a real programming language, you give users a lot of flexibility.&lt;/p&gt;
+
+&lt;p&gt;Next up, I added a fastlane lane for code signing, and keychain setup. This just calls two setup functions.&lt;/p&gt;
+
+&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
+&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;ruby&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;n&quot;&gt;lane&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;:setup_signing&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;do&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;n&quot;&gt;setup_travis&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;n&quot;&gt;match&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;ss&quot;&gt;type&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;appstore&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
+
+
+&lt;a name=&quot;Creating.the.build.and.shipping.it.to.Testflight&quot;&gt;&lt;/a&gt;
+&lt;h2&gt;Creating the build and shipping it to Testflight&lt;/h2&gt;
+
+&lt;p&gt;This is handled by &lt;a href=&quot;https://github.com/fastlane/fastlane/tree/master/gym&quot;&gt;fastlane gym&lt;/a&gt; at the start of the main lane.&lt;/p&gt;
+
+&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;6&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;7&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;8&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;9&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;10&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;11&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;12&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;13&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;14&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;15&lt;/span&gt;
+&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;ruby&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;c1&quot;&gt;# The main job for Fastlane in this repo, you can run this on your computer&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;c1&quot;&gt;# You can run it via `bundle exec fastlane ship`&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;n&quot;&gt;lane&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;:ship&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;do&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;c1&quot;&gt;# We were having issues with building an a few folders deep.&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;c1&quot;&gt;# The /Pods bit is because we can rely on it being there, see&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;c1&quot;&gt;# this link: https://docs.fastlane.tools/advanced/#directory-behavior&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;c1&quot;&gt;#&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;no&quot;&gt;Dir&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;chdir&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;../emission/Example/Pods&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;do&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;n&quot;&gt;gym&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;workspace&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;Emission.xcworkspace&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;        &lt;span class=&quot;ss&quot;&gt;configuration&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;Deploy&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;        &lt;span class=&quot;ss&quot;&gt;scheme&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;Emission&amp;#39;&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;c1&quot;&gt;# [...]&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
+
+
+&lt;p&gt;It uses a scheme for deploys, which prioritises using AppHub over a local React Native server. Gym handles a lot of CLI ugliness for us, and works well.&lt;/p&gt;
+
+&lt;p&gt;Sending the app to Testflight involves a a few lines:&lt;/p&gt;
+
+&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;6&lt;/span&gt;
+&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;ruby&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;c1&quot;&gt;# Get the last 10 lines of the CHANGELOG for Testflight&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;n&quot;&gt;changelog&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;../emission/CHANGELOG.md&amp;#39;&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;n&quot;&gt;upcoming_release_notes&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;File&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;read&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;changelog&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;split&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;### &amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;first&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;c1&quot;&gt;# Ship to testflight&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;n&quot;&gt;pilot&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;ss&quot;&gt;changelog&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;upcoming_release_notes&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
+
+
+&lt;p&gt;This lets the deploy process figure out what the latest release version is, and how many builds have shipped for that version. Then those can be used to set the build version and create a tag associated with it.&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://github.com/fastlane/fastlane/tree/master/pilot&quot;&gt;fastlane pilot&lt;/a&gt; is used to send off the compiled build to Testflight.&lt;/p&gt;
+
+&lt;a name=&quot;Keeping.track.of.deploys&quot;&gt;&lt;/a&gt;
+&lt;h2&gt;Keeping track of deploys&lt;/h2&gt;
+
+&lt;p&gt;I don&#39;t know when we&#39;ll need it today, but it&#39;s always good to be able to go back and see what code lines up to every release. To do this I have a few lines of Ruby that creates a tag inside the original Emission repo.&lt;/p&gt;
+
+&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;6&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;7&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;8&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;9&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;10&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;11&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;12&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;13&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;14&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;15&lt;/span&gt;
+&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;ruby&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;c1&quot;&gt;# Do a tag, we use a http git remote so we can have push access&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;c1&quot;&gt;# as the default remote for travis is read-only. This needs to be&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;c1&quot;&gt;# inside the emission repo, instead of our own.&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;no&quot;&gt;Dir&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;chdir&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;../emission/Example/&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;do&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;n&quot;&gt;tag&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;deploy-&lt;/span&gt;&lt;span class=&quot;si&quot;&gt;#{&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;latest_version&lt;/span&gt;&lt;span class=&quot;si&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;si&quot;&gt;#{&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;build_version&lt;/span&gt;&lt;span class=&quot;si&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;n&quot;&gt;add_git_tag&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;ss&quot;&gt;key&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;tag&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;ENV&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;GITHUB_SUBMODULES_USER&amp;#39;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;]&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;n&quot;&gt;writable_remote&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;https://&lt;/span&gt;&lt;span class=&quot;si&quot;&gt;#{&lt;/span&gt;&lt;span class=&quot;no&quot;&gt;ENV&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;GITHUB_SUBMODULES_USER&amp;#39;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;]&lt;/span&gt;&lt;span class=&quot;si&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;@github.com/artsy/emission.git&amp;quot;&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;n&quot;&gt;sh&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;git remote add http &lt;/span&gt;&lt;span class=&quot;si&quot;&gt;#{&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;writable_remote&lt;/span&gt;&lt;span class=&quot;si&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;k&quot;&gt;else&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;n&quot;&gt;sh&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;git remote add http https://github.com/artsy/emission.git&amp;#39;&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;n&quot;&gt;push_git_tags&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;ss&quot;&gt;remote&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;http&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
+
+
+&lt;a name=&quot;Notifications.that.it.passed.or.succeeded.&quot;&gt;&lt;/a&gt;
+&lt;h2&gt;Notifications that it passed or succeeded.&lt;/h2&gt;
+
+&lt;p&gt;This was easy, I created a new slack inbound web-hook and added that as an environment variable. Then when a build passes we post a notification that there is a new version for everyone in Slack, if the lane fails then it will also post to slack. To ensure we keep on top of it, during development this was commented out.&lt;/p&gt;
+
+&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;6&lt;/span&gt;
+&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;ruby&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;c1&quot;&gt;# If the weekly task fails, then ship a message&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;n&quot;&gt;error&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;do&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;|&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;_&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;exception&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;|&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;   &lt;span class=&quot;n&quot;&gt;slack&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;message&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;Error Deploying Emission: &lt;/span&gt;&lt;span class=&quot;si&quot;&gt;#{&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;exception&lt;/span&gt;&lt;span class=&quot;si&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;         &lt;span class=&quot;ss&quot;&gt;success&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;kp&quot;&gt;false&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;         &lt;span class=&quot;ss&quot;&gt;payload&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;Output&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;exception&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;error_info&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;to_s&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
+
+
+&lt;p&gt;That wraps up setting up the CI. Once you&#39;ve confirmed everything has worked, you can add the scheduler inside Travis and expect to see a slack notification in a week.&lt;/p&gt;
+
+&lt;p&gt;By the end of the process, our &lt;code&gt;Fastfile&lt;/code&gt; looked like:&lt;/p&gt;
+
+&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;6&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;7&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;8&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;9&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;10&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;11&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;12&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;13&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;14&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;15&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;16&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;17&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;18&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;19&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;20&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;21&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;22&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;23&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;24&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;25&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;26&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;27&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;28&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;29&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;30&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;31&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;32&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;33&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;34&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;35&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;36&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;37&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;38&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;39&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;40&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;41&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;42&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;43&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;44&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;45&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;46&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;47&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;48&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;49&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;50&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;51&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;52&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;53&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;54&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;55&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;56&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;57&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;58&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;59&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;60&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;61&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;62&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;63&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;64&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;65&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;66&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;67&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;68&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;69&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;70&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;71&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;72&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;73&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;74&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;75&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;76&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;77&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;78&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;79&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;80&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;81&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;82&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;83&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;84&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;85&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;86&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;87&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;88&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;89&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;90&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;91&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;92&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;93&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;94&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;95&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;96&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;97&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;98&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;99&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;100&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;101&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;102&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;103&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;104&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;105&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;106&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;107&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;108&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;109&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;110&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;111&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;112&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;113&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;114&lt;/span&gt;
+&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;ruby&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;c1&quot;&gt;# This is documented in the Artsy Blog: &lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;c1&quot;&gt;# http://artsy.github.io/blog/2017/07/31/fastlane-travis-weekly-deploys/&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;n&quot;&gt;lane&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;:setup&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;do&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;no&quot;&gt;Dir&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;chdir&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;..&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;do&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;n&quot;&gt;sh&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;rm -rf emission&amp;#39;&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;Dir&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;exist?&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;Emission&amp;#39;&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;n&quot;&gt;sh&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;git clone https://github.com/artsy/emission.git&amp;#39;&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;no&quot;&gt;Dir&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;chdir&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;emission&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;do&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;n&quot;&gt;sh&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;. ~/.nvm/nvm.sh &amp;amp;&amp;amp; nvm use &amp;amp;&amp;amp; npm install yarn --global &amp;amp;&amp;amp; yarn install&amp;#39;&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;no&quot;&gt;Dir&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;chdir&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;emission/Example&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;do&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;n&quot;&gt;sh&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;pod repo update&amp;#39;&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;n&quot;&gt;sh&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;pod install&amp;#39;&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;n&quot;&gt;stamp_plist&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;c1&quot;&gt;# Lets the CI run a bunch of jobs, and share ENV vars between them&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;n&quot;&gt;lane&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;:ci_deploy&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;do&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;n&quot;&gt;setup_signing&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;n&quot;&gt;stamp_plist&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;n&quot;&gt;ship&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;c1&quot;&gt;# The main job for Fastlane in this repo, you can run this on your computer&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;c1&quot;&gt;# You can run it via `bundle exec fastlane ship`&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;n&quot;&gt;lane&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;:ship&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;do&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;c1&quot;&gt;# We were having issues with building an a few folders deep.&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;c1&quot;&gt;# The /Pods bit is because we can rely on it being there, see&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;c1&quot;&gt;# this link: https://docs.fastlane.tools/advanced/#directory-behavior&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;c1&quot;&gt;#&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;no&quot;&gt;Dir&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;chdir&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;../emission/Example/Pods&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;do&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;n&quot;&gt;gym&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;ss&quot;&gt;workspace&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;Emission.xcworkspace&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;        &lt;span class=&quot;ss&quot;&gt;configuration&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;Deploy&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;        &lt;span class=&quot;ss&quot;&gt;scheme&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;Emission&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;c1&quot;&gt;# Get the last 10 lines of the CHANGELOG for Testflight&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;n&quot;&gt;changelog&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;../emission/CHANGELOG.md&amp;#39;&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;n&quot;&gt;upcoming_release_notes&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;File&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;read&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;changelog&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;split&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;### &amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;first&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;c1&quot;&gt;# Ship to testflight&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;n&quot;&gt;pilot&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;ss&quot;&gt;changelog&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;upcoming_release_notes&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;c1&quot;&gt;# Log into iTunes connect, get the latest version of the app we shipped, and how many builds we&amp;#39;ve sent&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;no&quot;&gt;Spaceship&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;no&quot;&gt;Tunes&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;login&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;no&quot;&gt;ENV&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;FASTLANE_USERNAME&amp;#39;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;]&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;ENV&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;FASTLANE_PASSWORD&amp;#39;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;]&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;n&quot;&gt;app&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;Spaceship&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;no&quot;&gt;Tunes&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;no&quot;&gt;Application&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;find&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;net.artsy.Emission&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;n&quot;&gt;latest_version&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;app&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;build_trains&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;keys&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sort&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;last&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;n&quot;&gt;train&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;app&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;build_trains&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;latest_version&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;]&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;n&quot;&gt;build_version&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;train&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;builds&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;count&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;c1&quot;&gt;# Do a tag, we use a http git remote so we can have push access&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;c1&quot;&gt;# as the default remote for travis is read-only. This needs to be&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;c1&quot;&gt;# inside the emission repo, instead of our own.&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;no&quot;&gt;Dir&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;chdir&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;../emission/Example/&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;do&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;n&quot;&gt;tag&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;deploy-&lt;/span&gt;&lt;span class=&quot;si&quot;&gt;#{&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;latest_version&lt;/span&gt;&lt;span class=&quot;si&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;si&quot;&gt;#{&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;build_version&lt;/span&gt;&lt;span class=&quot;si&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;n&quot;&gt;add_git_tag&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;ss&quot;&gt;key&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;tag&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;ENV&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;GITHUB_SUBMODULES_USER&amp;#39;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;]&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;n&quot;&gt;writable_remote&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;https://&lt;/span&gt;&lt;span class=&quot;si&quot;&gt;#{&lt;/span&gt;&lt;span class=&quot;no&quot;&gt;ENV&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;GITHUB_SUBMODULES_USER&amp;#39;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;]&lt;/span&gt;&lt;span class=&quot;si&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;@github.com/artsy/emission.git&amp;quot;&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;n&quot;&gt;sh&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;git remote add http &lt;/span&gt;&lt;span class=&quot;si&quot;&gt;#{&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;writable_remote&lt;/span&gt;&lt;span class=&quot;si&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;k&quot;&gt;else&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;n&quot;&gt;sh&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;git remote add http https://github.com/artsy/emission.git&amp;#39;&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;n&quot;&gt;push_git_tags&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;ss&quot;&gt;remote&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;http&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;n&quot;&gt;slack&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;message&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;There is a new Emission beta available on Testflight.&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;        &lt;span class=&quot;ss&quot;&gt;payload&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;          &lt;span class=&quot;s1&quot;&gt;&amp;#39;Version&amp;#39;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;latest_version&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;          &lt;span class=&quot;s2&quot;&gt;&amp;quot;What&amp;#39;s new&amp;quot;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;upcoming_release_notes&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;        &lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;        &lt;span class=&quot;ss&quot;&gt;default_payloads&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;[]&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;c1&quot;&gt;# In case you need to update the signing profiles for this app&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;n&quot;&gt;lane&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;:update_signing&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;do&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;n&quot;&gt;match&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;ss&quot;&gt;type&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;appstore&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;c1&quot;&gt;# Used by CI, will not sneakily update (the CI only has read-only access to the repo anyway)&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;n&quot;&gt;lane&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;:setup_signing&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;do&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;n&quot;&gt;setup_travis&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;n&quot;&gt;match&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;ss&quot;&gt;type&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;appstore&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;c1&quot;&gt;# Minor plist modifications&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;n&quot;&gt;lane&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;:stamp_plist&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;do&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;n&quot;&gt;plist&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;emission/Example/Emission/Info.plist&amp;#39;&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;c1&quot;&gt;# Increment build number to current date&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;n&quot;&gt;build_number&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;Time&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;new&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;strftime&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;%Y.%m.%d.%H&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;sb&quot;&gt;`/usr/libexec/PlistBuddy -c &amp;quot;Set CFBundleVersion &lt;/span&gt;&lt;span class=&quot;si&quot;&gt;#{&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;build_number&lt;/span&gt;&lt;span class=&quot;si&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;sb&quot;&gt;&amp;quot; &amp;quot;&lt;/span&gt;&lt;span class=&quot;si&quot;&gt;#{&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;plist&lt;/span&gt;&lt;span class=&quot;si&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;sb&quot;&gt;&amp;quot;`&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;c1&quot;&gt;# Mainly so we don&amp;#39;t forget to include these vars in the future&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;n&quot;&gt;lane&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;:validate_env_vars&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;do&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;k&quot;&gt;unless&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;ENV&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;FASTLANE_USERNAME&amp;#39;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;ENV&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;FASTLANE_PASSWORD&amp;#39;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;ENV&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;MATCH_PASSWORD&amp;#39;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;]&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;k&quot;&gt;raise&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;You need to set FASTLANE_USERNAME, FASTLANE_PASSWORD and MATCH_PASSWORD in your environment&amp;#39;&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;k&quot;&gt;unless&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;ENV&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;SLACK_URL&amp;#39;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;]&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;k&quot;&gt;raise&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;You need to set SLACK_URL (&lt;/span&gt;&lt;span class=&quot;si&quot;&gt;#{&lt;/span&gt;&lt;span class=&quot;no&quot;&gt;ENV&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;SLACK_URL&amp;#39;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;]&lt;/span&gt;&lt;span class=&quot;si&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;) in your environment.&amp;quot;&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;c1&quot;&gt;# If the weekly task fails, then ship a message, a success would also send&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;n&quot;&gt;error&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;do&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;|&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;_&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;exception&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;|&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;n&quot;&gt;slack&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;ss&quot;&gt;message&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;Error Deploying Emission: &lt;/span&gt;&lt;span class=&quot;si&quot;&gt;#{&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;exception&lt;/span&gt;&lt;span class=&quot;si&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;        &lt;span class=&quot;ss&quot;&gt;success&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;kp&quot;&gt;false&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;        &lt;span class=&quot;ss&quot;&gt;payload&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;Output&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;exception&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;error_info&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;to_s&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;})&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
+
+
+&lt;p&gt;Automatically deploying is a good pattern for encouraging more deploys of an app which has only been deployed once. It&#39;s a pattern we could also move to in some of our other apps too, if it feels good. If you&#39;re interested in if something has changed since this post was authored, the repo is here: https://github.com/artsy/emission-nebula so you can read out the Fastfile and we&#39;ll answer questions you have inside GitHub issues on it.&lt;/p&gt;
+
+&lt;p&gt;The most annoying part about building deployment changes are that an iteration takes ~20 minutes, so make sure you also have another (easily interrupted) task to do at the same time.&lt;/p&gt;
+
+&lt;p&gt;The second most annoying is that it took months to eventually get this right - so I owe Felix Krause a big thanks for sitting down and pairing with me, we figuring out that &lt;code&gt;xcodebuild&lt;/code&gt; can create empty archive issues when you run projects that have the xcproject/xcworkspace a few levels deep.&lt;/p&gt;
+</description>
+        <pubDate>Mon, 31 Jul 2017 00:00:00 -0400</pubDate>
+        <link>http://artsy.github.io/blog/2017/07/31/fastlane-travis-weekly-deploys/</link>
+        <guid isPermaLink="true">http://artsy.github.io/blog/2017/07/31/fastlane-travis-weekly-deploys/</guid>
+        
+        
+        <category>emission</category>
+        
+        <category>fastlane</category>
+        
+        <category>ios</category>
+        
+        <category>mobile</category>
+        
+      </item>
     
       <item>
         <title>Artsy API Ready for Production Non-Commercial Use</title>
@@ -35,7 +530,7 @@
 
 &lt;p&gt;If you have a great idea for an app that can use public-domain data, then the Artsy API is the right place to look: &lt;a href=&quot;d&quot;&gt;https://developers.artsy.net&lt;/a&gt;&lt;/p&gt;
 </description>
-        <pubDate>Sun, 23 Jul 2017 00:00:00 +0000</pubDate>
+        <pubDate>Sun, 23 Jul 2017 00:00:00 -0400</pubDate>
         <link>http://artsy.github.io/blog/2017/07/23/api-open-non-commercial/</link>
         <guid isPermaLink="true">http://artsy.github.io/blog/2017/07/23/api-open-non-commercial/</guid>
         
@@ -214,7 +709,7 @@
 
 &lt;p&gt;So: low maintenance, works on static sites, data isn&#39;t silo-ed and it&#39;s more likely to result in positive interactions.&lt;/p&gt;
 </description>
-        <pubDate>Sat, 15 Jul 2017 00:00:00 +0000</pubDate>
+        <pubDate>Sat, 15 Jul 2017 00:00:00 -0400</pubDate>
         <link>http://artsy.github.io/blog/2017/07/15/Comments-are-on/</link>
         <guid isPermaLink="true">http://artsy.github.io/blog/2017/07/15/Comments-are-on/</guid>
         
@@ -1203,7 +1698,7 @@ $(&quot;.component&quot;).hover(function(){
 
 &lt;p&gt;If you&#39;re considering a new app, or a grand re-write, React Native should be considered as one of your options.&lt;/p&gt;
 </description>
-        <pubDate>Thu, 06 Jul 2017 00:00:00 +0000</pubDate>
+        <pubDate>Thu, 06 Jul 2017 00:00:00 -0400</pubDate>
         <link>http://artsy.github.io/blog/2017/07/06/React-Native-for-iOS-devs/</link>
         <guid isPermaLink="true">http://artsy.github.io/blog/2017/07/06/React-Native-for-iOS-devs/</guid>
         
@@ -1455,7 +1950,7 @@ after submitting a PR.&lt;/p&gt;
 
 &lt;p&gt;This post uses the CC license image from &lt;a href=&quot;https://twitter.com/CloudyConway/status/880426417024114688&quot;&gt;this tweet&lt;/a&gt; with some changes to make it fit with the design of the blog. Thanks &lt;a href=&quot;https://www.patreon.com/vexorian&quot;&gt;Vexorian&lt;/a&gt;.&lt;/p&gt;
 </description>
-        <pubDate>Fri, 30 Jun 2017 00:00:00 +0000</pubDate>
+        <pubDate>Fri, 30 Jun 2017 00:00:00 -0400</pubDate>
         <link>http://artsy.github.io/blog/2017/06/30/danger-one-oh-again/</link>
         <guid isPermaLink="true">http://artsy.github.io/blog/2017/06/30/danger-one-oh-again/</guid>
         
@@ -1678,7 +2173,7 @@ after submitting a PR.&lt;/p&gt;
 
 &lt;p&gt;With this approach we were able to encrypt a database with ~1.5 million rows without any downtime in about a week.&lt;/p&gt;
 </description>
-        <pubDate>Tue, 30 May 2017 11:03:00 +0000</pubDate>
+        <pubDate>Tue, 30 May 2017 11:03:00 -0400</pubDate>
         <link>http://artsy.github.io/blog/2017/05/30/database-encryption/</link>
         <guid isPermaLink="true">http://artsy.github.io/blog/2017/05/30/database-encryption/</guid>
         
@@ -1748,7 +2243,7 @@ after submitting a PR.&lt;/p&gt;
 
 &lt;p&gt;Remember that the benefits of a retrospective aren&#39;t limited to learning from a single mistake; retrospectives encourage a &lt;em&gt;culture&lt;/em&gt; of learning from mistakes, which (as Edmonson discovered in hospital settings) is far more valuable.&lt;/p&gt;
 </description>
-        <pubDate>Sat, 27 May 2017 00:00:00 +0000</pubDate>
+        <pubDate>Sat, 27 May 2017 00:00:00 -0400</pubDate>
         <link>http://artsy.github.io/blog/2017/05/27/ios-retrospectives/</link>
         <guid isPermaLink="true">http://artsy.github.io/blog/2017/05/27/ios-retrospectives/</guid>
         
@@ -2174,7 +2669,7 @@ after submitting a PR.&lt;/p&gt;
 
 &lt;p&gt;If you want to learn more about GraphQL and want to stay up-to-date with the latest news of the GraphQL community, subscribe to &lt;a href=&quot;https://graphqlweekly.com/&quot;&gt;GraphQL Weekly&lt;/a&gt;.&lt;/p&gt;
 </description>
-        <pubDate>Wed, 26 Apr 2017 00:00:00 +0000</pubDate>
+        <pubDate>Wed, 26 Apr 2017 00:00:00 -0400</pubDate>
         <link>http://artsy.github.io/blog/2017/04/26/Relay-Mutations/</link>
         <guid isPermaLink="true">http://artsy.github.io/blog/2017/04/26/Relay-Mutations/</guid>
         
@@ -2416,7 +2911,7 @@ after submitting a PR.&lt;/p&gt;
 
 &lt;p&gt;We notably sort works by iconicity in &lt;a href=&quot;https://www.artsy.net/search?q=banksy&quot;&gt;search results&lt;/a&gt; and in the carousel on top of artist pages. We also have made it available in our &lt;a href=&quot;https://developers.artsy.net&quot;&gt;public API&lt;/a&gt;.&lt;/p&gt;
 </description>
-        <pubDate>Fri, 21 Apr 2017 00:00:00 +0000</pubDate>
+        <pubDate>Fri, 21 Apr 2017 00:00:00 -0400</pubDate>
         <link>http://artsy.github.io/blog/2017/04/21/calculating-the-importance-of-an-artwork-with-apache-spark/</link>
         <guid isPermaLink="true">http://artsy.github.io/blog/2017/04/21/calculating-the-importance-of-an-artwork-with-apache-spark/</guid>
         
@@ -2603,7 +3098,7 @@ after submitting a PR.&lt;/p&gt;
 
 &lt;p&gt;If you&#39;re interested in helping us make this an even longer post in two more years, or &lt;em&gt;more interestingly&lt;/em&gt; shorter - we nearly always have a &lt;a href=&quot;https://www.artsy.net/jobs&quot;&gt;position open for engineers&lt;/a&gt;.&lt;/p&gt;
 </description>
-        <pubDate>Fri, 14 Apr 2017 00:00:00 +0000</pubDate>
+        <pubDate>Fri, 14 Apr 2017 00:00:00 -0400</pubDate>
         <link>http://artsy.github.io/blog/2017/04/14/artsy-technology-stack-2017/</link>
         <guid isPermaLink="true">http://artsy.github.io/blog/2017/04/14/artsy-technology-stack-2017/</guid>
         
@@ -2615,327 +3110,6 @@ after submitting a PR.&lt;/p&gt;
         <category>gravity</category>
         
         <category>technology</category>
-        
-      </item>
-    
-      <item>
-        <title>What is fastlane match?</title>
-        <description>&lt;p&gt;Like anyone working on a non-trivial app in the iOS world who values their time, we use fastlane. &lt;a href=&quot;https://fastlane.tools&quot;&gt;fastlane&lt;/a&gt; is a suite
-of tools that makes it much simpler to automate the very manual processes provided by Apple for deployment.&lt;/p&gt;
-
-&lt;p&gt;We&#39;ve adopted it in a relatively piece-meal manner in different projects, converting custom in-house code to something
-provided by the gem.  Over time we found what pieces of the suite work for us. &lt;a href=&quot;https://github.com/artsy/energy/pull/266&quot;&gt;I&#39;ve adopted another today&lt;/a&gt;: &lt;a href=&quot;https://github.com/fastlane/fastlane/tree/master/match&quot;&gt;match&lt;/a&gt;.&lt;/p&gt;
-
-&lt;p&gt;match automates setting up your iOS projects for code signing. One of the most arduous orthogonal tasks which every dev team learns and then forgets.&lt;/p&gt;
-
-&lt;p&gt;In using match, we have given away a bit of control with code signing, and so this post is going to dig into; what we used
-to have, and how it works now with match instead.&lt;/p&gt;
-
-&lt;!-- more --&gt;
-
-
-&lt;p&gt;When match came out, I knew this was a 🌟 idea.&lt;/p&gt;
-
-&lt;ul&gt;
-&lt;li&gt;Automatically generate the right certificates and keys for your different apps and environments.&lt;/li&gt;
-&lt;li&gt;Take all your developer certificates and keys, move them to a central place accessible via private git repos.&lt;/li&gt;
-&lt;li&gt;Encrypt all your certs and keys, the team just needs to share one password.&lt;/li&gt;
-&lt;li&gt;Migrate all of those keys on both the developer&#39;s and CI&#39;s computers.&lt;/li&gt;
-&lt;/ul&gt;
-
-
-&lt;p&gt;You can now have a consistent signing setup between how you work, and how your CI runs. After understanding this, I migrated
-Artsy&#39;s app store apps to deploy via &lt;a href=&quot;https://circleci.com&quot;&gt;Circle CI&lt;/a&gt;. We initially gave match a shot, but ended up having issues with supporting
-multiple apps. So, I replicated the core ideas in match into our Fastfile. It looked like this:&lt;/p&gt;
-
-&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;6&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;7&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;8&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;9&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;10&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;11&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;12&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;13&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;14&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;15&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;16&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;17&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;18&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;19&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;20&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;21&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;22&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;23&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;24&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;25&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;26&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;27&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;28&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;29&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;30&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;31&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;32&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;33&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;34&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;35&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;36&lt;/span&gt;
-&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;ruby&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;n&quot;&gt;lane&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;:setup_for_app_store&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;do&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;n&quot;&gt;app_name&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;eigen&amp;quot;&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;n&quot;&gt;signing_root&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;signing&amp;quot;&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;sb&quot;&gt;`git clone https://github.com/artsy/mobile_code_signing.git &lt;/span&gt;&lt;span class=&quot;si&quot;&gt;#{&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;signing_root&lt;/span&gt;&lt;span class=&quot;si&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;sb&quot;&gt;`&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;c1&quot;&gt;# prints out the codesigning identities&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nb&quot;&gt;system&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;security find-identity -v -p codesigning&amp;quot;&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;c1&quot;&gt;# Install the iOS distribution certificate, -A&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nb&quot;&gt;system&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;security import &lt;/span&gt;&lt;span class=&quot;si&quot;&gt;#{&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;signing_root&lt;/span&gt;&lt;span class=&quot;si&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;/ios_distribution.cer  -k ~/Library/Keychains/login.keychain -A&amp;quot;&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;c1&quot;&gt;# Move our provisioning profile in&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;n&quot;&gt;profile_path&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;File&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;expand_path&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;~&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;/Library/MobileDevice/Provisioning Profiles/&amp;quot;&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;n&quot;&gt;destination&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;profile_path&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;/&amp;quot;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;app_name&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;.mobileprovision&amp;quot;&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;n&quot;&gt;profile&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;Dir&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;glob&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;signing_root&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;/profiles/&amp;quot;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;app_name&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;/*&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;first&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;c1&quot;&gt;# Ensure folder exists&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;k&quot;&gt;unless&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;File&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;directory?&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;profile_path&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;no&quot;&gt;FileUtils&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;mkdir_p&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;profile_path&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;c1&quot;&gt;# Migrate it in&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;no&quot;&gt;FileUtils&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;copy&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;profile&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;destination&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nb&quot;&gt;puts&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;Installed Profile&amp;quot;&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;c1&quot;&gt;# Install the key&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;n&quot;&gt;key&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;Dir&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;glob&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;signing_root&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;/keys/&amp;quot;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;app_name&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;/*&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;first&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nb&quot;&gt;system&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;security import &lt;/span&gt;&lt;span class=&quot;si&quot;&gt;#{&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;key&lt;/span&gt;&lt;span class=&quot;si&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt; -k ~/Library/Keychains/login.keychain -P &lt;/span&gt;&lt;span class=&quot;si&quot;&gt;#{&lt;/span&gt;&lt;span class=&quot;no&quot;&gt;ENV&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;MATCH_PASSWORD&amp;#39;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;]&lt;/span&gt;&lt;span class=&quot;si&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;  -A &amp;quot;&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;c1&quot;&gt;# prints out the codesigning identities&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nb&quot;&gt;system&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;security find-identity -v -p codesigning&amp;quot;&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;c1&quot;&gt;# Clean-up&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;sb&quot;&gt;`rm -rf &lt;/span&gt;&lt;span class=&quot;si&quot;&gt;#{&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;signing_root&lt;/span&gt;&lt;span class=&quot;si&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;sb&quot;&gt;`&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
-
-
-&lt;p&gt;Pretty neat, huh? It handles the centralization and migration of certificates. The trade-off against match is:&lt;/p&gt;
-
-&lt;ul&gt;
-&lt;li&gt;We continue to maintain our own certificates, keys and provisioning profiles.&lt;/li&gt;
-&lt;li&gt;There is no easy way to update these.&lt;/li&gt;
-&lt;li&gt;There is tooling which makes it easy to see the state of all the code signing process.&lt;/li&gt;
-&lt;/ul&gt;
-
-
-&lt;p&gt;A year later, on a project which gets no-where near as much developer attention, I discovered that we had got multiple
-parts of the certs, keys and profiles wrong when updating our central repo. So, for &lt;a href=&quot;http://folio.artsy.net&quot;&gt;this project&lt;/a&gt;, I have switched to use match.&lt;/p&gt;
-
-&lt;hr /&gt;
-
-&lt;a name=&quot;So.how.does.it.work.now.&quot;&gt;&lt;/a&gt;
-&lt;h1&gt;So how does it work now?&lt;/h1&gt;
-
-&lt;p&gt;First, I ran &lt;code&gt;bundle exec fastlane appstore&lt;/code&gt; and &lt;code&gt;bundle exec fastlane dev&lt;/code&gt;.&lt;/p&gt;
-
-&lt;p&gt;This creates the certificates, keys and profiles on iTunes connect and gives you output similar to this:&lt;/p&gt;
-
-&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;6&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;7&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;8&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;9&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;10&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;11&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;12&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;13&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;14&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;15&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;16&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;17&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;18&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;19&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;20&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;21&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;22&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;23&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;24&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;25&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;26&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;27&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;28&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;29&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;30&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;31&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;32&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;33&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;34&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;35&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;36&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;37&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;38&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;39&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;40&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;41&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;42&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;43&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;44&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;45&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;46&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;47&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;48&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;49&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;50&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;51&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;52&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;53&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;54&lt;/span&gt;
-&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;sh&#39;&gt;&lt;span class=&#39;line&#39;&gt;+-----------------------+------------------------------------------------+
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;|&lt;/span&gt;                        Summary &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; match 2.25.0                        &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;+-----------------------+------------------------------------------------+
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;readonly&lt;/span&gt;              &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;true&lt;/span&gt;                                           &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; git_url               &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; https://github.com/artsy/mobile_fastlane_match &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;type&lt;/span&gt;                  &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; appstore                                       &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; git_branch            &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; master                                         &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; app_identifier        &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; sy.art.folio                                   &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; username              &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; it@artsymail.com                               &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; keychain_name         &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; login.keychain                                 &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; team_id               &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; 23KMWZ572J                                     &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; team_name             &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; Art.sy Inc.                                    &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; verbose               &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;false&lt;/span&gt;                                          &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; force                 &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;false&lt;/span&gt;                                          &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; skip_confirmation     &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;false&lt;/span&gt;                                          &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; shallow_clone         &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;false&lt;/span&gt;                                          &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; force_for_new_devices &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;false&lt;/span&gt;                                          &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; skip_docs             &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;false&lt;/span&gt;                                          &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; platform              &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; ios                                            &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;+-----------------------+------------------------------------------------+
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;17:03:52&lt;span class=&quot;o&quot;&gt;]&lt;/span&gt;: Cloning remote git repo...
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;17:03:54&lt;span class=&quot;o&quot;&gt;]&lt;/span&gt;: 🔓  Successfully decrypted certificates repo
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;17:03:54&lt;span class=&quot;o&quot;&gt;]&lt;/span&gt;: Installing certificate...
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;+-------------------+-----------------------------------------------+
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;|&lt;/span&gt;                       Installed Certificate                       &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;+-------------------+-----------------------------------------------+
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; User ID           &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; 23KMWZ572J                                    &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; Common Name       &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; iPhone Distribution: Art.sy Inc. &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;23KMWZ572J&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; Organisation Unit &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; 23KMWZ572J                                    &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; Organisation      &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; Art.sy Inc.                                   &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; Country           &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; US                                            &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; Start Datetime    &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; Apr  &lt;span class=&quot;m&quot;&gt;4&lt;/span&gt; 13:59:06 &lt;span class=&quot;m&quot;&gt;2017&lt;/span&gt; GMT                      &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; End Datetime      &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; Apr  &lt;span class=&quot;m&quot;&gt;4&lt;/span&gt; 13:59:06 &lt;span class=&quot;m&quot;&gt;2018&lt;/span&gt; GMT                      &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;+-------------------+-----------------------------------------------+
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;17:03:56&lt;span class=&quot;o&quot;&gt;]&lt;/span&gt;: Installing provisioning profile...
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;+---------------------+-----------------------------------------+-------------------------------------------------------------------------------------------------------------+
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;|&lt;/span&gt;                                                                       Installed Provisioning Profile                                                                        &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;+---------------------+-----------------------------------------+-------------------------------------------------------------------------------------------------------------+
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; Parameter           &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; Environment Variable                    &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; Value                                                                                                       &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;+---------------------+-----------------------------------------+-------------------------------------------------------------------------------------------------------------+
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; App Identifier      &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt;                                         &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; sy.art.folio                                                                                                &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; Type                &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt;                                         &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; appstore                                                                                                    &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; Platform            &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt;                                         &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; ios                                                                                                         &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; Profile UUID        &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; sigh_sy.art.folio_appstore              &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; b045df0f-a691-4b7a-ac34-8349a3684030                                                                        &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; Profile Name        &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; sigh_sy.art.folio_appstore_profile-name &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; match AppStore sy.art.folio                                                                                 &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; Profile Path        &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; sigh_sy.art.folio_appstore_profile-path &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; /Users/orta/Library/MobileDevice/Provisioning Profiles/b045df0f-a691-4b7a-ac34-8349a3684030.mobileprovision &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; Development Team ID &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; sigh_sy.art.folio_appstore_team-id      &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; 23KMWZ572J                                                                                                  &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;+---------------------+-----------------------------------------+-------------------------------------------------------------------------------------------------------------+
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;17:03:56&lt;span class=&quot;o&quot;&gt;]&lt;/span&gt;: All required keys, certificates and provisioning profiles are installed 🙌
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
-
-
-&lt;p&gt;Which at a glimpse gives a lot of the most useful information about how all the pieces come together. The new repo looks like this:&lt;/p&gt;
-
-&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;6&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;7&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;8&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;9&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;10&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;11&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;12&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;13&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;14&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;15&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;16&lt;/span&gt;
-&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;sh&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;nv&quot;&gt;$ &lt;/span&gt;tree mobile_fastlane_match
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;├── README.md
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;├── certs
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;│   ├── development
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;│   │   ├── P4K6FACAUD.cer
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;│   │   └── P4K6FACAUD.p12
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;│   └── distribution
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;│       ├── N5BMJ28RQ2.cer
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;│       └── N5BMJ28RQ2.p12
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;├── match_version.txt
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;└── profiles
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    ├── appstore
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    │   └── AppStore_sy.art.folio.mobileprovision
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    └── development
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;        └── Development_sy.art.folio.mobileprovision
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
-
-
-&lt;a name=&quot;So..what.is.Match.doing.here.&quot;&gt;&lt;/a&gt;
-&lt;h2&gt;So, what is Match doing here?&lt;/h2&gt;
-
-&lt;ol&gt;
-&lt;li&gt;&lt;p&gt;match creates a new key (the &lt;code&gt;*.p12&lt;/code&gt;) - normally you would generate one of these through Keychain, and the entire team would
-to share this. We keep ours in team &lt;a href=&quot;http://1password.com&quot;&gt;1Password&lt;/a&gt;. It needs to be used consistently when request certificates from Apple
-though the &quot;Request a Certificate from a Certificate Authority&quot; part of getting your certs set up.&lt;/p&gt;&lt;/li&gt;
-&lt;li&gt;&lt;p&gt;Using &lt;a href=&quot;https://github.com/fastlane/fastlane/tree/master/cert&quot;&gt;cert&lt;/a&gt;: match will use this key &lt;a href=&quot;https://github.com/fastlane/fastlane/blob/14dea61e4c81bf9be13bb86c09aa225c6e572618/cert/lib/cert/runner.rb#L141&quot;&gt;to create a signing request&lt;/a&gt; for you.&lt;/p&gt;&lt;/li&gt;
-&lt;li&gt;&lt;p&gt;Using &lt;a href=&quot;https://github.com/fastlane/fastlane/tree/master/cert&quot;&gt;cert&lt;/a&gt;: match will generate a certificate for &lt;a href=&quot;https://github.com/fastlane/fastlane/blob/14dea61e4c81bf9be13bb86c09aa225c6e572618/cert/lib/cert/runner.rb#L79&quot;&gt;development or distribution&lt;/a&gt; for you.&lt;/p&gt;&lt;/li&gt;
-&lt;li&gt;&lt;p&gt;Using &lt;a href=&quot;https://github.com/fastlane/fastlane/tree/master/cert&quot;&gt;cert&lt;/a&gt;: match will &lt;a href=&quot;https://github.com/fastlane/fastlane/blob/14dea61e4c81bf9be13bb86c09aa225c6e572618/match/lib/match/runner.rb#L133&quot;&gt;generate a Provisioning Profile&lt;/a&gt; using your certificate and data pulled from your Xcode Project.
-In my case, for development and distribution.&lt;/p&gt;
-
-&lt;p&gt;These profiles are tied directly to one app and the certificate in step 3. For development, all devices in the dev center are also added.&lt;/p&gt;&lt;/li&gt;
-&lt;li&gt;&lt;p&gt;These files are then installed in their various methods.&lt;/p&gt;&lt;/li&gt;
-&lt;li&gt;&lt;p&gt;These files are then moved into your git repo, a commit is made for you, then pushed and the repo is removed from your computer.&lt;/p&gt;&lt;/li&gt;
-&lt;/ol&gt;
-
-
-&lt;p&gt;This process is nice, because this ^ is a lot of work. I only had to run a command.&lt;/p&gt;
-
-&lt;p&gt;It would take at about 30 minutes to do this if I knew exactly what I wanted through the web interface + Keychain.&lt;/p&gt;
-
-&lt;p&gt;We currently need to do this for every app. This works fine for the app where we are deploying multiple betas a month,
-but for one when we&#39;re deploying &lt;em&gt;maybe&lt;/em&gt; a beta once a month or two (&lt;em&gt;eek! sorry...&lt;/em&gt;) then it feels like every time you&#39;ve come
-back to do some work, the world has shifted a bit.&lt;/p&gt;
-
-&lt;p&gt;We do lose the fact that we know someone has specifically set everything up to work right at some point, but given how
-Xcode updates, &lt;a href=&quot;http://stackoverflow.com/questions/4057241/iphone-what-is-a-wwdr-intermediate-certificate&quot;&gt;WWDR updates&lt;/a&gt; and certificate expirations tend to crop up - it can be frustrating to maintain.&lt;/p&gt;
-
-&lt;p&gt;So would I move &lt;a href=&quot;https://github.com/artsy/eigen&quot;&gt;Eigen&lt;/a&gt; to match? Maybe, next time something breaks. Till then I think new apps, and less-often updated
-apps should use match.&lt;/p&gt;
-</description>
-        <pubDate>Wed, 05 Apr 2017 12:17:00 +0000</pubDate>
-        <link>http://artsy.github.io/blog/2017/04/05/what-is-fastlane-match/</link>
-        <guid isPermaLink="true">http://artsy.github.io/blog/2017/04/05/what-is-fastlane-match/</guid>
-        
-        
-        <category>energy</category>
-        
-        <category>fastlane</category>
-        
-        <category>ios</category>
-        
-        <category>mobile</category>
         
       </item>
     

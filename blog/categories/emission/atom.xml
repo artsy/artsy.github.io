@@ -4,7 +4,7 @@
   <title><![CDATA[Category: emission | Artsy Engineering]]></title>
   <link href="http://artsy.github.io/blog/categories/emission/atom.xml" rel="self"/>
   <link href="http://artsy.github.io/"/>
-  <updated>2017-07-26T18:25:00+00:00</updated>
+  <updated>2017-07-31T14:31:07-04:00</updated>
   <id>http://artsy.github.io/</id>
   <author>
     <name><![CDATA[]]></name>
@@ -14,9 +14,304 @@
 
   
   <entry>
+    <title type="html"><![CDATA[Deploying your app on a weekly basis via fastlane + Travis CI]]></title>
+    <link href="http://artsy.github.io/blog/2017/07/31/fastlane-travis-weekly-deploys/"/>
+    <updated>2017-07-31T00:00:00-04:00</updated>
+    <id>http://artsy.github.io/blog/2017/07/31/fastlane-travis-weekly-deploys</id>
+    <content type="html"><![CDATA[<p>We have a few apps now, but one of them isn't really used by anyone other than developers. This is <a href="https://github.com/artsy/emission/tree/master/Example">our React Native host app</a>. We built our React Native components <a href="/blog/2016/08/24/On-Emission/">as a library</a> to be consumed by our other apps. Our development environment for these components is a unique app that acts as a host for the React Native components. It's effectively a long tableview.</p>
+
+<p>This app is often updated for developers, but never deployed to beta users inside Artsy. So I automated it. Using Travis CI and fastlane. This post covers how I got that set up.</p>
+
+<!-- more -->
+
+
+
+
+<center>
+  <img src="/images/fastlane-weekly/screenshot.png" width=300>
+</center>
+
+
+<p>As the JavaScript is continuously deployed, the native side of the app rarely gets a deploy. In order to ensure an up-to-date version of the app, I used the <a href="https://docs.travis-ci.com/user/cron-jobs/">scheduler</a> now available in Travis CI, and Circle CI. This is a perfect use-case for one-off tasks like uploading an app to Apple's Testflight on a weekly basis.</p>
+
+<p>I wanted this to exist outside of our current CI environment for two reasons:</p>
+
+<ul>
+<li>Our CI is already <a href="https://github.com/artsy/emission/pull/263">using AppHub</a> to deploy the JavaScript parts of our React Native on a per-commit basis. It's complicated enough as it is, without adding a lot more process.</li>
+<li>Our CI is currently running on Linux boxes, and so everything is fast and stable. Deploying using the main repo would force us to use macOS which would slow down our processes.</li>
+</ul>
+
+
+<p>The downside of this choice is that the process of uploading is not inside the main repo, and can go out of sync with the main app.</p>
+
+<a name="Setup"></a>
+<h2>Setup</h2>
+
+<p>I created a new repo, and added the <a href="https://github.com/artsy/emission-nebula/commit/4d18a11629e097c71b9a375465c754abf45f62d6">usual LICENSE and README</a>, then started <a href="https://github.com/artsy/emission-nebula/pull/1">working on a PR</a> that added the initial support for CI to run. Here are the general steps I needed to make work:</p>
+
+<ul>
+<li>Downloading and setting up the application.</li>
+<li>Ensuring signing will work.</li>
+<li>Creating the build and shipping it to Testflight.</li>
+<li>Notifications that it passed or succeeded.</li>
+</ul>
+
+
+<p>Finally I needed to document the process, which is what you're reading.</p>
+
+<a name="Downloading.and.setting.up.the.application"></a>
+<h2>Downloading and setting up the application</h2>
+
+<p>My initial thoughts were to use a submodule, but that option provides little advantage over cloning the repo itself so it's done inline. Our dependencies for the app live in Rubygems (fastlane/CocoaPods), NPM (React Native) and CocoaPods (Artsy Mobile code), so I use the <code>before_install</code> and <code>before_script</code> section of the <code>.travis.yml</code> to set up our dependencies:</p>
+
+<pre><code class="yml"># Use a Mac build please
+language: objective-c
+osx_image: xcode8.2
+
+# Ensure that Fastlane is at the latest version
+before_install:
+- bundle update
+
+# Let fastlane set up the other dependency managers
+before_script:
+- bundle exec fastlane setup
+
+# Separate fastlane lanes so that they can be individually
+# tested one by one during development
+script:
+- bundle exec fastlane validate_env_vars
+- bundle exec fastlane ci_deploy
+</code></pre>
+
+<p>Note the <code>- bundle update</code>. As fastlane works against unofficial iTunes connect which is always changing, it's safer to always use the most recent release.</p>
+
+<a name="Ensuring.signing.will.work."></a>
+<h2>Ensuring signing will work.</h2>
+
+<p>This one is a bit tricker, luckily I've already set up one of our apps to use <a href="/blog/2017/04/05/what-is-fastlane-match/">fastlane match</a> and I can re-use that infrastructure. As it is a private repo, Travis did not have access to clone the repo. I fixed this by creating an access token for a user with read-only access to our match-codesigning repo, then exposed this as a private environment variable in CI which the Matchfile uses. E.g.</p>
+
+<pre><code class="ruby">git_url "https://#{ENV['GITHUB_SUBMODULES_USER']}@github.com/artsy/mobile_fastlane_match"
+
+# Instead of 
+# git_url "https://github.com/artsy/mobile_fastlane_match"
+</code></pre>
+
+<p>This is one of the highlights on fastlane's choice in building a DSL that which sits above a real programming language, you give users a lot of flexibility.</p>
+
+<p>Next up, I added a fastlane lane for code signing, and keychain setup. This just calls two setup functions.</p>
+
+<pre><code class="ruby">lane :setup_signing do
+  setup_travis
+
+  match(type: 'appstore')
+end
+</code></pre>
+
+<a name="Creating.the.build.and.shipping.it.to.Testflight"></a>
+<h2>Creating the build and shipping it to Testflight</h2>
+
+<p>This is handled by <a href="https://github.com/fastlane/fastlane/tree/master/gym">fastlane gym</a> at the start of the main lane.</p>
+
+<pre><code class="ruby"># The main job for Fastlane in this repo, you can run this on your computer
+# You can run it via `bundle exec fastlane ship`
+lane :ship do
+  # We were having issues with building an a few folders deep.
+  # The /Pods bit is because we can rely on it being there, see
+  # this link: https://docs.fastlane.tools/advanced/#directory-behavior
+  #
+  Dir.chdir('../emission/Example/Pods') do
+    gym workspace: 'Emission.xcworkspace',
+        configuration: 'Deploy',
+        scheme: 'Emission'
+  end
+
+  # [...]
+end
+</code></pre>
+
+<p>It uses a scheme for deploys, which prioritises using AppHub over a local React Native server. Gym handles a lot of CLI ugliness for us, and works well.</p>
+
+<p>Sending the app to Testflight involves a a few lines:</p>
+
+<pre><code class="ruby"># Get the last 10 lines of the CHANGELOG for Testflight
+changelog = '../emission/CHANGELOG.md'
+upcoming_release_notes = File.read(changelog).split("\n### ").first
+
+# Ship to testflight
+pilot(changelog: upcoming_release_notes)
+</code></pre>
+
+<p>This lets the deploy process figure out what the latest release version is, and how many builds have shipped for that version. Then those can be used to set the build version and create a tag associated with it.</p>
+
+<p><a href="https://github.com/fastlane/fastlane/tree/master/pilot">fastlane pilot</a> is used to send off the compiled build to Testflight.</p>
+
+<a name="Keeping.track.of.deploys"></a>
+<h2>Keeping track of deploys</h2>
+
+<p>I don't know when we'll need it today, but it's always good to be able to go back and see what code lines up to every release. To do this I have a few lines of Ruby that creates a tag inside the original Emission repo.</p>
+
+<pre><code class="ruby"># Do a tag, we use a http git remote so we can have push access
+# as the default remote for travis is read-only. This needs to be
+# inside the emission repo, instead of our own.
+Dir.chdir('../emission/Example/') do
+  tag = "deploy-#{latest_version}-#{build_version}"
+  add_git_tag(key: tag)
+
+  if ENV['GITHUB_SUBMODULES_USER']
+    writable_remote = "https://#{ENV['GITHUB_SUBMODULES_USER']}@github.com/artsy/emission.git"
+    sh "git remote add http #{writable_remote}"
+  else
+    sh 'git remote add http https://github.com/artsy/emission.git'
+  end
+  push_git_tags(remote: 'http')
+end
+</code></pre>
+
+<a name="Notifications.that.it.passed.or.succeeded."></a>
+<h2>Notifications that it passed or succeeded.</h2>
+
+<p>This was easy, I created a new slack inbound web-hook and added that as an environment variable. Then when a build passes we post a notification that there is a new version for everyone in Slack, if the lane fails then it will also post to slack. To ensure we keep on top of it, during development this was commented out.</p>
+
+<pre><code class="ruby"># If the weekly task fails, then ship a message
+error do |_, exception|
+   slack message: "Error Deploying Emission: #{exception}",
+         success: false,
+         payload: { Output: exception.error_info.to_s }
+end
+</code></pre>
+
+<p>That wraps up setting up the CI. Once you've confirmed everything has worked, you can add the scheduler inside Travis and expect to see a slack notification in a week.</p>
+
+<p>By the end of the process, our <code>Fastfile</code> looked like:</p>
+
+<pre><code class="ruby"># This is documented in the Artsy Blog: 
+# http://artsy.github.io/blog/2017/07/31/fastlane-travis-weekly-deploys/
+lane :setup do
+  Dir.chdir('..') do
+    sh 'rm -rf emission' if Dir.exist? 'Emission'
+    sh 'git clone https://github.com/artsy/emission.git'
+    Dir.chdir('emission') do
+      sh '. ~/.nvm/nvm.sh &amp;&amp; nvm use &amp;&amp; npm install yarn --global &amp;&amp; yarn install'
+    end
+
+    Dir.chdir('emission/Example') do
+      sh 'pod repo update'
+      sh 'pod install'
+    end
+    stamp_plist
+  end
+end
+
+# Lets the CI run a bunch of jobs, and share ENV vars between them
+lane :ci_deploy do
+  setup_signing
+  stamp_plist
+  ship
+end
+
+# The main job for Fastlane in this repo, you can run this on your computer
+# You can run it via `bundle exec fastlane ship`
+lane :ship do
+  # We were having issues with building an a few folders deep.
+  # The /Pods bit is because we can rely on it being there, see
+  # this link: https://docs.fastlane.tools/advanced/#directory-behavior
+  #
+  Dir.chdir('../emission/Example/Pods') do
+    gym(workspace: 'Emission.xcworkspace',
+        configuration: 'Deploy',
+        scheme: 'Emission')
+  end
+
+  # Get the last 10 lines of the CHANGELOG for Testflight
+  changelog = '../emission/CHANGELOG.md'
+  upcoming_release_notes = File.read(changelog).split("\n### ").first
+
+  # Ship to testflight
+  pilot(changelog: upcoming_release_notes)
+
+  # Log into iTunes connect, get the latest version of the app we shipped, and how many builds we've sent
+  Spaceship::Tunes.login(ENV['FASTLANE_USERNAME'], ENV['FASTLANE_PASSWORD'])
+  app = Spaceship::Tunes::Application.find('net.artsy.Emission')
+  latest_version = app.build_trains.keys.sort.last
+  train = app.build_trains[latest_version]
+  build_version = train.builds.count + 1
+
+  # Do a tag, we use a http git remote so we can have push access
+  # as the default remote for travis is read-only. This needs to be
+  # inside the emission repo, instead of our own.
+  Dir.chdir('../emission/Example/') do
+    tag = "deploy-#{latest_version}-#{build_version}"
+    add_git_tag(key: tag)
+
+    if ENV['GITHUB_SUBMODULES_USER']
+      writable_remote = "https://#{ENV['GITHUB_SUBMODULES_USER']}@github.com/artsy/emission.git"
+      sh "git remote add http #{writable_remote}"
+    else
+      sh 'git remote add http https://github.com/artsy/emission.git'
+    end
+
+    push_git_tags(remote: 'http')
+  end
+
+  slack message: 'There is a new Emission beta available on Testflight.',
+        payload: {
+          'Version' =&gt; latest_version,
+          "What's new" =&gt; upcoming_release_notes
+        },
+        default_payloads: []
+end
+
+# In case you need to update the signing profiles for this app
+lane :update_signing do
+  match(type: 'appstore')
+end
+
+# Used by CI, will not sneakily update (the CI only has read-only access to the repo anyway)
+lane :setup_signing do
+  setup_travis
+  match(type: 'appstore')
+end
+
+# Minor plist modifications
+lane :stamp_plist do
+  plist = 'emission/Example/Emission/Info.plist'
+
+  # Increment build number to current date
+  build_number = Time.new.strftime('%Y.%m.%d.%H')
+  `/usr/libexec/PlistBuddy -c "Set CFBundleVersion #{build_number}" "#{plist}"`
+end
+
+# Mainly so we don't forget to include these vars in the future
+lane :validate_env_vars do
+  unless ENV['FASTLANE_USERNAME'] &amp;&amp; ENV['FASTLANE_PASSWORD'] &amp;&amp; ENV['MATCH_PASSWORD']
+    raise 'You need to set FASTLANE_USERNAME, FASTLANE_PASSWORD and MATCH_PASSWORD in your environment'
+  end
+
+  unless ENV['SLACK_URL']
+    raise "You need to set SLACK_URL (#{ENV['SLACK_URL']}) in your environment."
+  end
+end
+
+# If the weekly task fails, then ship a message, a success would also send
+error do |_, exception|
+  slack(message: "Error Deploying Emission: #{exception}",
+        success: false,
+        payload: { Output: exception.error_info.to_s })
+end
+</code></pre>
+
+<p>Automatically deploying is a good pattern for encouraging more deploys of an app which has only been deployed once. It's a pattern we could also move to in some of our other apps too, if it feels good. If you're interested in if something has changed since this post was authored, the repo is here: https://github.com/artsy/emission-nebula so you can read out the Fastfile and we'll answer questions you have inside GitHub issues on it.</p>
+
+<p>The most annoying part about building deployment changes are that an iteration takes ~20 minutes, so make sure you also have another (easily interrupted) task to do at the same time.</p>
+
+<p>The second most annoying is that it took months to eventually get this right - so I owe Felix Krause a big thanks for sitting down and pairing with me, we figuring out that <code>xcodebuild</code> can create empty archive issues when you run projects that have the xcproject/xcworkspace a few levels deep.</p>
+]]></content>
+  </entry>
+  
+  <entry>
     <title type="html"><![CDATA[Intro to React Native for an iOS Developer]]></title>
     <link href="http://artsy.github.io/blog/2017/07/06/React-Native-for-iOS-devs/"/>
-    <updated>2017-07-06T00:00:00+00:00</updated>
+    <updated>2017-07-06T00:00:00-04:00</updated>
     <id>http://artsy.github.io/blog/2017/07/06/React-Native-for-iOS-devs</id>
     <content type="html"><![CDATA[<p>React Native is a new native library that vastly changes the way in which you can create applications. The majority of the information and tutorials on the subject come from the angle of <em>"you are a web developer, and want to do native"</em>.</p>
 
@@ -911,7 +1206,7 @@ $ tree .
   <entry>
     <title type="html"><![CDATA[Retrospective: Swift at Artsy]]></title>
     <link href="http://artsy.github.io/blog/2017/02/05/Retrospective-Swift-at-Artsy/"/>
-    <updated>2017-02-05T12:18:00+00:00</updated>
+    <updated>2017-02-05T12:18:00-05:00</updated>
     <id>http://artsy.github.io/blog/2017/02/05/Retrospective-Swift-at-Artsy</id>
     <content type="html"><![CDATA[<center>
 <img src="/images/swift-in-rn/swift-in-react-native.svg" style="width:300px;">
@@ -1199,7 +1494,7 @@ $ tree .
   <entry>
     <title type="html"><![CDATA[Exploration: Front-end JavaScript at Artsy in 2017]]></title>
     <link href="http://artsy.github.io/blog/2017/02/05/Front-end-JavaScript-at-Artsy-2017/"/>
-    <updated>2017-02-05T12:17:00+00:00</updated>
+    <updated>2017-02-05T12:17:00-05:00</updated>
     <id>http://artsy.github.io/blog/2017/02/05/Front-end-JavaScript-at-Artsy-2017</id>
     <content type="html"><![CDATA[<center>
  <img src="/images/js2017/js.svg" style="width:300px;">
@@ -1495,7 +1790,7 @@ yarn install
 
 <p><strong>Comprehensive API</strong> - Snapshots, watchers, custom matchers, useful JSON output, ESLint linters, Elegant Mocking tools and natural support for async code. All in one project.</p>
 
-<p>If you're interested, there is a lot of work around automating the migration between different testing frameworks in <a href="https://github.com/skovhus/jest-codemods">jest-codemods</a> - getting started has never been easier. I'd also recommend looking at <a href="https://wallabyjs.com">wallaby.js</a> and <a href="https://github.com/orta/vscode-jest">vscode-jest</a> for tooling.</p>
+<p>If you're interested, there is a lot of work around automating the migration between different testing frameworks in <a href="https://github.com/skovhus/jest-codemods">jest-codemods</a> - getting started has never been easier. I'd also recommend looking at <a href="https://wallabyjs.com">wallaby.js</a> and <a href="https://github.com/orta/vscode-jest#vscode-jest-">vscode-jest</a> for tooling.</p>
 
 <center>
  <img src="/images/vscode/vscode_logo_artsy.svg" style="width:300px;">
@@ -1542,7 +1837,7 @@ yarn install
 <a name="End"></a>
 <h3>End</h3>
 
-<p>None of these technologies are under a year old, all of them have adoption by substantial amount of companies. Nothing feels  either controversial or novel. This is great. It feels like a lot of the interesting work for us so far has been around improving the spaces between the projects: Finding improvements for generating types <a href="https://github.com/avantcredit/gql2ts/blob/master/Changelog.md">from GraphQL</a> or <a href="https://github.com/alloy/relay2ts">Relay</a>, adding <a href="https://github.com/facebook/jest/commit/e597e5c46f8f4925d9a10c73d8eab05a2c4b8bc3">editor support to jest</a>, adding Danger to <a href="https://github.com/facebook/jest/pull/2508">our dependencies</a> and improving our <a href="https://github.com/orta/vscode-react-native-storybooks">tooling</a> <a href="https://github.com/orta/vscode-jest">for</a> <a href="https://github.com/alloy/vscode-relay">vscode</a>. The front-end is still a pretty small dev team, so we want to do high impact, small projects that can make our tools drastically better.</p>
+<p>None of these technologies are under a year old, all of them have adoption by substantial amount of companies. Nothing feels  either controversial or novel. This is great. It feels like a lot of the interesting work for us so far has been around improving the spaces between the projects: Finding improvements for generating types <a href="https://github.com/avantcredit/gql2ts/blob/master/Changelog.md">from GraphQL</a> or <a href="https://github.com/alloy/relay2ts">Relay</a>, adding <a href="https://github.com/facebook/jest/commit/e597e5c46f8f4925d9a10c73d8eab05a2c4b8bc3">editor support to jest</a>, adding Danger to <a href="https://github.com/facebook/jest/pull/2508">our dependencies</a> and improving our <a href="https://github.com/orta/vscode-react-native-storybooks">tooling</a> <a href="https://github.com/orta/vscode-jest#vscode-jest-">for</a> <a href="https://github.com/alloy/vscode-relay">vscode</a>. The front-end is still a pretty small dev team, so we want to do high impact, small projects that can make our tools drastically better.</p>
 
 <p>React, React-Native, Jest, Yarn are all big Facebook projects. In the iOS world, there is a sense of wariness around building an app so heavily around Facebook tech, based on <a href="http://joehewitt.com/2009/03/23/the-three20-project">three20</a> - which I think is a bit unfair. From my perspective, determining whether you should have something as a dependency <a href="/blog/2015/09/18/Cocoa-Architecture-Dependencies/">should be nuanced</a>, but at a minimum you should feel like you can contribute bug fixes and ideally you should be able to maintain the project if it needs it. With Facebook projects, they've shown to be really open to PRs and discussion, and our work in them makes us feel comfortable to maintain a fork if needed.</p>
 
@@ -1555,7 +1850,7 @@ yarn install
   <entry>
     <title type="html"><![CDATA[JavaScript Glossary for 2017]]></title>
     <link href="http://artsy.github.io/blog/2016/11/14/JS-Glossary/"/>
-    <updated>2016-11-14T12:17:00+00:00</updated>
+    <updated>2016-11-14T12:17:00-05:00</updated>
     <id>http://artsy.github.io/blog/2016/11/14/JS-Glossary</id>
     <content type="html"><![CDATA[<p>Getting to grips with the entire JavaScript ecosystem is a tough job when you're getting started. Coming from the native mobile space, there's a lot to learn. I've spent a few months immersed in the environment now, and can try summerize a lot of topics. This should make it easier to find more information when you need it. This post is semi-opinionated, with links for further reading so you can get a different perspective too.</p>
 
@@ -2176,117 +2471,6 @@ $("a[name]").each(function(i, el){
 
 
 
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Accessing the app's Source Code from your Simulator]]></title>
-    <link href="http://artsy.github.io/blog/2016/10/14/Accessing-the-Source-Code-from-your-Simulator/"/>
-    <updated>2016-10-14T12:17:00+00:00</updated>
-    <id>http://artsy.github.io/blog/2016/10/14/Accessing-the-Source-Code-from-your-Simulator</id>
-    <content type="html"><![CDATA[<p>In the last few months twice I've wanted to access the source code of our application. The first time I did it I came up with a pretty neat hack, but it wouldn't really work in many places. The second time however, I <a href="https://twitter.com/orta/status/786470282093625344">asked the internet</a>, and the <a href="https://twitter.com/saniul/status/786470857635827712">internet</a> <a href="https://twitter.com/0xced/status/786619335116750848">replied</a>.</p>
-
-<p>TLDR: You can use your <a href="https://github.com/artsy/emission/pull/350/commits/2a39c743bcaaf2e3b848ad60621198f40365fdd2">project's scheme</a> to expose derived Xcode environment variables to your source code.</p>
-
-<p>The rest of the blog post is a little bit about <em>why</em> I wanted to do that and what I did with it.</p>
-
-<!-- more -->
-
-
-<p>Both times I've wanted to access the source code of our apps is because I've wanted to make better admin tools. It should come as no surprise to people who know me that I care about tooling, but I also care a lot about making it possible for our admins to do their own thing. As such, our <a href="https://github.com/artsy/eigen/blob/master/Artsy/View_Controllers/Admin/ARAdminSettingsViewController.m">admin settings panel</a> in Eigen is extensive.</p>
-
-<a name="Root.React.Components"></a>
-<h3>Root React Components</h3>
-
-<p>The first time came when I started to think about what admin options I'd like to see for people using our React Native side. These are the options I came up with:</p>
-
-<p> <img src="/images/source-code-sim/react-admin-eigen.png" alt="/images/source-code-sim/react-admin-eigen.png" /></p>
-
-<p>There are two interesting things about it:</p>
-
-<ul>
-<li>We support running any master commit of our React Native code inside Eigen, for Admins, <a href="https://apphub.io">via AppHub</a></li>
-<li>We allow loading arbitrary React components as an admin.</li>
-</ul>
-
-
-<p> It's this last bit that's interesting, right now I'm working on a new root Gene component (read: new view controller) in Emission, our React Native implementation. As this work has not moved upstream into Eigen, I can access it through a commit on AppHub, and then open it using our custom module loader:</p>
-
-<p><img src="/images/source-code-sim/react-module-eigen.png" alt="/images/source-code-sim/react-module-eigen.png" /></p>
-
-<p>In order to show the available root components (Artist/Home/Gene), we use GitHub's raw URLs to download the source code of our Open Source apps. Hah, a nice hack right? I <a href="https://github.com/artsy/eigen/blob/master/Artsy/View_Controllers/Admin/ARAdminNetworkModel.m">created</a> a <code>ARAdminNetworkModel</code> with an API like this:</p>
-
-<pre><code class="objc">@interface ARAdminNetworkModel : NSObject
-
-- (void)getEmissionJSON:(NSString *)path completion:(void (^)(NSDictionary *json, NSError *error))completion;
-
-- (void)getEmissionFile:(NSString *)path completion:(void (^)(NSString *fileContents, NSError *error))completion;
-
-@end
-</code></pre>
-
-<p>Which simply uses <code>NSURLSession</code> under the hood:</p>
-
-<pre><code class="objc">- (void)getEmissionData:(NSString *)path completion:(void (^)(NSData *data, NSError *error))completion;
-{
-    NSURLSession *session = [NSURLSession sharedSession];
-    NSString *urlFormat = @"https://raw.githubusercontent.com/artsy/emission/master/%@";
-    NSString *url = [NSString stringWithFormat: urlFormat, path];
-    NSURLRequest *request = [NSURLRequest requestWithURL:[NSURL URLWithString:url]];
-    NSURLSessionDataTask *task = [session dataTaskWithRequest:request completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
-            completion(data, error);
-    }];
-    [task resume];
-}
-</code></pre>
-
-<p>Nothing special, but it required a cognitive jump to get there.</p>
-
-<a name="Submodule.Introspection"></a>
-<h3>Submodule Introspection</h3>
-
-<p>The second time I wanted this is inside <a href="https://github.com/artsy/emission/tree/master/Example">the example app</a> for Emission. This is a typical example application for a library made by <code>pod lib create</code>. This example app is basically just the admin settings panel from Eigen, shown above.</p>
-
-<p>When I <a href="https://github.com/artsy/emission/pull/347">switched the</a> example app to use a similar theme and menu DSL as Eigen, I also took the chance to expand on the buttons we had available. Previously there was the ability to load the view controller for one specific artist, but I knew we had a <a href="https://github.com/artsy/metaphysics/blob/master/schema/artist/maps/artist_title_slugs.js">giant list of artist slugs</a> inside one of our optional sub-modules. What I wanted to do, was offer a random Artist from that if the submodule was <code>init</code>'d.</p>
-
-<p>This required introspecting the source, which I could have also done via the GitHub API, but it was also feasible to do by accessing the filesystem outside of the simulator. This is totally possible ( and is <a href="https://www.objc.io/issues/15-testing/snapshot-testing/">how FBSnapshots works</a> ) but I needed to access the project root, then I could build relative links. Thus, <a href="https://twitter.com/orta/status/786470282093625344">I asked the internet</a>. I knew these variables existed, but that they were a part of the build process - and not exposed to the app runtime.</p>
-
-<p>There are two ways to do it, both make sense for different contexts:</p>
-
-<ul>
-<li><a href="https://github.com/artsy/emission/blob/74d0bc6cc45da906436f8bbc33710ea030657ee8/Example/Emission/Info.plist#L5-L6">Baking the value into your Info.plist</a> - which makes it available for all consumers at runtime, e.g. you could deploy this value, but it's not too useful for my problem.</li>
-<li><a href="https://github.com/artsy/emission/pull/350/commits/2a39c743bcaaf2e3b848ad60621198f40365fdd2">Exposing it as an environment variable via your scheme</a> - perfect for this case, the variable won't be exported when you deploy.</li>
-</ul>
-
-
-<p>Now our scheme looks like this:</p>
-
-<p></div></div><a href='/images/source-code-sim/scheme-settings-emission.png'><img src="/images/source-code-sim/scheme-settings-emission.png"></a><div class='meta-container'><header>&nbsp;</header></div><div class='date-container'>&nbsp;</div><div class='content-container'><div class='entry-content'></p>
-
-<p>I can then use the value of <code>SRCROOT</code> as the start of an absolute path to get to any of the source code in our project. Making the <a href="https://github.com/artsy/emission/blob/dda57636e424ab7d4517de57f3e8bd917fcb3c6f/Example/Emission/ARRootViewController.m#L85-L108">final code</a>:</p>
-
-<pre><code class="obj-c">- (ARCellData *)jumpToRandomArtist
-{
-  NSString *sourceRoot = [NSProcessInfo processInfo].environment[@"SRCROOT"];
-  NSString *artistListFromExample = @"../externals/metaphysics/schema/artist/maps/artist_title_slugs.js";
-  NSString *slugsPath = [sourceRoot stringByAppendingPathComponent:artistListFromExample];
-
-  NSFileManager *manager = [NSFileManager defaultManager];
-
-  // Don't have the submodule? bail, it's no biggie
-  if (![manager fileExistsAtPath:slugsPath]) { return nil; }
-
-  // Otherwise lets support jumping to a random Artist
-  return [self tappableCellDataWithTitle:@"Artist (random from metaphysics)" selection: ^{
-    NSString *data = [NSString stringWithContentsOfFile:slugsPath encoding:NSUTF8StringEncoding error:nil];
-
-    ... and so on
-</code></pre>
-
-<a name="Tooling"></a>
-<h3>Tooling</h3>
-
-<p>Paying attention to your admin tools, and improving your development experience for the whole team is a great way to win friends and influence people. Introspecting your source code may help that.</p>
 ]]></content>
   </entry>
   
