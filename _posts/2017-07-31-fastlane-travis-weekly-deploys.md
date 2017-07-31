@@ -28,7 +28,7 @@ The downside of this choice is that the process of uploading is not inside the m
 
 ## Setup
 
-I created a new repo, and added the [usual LICENSE and README][init], then started [working on a PR][pr] that added support for CI to run. Here are the general steps I needed to make work:
+I created a new repo, and added the [usual LICENSE and README][init], then started [working on a PR][pr] that added the initial support for CI to run. Here are the general steps I needed to make work:
 
 * Downloading and setting up the application.
 * Ensuring signing will work.
@@ -135,7 +135,7 @@ I don't know when we'll need it today, but it's always good to be able to go bac
 # inside the emission repo, instead of our own.
 Dir.chdir('../emission/Example/') do
   tag = "deploy-#{latest_version}-#{build_version}"
-  add_git_tag(tag)
+  add_git_tag(key: tag)
 
   if ENV['GITHUB_SUBMODULES_USER']
     writable_remote = "https://#{ENV['GITHUB_SUBMODULES_USER']}@github.com/artsy/emission.git"
@@ -222,7 +222,7 @@ lane :ship do
   # inside the emission repo, instead of our own.
   Dir.chdir('../emission/Example/') do
     tag = "deploy-#{latest_version}-#{build_version}"
-    add_git_tag(tag)
+    add_git_tag(key: tag)
 
     if ENV['GITHUB_SUBMODULES_USER']
       writable_remote = "https://#{ENV['GITHUB_SUBMODULES_USER']}@github.com/artsy/emission.git"
