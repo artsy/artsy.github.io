@@ -46,7 +46,7 @@ My initial thoughts were to use a submodule, but that option provides little adv
 language: objective-c
 osx_image: xcode8.2
 
-# Ensure that Fastlane is at the latest version
+# Ensure that fastlane is at the latest version
 before_install:
 - bundle update
 
@@ -91,7 +91,7 @@ end
 This is handled by [fastlane gym][gym] at the start of the main lane.
 
 ```ruby
-# The main job for Fastlane in this repo, you can run this on your computer
+# The main job for fastlane in this repo, you can run this on your computer
 # You can run it via `bundle exec fastlane ship`
 lane :ship do
   # We were having issues with building an a few folders deep.
@@ -190,7 +190,7 @@ lane :ci_deploy do
   ship
 end
 
-# The main job for Fastlane in this repo, you can run this on your computer
+# The main job for fastlane in this repo, you can run this on your computer
 # You can run it via `bundle exec fastlane ship`
 lane :ship do
   # We were having issues with building an a few folders deep.
