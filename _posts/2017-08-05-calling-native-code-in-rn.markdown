@@ -140,12 +140,16 @@ export default class SelectFromPhotoLibrary extends React.Component<Props, State
   onPressNewPhoto = () => {
     triggerCamera(this).then(photo => {
       if (photo) {
-        console.log("Cancelled")
-      } else {
         console.log("Got photo back")
         console.log(photo)
+      } else {
+        console.log("Cancelled")
       }
     })
   }
 }
 ```
+
+### Troubleshooting
+
+"My block is false even though it's being created" was due to module not being in list of `moduleProvider` which meant that a new one was created after the init.
