@@ -1,13 +1,13 @@
 ---
 layout: epic
 title: Art + Feminism and Artsy Wikipedia/Wikidata Editathon
-date: 2017-07-06
+date: 2017-08-10
 categories: [Technology, emission, reaction, react-native, react, javascript]
-author: orta
+css: editathon
+author: [orta, roop]
 ---
 
-Artsy has always had a focus on Arts meet Science, and we [hosted a meet-up last weekend][meetup-msg] that really hits on both. We had a collection of Artsy Staff, members of [Art + Feminism][afem] NYC, the [CocoaPods Peer Lab][peer-lab], [NY Arts Practicum][nyap] and volunteers from Wikimedia all helping.
-
+Artsy has always had a focus on Art meets Science, and we [hosted a meet-up last month][meetup-msg] that really hits on both. We had a collection of Artsy Staff, members of [Art + Feminism][afem] NYC, the [CocoaPods Peer Lab][peer-lab], [NY Arts Practicum][nyap] and volunteers from Wikimedia all helping out.
 
 We came with two aims:
 
@@ -20,7 +20,7 @@ I helped out with the second part, and the rest of this post will be about the l
 
 # What is Wikidata?
 
-Everyone knows Wikipedia, but fewer people know about [Wikidata][]. I learned about it in the process of helping set up this meetup. Wikidata is a structured document store for generic items. The lexicon of keys that can go into a document are handled by community consensus.
+Everyone knows Wikipedia, but fewer people know about [Wikidata][]. We learned about it in the process of helping set up this meetup. Wikidata is a structured document store for generic items. The lexicon of keys that can go into a document are handled by community consensus.
 
 For example let's take the artist: Ana Mendieta ([artsy.net/artist/ana-mendieta][am]) in (truncated) [JSON representation][ana-json] inside Wikidata:
 
@@ -141,8 +141,8 @@ For example let's take the artist: Ana Mendieta ([artsy.net/artist/ana-mendieta]
 }
 ```
 
-The database is created with the the notion of "[semantic triples](https://en.wikipedia.org/wiki/Semantic_triple)", which was new to me.
-The idea being that each `Item` (corresponding to a Q id (`Q463639`)) has a bunch of associated `Statements` of the form:
+The database is created with the the notion of "[semantic triples][triple]", which was new to us.
+The idea being that each `Item` (corresponding to a Q id (`Q463639`)) has a bunch of associated `Statements` via `Properties` in the form:
 
 > subject — predicate — object
 
@@ -162,7 +162,7 @@ In essence, a Wikidata `Item` is just some structured data around a big bag of t
 
 # Artsy + Wikidata
 
-Lucky for this editathon, both [Artsy Artist ID][artist-id], and [TAGP ID][tagp-id] were already inside the controlled vocabulary. This mean we could think about how to connect items rather than how we can pitch that is worth connecting them at all.
+Lucky for this editathon, both [Artsy Artist ID][artist-id], and [TAGP ID][tagp-id] were already inside the Wikidata controlled vocabulary of `Properties`. This mean we could think about how to connect items rather than how we can pitch that is worth connecting them at all.
 
 We used Wikipedia to keep track of all [the useful links][dash] to share among contributors. 
 
@@ -176,7 +176,12 @@ As the majority of us were new to the Wikidata, we scoped our projects to "get s
 
 We got some changes to Wikidata. 🎉.
 
-[TODO: mention the export from CSV and the data]
+In preparing for this we also generated some data on Artists:
+
+* [Artsy Female and Nonbinary Emerging Artists][f_nb]
+* [Artsy Female and Nonbinary Artists with "Feminist Art" and "Contemporary Feminist" Genes][f_nb_genes]
+
+These were generated back in July, so if you're looking for up-to-date data, we recommend using the [Artsy Developer API][dev].
 
 # Updating Wikidata with data from Artsy
 
@@ -187,14 +192,14 @@ We ended up writing what would be the script for a single data item based on har
 ```sh
 # COMPACT VERSION -- see below for annotated version
 CREATE
-LAST	Len	"Amina Benbouchta"
-LAST	Den	"Moroccan contemporary artist"
-LAST	P2042	"amina-benbouchta"
-LAST	P106	Q483501	S2042	"amina-benbouchta"
-LAST	P106	Q1281618	S2042	"amina-benbouchta"
-LAST	P21	Q6581072	S2042	"amina-benbouchta"
-LAST	P27	Q1028	S2042	"amina-benbouchta"
-LAST	P569	+1963-01-01T00:00:00Z/9	S2042	"amina-benbouchta"
+LAST  Len  "Amina Benbouchta"
+LAST  Den  "Moroccan contemporary artist"
+LAST  P2042  "amina-benbouchta"
+LAST  P106  Q483501  S2042  "amina-benbouchta"
+LAST  P106  Q1281618  S2042  "amina-benbouchta"
+LAST  P21  Q6581072  S2042  "amina-benbouchta"
+LAST  P27  Q1028  S2042  "amina-benbouchta"
+LAST  P569  +1963-01-01T00:00:00Z/9  S2042  "amina-benbouchta"
 
 # ANNOTATED VERSION
 
@@ -202,32 +207,33 @@ LAST	P569	+1963-01-01T00:00:00Z/9	S2042	"amina-benbouchta"
 CREATE
 
 # add a label in English to the last created item
-LAST	Len	"Amina Benbouchta"
+LAST  Len  "Amina Benbouchta"
 
 # add a description in English
-LAST	Den	"Moroccan contemporary artist"
+LAST  Den  "Moroccan contemporary artist"
 
 # add an Artsy Artist ID
-LAST	P2042	"amina-benbouchta"
+LAST  P2042  "amina-benbouchta"
 
 # add occupation (e.g. artist: Q483501, painter: Q1028181, sculptor: Q1281618, photographer: Q33231)
 # and source these statements to Artsy (source 2042)
-LAST	P106	Q483501	S2042	"amina-benbouchta"
-LAST	P106	Q1281618	S2042	"amina-benbouchta"
+LAST  P106  Q483501  S2042  "amina-benbouchta"
+LAST  P106  Q1281618  S2042  "amina-benbouchta"
 
 # add sex or gender (e.g. female: Q6581072; nonbinary: not in Wikidata yet)
-LAST	P21	Q6581072	S2042	"amina-benbouchta"
+LAST  P21  Q6581072  S2042  "amina-benbouchta"
 
 # add country of citizenship (e.g. USA: Q30, Morocco: Q1028)
-LAST	P27	Q1028	S2042	"amina-benbouchta"
+LAST  P27  Q1028  S2042  "amina-benbouchta"
 
 # add birthdate (precision: /9=year /10=month /11=day)
-LAST	P569	+1963-01-01T00:00:00Z/9	S2042	"amina-benbouchta"
+LAST  P569  +1963-01-01T00:00:00Z/9  S2042  "amina-benbouchta"
 ```
 
-By the end of the day we were able to enter basic biographical facts from Artsy's CSVs into Wikidata in one fell swoop, by batching up several QuickStatement instructions. In the future, we could write an Artsy data to QuickStatement script to handle larger imports.
+By the end of the day we were able to enter basic biographical facts from Artsy's CSVs into Wikidata in one fell swoop, by batching up several QuickStatement instructions. In the future, we could write an "Artsy data to QuickStatement" script to handle larger imports.
 
-[TODO: note the lack of nuance on the gender that we wanted to improve]]
+One of the interesting aspects of looking through the data is that our Artists had a more nuanced set of gender identities than is currently available inside Wikidata's database. We found that we didn't have enough time to address this, but as Wikidata is an on-going project, anyone can add this in the future. If you're looking for a good first foray into Wikidata - this will improve the foundations for everyone.
+
 
 # Using pywikibot to update Wikidata 
 
@@ -237,7 +243,7 @@ Most of the work is inside a Jupyter Notebook, which you can get a full preview 
 
 <img src="/images/editathon/jupyternotebook.png">
 
-I loved the idea of having code showing the incremental process as it's being eval'd. We got the bot to a point where it could edit a Wikidata item based on it data exported from Artsy.
+We loved the idea of having code showing the incremental process as it's being eval'd. We got the bot to a point where it could edit a Wikidata item based on it data exported from Artsy.
 
 # Upcoming ideas
 
@@ -245,7 +251,7 @@ We discussed what Artsy can do next, we have an idea of how we can connect our d
 
 We would love to do this again, it was exciting to have the project introduced to us - and we really get what they're trying to do. We want to host another, and you should come if you're in NYC!
 
-[TODO: shareing open data - https://github.com/artsy/the-art-genome-project]
+If you're interested in exploring the Artsy Genome database, we recently updated [The Art Genome Project's Genes and Definitions][TAGP] with all of our genes as a CSV under [CC-A][cca]. We'd love to know if you find any interesting uses.
 
 [meetup-msg]: https://www.meetup.com/CocoaPods-NYC/messages/boards/thread/50940969
 [afem]: http://www.artandfeminism.org
@@ -263,3 +269,9 @@ We would love to do this again, it was exciting to have the project introduced t
 [jn]: https://github.com/orta/artsy-wikidata-bot/blob/master/Artsy%2BGenes%2Bto%2BWikiData.ipynb
 [PAWS]: https://www.wikidata.org/wiki/Wikidata:Pywikibot_-_Python_3_Tutorial
 [bot]: https://github.com/orta/artsy-wikidata-bot
+[TAGP]: https://github.com/artsy/the-art-genome-project
+[cca]: https://creativecommons.org/licenses/by/4.0/
+[triple]: https://en.wikipedia.org/wiki/Semantic_triple
+[f_nb]: https://docs.google.com/spreadsheets/d/1bjIKKSHOxR2fJvLgf6yOwuDr3Iqo85hYMDMr4lL7Pxg/edit?usp=sharing
+[f_nb_genes]: https://docs.google.com/spreadsheets/d/1G_wCTrP4WzouxfmZdKzqcIKghJDJdiFrv4xQURxrsbI/edit?usp=sharing
+[dev]: https://developers.artsy.net/
