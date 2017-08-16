@@ -22,7 +22,7 @@ The API:
 * Is a [Hypermedia](https://robots.thoughtbot.com/writing-a-hypermedia-api-client-in-ruby) API.
 * Covers [Artists][a], [Artworks][aw], [Genes][g], [Shows][s], [Partners][p] and [more][m].
 
-If you have a great idea for an app that can use public-domain data, then the Artsy API is the right place to look: [https://developers.artsy.net](d)
+If you have a great idea for an app that can use public-domain data, then the Artsy API is the right place to look: [https://developers.artsy.net][d].
 
 [a]: https://developers.artsy.net/docs/artists
 [aw]: https://developers.artsy.net/docs/artworks
