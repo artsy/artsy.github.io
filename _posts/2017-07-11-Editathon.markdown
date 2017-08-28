@@ -7,12 +7,12 @@ css: editathon
 author: [orta, roop]
 ---
 
-Artsy has always had a focus on Art meets Science, and we [hosted a meet-up last month][meetup-msg] that really hits on both. We had a collection of Artsy Staff, members of [Art + Feminism][afem] NYC, the [CocoaPods Peer Lab][peer-lab], [NY Arts Practicum][nyap] and volunteers from Wikimedia all helping out.
+Artsy has always had a focus on Art meets Science, and we [hosted a meet-up in July][meetup-msg] that really hits on both. We had a collection of Artsy Staff, members of [Art + Feminism][afem] NYC, the [CocoaPods Peer Lab][peer-lab], [New York Arts Practicum][nyap] and volunteers from Wikimedia NYC all helping out.
 
 We came with two aims:
 
 * Help anyone interested in contributing to Wikipedia get started.
-* Use [The Art Genome Project][tagp](TAGP) to improve Wikidata entries for female Artists.
+* Use [The Art Genome Project][tagp](TAGP) to improve Wikidata entries for women Artists.
 
 I helped out with the second part, and the rest of this post will be about the lessons learned during this [editathon][].
 
@@ -245,6 +245,8 @@ Most of the work is inside a Jupyter Notebook, which you can get a full preview 
 
 We loved the idea of having code showing the incremental process as it's being eval'd. We got the bot to a point where it could edit a Wikidata item based on it data exported from Artsy.
 
+We plan to keep an eye on future efforts to coordinate Wikidata bot development, such as [WikidataIntegrator][wikidata-integrator]
+
 # Upcoming ideas
 
 We discussed what Artsy can do next, we have an idea of how we can connect our data to confirmed data on Wikidata by keeping the Wikidata QID inside our databases too. This means that we can safely keep that up to date.
@@ -275,3 +277,4 @@ If you're interested in exploring the Artsy Genome database, we recently updated
 [f_nb]: https://docs.google.com/spreadsheets/d/1bjIKKSHOxR2fJvLgf6yOwuDr3Iqo85hYMDMr4lL7Pxg/edit?usp=sharing
 [f_nb_genes]: https://docs.google.com/spreadsheets/d/1G_wCTrP4WzouxfmZdKzqcIKghJDJdiFrv4xQURxrsbI/edit?usp=sharing
 [dev]: https://developers.artsy.net/
+[wikidata-integrator]:https://github.com/SuLab/WikidataIntegrator
