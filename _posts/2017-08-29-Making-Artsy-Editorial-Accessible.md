@@ -1,9 +1,9 @@
 ---
-layout: post
 title: Making Artsy Editorial Accessible
-date: 2017-07-06
-categories: []
+date: 2017-08-29
+categories: [web, accessibility, publishing]
 author: eve
+layout: epic
 ---
 
 During Artsy's recent 2017 Hackathon we tackled making all our our editorial content [accessible](https://en.wikipedia.org/wiki/Accessibility). The idea was hatched at  Berlin JSConf this spring, where [Laura Carvajal gave a talk](https://youtu.be/H4FzW9oFObs) following the *Financial Times*' experience implementing better accessibility requirements, and how they built these considerations into their testing process.
@@ -16,6 +16,7 @@ A central tenant of Artsy's mission is to 'make art as accessible as music'. Exp
 
 > "Users may be highly resistant to having their disabilities identified as they go throughout the web. Most persons with disabilities would really just rather that *the Web just work* for them."
 
+<!-- more -->
 
 ## Putting it into practice
 
