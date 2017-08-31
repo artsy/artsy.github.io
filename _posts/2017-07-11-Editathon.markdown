@@ -7,7 +7,7 @@ css: editathon
 author: [orta, roop]
 ---
 
-Artsy has always had a focus on Art meets Science, and we [hosted a meet-up in July][meetup-msg] that really hits on both. We had a collection of Artsy Staff, members of [Art + Feminism][afem] NYC, the [CocoaPods Peer Lab][peer-lab], [New York Arts Practicum][nyap] and volunteers from Wikimedia NYC all helping out.
+Artsy has always had a focus on Art meets Science, and we [hosted a meet-up in July][meetup-msg] that really hits on both. We had a collection of Artsy Staff, members of [Art + Feminism][afem] NYC, the [CocoaPods Peer Lab][peer-lab], [New York Arts Practicum][nyap] and volunteers from [Wikimedia NYC][wikinyc] all helping out.
 
 We came with two aims:
 
@@ -277,4 +277,5 @@ If you're interested in exploring the Artsy Genome database, we recently updated
 [f_nb]: https://docs.google.com/spreadsheets/d/1bjIKKSHOxR2fJvLgf6yOwuDr3Iqo85hYMDMr4lL7Pxg/edit?usp=sharing
 [f_nb_genes]: https://docs.google.com/spreadsheets/d/1G_wCTrP4WzouxfmZdKzqcIKghJDJdiFrv4xQURxrsbI/edit?usp=sharing
 [dev]: https://developers.artsy.net/
-[wikidata-integrator]:https://github.com/SuLab/WikidataIntegrator
+[wikidata-integrator]: https://github.com/SuLab/WikidataIntegrator
+[wikinyc]: https://nyc.wikimedia.org/
