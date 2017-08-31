@@ -1,7 +1,7 @@
 ---
 layout: epic
 title: Deploying your app on a weekly basis via fastlane + Travis CI
-date: 2017-07-31
+date: 2017-08-31
 author: orta
 categories: [mobile, ios, emission, fastlane]
 css: fastlane
