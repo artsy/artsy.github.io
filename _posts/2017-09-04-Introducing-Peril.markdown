@@ -1,8 +1,8 @@
 ---
 layout: epic
 title: Introducing Peril to the Artsy Org
-date: 2017-09-01
-categories: [danger, javascript, typescript]
+date: 2017-09-04
+categories: [danger, peril, javascript, typescript, culture]
 author: [orta]
 ---
 
@@ -41,7 +41,7 @@ The Artsy Peril settings are all on [artsy/artsy-danger][artsy-settings]. The Ar
 `"DATABASE_JSON_FILE"` set to `"artsy/artsy-danger@peril.settings.json"`, so Peril will use [that file][settings_json] as the source of truth for all config. Here's what it is today:
 
 </article>
-<article style='display: flex; flex-flow:row;'>
+<article class='split-desktop-only'>
 <div style='flex:1; display: block;'>
 
 ```json
@@ -79,7 +79,7 @@ that require a new deploy of the server to re-create.</p>
 
 <p><code>"rules":</code> These are rules which are applied to every repo that Peril has access to. So in this case, every Pull Request in the org will make Peril run the Dangerfile at <code>"artsy/artsy-danger@org/all-prs.ts"</code>.</p>
 
-<p><code>"repos":</code> These are repo-specific overrides, so a Pull Request to artsy/reaction would trigger both the org-wide Dangerile, and one on the reaction repo.</p>
+<p><code>"repos":</code> These are repo-specific overrides, so a Pull Request to artsy/reaction would trigger both the org-wide Dangerfile, and one on the reaction repo.</p>
 
 </div>
 </article>
@@ -87,18 +87,18 @@ that require a new deploy of the server to re-create.</p>
 
 ## Events
 
-In the above examples there are two events that Danger supports: `"pull_request"` and `"issues.opened"`. These are qualifiers
-that GitHub provide as a [Webhook EventTypes][events]. 
+A Dangerfile evaluation occurs once a GitHub webhook is sent. In the above examples there are two events that Danger supports: 
+`"pull_request"` and `"issues.opened"`. These are qualifiers that GitHub provide as a [Webhook EventTypes][events]. 
 
 There's a lot of them: `commit_comment`, `create`, `delete`, `deployment`, `deployment_status`, `fork`, `gollum`, `installation`, `installation_repositories`, `issue_comment`, `issues`, `label`, `marketplace_purchase`, `member`, `membership`, `milestone`, `organization`, `org_block`, `page_build`, `project_card`, `project_column`, `project`, `public`, `pull_request`, `pull_request_review`, `pull_request_review_comment`, `push`, `release`, `repository`, `status`, `team`, `team_add`, `watch`. 
 
-Some of these have unique actions too:
+Some of these events also have unique sub-actions too:
 
 * For an `issue` event there is: `assigned`, `unassigned`, `labeled`, `unlabeled`, `opened`, `edited`,  `milestoned`, `demilestoned`, `closed`, or `reopened`
 
 * For a `pull_request` event there is: `assigned`, `unassigned`, `review_requested`, `review_request_removed`, `labeled`, `unlabeled`, `opened`, `edited`, `closed`, or `reopened`
 
-The ruleset in Peril gives you the ability to either focus on one action for an event type: `"issues.opened"` or all actions
+The way that you define rules in Peril gives you the ability to either focus on one action for an event type: `"issues.opened"` or all actions
 on an event: `"pull_request"`. Once you get your head around this, you start to get a sense of the scope of Peril. At Artsy, we've barely scratched the surface.
 
 ### Growth
@@ -123,7 +123,7 @@ Then I added a per-repo rule:
     }
 ```
 
-This mean's the Dangerfile is only ran on `"issues"` with an `"opened"` action. I didn't want the discussion around a rule spamming our slack with webhooks from the other actions. The file `danger/new_rfc.ts` looks like this:
+This means the Dangerfile is only ran on `"issues"` with an `"opened"` action. I didn't want the discussion around a rule spamming our slack with webhooks from the other actions. The file `danger/new_rfc.ts` looks like this:
 
 ```ts
 import { schedule, danger } from "danger"
@@ -174,7 +174,7 @@ If you're interested in using Peril in your org, run through the [Setup for Org]
 
 [hosted]: https://github.com/danger/danger/issues/42
 [danger_1]: /blog/2017/06/30/danger-one-oh-again/
-[github_apps]: ???
+[github_apps]: https://developer.github.com/changes/2016-09-14-Integrations-Early-Access/
 [periltest]: https://github.com/PerilTest
 [Emission]: https://github.com/artsy/emission
 [Reaction]: https://github.com/artsy/reaction
