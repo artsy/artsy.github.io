@@ -1,0 +1,205 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: peril | Artsy Engineering]]></title>
+  <link href="http://artsy.github.io/blog/categories/peril/atom.xml" rel="self"/>
+  <link href="http://artsy.github.io/"/>
+  <updated>2017-09-04T10:57:33-04:00</updated>
+  <id>http://artsy.github.io/</id>
+  <author>
+    <name><![CDATA[]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Introducing Peril to the Artsy Org]]></title>
+    <link href="http://artsy.github.io/blog/2017/09/04/Introducing-Peril/"/>
+    <updated>2017-09-04T00:00:00-04:00</updated>
+    <id>http://artsy.github.io/blog/2017/09/04/Introducing-Peril</id>
+    <content type="html"><![CDATA[<p>Once Danger Ruby was stable enough for everyday use in 2015, it became obvious that running Danger on CI was both a
+positive and a negative. On the positive side, Danger has access to all artifacts created during testing - and on the negative
+side it takes a long time to get feedback. It was obvious that Danger could <a href="https://github.com/danger/danger/issues/42">run on a server</a>, but it was a big unknown what that could look like.</p>
+
+<p>Eventually, <a href="/blog/2017/06/30/danger-one-oh-again/">I came to the conclusion</a> that we would need a JavaScript replacement of Danger - and so I applied
+constraints to Danger JS that made a server-side version of Danger a possibility. It was a stroke of luck that around the
+time Danger JS became usable for day to day usage, that GitHub introduced <a href="https://developer.github.com/changes/2016-09-14-Integrations-Early-Access/">GitHub Apps</a> - so I started work on Peril. Peril is server-side Danger. The rest of this post talks about how we use it Artsy today, how you can use it yourself and where it's heading.</p>
+
+<!-- more -->
+
+
+<p>In December 2016, I built out Peril in a sandbox org: <a href="https://github.com/PerilTest">PerilTest</a>, this gave me the chance to get a lot of things wrong safely. My biggest worry around Peril was leaking data though someone abusing the ability to evaluate a Dangerfile.</p>
+
+<p>In May 2017, I introduced Peril into Artsy's org, GitHub apps have the ability to pick and choose which repos to work with.
+I scoped the repos to existing open source projects which I was familiar with (<a href="https://github.com/artsy/emission">Emission</a>, <a href="https://github.com/artsy/reaction">Reaction</a> and <a href="https://github.com/artsy/positron">Positron</a>)
+which gave a space to ensure stability and handle production edge-cases.</p>
+
+<p>In August 2017, I created a new Peril instance for CocoaPods. I then finally flipped the switch to turn Peril on for all
+repos on the Artsy org and formalized the RFC process for changes. This is where we are now.</p>
+
+<a name="Getting.Set.Up"></a>
+<h2>Getting Set Up</h2>
+
+<p>For our Artsy org, I followed and improved the guide: <a href="https://github.com/danger/peril/blob/master/docs/setup_for_org.md">Setup for Org</a>. There are three key components:</p>
+
+<ul>
+<li>Creating a GitHub app for your Org</li>
+<li>Hosting a Peril server</li>
+<li>Making up a Peril settings repo</li>
+</ul>
+
+
+<p>The guide covers the initial setup, but I'd like to cover the third part of our setup.</p>
+
+<a name="How.Artsy.s.Peril.works"></a>
+<h2>How Artsy's Peril works</h2>
+
+<p>The Artsy Peril settings are all on <a href="https://github.com/artsy/artsy-danger">artsy/artsy-danger</a>. The Artsy Peril heroku instance has the ENV var
+<code>"DATABASE_JSON_FILE"</code> set to <code>"artsy/artsy-danger@peril.settings.json"</code>, so Peril will use <a href="https://github.com/artsy/artsy-danger/blob/master/peril.settings.json">that file</a> as the source of truth for all config. Here's what it is today:</p>
+
+<p></article>
+<article class='split-desktop-only'></p>
+
+<div style='flex:1; display: block;'>
+
+```json
+{
+  "settings": {
+    "modules": [
+      "danger-plugin-spellcheck", 
+      "danger-plugin-yarn", 
+      "@slack/client"
+    ],
+    "env_vars": ["SLACK_RFC_WEBHOOK_URL"]
+  },
+  "rules": {
+    "pull_request": "artsy/artsy-danger@org/all-prs.ts"
+  },
+  "repos" : {
+    "artsy/reaction": {
+      "pull_request": "danger/pr.ts"
+    },
+    "artsy/positron": {
+      "pull_request": "dangerfile.ts"
+    },
+    "artsy/artsy-danger": {
+      "issues.opened": "artsy/artsy-danger@danger/new_rfc.ts"
+    }
+  }
+}
+```
+
+</div>
+
+
+<div style='flex:1; display: block; padding:0 20px;'>
+
+<p><code>"settings":</code> These settings which conform to today's <a href='https://github.com/danger/peril/blob/752afeb37e3c1fdec512eb91687747d9a8a29337/source/db/index.ts#L26-L31'>GitHubInstallationSettings</a>, here's the <a href='https://github.com/danger/peril/blob/master/source/db/index.ts'>current version</a>. These are org-wide settings
+that require a new deploy of the server to re-create.</p>
+
+<p><code>"rules":</code> These are rules which are applied to every repo that Peril has access to. So in this case, every Pull Request in the org will make Peril run the Dangerfile at <code>"artsy/artsy-danger@org/all-prs.ts"</code>.</p>
+
+<p><code>"repos":</code> These are repo-specific overrides, so a Pull Request to artsy/reaction would trigger both the org-wide Dangerfile, and one on the reaction repo.</p>
+
+</div>
+
+
+<p></article>
+<article class='post'></p>
+
+<a name="Events"></a>
+<h2>Events</h2>
+
+<p>A Dangerfile evaluation occurs once a GitHub webhook is sent. In the above examples there are two events that Danger supports:
+<code>"pull_request"</code> and <code>"issues.opened"</code>. These are qualifiers that GitHub provide as a <a href="https://developer.github.com/v3/activity/events/types/events">Webhook EventTypes</a>.</p>
+
+<p>There's a lot of them: <code>commit_comment</code>, <code>create</code>, <code>delete</code>, <code>deployment</code>, <code>deployment_status</code>, <code>fork</code>, <code>gollum</code>, <code>installation</code>, <code>installation_repositories</code>, <code>issue_comment</code>, <code>issues</code>, <code>label</code>, <code>marketplace_purchase</code>, <code>member</code>, <code>membership</code>, <code>milestone</code>, <code>organization</code>, <code>org_block</code>, <code>page_build</code>, <code>project_card</code>, <code>project_column</code>, <code>project</code>, <code>public</code>, <code>pull_request</code>, <code>pull_request_review</code>, <code>pull_request_review_comment</code>, <code>push</code>, <code>release</code>, <code>repository</code>, <code>status</code>, <code>team</code>, <code>team_add</code>, <code>watch</code>.</p>
+
+<p>Some of these events also have unique sub-actions too:</p>
+
+<ul>
+<li><p>For an <code>issue</code> event there is: <code>assigned</code>, <code>unassigned</code>, <code>labeled</code>, <code>unlabeled</code>, <code>opened</code>, <code>edited</code>,  <code>milestoned</code>, <code>demilestoned</code>, <code>closed</code>, or <code>reopened</code></p></li>
+<li><p>For a <code>pull_request</code> event there is: <code>assigned</code>, <code>unassigned</code>, <code>review_requested</code>, <code>review_request_removed</code>, <code>labeled</code>, <code>unlabeled</code>, <code>opened</code>, <code>edited</code>, <code>closed</code>, or <code>reopened</code></p></li>
+</ul>
+
+
+<p>The way that you define rules in Peril gives you the ability to either focus on one action for an event type: <code>"issues.opened"</code> or all actions
+on an event: <code>"pull_request"</code>. Once you get your head around this, you start to get a sense of the scope of Peril. At Artsy, we've barely scratched the surface.</p>
+
+<a name="Growth"></a>
+<h3>Growth</h3>
+
+<p>I've always advocated that Danger, and Peril should be <a href="http://danger.systems/js/usage/culture.html">applied incrementally</a>. This applies even more when you're
+making org changes that affect every developer - at least with Danger you can see the Pull Request that changes
+the Dangerfile. With Peril you get none of that.</p>
+
+<p>So, we introduced <a href="https://github.com/artsy/artsy-danger/#rfcs">an RFC process for Peril changes</a>. There's not much to it, if you want to add a rule that
+affects everyone then you need to make an issue following a template and then wait a week. If you make a new issue that
+includes the title <code>RFC:</code> then Peril sends a slack message to our developer Channel</p>
+
+<p><img src="/images/peril/peril-rfc.png" alt="/images/peril/peril-rfc.png" /></p>
+
+<p>This was simple to build via Peril, I first added the npm module: <code>"@slack/client"</code> to the <code>"modules"</code> array, making it available to a Dangerfile. Then I added an environment variable to Peril for a newly minted Slack Incoming Webhook URL, and exposed it to Dangerfiles via: <code>"env_vars": ["SLACK_RFC_WEBHOOK_URL"]</code>.</p>
+
+<p>Then I added a per-repo rule:</p>
+
+<pre><code class="json">    "artsy/artsy-danger": {
+      "issues.opened": "artsy/artsy-danger@danger/new_rfc.ts"
+    }
+</code></pre>
+
+<p>This means the Dangerfile is only ran on <code>"issues"</code> with an <code>"opened"</code> action. I didn't want the discussion around a rule spamming our slack with webhooks from the other actions. The file <code>danger/new_rfc.ts</code> looks like this:</p>
+
+<pre><code class="ts">import { schedule, danger } from "danger"
+import { IncomingWebhook } from "@slack/client"
+import { Issues } from "github-webhook-event-types"
+
+declare const peril: any // danger/danger#351
+
+const gh = danger.github as any as Issues
+const issue = gh.issue
+
+if (issue.title.includes("RFC:")) {
+  var url = peril.env.SLACK_RFC_WEBHOOK_URL || "";
+  var webhook = new IncomingWebhook(url)
+  schedule( async () =&gt; {
+   await webhook.send({
+      unfurl_links: false,
+      attachments: [{
+        pretext: "🎉 A new Peril RFC has been published.",
+        color: "good",
+        title: issue.title,
+        title_link: issue.html_url,
+        author_name: issue.user.login,
+        author_icon: issue.user.avatar_url
+      }]
+    })
+  })
+}
+</code></pre>
+
+<p>For events that are not a <code>"pull_request"</code> the <code>danger.github</code> object is the JSON for the event.  You can get TypeScript types available for every GitHub event via the NPM module <a href="https://www.npmjs.com/package/github-webhook-event-types">github-webhook-event-types</a> which makes it much easier to work with.</p>
+
+<a name="Where.to.go.from.here."></a>
+<h2>Where to go from here?</h2>
+
+<p>Right now we have <a href="https://github.com/artsy/artsy-danger/issues?utf8=%E2%9C%93&amp;q=is%3Aissue%20RFC">a few RFCs</a>, and I don't spend all day making Peril rules, I've gotta <a href="https://github.com/artsy/emission/pulls?utf8=%E2%9C%93&amp;q=consignments%20">do work y'know</a>. We're going to slowly build out our Peril infrastructure.</p>
+
+<p>I'm interested in exploring two ideas big for peril at the moment:</p>
+
+<ul>
+<li><p>What a Peril plugin system looks like: You can include modules which can listen to events and react themselves. An org-wide spellcheck on markdown files could be as easy as including <code>"modules": ["peril-plugin-spellcheck"]</code>.</p></li>
+<li><p>What <a href="https://github.com/danger/peril/issues/138">scheduled jobs</a> could look like for Peril: We have a bunch of checks I'd like to make on a a regular occasion, and then passing back feedback via slack or making an issue on the repo.</p></li>
+</ul>
+
+
+<p> For example if a repo has an owner who isn't in Artsy anymore, we should highlight that it needs a new owner.</p>
+
+<p>If you're interested in using Peril in large OSS projects, take a look at how Peril is used in CocoaPods via <a href="https://github.com/CocoaPods/peril-settings">CocoaPods/peril-settings</a>.</p>
+
+<p>If you're interested in using Peril in your org, run through the <a href="https://github.com/danger/peril/blob/master/docs/setup_for_org.md">Setup for Org</a> guide and help improve it when you inevitably have some weird issues.</p>
+]]></content>
+  </entry>
+  
+</feed>

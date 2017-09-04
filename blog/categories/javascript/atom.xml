@@ -4,7 +4,7 @@
   <title><![CDATA[Category: javascript | Artsy Engineering]]></title>
   <link href="http://artsy.github.io/blog/categories/javascript/atom.xml" rel="self"/>
   <link href="http://artsy.github.io/"/>
-  <updated>2017-08-31T22:02:34+00:00</updated>
+  <updated>2017-09-04T10:57:33-04:00</updated>
   <id>http://artsy.github.io/</id>
   <author>
     <name><![CDATA[]]></name>
@@ -14,9 +14,198 @@
 
   
   <entry>
+    <title type="html"><![CDATA[Introducing Peril to the Artsy Org]]></title>
+    <link href="http://artsy.github.io/blog/2017/09/04/Introducing-Peril/"/>
+    <updated>2017-09-04T00:00:00-04:00</updated>
+    <id>http://artsy.github.io/blog/2017/09/04/Introducing-Peril</id>
+    <content type="html"><![CDATA[<p>Once Danger Ruby was stable enough for everyday use in 2015, it became obvious that running Danger on CI was both a
+positive and a negative. On the positive side, Danger has access to all artifacts created during testing - and on the negative
+side it takes a long time to get feedback. It was obvious that Danger could <a href="https://github.com/danger/danger/issues/42">run on a server</a>, but it was a big unknown what that could look like.</p>
+
+<p>Eventually, <a href="/blog/2017/06/30/danger-one-oh-again/">I came to the conclusion</a> that we would need a JavaScript replacement of Danger - and so I applied
+constraints to Danger JS that made a server-side version of Danger a possibility. It was a stroke of luck that around the
+time Danger JS became usable for day to day usage, that GitHub introduced <a href="https://developer.github.com/changes/2016-09-14-Integrations-Early-Access/">GitHub Apps</a> - so I started work on Peril. Peril is server-side Danger. The rest of this post talks about how we use it Artsy today, how you can use it yourself and where it's heading.</p>
+
+<!-- more -->
+
+
+<p>In December 2016, I built out Peril in a sandbox org: <a href="https://github.com/PerilTest">PerilTest</a>, this gave me the chance to get a lot of things wrong safely. My biggest worry around Peril was leaking data though someone abusing the ability to evaluate a Dangerfile.</p>
+
+<p>In May 2017, I introduced Peril into Artsy's org, GitHub apps have the ability to pick and choose which repos to work with.
+I scoped the repos to existing open source projects which I was familiar with (<a href="https://github.com/artsy/emission">Emission</a>, <a href="https://github.com/artsy/reaction">Reaction</a> and <a href="https://github.com/artsy/positron">Positron</a>)
+which gave a space to ensure stability and handle production edge-cases.</p>
+
+<p>In August 2017, I created a new Peril instance for CocoaPods. I then finally flipped the switch to turn Peril on for all
+repos on the Artsy org and formalized the RFC process for changes. This is where we are now.</p>
+
+<a name="Getting.Set.Up"></a>
+<h2>Getting Set Up</h2>
+
+<p>For our Artsy org, I followed and improved the guide: <a href="https://github.com/danger/peril/blob/master/docs/setup_for_org.md">Setup for Org</a>. There are three key components:</p>
+
+<ul>
+<li>Creating a GitHub app for your Org</li>
+<li>Hosting a Peril server</li>
+<li>Making up a Peril settings repo</li>
+</ul>
+
+
+<p>The guide covers the initial setup, but I'd like to cover the third part of our setup.</p>
+
+<a name="How.Artsy.s.Peril.works"></a>
+<h2>How Artsy's Peril works</h2>
+
+<p>The Artsy Peril settings are all on <a href="https://github.com/artsy/artsy-danger">artsy/artsy-danger</a>. The Artsy Peril heroku instance has the ENV var
+<code>"DATABASE_JSON_FILE"</code> set to <code>"artsy/artsy-danger@peril.settings.json"</code>, so Peril will use <a href="https://github.com/artsy/artsy-danger/blob/master/peril.settings.json">that file</a> as the source of truth for all config. Here's what it is today:</p>
+
+<p></article>
+<article class='split-desktop-only'></p>
+
+<div style='flex:1; display: block;'>
+
+```json
+{
+  "settings": {
+    "modules": [
+      "danger-plugin-spellcheck", 
+      "danger-plugin-yarn", 
+      "@slack/client"
+    ],
+    "env_vars": ["SLACK_RFC_WEBHOOK_URL"]
+  },
+  "rules": {
+    "pull_request": "artsy/artsy-danger@org/all-prs.ts"
+  },
+  "repos" : {
+    "artsy/reaction": {
+      "pull_request": "danger/pr.ts"
+    },
+    "artsy/positron": {
+      "pull_request": "dangerfile.ts"
+    },
+    "artsy/artsy-danger": {
+      "issues.opened": "artsy/artsy-danger@danger/new_rfc.ts"
+    }
+  }
+}
+```
+
+</div>
+
+
+<div style='flex:1; display: block; padding:0 20px;'>
+
+<p><code>"settings":</code> These settings which conform to today's <a href='https://github.com/danger/peril/blob/752afeb37e3c1fdec512eb91687747d9a8a29337/source/db/index.ts#L26-L31'>GitHubInstallationSettings</a>, here's the <a href='https://github.com/danger/peril/blob/master/source/db/index.ts'>current version</a>. These are org-wide settings
+that require a new deploy of the server to re-create.</p>
+
+<p><code>"rules":</code> These are rules which are applied to every repo that Peril has access to. So in this case, every Pull Request in the org will make Peril run the Dangerfile at <code>"artsy/artsy-danger@org/all-prs.ts"</code>.</p>
+
+<p><code>"repos":</code> These are repo-specific overrides, so a Pull Request to artsy/reaction would trigger both the org-wide Dangerfile, and one on the reaction repo.</p>
+
+</div>
+
+
+<p></article>
+<article class='post'></p>
+
+<a name="Events"></a>
+<h2>Events</h2>
+
+<p>A Dangerfile evaluation occurs once a GitHub webhook is sent. In the above examples there are two events that Danger supports:
+<code>"pull_request"</code> and <code>"issues.opened"</code>. These are qualifiers that GitHub provide as a <a href="https://developer.github.com/v3/activity/events/types/events">Webhook EventTypes</a>.</p>
+
+<p>There's a lot of them: <code>commit_comment</code>, <code>create</code>, <code>delete</code>, <code>deployment</code>, <code>deployment_status</code>, <code>fork</code>, <code>gollum</code>, <code>installation</code>, <code>installation_repositories</code>, <code>issue_comment</code>, <code>issues</code>, <code>label</code>, <code>marketplace_purchase</code>, <code>member</code>, <code>membership</code>, <code>milestone</code>, <code>organization</code>, <code>org_block</code>, <code>page_build</code>, <code>project_card</code>, <code>project_column</code>, <code>project</code>, <code>public</code>, <code>pull_request</code>, <code>pull_request_review</code>, <code>pull_request_review_comment</code>, <code>push</code>, <code>release</code>, <code>repository</code>, <code>status</code>, <code>team</code>, <code>team_add</code>, <code>watch</code>.</p>
+
+<p>Some of these events also have unique sub-actions too:</p>
+
+<ul>
+<li><p>For an <code>issue</code> event there is: <code>assigned</code>, <code>unassigned</code>, <code>labeled</code>, <code>unlabeled</code>, <code>opened</code>, <code>edited</code>,  <code>milestoned</code>, <code>demilestoned</code>, <code>closed</code>, or <code>reopened</code></p></li>
+<li><p>For a <code>pull_request</code> event there is: <code>assigned</code>, <code>unassigned</code>, <code>review_requested</code>, <code>review_request_removed</code>, <code>labeled</code>, <code>unlabeled</code>, <code>opened</code>, <code>edited</code>, <code>closed</code>, or <code>reopened</code></p></li>
+</ul>
+
+
+<p>The way that you define rules in Peril gives you the ability to either focus on one action for an event type: <code>"issues.opened"</code> or all actions
+on an event: <code>"pull_request"</code>. Once you get your head around this, you start to get a sense of the scope of Peril. At Artsy, we've barely scratched the surface.</p>
+
+<a name="Growth"></a>
+<h3>Growth</h3>
+
+<p>I've always advocated that Danger, and Peril should be <a href="http://danger.systems/js/usage/culture.html">applied incrementally</a>. This applies even more when you're
+making org changes that affect every developer - at least with Danger you can see the Pull Request that changes
+the Dangerfile. With Peril you get none of that.</p>
+
+<p>So, we introduced <a href="https://github.com/artsy/artsy-danger/#rfcs">an RFC process for Peril changes</a>. There's not much to it, if you want to add a rule that
+affects everyone then you need to make an issue following a template and then wait a week. If you make a new issue that
+includes the title <code>RFC:</code> then Peril sends a slack message to our developer Channel</p>
+
+<p><img src="/images/peril/peril-rfc.png" alt="/images/peril/peril-rfc.png" /></p>
+
+<p>This was simple to build via Peril, I first added the npm module: <code>"@slack/client"</code> to the <code>"modules"</code> array, making it available to a Dangerfile. Then I added an environment variable to Peril for a newly minted Slack Incoming Webhook URL, and exposed it to Dangerfiles via: <code>"env_vars": ["SLACK_RFC_WEBHOOK_URL"]</code>.</p>
+
+<p>Then I added a per-repo rule:</p>
+
+<pre><code class="json">    "artsy/artsy-danger": {
+      "issues.opened": "artsy/artsy-danger@danger/new_rfc.ts"
+    }
+</code></pre>
+
+<p>This means the Dangerfile is only ran on <code>"issues"</code> with an <code>"opened"</code> action. I didn't want the discussion around a rule spamming our slack with webhooks from the other actions. The file <code>danger/new_rfc.ts</code> looks like this:</p>
+
+<pre><code class="ts">import { schedule, danger } from "danger"
+import { IncomingWebhook } from "@slack/client"
+import { Issues } from "github-webhook-event-types"
+
+declare const peril: any // danger/danger#351
+
+const gh = danger.github as any as Issues
+const issue = gh.issue
+
+if (issue.title.includes("RFC:")) {
+  var url = peril.env.SLACK_RFC_WEBHOOK_URL || "";
+  var webhook = new IncomingWebhook(url)
+  schedule( async () =&gt; {
+   await webhook.send({
+      unfurl_links: false,
+      attachments: [{
+        pretext: "🎉 A new Peril RFC has been published.",
+        color: "good",
+        title: issue.title,
+        title_link: issue.html_url,
+        author_name: issue.user.login,
+        author_icon: issue.user.avatar_url
+      }]
+    })
+  })
+}
+</code></pre>
+
+<p>For events that are not a <code>"pull_request"</code> the <code>danger.github</code> object is the JSON for the event.  You can get TypeScript types available for every GitHub event via the NPM module <a href="https://www.npmjs.com/package/github-webhook-event-types">github-webhook-event-types</a> which makes it much easier to work with.</p>
+
+<a name="Where.to.go.from.here."></a>
+<h2>Where to go from here?</h2>
+
+<p>Right now we have <a href="https://github.com/artsy/artsy-danger/issues?utf8=%E2%9C%93&amp;q=is%3Aissue%20RFC">a few RFCs</a>, and I don't spend all day making Peril rules, I've gotta <a href="https://github.com/artsy/emission/pulls?utf8=%E2%9C%93&amp;q=consignments%20">do work y'know</a>. We're going to slowly build out our Peril infrastructure.</p>
+
+<p>I'm interested in exploring two ideas big for peril at the moment:</p>
+
+<ul>
+<li><p>What a Peril plugin system looks like: You can include modules which can listen to events and react themselves. An org-wide spellcheck on markdown files could be as easy as including <code>"modules": ["peril-plugin-spellcheck"]</code>.</p></li>
+<li><p>What <a href="https://github.com/danger/peril/issues/138">scheduled jobs</a> could look like for Peril: We have a bunch of checks I'd like to make on a a regular occasion, and then passing back feedback via slack or making an issue on the repo.</p></li>
+</ul>
+
+
+<p> For example if a repo has an owner who isn't in Artsy anymore, we should highlight that it needs a new owner.</p>
+
+<p>If you're interested in using Peril in large OSS projects, take a look at how Peril is used in CocoaPods via <a href="https://github.com/CocoaPods/peril-settings">CocoaPods/peril-settings</a>.</p>
+
+<p>If you're interested in using Peril in your org, run through the <a href="https://github.com/danger/peril/blob/master/docs/setup_for_org.md">Setup for Org</a> guide and help improve it when you inevitably have some weird issues.</p>
+]]></content>
+  </entry>
+  
+  <entry>
     <title type="html"><![CDATA[Art + Feminism and Artsy Wikipedia/Wikidata Editathon]]></title>
     <link href="http://artsy.github.io/blog/2017/08/31/Editathon/"/>
-    <updated>2017-08-31T00:00:00+00:00</updated>
+    <updated>2017-08-31T00:00:00-04:00</updated>
     <id>http://artsy.github.io/blog/2017/08/31/Editathon</id>
     <content type="html"><![CDATA[<p>Artsy has always had a focus on Art meets Science, and we <a href="https://www.meetup.com/CocoaPods-NYC/messages/boards/thread/50940969">hosted a meet-up in July</a> that really hits on both. We had a collection of Artsy Staff, members of <a href="http://www.artandfeminism.org">Art + Feminism</a> NYC, the <a href="/blog/2015/08/10/peer-lab/">CocoaPods Peer Lab</a>, <a href="http://www.artspracticum.org">New York Arts Practicum</a> and volunteers from <a href="https://nyc.wikimedia.org/">Wikimedia NYC</a> all helping out.</p>
 
@@ -24,7 +213,7 @@
 
 <ul>
 <li>Help anyone interested in contributing to Wikipedia get started.</li>
-<li>Use <a href="https://github.com/artsy/the-art-genome-project">The Art Genome Project</a>(TAGP) to improve Wikidata entries for women Artists.</li>
+<li>Use <a href="https://www.artsy.net/categories">The Art Genome Project</a>(TAGP) to improve Wikidata entries for women Artists.</li>
 </ul>
 
 
@@ -277,14 +466,14 @@ LAST  P569  +1963-01-01T00:00:00Z/9  S2042  "amina-benbouchta"
 
 <p>We would love to do this again, it was exciting to have the project introduced to us - and we really get what they're trying to do. We want to host another, and you should come if you're in NYC!</p>
 
-<p>If you're interested in exploring the Artsy Genome database, we recently updated <a href="https://github.com/artsy/the-art-genome-project">The Art Genome Project's Genes and Definitions</a> with all of our genes as a CSV under <a href="https://creativecommons.org/licenses/by/4.0/">CC-A</a>. We'd love to know if you find any interesting uses.</p>
+<p>If you're interested in exploring the Artsy Genome database, we recently updated <a href="https://www.artsy.net/categories">The Art Genome Project's Genes and Definitions</a> with all of our genes as a CSV under <a href="https://creativecommons.org/licenses/by/4.0/">CC-A</a>. We'd love to know if you find any interesting uses.</p>
 ]]></content>
   </entry>
   
   <entry>
     <title type="html"><![CDATA[Using GitHub Issues for Blog Comments]]></title>
     <link href="http://artsy.github.io/blog/2017/07/15/Comments-are-on/"/>
-    <updated>2017-07-15T00:00:00+00:00</updated>
+    <updated>2017-07-15T00:00:00-04:00</updated>
     <id>http://artsy.github.io/blog/2017/07/15/Comments-are-on</id>
     <content type="html"><![CDATA[<p>I've worked on a few large-scale OSS projects, and I believe that people find it easier to just leave a comment and rely on a contributor to explain a problem rather than consulting the documentation. I consider doing everything you can to make people find their own answers a strong part of <a href="/blog/2016/07/03/handling-big-projects/">defensive open source</a>.</p>
 
@@ -416,7 +605,7 @@ if (window.fetch) {
   <entry>
     <title type="html"><![CDATA[Intro to React Native for an iOS Developer]]></title>
     <link href="http://artsy.github.io/blog/2017/07/06/React-Native-for-iOS-devs/"/>
-    <updated>2017-07-06T00:00:00+00:00</updated>
+    <updated>2017-07-06T00:00:00-04:00</updated>
     <id>http://artsy.github.io/blog/2017/07/06/React-Native-for-iOS-devs</id>
     <content type="html"><![CDATA[<p>React Native is a new native library that vastly changes the way in which you can create applications. The majority of the information and tutorials on the subject come from the angle of <em>"you are a web developer, and want to do native"</em>.</p>
 
@@ -1311,7 +1500,7 @@ $ tree .
   <entry>
     <title type="html"><![CDATA[Relay Mutations]]></title>
     <link href="http://artsy.github.io/blog/2017/04/26/Relay-Mutations/"/>
-    <updated>2017-04-26T00:00:00+00:00</updated>
+    <updated>2017-04-26T00:00:00-04:00</updated>
     <id>http://artsy.github.io/blog/2017/04/26/Relay-Mutations</id>
     <content type="html"><![CDATA[<blockquote><p>Hey there everyone, it took us two years to <a href="https://github.com/artsy/metaphysics/pull/583">make our</a> GraphQL implementation support any mutations. We opted to keep it read-only for quite a long time because we use GraphQL to consolidate multiple APIs, but as we start new projects as GraphQL + databases then understanding mutations becomes much more important.</p>
 
@@ -1597,315 +1786,6 @@ getVariables() {
 <p>It's worth noting that Relay isn't the only available GraphQL client. Apollo Client is a great alternative which is a lot easier to get started with. <a href="https://www.graph.cool/docs/tutorials/relay-vs-apollo-iechu0shia/">For a detailed comparison please refer to this article.</a></p>
 
 <p>If you want to learn more about GraphQL and want to stay up-to-date with the latest news of the GraphQL community, subscribe to <a href="https://graphqlweekly.com/">GraphQL Weekly</a>.</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Workshop: React Native]]></title>
-    <link href="http://artsy.github.io/blog/2017/02/06/React-Native-Workshop/"/>
-    <updated>2017-02-06T12:18:00+00:00</updated>
-    <id>http://artsy.github.io/blog/2017/02/06/React-Native-Workshop</id>
-    <content type="html"><![CDATA[<p>Hey there, so you've decided to take a look at React Native? Well, last week I ran a workshop inside Artsy on <a href="https://facebook.github.io/react-native/">React Native</a> and <a href="https://facebook.github.io/relay/">Relay</a>.</p>
-
-<p>The video takes you from <code>react-native init</code> to having the initial structure of a View Controller based on Relay with a real working API request. The video is about 45 minutes, with inline questions.</p>
-
-<p>If you wanted to just run through the notes, you could probably get it working in about 10 minutes.</p>
-
-<p>Jump <a href="https://www.youtube.com/watch?v=PYC47YKnK4k">to YouTube</a> for the video, or click more for a smaller inline preview, as well as all of the speakers notes to copy &amp; paste from. There is also a full copy of the end-result at <a href="https://github.com/orta/Relay-Artist-Example">orta/Relay-Artist-Example</a>.</p>
-
-<!-- more -->
-
-
-<p></div></div><iframe width='100%' height='600' src='https://www.youtube.com/embed/PYC47YKnK4k ' frameborder='0' allowfullscreen></iframe><div class='meta-container'><header>&nbsp;</header></div><div class='content-container'><div class='entry-content'></p>
-
-<p>Beautiful right?</p>
-
-<p><img src="https://github.com/orta/Relay-Artist-Example/blob/master/screenshots/workshop.png?raw=true"></p>
-
-<p>Below are the notes so you can follow along</p>
-
-<hr />
-
-<a name="Setup"></a>
-<h1>Setup</h1>
-
-<ul>
-<li>Install <a href="https://yarnpkg.com">Yarn</a></li>
-<li>Install React Native - https://facebook.github.io/react-native/docs/getting-started.html</li>
-<li>Create a new project via <code>react-native init ArtistExample</code></li>
-</ul>
-
-
-<a name="Verifying.your.install"></a>
-<h1>Verifying your install</h1>
-
-<ul>
-<li><code>cd ArtistExample</code></li>
-<li>Run <code>yarn run jest</code> to verify specs</li>
-</ul>
-
-
-<a name="Starting.out"></a>
-<h1>Starting out</h1>
-
-<ul>
-<li>Run <code>yarn start</code> - this loads the packager.</li>
-</ul>
-
-
-<p>The packager is the part of React Native which compiles your JavaScript. This JavaScript creates a virtual DOM, which React Native uses to create an equivilent view heirarchy.</p>
-
-<ul>
-<li>Run <code>react-native run-ios</code> to launch the project in a sim.</li>
-</ul>
-
-
-<a name="Tada.-.it.s.your.1st.RN.app"></a>
-<h3>Tada - it's your 1st RN app</h3>
-
-<p>That's it. Let's look at some real code. Browse the source code.</p>
-
-<a name="Relay"></a>
-<h3>Relay</h3>
-
-<p>We're using Relay, this will take a bit of setup. <a href="https://github.com/artsy/emission/commit/c6660fe505f38491f4a1d23dc7f41a2baec5657d">Here is @alloy setting up Relay in Emission</a></p>
-
-<p>Add <code>relay</code> and <code>babel-relay-plugin</code> - we <a href="https://github.com/facebook/relay/issues/1061">use a fork</a></p>
-
-<pre><code class="sh">yarn add react-relay@https://github.com/alloy/relay/releases/download/v0.9.3/react-relay-0.9.3.tgz
-yarn add babel-relay-plugin@https://github.com/alloy/relay/releases/download/v0.9.3/babel-relay-plugin-0.9.3.tgz
-</code></pre>
-
-<p>Then the schema into a data folder:</p>
-
-<pre><code class="sh">mkdir data
-curl https://raw.githubusercontent.com/artsy/emission/master/data/schema.graphql &gt; data/schema.graphql
-curl https://raw.githubusercontent.com/artsy/emission/master/data/schema.js &gt; data/schema.js
-curl https://raw.githubusercontent.com/artsy/emission/master/data/schema.json &gt; data/schema.json
-</code></pre>
-
-<p>Then hook up the plugin:
-- Add <code>"plugins": ["./data/schema"],</code> to <code>.babelrc</code>.</p>
-
-<a name="First.edit"></a>
-<h3>First edit</h3>
-
-<ul>
-<li>Turn on Live Reloading and HMR with <code>cmd + d</code></li>
-<li>Turn BG white. Awesome.</li>
-</ul>
-
-
-<p>Magic, it does it in real-time.</p>
-
-<a name="Making.components"></a>
-<h3>Making components</h3>
-
-<ul>
-<li>Make <code>lib</code>, <code>lib/artists</code> and <code>lib/artists/artist.js</code></li>
-<li>Move <code>ArtistExample</code> Component from <code>index.ios.js</code> to <code>lib/artists/artist.js</code></li>
-<li>Change the class to <code>Artist</code>, and edit the title to reflect a different component</li>
-<li>Go back and nuke most of the <code>index.ios.js</code> make it just refer to `Artist``</li>
-</ul>
-
-
-<pre><code class="js">import Artist from "./lib/artist/artist"
-
-export default class ArtistExample extends Component {
-  render() {
-    return (
-      &lt;Artist /&gt;
-    );
-  }
-}
-</code></pre>
-
-<a name="Relay.Setup"></a>
-<h3>Relay Setup</h3>
-
-<p>Explain there are three useful bits <a href="https://sgwilym.github.io/relay-visual-learners/">parts of Relay</a>:</p>
-
-<ul>
-<li>Routes</li>
-<li>RootContainer</li>
-<li>Relay.Container</li>
-</ul>
-
-
-<p>We will talk about them as we go on, but first we need to tell Relay where Metaphysics is. So we need to set up a network layer:</p>
-
-<pre><code class="js">import Relay from 'react-relay'
-
-const metaphysicsURL = 'https://metaphysics-staging.artsy.net'
-
-Relay.injectNetworkLayer(
-  new Relay.DefaultNetworkLayer(metaphysicsURL, {
-    headers: {
-      'X-XAPP-Token': "[go to staging.artsy.net and do `sd.ARTSY_XAPP_TOKEN` in console]",
-    }
-  })
-)
-</code></pre>
-
-<p>Next we need to create a Relay Route, this <em>doesnt</em> directly represent a URL representation, but it often can/does.
-E.g. in our case this will represent <code>/artist/:artistID</code>.</p>
-
-<ul>
-<li>create <code>lib/artist/route.js</code> add</li>
-</ul>
-
-
-<pre><code class="js">import Relay from 'react-relay'
-
-export default  class ArtistRoute extends Relay.Route {
-  static queries = {
-    artist: (component, params) =&gt; Relay.QL`
-      query {
-        artist(id: $artistID) {
-          ${component.getFragment('artist', params)}
-        }
-      }
-    `,
-  };
-
-  static paramDefinitions = {
-    artistID: { required: true },
-  };
-
-  static routeName = 'ArtistRoute';
-}
-</code></pre>
-
-<ul>
-<li>Hook this up inside <code>index.ios.js</code>, add an import, and create instance of Route:</li>
-</ul>
-
-
-<pre><code class="js">import ArtistRoute from "./lib/artist/route"
-
-const glennRoute = new ArtistRoute({
-  artistID: "glenn-brown"
-})
-</code></pre>
-
-<p>  Then change the components render function:</p>
-
-<pre><code class="js">export default class ArtistExample extends Component {
-    render = () =&gt; &lt;Relay.RootContainer Component={Artist} route={glennRoute} /&gt;
-}
-</code></pre>
-
-<p>See error, that means it's trying to access a Relay Component, and we have a React component. Let's make it a Relay Component:</p>
-
-<ul>
-<li><p>Remove the <code>export default</code> from the <code>Artist</code> class in <code>lib/artist/artist.js</code></p></li>
-<li><p>Add Relay fragment at the bottom</p></li>
-</ul>
-
-
-<pre><code class="js">export default Relay.createContainer(Artist, {
-  fragments: {
-    artist: () =&gt; Relay.QL`
-      fragment on Artist {
-        _id
-        id
-        name
-      }
-    `,
-  }
-})
-</code></pre>
-
-<pre><code class="js">class Artist extends Component {
-  render() {
-    const title = `Hello, I am ${this.props.artist.name}`
-    return (
-      &lt;View style={styles.container}&gt;
-        &lt;Text style={styles.welcome}&gt;{title}&lt;/Text&gt;
-      &lt;/View&gt;
-    );
-  }
-}
-</code></pre>
-
-<hr />
-
-<p>Prove the Relay concept by adding <code>years</code> to GraphQL and add this to the render function:</p>
-
-<pre><code class="js">class Artist extends Component {
-  render() {
-    const title = `Hey ${this.props.artist.name}`
-    return (
-      &lt;View style={styles.container}&gt;
-        &lt;Text style={styles.welcome}&gt;{title}&lt;/Text&gt;
-        &lt;Text style={styles.welcome}&gt;{this.props.artist.years}&lt;/Text&gt;
-      &lt;/View&gt;
-    );
-  }
-}
-</code></pre>
-
-<p>Tada! You've made a working relay component. Just start making more of these now, and you have an app!</p>
-
-<a name="Looking.Stylish."></a>
-<h3>Looking Stylish!</h3>
-
-<p>OK, we now have the minimum we need - we got API data coming in as props. Now we want to make it look pretty.</p>
-
-<ul>
-<li>Add <code>mkdir assets</code>, and <code>mkdir assets/fonts</code></li>
-</ul>
-
-
-<pre><code class="sh">curl -L https://github.com/artsy/Artsy-OSSUIFonts/raw/master/Pod/Assets/EBGaramond12-Italic.ttf &gt; assets/EBGaramond12-Italic.ttf
-curl -L https://github.com/artsy/Artsy-OSSUIFonts/raw/master/Pod/Assets/EBGaramond12-Regular.ttf &gt; assets/EBGaramond12-Regular.ttf
-curl -L https://github.com/artsy/Artsy-OSSUIFonts/raw/master/Pod/Assets/texgyreadventor-bold.ttf &gt; assets/texgyreadventor-bold.ttf
-</code></pre>
-
-<ul>
-<li>edit <code>package.json</code></li>
-</ul>
-
-
-<pre><code> "rnpm": {
-    "assets": ["./assets"]
-  }
-</code></pre>
-
-<ul>
-<li>run <code>react-native link</code>, restart iOS app, by killing it.</li>
-<li><p>run <code>react-native run-ios</code></p></li>
-<li><p>Add custom styles to the two bits of info on screen:</p></li>
-</ul>
-
-
-<pre><code class="js">&lt;Text style={styles.title}&gt;{this.props.artist.name.toUpperCase()}&lt;/Text&gt;
-&lt;Text style={styles.subtitle}&gt;{this.props.artist.years}&lt;/Text&gt;
-</code></pre>
-
-<pre><code class="js">const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    marginTop: 20,
-    alignItems: 'center',
-    backgroundColor: 'white',
-  },
-  title: {
-    fontSize: 20,
-    textAlign: 'center',
-    margin: 10,
-    fontFamily: "TeXGyreAdventor-Regular"
-  },
-  subtitle: {
-    textAlign: 'center',
-    color: '#333333',
-    fontFamily: 'EBGaramond12-Regular',
-    marginBottom: 5,
-  },
-});
-</code></pre>
-
-<p>And that is our styles. Covering all of the major use cases of React Native for us.</p>
 ]]></content>
   </entry>
   
