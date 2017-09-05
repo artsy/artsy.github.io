@@ -1,3 +1,6 @@
+# Look for prose issues
+prose.lint_files
+
 # Use the VS Code Spell-checker word ignore list
 require 'json'
 
