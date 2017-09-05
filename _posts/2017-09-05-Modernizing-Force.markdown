@@ -3,7 +3,7 @@ layout: epic
 title: Modernizing Force
 comments: true
 comment_id: 385
-date: 2017-08-29
+date: 2017-09-05
 categories: [force, reaction, emission, javascript, typescript, react, babel, styled-components]
 author: chris
 ---
@@ -349,7 +349,7 @@ All of the possibilities that Stitch provides are too numerous to go over here, 
 
 A common thread that connects [Force](https://github.com/artsy/force) to [Eigen](https://github.com/artsy/eigen) (Artsy's mobile app) is an understanding that while grand re-writes will gladly remove technical debt, technical debt is not our issue. A lot of the patterns we've laid down within our apps still work for us, and many of our implementations remain sufficient to the task. What we needed was an environment where _incremental revolution_ was possible, where old ideas could merge with new and evolve. In terms of Eigen, we felt the best way forward was the adoption of [React Native](https://facebook.github.io/react-native/) -- and [Emission](https://github.com/artsy/emission) was born. Likewise, for our web and web-based mobile apps, [Reaction](https://github.com/artsy/reaction) is serving a similar role. Both of these projects are built with [TypeScript](https://www.typescriptlang.org/), and both rely heavily on functionality that our [GraphQL](http://graphql.org/) interface [Metaphysics](https://github.com/artsy/metaphysics) provides. But crucially, these projects _augment_ our existing infrastructure; they don't replace it. They fit in with existing ideas, tools and processes that have facilitated Artsy's growth, including highly-specific domain knowledge that our engineers have built up over time.
 
-In conclusion, I hope this post has provided a bit of a window into some of our processes here at Artsy for those facing similar challenges. For those wanting to take a deeper dive, check out the links below:
+In conclusion, I hope this post has provided a bit of a window into some of our processes here at Artsy for those facing similar challenges. If you want to take a deeper dive, check out the links below:
 
 - https://github.com/artsy/express-reloadable
 - https://github.com/artsy/stitch
