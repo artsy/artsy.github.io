@@ -4,7 +4,7 @@
   <title><![CDATA[Category: javascript | Artsy Engineering]]></title>
   <link href="http://artsy.github.io/blog/categories/javascript/atom.xml" rel="self"/>
   <link href="http://artsy.github.io/"/>
-  <updated>2017-09-04T15:01:30+00:00</updated>
+  <updated>2017-09-05T17:29:09+00:00</updated>
   <id>http://artsy.github.io/</id>
   <author>
     <name><![CDATA[]]></name>
@@ -467,6 +467,366 @@ LAST  P569  +1963-01-01T00:00:00Z/9  S2042  "amina-benbouchta"
 <p>We would love to do this again, it was exciting to have the project introduced to us - and we really get what they're trying to do. We want to host another, and you should come if you're in NYC!</p>
 
 <p>If you're interested in exploring the Artsy Genome database, we recently updated <a href="https://github.com/artsy/the-art-genome-project">The Art Genome Project's Genes and Definitions</a> with all of our genes as a CSV under <a href="https://creativecommons.org/licenses/by/4.0/">CC-A</a>. We'd love to know if you find any interesting uses.</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Modernizing Force]]></title>
+    <link href="http://artsy.github.io/blog/2017/08/29/Modernizing-Force/"/>
+    <updated>2017-08-29T00:00:00+00:00</updated>
+    <id>http://artsy.github.io/blog/2017/08/29/Modernizing-Force</id>
+    <content type="html"><![CDATA[<p><a href="https://github.com/artsy/force">Force</a> is Artsy's main website, <a href="https://www.artsy.net">artsy.net</a>. In the three years since it was <a href="http://artsy.github.io/blog/2014/09/05/we-open-sourced-our-isomorphic-javascript-website/">open-sourced</a>, it has provided a solid foundation to build features on top of without a lot of the costs associated with growth. It is an early example of Isomorphic ("universal") JavaScript, built on top of Express, Backbone, CoffeeScript, Stylus and Jade. It is also highly modular, adopting patterns laid down by its parent project,  <a href="https://github.com/artsy/ezel">Ezel</a>.</p>
+
+<p>When first developed these technologies made a lot of sense; CoffeeScript fixed many of the problems with JavaScript pre-ES6, and Jade / Stylus made working with HTML / CSS much more elegant. As time progressed and new technologies became a thing these solutions starting feeling more burdensome to continue building features with and many of our developers longed to start using next-generation tools like React.</p>
+
+<!-- more -->
+
+
+<p>Looking at output from <code>cloc</code>, the question is "But how?"</p>
+
+<pre><code class="js">[artsy/force] $ cloc desktop mobile
+
+--------------------------------------------------------
+Language                     files                  code
+--------------------------------------------------------
+CoffeeScript                  1828                 81569
+CSS                              9                 76632
+Stylus                         577                 32324
+JavaScript                     274                 18310
+JSON                            30                  6145
+Markdown                        41                  1097
+HTML                             3                    25
+XML                              3                    24
+--------------------------------------------------------
+SUM:                          2765                216126
+--------------------------------------------------------
+</code></pre>
+
+<p>216k+ LOC, spread across multiple languages and formats. Given finite resources and a small team rebuilds can be difficult to execute, and so we had to figure out a way to marry the old with the new while also maintaining backwards compatibility / interoperability. Out of this exercise came a few patterns, libraries and projects that I would like to describe in an effort to help those caught in similar situations.</p>
+
+<a name="Step.1:.Get.Your.House..aka.Compiler..in.Order"></a>
+<h2>Step 1: Get Your House (aka Compiler) in Order</h2>
+
+<p><a href="https://babeljs.io/">Babel</a> has been around for a while, but lately their team has been putting effort into making it as easy as possible to use. By dropping a <a href="https://github.com/artsy/force/blob/master/.babelrc">.babelrc</a> file into the root of your project, server and client-side JavaScript can share the same configuration, including <a href="https://github.com/tleunen/babel-plugin-module-resolver">module resolution</a> (aka, no more <code>../../../</code>).</p>
+
+<p>A simplified example:</p>
+
+<pre><code class="json">// .babelrc
+
+{
+  "presets": ["es2015", "react", "stage-3"],
+  "plugins": [
+    ["module-resolver", {
+      "root": ["./"]
+    }]
+  ]
+}
+</code></pre>
+
+<pre><code class="js">// index.js
+
+require('coffee-script/register')
+require('babel-core/register')
+
+// Start the app
+require('./boot')
+</code></pre>
+
+<p>On the client, we use <a href="http://browserify.org/">Browserify</a> with <a href="https://github.com/substack/coffeeify">Coffeeify</a> and <a href="https://github.com/babel/babelify">Babelify</a>:</p>
+
+<pre><code class="json">// package.json
+
+{
+  "scripts": {
+    "assets": "browserify -t babelify -t coffeeify -o bundle.js",
+    "start": "yarn assets &amp;&amp; node index.js"
+  }
+}
+</code></pre>
+
+<p>And then boot it up:
+<code>sh
+$ yarn start
+</code></p>
+
+<p>By adding just a few lines, our existing CoffeeScript pipeline was augmented to support modern JavaScript on both the server and the client, with code that can be shared between.</p>
+
+<a name="Step.2:.Tune-up.Iteration.Time"></a>
+<h2>Step 2: Tune-up Iteration Time</h2>
+
+<p>A question that every developer should ask of their stack is:</p>
+
+<blockquote><p>"How long does it take for me to make a change and see that change reflected in a running process?"</p></blockquote>
+
+<p>Does your code take one second to compile, or ten? When writing a back-end service, does your server <a href="https://github.com/remy/nodemon">automatically restart</a> after you make a change, or do you need to <code>ctrl+c</code> (stop it) and then restart manually?</p>
+
+<p>For those of us working in Force, the bottleneck typically involved making changes to back-end code. Due to how we organize our sub-apps, client-side code compilation -- after the server heats up -- is pretty much instant, but that heat-up time can often take a while depending on which app we're working on. So even with a "restart on code change" setup that listens for updates it still felt terribly slow, and this iteration time would often discourage developers from touching certain areas of the codebase. We needed something better!</p>
+
+<p>Enter Webpack and React, which helped popularize the concept of HMR, or "Hot Module Replacement".</p>
+
+<p>From the Webpack docs:</p>
+
+<blockquote><p>"Hot Module Replacement (HMR) exchanges, adds, or removes modules while an application is running, without a full reload."</p></blockquote>
+
+<p>That's more like it! But is there anything similar for the server given we don't use Webpack? This was the question <a href="https://github.com/alloy">@alloy</a>, one of our Engineering Leads, asked himself while researching various setups that ultimately led to <a href="https://github.com/artsy/reaction">Reaction</a>, and for which he found an answer to in Glen Mailer's excellent <a href="https://github.com/glenjamin/ultimate-hot-reloading-example">ultimate-hot-reloading-example</a>. Digging into the code, <a href="https://github.com/glenjamin/ultimate-hot-reloading-example/blob/master/server.js#L38-L45">this little snippet</a> jumped out:</p>
+
+<pre><code class="js">watcher.on('ready', function() {
+  watcher.on('all', function() {
+    console.log("Clearing /server/ module cache from server");
+    Object.keys(require.cache).forEach(function(id) {
+      if (/[\/\\]server[\/\\]/.test(id)) delete require.cache[id];
+    });
+  });
+});
+</code></pre>
+
+<p>The code seemed simple enough -- on change, iterate through Node.js's internal require cache, look for the changed module, and clear it out. When the module is <code>require</code>'d at a later point it will be like it was required for the first time, effectively hot-swapping out the code.</p>
+
+<p>With this knowledge we wrapped a modified version of this snippet into <a href="https://github.com/artsy/express-reloadable">@artsy/express-reloadable</a>, a small utility package meant to be used with Express.</p>
+
+<p>Here's a full example:</p>
+
+<pre><code class="js">import express from 'express'
+import { createReloadable, isDevelopment } from '@artsy/express-reloadable'
+
+const app = express()
+
+if (isDevelopment) {
+
+  // Pass in app and current `require` context
+  const reloadAndMount = createReloadable(app, require)
+
+  // Note that if you need to mount an app at a particular root (`/api`), pass
+  // in `mountPoint` as an option.
+  app.use('/api', reloadAndMount(path.resolve(__dirname, 'api'), {
+    mountPoint: '/api'
+  }))
+
+  // Otherwise, just pass in the path to the express app and everything is taken care of
+  reloadAndMount(path.resolve(__dirname, 'client'))
+} else {
+  app.use('/api', require('./api')
+  app.use(require('./client')
+}
+
+app.listen(3000, () =&gt; {
+  console.log(`Listening on port 3000`)
+})
+</code></pre>
+
+<p>In Force, we mounted this library <a href="https://github.com/artsy/force/blob/master/lib/setup.js#L205">at the root</a>, allowing us to make changes anywhere within our numerous sub-apps and with a fresh page reload instantly see those changes reflected without a restart. This approach also works great with API servers, as this implementation from Artsy's <a href="https://github.com/artsy/positron/blob/master/boot.js#L34">editorial app Positron</a> shows. Like magic, it "just works". Why isn't this trick more widely used and known?</p>
+
+<a name="Step.3:.The.View.Layer..or:.How.I.Stopped.Worrying.and.Learned.to.Love.Legacy.UI"></a>
+<h2>Step 3: The View Layer, or: How I Stopped Worrying and Learned to Love Legacy UI</h2>
+
+<p>This one was a bit tricky to solve, but ultimately ended up being fairly straightforward and conceptually simple. In Force, we've got dozens of apps built on top of hundreds of components supported by thousands of tests stretched across desktop and mobile. From the perspective of sheer code volume these things aren't going anywhere any time soon. On top of that, our view templates are built using Jade (now known as <a href="https://pugjs.org">Pug</a>), which supports an interesting form of inheritance known as <a href="https://pugjs.org/language/inheritance.html">blocks</a>. What this means in practice is our UI has been extended in a variety of complex ways making alternative view engines difficult on the surface to interpolate.</p>
+
+<p>What to do? It's 2017 and the era of handlebars templates bound to Backbone MVC views is over. We want <a href="https://facebook.github.io/react/">React</a>! We want <a href="https://www.styled-components.com/">Styled Components</a>! And when those tools are surpassed by the Next Big Thing we want that too! But we also want our existing CoffeeScript and Jade and old-school <code>Backbone.View</code>s as well.</p>
+
+<p>Thinking through this problem, <a href="https://github.com/artsy/stitch">@artsy/stitch</a> was born.</p>
+
+<p>Stitch helps your Template and Component dependencies peacefully co-exist. You feed it a layout and some data and out pops a string of compiled html that can be passed down to the client. "Blocks" can be added that represent portions of UI, injected by key. It aims for maximum flexibility: templating engines supported by <a href="https://github.com/tj/consolidate.js">consolidate</a> can be installed and custom rendering engines <a href="https://github.com/artsy/stitch#custom-renderers">can be swapped out or extended</a>. With very little setup it unlocks UI configurations that have been lost to time.</p>
+
+<p>A basic example:</p>
+
+<p>
+```html</p>
+
+<div>
+  {{title}}
+</div>
+
+
+<pre><code>
+</code></pre>
+
+<p>const html = await renderLayout({
+  layout: 'templates/layout.handlebars',
+  data: {
+    title: 'Hello!'
+  }
+})</p>
+
+<p>console.log(html)</p>
+
+<p>// => Outputs:
+/*</p>
+
+<div>
+  Hello!
+</div>
+
+
+<p>*/
+```</p>
+
+<p>By adding "blocks" you can begin assembling (or adapting to) more complex layouts. Blocks represent either a path to a template or a component (with "component" meaning a React or <a href="https://preactjs.com">React-like</a> function / class component):</p>
+
+<p>
+```html
+// templates/layout.handlebars</p>
+
+<p><html>
+  <head>
+    <title>
+      {{title}}
+    </title>
+  </head>
+  <body
+    {{{body}}}
+  </body>
+</html>
+```
+</p>
+
+<pre><code class="js">// index.js
+
+const html = await renderLayout({
+  layout: 'templates/layout.handlebars',
+  data: {
+    title: 'Hello World!',
+  },
+  blocks: {
+    body: (props) =&gt; {
+      return (
+        &lt;h1&gt;
+          {props.title}
+        &lt;/h1&gt;
+      )
+    }
+  }
+})
+
+console.log(html)
+
+// =&gt; Outputs:
+/*
+&lt;html&gt;
+  &lt;head&gt;
+    &lt;title&gt;Hello World!&lt;/title&gt;
+  &lt;/head&gt;
+  &lt;body&gt;
+    &lt;h1&gt;
+      Hello World!
+    &lt;/h1&gt;
+  &lt;/body&gt;
+&lt;/html&gt;
+*/
+</code></pre>
+
+<p>In Force, we're using this to pattern to incrementally migrate portions of our app over to React, by taking existing block-based Jade layouts and injecting <code>ReactDOM.renderToString</code> output into them, and then rendering the layout into an HTML string that is passed down from the server and rehydrated on the client, isomorphically.</p>
+
+<p>Our existing Backbone views take advantage of the <code>templates</code> key:</p>
+
+<pre><code class="js">// server.js
+
+import LoginApp from 'apps/login/LoginApp'
+import { Provider } from 'react-redux'
+import { StaticRouter } from 'react-router'
+
+const html = await renderLayout({
+  layout: 'templates/layout.handlebars',
+  data: {
+    title: 'Login / Sign-up',
+  },
+  templates: {
+    login: 'templates/login.jade'
+  },
+  blocks: {
+    app: (props) =&gt; (
+      &lt;Provider store={store}&gt;
+        &lt;StaticRouter&gt;
+          &lt;LoginApp {...props} /&gt;
+        &lt;/StaticRouter&gt;
+      &lt;/Provider&gt;
+    )
+  }
+})
+
+res.send(html)
+</code></pre>
+
+<p>Similar to blocks, templates located in this object are pre-compiled and available to your components as <code>props.templates</code>.</p>
+
+<p>Once the html has been sent over the wire, we mount it like so:</p>
+
+<pre><code class="js">// client.js
+
+import LoginApp from 'apps/login/LoginApp'
+
+React.render(
+  &lt;LoginApp {...window.__BOOTSTRAP__} /&gt; // Data passed down from `data` key
+)
+</code></pre>
+
+<pre><code class="js">// apps/login/LoginApp.js
+
+import React from 'react'
+import Login from 'apps/login/Login'
+
+export default function LoginApp (props) {
+  const {
+    templates: {
+      login
+    }
+  } = props
+
+  return (
+    &lt;Login
+      template={login}
+    /&gt;
+  )
+}
+</code></pre>
+
+<p>During the server-side render phase existing template code will be rendered with the component, and once the component is mounted on the client <code>componentDidMount</code> will fire and the Backbone view instantiated:</p>
+
+<p>
+```js
+// apps/login/Login.js</p>
+
+<p>import React, { Component } from 'react'
+import LoginBackboneView from 'apps/login/views/LoginView'</p>
+
+<p>export default class Login extends Component {
+  componentDidMount () {
+    this.loginView = new LoginBackboneView()
+    this.loginView.render()
+  }</p>
+
+<p>  componentWillUnmount () {
+    this.loginView.remove()
+  }</p>
+
+<p>  render () {
+    return (
+      <div>
+        <div dangerouslySetInnerHtml={{
+          __html: this.props.template
+        }}>
+      </div>
+    )
+  }
+}
+```
+</p>
+
+<p>All of the possibilities that Stitch provides are too numerous to go over here, but check out the <a href="https://github.com/artsy/stitch#usage">documentation</a> and <a href="https://github.com/artsy/stitch/tree/master/examples">example apps</a> for more complete usage. While new, this pattern has worked quite well for us and has allowed Force to evolve alongside existing code with very little friction.</p>
+
+<a name="Moving.Forward"></a>
+<h2>Moving Forward</h2>
+
+<p>A common thread that connects <a href="https://github.com/artsy/force">Force</a> to <a href="https://github.com/artsy/eigen">Eigen</a> (Artsy's mobile app) is an understanding that while grand re-writes will gladly remove technical debt, technical debt is not our issue. A lot of the patterns we've laid down within our apps still work for us, and many of our implementations remain sufficient to the task. What we needed was an environment where <em>incremental revolution</em> was possible, where old ideas could merge with new and evolve. In terms of Eigen, we felt the best way forward was the adoption of <a href="https://facebook.github.io/react-native/">React Native</a> -- and <a href="https://github.com/artsy/emission">Emission</a> was born. Likewise, for our web and web-based mobile apps, <a href="https://github.com/artsy/reaction">Reaction</a> is serving a similar role. Both of these projects are built with <a href="https://www.typescriptlang.org/">TypeScript</a>, and both rely heavily on functionality that our <a href="http://graphql.org/">GraphQL</a> interface <a href="https://github.com/artsy/metaphysics">Metaphysics</a> provides. But crucially, these projects <em>augment</em> our existing infrastructure; they don't replace it. They fit in with existing ideas, tools and processes that have facilitated Artsy's growth, including highly-specific domain knowledge that our engineers have built up over time.</p>
+
+<p>In conclusion, I hope this post has provided a bit of a window into some of our processes here at Artsy for those facing similar challenges. For those wanting to take a deeper dive, check out the links below:</p>
+
+<ul>
+<li>https://github.com/artsy/express-reloadable</li>
+<li>https://github.com/artsy/stitch</li>
+<li>https://github.com/artsy/reaction</li>
+<li>https://github.com/artsy/emission</li>
+</ul>
+
 ]]></content>
   </entry>
   
@@ -1494,298 +1854,6 @@ $ tree .
 <p>For us, React Native is a well thought out library, that can really help build better products when you understand the right way to apply it. It can help you be cross-platform on mobile, but also cross-platform with the web. For example, our React Native project has a sibling project on the web with the <a href="https://github.com/artsy/reaction">exact same setup</a>, so any improvements in one move to the other. Which was unimaginable 2 years ago. We can truly consider sharing logic and ideas with the web.</p>
 
 <p>If you're considering a new app, or a grand re-write, React Native should be considered as one of your options.</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Relay Mutations]]></title>
-    <link href="http://artsy.github.io/blog/2017/04/26/Relay-Mutations/"/>
-    <updated>2017-04-26T00:00:00+00:00</updated>
-    <id>http://artsy.github.io/blog/2017/04/26/Relay-Mutations</id>
-    <content type="html"><![CDATA[<blockquote><p>Hey there everyone, it took us two years to <a href="https://github.com/artsy/metaphysics/pull/583">make our</a> GraphQL implementation support any mutations. We opted to keep it read-only for quite a long time because we use GraphQL to consolidate multiple APIs, but as we start new projects as GraphQL + databases then understanding mutations becomes much more important.</p>
-
-<p>Last month, I talked with the team at <a href="https://www.graph.cool/">Graph.cool</a> about having them talk through Relay mutations comprehensively as a guest post on the Artsy Engineering blog. So, I'm really excited to introduce this great post on the topic by <a href="http://twitter.com/nikolasburk">Nikolas Burk</a>.</p>
-
-<p>-- Orta</p></blockquote>
-
-<a name="The.Magic.behind.Relay.Mutations"></a>
-<h1>The Magic behind Relay Mutations</h1>
-
-<p><a href="https://facebook.github.io/relay/">Relay</a> is a powerful GraphQL client for React and React Native applications. It was open sourced by Facebook alongside GraphQL in 2015 and is a great tool for supporting you with managing your app's data layer.</p>
-
-<p>In this post, we are going to explore how Relay mutations work by looking at a React Native app. The code can be found on <a href="https://github.com/graphcool-examples/react-native-relay-pokedex-example">GitHub</a>. Our sample application is a simple <em>Pokedex</em>, where users can manage their Pokemons.</p>
-
-<p><img src="http://i.imgur.com/S21GfEo.png" alt="" /></p>
-
-<blockquote><p>Note: We're going to assume a basic familiarity with GraphQL in this article. If you haven't heard of GraphQL before, the <a href="www.graphql.org">documentation</a> and the <a href="http://artsy.github.io/blog/2016/06/19/graphql-for-mobile/">GraphQL for iOS Developers</a> post are great places to start. If you're interested in learning more about Relay in general, head over to <a href="www.learnrelay.org">Learn Relay</a> for a comprehensive tutorial.</p></blockquote>
-
-<!-- more -->
-
-
-<p>If you want to run the example with your own GraphQL server, you can use <a href="https://www.graph.cool/graphql-up/">graphql-up</a> to quickly spin one up yourself from within your browser. Simply click the pink button and follow the instructions on the website.</p>
-
-<p><a href="https://www.graph.cool/graphql-up/new?source=https://raw.githubusercontent.com/graphcool-examples/react-native-relay-pokedex-example/master/pokedex.schema"><img src="http://static.graph.cool/images/graphql-up.svg" alt="graphql-up" /></a></p>
-
-<a name="Relay.-.A.brief.Overview"></a>
-<h2>Relay - A brief Overview</h2>
-
-<p>Relay is the most sophisticated GraphQL client available at the moment. Like GraphQL, it has been used and battle-tested internally by Facebook for many years before it was open sourced.</p>
-
-<p>Relay surely isn't the easiest framework to learn - but when used correctly, it takes care of managing large parts of your app's data layer in a consistent and reliable manner! It therefore is particularly well-suited for complex applications with lots of data interdependencies and provides outstanding longterm developer productivity.</p>
-
-<a name="Declarative.API.and.Colocation"></a>
-<h3>Declarative API and Colocation</h3>
-
-<p>With Relay, React components specify their data requirements in a declarative fashion, making use of GraphQL <em>fragments</em>.</p>
-
-<blockquote><p>A <a href="https://learngraphql.com/basics/fragments">GraphQL fragment</a> is a selection of fields on a GraphQL type. You can use them to define <em>reusable sub-parts</em> of queries or mutations.</p></blockquote>
-
-<p>Considering the <code>PokemonDetails</code> view above, we need to display the Pokemon's name and image. The fragment that represents these data requirements looks as follows:</p>
-
-<pre><code>fragment PokemonDetails on Node {
-  ... on Pokemon {
-    id
-    name
-    url
-  }
-}
-</code></pre>
-
-<p>Note that the <code>id</code> is required so that Relay can identify the objects in the cache, so it's included in the payload as well (even if it's not displayed on the UI).</p>
-
-<p>These fragments are kept in the same file as the React component, so UI and data requirements are <em>colocated</em>. Relay then uses a <a href="https://facebook.github.io/react/docs/higher-order-components.html">higher-order component</a> called <a href="https://facebook.github.io/relay/docs/guides-containers.html#content"><code>Relay.Container</code></a>, to wrap the component along with its data requirements. From this point, the developer doesn't have to worry about the data any more! It will be fetched behind the scenes and is made available to the component via its props.</p>
-
-<a name="Build-time.Schema.Validation"></a>
-<h3>Build-time Schema Validation</h3>
-
-<p>Another great feature of Relay that ensures developer productivity is  <em>schema validation</em>. At build time, Relay checks your GraphQL queries, fragments and mutations to ensure their compatibility with the GraphQL API. It is thus able to catch any typos or other schema-related errors before you run (or even worse: deploy) your app, saving your users from unpleasant experiences. Note that the schema validation step requires a <a href="https://facebook.github.io/relay/docs/guides-babel-plugin.html">Babel Relay Plugin</a>.</p>
-
-<a name="Mutations.in.Relay"></a>
-<h2>Mutations in Relay</h2>
-
-<a name="GraphQL.Recap"></a>
-<h3>GraphQL Recap</h3>
-
-<p>In GraphQL, a <em>mutation</em> is the only way to create, update or delete data on the server - they effectively are the GraphQL abstraction for <em>changing state</em> in your backend.</p>
-
-<p>As an example, creating a new Pokemon in our sample app uses the following mutation:</p>
-
-<pre><code>mutation CreatePokemon($name: String!, $url: String!) {
-  createPokemon(input: {
-    name: $name,
-    url: $url
-  }) {
-    # payload of the mutation (will be returned by the server)
-    pokemon {
-      id 
-    }
-  }
-}
-</code></pre>
-
-<p>Notice that mutations, similar to queries, also require a <em>payload</em> to be specified. This payload represents the information that we'd like to have returned from the server after the mutation was performed. In the above example, we're asking for the <code>id</code> of the new <code>pokemon</code>.</p>
-
-<a name="The.Magic:.Declarative.Mutations....."></a>
-<h3>The Magic: Declarative Mutations 🔮</h3>
-
-<p>Relay doesn't (yet) give the developer the ability to manually modify the data that it stores internally. Instead, with every change, it requires a declarative <em>description</em> of how the local cache should be updated after the change happened in the form of a <a href="https://facebook.github.io/relay/docs/guides-mutations.html#content">mutation</a> and then takes care of the update under the hood.</p>
-
-<p>The description is provided by subclassing <code>Relay.Mutation</code> and implementing (at least) four methods that help Relay to properly update the local store:</p>
-
-<ul>
-<li><code>getMutation()</code>: the name of the mutation (from the GraphQL schema)</li>
-<li><code>getVariables()</code>: the input variables for the mutation</li>
-<li><code>getFatQuery()</code>: a GraphQL query that fetches all data that potentially was changed due to the mutation</li>
-<li><code>getConfigs()</code>: a precise specification how the mutation should be incorporated into the cache</li>
-</ul>
-
-
-<p>In the following, we'll take a deeper look at the different kinds of mutations in our sample app, which are used for creating, updating and deleting Pokemons.</p>
-
-<blockquote><p>Note: We're using the <a href="https://www.graph.cool/docs/reference/relay-api/overview-aizoong9ah">Graphcool Relay API</a> for this example. If you used <code>graphql-up</code> to create your own backend, you can explore the API by pasting the endpoint for the Relay API into the address bar of a browser.</p></blockquote>
-
-<a name="Creating.a.new.Pokemon:..code.RANGE_ADD..code."></a>
-<h3>Creating a new Pokemon: <code>RANGE_ADD</code></h3>
-
-<p><img src="http://i.imgur.com/yskx5KU.png" alt="" /></p>
-
-<p>Let's walk through the different methods and understand what information we have to provide so that Relay can successfully merge the newly created Pokemon into its store.</p>
-
-<p>The first two methods, <code>getMutation()</code> and <code>getVariables()</code> are relatively obvious and can be retrieved directly from the documentation where the API is described.</p>
-
-<p>The implementations look as follows:</p>
-
-<pre><code class="js">getMutation() {
-  return Relay.QL`mutation { createPokemon }`
-}
-
-getVariables() {
-  return {
-    name: this.props.name,
-    url: this.props.url,
-  }
-}
-</code></pre>
-
-<p>Notice that the <code>props</code> of a <code>Relay.Mutation</code> are passed through its constructor. Here, we simply provide the <code>name</code> and the <code>url</code> of the Pokemon that is to be created.</p>
-
-<p>Now, on to the interesting parts. In <code>getFatQuery()</code>, we need to specify the parts that might change due to the mutation. Here, we simply specify the <code>viewer</code>:</p>
-
-<pre><code class="js">getFatQuery() {
-  return Relay.QL`
-    fragment on CreatePokemonPayload {
-      viewer {
-        allPokemons
-      }
-    }
-  `
-}
-</code></pre>
-
-<p>Notice that <em>every</em> subfield of <code>allPokemons</code> is also automatically included with this approach. In our example app, <code>allPokemons</code> is the only point we expect to change after our mutation is performed.</p>
-
-<p>Finally, in <code>getConfigs()</code>, we need to specify the <a href="https://facebook.github.io/relay/docs/guides-mutations.html#mutator-configuration">mutator configurations</a>, telling Relay exactly how the new data should be incorporated into the cache. This is where the magic happens:</p>
-
-<pre><code class="js">getConfigs() {
-  return [{
-    type: 'RANGE_ADD',
-    parentName: 'viewer',
-    parentID: this.props.viewerId,
-    connectionName: 'allPokemons',
-    edgeName: 'edge',
-    rangeBehaviors: {
-      '': 'append'
-    }
-  }]
-}
-</code></pre>
-
-<p>We first express that we want to <em>add</em> the node using <code>RANGE_ADD</code> for the <code>type</code> (there are 5 different types in total).</p>
-
-<p>Relay internally represents the stored data as a graph, so the remaining information expresses where exactly the new node should be hooked into the existing structure.</p>
-
-<p>Let's consider the shape of the data before we move on:</p>
-
-<pre><code>viewer {
-  allPokemons {
-    edges {
-      node {
-        id
-        name
-      }
-    }
-  }
-}
-</code></pre>
-
-<p>Here we clearly see the direct connection between <code>viewer</code> and the Pokemons goes through <code>allPokemons</code> <em>connection</em>, so the <em>parent</em> of the new Pokemon is the <code>viewer</code>. The name of that connection is <code>allPokemons</code>, and lastly the <code>edgeName</code> is taken from the payload of the mutation.</p>
-
-<p>The last piece, <code>rangeBehaviors</code>, specifies whether we want to <em>append</em> or <em>prepend</em> the new node.</p>
-
-<p>Executing the mutation is as simple as calling <code>commitUpdate</code> on the <code>relay</code> prop that's injected to each component being wrapped with a <code>Relay.Container</code>. An instance of the mutation and the expected variables are passed as arguments to the constructor:</p>
-
-<pre><code class="js">_sendCreatePokemonMutation = () =&gt; {
-  const createPokemonMutation = new CreatePokemonMutation({
-    viewerId: this.props.viewer.id,
-    name: this.state.pokemonName,
-    url: this.state.pokemonUrl,
-  })
-  this.props.relay.commitUpdate(createPokemonMutation)
-}
-</code></pre>
-
-<a name="Updating.a.Pokemon:..code.FIELDS_CHANGE..code."></a>
-<h3>Updating a Pokemon: <code>FIELDS_CHANGE</code></h3>
-
-<p>Like with creating a Pokemon, <code>getMutation()</code> and <code>getVariables()</code> are trivial to implement and can be derived directly from the API documentation:</p>
-
-<pre><code class="js">getMutation() {
-  return Relay.QL`mutation { updatePokemon }`
-}
-
-getVariables() {
-  return {
-    id: this.props.id,
-    name: this.props.name,
-    url: this.props.url,
-  }
-}
-</code></pre>
-
-<p>In <code>getFatQuery()</code>, we only include the <code>pokemon</code> which includes the updated info this time, since that is the only part we expect to change after our mutation:</p>
-
-<pre><code class="js">getFatQuery() {
-  return Relay.QL`
-    fragment on UpdatePokemonPayload {
-      pokemon
-    }
-  `
-}
-</code></pre>
-
-<p>Finally, <code>getConfigs()</code>, this time specifies a mutator configuration of type <code>FIELDS_CHANGE</code> since we're only updating properties on a single Pokemon:</p>
-
-<pre><code class="js">getConfigs() {
-  return [{
-    type: 'FIELDS_CHANGE',
-    fieldIDs: {
-      pokemon: this.props.id,
-    }
-  }]
-}
-</code></pre>
-
-<p>As sole additional piece of info, we declare the ID of the Pokemon that is being updated so that Relay has this information available when receiving the new Pokemon data.</p>
-
-<a name="Deleting.a.Pokemon:..code.NODE_DELETE..code."></a>
-<h3>Deleting a Pokemon: <code>NODE_DELETE</code></h3>
-
-<p>As before, <code>getMutation()</code> and <code>getVariables()</code> are self-explanatory:</p>
-
-<pre><code class="js">getMutation() {
-  return Relay.QL`mutation { deletePokemon }`
-}
-
-getVariables() {
-  return {
-    id: this.props.id,
-  }
-}
-</code></pre>
-
-<p>Then, in <code>getFatQuery()</code>, we need to retrieve the <code>pokemon</code> from the mutation payload:</p>
-
-<pre><code class="js">getFatQuery() {
-  return Relay.QL`
-    fragment on DeletePokemonPayload {
-      pokemon
-    }
-  `
-}
-</code></pre>
-
-<p>In <code>getConfigs()</code>, we're getting to know another mutator configuration type called <code>NODE_DELETE</code>. This one requires a <code>parentName</code> as well as a <code>connectionName</code>, both coming from the mutation payload and specifying where that node existed in Relay's data graph. Another requirement, that is specifically relevant for the implementation of a GraphQL server, is that the mutation payload of a deleting mutation always needs to return the <code>id</code> of the deleted node so that Relay can find that node in its store. Taking all of this together, our implementation of <code>getConfigs()</code> can be written like so:</p>
-
-<pre><code class="js">getConfigs() {
-  return [{
-    type: 'NODE_DELETE',
-    parentName: 'pokemon',
-    connectionName: 'edge',
-    deletedIDFieldName: 'deletedId'
-  }]
-}
-</code></pre>
-
-<a name="Wrapping.Up"></a>
-<h2>Wrapping Up</h2>
-
-<p>Relay has a lot of benefits that make it a very compelling framework to use for state management and interaction with GraphQL APIs. Its major strengths are a highly optimized cache, thoughtful UI integration as well as the declarative API for data fetching and mutations.</p>
-
-<p>The initial version of Relay came with a notable learning curve due to lots of magic happening behind the scenes. However, Facebook recently released the first release candidates of <a href="https://github.com/facebook/relay/releases/">Relay v1.0.0</a> (<em>Relay Modern</em>) with the <a href="https://code.facebook.com/posts/1362748677097871">goal of making Relay generally more approachable</a>.</p>
-
-<p>It's worth noting that Relay isn't the only available GraphQL client. Apollo Client is a great alternative which is a lot easier to get started with. <a href="https://www.graph.cool/docs/tutorials/relay-vs-apollo-iechu0shia/">For a detailed comparison please refer to this article.</a></p>
-
-<p>If you want to learn more about GraphQL and want to stay up-to-date with the latest news of the GraphQL community, subscribe to <a href="https://graphqlweekly.com/">GraphQL Weekly</a>.</p>
 ]]></content>
   </entry>
   
