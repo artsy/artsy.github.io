@@ -351,7 +351,7 @@ A common thread that connects [Force](https://github.com/artsy/force) to [Eigen]
 
 In conclusion, I hope this post has provided a bit of a window into some of our processes here at Artsy for those facing similar challenges. If you want to take a deeper dive, check out the links below:
 
-- https://github.com/artsy/express-reloadable
-- https://github.com/artsy/stitch
-- https://github.com/artsy/reaction
-- https://github.com/artsy/emission
+- [express-reloadable](https://github.com/artsy/express-reloadable)
+- [stitch](https://github.com/artsy/stitch)
+- [reaction](https://github.com/artsy/reaction)
+- [emission](https://github.com/artsy/emission)
