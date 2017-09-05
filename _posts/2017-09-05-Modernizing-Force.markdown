@@ -3,7 +3,7 @@ layout: epic
 title: Modernizing Force
 comments: true
 comment_id: 385
-date: 2017-08-29
+date: 2017-09-05
 categories: [force, reaction, emission, javascript, typescript, react, babel, styled-components]
 author: chris
 ---
