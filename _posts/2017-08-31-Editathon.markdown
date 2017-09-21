@@ -2,7 +2,7 @@
 layout: epic
 title: Art + Feminism and Artsy Wikipedia/Wikidata Editathon
 date: 2017-08-31
-categories: [Technology, emission, reaction, react-native, react, javascript]
+categories: [writing, culture, workshop]
 css: editathon
 author: [orta, roop]
 ---

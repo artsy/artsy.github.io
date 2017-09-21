@@ -2,7 +2,7 @@
 layout: epic
 title: Intro to React Native for an iOS Developer
 date: 2017-07-06
-categories: [Technology, emission, reaction, react-native, react, javascript]
+categories: [Technology, emission, reaction, reactnative, react, javascript]
 author: orta
 series: React Native at Artsy
 css: what-is-react-native
