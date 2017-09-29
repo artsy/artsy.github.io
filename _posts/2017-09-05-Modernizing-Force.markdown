@@ -243,7 +243,7 @@ console.log(html)
 */
 ```
 
-In Force, we're using this to pattern to incrementally migrate portions of our app over to React, by taking existing block-based Jade layouts and injecting `ReactDOM.renderToString` output into them, and then rendering the layout into an HTML string that is passed down from the server and rehydrated on the client, isomorphically.
+In Force, we're using this pattern to incrementally migrate portions of our app over to React, by taking existing block-based Jade layouts and injecting `ReactDOM.renderToString` output into them, and then rendering the layout into an HTML string that is passed down from the server and rehydrated on the client, isomorphically.
 
 Our existing Backbone views take advantage of the `templates` key:
 
