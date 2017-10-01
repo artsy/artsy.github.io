@@ -317,7 +317,7 @@ react-native init TrendingArtists
 
 <p>Next up we're going to make the initial project and look around, so once all the installing has finished. You can follow along with the next section.</p>
 
-<p>If the command `react-native` isn't working, <a href='https://github.com/keitaito'>@keitaito</a> has some useful advice in the [comments](#comments).</p>
+<p>If the command `react-native` isn't working, <a href='https://github.com/keitaito'>@keitaito</a> has some useful advice in the <a href='#comments'>comments</a>.</p>
 
 </div>
 </article>
