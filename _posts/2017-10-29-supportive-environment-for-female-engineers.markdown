@@ -1,7 +1,7 @@
 ---
 layout: epic
 title: "What it Feels Like to Work in a Supportive Environment for Female Engineers"
-date: 2017-10-29
+date: 2017-09-29
 categories: [culture, teams, people]
 author: [xtina]
 ---
