@@ -51,7 +51,7 @@ To address this problem we've created a separate _Platform Engineering Team_ and
 
 The Platform Engineering Team is responsible for systems and shared infrastructure that help product teams work smarter, scale our operations, and much more. Our _Design_ team is similar in nature to Platform Engineering, creating a consistent visual language and user experience across all products.
 
-Our _Practices_, specifically _Web_ and _Mobile_, are run by a handful of experienced Engineers working independently and floating between product teams to build features, while evangelizing best practices of making software or our [commitment to open-source](http://artsy.github.io/open-source) at the same time. Engineerers on product teams may also belong to a practice - mobile engineers on the Auctions team are members of the Mobile practice, but don't report to the Director of Mobile.
+Our _Practices_, specifically _Web_ and _Mobile_, are run by a handful of experienced Engineers working independently and floating between product teams to build features, while evangelizing best practices of making software or our [commitment to open-source](http://artsy.github.io/open-source) at the same time. Engineers on product teams may also belong to a practice - mobile engineers on the Auctions team are members of the Mobile practice, but don't report to the Director of Mobile.
 
 ## Reporting Structure
 

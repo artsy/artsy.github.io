@@ -1,14 +1,14 @@
 [![Build Status](https://travis-ci.org/artsy/artsy.github.io.svg)](https://travis-ci.org/artsy/artsy.github.io)
 
-The Artsy OSS page and the blog run on top of a default jekyll install. If you'd like an overview of jekyll their [website rocks](http://jekyllrb.com/).
+The Artsy OSS page and the blog runs on top of a default jekyll install. If you would like an overview of jekyll their [website rocks](http://jekyllrb.com/).
 
 ## Setup
 
 ```
   git clone git@github.com:artsy/artsy.github.io.git
   cd artsy.github.io
-  rake bootstrap
-  rake build
+  bundle exec rake bootstrap
+  bundle exec rake build
 ```
 
 ## Running the OSS Site / Blog locally
@@ -16,18 +16,18 @@ The Artsy OSS page and the blog run on top of a default jekyll install. If you'd
 Running `rake serve` will _not_ generate category pages. They take a _long_ time to generate. No one wants that when working on the site.
 
 ```
-  rake serve
+  bundle exec rake serve
 ```
 
 Categories are generated when the ENV var `PRODUCTION` = `"YES"`.
 
 ## Deploying
 
-Travis CI will automatically deploy when new commits are pushed to the `source` branch, so you shouldn't need to deploy from your local computer. However, if you need to deploy locally, the `rake deploy` command is available. 
+Travis CI will automatically deploy when new commits are pushed to the `source` branch, so you should not need to deploy from your local computer. However, if you need to deploy locally, the `rake deploy` command is available.
 
 ## Adding an Author
 
-Authors are key-value stored, so you'll need to give yourself a key inside [_config.yml](_config.yml) - for example:
+Authors are key-value stored, so you will need to give yourself a key inside [_config.yml](_config.yml) - for example:
 
 ```yaml
   joey:
@@ -42,7 +42,7 @@ Everything but name is optional.
 ## Authoring an Article
 
 TLDR
-_To generate a new post, create a new file in the `_posts` directory. Be sure to add your name as the author of the post and include a couple of categories to file the post under. Here's some sample header YAML:_
+_To generate a new post, create a new file in the `_posts` directory. Be sure to add your name as the author of the post and include several categories to file the post under. Here is a sample header YAML:_
 
 ```yaml
 ---

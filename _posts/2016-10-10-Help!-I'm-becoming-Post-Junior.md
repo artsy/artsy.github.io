@@ -24,7 +24,7 @@ Key point:
 We measure your career stage by your **impact** at Artsy, this is initially on the products you’re working on, but eventually moves out to the culture and the business:
 
 - **Engineer 1** - Can ship a well defined product feature.
-- **Engineer 2** - Can independently own a product features and can handle the communication with others around it.
+- **Engineer 2** - Can independently own a product feature and can handle the communication with others around it.
 - **Engineer 3** - Can handle a suite of features, and broadly contribute within a domain. Can improve company culture.
 - **Engineer 4** - Can improve and be a multiplier on other people’s work, can anticipate larger trends and affect culture to avoid or steer in that direction.
 - **Engineer 5** - Defines technical culture, works on impacting all parts of our businesses and creates new opportunities for the company.

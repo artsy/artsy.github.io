@@ -88,33 +88,23 @@ module Jekyll
   # Adds some extra filters used during the series creation process.
   module Filters
 
-    # # Outputs a list of seriess as comma-separated <a> links. This is used
-    # # to output the series list for each post on a series page.
-    # #
-    # #  +series+ is the list of series to format.
-    # #
-    # # Returns string
-    # #
+    # Takes a series name and returns a html anchor to link to it's index
     def series_link(series)
-          require 'pry'
-          binding.pry
-
-      dir = @context.registers[:site].config['series_dir']
-      "<a class='series' href='/#{dir}/#{series.gsub(/_|\P{Word}/, '-').gsub(/-{2,}/, '-').downcase}/'>#{item}</a>"
+      dir = "series"
+      "<a class='series' href='/#{dir}/#{to_series_id(series)}/'>#{series}</a>"
     end
 
-    # # Outputs the post.date as formatted html, with hooks for CSS styling.
-    # #
-    # #  +date+ is the date object to format as HTML.
-    # #
-    # # Returns string
-    # def date_to_html_string(date)
-    #   result = '<span class="month">' + date.strftime('%b').upcase + '</span> '
-    #   result += date.strftime('<span class="day">%d</span> ')
-    #   result += date.strftime('<span class="year">%Y</span> ')
-    #   result
-    # end
+    # Gets a series name, and pulls out a markdown header file
+    # returning either the rendered markdown, or an empty string
+    def series_bio(series)
+      bio_path = "_includes/_series_bio/#{to_series_id(series)}.md"
+      return "" unless File.exist?(bio_path)
+      markdownify(File.read(bio_path))
+    end
 
+    # Series Name -> Series ID for URLs
+    def to_series_id(series_name)
+      series_name.gsub(/_|\P{Word}/, '-').gsub(/-{2,}/, '-').downcase
+    end
   end
-
 end
