@@ -21,6 +21,7 @@ markdowns.each do |file|
   lines = File.read(file).lines
   lines.each do |l|
     avoid_exact_words.each do |avoid|
+      line = lines.index line
       warn(avoid[:reason], file: file, line: line) if l.include? avoid[:word]
     end
   end
