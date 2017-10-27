@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "Git reverts: rolling forward while rolling back"
+title: "Git Reverts: Rolling Forward While Rolling Back"
 date: 2017-10-26 14:18
 comments: true
 author: alan
