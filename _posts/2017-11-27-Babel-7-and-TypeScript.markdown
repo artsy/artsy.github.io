@@ -9,15 +9,15 @@ twitter-url: http://twitter.com/damassi
 categories: [Babel, TypeScript]
 ---
 
-At Artsy we <3 [TypeScript](https://www.typescriptlang.org/). We use it with React Native via [Emission](https://github.com/artsy/emission) and on the web via [Reaction](https://github.com/artsy/reaction). Increasingly we've been using it for other internal projects, too. Until recently, however, existing projects built on top of Babel had to implement convoluted tooling pipelines in order to work with the TypeScript compiler, increasing friction in an already complex landscape. Thankfully, those days [are over](https://github.com/babel/babel/tree/master/packages/babel-preset-typescript). Read on for an example project, as well as some advice on how to avoid common pitfalls when working with the new beta version of Babel 7.
+At Artsy we <3 [TypeScript](https://www.typescriptlang.org/). We use it with React Native via [Emission](https://github.com/artsy/emission) and on the web via [Reaction](https://github.com/artsy/reaction). Until recently, however, existing projects built on top of Babel had to implement convoluted tooling pipelines in order to work with the TypeScript compiler, increasing friction in an already complex landscape. Thankfully, those days [are over](https://github.com/babel/babel/tree/master/packages/babel-preset-typescript). Read on for an example project, as well as some advice on how to avoid common pitfalls when working with the new beta version of Babel 7.
 
 <!-- more -->
 
 Babel configurations can be complicated. They take time to set up and maintain and can often contain some pretty [far-out features](https://github.com/kentcdodds/babel-macros) that make interop with other environments difficult. That's why we were elated when [this PR](https://github.com/babel/babylon/pull/523) appeared in the wild from [@andy-ms](https://github.com/andy-ms), a developer on the TypeScript team, announcing a new parser for Babylon. [@babel/preset-typescript](https://github.com/babel/babel/tree/master/packages/babel-preset-typescript) arrived soon after and we felt it was finally time to give it a try. There was a catch, however: TypeScript support only works with Babel 7+!
 
-**TLDR; Check out https://github.com/damassi/babel-7-typescript-example for a fully working project that includes React, Jest and Enzyme.**
+**TLDR; Check out https://github.com/damassi/babel-7-typescript-example**
 
-And with that, here's list of setup issues we faced in no specific order:
+Here's list of setup issues we faced in no specific order:
 
 ### 1) New @babel Namespace
 
@@ -126,8 +126,7 @@ Maybe my `tsconfig.json` file is misconfigured?
 ```json
 {
   "compilerOptions": {
-    "module": "es2015",
-    ...
+    "module": "es2015"
   }
 }
 ```
@@ -230,7 +229,6 @@ Why is it TypeChecking my `node_modules` folder when `rootDirs` is set to `src`?
 ```json
 {
   "compilerOptions": {
-    ...
     "skipLibCheck": true
   }
 }
