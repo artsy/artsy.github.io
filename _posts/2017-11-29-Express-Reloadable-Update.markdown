@@ -13,7 +13,7 @@ In [Modernizing Force](artsy.github.io/blog/2017/09/05/Modernizing-Force/) we di
 
 It's common to share NPM packages across projects, and oftentimes packages are developed in parallel. Package `A` depends on `B`, but `B` has a bug and you don't want to have to republish (and reinstall) the package in order to see changes made locally. `yarn link` (or `npm link`) was developed for instances like this and while it works great for stop and start processes where boot time is quick, it falls short if the development environment takes a while to load. In UI-rich environments like [Positron](https://github.com/artsy/positron) (our Editorial "Writer" app) and [Force](https://github.com/artsy/force), each boot would come at a high time-cost due to upfront compilation of assets. Tools like [nodemon](https://github.com/remy/nodemon) would automatically stop and start our server process when assets changed but that still didn't alleviate slow iteration times.
 
-To recap from a [previous post](artsy.github.io/blog/2017/09/05/Modernizing-Force/), [@artsy/express-reloadable](https://github.com/artsy/express-reloadable) allows devs to immediately see changes to running Express.js app code:
+To recap from a [previous post](artsy.github.io/blog/2017/09/05/Modernizing-Force#iteration-time), [@artsy/express-reloadable](https://github.com/artsy/express-reloadable) allows devs to immediately see changes to running Express.js app code:
 
 ```javascript
 import express from 'express'
