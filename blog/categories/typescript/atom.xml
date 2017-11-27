@@ -4,7 +4,7 @@
   <title><![CDATA[Category: typescript | Artsy Engineering]]></title>
   <link href="http://artsy.github.io/blog/categories/typescript/atom.xml" rel="self"/>
   <link href="http://artsy.github.io/"/>
-  <updated>2017-11-05T19:06:16+00:00</updated>
+  <updated>2017-11-27T23:23:41+00:00</updated>
   <id>http://artsy.github.io/</id>
   <author>
     <name><![CDATA[]]></name>
@@ -12,6 +12,274 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Babel 7 + TypeScript]]></title>
+    <link href="http://artsy.github.io/blog/2017/11/27/Babel-7-and-TypeScript/"/>
+    <updated>2017-11-27T14:18:00+00:00</updated>
+    <id>http://artsy.github.io/blog/2017/11/27/Babel-7-and-TypeScript</id>
+    <content type="html"><![CDATA[<p>At Artsy we &lt;3 <a href="https://www.typescriptlang.org/">TypeScript</a>. We use it with React Native via <a href="https://github.com/artsy/emission">Emission</a> and on the web via <a href="https://github.com/artsy/reaction">Reaction</a>. Until recently, however, projects that required the use of Babel had to implement convoluted tooling pipelines in order to work with the TypeScript compiler, increasing friction in an already complex landscape. (An example of this is Emission's use of Relay, which requires <a href="https://facebook.github.io/relay/docs/babel-plugin-relay.html#setting-up-babel-plugin-relay">babel-plugin-relay</a> to convert <code>graphql</code> literals into require calls.) Thankfully, those days <a href="https://github.com/babel/babel/tree/master/packages/babel-preset-typescript">are over</a>. Read on for an example project, as well as some advice on how to avoid common pitfalls when working with the new beta version of Babel 7.</p>
+
+<!-- more -->
+
+
+<p>Babel configurations can be complicated. They take time to set up and maintain and can often contain some pretty <a href="https://github.com/kentcdodds/babel-macros">far-out features</a> that make interop with other environments difficult. That's why we were elated when <a href="https://github.com/babel/babylon/pull/523">this PR</a> appeared in the wild from <a href="https://github.com/andy-ms">@andy-ms</a>, a developer on the TypeScript team, announcing a new parser for Babylon. <a href="https://github.com/babel/babel/tree/master/packages/babel-preset-typescript">@babel/preset-typescript</a> arrived soon after and we felt it was finally time to give it a try. There was a catch, however: TypeScript support only works with Babel 7+!</p>
+
+<p><strong>TLDR; Check out https://github.com/damassi/babel-7-typescript-example</strong></p>
+
+<p>Here's list of setup issues we faced in no specific order:</p>
+
+<a name="L1..New..babel.Namespace"></a>
+<h2>1) New @babel Namespace</h2>
+
+<p>One of the first things Babel 7 users will notice is the package ecosystem now exists as a <a href="https://github.com/babel/babel/tree/master/packages">monorepo</a> and all NPM modules are namespaced behind the <code>@babel</code> org address. Packages that used to be installed via</p>
+
+<pre><code class="sh">yarn add -D \
+  babel-core \
+  babel-preset-react \
+  babel-preset-stage-3
+  ...
+</code></pre>
+
+<p>are now installed via
+<code>sh
+yarn add -D \
+  @babel/core \
+  @babel/preset-react \
+  @babel/preset-stage-3
+  ...
+</code>
+which immediately creates upgrade conflicts between libraries that use Babel 6 and Babel 7. For example, <code>babel-jest</code> internally points to <code>babel-core</code> which supports a <a href="https://github.com/facebook/jest/blob/master/packages/babel-jest/package.json#L19">version range between 6 and 7</a> -- but! -- <code>babel-core</code> is now <code>@babel/core</code> so this breaks.</p>
+
+<p>This wasn't immediately apparent at the time, and so we would often find errors like</p>
+
+<pre><code class="sh">Error: Could not find preset "@babel/env" relative to directory
+</code></pre>
+
+<p>These errors appeared ambiguous because the folder structure was correct and commands like <code>yarn list @babel/preset-env</code> yielded expected results:</p>
+
+<pre><code class="sh">└─ @babel/preset-env@7.0.0-beta.32
+✨  Done in 0.58s.
+</code></pre>
+
+<p>Why was the package not found? Digging deeper, it seemed like Babel 6 was still being used somewhere. Running <code>yarn list babel-core</code> revealed the culprit:</p>
+
+<pre><code class="sh">└─ babel-core@6.25.0
+✨  Done in 0.58s.
+</code></pre>
+
+<p>Thankfully, <a href="https://github.com/babel/babel-bridge">babel-bridge</a> exists to "bridge" the gap, but one can see how complications can and will arise. Further, not all packages have implemented this fix and so we had to rely on <code>yarn</code>'s new <a href="https://yarnpkg.com/lang/en/docs/selective-version-resolutions/">selective dependency resolution</a> feature which overrides child dependency versions with a fixed number set directly in <code>package.json</code>:</p>
+
+<pre><code class="json">"resolutions": {
+  "babel-core": "^7.0.0-bridge.0"
+},
+</code></pre>
+
+<p>With this in place many of our errors disappeared and packages like <code>jest</code> now worked like a charm.</p>
+
+<a name="L2..Missing.ES2015.Features"></a>
+<h2>2) Missing ES2015 Features</h2>
+
+<p>Another error we faced early on surrounded language features that worked with Babel <em>or</em> TypeScript, but not with Babel <em>and</em> TypeScript. For example, take an existing Babel project that points to <code>index.js</code> as an entrypoint, configure it to support TypeScript via Babel 7, and then run it:</p>
+
+<pre><code class="json">"scripts": {
+  "start": "babel-node index.js"
+}
+</code></pre>
+
+<pre><code class="js">// index.js
+require('@babel/register', {
+  extensions: ['.js', '.jsx', '.ts', '.tsx']
+})
+require('app/server.ts')
+</code></pre>
+
+<pre><code class="javascript">// app/server.ts
+console.log('hi!')
+</code></pre>
+
+<p>Running</p>
+
+<pre><code class="sh">yarn start
+$ babel-node index.js
+
+hi!
+✨  Done in 1.88s.
+</code></pre>
+
+<p>Everything seems to be working; our <code>.js</code> entrypoint is configured to support <code>.ts</code> extensions and we kick off the boot process.</p>
+
+<p>Let's now try to import a file from within <code>app/server.ts</code>:</p>
+
+<pre><code class="javascript">import path from 'path'
+console.log(`Hello ${path.resolve(process.cwd())}!`)
+</code></pre>
+
+<pre><code class="sh">yarn start
+$ yarn run v1.3.2
+$ babel-node index.js
+sites/src/index.tsx:1
+(function (exports, require, module, __filename, __dirname) { import path from 'path'
+                                                              ^^^^^^
+
+SyntaxError: Unexpected token import
+</code></pre>
+
+<p>Maybe my <code>tsconfig.json</code> file is misconfigured?</p>
+
+<pre><code class="json">{
+  "compilerOptions": {
+    "module": "es2015"
+  }
+}
+</code></pre>
+
+<p>Nope, all good. How about my <code>.babelrc</code>?</p>
+
+<pre><code class="json">{
+  "presets": [
+    ["@babel/env", {
+      "targets": {
+        "browsers": ["last 2 versions"]
+      }
+    }],
+    "@babel/stage-3",
+    "@babel/react",
+    "@babel/typescript"
+  ]
+}
+</code></pre>
+
+<p>We're using <a href="https://github.com/babel/babel/tree/master/packages/babel-preset-env"><code>@babel/preset-env</code></a> which handles selecting the JS features we need, so thats not it. And anyways, doesn't TypeScript support <code>ES2015</code> modules right out of the box?</p>
+
+<p>Continuing, how about specifying the extension list directly in <code>package.json</code>:</p>
+
+<pre><code class="json">"start": "babel-node --extensions '.ts,.tsx' index.js"
+</code></pre>
+
+<p>Still no go 🙁</p>
+
+<p>Last try: Create a new entrypoint file that uses a <code>.ts</code> extension and then use <em>that</em> to boot the rest of the app:</p>
+
+<pre><code class="json">"start": "babel-node --extensions '.ts,.tsx' index.ts"
+</code></pre>
+
+<pre><code class="javascript">// index.ts
+import './app/server'
+</code></pre>
+
+<pre><code class="sh">yarn start
+$ yarn run v1.3.2
+$ babel-node index.js
+Hello /sites!
+</code></pre>
+
+<p>Once this change was in place, we could ditch <code>@babel/register</code> and instead rely on the <code>--extensions</code> configuration from <code>package.json</code>, just like the <a href="https://github.com/babel/babel/tree/master/packages/babel-preset-typescript">README</a> suggests (doh! 🤦).</p>
+
+<p><strong>NOTE:</strong> If you're using <a href="https://github.com/tleunen/babel-plugin-module-resolver"><code>babel-plugin-module-resolver</code></a> to support absolute path imports make sure to update the <code>extensions</code> <a href="https://github.com/tleunen/babel-plugin-module-resolver#options">option</a> with <code>.ts</code> and <code>.tsx</code>.</p>
+
+<a name="L3..Type-Checking"></a>
+<h2>3) Type-Checking</h2>
+
+<p>Lastly, since Babel 7 is now responsible for compiling our TypeScript files we no longer need to rely on TypeScript's own <code>tsc</code> compiler to output JavaScript and instead just use it to type-check our code. Again, in <code>package.json</code>:</p>
+
+<pre><code>"type-check": "tsc"
+</code></pre>
+
+<p>This reads in settings located in <code>tsconfig.json</code>:
+<code>json
+{
+  "compilerOptions": {
+    "noEmit": true,
+    "pretty": true
+    ...
+  }
+}
+</code></p>
+
+<p>Notice the <code>noEmit</code> flag? That tells <code>tsc</code> not to output any JS and instead only check for correctness. The "pretty" flag gives us nicer type-checker output.</p>
+
+<p>While this seemed to be all that was needed, running <code>yarn type-check</code> would throw an error:</p>
+
+<pre><code>$ yarn type-check
+yarn run v1.3.2
+$ tsc
+
+node_modules/@types/jest/index.d.ts(1053,34): error TS2304: Cannot find name 'Set'.
+
+1053         onRunComplete?(contexts: Set&lt;Context&gt;, results: AggregatedResult): Maybe&lt;Promise&lt;void&gt;&gt;;
+                                      ~~~
+
+error Command failed with exit code 1.
+</code></pre>
+
+<p>Why is it TypeChecking my <code>node_modules</code> folder when <code>rootDirs</code> is set to <code>src</code>? It looks like we missed a TypeScript setting:</p>
+
+<pre><code class="json">{
+  "compilerOptions": {
+    "skipLibCheck": true
+  }
+}
+</code></pre>
+
+<p>With that last missing piece everything now works:</p>
+
+<pre><code class="sh">yarn type-check -w
+yarn run v1.3.2
+$ tsc -w
+
+src/index.tsx(5,7): error TS2451: Cannot redeclare block-scoped variable 'test'.
+
+5 const test = (foo: string) =&gt; foo
+        ~~~~
+
+src/index.tsx(6,6): error TS2345: Argument of type '2' is not assignable to parameter of type 'string'.
+
+6 test(2)
+       ~
+</code></pre>
+
+<p>Proper type-checking, but compilation handled by Babel 😎.</p>
+
+<a name="L4..TypeScript.and.Flow"></a>
+<h2>4) TypeScript and Flow</h2>
+
+<p>Unfortunately, the TypeScript and Flow plugins for Babel cannot be loaded at the same time, as there could be ambiguity about how to parse some code.</p>
+
+<p>This is usually ok, because the general advice is to compile your library code to vanilla JS before publishing (and thus strip type annotations), but there are packages that could still enable the Flow plugin.</p>
+
+<p>For example, <a href="https://github.com/babel/babel/pull/6118">the React Babel preset</a> in the past would enable the Flow plugin without really needing it for its own source, but just as a default for consumers of React.</p>
+
+<p>This issue cannot really be worked around without patching the code that loads the plugin. Ideally this patch would be sent upstream so that the issue goes away for everybody.</p>
+
+<p>This issue can be worked around by either eliminating the dependency on the preset that loads the plugin, for instance by depending on the individual plugins directly, or if that’s not possible by patching the code. Ideally that patch should go upstream, of course, but if you need something immediate then we highly recommend <a href="https://github.com/ds300/patch-package">patch-package</a>, as can be seen used in <a href="https://github.com/artsy/emission/pull/780/files#diff-29cf179661e0495e62e9cd67dd0307dd">this example</a>.</p>
+
+<p>There’s even projects that publish their Flow annotated code <em>without</em> compiling/stripping type annotations, the one we know of and use is <a href="https://github.com/facebook/react-native/issues/7850#issuecomment-225415645">React Native</a>. There’s no way around this other than patching the code. You may think that you could use a plugin like <a href="https://babeljs.io/docs/plugins/transform-flow-strip-types/">babel-plugin-transform-flow-strip-types</a>, but in reality that transform needs the Flow plugin to be able to do its work and thus is a no-go.</p>
+
+<p>The way we’ve worked around that is by <a href="https://github.com/artsy/emission/pull/780/files#diff-b9cfc7f2cdf78a7f4b91a753d10865a2R36">stripping Flow type annotations from <em>all</em> dependencies</a> at <a href="https://github.com/artsy/emission/pull/780/files#diff-b9cfc7f2cdf78a7f4b91a753d10865a2R39">dependency install time</a> using the <a href="https://github.com/flowtype/flow-remove-types"><code>flow-remove-types</code> tool</a>. It can get a little slow on many files which is why we do a bunch of filtering to only process files that have <code>@flow</code> directives, the downside is that some files don’t have directives like they should and so <a href="https://github.com/artsy/emission/pull/780/files#diff-d6d30dd9bd4cdb1ac0d1268937508814R65">we patch those to add them</a> using the aforementioned <a href="https://github.com/ds300/patch-package">patch-package</a>.</p>
+
+<a name="L5..Limitations.in.TypeScript.support"></a>
+<h2>5) Limitations in TypeScript support</h2>
+
+<p>It is important to note that you <em>may</em> run into a few cases that TypeScript’s Babel plugin does/can not support. From <a href="https://github.com/babel/babel/blob/master/packages/babel-plugin-transform-typescript/README.md#babelplugin-transform-typescript">the plugin’s README</a>:</p>
+
+<blockquote><p>Does not support <code>namespace</code>s or <code>const enum</code>s because those require type information to transpile.
+Also does not support <code>export =</code> and <code>import =</code>, because those cannot be transpiled to ES.next.</p></blockquote>
+
+<p>The lack of namespace support hasn’t been a problem for us, we’re only using it in one place which could easily be changed to use regular ES6 modules as namespace. This is also why for instance the ‘recommended’ list of TSLint checks includes <a href="https://palantir.github.io/tslint/rules/no-namespace/">the <code>no-namespace</code> rule</a>.</p>
+
+<p>The <code>const enum</code> feature is a runtime optimization that will cause the compiler to inline code. We don’t have a need for this at the moment, but <a href="https://github.com/babel/babel/issues/6476">some discussion</a> is happening to possibly still being able to make use of this feature when compiling production builds with the TypeScript compiler instead.</p>
+
+<p>The <code>export =</code> and <code>import =</code> syntax is meant to <a href="https://github.com/Microsoft/TypeScript-Handbook/blob/master/pages/Modules.md#export--and-import--require">work with CommonJS and AMD modules</a>; however, we strictly use ES6 modules.</p>
+
+<p>References:
+- <a href="https://github.com/damassi/babel-7-typescript-example">babel-7-typescript-example</a>
+- <a href="https://github.com/babel/babel/tree/master/packages/babel-preset-typescript">babel-preset-typescript</a>
+- <a href="https://github.com/artsy/emission">emission</a>
+- <a href="https://github.com/artsy/reaction">reaction</a>
+- <a href="https://github.com/ds300/patch-package">patch-package</a></p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Modernizing Force]]></title>
