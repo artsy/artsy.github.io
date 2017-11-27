@@ -4,7 +4,7 @@ title: Modernizing Force
 comments: true
 comment_id: 385
 date: 2017-09-05
-categories: [force, reaction, emission, javascript, typescript, react, babel, styled-components, @artsy/express-reloadable, @artsy/stitch]
+categories: [force, reaction, emission, javascript, typescript, react, babel, styled-components, artsy/express-reloadable, artsy/stitch]
 author: chris
 ---
 
