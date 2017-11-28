@@ -13,7 +13,7 @@ At Artsy we <3 [TypeScript](https://www.typescriptlang.org/). We use it with Rea
 
 Babel configurations can be complicated. They take time to set up and maintain and can often contain some pretty [far-out features](https://github.com/kentcdodds/babel-macros) that make interop with other environments difficult. That's why we were elated when [this PR](https://github.com/babel/babylon/pull/523) appeared in the wild from [@andy-ms](https://github.com/andy-ms), a developer on the TypeScript team, announcing a new parser for Babylon. [@babel/preset-typescript](https://github.com/babel/babel/tree/master/packages/babel-preset-typescript) arrived soon after and we felt it was finally time to give it a try. There was a catch, however: TypeScript support only works with Babel 7+!
 
-**TLDR; Check out https://github.com/damassi/babel-7-typescript-example**
+**TLDR; <a href="https://github.com/damassi/babel-7-typescript-example" target="_blank">Check out the project on GitHub ></a>**
 
 Here's list of setup issues we faced in no specific order:
 
@@ -271,7 +271,8 @@ The `const enum` feature is a runtime optimization that will cause the compiler 
 
 The `export =` and `import =` syntax is meant to [work with CommonJS and AMD modules](https://github.com/Microsoft/TypeScript-Handbook/blob/master/pages/Modules.md#export--and-import--require); however, we strictly use ES6 modules.
 
-References:
+**References:**
+
 - [babel-7-typescript-example](https://github.com/damassi/babel-7-typescript-example)
 - [babel-preset-typescript](https://github.com/babel/babel/tree/master/packages/babel-preset-typescript)
 - [emission](https://github.com/artsy/emission)
