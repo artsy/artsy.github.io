@@ -3,8 +3,8 @@ layout: epic
 title: "Babel 7 + TypeScript"
 date: 2017-11-27 14:18
 comments: true
-author: [chris, alloy]
-categories: [Babel, TypeScript]
+author: [chris, eloy]
+categories: [babel, typescript, javascript]
 ---
 
 At Artsy we <3 [TypeScript](https://www.typescriptlang.org/). We use it with React Native via [Emission](https://github.com/artsy/emission) and on the web via [Reaction](https://github.com/artsy/reaction). Until recently, however, projects that required the use of Babel had to implement convoluted tooling pipelines in order to work with the TypeScript compiler, increasing friction in an already complex landscape. (An example of this is Emission's use of Relay, which requires [babel-plugin-relay](https://facebook.github.io/relay/docs/babel-plugin-relay.html#setting-up-babel-plugin-relay) to convert `graphql` literals into require calls.) Thankfully, those days [are over](https://github.com/babel/babel/tree/master/packages/babel-preset-typescript). Read on for an example project, as well as some advice on how to avoid common pitfalls when working with the new beta version of Babel 7.
