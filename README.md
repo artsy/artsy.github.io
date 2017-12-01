@@ -41,6 +41,8 @@ Everything but name is optional.
 
 ## Authoring an Article
 
+Note: we now have some templates to help get you started writing a blog post. Check out the [`Post-Templates` directory](Post-Templates).
+
 TLDR
 _To generate a new post, create a new file in the `_posts` directory. Be sure to add your name as the author of the post and include several categories to file the post under. Here is a sample header YAML:_
 
