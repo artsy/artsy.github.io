@@ -20,7 +20,7 @@ FRIENDLY_SALUTATION! My name is MY_NAME and I work on the TEAM_NAME at Artsy. Re
 
 <!-- more -->
 
-We thought about using OBVIOUS_SOLUTION but ran into problems. We tried to fix the problem using TECHNIQUE but it didn't work because REASON. We've OPENED_ISSUE/SENT_PR/CONTACTED_MAINTAINER to resolve this, but in the mea time we had to ship PRODUCT_NAME.
+We thought about using OBVIOUS_SOLUTION but ran into problems. We tried to fix the problem using TECHNIQUE but it didn't work because REASON. We've OPENED_ISSUE/SENT_PR/CONTACTED_MAINTAINER to resolve this, but in the meantime we had to ship PRODUCT_NAME.
 
 Instead, we used DIFFERENT_APPROACH_NAME. This worked for us because of REASON. It was CHALLENGING/REWARDING/FRUSTRATING to work on, but I learned the following:
 
