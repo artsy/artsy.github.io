@@ -27,7 +27,7 @@ An introduction is a 1-2 paragraph overview of what the blog post talks about. I
 <!--
 Mᴀɪɴ Bᴏᴅʏ
 
-There are a lot of different ways to structure the main body of a blog post, but a straightforward approach is to have a parapgraph or two dedicated to the following (in order):
+There are a lot of different ways to structure the main body of a blog post, but a straightforward approach is to have a paragraph or two dedicated to the following (in order):
 
 - Problem statement (a feature request, a bug report, an outage).
 - Context (anything the reader needs to know beyond the problem statement).

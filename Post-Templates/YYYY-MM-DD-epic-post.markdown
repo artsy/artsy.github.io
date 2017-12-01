@@ -54,7 +54,7 @@ Example: Luke is an adolescent farmer with big dreams, but is being held back by
                                                                                                                    
 The Call to Adventure is the event that precipitated the story you're writing about. Your call to adventure might be a bug report or a feature request. Heroes usually don't accept a call to adventure – at first. They resist but eventually come to realize that they must go on the adventure. Only spend a few paragraphs here.
 
-Example: Obi-Wan Kanobi asks Luke to become a Jedi, like his father. Luke turns him down at first, but after his farm is destroyed, he joins Obi-Wan and begins his training.
+Example: Obi-Wan Kanobi asks Luke to become a Jedi. Luke turns Obi-Wan down at first, but after his farm is destroyed, he joins the knight to begin his training.
 -->
 
 <!--
