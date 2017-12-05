@@ -1,10 +1,10 @@
 ---
-layout: epic 
+layout: epic
 title: Modernizing Force
 comments: true
 comment_id: 385
 date: 2017-09-05
-categories: [force, reaction, emission, javascript, typescript, react, babel, styled-components]
+categories: [force, reaction, emission, javascript, typescript, react, babel, styled-components, artsy/express-reloadable, artsy/stitch]
 author: chris
 ---
 
@@ -87,6 +87,7 @@ $ yarn start
 By adding just a few lines, our existing CoffeeScript pipeline was augmented to support modern JavaScript on both the server and the client, with code that can be shared between.
 
 ## Step 2: Tune-up Iteration Time
+<a name="iteration-time"></a>
 
 A question that every developer should ask of their stack is:
 
