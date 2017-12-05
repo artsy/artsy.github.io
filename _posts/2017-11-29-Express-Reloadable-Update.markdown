@@ -1,10 +1,10 @@
 ---
 layout: post
-title: "Optimizing Linked Package Development in Express.js Apps"
-date: 2017-11-29 14:18
+title: "Express Reloadable: Optimizing Express.js Development Speed"
+date: 2017-12-05 14:18
 comments: true
 author: chris
-categories: [Express, Node, DX, artsy/express-reloadable]
+categories: [Express, Node, DX, express-reloadable]
 ---
 
 In [Modernizing Force](artsy.github.io/blog/2017/09/05/Modernizing-Force/) we discussed some of the tools we've been working with to modernize [Artsy.net](https://www.artsy.net/)'s development environment, from introducing Babel and React to the creation of [@artsy/stitch](https://github.com/artsy/stitch). Increasing overall development speed was another aim, and to that end we released [@artsy/express-reloadable](https://github.com/artsy/express-reloadable) which automatically hot-swaps Express.js code without the restart. In this post I'd like to cover some of the issues we've faced since then, and in particular our solution to library code-sharing in Express apps.
