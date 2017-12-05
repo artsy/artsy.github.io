@@ -43,7 +43,7 @@ Similar to how files in `api/` are hot-swapped in on change, symlinked NPM modul
 
 References:
 
--[@artsy/express-reloadable](https://github.com/artsy/express-reloadable)
--[Positron](https://github.com/artsy/positron)
--[Reaction](https://github.com/artsy/reaction)
--[Force](https://github.com/artsy/force)
+- [@artsy/express-reloadable](https://github.com/artsy/express-reloadable)
+- [Positron](https://github.com/artsy/positron)
+- [Reaction](https://github.com/artsy/reaction)
+- [Force](https://github.com/artsy/force)
