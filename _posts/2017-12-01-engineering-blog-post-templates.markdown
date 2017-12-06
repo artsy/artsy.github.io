@@ -8,7 +8,7 @@ categories: [blogging]
 
 Hello! My name is Ash and I work on the Auctions team at Artsy. I like to blog, and I like to tell people they should blog, too (you should blog btw). I've been trying to increase how many blog posts get written by Artsy engineers for six months or so, but have only seen modest results. I've been holding weekly office hours to help with writing, but it's not often attended. So I started reaching out to team members individually to suggest they write something, but they're very busy and often can't spare the time. Hmm.
 
-A simple solution came out of a discussion with other engineering teams surrounding how to build team culture. Another team solved the problem of "not enough blog posts are getting written" simply by providing templates that could be used to compose blog posts very quickly. Even if someone was in a hurry or not a confident writer, they could still contribute to the engineering blog. What a marvelous idea!
+A simple solution came out of a discussion with other engineering teams surrounding how to build team culture. [Sonam Dhingra][sonam] of [UsTwo][ustwo] solves the problem of "not enough blog posts are getting written" simply by providing templates that can be used to compose blog posts very quickly. Even if someone was in a hurry or not a confident writer, they could still contribute to the engineering blog. What a marvelous idea!
 
 <!-- more -->
 
@@ -23,3 +23,5 @@ Each template fits a different niche, and we might add more as time goes on. The
 The templates are available in [our blog's repository][gh] – please feel free to use them in your own writing pursuits. Have a good one!
 
 [gh]: https://github.com/artsy/artsy.github.io
+[sonam]: https://twitter.com/sdhingra89
+[ustwo]: http://ustwo.com
