@@ -26,3 +26,9 @@ Random thoughts today:
 * This should be the commit that had the
   [config](https://github.com/artsy/volt/commit/1c3a7f36fce5bc4045c6f53509ea7ec9c5704010)
   to use for making the gist.
+
+---
+
+Here's the gist:
+
+https://gist.github.com/jonallured/45032779506138186973af7cb94b5363
