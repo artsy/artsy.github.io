@@ -576,6 +576,8 @@ We found that the majority of our view controllers do a lot of work on init, the
 
 This has come up a few times in discussion, Facebook have a bit of a custom license for their open source. Back in 2015, they made changes to the license that makes this no problem for everyone but patent trolls. You can find a bunch of resources for further reading [on this gist][react-patents]. 
 
+_FWIW_: This is moving forwards, React is now MIT - but React Native still remains BSD + Patents.
+
 ## React Dependencies
 
 This comes up in every post we make on React Native, because it's always worth mentioning. React Native has [51 dependencies][rn-deps], which when resolved comes up to [around ~650 dependent][libs-rn-deps] projects. This is a _lot_ of dependencies. Remember that the JavaScript ecosystem does not have the [equivalent of Foundation][foundation], and so to create a standard library, you use dependencies. 
@@ -602,7 +604,7 @@ Our oldest app, Energy, is an app for keeping your portfolio of artworks with yo
 
 ## When to choose React Native?
 
-React Native provides a cross-platform API, and so it can fall into a watered down version of the API it abstracts. This means that it can be a bit more work than normal to use obviously iOS-specific features like `ARKit`, `UIUserActivity`, `CSSearchableIndex` or `UIUserNotification`s.
+React Native provides a cross-platform API, and so it can fall into a watered down version of the API it abstracts. This means that it can be a bit more work than normal to use obviously iOS-specific features like `ARKit`, `NSUserActivity`, `CSSearchableIndex` or `UIUserNotification`s.
 
 I say more work, because you definitely can still use them, but that transitions between your React code and your native code will require a bit more work than had you always been writing it natively.
 
