@@ -46,6 +46,9 @@ Note: we now have some templates to help get you started writing a blog post. Ch
 TLDR
 _To generate a new post, create a new file in the `_posts` directory. Be sure to add your name as the author of the post and include several categories to file the post under. Here is a sample header YAML:_
 
+Note: categories are aggregated from the individual posts, so adding one is as
+easy as adding it to your post!
+
 ```yaml
 ---
 layout: post
