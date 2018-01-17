@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Upgrading Volt to CircleCI 2.0"
-date: 2017-12-20
+date: 2018-01-17
 comments: true
 author: jonallured
 categories: [ci]
@@ -89,5 +89,6 @@ now. This is fine - we can't expect all of CircleCI's features are going to be
 perfect for us and our particular projects.
 
 For now, we're back to CircleCI 1.0 and have tried to achieve a similar setup,
-but without the glamorous workflow functionality and cool diagram. I'm hopeful
-that as CircleCI evolves, workflows may end up in a place that can work for us.
+but without the glamorous workflow functionality and cool diagram. I'm looking
+forward to seeing how CircleCI evolves their workflow feature and hope that it
+may end up in a place that can work for this project.
