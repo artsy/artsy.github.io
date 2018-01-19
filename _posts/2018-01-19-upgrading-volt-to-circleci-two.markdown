@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Upgrading Volt to CircleCI 2.0"
-date: 2018-01-17
+date: 2018-01-19
 comments: true
 author: jonallured
 categories: [ci]
