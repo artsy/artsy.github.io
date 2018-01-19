@@ -72,12 +72,12 @@ While tinkering with this, I used all sorts of values for the parallelism of the
 `fast_specs` job, even trying no parallelism.
 
 It didn't seem to matter - having these jobs in a queue along with whatever
-other projects consume the Artsy containers meant that that once the build step
-was done and the next column of jobs kicked off, only some of the jobs would be
+other projects consume the Artsy containers meant that once the build step was
+done and the next column of jobs kicked off, only some of the jobs would be
 able to run and we'd be stuck waiting for more containers. But those are fast
 jobs, so they would finish pretty quickly. But then again, moving on to the
-`view_specs` job would be slow because it also wanted 6 containers to run in ~10
-minutes.
+`view_specs` job would be slow because it also wanted 6 containers to run in
+~10 minutes.
 
 What this meant was that all told it often took 45 minutes of wall time to
 finish one of these builds even though as CircleCI reports it, they only took
