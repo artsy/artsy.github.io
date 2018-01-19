@@ -5,9 +5,97 @@
     <description></description>
     <link>http://artsy.github.io/</link>
     <atom:link href="http://artsy.github.io/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Thu, 11 Jan 2018 16:55:12 +0000</pubDate>
-    <lastBuildDate>Thu, 11 Jan 2018 16:55:12 +0000</lastBuildDate>
+    <pubDate>Fri, 19 Jan 2018 20:43:32 +0000</pubDate>
+    <lastBuildDate>Fri, 19 Jan 2018 20:43:32 +0000</lastBuildDate>
     <generator>Jekyll v2.5.3</generator>
+    
+      <item>
+        <title>Upgrading Volt to CircleCI 2.0</title>
+        <description>&lt;p&gt;I was really excited about CircleCI 2.0, especially the &lt;a href=&quot;https://circleci.com/docs/2.0/workflows/&quot;&gt;workflows
+features&lt;/a&gt;. It seemed to me that with the work they had done here,
+really complicated builds would be able to be configured in a way that made more
+sense than on 1.0. This was something that was causing me grief on one of our
+projects so I upgraded to 2.0. It was pretty hard to get green and once we did,
+we decided to downgrade back to 1.0. Here&#39;s why.&lt;/p&gt;
+
+&lt;p&gt;Volt is the internal name for the app that our Partners use to enter information
+about their artworks and artists into the Artsy platform. It&#39;s a Rails app and
+has a pretty big and slow test suite. Over time, we&#39;ve ended up with a good
+number of things that run during CI for this project:&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&quot;http://danger.systems/&quot;&gt;Danger&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;http://rubocop.readthedocs.io/&quot;&gt;RuboCop&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;https://prettier.io/&quot;&gt;Prettier&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;https://facebook.github.io/jest/&quot;&gt;Jest tests&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;https://github.com/jejacks0n/teaspoon&quot;&gt;Teaspoon tests&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;http://rspec.info/&quot;&gt;RSpec tests&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+
+&lt;p&gt;Some of these things are fast and some are slow. Ok, fine, really only the view
+specs are slow - running them in isolation takes around 20 minutes on my laptop.&lt;/p&gt;
+
+&lt;p&gt;My goal was to separate out the fast stuff, run that in parallel and only if all
+that passed would I run the view specs. This should get feedback to developers
+faster when they&#39;ve broken something and not waste time running the slowest part
+of the CI stack.&lt;/p&gt;
+
+&lt;p&gt;Artsy has 7 containers with CircleCI and Volt takes up 6 of them, so being able
+to break apart a run into pieces seemed like a good thing for the wider Artsy
+engineering organization too - developers working on something else would spend
+less time blocked by Volt runs and developers working on Volt shouldn&#39;t notice
+anything. Foreshadowing!!&lt;/p&gt;
+
+&lt;p&gt;Here&#39;s the CircleCI 2.0 &lt;a href=&quot;https://gist.github.com/jonallured/45032779506138186973af7cb94b5363&quot;&gt;config&lt;/a&gt; I ended up with and here&#39;s a pretty picture
+of what our CircleCI 2.0 builds looked like:&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/images/circle-two-oh/volt-circle-two-workflow.png&quot; alt=&quot;/images/circle-two-oh/volt-circle-two-workflow.png&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;I&#39;m really proud of this - it&#39;s cool and it was hard to figure out!&lt;/p&gt;
+
+&lt;p&gt;But then we lived with it and noticed something that really slowed us down. Each
+rounded rect in that picture is called a job and is scheduled along with
+anything else you have going on at CircleCI. Let&#39;s talk about parallelism for a
+moment. Take that second column - those jobs all run in parallel, but you can
+also set any of your jobs to have also be parallelised. For instance, that
+&lt;code&gt;fast_spec&lt;/code&gt; job was &lt;a href=&quot;https://gist.github.com/jonallured/45032779506138186973af7cb94b5363#file-config-yml-L114&quot;&gt;set to a parallelism of 6&lt;/a&gt;. That means in order
+to run all of the jobs in column two, we&#39;d have to have a total of 11
+containers!&lt;/p&gt;
+
+&lt;p&gt;While tinkering with this, I used all sorts of values for the parallelism of the
+&lt;code&gt;fast_specs&lt;/code&gt; job, even trying no parallelism.&lt;/p&gt;
+
+&lt;p&gt;It didn&#39;t seem to matter - having these jobs in a queue along with whatever
+other projects consume the Artsy containers meant that that once the build step
+was done and the next column of jobs kicked off, only some of the jobs would be
+able to run and we&#39;d be stuck waiting for more containers. But those are fast
+jobs, so they would finish pretty quickly. But then again, moving on to the
+&lt;code&gt;view_specs&lt;/code&gt; job would be slow because it also wanted 6 containers to run in ~10
+minutes.&lt;/p&gt;
+
+&lt;p&gt;What this meant was that all told it often took 45 minutes of wall time to
+finish one of these builds even though as CircleCI reports it, they only took
+like 15 minutes.&lt;/p&gt;
+
+&lt;p&gt;We reached out to CircleCI to explain as best we could our situation but didn&#39;t
+get a lot of help there. They advised that going back to 1.0 might be wise for
+now. This is fine - we can&#39;t expect all of CircleCI&#39;s features are going to be
+perfect for us and our particular projects.&lt;/p&gt;
+
+&lt;p&gt;For now, we&#39;re back to CircleCI 1.0 and have tried to achieve a similar setup,
+but without the glamorous workflow functionality and cool diagram. I&#39;m looking
+forward to seeing how CircleCI evolves their workflow feature and hope that it
+may end up in a place that can work for this project.&lt;/p&gt;
+</description>
+        <pubDate>Fri, 19 Jan 2018 00:00:00 +0000</pubDate>
+        <link>http://artsy.github.io/blog/2018/01/19/upgrading-volt-to-circleci-two/</link>
+        <guid isPermaLink="true">http://artsy.github.io/blog/2018/01/19/upgrading-volt-to-circleci-two/</guid>
+        
+        
+        <category>ci</category>
+        
+      </item>
     
       <item>
         <title>C4Q&amp;A: 2</title>
@@ -1395,261 +1483,6 @@ If we were to swap again in 6 months, how long should it last?&lt;/p&gt;
         <category>reaction</category>
         
         <category>styled-components</category>
-        
-        <category>typescript</category>
-        
-      </item>
-    
-      <item>
-        <title>Introducing Peril to the Artsy Org</title>
-        <description>&lt;p&gt;Once Danger Ruby was stable enough for everyday use in 2015, it became obvious that running Danger on CI was both a
-positive and a negative. On the positive side, Danger has access to all artifacts created during testing - and on the negative
-side it takes a long time to get feedback. It was obvious that Danger could &lt;a href=&quot;https://github.com/danger/danger/issues/42&quot;&gt;run on a server&lt;/a&gt;, but it was a big unknown what that could look like.&lt;/p&gt;
-
-&lt;p&gt;Eventually, &lt;a href=&quot;/blog/2017/06/30/danger-one-oh-again/&quot;&gt;I came to the conclusion&lt;/a&gt; that we would need a JavaScript replacement of Danger - and so I applied
-constraints to Danger JS that made a server-side version of Danger a possibility. It was a stroke of luck that around the
-time Danger JS became usable for day to day usage, that GitHub introduced &lt;a href=&quot;https://developer.github.com/changes/2016-09-14-Integrations-Early-Access/&quot;&gt;GitHub Apps&lt;/a&gt; - so I started work on Peril. Peril is server-side Danger. The rest of this post talks about how we use it Artsy today, how you can use it yourself and where it&#39;s heading.&lt;/p&gt;
-
-&lt;!-- more --&gt;
-
-
-&lt;p&gt;In December 2016, I built out Peril in a sandbox org: &lt;a href=&quot;https://github.com/PerilTest&quot;&gt;PerilTest&lt;/a&gt;, this gave me the chance to get a lot of things wrong safely. My biggest worry around Peril was leaking data though someone abusing the ability to evaluate a Dangerfile.&lt;/p&gt;
-
-&lt;p&gt;In May 2017, I introduced Peril into Artsy&#39;s org, GitHub apps have the ability to pick and choose which repos to work with.
-I scoped the repos to existing open source projects which I was familiar with (&lt;a href=&quot;https://github.com/artsy/emission&quot;&gt;Emission&lt;/a&gt;, &lt;a href=&quot;https://github.com/artsy/reaction&quot;&gt;Reaction&lt;/a&gt; and &lt;a href=&quot;https://github.com/artsy/positron&quot;&gt;Positron&lt;/a&gt;)
-which gave a space to ensure stability and handle production edge-cases.&lt;/p&gt;
-
-&lt;p&gt;In August 2017, I created a new Peril instance for CocoaPods. I then finally flipped the switch to turn Peril on for all
-repos on the Artsy org and formalized the RFC process for changes. This is where we are now.&lt;/p&gt;
-
-&lt;a name=&quot;Getting.Set.Up&quot;&gt;&lt;/a&gt;
-&lt;h2&gt;Getting Set Up&lt;/h2&gt;
-
-&lt;p&gt;For our Artsy org, I followed and improved the guide: &lt;a href=&quot;https://github.com/danger/peril/blob/master/docs/setup_for_org.md&quot;&gt;Setup for Org&lt;/a&gt;. There are three key components:&lt;/p&gt;
-
-&lt;ul&gt;
-&lt;li&gt;Creating a GitHub app for your Org&lt;/li&gt;
-&lt;li&gt;Hosting a Peril server&lt;/li&gt;
-&lt;li&gt;Making up a Peril settings repo&lt;/li&gt;
-&lt;/ul&gt;
-
-
-&lt;p&gt;The guide covers the initial setup, but I&#39;d like to cover the third part of our setup.&lt;/p&gt;
-
-&lt;a name=&quot;How.Artsy.s.Peril.works&quot;&gt;&lt;/a&gt;
-&lt;h2&gt;How Artsy&#39;s Peril works&lt;/h2&gt;
-
-&lt;p&gt;The Artsy Peril settings are all on &lt;a href=&quot;https://github.com/artsy/artsy-danger&quot;&gt;artsy/artsy-danger&lt;/a&gt;. The Artsy Peril heroku instance has the ENV var
-&lt;code&gt;&quot;DATABASE_JSON_FILE&quot;&lt;/code&gt; set to &lt;code&gt;&quot;artsy/artsy-danger@peril.settings.json&quot;&lt;/code&gt;, so Peril will use &lt;a href=&quot;https://github.com/artsy/artsy-danger/blob/master/peril.settings.json&quot;&gt;that file&lt;/a&gt; as the source of truth for all config. Here&#39;s what it is today:&lt;/p&gt;
-
-&lt;p&gt;&lt;/article&gt;
-&lt;article class=&#39;split-desktop-only&#39;&gt;&lt;/p&gt;
-
-&lt;div style=&#39;flex:1; display: block;&#39;&gt;
-
-&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;6&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;7&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;8&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;9&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;10&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;11&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;12&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;13&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;14&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;15&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;16&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;17&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;18&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;19&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;20&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;21&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;22&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;23&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;24&lt;/span&gt;
-&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;json&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nt&quot;&gt;&amp;quot;settings&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nt&quot;&gt;&amp;quot;modules&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;s2&quot;&gt;&amp;quot;danger-plugin-spellcheck&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;s2&quot;&gt;&amp;quot;danger-plugin-yarn&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;s2&quot;&gt;&amp;quot;@slack/client&amp;quot;&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;p&quot;&gt;],&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nt&quot;&gt;&amp;quot;env_vars&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;SLACK_RFC_WEBHOOK_URL&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nt&quot;&gt;&amp;quot;rules&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nt&quot;&gt;&amp;quot;pull_request&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;artsy/artsy-danger@org/all-prs.ts&amp;quot;&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nt&quot;&gt;&amp;quot;repos&amp;quot;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nt&quot;&gt;&amp;quot;artsy/reaction&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;nt&quot;&gt;&amp;quot;pull_request&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;danger/pr.ts&amp;quot;&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nt&quot;&gt;&amp;quot;artsy/positron&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;nt&quot;&gt;&amp;quot;pull_request&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;dangerfile.ts&amp;quot;&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nt&quot;&gt;&amp;quot;artsy/artsy-danger&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;nt&quot;&gt;&amp;quot;issues.opened&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;artsy/artsy-danger@danger/new_rfc.ts&amp;quot;&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
-
-&lt;/div&gt;
-
-
-&lt;div style=&#39;flex:1; display: block; padding:0 20px;&#39;&gt;
-
-&lt;p&gt;&lt;code&gt;&quot;settings&quot;:&lt;/code&gt; These settings which conform to today&#39;s &lt;a href=&#39;https://github.com/danger/peril/blob/752afeb37e3c1fdec512eb91687747d9a8a29337/source/db/index.ts#L26-L31&#39;&gt;GitHubInstallationSettings&lt;/a&gt;, here&#39;s the &lt;a href=&#39;https://github.com/danger/peril/blob/master/source/db/index.ts&#39;&gt;current version&lt;/a&gt;. These are org-wide settings
-that require a new deploy of the server to re-create.&lt;/p&gt;
-
-&lt;p&gt;&lt;code&gt;&quot;rules&quot;:&lt;/code&gt; These are rules which are applied to every repo that Peril has access to. So in this case, every Pull Request in the org will make Peril run the Dangerfile at &lt;code&gt;&quot;artsy/artsy-danger@org/all-prs.ts&quot;&lt;/code&gt;.&lt;/p&gt;
-
-&lt;p&gt;&lt;code&gt;&quot;repos&quot;:&lt;/code&gt; These are repo-specific overrides, so a Pull Request to artsy/reaction would trigger both the org-wide Dangerfile, and one on the reaction repo.&lt;/p&gt;
-
-&lt;/div&gt;
-
-
-&lt;p&gt;&lt;/article&gt;
-&lt;article class=&#39;post&#39;&gt;&lt;/p&gt;
-
-&lt;a name=&quot;Events&quot;&gt;&lt;/a&gt;
-&lt;h2&gt;Events&lt;/h2&gt;
-
-&lt;p&gt;A Dangerfile evaluation occurs once a GitHub webhook is sent. In the above examples there are two events that Danger supports:
-&lt;code&gt;&quot;pull_request&quot;&lt;/code&gt; and &lt;code&gt;&quot;issues.opened&quot;&lt;/code&gt;. These are qualifiers that GitHub provide as a &lt;a href=&quot;https://developer.github.com/v3/activity/events/types/events&quot;&gt;Webhook EventTypes&lt;/a&gt;.&lt;/p&gt;
-
-&lt;p&gt;There&#39;s a lot of them: &lt;code&gt;commit_comment&lt;/code&gt;, &lt;code&gt;create&lt;/code&gt;, &lt;code&gt;delete&lt;/code&gt;, &lt;code&gt;deployment&lt;/code&gt;, &lt;code&gt;deployment_status&lt;/code&gt;, &lt;code&gt;fork&lt;/code&gt;, &lt;code&gt;gollum&lt;/code&gt;, &lt;code&gt;installation&lt;/code&gt;, &lt;code&gt;installation_repositories&lt;/code&gt;, &lt;code&gt;issue_comment&lt;/code&gt;, &lt;code&gt;issues&lt;/code&gt;, &lt;code&gt;label&lt;/code&gt;, &lt;code&gt;marketplace_purchase&lt;/code&gt;, &lt;code&gt;member&lt;/code&gt;, &lt;code&gt;membership&lt;/code&gt;, &lt;code&gt;milestone&lt;/code&gt;, &lt;code&gt;organization&lt;/code&gt;, &lt;code&gt;org_block&lt;/code&gt;, &lt;code&gt;page_build&lt;/code&gt;, &lt;code&gt;project_card&lt;/code&gt;, &lt;code&gt;project_column&lt;/code&gt;, &lt;code&gt;project&lt;/code&gt;, &lt;code&gt;public&lt;/code&gt;, &lt;code&gt;pull_request&lt;/code&gt;, &lt;code&gt;pull_request_review&lt;/code&gt;, &lt;code&gt;pull_request_review_comment&lt;/code&gt;, &lt;code&gt;push&lt;/code&gt;, &lt;code&gt;release&lt;/code&gt;, &lt;code&gt;repository&lt;/code&gt;, &lt;code&gt;status&lt;/code&gt;, &lt;code&gt;team&lt;/code&gt;, &lt;code&gt;team_add&lt;/code&gt;, &lt;code&gt;watch&lt;/code&gt;.&lt;/p&gt;
-
-&lt;p&gt;Some of these events also have unique sub-actions too:&lt;/p&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;p&gt;For an &lt;code&gt;issue&lt;/code&gt; event there is: &lt;code&gt;assigned&lt;/code&gt;, &lt;code&gt;unassigned&lt;/code&gt;, &lt;code&gt;labeled&lt;/code&gt;, &lt;code&gt;unlabeled&lt;/code&gt;, &lt;code&gt;opened&lt;/code&gt;, &lt;code&gt;edited&lt;/code&gt;,  &lt;code&gt;milestoned&lt;/code&gt;, &lt;code&gt;demilestoned&lt;/code&gt;, &lt;code&gt;closed&lt;/code&gt;, or &lt;code&gt;reopened&lt;/code&gt;&lt;/p&gt;&lt;/li&gt;
-&lt;li&gt;&lt;p&gt;For a &lt;code&gt;pull_request&lt;/code&gt; event there is: &lt;code&gt;assigned&lt;/code&gt;, &lt;code&gt;unassigned&lt;/code&gt;, &lt;code&gt;review_requested&lt;/code&gt;, &lt;code&gt;review_request_removed&lt;/code&gt;, &lt;code&gt;labeled&lt;/code&gt;, &lt;code&gt;unlabeled&lt;/code&gt;, &lt;code&gt;opened&lt;/code&gt;, &lt;code&gt;edited&lt;/code&gt;, &lt;code&gt;closed&lt;/code&gt;, or &lt;code&gt;reopened&lt;/code&gt;&lt;/p&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-
-&lt;p&gt;The way that you define rules in Peril gives you the ability to either focus on one action for an event type: &lt;code&gt;&quot;issues.opened&quot;&lt;/code&gt; or all actions
-on an event: &lt;code&gt;&quot;pull_request&quot;&lt;/code&gt;. Once you get your head around this, you start to get a sense of the scope of Peril. At Artsy, we&#39;ve barely scratched the surface.&lt;/p&gt;
-
-&lt;a name=&quot;Growth&quot;&gt;&lt;/a&gt;
-&lt;h3&gt;Growth&lt;/h3&gt;
-
-&lt;p&gt;I&#39;ve always advocated that Danger, and Peril should be &lt;a href=&quot;http://danger.systems/js/usage/culture.html&quot;&gt;applied incrementally&lt;/a&gt;. This applies even more when you&#39;re
-making org changes that affect every developer - at least with Danger you can see the Pull Request that changes
-the Dangerfile. With Peril you get none of that.&lt;/p&gt;
-
-&lt;p&gt;So, we introduced &lt;a href=&quot;https://github.com/artsy/artsy-danger/#rfcs&quot;&gt;an RFC process for Peril changes&lt;/a&gt;. There&#39;s not much to it, if you want to add a rule that
-affects everyone then you need to make an issue following a template and then wait a week. If you make a new issue that
-includes the title &lt;code&gt;RFC:&lt;/code&gt; then Peril sends a slack message to our developer Channel&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;/images/peril/peril-rfc.png&quot; alt=&quot;/images/peril/peril-rfc.png&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;This was simple to build via Peril, I first added the npm module: &lt;code&gt;&quot;@slack/client&quot;&lt;/code&gt; to the &lt;code&gt;&quot;modules&quot;&lt;/code&gt; array, making it available to a Dangerfile. Then I added an environment variable to Peril for a newly minted Slack Incoming Webhook URL, and exposed it to Dangerfiles via: &lt;code&gt;&quot;env_vars&quot;: [&quot;SLACK_RFC_WEBHOOK_URL&quot;]&lt;/code&gt;.&lt;/p&gt;
-
-&lt;p&gt;Then I added a per-repo rule:&lt;/p&gt;
-
-&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
-&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;json&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;artsy/artsy-danger&amp;quot;&lt;/span&gt;&lt;span class=&quot;err&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nt&quot;&gt;&amp;quot;issues.opened&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;artsy/artsy-danger@danger/new_rfc.ts&amp;quot;&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
-
-
-&lt;p&gt;This means the Dangerfile is only ran on &lt;code&gt;&quot;issues&quot;&lt;/code&gt; with an &lt;code&gt;&quot;opened&quot;&lt;/code&gt; action. I didn&#39;t want the discussion around a rule spamming our slack with webhooks from the other actions. The file &lt;code&gt;danger/new_rfc.ts&lt;/code&gt; looks like this:&lt;/p&gt;
-
-&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;6&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;7&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;8&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;9&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;10&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;11&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;12&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;13&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;14&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;15&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;16&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;17&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;18&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;19&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;20&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;21&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;22&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;23&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;24&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;25&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;26&lt;/span&gt;
-&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;ts&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;kr&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;schedule&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;danger&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;danger&amp;quot;&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;kr&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;IncomingWebhook&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;@slack/client&amp;quot;&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;kr&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;Issues&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;github-webhook-event-types&amp;quot;&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;kr&quot;&gt;declare&lt;/span&gt; &lt;span class=&quot;kr&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;peril&lt;/span&gt;: &lt;span class=&quot;kt&quot;&gt;any&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;// danger/danger#351&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;kr&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;gh&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;danger&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;github&lt;/span&gt; &lt;span class=&quot;kr&quot;&gt;as&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;any&lt;/span&gt; &lt;span class=&quot;kr&quot;&gt;as&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;Issues&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;kr&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;issue&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;gh&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;issue&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;issue&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;title&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;includes&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;RFC:&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;kd&quot;&gt;var&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;url&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;peril&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;env&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;SLACK_RFC_WEBHOOK_URL&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;||&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;kd&quot;&gt;var&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;webhook&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;IncomingWebhook&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;url&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nx&quot;&gt;schedule&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;async&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;   &lt;span class=&quot;nx&quot;&gt;await&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;webhook&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;send&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;({&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;nx&quot;&gt;unfurl_links&lt;/span&gt;: &lt;span class=&quot;kt&quot;&gt;false&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;nx&quot;&gt;attachments&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[{&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;        &lt;span class=&quot;nx&quot;&gt;pretext&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;🎉 A new Peril RFC has been published.&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;        &lt;span class=&quot;nx&quot;&gt;color&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;good&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;        &lt;span class=&quot;nx&quot;&gt;title&lt;/span&gt;: &lt;span class=&quot;kt&quot;&gt;issue.title&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;        &lt;span class=&quot;nx&quot;&gt;title_link&lt;/span&gt;: &lt;span class=&quot;kt&quot;&gt;issue.html_url&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;        &lt;span class=&quot;nx&quot;&gt;author_name&lt;/span&gt;: &lt;span class=&quot;kt&quot;&gt;issue.user.login&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;        &lt;span class=&quot;nx&quot;&gt;author_icon&lt;/span&gt;: &lt;span class=&quot;kt&quot;&gt;issue.user.avatar_url&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;p&quot;&gt;}]&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;p&quot;&gt;})&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;p&quot;&gt;})&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
-
-
-&lt;p&gt;For events that are not a &lt;code&gt;&quot;pull_request&quot;&lt;/code&gt; the &lt;code&gt;danger.github&lt;/code&gt; object is the JSON for the event.  You can get TypeScript types available for every GitHub event via the NPM module &lt;a href=&quot;https://www.npmjs.com/package/github-webhook-event-types&quot;&gt;github-webhook-event-types&lt;/a&gt; which makes it much easier to work with.&lt;/p&gt;
-
-&lt;a name=&quot;Where.to.go.from.here.&quot;&gt;&lt;/a&gt;
-&lt;h2&gt;Where to go from here?&lt;/h2&gt;
-
-&lt;p&gt;Right now we have &lt;a href=&quot;https://github.com/artsy/artsy-danger/issues?utf8=%E2%9C%93&amp;amp;q=is%3Aissue%20RFC&quot;&gt;a few RFCs&lt;/a&gt;, and I don&#39;t spend all day making Peril rules, I&#39;ve gotta &lt;a href=&quot;https://github.com/artsy/emission/pulls?utf8=%E2%9C%93&amp;amp;q=consignments%20&quot;&gt;do work y&#39;know&lt;/a&gt;. We&#39;re going to slowly build out our Peril infrastructure.&lt;/p&gt;
-
-&lt;p&gt;I&#39;m interested in exploring two ideas big for peril at the moment:&lt;/p&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;p&gt;What a Peril plugin system looks like: You can include modules which can listen to events and react themselves. An org-wide spellcheck on markdown files could be as easy as including &lt;code&gt;&quot;modules&quot;: [&quot;peril-plugin-spellcheck&quot;]&lt;/code&gt;.&lt;/p&gt;&lt;/li&gt;
-&lt;li&gt;&lt;p&gt;What &lt;a href=&quot;https://github.com/danger/peril/issues/138&quot;&gt;scheduled jobs&lt;/a&gt; could look like for Peril: We have a bunch of checks I&#39;d like to make on a a regular occasion, and then passing back feedback via slack or making an issue on the repo.&lt;/p&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-
-&lt;p&gt; For example if a repo has an owner who isn&#39;t in Artsy anymore, we should highlight that it needs a new owner.&lt;/p&gt;
-
-&lt;p&gt;If you&#39;re interested in using Peril in large OSS projects, take a look at how Peril is used in CocoaPods via &lt;a href=&quot;https://github.com/CocoaPods/peril-settings&quot;&gt;CocoaPods/peril-settings&lt;/a&gt;.&lt;/p&gt;
-
-&lt;p&gt;If you&#39;re interested in using Peril in your org, run through the &lt;a href=&quot;https://github.com/danger/peril/blob/master/docs/setup_for_org.md&quot;&gt;Setup for Org&lt;/a&gt; guide and help improve it when you inevitably have some weird issues.&lt;/p&gt;
-</description>
-        <pubDate>Mon, 04 Sep 2017 00:00:00 +0000</pubDate>
-        <link>http://artsy.github.io/blog/2017/09/04/Introducing-Peril/</link>
-        <guid isPermaLink="true">http://artsy.github.io/blog/2017/09/04/Introducing-Peril/</guid>
-        
-        
-        <category>culture</category>
-        
-        <category>danger</category>
-        
-        <category>javascript</category>
-        
-        <category>peril</category>
         
         <category>typescript</category>
         
