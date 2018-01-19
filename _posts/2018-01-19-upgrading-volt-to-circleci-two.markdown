@@ -15,6 +15,8 @@ we decided to downgrade back to 1.0. Here's why.
 
 [workflows]: https://circleci.com/docs/2.0/workflows/
 
+<!-- more -->
+
 Volt is the internal name for the app that our Partners use to enter information
 about their artworks and artists into the Artsy platform. It's a Rails app and
 has a pretty big and slow test suite. Over time, we've ended up with a good
