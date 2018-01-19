@@ -19,6 +19,8 @@
 # - category_title_prefix: The string used before the category name in the page title (default is
 #                          'Category: ').
 
+PostCategory = Struct.new(:name, :dir)
+
 module Jekyll
 
   # The CategoryIndex class creates a single category page for the specified category.
@@ -105,8 +107,14 @@ module Jekyll
     def write_category_indexes
       if self.layouts.key? 'category_index'
         dir = self.config['category_dir'] || 'categories'
-        self.categories.keys.each do |category|
-          self.write_category_index(File.join(dir, category.gsub(/_|\P{Word}/, '-').gsub(/-{2,}/, '-').downcase), category)
+
+        post_categories = self.categories.keys.map do |category|
+          category_dir = File.join(dir, category.gsub(/_|\P{Word}/, '-').gsub(/-{2,}/, '-').downcase)
+          PostCategory.new(category, category_dir)
+        end
+
+        post_categories.each do |post_category|
+          self.write_category_index(post_category.dir, post_category.name)
         end
 
       # Throw an exception if the layout couldn't be found.
