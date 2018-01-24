@@ -31,7 +31,7 @@ In addition to staging- and production-specific config files, this command creat
 
 Next up was to use Hokusai in our CI environment. [Circle CI 2.0][circle] is very Docker-oriented, so we set up everything using their [Workflows][]. This is a much higher level of abstraction for CI configuration than I'm used to, but I got the hang of it quickly. I created a job to run RSpec tests through Hokusai, a job to run [Danger][], a job to build and push a Docker image to our S3 bucket, and a job to deploy that image to the Kubernetes cluster. Finally, I added the workflows to build and deploy automatically after successful builds on the `master` branch.
 
-Here's a complete, redacted copy of our Circle config:
+Here's a slightly redacted copy of our Circle config:
 
 ```yaml
 version: 2
