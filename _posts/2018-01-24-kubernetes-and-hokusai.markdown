@@ -17,7 +17,7 @@ But let's step back first.
 
 My background is in iOS software development, so spinning up new servers isn't something I do often. When I _do_, I usually use Heroku. After deploying to it, it feels like Kubernetes is a kind of hosted Heroku: it handles scaling up instances, managing worker/db/other instances, load-balancers, environment variables, promoting from staging to production – all that stuff. But Kubernetes' sophistication comes with a sophisticated user interface. 
 
-So basically, Kubernetes is to Heroku what Hokusai is to the Heroku command-line tool.
+So basically, Hokusai is to Kubernetes what the Heroku command-line tool is to the Heroku platform.
 
 Hokusai provides [a bunch of commands][commands] for interacting with the Kubernetes cluster. Deploying my new Rails app to Kubernetes involved a few steps, but most of the work was handled automatically by Hokusai.
 
@@ -112,7 +112,7 @@ workflows:
             - push
 ```
 
-The initial build on `master` built and pushed the server image, but the deploy failed. It's a Catch-22: we can't deploy until we have an image, but we only want to build images on CI, so we expect the first deploy to fail.
+The initial build on `master` built and pushed the server image, but the deploy failed. This is a [bug][] that's being tracked in Hokusai – I'm sure it'll get squashed on the road to a 1.0. See, it's a Catch-22: we can't deploy until we have an image, but we only want to build images on CI, so the first deploy is expected to fail.
 
 Once the initial image was pushed, I ran `hokusai staging env create` locally to create the staging environment. I was able to set staging environment variables using `hokusai staging env set NAME=VALUE`, but unlike Heroku, I had to manually restart the server using `hokusai staging refresh` after adding the environment variables. 
 
@@ -132,3 +132,4 @@ I'm very encouraged by Kubernetes. It offers really slick, enterprise-level scal
 [Danger]: http://danger.systems
 [Docker]: https://www.docker.com
 [Workflows]: https://circleci.com/docs/2.0/workflows/
+[bug]: https://github.com/artsy/hokusai/issues/50
