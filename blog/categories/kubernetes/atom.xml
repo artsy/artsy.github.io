@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: kubernetes | Artsy Engineering]]></title>
+  <link href="http://artsy.github.io/blog/categories/kubernetes/atom.xml" rel="self"/>
+  <link href="http://artsy.github.io/"/>
+  <updated>2018-01-25T17:48:30+00:00</updated>
+  <id>http://artsy.github.io/</id>
+  <author>
+    <name><![CDATA[]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[In the 'Whelp!' of the Great Wave]]></title>
+    <link href="http://artsy.github.io/blog/2018/01/24/kubernetes-and-hokusai/"/>
+    <updated>2018-01-24T00:00:00+00:00</updated>
+    <id>http://artsy.github.io/blog/2018/01/24/kubernetes-and-hokusai</id>
+    <content type="html"><![CDATA[<p>This past week has found me working on a brand new Rails project. Now, if I was building this project for my personal needs, I would without a doubt deploy it to <a href="https://www.heroku.com">Heroku</a> – for both the ease of use and the high level of abstraction that <a href="https://www.heroku.com/dynos">Dynos</a> afford. But I'm not building this for myself, I'm building it for my team.</p>
+
+<!-- more -->
+
+
+<p>While Heroku is easy to get started with, costs scale up quickly. And, as described in our <a href="http://artsy.github.io/blog/2017/04/14/artsy-technology-stack-2017/">2017 tech stack post</a>, our team is moving more and more towards <a href="https://kubernetes.io">Kubernetes</a>. I had almost no experience with Kubernetes before last week, and I was intimidated by the Kubernetes web UI. With some help from my colleague Isac, who wrote the <a href="https://github.com/artsy/hokusai">Hokusai</a> tool, I was able to get a staging environment up and running in under a day.</p>
+
+<p>But let's step back first.</p>
+
+<p>My background is in iOS software development, so spinning up new servers isn't something I do often. When I <em>do</em>, I usually use Heroku. After deploying to it, it feels like Kubernetes is a kind of hosted Heroku: it handles scaling up instances, managing worker/db/other instances, load-balancers, environment variables, promoting from staging to production – all that stuff. But Kubernetes' sophistication comes with a sophisticated user interface.</p>
+
+<p>So basically, Hokusai is to Kubernetes what the Heroku command-line tool is to the Heroku platform.</p>
+
+<p>Hokusai provides <a href="https://github.com/artsy/hokusai/blob/master/docs/Command_Reference.md">a bunch of commands</a> for interacting with the Kubernetes cluster. Deploying my new Rails app to Kubernetes involved a few steps, but most of the work was handled automatically by Hokusai.</p>
+
+<p>First, I installed and setup Hokusai locally (with required environment variables for AWS access). I then ran the following command to scaffold out everything.</p>
+
+<pre><code class="sh">hokusai setup --aws-account-id ARTSY_ACCOUNT_ID --project-type ruby-rails
+</code></pre>
+
+<p>In addition to staging- and production-specific config files, this command creates a <code>Dockerfile</code>. See, where Heroku uses Dynos as a high level of abstraction, Kubernetes uses <a href="https://www.docker.com">Docker</a> images (as a slightly less high a level of abstraction). Docker is a technology I'm familiar with, and I managed to configure the generated <code>Dockerfile</code> and <code>hokusai/*.yml</code> config files pretty quickly. At this point, I could run <code>hokusai dev start</code> to start a development Docker container, or <code>hokusai test</code> to run RSpec tests. Nothing fancy yet, but that verifies that everything is working so far.</p>
+
+<p>Next up was to use Hokusai in our CI environment. <a href="https://circleci.com/docs/2.0/">Circle CI 2.0</a> is very Docker-oriented, so we set up everything using their <a href="https://circleci.com/docs/2.0/workflows/">Workflows</a>. This is a much higher level of abstraction for CI configuration than I'm used to, but I got the hang of it quickly. I created a job to run RSpec tests through Hokusai, a job to run <a href="http://danger.systems">Danger</a>, a job to build and push a Docker image to our S3 bucket, and a job to deploy that image to the Kubernetes cluster. Finally, I added the workflows to build and deploy automatically after successful builds on the <code>master</code> branch.</p>
+
+<p>Here's a slightly redacted copy of our Circle config:</p>
+
+<pre><code class="yaml">version: 2
+jobs:
+  test:
+    docker:
+      - image: artsy/hokusai:0.4.0
+    working_directory: ~/REPO_NAME
+    steps:
+      - add_ssh_keys
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: Test
+          command: hokusai test
+  danger:
+    docker:
+      - image: circleci/ruby:2.5.0
+    working_directory: ~/apogee
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+          - v1-dependencies-
+          - v1-dependencies-
+      - run:
+          name: Install Dependencies
+          command: bundle install --with=ci --without development test --path vendor/bundle
+      - save_cache:
+          paths:
+            - ./vendor/bundle
+          key: v1-dependencies-
+      - run:
+          name: Danger
+          command: bundle exec danger
+  push:
+    docker:
+      - image: artsy/hokusai:0.4.0
+    steps:
+      - add_ssh_keys
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: Push
+          command: hokusai registry push --tag $CIRCLE_SHA1 --force --overwrite
+  deploy:
+    docker:
+      - image: artsy/hokusai:0.4.0
+    steps:
+      - add_ssh_keys
+      - checkout
+      - run:
+          name: Configure
+          command: hokusai configure --kubectl-version 1.6.3 --s3-bucket BUCKET_NAME --s3-key k8s/config --platform linux
+      - run:
+          name: Deploy
+          command: hokusai staging deploy $CIRCLE_SHA1
+workflows:
+  version: 2
+  default:
+    jobs:
+      - test
+      - danger:
+          filters:
+            branches:
+              ignore: master
+      - push:
+          filters:
+            branches:
+              only: master
+          requires:
+            - test
+      - deploy:
+          filters:
+            branches:
+              only: master
+          requires:
+            - push
+</code></pre>
+
+<p>The initial build on <code>master</code> built and pushed the server image, but the deploy failed. This is an <a href="https://github.com/artsy/hokusai/issues/50">issue</a> that's being tracked in Hokusai – I'm sure it'll get addressed on the road to a 1.0. To explain, it's a Catch-22: we can't deploy until we have an image, but we only want to build images on CI, so the first deploy on CI is expected to fail.</p>
+
+<p>Once the initial image was pushed, I ran <code>hokusai staging env create</code> locally to create the staging environment. I was able to set staging environment variables using <code>hokusai staging env set NAME=VALUE</code>, but unlike Heroku, I had to manually restart the server using <code>hokusai staging refresh</code> after adding the environment variables.</p>
+
+<p>At this point, my server was working behind a load balancer, but I still had to add a CNAME record for the <code>really-long-url.elb.amazonaws.com</code> domain name. After some DNS propagation, everything worked fine!</p>
+
+<p>So that's it! I was apprehensive about moving to a totally new (to me) deploy infrastructure. But, it's a direction our engineering team has decided to go in, and there's no better time to migrate to a new deploy infrastructure than before your first deploy. With some encouragement and help from my team, I was able to get the entire thing working in under a day (next time will be a lot faster).</p>
+
+<p>I'm very encouraged by Kubernetes. It offers really slick, enterprise-level scaling features in an open source tool. And I've heard really great things about its community practices. Kubernetes is, however, a very specialized tool and its web interface doesn't make any sense to me. With Hokusai, I got a very programmer-friendly interface for a very DevOps-focused tool.</p>
+]]></content>
+  </entry>
+  
+</feed>
