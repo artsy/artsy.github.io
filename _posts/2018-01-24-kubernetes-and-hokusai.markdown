@@ -112,7 +112,7 @@ workflows:
             - push
 ```
 
-The initial build on `master` built and pushed the server image, but the deploy failed. This is a [bug][] that's being tracked in Hokusai – I'm sure it'll get squashed on the road to a 1.0. See, it's a Catch-22: we can't deploy until we have an image, but we only want to build images on CI, so the first deploy is expected to fail.
+The initial build on `master` built and pushed the server image, but the deploy failed. This is an [issue][] that's being tracked in Hokusai – I'm sure it'll get addressed on the road to a 1.0. To explain, it's a Catch-22: we can't deploy until we have an image, but we only want to build images on CI, so the first deploy on CI is expected to fail.
 
 Once the initial image was pushed, I ran `hokusai staging env create` locally to create the staging environment. I was able to set staging environment variables using `hokusai staging env set NAME=VALUE`, but unlike Heroku, I had to manually restart the server using `hokusai staging refresh` after adding the environment variables. 
 
@@ -132,4 +132,4 @@ I'm very encouraged by Kubernetes. It offers really slick, enterprise-level scal
 [Danger]: http://danger.systems
 [Docker]: https://www.docker.com
 [Workflows]: https://circleci.com/docs/2.0/workflows/
-[bug]: https://github.com/artsy/hokusai/issues/50
+[issue]: https://github.com/artsy/hokusai/issues/50
