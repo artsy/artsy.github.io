@@ -19,7 +19,27 @@
 # - category_title_prefix: The string used before the category name in the page title (default is
 #                          'Category: ').
 
+PostCategory = Struct.new(:name, :dir, :count) do
+  def to_liquid
+    { 'name' => name, 'dir' => dir, 'count' => count }
+  end
+end
+
 module Jekyll
+
+  class PostCategoryListPage < Page
+    def initialize(site, base, post_categories)
+      @site = site
+      @base = base
+      @dir = "/blog/categories"
+      @name = "index.html"
+      self.process(@name)
+      self.read_yaml(File.join(base, '_layouts'), 'category_list_page.html')
+      self.data['post_categories'] = post_categories.sort_by { |v| v["name"] }
+      self.data['title'] = "Post Categories"
+      self.data['description'] = "Post Categories"
+    end
+  end
 
   # The CategoryIndex class creates a single category page for the specified category.
   class CategoryIndex < Page
@@ -105,8 +125,16 @@ module Jekyll
     def write_category_indexes
       if self.layouts.key? 'category_index'
         dir = self.config['category_dir'] || 'categories'
-        self.categories.keys.each do |category|
-          self.write_category_index(File.join(dir, category.gsub(/_|\P{Word}/, '-').gsub(/-{2,}/, '-').downcase), category)
+
+        post_categories = self.categories.map do |category, posts|
+          normalized_category_name = category.gsub(/_|\P{Word}/, '-').gsub(/-{2,}/, '-')
+          category_dir = File.join(dir, normalized_category_name.downcase)
+          PostCategory.new(category, category_dir, posts.count)
+        end
+
+        self.write_category_list_page(post_categories)
+        post_categories.each do |post_category|
+          self.write_category_index(post_category.dir, post_category.name)
         end
 
       # Throw an exception if the layout couldn't be found.
@@ -115,6 +143,13 @@ module Jekyll
       end
     end
 
+
+    def write_category_list_page(post_categories)
+      page = PostCategoryListPage.new(self, self.source, post_categories)
+      page.render(self.layouts, site_payload)
+      page.write(self.dest)
+      self.pages << page
+    end
   end
 
 
