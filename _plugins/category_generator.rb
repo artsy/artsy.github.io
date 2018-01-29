@@ -35,7 +35,7 @@ module Jekyll
       @name = "index.html"
       self.process(@name)
       self.read_yaml(File.join(base, '_layouts'), 'category_list_page.html')
-      self.data['post_categories'] = post_categories
+      self.data['post_categories'] = post_categories.sort_by { |v| v["name"] }
       self.data['title'] = "Post Categories"
       self.data['description'] = "Post Categories"
     end
