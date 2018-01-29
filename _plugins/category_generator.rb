@@ -19,9 +19,9 @@
 # - category_title_prefix: The string used before the category name in the page title (default is
 #                          'Category: ').
 
-PostCategory = Struct.new(:name, :dir) do
+PostCategory = Struct.new(:name, :dir, :count) do
   def to_liquid
-    { 'name' => name, 'dir' => dir }
+    { 'name' => name, 'dir' => dir, 'count' => count }
   end
 end
 
@@ -126,10 +126,10 @@ module Jekyll
       if self.layouts.key? 'category_index'
         dir = self.config['category_dir'] || 'categories'
 
-        post_categories = self.categories.keys.map do |category|
+        post_categories = self.categories.map do |category, posts|
           normalized_category_name = category.gsub(/_|\P{Word}/, '-').gsub(/-{2,}/, '-')
           category_dir = File.join(dir, normalized_category_name.downcase)
-          PostCategory.new(category, category_dir)
+          PostCategory.new(category, category_dir, posts.count)
         end
 
         self.write_category_list_page(post_categories)
