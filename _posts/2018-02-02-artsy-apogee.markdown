@@ -29,7 +29,7 @@ We built a quick prototype – less than two days work – to pull out data from
 
 The prototype was used with two large sales Skinner and Artsy were running together. Parsing out _just_ the dimensions of the lots, for _just_ one of the sales, saved an hour of Ops' time. Clearly, there was promise in this tool.
 
-Next steps were all technical, and we'll get into details in the next post, but building Apogee actually involed developing two pieces of technology: a server, and an Add-on. Because a tool to parse data from various partners necessarily contains those partners' data formats, we decided not to open source Apogee. That's okay – we practice open source _by default_, not _by demand_.
+Next steps were all technical, and we'll get into details in the next post, but building Apogee actually involved developing two pieces of technology: a server, and an Add-on. Because a tool to parse data from various partners necessarily contains those partners' data formats, we decided not to open source Apogee. That's okay – we practice open source _by default_, not _by demand_.
 
 ## Apogee Server
 
@@ -47,7 +47,7 @@ The Add-on is an interesting piece of code. In addition to the strange environme
 
 Google Docs Add-ons run as [Google Scripts][], which are a more general-purpose cloud computing platform. They [execute a runtime][runtime] based on JavaScript 1.6, which specific features from JavaScripts 1.7 and 1.8 ported in. Similar to the [Danger.js][] runtime, there is no event loop. So, things are weird.
 
-Just because we can't fully automate deploys doesn't mean we can't automate _parts_ of the process. Specifically, I built the Add-on using [Typescript][] and compiled down to a version of JavaScript that Google Scripts plays nice with. There are even open-source [typings][] available for the Google Scrips API.
+Just because we can't fully automate deploys doesn't mean we can't automate _parts_ of the process. Specifically, I built the Add-on using [TypeScript][] and compiled down to a version of JavaScript that Google Scripts plays nice with. There are even open-source [typings][] available for the Google Scrips API.
 
 ---
 
@@ -61,5 +61,5 @@ Artsy Auctions are at an inflection point; we need to scale up the number of auc
 [Google Scripts]: https://script.google.com
 [runtime]: https://developers.google.com/apps-script/guides/services/#basic_javascript_features
 [Danger.js]: http://danger.systems/js/
-[Typescript]: https://www.typescriptlang.org
+[TypeScript]: https://www.typescriptlang.org
 [typings]: https://www.npmjs.com/package/@types/google-apps-script
