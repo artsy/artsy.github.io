@@ -1,31 +1,65 @@
 ---
 layout: epic
-title: Getting Closer In Apogee
+title: "Apogee: Doing More with Less"
 date: 2018-02-02
 categories: [rails]
 author: [ash]
 series: Apogee
 ---
 
-> Apogee: the point in the orbit of two objects at which they are furthest from each other.
+> Apogee: the point in the orbit of two objects at which they are furthest apart.
 
-In 2017, the Artsy Auctions Operations team coordinated 190+ sales on our platform. This year, we're even more ambitious. But scaling up the number of sales we run will require scaling up our tools and processes, too.
+In 2017, the Artsy Auctions Operations team coordinated and ran 190+ sales on our platform. This year, our ambitions are set even higher. But scaling up the number of sales we run will require scaling up our tools and processes, too. This post describes Apogee, a tool I built to help us scale our businesses processes. I never thought I would be so excited to build a spreadsheet plugin, but I honestly had a blast. So let's dive in!
 
 <!-- more -->
 
-Running a sale on Artsy is no small feat. I mean, after all the contract negotiations you might think things get easier, but that's just the beginning of the work. All our auction partners have data in their own CMS systems, and they're all formatted slightly differently. We need to get the information for each lot in a sale into Artsy's CMS, and so a few years ago we built a batch-import app in Rails to do this (closed source, sorry). It works well, but expects data in a certain format. A lot of work is done by our Ops team to take the spreadsheets they get from our partners and reformatting the data to match the structure our batch import tool expects. All of our partners have different formats, and sales can include hundreds of lots.
+Running a sale on Artsy is no small feat. I mean, after all the contract negotiations you might think things get easier, but that's just the beginning of the work. All our auction partners have data in their own CMS systems, and they're all formatted slightly differently. We need to get the information for each lot in a sale into Artsy's CMS, and so a few years ago we built a batch-import app in Rails to do this (closed source, sorry). It works well, but expects data in a certain format.
 
-Wouldn't it be cool to build some kind of web app to bridge the gulf between Artsy's system and our partner's myriad systems?
+A lot of work is done by our Ops team to reformat spreadsheets they get from our partners to match the structure our batch import tool expects. All of our partners have different formats, and sales can include hundreds of lots. The reformatting process can take one person over a day, for large sales.
 
-No, actually, it wouldn't. It would be a tremendous amount of work, from our side and from our partners. Back to the drawing board.
+Wouldn't it be cool to build some kind of server to bridge the gulf between Artsy's database and our partner's myriad systems?
 
-In January, a few of us engineers met with Ops and an auction partner to discuss this problem. [Skinner][] was kind enough to walk us through their export process and give us some representative data. Perfect, now we have a starting point.
+No, actually, it wouldn't. It would be a tremendous amount of work, from our side and from theirs. Back to the drawing board.
 
-We built a quick prototype – less than two days work – to pull out data from Skinner's spreadsheets and format it into the format easiest for our Ops team to work with. The tool itself was a [Google Sheets Add-on][add-on]. There will be a follow-up post describing the technical evolution of this tool, but the important thing is that our engineering team went to where our Ops team already was. Previous discussions around improving Ops' workflow were centred around building new systems, instead of building tools that fit into our existing, functional workflows.
+In January, Ops arranged a meeting between us engineers and an auction partner. [Skinner][] was kind enough to walk us through their export process and provide us with some representative data.
 
-The prototype was used with three sales Skinner and Artsy were running together. Parsing out the dimensions of the lots, for just a single sale, saved an hour of Ops' time. Clearly, there was promise in this tool.
+Perfect, now we have a starting point.
 
-// TODO: Describe, in general terms, the development process. Discuss: Add-on runtime weirdness, high-level tech stack decisions, and showing off the prototype.
+We built a quick prototype – less than two days work – to pull out data from Skinner's spreadsheets and format it into the structure that's easiest for our Ops team to work with. The prototype itself was a [Google Sheets Add-on][add-on]. There will be a follow-up post describing the technical evolution of this tool, but the important thing is that we engineers went to where our Ops team already was. Previous discussions around improving Ops' workflow were centred around building entirely new systems, instead of building tools that fit into our existing, functional workflows.
+
+The prototype was used with two large sales Skinner and Artsy were running together. Parsing out _just_ the dimensions of the lots, for _just_ one of the sales, saved an hour of Ops' time. Clearly, there was promise in this tool.
+
+Next steps were all technical, and we'll get into details in the next post, but building Apogee actually involed developing two pieces of technology: a server, and an Add-on. Because a tool to parse data from various partners necessarily contains those partners' data formats, we decided not to open source Apogee. That's okay – we practice open source _by default_, not _by demand_.
+
+## Apogee Server
+
+It's difficult to discuss the server without first talking about the Add-on, so in short: Add-ons are difficult to maintain, to collaborate on, to unit test, and so on. So we decided early to build a very thin Add-on client and move all the heavy lifting to a backend server that we could develop within our existing technical framework. Our goal was to build an Add-on that needed to be updated less frequently than support for new partners was added.
+
+So we needed a server. Most of this server's job was going to be running regular expressions, and Ruby's regex features are still a step above Node's. So it's a Ruby server, but which framework?
+
+I thought about using Sinatra, since our server is very simple and Sinatra is a tech I've [used before][aeryn], but after speaking with some colleagues, I decided on using Rails in API-only mode. Sticking to Rails would keep the project in-step with the rest of Artsy's Ruby server code – we don't have any Sinatra apps, but everyone here already knows Rails. Plus, Rails is _very_ boring and – consequently – _very_ stable. I like stability.
+
+Before a few weeks ago, I'd never even run `rails new`. Now, I'm the proud point-person for an entire Rails server. I owe a lot to my colleagues for helping me along the way.
+
+## Apogee Add-on
+
+The Add-on is an interesting piece of code. In addition to the strange environment for building and deploying Add-ons, you also have to deal with a strange runtime. How strange? Well, it's JavaScript, but not as we know it.
+
+Google Docs Add-ons run as [Google Scripts][], which are a more general-purpose cloud computing platform. They [execute a runtime][runtime] based on JavaScript 1.6, which specific features from JavaScripts 1.7 and 1.8 ported in. Similar to the [Danger.js][] runtime, there is no event loop. So, things are weird.
+
+Just because we can't fully automate deploys doesn't mean we can't automate _parts_ of the process. Specifically, I built the Add-on using [Typescript][] and compiled down to a version of JavaScript that Google Scripts plays nice with. There are even open-source [typings][] available for the Google Scrips API.
+
+---
+
+I learned a lot from building Apogee, from a technical perspective, but the lessons I'm most proud of learning have to do more with business processes. From the general approach of making data imports faster, to the specific programming languages used to build Apogee, all decisions were driven first and foremost by actual business needs (and not technology trends). Apogee is not exciting enough to make the front page of Hacker News, and in a weird way, I'm proud of that.
+
+Artsy Auctions are at an inflection point; we need to scale up the number of auctions we run faster than we scale up the effort spends actually running them. 2018 is going to challenge the Auctions engineering team to help our colleagues accomplish more, while doing less. I'm excited for that challenge.
 
 [Skinner]: https://www.skinnerinc.com
 [add-on]: https://developers.google.com/apps-script/add-ons/
+[aeryn]: https://github.com/Moya/Aeryn
+[Google Scripts]: https://script.google.com
+[runtime]: https://developers.google.com/apps-script/guides/services/#basic_javascript_features
+[Danger.js]: http://danger.systems/js/
+[Typescript]: https://www.typescriptlang.org
+[typings]: https://www.npmjs.com/package/@types/google-apps-script
