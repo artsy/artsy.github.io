@@ -5,6 +5,7 @@ date: 2018-01-24
 comments: true
 author: ash
 categories: [kubernetes, hokusai, open-source, danger]
+series: Apogee
 ---
 
 This past week has found me working on a brand new Rails project. Now, if I was building this project for my personal needs, I would without a doubt deploy it to [Heroku][] – for both the ease of use and the high level of abstraction that [Dynos][] afford. But I'm not building this for myself, I'm building it for my team.
