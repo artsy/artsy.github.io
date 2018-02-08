@@ -56,9 +56,9 @@ Before a few weeks ago, I'd never even run `rails new`. Now, I'm the proud point
 
 The Add-on is an interesting piece of code. In addition to the strange environment for building and deploying Add-ons, you also have to deal with a strange runtime. How strange? Well, it's JavaScript, but not as we know it.
 
-Google Docs Add-ons run as [Google Scripts][], which are a more general-purpose cloud computing platform. They [execute a runtime][runtime] based on JavaScript 1.6, which specific features from JavaScripts 1.7 and 1.8 ported in. Similar to the [Danger.js][] runtime, there is no event loop. So, things are weird.
+Google Docs Add-ons run as [Google Scripts][], which are a more general-purpose cloud computing platform. They [execute a runtime][runtime] based on JavaScript 1.6, which specific features from JavaScripts 1.7 and 1.8 ported in. Similar to the [Danger-JS][] 1.x runtime, there is no event loop. So, things are weird.
 
-Just because we can't fully automate deploys doesn't mean we can't automate _parts_ of the process. Specifically, I built the Add-on using [TypeScript][] and compiled down to a version of JavaScript that Google Scripts plays nice with. There are even open-source [typings][] available for the Google Scripts API.
+Just because we can't fully automate deploys doesn't mean we can't automate _parts_ of the process. Specifically, I built the Add-on using [TypeScript][] which is compiled down to a version of JavaScript that Google Scripts plays nice with. There are even open-source [typings][] available for the Google Scripts API.
 
 ---
 
@@ -71,7 +71,7 @@ Artsy Auctions are at an inflection point; we need to scale up the number of auc
 [aeryn]: https://github.com/Moya/Aeryn
 [Google Scripts]: https://script.google.com
 [runtime]: https://developers.google.com/apps-script/guides/services/#basic_javascript_features
-[Danger.js]: http://danger.systems/js/
+[Danger-JS]: http://danger.systems/js/
 [TypeScript]: https://www.typescriptlang.org
 [typings]: https://www.npmjs.com/package/@types/google-apps-script
 [searls]: https://www.youtube.com/watch?v=MSgR-hJjdTo#t=2m36s
