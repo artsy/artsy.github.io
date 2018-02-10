@@ -1,5 +1,5 @@
 ---
-layout: post
+layout: epic
 title: "On our implementation of React Native"
 date: 2016-08-24 12:17
 author: orta
@@ -8,7 +8,7 @@ series: React Native at Artsy
 ---
 
 <center>
- <img src="/images/emission/emission-logo-artsy.svg" style="height:300px;">
+ <img src="/images/emission/emission-logo-artsy.svg" style="height:300px;margin-bottom: 60px;">
 </center>
 
 I arrived fashionably late to the [React Native party][architectual] in Artsy. I had been a part of our [Auctions Team][auctions_team], where we worked in Swift with [some light-FRP][interstellar]. We were not affected by the 4 months of simultaneous work on moving to React Native, at all.
@@ -25,13 +25,13 @@ Let's talk a little about the Artsy flagship app, [Eigen][eigen]. It's an app th
 
 It all looks a bit like this: 
 
-{% expanded_img /images/emission/eigen-overview.jpg %}
+{% include epic_img.html url="/images/emission/eigen-overview.jpg" title="Overview of Emission" style="width:100%;" %}
 
 Our app neatly splits into two areas of view controllers, ones that act as a browser chrome, and individual view controllers that normally map 1:1 to [routes][ar_router] on the Artsy website. 
 
 For example, the route `artsy.net/artwork/glenn-brown-suffer-well` maps to the native `ARArtworkViewController`.
 
-{% expanded_img /images/emission/eigen.svg %}
+{% include epic_img.html url="/images/emission/eigen.svg" title="Overview of Eigen" %}
 
 Just as a browser knows very little about the individual content of the pages that it's rendering, the eigen chrome exists _relatively_ independent of the view controllers that are showing. 
 

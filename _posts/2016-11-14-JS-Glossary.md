@@ -1,5 +1,5 @@
 ---
-layout: post
+layout: epic
 title: "JavaScript Glossary for 2017"
 date: 2016-11-14 12:17
 author: orta

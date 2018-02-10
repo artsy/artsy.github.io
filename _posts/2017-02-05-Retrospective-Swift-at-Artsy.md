@@ -1,5 +1,5 @@
 ---
-layout: post_longform
+layout: epic
 title: "Retrospective: Swift at Artsy"
 date: 2017-02-05 12:18
 author: orta
