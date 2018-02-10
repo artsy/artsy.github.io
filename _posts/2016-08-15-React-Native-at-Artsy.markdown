@@ -1,5 +1,5 @@
 ---
-layout: post
+layout: epic
 title: "React Native at Artsy"
 date: 2016-08-15 21:17
 comments: true
