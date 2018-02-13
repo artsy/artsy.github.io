@@ -259,4 +259,4 @@ Developers solve problems. Sometimes those problems are best solved with iOS app
 [ios post]: https://ashfurrow.com/blog/5-years-of-ios/
 [feels]: https://ashfurrow.com/blog/swift-vs-react-native-feels/
 [books]: https://ashfurrow.com/books/
-[Typescript]: https://www.typescriptlang.org
+[TypeScript]: https://www.typescriptlang.org
