@@ -37,7 +37,7 @@ Rather than deal with a weird version of JavaScript, we decided to write the Add
 
 Add-ons also have a somewhat complex permissions and authentication model. The [documentation][] provided is a great illustration of why _complete_ documentation is not necessarily _effective_ documentation. If you already understand what you're doing, the docs are a good reference, but I found them difficult to learn from.
 
-Permission vary wildly depending on the execution context. For example, the `onOpen` callback is able to make network requests when the script is run as an attachment to a spreadsheet, but not when deployed. This makes it difficult to populate our menu UI, which is based off an API response. I learned to not have confidence everything was working until I saw it work end-to-end.
+Permissions vary wildly depending on the execution context. For example, the `onOpen` callback is able to make network requests when the script is run as an attachment to a spreadsheet, but not when deployed. This makes it difficult to populate our menu UI, which is based off an API response. I learned to not have confidence everything was working until I saw it work end-to-end.
 
 One other peculiarity of Google's API is how UI callbacks work. You could create a menu for your Add-on with the following code:
 
