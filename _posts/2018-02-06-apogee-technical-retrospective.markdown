@@ -31,11 +31,11 @@ Add-on responsibilities include:
 
 Based on the parser selected by the user, Apogee gathers the required data from the current spreadsheet, sends it to the server for processing, and appends the results to the sheet. Pretty straightforward, you'd think.
 
-Unfortunately, Google Add-ons are a bit... strange. The Add-on itself is executed in Google's datacentres (not the user's browser) and is written in [JavaScript 1.6-ish][version]. The execution environment also lacks an event loop which, again, is a bit strange.
+Unfortunately, Google Add-ons are a bit... strange. The Add-on itself is executed in Google's datacentres (not the user's browser) and is written in [JavaScript 1.6-ish][version]. Specifically, it runs with JavaScript 1.6, plus some features from 1.7, plus some other features from 1.8, and also ["Google Advanced Services"][gas]. The execution environment also lacks an event loop, which makes sense from Google's perspective (their servers need to know if a script execution has completed) but is still a bit unusual.
 
 Rather than deal with a weird version of JavaScript, we decided to write the Add-on in [TypeScript][] and compile down to something Google can execute. We also found [open source typings][typings] for the Google APIs, which helped a lot. Google also provides access to certain whitelisted libraries, including [Lodash][], which is handy.
 
-Add-ons also have a somewhat complex permissions and authentication model. The [documentation][] provided is a great illustration of why _complete_ documentation is not necessarily _effective_ documentation. If you already understand what you're doing, the docs are a good reference, but I found them difficult to learn from.
+Add-ons also have a somewhat complex permissions and authentication model. The [documentation][] provided is a great illustration of why _complete_ documentation is not necessarily _effective_ documentation. If you already understand what you're doing, the docs are a good reference, but I found them difficult to learn from. I really like [this explanation][docs] of how to structure documentation like unit tests.
 
 Permissions vary wildly depending on the execution context. For example, the `onOpen` callback is able to make network requests when the script is run as an attachment to a spreadsheet, but not when deployed. This makes it difficult to populate our menu UI, which is based off an API response. I learned to not have confidence everything was working until I saw it work end-to-end.
 
@@ -178,7 +178,7 @@ def public_parsers
 end
 ```
 
-This code collects all the Ruby classes inside a module into a a data structure that can be consumed by the Apogee Add-on through the `/ui` endpoint. As a bonus, the tokens are generated the SHA256 hash of the fully-qualified parser class names. And we also avoid having to maintain a separate list of parsers that I would inevitably forget to update. Win-win.
+This code collects all the Ruby classes inside a module into a a data structure that can be consumed by the Apogee Add-on through the `/ui` endpoint. As a bonus, the tokens are generated from the SHA256 hash of the fully-qualified parser class names. And we also avoid having to maintain a separate list of parsers that I would inevitably forget to update. Win-win.
 
 All that's left to do is to lookup a parser class from a token. This is as easy as finding the class with the matching token and calling its `parse` function.
 
@@ -260,3 +260,5 @@ Developers solve problems. Sometimes those problems are best solved with iOS app
 [feels]: https://ashfurrow.com/blog/swift-vs-react-native-feels/
 [books]: https://ashfurrow.com/books/
 [TypeScript]: https://www.typescriptlang.org
+[docs]: https://twitter.com/kosamari/status/852319140060823553
+[gas]: https://developers.google.com/apps-script/guides/services/advanced
