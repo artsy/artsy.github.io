@@ -35,7 +35,7 @@ We have different apps with different trade-offs.
 
 [Eigen][eigen] is an app where we take JSON data from the server, and convert it into a user interface. Each view controller can nearly always be described as a function taking data and mapping it to a UI. [Eidolon][eidolon] (our Auctions Kiosk app) which contains a lot of Artsy-wide unique business logic which is handled with local state like card reader input, or unique user identification modes. [Emergence][emergence] is a trivial-ish tvOS app which has a few view controllers, and is mostly handled by Xcode's storyboards.
 
-{% epic_img /images/emission/eigen.svg %}
+{% include epic_img.html url="/images/emission/eigen.svg" title="Eigen separated into app + components" %}
 
 Eigen is where we worried about how we were building apps, other apps are limited in their scope, but Eigen is basically the mobile representation of Artsy. We're never _not_ going to have something like Eigen.
 
