@@ -4,7 +4,7 @@
   <title><![CDATA[Category: ruby | Artsy Engineering]]></title>
   <link href="http://artsy.github.io/blog/categories/ruby/atom.xml" rel="self"/>
   <link href="http://artsy.github.io/"/>
-  <updated>2018-02-13T15:37:39+00:00</updated>
+  <updated>2018-02-14T16:40:08+00:00</updated>
   <id>http://artsy.github.io/</id>
   <author>
     <name><![CDATA[]]></name>
@@ -12,6 +12,258 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Apogee Technical Retrospective]]></title>
+    <link href="http://artsy.github.io/blog/2018/02/06/apogee-technical-retrospective/"/>
+    <updated>2018-02-06T00:00:00+00:00</updated>
+    <id>http://artsy.github.io/blog/2018/02/06/apogee-technical-retrospective</id>
+    <content type="html"><![CDATA[<p>We've previously covered <a href="/blog/2018/02/02/artsy-apogee/">what Apogee is</a> and <a href="/blog/2018/01/24/kubernetes-and-hokusai/">how it's deployed</a>, so all that's left to cover is the technology used to build it. As a refresher: Apogee is a Google Sheets Add-on we built to help our Auctions Ops team transform the data given to us by our partners into a format that our CMS can understand. This process, done manually up until now, takes a long time and is a perfect candidate for automation.</p>
+
+<p>Apogee had some really interesting technical challenges that I enjoyed solving, and I'm excited to share some lessons I learned. So let's dive in!</p>
+
+<!-- more -->
+
+
+<p>We built a prototype as a "pure" Add-on, written only inside Google's sandbox, but that approach wouldn't work for us in production: the Add-on environment was just too difficult to work with. Google expects you to write Add-ons in their in-browser <a href="http://script.google.com">Script Editor</a> and – while whether or not that editor is <em>good</em> is a matter of preference – the environment isn't suited for collaborating or unit testing. Additionally, we could not get Add-on deploys automated, so we'd like to minimize how often we <em>have</em> to deploy.</p>
+
+<p>So we split things up. Instead of building all Apogee's logic into an Add-on, we decided to build two pieces: a very thin Add-on and a Rails server with all the real logic.</p>
+
+<p>(Because Apogee necessarily includes information about how our partners format their data, we decided not to open source it. Data formats are <em>probably</em> not sensitive, but that's a judgement best left up to our partners.)</p>
+
+<a name="Apogee.Add-on"></a>
+<h2>Apogee Add-on</h2>
+
+<p>The Add-on we built is very simple, by design. Our goal was to make an Add-on that was flexible enough such that we would need to deploy it less frequently than adding new parsers.</p>
+
+<p>Add-on responsibilities include:</p>
+
+<ul>
+<li>fetching the available parsers from the server.</li>
+<li>setting up an Add-on user interface (a menu of partners, each with available parsers).</li>
+<li>responding to invocations from that interface.</li>
+</ul>
+
+
+<p>Based on the parser selected by the user, Apogee gathers the required data from the current spreadsheet, sends it to the server for processing, and appends the results to the sheet. Pretty straightforward, you'd think.</p>
+
+<p>Unfortunately, Google Add-ons are a bit... strange. The Add-on itself is executed in Google's datacentres (not the user's browser) and is written in <a href="https://developers.google.com/apps-script/guides/services/#basic_javascript_features">JavaScript 1.6-ish</a>. Specifically, it runs with JavaScript 1.6, plus some features from 1.7, plus some other features from 1.8, and also <a href="https://developers.google.com/apps-script/guides/services/advanced">"Google Advanced Services"</a>. The execution environment also lacks an event loop, which makes sense from Google's perspective (their servers need to know if a script execution has completed) but is still a bit unusual.</p>
+
+<p>Rather than deal with a weird version of JavaScript, we decided to write the Add-on in <a href="https://www.typescriptlang.org">TypeScript</a> and compile down to something Google can execute. We also found <a href="https://www.npmjs.com/package/@types/google-apps-script">open source typings</a> for the Google APIs, which helped a lot. Google also provides access to certain whitelisted libraries, including <a href="https://lodash.com">Lodash</a>, which is handy.</p>
+
+<p>Add-ons also have a somewhat complex permissions and authentication model. The <a href="https://developers.google.com/apps-script/add-ons/lifecycle">documentation</a> provided is a great illustration of why <em>complete</em> documentation is not necessarily <em>effective</em> documentation. If you already understand what you're doing, the docs are a good reference, but I found them difficult to learn from. I really like <a href="https://twitter.com/kosamari/status/852319140060823553">this explanation</a> of how to structure documentation like unit tests.</p>
+
+<p>Permissions vary wildly depending on the execution context. For example, the <code>onOpen</code> callback is able to make network requests when the script is run as an attachment to a spreadsheet, but not when deployed. This makes it difficult to populate our menu UI, which is based off an API response. I learned to not have confidence everything was working until I saw it work end-to-end.</p>
+
+<p>One other peculiarity of Google's API is how UI callbacks work. You could create a menu for your Add-on with the following code:</p>
+
+<pre><code class="js">SpreadsheetApp.getUi()
+  .createAddonMenu()
+  .addItem('Do something', 'doSomething')
+  .addToUi()
+
+function doSomething() {
+}
+</code></pre>
+
+<p>You'll notice that the callback function is specified by a <em>string</em> representing a function name (and not as a function itself, which would be more idiomatic). So, for every menu item, there must exist a corresponding function in the global scope with a corresponding name. Sadly, no parameters are passed to these callbacks, so it's impossible for a function to determine which menu item it was invoked by. Therefore, every menu item <em>must</em> have exactly <em>one</em> corresponding function. That presents a problem for an Add-on with a dynamic menu.</p>
+
+<p>The Add-on isn't executed in a browser; we're running on Google's datacentres so let's just brute-force this. Our menu is a list of partner names, which is itself a submenu of parsers specific to that partner. That means that each menu item (and corresponding callback) can be indexed by two integers: a partner index and a operation index. So now we have a way to map from our user interface to a specific operation to perform inside <em>one</em> common menu handler.</p>
+
+<p>Let's take a look at the actual code.</p>
+
+<pre><code class="ts">interface Operation {
+  name: string
+  columns: string[]
+  token: string
+}
+
+interface Partner {
+  name: string
+  operations: Operation[]
+}
+
+// Sets up the Add-on menu and submenus.
+function setupAddon(ui: Partner[]) {
+  // Reduce the ui to a list of submenus.
+  const addOnMenu = ui.reduce((menu, partner, partnerIndex) =&gt; {
+    // Reduce the operations list to a list of menu items.
+    return menu.addSubMenu(partner.operations.reduce((memo, operation, operationIndex) =&gt; {
+      return memo.addItem(operation.name, `partner${partnerIndex}Operation${operationIndex}`)
+    }, SpreadsheetApp.getUi().createMenu(partner.name)))
+  }, SpreadsheetApp.getUi().createAddonMenu())
+  // Add the generated menu to the Add-on UI.
+  addOnMenu.addToUi()
+}
+</code></pre>
+
+<p>Each menu has a callback function named something like <code>partnerXOperationY</code>. Then we just generated a few thousand functions that match that format and call a shared handler <em>with</em> <code>X</code> and <code>Y</code> as parameters. The generated code looks like this:</p>
+
+<pre><code class="js">function partner0Operation0() {
+    sharedHandler(0, 0);
+}
+function partner0Operation1() {
+    sharedHandler(0, 1);
+}
+function partner0Operation2() {
+    sharedHandler(0, 2);
+}
+
+function sharedHandler(partnerIndex, operationIndex) {
+    // TODO: Look up the appropriate parser to use.
+}
+</code></pre>
+
+<p>It's not elegant, but it works. Actually, I think it does have a certain elegance, given the constraints it has to operate within.</p>
+
+<p>So that's it! The rest of the challenges were just weird permissions issues or config problems, but the Add-on was pretty easy to build. The file generated by the TypeScript compiler is only 166 lines long, and the file with all our menu callbacks is "only" 8000 lines long. Next, let's talk about the server.</p>
+
+<a name="Apogee.Server"></a>
+<h2>Apogee Server</h2>
+
+<p>So, Rails' philosophy is "<a href="https://en.wikipedia.org/wiki/Convention_over_configuration">convention over configuration</a>", which is pretty great as long as you know the conventions. I'd never run <code>rails new</code> before. Also, that philosophy works best when you're building <em>conventional</em> apps. Because Apogee is a bit unconventional, I was going to write Apogee in Sinatra before my colleague suggested I use Rails in <a href="http://guides.rubyonrails.org/api_app.html">API-only mode</a> instead. It seemed a bit overkill, but I also didn't want to pass up the chance to finally learn Rails.</p>
+
+<p>The server has two endpoints:</p>
+
+<ul>
+<li><code>/ui</code> provides a list of partners and their respective parsers.</li>
+<li><code>/columns</code> accepts spreadsheet columns and returns processed data (cell contents and a background colour to indicate our confidence in parsed results).</li>
+</ul>
+
+
+<p>We needed a way for the server to specify all its operations in a way that they could be invoked through the second endpoint. We decided to use a token-based approach: each parser has a token that can be used to invoke the parser later on. This dovetails with how I structured the parsers, too.</p>
+
+<p>Each partner is defined by a submodule within the <code>Apogee::Parser</code> module, and each parser is defined by a class within that partner module. Let's take a look at some code.</p>
+
+<pre><code class="rb">module Apogee
+  module Parser
+    module Skinner
+      extend Apogee::BaseParser
+
+      class DimensionsParser
+        # Name to show in Add-on UI.
+        def self.menu_name
+          "Parse dimensions from Description column"
+        end
+
+        # Columns required by the `/columns` endpoint.
+        def self.column_names
+          %w[Description]
+        end
+
+        # Parse the columns, called from the `/columns` endpoint.
+        def self.parse(columns)
+          # TODO: parse the columns.
+        end
+      end
+    end
+  end
+end
+</code></pre>
+
+<p>Each class within a partner is expected to have those three class methods.</p>
+
+<p>So now that we have a defined structure for our parsers, we can use Ruby reflection to collect a list of partner modules:</p>
+
+<pre><code class="rb">Parser.constants
+  .select { |c| Parser.const_get(c).is_a? Module }
+  .map do |c|
+    {
+      name: c,
+      operations: Parser.const_get(c).public_parsers
+    }
+end
+</code></pre>
+
+<p>Each module also has a <code>public_parsers</code> function (inherited from <code>Apogee::BaseParser</code>) which also uses reflection:</p>
+
+<pre><code class="rb">def public_parsers
+  constants
+    .select { |c| const_get(c).is_a? Class }
+    .map { |c| const_get(c) }
+    .map do |klass|
+      {
+        klass: klass.to_s,
+        name: klass.menu_name,
+        columns: klass.column_names,
+        token: Digest::SHA256.base64digest(klass.to_s)
+      }
+    end
+end
+</code></pre>
+
+<p>This code collects all the Ruby classes inside a module into a a data structure that can be consumed by the Apogee Add-on through the <code>/ui</code> endpoint. As a bonus, the tokens are generated from the SHA256 hash of the fully-qualified parser class names. And we also avoid having to maintain a separate list of parsers that I would inevitably forget to update. Win-win.</p>
+
+<p>All that's left to do is to lookup a parser class from a token. This is as easy as finding the class with the matching token and calling its <code>parse</code> function.</p>
+
+<pre><code class="rb">parser = partners
+  .map { |p| p[:operations] }
+  .flatten
+  .find { |op| op[:token] == token }
+Object.const_get(parser[:klass]).parse(columns)
+</code></pre>
+
+<p>Neat!</p>
+
+<p>This approach is <em>good</em>, but strikes me as overly object-oriented. <em>Most</em> of the parsers we're going to write are going to do the same thing: they have the same three methods and the <code>parse</code> method is basically just matching each spreadsheet cell against a regular expression. We can make a better abstraction.</p>
+
+<p>Since the parsers are defined by the presence of a class within a partner module, we can use metaprogramming to abstract away all the common pieces and add classes to the module programmatically. The implementation is too in-depth to explain in detail here, but our partner module above could be rewritten to look like the following:</p>
+
+<pre><code class="rb">module Apogee
+  module Parser
+    module Skinner
+      extend Apogee::BaseParser
+
+      add_single_column_parser(
+        class_name: 'DimensionsParser',
+        menu_name: 'Parse dimensions from Description column',
+        column_name: 'Description',
+        regex: %r{REGEX GOES HERE},
+        new_columns: %w[Height Width Depth Unit]
+      ) do |match|
+        # TODO: Process each cell.
+      end
+    end
+  end
+end
+</code></pre>
+
+<p>I created two such methods: one that uses a single regex, and another that uses multiple regexes (for more complex needs). I also wrote a handy <code>add_all_parser</code> method which adds a sort of meta-parser, which collates the results from calling <code>parse</code> on all the <em>other</em> parsers in that module. Our Ops team just needs to click "Parse everything" and the entire spreadsheet is processed with all the parsers in seconds.</p>
+
+<p>And of course, since all our parsers are just Ruby classes, they were easy to unit test.</p>
+
+<p>I've done metaprogramming in other languages, and it was a lot of fun to use it in Ruby. I ran the code by my colleagues who are more experienced in Ruby than I am, and documented everything thoroughly. It's a real shame the codebase isn't open source, because I'm really proud of the approach and would love to share it with you.</p>
+
+<a name="Apogee.Authentication"></a>
+<h2>Apogee Authentication</h2>
+
+<p>We needed to make sure that only the Add-on itself was invoking the server's endpoints. Not because the server has sensitive data – Apogee's server has no database and doesn't access any APIs – but just because it's good practice to limit access to services to only who needs them.</p>
+
+<p>We evaluated a bunch of prospective auth strategies, including (but not limited to) the following:</p>
+
+<ul>
+<li>Whitelist Google datacentre IP addresses, block all others.</li>
+<li>HTTP Basic Auth.</li>
+<li>Shared secret.</li>
+<li>OAuth with Artsy's API, by the user upon Add-on installation.</li>
+<li>Something totally custom, or a combination of any of these.</li>
+</ul>
+
+
+<p>After thoughtful discussion, we decided on a solution that works for us. I'm not going to specify what we used – not because I'm that concerned about the security, but because each project and team will have their own needs. If you build a server, think carefully about what kind of authentication makes sense for you and your team.</p>
+
+<a name="Conclusion"></a>
+<h2>Conclusion</h2>
+
+<p>Apogee was a really fun project. It had a defined scope, so it was a good first Rails project for me to tackle. The Add-on helps my colleagues on the Auctions Ops team do their jobs easier, so it was intrinsically rewarding to build. And it turns out that our Gallery Partnerships team also has to import a lot of partner data into Artsy's CMS, so I'm now exploring ways Apogee can help them, too.</p>
+
+<p>As a closing note, I want to discuss something that's been on my mind lately. I've been developing iOS apps <a href="https://ashfurrow.com/blog/5-years-of-ios/">since 2009</a>, and have a <a href="https://ashfurrow.com/books/">very intimate knowledge</a> of Objective-C, Swift, and UIKit. For a long time, I actually avoided learning new languages and frameworks because they intimidated me – starting over in a new framework, from scratch, felt like a step backward.</p>
+
+<p>I think this is a common frame of mind, among iOS developers, among all developers. But now I regret avoiding new technology for so long. The languages and tools that I knew had become part of my identity: I was an "iOS Developer." That identity was a source of strength, but was also a limitation.</p>
+
+<p>Developers solve problems. Sometimes those problems are best solved with iOS apps. And sometimes, they're best solved with spreadsheet plugins. After <a href="https://ashfurrow.com/blog/swift-vs-react-native-feels/">realizing</a> last year that I was limiting myself, I'm still coming to terms with how that impacts my identity. But I'll say this: if <em>I</em> can leave the safety blanket of the iOS world and build something completely new, so can you. Don't let your expertise and experience limit what you think you can build.</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Using OCR To Fix a Hilarious Bug]]></title>
@@ -398,181 +650,6 @@ end
 <p>I think this type of infrastructure can easily be adapted to serve as a feed on a front-end or other client app. An API to serve up these notifications (AKA feed items) can be built and different feed items can then be rendered or aggregated at load-time. Simple client-side polling can even be set up to alert a user if something has happened that interests them <em>while</em> they're browsing! I think push notifications and other messaging can be handled by this system as well.</p>
 
 <p>I'd love to hear any feedback and thoughts, and hopefully you've found this post informative and interesting. Please leave any feedback in the comments and <a href="https://github.com/artsy">follow us on Github</a>!</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Building an English Auction with MongoDB]]></title>
-    <link href="http://artsy.github.io/blog/2014/04/17/building-an-english-auction-with-mongodb/"/>
-    <updated>2014-04-17T12:21:00+00:00</updated>
-    <id>http://artsy.github.io/blog/2014/04/17/building-an-english-auction-with-mongodb</id>
-    <content type="html"><![CDATA[<p>Artsy ran several successful auctions over the past few months. The first, <a href="https://artsy.net/feature/two-x-two">TWO x TWO</a>, raised hundreds of thousands of dollars for amfAR (the AIDS Research foundation), and the Dallas Museum of Art. It was followed by <a href="https://artsy.net/feature/ici-benefit-auction">Independent Curators International</a>, at which Artsy launched on-site auction projection screens, which displayed competing bids coming in online from places around the world, like Oslo and Santa Monica, in realtime. Users could place bids on the website, via the iPhone app or with one of the Artsy representatives in the room carrying an iPad.  All the auction lots sold, and Artsy helped ICI to raise 50% more than its target revenue goal. Other, recent Artsy auctions include <a href="https://artsy.net/feature/public-art-fund-2014-spring-benefit">Public Art Fund</a> and the <a href="https://artsy.net/feature/brooklyn-artists-ball">Brooklyn Artists Ball</a>, benefitting the Brooklyn Museum.</p>
-
-<p><img src="/images/2014-04-17-implementing-bidding-in-an-english-auction-with-mongodb/ici-live-auction.jpg" alt="ICI Auction: Live" /></p>
-
-<p>The domain of auctions is a fascinating one, and includes everything from buying items on eBay to trading livestock and selling investment products on the stock exchange. For those interested in the large spectrum of auctions I highly recommend <a href="http://www.sci.brooklyn.cuny.edu/~parsons/projects/mech-design/publications/bluffers-final.pdf">Auctions and bidding: A guide for computer
-scientists</a> by Simon Parsons (CUNY), Juan A. Rodriguez-Aguilar (CSIC) and Mark Klein (MIT).</p>
-
-<p>At Artsy we implemented a classic English auction with, so called, "book bids". I spent a fair amount of time visiting engineering teams that have built internet auctions, most of which were transactional systems where taking a position on an item involved starting a transaction, running an auction round and committing the changes. In contrast, we chose to deliver a simpler, eventually consistent system on top of MongoDB, in which all data is immutable and where some level of serialization occurs within a single background process.</p>
-
-<p>In this post we'll go over some data modeling and examine the auction engine implementation details.</p>
-
-<!-- more -->
-
-
-<a name="Data.Modeling"></a>
-<h3>Data Modeling</h3>
-
-<p>In the Artsy platform, an <em>Auction</em> is an specialization of a more general concept of a <em>Sale</em>. A sale typically has an opening and a closing date, during which bidding or purchases can occur. We create a relationship between an artwork and a sale, which, in the case of an auction, includes the opening bid amount. We store all money in cents, and assume the currency to be USD, making it easy to extend the system for other currencies in the future.</p>
-
-<pre><code class="ruby">class SaleArtwork
-  include Mongoid::Document
-
-  field :opening_bid_cents, type: Integer
-
-  belongs_to :artwork, inverse_of: nil
-  belongs_to :sale
-
-  belongs_to :highest_bid, class_name: "Bid", inverse_of: nil
-
-  # Minimum next acceptable bid amount, in cents.
-  def minimum_next_bid_cents
-    return opening_bid_cents if highest_bid.nil? &amp;&amp; opening_bid_cents.present?
-    # calculate using a bid incrementing strategy ...
-  end
-end
-</code></pre>
-
-<p>A user registers to bid and creates a <em>Bidder</em> record.</p>
-
-<pre><code class="ruby">class Bidder
-  include Mongoid::Document
-
-  belongs_to :user
-  belongs_to :sale
-
-  has_many :positions, class_name: 'BidderPosition', inverse_of: :bidder
-end
-</code></pre>
-
-<p>This doesn't just mimic the real world where bidding typically requires registration - the bidder record doesn't belong to the user and contains essential data to identify an individual that is placing a bid. It also solves a very peculiar problem where a user decides to delete their account mid-auction. Finally, a bidder could eventually delegate bidding to an agent through this model's permissions.</p>
-
-<p>A bidder doesn't actually place any bids, but create a <em>Bidder Position</em>, which indicates the highest amount they are willing to pay for a given artwork.</p>
-
-<pre><code class="ruby">class BidderPosition
-  include Mongoid::Document
-
-  field :active, type: Boolean, default: true
-  field :max_bid_amount_cents, type: Integer
-
-  belongs_to :bidder, class_name: 'Bidder', inverse_of: :positions
-  belongs_to :sale_artwork
-  has_many :bids, inverse_of: :position
-
-  scope :active, where(active: true).asc(:max_bid_amount_cents)
-end
-</code></pre>
-
-<p>This is called a "book bid" - before technology took over the auctions world buyers delegated an agent to bid on their behalf after giving them a maximum amount they were willing to part with. Bidder positions belong to a bidder and to the artwork-to-sale relationship. They cannot be changed - if a user wants to increase his maximum bid, he simply creates a new bidder position.</p>
-
-<a name="Bidding.Round"></a>
-<h3>Bidding Round</h3>
-
-<p>Every time a bidder position is created, a <em>Bidding Round</em> is queued for the item being bid on. We can parallelize execution of these by artwork, however all bidding rounds for the same artwork are serialized.</p>
-
-<pre><code class="ruby">class EnglishAuction
-  # Run multiple rounds of bidding for the given lot, to rest. Return number of bids generated.
-  def self.run!(sale_artwork)
-    return 0 unless sale_artwork.sale &amp;&amp; sale_artwork.sale.biddable?
-
-    round = EnglishAuction::Round.new(sale_artwork)
-    round.run!
-
-    round.bids_generated.size
-  end
-end
-</code></pre>
-
-<p>A bidding round iterates over all active bidder positions in ascending order by dollar value, outbids any bidders below the max bid, and places new bids, as necessary. The entire round algorithm is below.</p>
-
-<pre><code class="ruby"># A bidding round for an English auction.
-class Round
-  attr_accessor :bids_generated
-
-  # @param sale_artwork A relationship between an artwork and a sale.
-  def initialize(sale_artwork)
-    @sale_artwork = sale_artwork
-    @bids_generated = []
-  end
-
-  # Run multiple rounds of bidding, to rest.
-  def run!
-    while (bids = process_more_bids!).any? do
-      @bids_generated += bids
-    end
-  end
-
-  # Run one round of bidding. Return bids.
-  def process_more_bids!
-    @sale_artwork.bidder_positions.active.map do |bidder_position|
-      process_bidder_position!(bidder_position)
-    end.compact
-  end
-
-  # Process a single bid position.
-  # @returns Generated bid, if any.
-  def process_bidder_position!(bidder_position)
-
-    # ignore if current position is highest
-    return nil if bidder_position == @sale_artwork.highest_bid.try(:position)
-
-    # ignore if bidder is already highest
-    return nil if bidder_position.bidder == @sale_artwork.highest_bid.try(:position).try(:bidder)
-
-    # close if below opening bid
-    if bidder_position.max_bid_amount_cents &lt; (@sale_artwork.opening_bid_cents || 1)
-      bidder_position.deactivate! "Bid must be greater than the minimum bid of #{@sale_artwork.opening_bid_cents}."
-      return nil
-    end
-
-    amount_cents = @sale_artwork.minimum_next_bid_cents # opening bid or an increment thereafter
-
-    if bidder_position.max_bid_amount_cents &lt; amount_cents
-      highest_bid_amount = @sale_artwork.highest_bid.try(:amount_cents) || 0
-
-      # if max is between current and increment (or if it's at current, but earlier), bid max anyway
-      # this means that a bidder who placed an identical max bid earlier becomes the highest bidder
-      if bidder_position.max_bid_amount_cents &gt; highest_bid_amount ||
-        (bidder_position.max_bid_amount_cents == highest_bid_amount &amp;&amp; bidder_position.id &lt; @sale_artwork.highest_bid.position.id)
-        amount_cents = bidder_position.max_bid_amount_cents
-      else
-        # outbid, next bid must be at least amount_cents
-        bidder_position.update_attributes! active: false
-        return nil
-      end
-    end
-
-    # place a bid
-    bidder_position.bids.create!(attrs).tap do |bid|
-      @sale_artwork.update_attributes! highest_bid: bid
-    end
-  end
-end
-</code></pre>
-
-<p>One of the interesting aspects of this system is what happens when two users create two identical bidder positions - the earlier one wins and the later one is outbid. In a transactional system we could produce an error message to the second bidder before the position is even created.</p>
-
-<a name="Bidder.Notifications"></a>
-<h3>Bidder Notifications</h3>
-
-<p>Notifying upon being "outbid" is straightforward, because a position only enters that state once, but notifying bidders of when they are the current high bidder or when their bid has been increased is trickier. We don't want to generate notifications every time a bid is made (i.e., it's the current high). Rather, we want to allow the round to reach a stable state at which there's only a single active position and then notify the current high and outbid bidders. This happens after each <code>round.run!</code>.</p>
-
-<a name="Beyond.Bidding"></a>
-<h3>Beyond Bidding</h3>
-
-<p>Aside of the bidding implementation we've built a whole software ecosystem around auctions. We developed a backend system to manage these. We put up projection screens at the event that list works being auctioned and flash every time a bid is placed. We register users' credit cards and collect their money.</p>
-
-<p>The software part, however, is definitely dwarfed by the amount of logistics and people involved in making one of those auctions a success. We're only trying to make that a bit more efficient. We'll see you at the upcoming BAM Art Auction, SFMOMA Modern Ball or the Whitney Museum Art Party!</p>
 ]]></content>
   </entry>
   
