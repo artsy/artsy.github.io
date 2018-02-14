@@ -178,7 +178,7 @@ def public_parsers
 end
 ```
 
-This code collects all the Ruby classes inside a module into a a data structure that can be consumed by the Apogee Add-on through the `/ui` endpoint. As a bonus, the tokens are generated from the SHA256 hash of the fully-qualified parser class names. And we also avoid having to maintain a separate list of parsers that I would inevitably forget to update. Win-win.
+This code collects all the Ruby classes inside a module into a data structure that can be consumed by the Apogee Add-on through the `/ui` endpoint. As a bonus, the tokens are generated from the SHA256 hash of the fully-qualified parser class names. And we also avoid having to maintain a separate list of parsers that I would inevitably forget to update. Win-win.
 
 All that's left to do is to lookup a parser class from a token. This is as easy as finding the class with the matching token and calling its `parse` function.
 
