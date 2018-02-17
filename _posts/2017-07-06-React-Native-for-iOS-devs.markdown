@@ -574,9 +574,7 @@ We found that the majority of our view controllers do a lot of work on init, the
 
 ## Facebook patent clause
 
-This has come up a few times in discussion, Facebook have a bit of a custom license for their open source. Back in 2015, they made changes to the license that makes this no problem for everyone but patent trolls. You can find a bunch of resources for further reading [on this gist][react-patents]. 
-
-_FWIW_: This is moving forwards, React is now MIT - but React Native still remains BSD + Patents.
+Facebook used to have a [custom BSD license][react-patents] for their OSS projects like React and React Native, so you'll still read comments about how you can't trust those projects due to these patent rights in the license. In 2017, React moved to MIT and in 2018 React Native moved to BSD. Now this is a non-issue.
 
 ## React Dependencies
 
