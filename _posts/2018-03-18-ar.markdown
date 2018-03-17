@@ -1,0 +1,138 @@
+---
+layout: epic
+title: "Augmenting Artworks: AR at Artsy"
+date: 2018-03-18
+author: orta
+categories: [native, ios, arkit]
+# css: what-is-react-native
+# comment_id: 420
+---
+
+In 2017 Apple released ARKit, to universal acclaim. It's a solid foundation for application developers to build
+Augmented Reality (AR) experiences without learning a whole new skillset in computer vision. Like a lot of Apple's
+technology, it's a clever blend of existing projects: SceneKit, CoreMotion, CoreML and some very clever camera work.
+From the developer's perspective it has an API which fits perfectly with the rest of Apple's APIs. You spend most of
+your time working with a few delegate functions and you're off.
+
+For the last 2 months, I've been working on a replacement for our View in Room feature on modern devices to support a
+"View in My Room" instead. I'm going to try cover how we approached the project, the abstractions we created and give
+you a run through of how it works.
+
+<!-- more -->
+
+## How does ARKit work?
+
+You start up ARKit by creating an `ARSession` and passing it to an `ARSCNView`. This then starts looking through the
+phone's camera for reference points to determine where the phone is in the world. Your app will use the reference points
+to attach SceneKit objects to places through the AR viewport. Let's look at this as a diagram:
+
+* You have a phone in a room
+* ARSession starts
+* It detects some feature points
+* You can then attach objects to those points
+
+If enough feature points are detected in a series horizontally, then ARKit will also send you some information about the
+what it considers to be a horizontal plane.
+
+Planes are what most AR apps use on iOS, the apps react to discovering a flat horizontal surface and then allows putting
+3d objects on to it. You would then interact by doing a hit test for the closest plane or feature point to handle user
+interactions.
+
+## AR at Artsy
+
+We did some interesting work in the AR space already in 2017 with Microsoft, Studio Drift and the Armory Show using [the
+Holo Lens][holo-lens]. When ARKit came out we explored whether we could reliably place an Artwork on a wall, but came to
+the conclusion that the technology was a bit too immature for us to build it reliably. The core problem was that ARKit
+at release could only be used to find horizontal planes.
+
+Here's how our original approach worked:
+
+* Open up ARKit and let it discover the world
+* Detect the edge of a floor by asking a user to point at the floor near the wall
+* Find the edge furthest away
+* Attach a work to the floor closest to the wall
+
+This could work, but but it was hard to explain. A user spent most of their time with their phones pointed at the floor,
+then we had to hope that the floor edges were actually caught correctly and it was hard to handle updates to the floor
+sizing.
+
+We moved on experimented with using the iPhone's location as a point of reference
+
+* Open up ARKit and let it discover the world
+* Ask a user to put their phone against the wall
+* Detect that the world has disconnected, and offer to let them tap
+* Use the phone's last known position to be eye level for the work
+
+We got this to a point where it was working most of the time. One of the core issues is that their is a lot of
+guess-work at the end of the process. The Artwork would usually be at the position of your phone, but it was rarely
+oriented correctly. The positioning of the Artwork was tough in this case. We experimented by placing the artwork a
+meter away, but in user testing very few people could do that roughly in their head, and opted for the exact position of
+the phone - which meant that you had to touch the wall, then come back to see if it fit right.
+
+The user flow was hard to explain, and it felt like we weren't setting people up to win. It was quite a debate about
+whether we could ship with this or not. Then we read about the upcoming changes in ARKit 1.5. **Vertical plane
+detection**. Or, _kinda_ wall detection.
+
+With the advent of veritcal wall detection, we could change our flow to be a lot like what someone would have thought it
+would be:
+
+* Open up ARKit and let it discover the world
+* Ask a user to point at a wall
+* Use the feature detection to detect a plane
+* Use that plane to place an Artwork.
+
+This is almost perfect, the only flaw is that you cannot use a plain white wall - because it has no feature points to
+work with. So instead we have it more like:
+
+* Open up ARKit and let it discover the world
+* Ask a user to point at something on a wall
+* Use the feature detection to detect a plane
+* Use that plane to place an Artwork.
+
+:tada: - you have the Artsy workflow for putting a work on the wall.
+
+## Abstractions
+
+While we were not sure about how well ARKit would work out for us, we thought the best way to get our feet wet would be
+to work with a contractor. We knew [@lazerwalker][lazerwalker] through the iOS dev community and asked if he was
+interested in prototyping it out. He built out a demo application of the first design iteration, you can [see it
+here][prototype1] as it's MIT licensed.
+
+I took his prototype and [merged it into our app][ar_pr_1] Eigen. From there I started to turn the project into
+production code. We effectively had two state machines, one that was handling the internal state of the AR world and
+another which handled the user interface from UIKit world. We kept these in sync by having two protocols:
+`ARVIRInteractive` and `ARVIRDelegate`.
+
+They didn't end up being that complex, you can see them in [`ARAugmentedVIRInteractionController.h`][vir_ic]. In fact,
+the story of AR at Artsy is that most of this is not too complex. Which I think is a testamount to how well thought-out
+ARKit is.
+
+So to make it work, we have a reasonably complicated UIViewController subclass,
+[`ARAugmentedVIRViewController.m`][vir_vc] which handles presenting a user interface above the camera, then an
+interaction controller [`ARAugmentedVIRInteractionController.m`][vir_ic_m] which handles all of the interactions inside
+AR. By using protocols to communicate between two, I could test out different AR interactions by duplicating the
+existing interaction controller and iterating on a new object for a while. This made it possible to prototype a few
+ideas, then switch between them - saving on dev time as this project wasn't a good fit for [React Native][rn].
+
+Testing this code turned out to not be too valuable, I have tests that [cover a lot of the UIKit level][tests] work but
+I avoided writing tests for ARKit code. It was changing too often, and was often exploritory. Also, our tests run on iOS
+10, which doesn't support ARKit anyway. So those tests would not run on CI.
+
+We explicitly aimed to try and have this project as free as possible from dependencies so that others could re-use this
+code. It's not _quite_ generic enough to warrant making it's own CocoaPod, but it's MIT licensed and most of the
+dependencies are to do with styling and testing, which should be easily replaced in another codebase. Let us know if
+you've explored adding something it to your app!
+
+## Demo
+
+[video here]
+
+[holo-lens]: http://fortune.com/2017/03/02/microsoft-hololens-art-show/
+[lazerwalker]: http://www.lazerwalker.com
+[rn]: http://artsy.github.io/series/react-native-at-artsy/
+[prototype1]: https://github.com/lazerwalker/art-on-walls-prototype
+[ar_pr_1]: https://github.com/artsy/eigen/pull/2501
+[vir_ic]: https://github.com/artsy/eigen/blob/master/Artsy/View_Controllers/ARVIR/ARAugmentedVIRInteractionController.h
+[vir_ic_m]: https://github.com/artsy/eigen/blob/master/Artsy/View_Controllers/ARVIR/ARAugmentedVIRInteractionController.m
+[vir_vc]: https://github.com/artsy/eigen/blob/master/Artsy/View_Controllers/ARVIR/ARAugmentedVIRViewController.m
+[tests]: https://github.com/artsy/eigen/tree/master/Artsy_Tests/View_Controller_Tests/ARVIR
