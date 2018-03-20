@@ -37,7 +37,7 @@ you want to be certain you're on the same version as me - I'm working from this 
 
 Clone a copy of GitHawk, and get it running in your Simulator. Then we can move on to starting our repo.
 
-## GitDawg
+## GitDawg JS
 
 ### Pre-requisites
 
@@ -115,7 +115,8 @@ $ react-native init GitDawg --version react-native@0.54.0
 $ mv GitDawg src
 ```
 
-We don't want all our project files living in a sub-folder though, so let's move a few of them back to the repo's root, then remove some unused files.
+We don't want all our project files living in a sub-folder though, so let's move a few of them back to the repo's root,
+then remove some unused files.
 
 ```sh
 # Copy the package metadata, deps, lockfile and dotfiles to root
@@ -137,7 +138,7 @@ App.js    __tests__ app.json  index.js
 
 To ensure everything is still hooked up, let's make sure that all of your tests are working in the new repo.
 
-```
+```sg
 $ yarn test
 
 yarn run v1.5.1
@@ -153,32 +154,44 @@ Ran all test suites.
 ✨  Done in 2.32s.
 ```
 
-This, basically is our React Native hello world. It's a React Native project that exposes a single component
+We're now going to be done with our JavaScript side, basically is our React Native "hello world". It's a React Native
+project that exposes a single component which says `"Welcome to React Native!"`.
 
-## Deployment
+### Deployment
 
-Lets ship this one screen to our app
+We're going to want to have this exposed to our native libraries, so we're going to ship the bundled JavaScript as our
+library's source code. We do this via the React Native CLI, and it's going to place the file inside our Pod folder from
+earlier.
 
-```
+```sh
 $ react-native bundle --entry-file src/index.js --bundle-output Pod/Assets/GitDawg.js --assets-dest Pod/Assets
 ```
 
-Time to focus on the CocoaPods side now
+## GitDawg Pod
+
+With that done, we can start looking at the native side of our codebase. We let `pod lib create` set up an Example app
+for us to work with in the repo, which consumes a Podspec in the root. So we're going to take a look at the Podspec, and
+update it.
 
 We want to:
 
-* Update our Podspec
-* Create a UIViewController for the WelcomeScreen from RN
+* Update our Podspec to handle React Native as a dependency
+* Create a `UIViewController` subclass for the Welcome Screen using the bundled React Native
 
-```
+We want to have our Podspec re-use the metadata from React Native to set up GitDawg's dependencies.
+
+```ruby
 require 'json'
 
+# Returns the version number for a package.json file
 pkg_version = lambda do |dir_from_root = '', version = 'version'|
   path = File.join(__dir__, dir_from_root, 'package.json')
   JSON.parse(File.read(path))[version]
 end
 
+# Let the main package.json decide the version number for the pod
 gitdawg_version = pkg_version.call
+# Use the same RN version that the JS tools use
 react_native_version = pkg_version.call('node_modules/react-native')
 
 Pod::Spec.new do |s|
@@ -188,16 +201,15 @@ Pod::Spec.new do |s|
   s.homepage         = 'https://github.com/orta/GitDawg'
   s.license          = { type: 'MIT', file: 'LICENSE' }
   s.author           = { 'orta' => 'orta.therox@gmail.com' }
-  7777777      s.source           = { git: 'https://github.com/orta/GitDawg.git', tag: s.version.to_s }
+  s.source           = { git: 'https://github.com/orta/GitDawg.git', tag: s.version.to_s }
 
   s.source_files   = 'Pod/Classes/**/*.{h,m}'
   s.resources      = 'Pod/Assets/{GitDawg.js,assets}'
 
-  # React
+  # React is split into a set of subspecs, these are the essentials
   s.dependency 'React/Core', react_native_version
   s.dependency 'React/CxxBridge', react_native_version
   s.dependency 'React/RCTAnimation', react_native_version
-  s.dependency 'React/RCTCameraRoll', react_native_version
   s.dependency 'React/RCTImage', react_native_version
   s.dependency 'React/RCTLinkingIOS', react_native_version
   s.dependency 'React/RCTNetwork', react_native_version
@@ -217,11 +229,11 @@ Pod::Spec.new do |s|
 end
 ```
 
-we can validate it does what we think by running `pod idc spec GitDawg.podspec`
+This Podspec is probably more complex then you're used to, but it means less config. To validate the Podspec, use
+`$ pod idc spec GitDawg.podspec` and read the JSON it outputs. With the Podspec set up, it's time to edit the example project's `Podfile`.
 
-OK, update the demo project’s Podfile:
 
-```
+```ruby
 platform :ios, '9.0'
 
 node_modules_path = '../node_modules'
