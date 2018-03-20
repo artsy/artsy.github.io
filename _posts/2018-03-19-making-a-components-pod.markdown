@@ -173,12 +173,17 @@ With that done, we can start looking at the native side of our codebase. We let 
 for us to work with in the repo, which consumes a Podspec in the root. So we're going to take a look at the Podspec, and
 update it.
 
-We want to:
+Our goal with the Example app is to set up an app exclusively for developing components in. In Artsy's case, this app
+handles auth and has a series of jump-off points for developing a component (either through Storybooks or directly using
+the Pods' `UIViewController`s.)
 
-* Update our Podspec to handle React Native as a dependency
-* Create a `UIViewController` subclass for the Welcome Screen using the bundled React Native
+To get started we need to modify the CocoaPod this repo represents:
 
-We want to have our Podspec re-use the metadata from React Native to set up GitDawg's dependencies.
+* Update our Podspec to handle React Native as a dependency, and our assets
+* Create a single `UIViewController` subclass for the Welcome Screen using the bundled React Native JS
+
+We want to have our Podspec re-use the metadata from React Native to set up GitDawg's dependencies. So replace
+`GitDawg.podspec` with this:
 
 ```ruby
 require 'json'
@@ -230,8 +235,17 @@ end
 ```
 
 This Podspec is probably more complex then you're used to, but it means less config. To validate the Podspec, use
-`$ pod idc spec GitDawg.podspec` and read the JSON it outputs. With the Podspec set up, it's time to edit the example project's `Podfile`.
+`$ pod idc spec GitDawg.podspec` and read the JSON it outputs. With the Podspec set up, it's time to edit the example
+project's `Podfile`.
 
+We want to take the current Podfile and make sure that every React Native dependency comes from yarn. We can do this
+using the `:path` operator to redeclare where you can find each Pod.
+
+Note: we also _extend_ the amount of subspecs for `'React'` in this Podfile via `subspecs: ['DevSupport']` - this is
+what provide the hot code reloading and other developer tools. You'll want this, it will mean that the example app can
+be used as a dev environment, and your main app will only get a production environment.
+
+So edit `Example/Podfile` to look like this:
 
 ```ruby
 platform :ios, '9.0'
@@ -257,24 +271,29 @@ target 'GitDawg_Example' do
 end
 ```
 
-running `pod install` in the Example dir will bring all the React Native deps into your project.
+Then run `pod install` in the Example dir, which will bring all the React Native deps into your project.
 
-You want to add a new class to your Pod,
+We need some native code to represent our Welcome component from the React Native template. So create two new files in
+`Pod/Classes`:
 
-```
+```sh
 touch ../Pod/Classes/GDWelcomeViewController.h ../Pod/Classes/GDWelcomeViewController.m
 ```
 
-```
+It is a pretty vanilla `UIViewController`, so declare it exists in the interface and then use an `RCTRootView` as it's
+`self.view`.
+
+```objc
 #import <UIKit/UIKit.h>
 
 @interface GDWelcomeViewController : UIViewController
 @end
 ```
 
-and
+We're going to handle the React bridging in this `UIViewController`, because that is the simplest option for our Hello
+World app. We'll be going back to this later.
 
-```
+```objc
 #import "GDWelcomeViewController.h"
 #import <React/RCTRootView.h>
 #import <React/RCTBridgeDelegate.h>
@@ -291,11 +310,11 @@ and
 {
     RCTBridge *bridge = [[RCTBridge alloc] initWithDelegate:self launchOptions:@{}];
     self.view = [[RCTRootView alloc] initWithBridge:bridge
-                                             moduleName:@"GitDawg"
-                                    initialProperties:@{}];
+                                         moduleName:@"GitDawg"
+                                  initialProperties:@{}];
 }
 
-// Just use our packaged JS for now
+// Use our bundled JS for now
 - (NSURL *)sourceURLForBridge:(RCTBridge *)bridge
 {
     NSBundle *emissionBundle = [NSBundle bundleForClass:GDWelcomeViewController.class];
@@ -305,10 +324,26 @@ and
 @end
 ```
 
-If you go and change the Storyboard initial view controller to be a GDWelcomeViewController then you’ll get the default
-“Hello world” react native view provided by the template
+Run `pod install` inside the `Example` folder again to update the Pod with the new files. Then you're good to go. As the
+`pod lib create` template uses storyboards, you will need to open up the example app's storyboard and change the initial
+view controller to be a `GDWelcomeViewController`. Then run the app in the simulator, and you should get this screen:
 
-This was for the compiled code, and is how your app would consume it.
+[img]
+
+This is the default screen from the React Native template, and it's proof that everything has worked.
+
+Let's take a second to re-cover what has happened to get us to this point.
+
+1.  We used the `pod lib create` template to make a library repo
+2.  We used `react-native init` to make a React Native environment, which has the settings in the root and the source
+    code inside `src`
+3.  We've bundled the React Native code into our CocoaPod's asset folder
+4.  We set up the Podspec for GitDawg, and then the Podfile for the example project to consume it
+5.  We added a UIViewController for the default screen from `react-native init` to our CocoaPod, and ran `pod install`
+    to update the example project
+6.  We changed the storyboard reference to point to the UIViewController from our Pod, and ran the sim
+
+This is a full run-through of how your Pod would look when integrated into your main app's codebase. You 
 
 —
 
