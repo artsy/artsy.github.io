@@ -4,7 +4,7 @@
   <title><![CDATA[Category: technology | Artsy Engineering]]></title>
   <link href="http://artsy.github.io/blog/categories/technology/atom.xml" rel="self"/>
   <link href="http://artsy.github.io/"/>
-  <updated>2018-03-17T16:37:03+00:00</updated>
+  <updated>2018-03-21T23:13:09+00:00</updated>
   <id>http://artsy.github.io/</id>
   <author>
     <name><![CDATA[]]></name>
@@ -71,6 +71,130 @@ through to get to the video or watch it <a href="https://www.prolificinteractive
 </script>
 
 
+
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Integrating Redux and Socket.io]]></title>
+    <link href="http://artsy.github.io/blog/2018/03/15/integrating-redux-and-socketio/"/>
+    <updated>2018-03-15T00:00:00+00:00</updated>
+    <id>http://artsy.github.io/blog/2018/03/15/integrating-redux-and-socketio</id>
+    <content type="html"><![CDATA[<p>On the engineering team at Artsy, we've built a CMS for both internal and external editors to write and publish <a href="https://www.artsy.net/article/artsy-editorial-brooklyn-born-sisters-diego-rivera-dubbed-the-greatest-living-women-mural-painters">articles</a>. We have a team of a dozen in-house editors creating new content on a daily basis. As many people starting using the app simultaneously, something became apparent. Editors would unintentionally go and override each other’s work because there was no way to tell if someone else was currently editing an article. As a workaround, team memebers would be forced to edit drafts in another editor such as google docs and copy their work over once ready. This made for a lackluster collaborative experience.</p>
+
+<p>So we decided to implement a system that would make our editors more confident in our CMS by ensuring only one editor could go in and edit an article at any given time. I was tasked with coming up with an elegant technical solution for this feature. Here's the approach I took....</p>
+
+<!-- more -->
+
+
+<p>We decided to resolve this issue building an article locking mechanism. When an editor would start editing an article, all other users in sessions would be notified. One of the requirements for this new feature was for things needed to update without refreshing the page. In order to fulfill this, we needed to implement a system to push events from the server to clients.</p>
+
+<p>Based on the requirements presented, I looked at potential solutions for this. Right away, the HTML5 WebSocket API seemed like the perfect solution to keep all clients synced in realtime, however a few issues arose. For one, many proxies and firewalls block WebSocket connections, so it's not always an available option for clients. I needed to find another option to mitigate that problem. That's where <a href="https://socket.io">socket.io</a> comes in.</p>
+
+<p>Socket.io, a battle tested library for creating real-time bidirectional communication channels, helps mitigate those problems. In a gist socket.io initially establishes a long-polling HTTP connection, and in parallel tries to upgrade it to WebSocket.</p>
+
+<p>By the time this project was proposed, we had already started the process of converting the app from using Coffeescript, Backbone + Jade to a modern javascript stack based on ES6, React for UI components and Redux for managing app state. Naturally, one of the goals was to leverage Redux to manage state for this feature. You've probably at least heard of Redux as it has emerged as the industry standard way of implementing one-way data flows in apps. If you're not familiar with Redux and its architecture, here's an excellent <a href="https://www.smashingmagazine.com/2016/06/an-introduction-to-redux/">intro to redux</a> article to familiarize yourself.</p>
+
+<p> So how do we go about integrating socket.io in the Redux-based state architecture we just designed. I thought the best would be to change as little as possible to the code structures developers familiar with Redux are already used to. Namely, use standard Redux actions creators and simply use a decorator to enhance them.</p>
+
+<p><img src="/images/2018-03-15-integrating-redux-and-socketio/example.gif" alt="/images/2018-03-15-integrating-redux-and-socketio/example.gif" /></p>
+
+<p>Here's a simplified version of the <a href="https://leanpub.com/javascriptallongesix/read#decorators">function decorator</a> which broadcasts redux actions via a socket connection to other connected clients.</p>
+
+<pre><code class="javascript">// From client
+import io from 'socket.io-client'
+import { messageTypes } from './messageTypes'
+
+let socket = io(rootURL)
+
+// Helper to emit a redux action to our websocket server
+const emitAction = (actionCreator) =&gt; {
+  return (...args) =&gt; {
+    // This return the action object which gets sent to our backend
+    // server via the socket connection
+    const result = actionCreator.apply(this, args)
+    socket.emit(result.key, {
+      ...result.payload,
+      type: result.type
+    })
+    return result
+  }
+}
+</code></pre>
+
+<p>To recap the code above, <code>emitAction</code> is a <a href="https://leanpub.com/javascriptallongesix/read#decorators">function decorator</a> that enhances action creators to dispatch actions via the local store and also broadcast that same action to other connected clients. The following code snippet shows how it's being used to wrap a typical redux action creator.</p>
+
+<pre><code class="javascript">// actions.js
+import keyMirror from 'client/lib/keyMirror'
+import { emitAction } from 'client/apps/websocket/client'
+import { messageTypes } from 'client/apps/websocket/messageTypes'
+
+export const actions = keyMirror(
+  ...
+  'START_EDITING_ARTICLE',
+  'STOP_EDITING_ARTICLE',
+  ...
+)
+
+export const startEditingArticle = emitAction((data) =&gt; {
+  return {
+    type: actions.START_EDITING_ARTICLE,
+    key: messageTypes.userStartedEditing,
+    payload: {
+      timestamp: new Date().toISOString(),
+      ...data
+    }
+  }
+})
+
+...
+</code></pre>
+
+<p>On the receiving end, we simply add a reducer to process the event from the action payload which we can then return a new state from.</p>
+
+<pre><code class="javascript">//reducers.js
+import { data as sd } from 'sharify'
+import { actions } from 'client/actions/editActions'
+import u from 'updeep'
+
+export const initialState = {
+  articles: sd.ARTICLES,
+  articlesInSession: sd.ARTICLES_IN_SESSION || {}
+}
+
+export function articlesReducer (state = initialState, action) {
+  switch (action.type) {
+    ...
+    case actions.START_EDITING_ARTICLE: {
+      const session = action.payload
+
+      return u({
+        articlesInSession: {
+          [session.article]: session
+        }
+      }, state)
+    }
+    ...
+  }
+}
+</code></pre>
+
+<p>We can now use our <code>emitAction</code> decorator function to enhance any number of action creators. All that's needed is to add a <code>key</code> property to the action object. We can then decide to either process actions
+ on a backend service or proxy them directly to other clients. You can find the remainder of the server implementation and our <a href="https://github.com/artsy/positron/blob/master/client/apps/websocket/index.js">event handlers</a> in our <a href="https://github.com/artsy/positron">github repo</a> along with instructions on how to run the code.</p>
+
+<a name="Future.improvements"></a>
+<h2>Future improvements</h2>
+
+<p>There's an opportunity to extract this module for reuse in other projects and apps. Another logical improvement to this project would be to implement collaborative editing using this architecture. It would also be nice to include helpers for handling events on backend servers.</p>
+
+<a name="Useful.links"></a>
+<h2>Useful links</h2>
+
+<ul>
+<li><a href="https://redux.js.org/">Redux</a></li>
+<li><a href="https://socket.io/docs/">Socket.io</a></li>
+<li><a href="https://github.com/substantial/updeep">Updeep</a></li>
+</ul>
 
 ]]></content>
   </entry>
@@ -1210,77 +1334,6 @@ $ tree .
 <p>In 2015 we intend to complete our transformation into small independent services built with 10x growth in mind. We can then focus on maturing the Artsy platform both vertically and horizontally and enabling many new directions for our thriving businesses.</p>
 
 <p>We hope you find this useful and will be happy to describe any detailed aspect of our system on this blog. We're always hiring, please e-mail <a href='mailto:jobs@artsy.net'>jobs@artsy.net</a> if you want to work with us. Finally, we welcome any questions here and look forward to answering them below!</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Artsy's Technology Stack]]></title>
-    <link href="http://artsy.github.io/blog/2012/10/10/artsy-technology-stack/"/>
-    <updated>2012-10-10T21:21:00+00:00</updated>
-    <id>http://artsy.github.io/blog/2012/10/10/artsy-technology-stack</id>
-    <content type="html"><![CDATA[<p>The public launch of Artsy via the <a href="http://www.nytimes.com/2012/10/09/arts/design/artsy-is-mapping-the-world-of-art-on-the-web.html">New York Times</a> is a good opportunity to describe our current technology stack.</p>
-
-<p>What you see when you go to <a href="http://artsy.net">Artsy</a> is a website built with <a href="http://backbonejs.org/">Backbone.js</a> and written in <a href="http://coffeescript.org/">CoffeeScript</a>. It renders JSON data from <a href="http://rubyonrails.org/">Ruby on Rails</a>, <a href="https://github.com/intridea/grape">Ruby Grape</a> and <a href="http://nodejs.org/">Node.js</a> services. Text search is powered by <a href="http://lucene.apache.org/solr/">Apache Solr</a>. We also have an <a href="https://developer.apple.com/devcenter/ios/index.action">iOS</a> application that talks to the same back-end Ruby API. We run all our web processes on <a href="http://www.heroku.com/">Heroku</a> and all job queues on <a href="http://aws.amazon.com/">Amazon EC2</a>. Our data store is <a href="http://www.mongodb.org/">MongoDB</a>, operated by <a href="https://mongohq.com/">MongoHQ</a> and we have some <a href="http://redis.io/">Redis</a> instances. Our assets, including images, are served from <a href="http://aws.amazon.com/s3/">Amazon S3</a> via the <a href="http://aws.amazon.com/cloudfront/">CloudFront CDN</a>. We heavily rely on <a href="http://memcached.org/">Memcached</a> Heroku addon and we use <a href="http://sendgrid.com/">SendGrid</a> and <a href="http://mailchimp.com/">MailChimp</a> to send e-mail. Systems are monitored by a combination of <a href="http://newrelic.com/">New Relic</a> and <a href="https://www.pingdom.com/">Pingdom</a>. All of this is built, tested and deployed with <a href="http://jenkins-ci.org/">Jenkins</a>.</p>
-
-<p><img src="/images/2012-10-10-artsy-technology-stack/artsy-infrastructure.png"></p>
-
-<p>In this post I'll go in depth in our current system architecture and tell you the story about how these parts all came together.</p>
-
-<!-- more -->
-
-
-<a name="Early.Prototypes"></a>
-<h2>Early Prototypes</h2>
-
-<p>Artsy early prototypes in 2010 consisted of a combination of PHP and Java web services running on JBoss and backed by a MySQL database. The system had more similarities with a large transactional banking application than a consumer website.</p>
-
-<p>In early 2011 we rebooted the project on Ruby on Rails. RDBMS storage was replaced with NoSQL MongoDB. A <a href="http://www.10gen.com/presentations/MongoNYC-2012/Using-MongoDB-to-Build-Artsy">video</a> was recorded at MongoNYC 2012 that goes in depth into this specific choice.</p>
-
-<a name="Artsy.Architecture.Today"></a>
-<h2>Artsy Architecture Today</h2>
-
-<p>Having only a handful of engineers, our goal has always been to keep the number of moving parts to an absolute minimum. With a few new engineers we were able to expand things a bit.</p>
-
-<a name="Artsy.Website.Front-End"></a>
-<h2>Artsy Website Front-End</h2>
-
-<p>The Artsy website is a responsive <a href="http://backbonejs.org/">Backbone.js</a> application written in <a href="http://coffeescript.org/">CoffeeScript</a> and <a href="http://sass-lang.com/">SASS</a> and served from a Rails back-end. The generated JavaScript and CSS files are packaged and compressed with <a href="http://documentcloud.github.com/jammit/">Jammit</a> and deployed to Amazon S3. The Rails app itself is a traditional MVC system that bootstraps application data and mostly serves SEO needs, such as meta tags, escaped fragments and page titles. Once the basic data has been rendered though, Backbone routing takes over and you're now navigating a client-side browser app with pushState support as available, swapping frames and rendering views using JST templates and JSON data returned from the API.</p>
-
-<a name="Core.API"></a>
-<h2>Core API</h2>
-
-<p>The website talks to the nervous system of Artsy, a RESTful API built in Ruby and <a href="https://github.com/intridea/grape">Grape</a>.</p>
-
-<p>In the early days we did a ton of domain-driven design and spent a lot of time modeling concepts such as <em>artist</em> or <em>artwork</em>. The API has read and write behavior for all our domain concepts. Probably 70% of it is pure CRUD doing <a href="http://mongoid.org/">Mongoid</a> queries with a layer of access control in <a href="https://github.com/ryanb/cancan">CanCan</a> and cache partitioning and binding using <a href="http://confreaks.com/videos/986-goruco2012-from-zero-to-api-cache-w-grape-mongodb-in-10-minutes">Garner</a>.</p>
-
-<a name="Search.Autocomplete"></a>
-<h2>Search Autocomplete</h2>
-
-<p>The first iteration of the website's text search was powered by <a href="https://github.com/artsy/mongoid_fulltext">mongoid_fulltext</a>. Today we run an <a href="http://lucene.apache.org/solr/">Apache Solr</a> master-slave environment hosted on EC2.</p>
-
-<a name="Offline.Indexes"></a>
-<h2>Offline Indexes</h2>
-
-<p>The indexes that serve complex queries like related artists/artworks and filtered searches of artworks are all built offline. Our index-building system runs continuously, repeatedly pulling data from our production system to build the most out-of-date index. All of the most current indexes are imported back into production by a daily batch process and we swap the old indexes out atomically using <a href="https://github.com/aaw/mongoid_collection_snapshot">mongoid_collection_snapshot</a>.</p>
-
-<p>One of such indexes a <em>similarity graph</em> that we query to produce most similar results on the website, other indexes serve filtering needs, etc. We run these processes nightly.</p>
-
-<a name="Admin.Back-End.and.Partner.CMS"></a>
-<h2>Admin Back-End and Partner CMS</h2>
-
-<p>The Artsy CMS and the Admin system are two newer projects and serve the needs of our partners and our internal back-end needs, respectively. These are built on a thin <a href="http://nodejs.org">Node.js</a> server that proxies requests to our API using <a href="https://github.com/nodejitsu/node-http-proxy">node-http-proxy</a>. They consist of a client-side Backbone.js application with assets packaged with <a href="https://github.com/craigspaeth/nap">nap</a>. This is a lot like our website, but completely decoupled from the main Rails application and sharing the same technology for both client and server with CoffeeScript and <a href="http://jade-lang.com/">Jade</a>.</p>
-
-<a name="Folio.Partner.App"></a>
-<h2>Folio Partner App</h2>
-
-<p>Artsy makes a free iOS application, called <a href="http://artsy.github.com/blog/categories/ios/">Folio</a>, which lets our partners display their inventory at art fairs.</p>
-
-<p>Folio is a native iOS implementation. The interface is heavily skinned UIKit with CoreData for storage. Our network code was originally a thin layer on top of NSURLConnection, but for our forthcoming update, we’ve rewritten it to use <a href="https://github.com/AFNetworking/AFNetworking/">AFNetworking</a>. We manage external dependencies with <a href="https://github.com/CocoaPods/CocoaPods">CocoaPods</a>.</p>
-
-<a name="Want.More.Specifics..Have.Questions."></a>
-<h2>Want More Specifics? Have Questions?</h2>
-
-<p>We hope you find this useful and are happy to describe any aspect of our system on this blog. Please ask questions below, we’ll be happy to answer them.</p>
 ]]></content>
   </entry>
   
