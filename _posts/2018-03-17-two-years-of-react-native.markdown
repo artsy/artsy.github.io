@@ -32,7 +32,7 @@ Table of Contents for the Video:
   <li><a href="#video" data-time="1420">Upsides: 23:40</a></li>
   <li><a href="#video" data-time="1645">In-App demo of Emission: 27:25</a></li>
   <li><a href="#video" data-time="2195">RN Brownfield Apps: 36:35</a></li>
-  <li><a href="#video" data-time="2379">Our Deploment: 39:30</a></li>
+  <li><a href="#video" data-time="2379">Our Deployment: 39:30</a></li>
 </ul>
 
 <center id="video">
