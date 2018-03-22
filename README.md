@@ -63,6 +63,24 @@ categories: [Design, CSS, HTML5]
 ---
 ```
 
-More info can be found in the [official docs](http://jekyllrb.com/docs/posts/).
+More info can be found in the [Jekyll docs](http://jekyllrb.com/docs/posts/).
 
 When you have authored an article, `git add` and `git commit` it, then push to a named branch with `git push origin [branch]`, and create a pull request to the `source` branch, it will be deployed to the site by travis when merged.
+
+## After Deploying an Article
+
+Every article on our blog needs one more thing: a snappy tweet! You can ask Ash or Orta to do this for you, but you're also welcome to log into the [@ArtsyOpenSource](https://twitter.com/ArtsyOpenSource) twitter account and tweet yourself (credentials are in the Engineering 1Password vault). Tweets usually follow the following format:
+
+```
+[pithy observation] [description of problem] [@ the article author's twitter handle]
+
+📝 [link to blog post]
+💻 [link to GitHub repo, if applicable]
+📷 [attach a screenshot of the first few paragraphs of the post]
+```
+
+We attach screenshots of the post because tweets with images get more traction. But! Images aren't accessible to screen readers, so make sure to use the twitter.com web interface and add a description to the image when posting:
+
+> Screenshot of the title and first two paragraphs of the linked-to blog post.
+
+You can look at previous tweets from our account to get a feel for these. If you'd like help, just ask in Slack.
