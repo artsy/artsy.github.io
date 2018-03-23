@@ -108,7 +108,7 @@ export function articlesReducer (state = initialState, action) {
 ```
 
 We can now use our `emitAction` decorator function to enhance any number of action creators. All that's needed is to add a `key` property to the action object. We can then decide to either process actions
- on a backend service or proxy them directly to other clients. You can find the remainder of the server implementation and our [event handlers](https://github.com/artsy/positron/blob/master/client/apps/websocket/index.js) in our [github repo](https://github.com/artsy/positron) along with instructions on how to run the code.
+ on a backend service or proxy them directly to other clients. You can find the remainder of the server implementation and our [event handlers](https://github.com/artsy/positron/blob/master/src/client/apps/websocket/index.js) in our [github repo](https://github.com/artsy/positron) along with instructions on how to run the code.
 
 ## Future improvements
 
