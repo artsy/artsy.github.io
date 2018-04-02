@@ -469,12 +469,13 @@ That should get you to the same point as we were in the dev app.
 
 [summary of native changes]
 
----
-
 So what now?
 
 * Convert dev mode to actually use RNP
 * Switch to deploys for GitDawg, instead of `:path`
+* Could I script this? Yep. Will I? No.
+* From here you are at a blank slate of React Native
+* Bunch o links for getting started
 
 [draw_tick]: http://2.bp.blogspot.com/_PekcT72-PGE/SK3PTKwW_eI/AAAAAAAAAGY/ALg_ApHyzR8/s1600-h/1219140692800.jpg
 [githawk]: https://github.com/GitHawkApp/GitHawk
