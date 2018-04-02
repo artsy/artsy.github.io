@@ -6,36 +6,45 @@ author: orta
 categories: [Technology, emission, reaction, reactnative, react, javascript]
 css: what-is-react-native
 series: React Native at Artsy
-# comment_id: 420
+comment_id: 430
 ---
 
-When we talk about our React Native setup there are two kinds of "[now draw the the tick][draw_tick]" for iOS
+When we talk about our React Native setup in abstract, there are two kinds of "[now draw The Tick][draw_tick]" for iOS
 developers:
 
 * How do I build this React Native as a CocoaPods setup?
 * How do I get all the JavaScript tooling setup up?
 
-We're going to address the first part in this post. By the end of this post we're going to get an Emission-like repo set
-up for an existing OSS iOS app called GitHawk. The aim being to introduce any no JavaScript tooling into GitHawk itself,
-and to only expose iOS-native UIViewControllers via a CocoaPod which is consumed by GitHawk.
+We're going to address the first part in this post. By the end of this post we're going to get an [Emission-like
+repo][emission-y] set up for an existing OSS Swift iOS app called [GitHawk][githawk]. The aim being to introduce no
+JavaScript tooling into GitHawk itself, and to only expose iOS-native `UIViewControllers` via a CocoaPod which is
+consumed by GitHawk.
 
 To do this we're going to use the CocoaPods' `pod lib create` template, and React Native's `react-native init` to make a
-self-contained React Native repo. It will export a JS file, and some native code which a Podspec will use.
-
-WIP - https://github.com/orta/gitdawg
+self-contained React Native repo. It will export a JS file, and some native code which Podspec will reference. Read on
+to start digging in.
 
 <!-- more -->
 
-So, I'm going to be annoying here. I will intentionally be adding `$`s before all of the commands, this is specifically
-to slow you down and make you think about each command. Also don't use a mobile device.
+[show existing links]
+
+So, I'm **choosing** to be annoying here. I will intentionally be adding `$`s before all of the commands, this is
+specifically to slow you down and make you think about each command.
+
+<div class="mobile-only">
+<p>
+  <strong>Also, before you get started</strong>, it looks like you're using a really small screen, this post expects you would have a terminal around with useful tools for getting stuff done. I'm afraid without that, you're not going to get much out of it. I'd recommend switching to a computer.
+</p>
+</div>
 
 ## GitHawk
 
 Let's get started by having a working [copy of GitHawk][githawk]. I'll leave the README for GitHawk to do that, but if
 you want to be certain you're on the same version as me - I'm working from this commit
-`84ffeab2555c16e551ddba05fbb7b606ec9a958f`.
+`84ffeab2555c16e551ddba05fbb7b606ec9a958f`. [todo: this needs to be my merged PR now that 9.3 broke GitHawk]
 
-Clone a copy of GitHawk, and get it running in your Simulator. Then we can move on to starting our repo.
+Clone a copy of GitHawk, and get it running in your Simulator, should take about 5 minutes Then we can move on to
+starting our repo.
 
 ## GitDawg JS
 
@@ -46,8 +55,7 @@ We need CocoaPods: `$ gem install cocoapods`.
 We're going to need node, and a dependency manager. If you run `$ brew install yarn` you will get both. I'm running on
 node `8.9.x` and yarn `1.5.x`. Honestly, it shouldn't matter if you're on node 8, or 9. Yarn is basically CocoaPods for
 node projects. If you're wondering what the differences are between [yarn][] and [npm][], then TLDR: there used to be
-some, but now there's little. I just stock with yarn because I prefer how the CLI works, and I trust its lockfile and
-priorities.
+some, but now there's little. I stick with yarn because I prefer how the CLI works, and I trust its lockfile.
 
 We need the React Native CLI, so let's install it globally: `$ yarn global add react-native-cli`.
 
@@ -296,7 +304,7 @@ We need some native code to represent our Welcome component from the React Nativ
 `Pod/Classes`:
 
 ```sh
-touch ../Pod/Classes/GDWelcomeViewController.h ../Pod/Classes/GDWelcomeViewController.m
+$ touch ../Pod/Classes/GDWelcomeViewController.h ../Pod/Classes/GDWelcomeViewController.m
 ```
 
 It is a pretty vanilla `UIViewController`, so declare it exists in the interface and then use an `RCTRootView` as it's
@@ -336,8 +344,8 @@ World app. We'll be going back to this later.
 // Use our bundled JS for now
 - (NSURL *)sourceURLForBridge:(RCTBridge *)bridge
 {
-    NSBundle *emissionBundle = [NSBundle bundleForClass:GDWelcomeViewController.class];
-    return [emissionBundle URLForResource:@"GitDawg" withExtension:@"js"];
+    NSBundle *gitdawgBundle = [NSBundle bundleForClass:GDWelcomeViewController.class];
+    return [gitdawgBundle URLForResource:@"GitDawg" withExtension:@"js"];
 }
 
 @end
@@ -377,7 +385,9 @@ different root screens and admin flags.
 
 —
 
-OK, let’s go take this and migrate it into GitHawk.
+OK, let’s go take this and migrate it into GitHawk. This is what our end-goal looks like:
+
+<center><img src="/images/making_cp_pod/githawk.gif" width="75%" /></center>
 
 Our setup is going to be different here because we can't rely on React Native coming from the file-system, as we want to
 make sure our app has no hint of JS tooling. So we will use CocoaPods to handle downloading and setting up our versions
@@ -387,27 +397,27 @@ We want to have a local copy of the JSON version of Podspecs for each of these. 
 using `bundle exec pod ipc spec [file.podspec]`. Let's generate one for React:
 
 ```sh
-cd GitDawg/node_modules/react-native/; pod ipc spec React.podspec
+$ cd GitDawg/node_modules/react-native/; pod ipc spec React.podspec
 ```
 
 It will output a bunch of JSON to your terminal. This is :+1:. Let's move a copy to your desktop.
 
 ```sh
-pod ipc spec node_modules/react-native/React.podspec > ~/Desktop/React.podspec.json
+$ pod ipc spec node_modules/react-native/React.podspec > ~/Desktop/React.podspec.json
 ```
 
 You'll see no output if everything went fine. Before you grab that podspec, let's get the one for yoga too.
 
 ```sh
-cd ReactCommon/yoga/; pod ipc spec yoga.podspec > ~/Desktop/yoga.podspec.json
+$ cd ReactCommon/yoga/; pod ipc spec yoga.podspec > ~/Desktop/yoga.podspec.json
 ```
 
 Again, no output means everything is great. You should now have two JSON files in your Desktop. Grab them, move them
 into a the `Local Pods` folder inside GitHawk.
 
 ```sh
-cd GitHawk # However it takes to get back there.
-mv ~/Desktop/*.podspec.json "Local Pods"
+$ cd GitHawk # However it takes to get back there.
+$ mv ~/Desktop/*.podspec.json "Local Pods"
 ```
 
 Modify the `Gemfile` to include [cocoapods-fix-react-native][cpfrn]:
@@ -433,8 +443,43 @@ pod 'yoga',  :podspec => 'Local Pods/yoga.podspec.json'
 
 Then run `bundle exec pod install`. That should grab and set up React Native for you.
 
+Open up the Xcode Workspace - `Freetime.xcworkspace`, and we're gonna make the code changes - it's all in one file. Open
+the file `RootNavigationController.swift` and add a new `import` at the top for `GitDawg`:
+
+```diff
+import UIKit
+import GitHubAPI
+import GitHubSession
++ import GitDawg
+```
+
+Then add our new view controller by replacing the bookmarks view controller
+
+```diff
+        tabBarController?.viewControllers = [
+            newNotificationsRootViewController(client: client),
+            newSearchRootViewController(client: client),
++            GDWelcomeViewController(),
+-            newBookmarksRootViewController(client: client),
+            settingsRootViewController ?? UIViewController() // simply satisfying compiler
+        ]
+```
+
+That should get you to the same point as we were in the dev app.
+
+[summary of native changes]
+
+---
+
+So what now?
+
+* Convert dev mode to actually use RNP
+* Switch to deploys for GitDawg, instead of `:path`
+
 [draw_tick]: http://2.bp.blogspot.com/_PekcT72-PGE/SK3PTKwW_eI/AAAAAAAAAGY/ALg_ApHyzR8/s1600-h/1219140692800.jpg
 [githawk]: https://github.com/GitHawkApp/GitHawk
 [yarn]: https://github.com/yarnpkg/yarn/
 [npm]: https://www.npmjs.com/
 [cpfrn]: https://github.com/orta/cocoapods-fix-react-native#readme
+[emission-y]: /blog/2016/08/24/On-Emission/
+[githawk]: https://github.com/GitHawkApp/GitHawk/
