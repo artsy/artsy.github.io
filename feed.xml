@@ -5,9 +5,698 @@
     <description></description>
     <link>http://artsy.github.io/</link>
     <atom:link href="http://artsy.github.io/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Sat, 24 Mar 2018 21:16:45 +0000</pubDate>
-    <lastBuildDate>Sat, 24 Mar 2018 21:16:45 +0000</lastBuildDate>
+    <pubDate>Tue, 03 Apr 2018 19:52:33 +0000</pubDate>
+    <lastBuildDate>Tue, 03 Apr 2018 19:52:33 +0000</lastBuildDate>
     <generator>Jekyll v2.5.3</generator>
+    
+      <item>
+        <title>Augmenting Artworks: AR at Artsy</title>
+        <description>&lt;p&gt;In 2017, Apple released ARKit to universal acclaim. It&#39;s a solid foundation for application developers to build
+Augmented Reality (AR) experiences without learning a whole new skillset in computer vision. Like a lot of Apple&#39;s
+technology, it&#39;s a clever blend of existing projects: &lt;a href=&quot;https://developer.apple.com/documentation/scenekit&quot;&gt;SceneKit&lt;/a&gt;, &lt;a href=&quot;https://developer.apple.com/documentation/coremotion&quot;&gt;CoreMotion&lt;/a&gt;, &lt;a href=&quot;https://developer.apple.com/documentation/coreml&quot;&gt;CoreML&lt;/a&gt; and some very
+clever camera work. From the developer&#39;s perspective, ARKit has an API which fits perfectly with the rest of Apple&#39;s
+APIs. You spend most of your time working with a few delegate functions and you&#39;re good to go.&lt;/p&gt;
+
+&lt;p&gt;For the last 2 months, I&#39;ve been working with ARKit on a replacement for our &lt;a href=&quot;https://ortastuff.s3.amazonaws.com/vids/eigen-vir.mp4&quot;&gt;View in Room&lt;/a&gt; feature on modern
+iOS devices to support a &quot;View in &lt;em&gt;My&lt;/em&gt; Room&quot;. I&#39;m going to try cover how we approached the project, the abstractions we
+created and give you a run through of how it works.&lt;/p&gt;
+
+&lt;p&gt;We believe that our implementation is a solid improvement over similar features in other apps that allow users to place
+artworks on walls, and we&#39;re making &lt;a href=&quot;https://github.com/artsy/eigen/tree/5d26995c120a91e64569325505d1806ba607f48c/Artsy/View_Controllers/ARVIR&quot;&gt;the source code available&lt;/a&gt; free and open-source under the MIT
+license.&lt;/p&gt;
+
+&lt;!-- more --&gt;
+
+
+
+
+&lt;div class=&quot;mobile-only&quot;&gt;
+&lt;p&gt;
+  &lt;strong&gt;Before you get started&lt;/strong&gt;, it looks like you&#39;re using a really small screen, 
+  this post is built with larger screens in mind. You will be missing interactable elements which you &lt;strong&gt;really should see&lt;/strong&gt;.
+&lt;/p&gt;
+&lt;/div&gt;
+
+
+&lt;a name=&quot;How.does.ARKit.work.&quot;&gt;&lt;/a&gt;
+&lt;h2&gt;How does ARKit work?&lt;/h2&gt;
+
+&lt;p&gt;You start up ARKit by creating an &lt;a href=&quot;https://developer.apple.com/documentation/arkit/arsession&quot;&gt;AR Session&lt;/a&gt; and passing it to an view on your screen. This will trigger
+ARKit to open your camera looking through the phone&#39;s camera for reference points to determine where the phone is in the
+world. Your app will use the reference points to attach SceneKit objects to places through the AR viewport. Let&#39;s look
+at this as a diagram:&lt;/p&gt;
+
+&lt;p&gt;&lt;article class=&quot;diagram&quot;&gt;&lt;/p&gt;
+
+&lt;div style=&#39;flex:1;&#39;&gt;
+  &lt;ol class=&quot;workflow&quot; data-id=&quot;What-is-AR&quot;&gt;
+    &lt;li&gt;You have a phone in a room&lt;/li&gt;
+    &lt;li&gt;ARSession starts&lt;/li&gt;
+    &lt;li&gt;It detects some feature points&lt;/li&gt;
+    &lt;li&gt;You can then attach objects to those points&lt;/li&gt;
+  &lt;/ul&gt;
+&lt;/div&gt;
+
+
+&lt;div style=&#39;flex:1&#39;&gt;&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;
+&lt;svg width=&quot;530px&quot; height=&quot;460px&quot; viewBox=&quot;0 0 530 460&quot; version=&quot;1.1&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot; xmlns:xlink=&quot;http://www.w3.org/1999/xlink&quot;&gt;
+    &lt;!-- Generator: Sketch 47.1 (45422) - http://www.bohemiancoding.com/sketch --&gt;
+    &lt;title&gt;What is AR&lt;/title&gt;
+    &lt;desc&gt;Created with Sketch.&lt;/desc&gt;
+    &lt;defs&gt;
+        &lt;radialGradient cx=&quot;73.2212612%&quot; cy=&quot;27.1693638%&quot; fx=&quot;73.2212612%&quot; fy=&quot;27.1693638%&quot; r=&quot;207.875515%&quot; id=&quot;radialGradient-1&quot;&gt;
+            &lt;stop stop-color=&quot;#FFFFFF&quot; offset=&quot;0%&quot;&gt;&lt;/stop&gt;
+            &lt;stop stop-color=&quot;#000000&quot; offset=&quot;100%&quot;&gt;&lt;/stop&gt;
+        &lt;/radialGradient&gt;
+        &lt;path d=&quot;M5.24032834,2.21494006 L10.0175781,0.45921461 L10.0175781,0.45921461 C13.878629,-0.959791237 18.1589608,1.01987744 19.5779666,4.88092836 C19.8803845,5.7037938 20.0351562,6.57358786 20.0351562,7.45026573 L20.0351562,38.1425845 L20.0351562,38.1425845 C20.0351562,41.4875521 17.9540723,44.4794008 14.8180048,45.6429681 L10.0175781,47.4240584 L10.0175781,47.4240584 C6.16921751,48.8519059 1.89200567,46.8896924 0.464158083,43.0413318 C0.157173464,42.2139413 8.98985986e-15,41.3384898 8.8817842e-15,40.4559851 C5.28025569e-15,32.0110213 2.64012785e-15,23.5660575 0,15.1210938 C1.84503416e-15,13.3220232 3.69006831e-15,11.5229527 5.53510247e-15,9.72388222 L7.10542736e-15,9.72388222 C9.6736429e-15,6.36986699 2.09219005,3.37193766 5.24032834,2.21494006 Z&quot; id=&quot;path-2&quot;&gt;&lt;/path&gt;
+        &lt;path d=&quot;M5.24032834,3.21494006 L10.0175781,1.45921461 L10.0175781,1.45921461 C13.878629,0.0402087634 18.1589608,2.01987744 19.5779666,5.88092836 C19.8803845,6.7037938 20.0351562,7.57358786 20.0351562,8.45026573 L20.0351562,39.1425845 L20.0351562,39.1425845 C20.0351562,42.4875521 17.9540723,45.4794008 14.8180048,46.6429681 L10.0175781,48.4240584 L10.0175781,48.4240584 C6.16921751,49.8519059 1.89200567,47.8896924 0.464158083,44.0413318 C0.157173464,43.2139413 8.98985986e-15,42.3384898 8.8817842e-15,41.4559851 C5.28025569e-15,33.0110213 2.64012785e-15,24.5660575 0,16.1210938 C1.84503416e-15,14.3220232 3.69006831e-15,12.5229527 5.53510247e-15,10.7238822 L7.10542736e-15,10.7238822 C9.6736429e-15,7.36986699 2.09219005,4.37193766 5.24032834,3.21494006 Z&quot; id=&quot;path-3&quot;&gt;&lt;/path&gt;
+    &lt;/defs&gt;
+    &lt;g id=&quot;Page-1&quot; stroke=&quot;none&quot; stroke-width=&quot;1&quot; fill=&quot;none&quot; fill-rule=&quot;evenodd&quot;&gt;
+        &lt;g id=&quot;What-is-AR&quot;&gt;
+            &lt;g id=&quot;0-4_room&quot; transform=&quot;translate(18.000000, 14.000000)&quot;&gt;
+                &lt;polyline id=&quot;Path-2&quot; stroke=&quot;#BCEBED&quot; stroke-width=&quot;2&quot; transform=&quot;translate(250.949219, 301.207031) scale(1, -1) translate(-250.949219, -301.207031) &quot; points=&quot;0 290.9375 198.996094 360.277344 501.898438 242.136719&quot;&gt;&lt;/polyline&gt;
+                &lt;path d=&quot;M200,0.5 L200,242.5&quot; id=&quot;Path-3&quot; stroke=&quot;#BCEBED&quot; stroke-width=&quot;2&quot;&gt;&lt;/path&gt;
+                &lt;polygon id=&quot;Path&quot; stroke=&quot;#80D7DA&quot; stroke-width=&quot;4&quot; points=&quot;1 64.6445313 200.320312 1 502.441406 112.097656 502.441406 360.867188 312.496094 433.988281 1 313.414062&quot;&gt;&lt;/polygon&gt;
+            &lt;/g&gt;
+            &lt;g id=&quot;0-4_balls&quot; transform=&quot;translate(101.000000, 253.000000)&quot; fill=&quot;url(#radialGradient-1)&quot;&gt;
+                &lt;circle id=&quot;Oval&quot; cx=&quot;28&quot; cy=&quot;61&quot; r=&quot;28&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-Copy&quot; cx=&quot;75.5&quot; cy=&quot;18.5&quot; r=&quot;18.5&quot;&gt;&lt;/circle&gt;
+            &lt;/g&gt;
+            &lt;g id=&quot;2-4_camera&quot; transform=&quot;translate(60.000000, 41.000000)&quot; fill-opacity=&quot;0.179630888&quot; fill=&quot;#F5A623&quot;&gt;
+                &lt;path d=&quot;M280.613281,208.308594 L228.488281,36.859375 L158.785156,0.5 L0.89453125,49.28125 L0.89453125,266.316406 L39.9960938,282.289063 C51.9153646,268.739583 60.2330729,263.415365 64.9492188,266.316406 C72.0234375,270.667969 79.0976562,285.667969 72.0234375,292.890625 C67.3072917,297.705729 75.7643229,303.733073 97.3945312,310.972656 L273.246094,253.71875 L280.613281,208.308594 Z&quot; id=&quot;Path-5&quot;&gt;&lt;/path&gt;
+            &lt;/g&gt;
+            &lt;g id=&quot;3-4_features&quot; transform=&quot;translate(108.000000, 211.000000)&quot; fill=&quot;#E2D52A&quot;&gt;
+                &lt;circle id=&quot;Oval-2&quot; cx=&quot;45&quot; cy=&quot;99&quot; r=&quot;4&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2&quot; cx=&quot;65&quot; cy=&quot;61&quot; r=&quot;4&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2&quot; cx=&quot;83&quot; cy=&quot;69&quot; r=&quot;4&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2&quot; cx=&quot;14&quot; cy=&quot;85&quot; r=&quot;4&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2&quot; cx=&quot;25&quot; cy=&quot;81&quot; r=&quot;4&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2&quot; cx=&quot;131.5&quot; cy=&quot;94.5&quot; r=&quot;3.5&quot;&gt;&lt;/circle&gt;
+                &lt;ellipse id=&quot;Path&quot; cx=&quot;135.5&quot; cy=&quot;79&quot; rx=&quot;3.5&quot; ry=&quot;4&quot;&gt;&lt;/ellipse&gt;
+                &lt;circle id=&quot;Oval-2&quot; cx=&quot;29&quot; cy=&quot;97&quot; r=&quot;4&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2&quot; cx=&quot;97&quot; cy=&quot;60&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2&quot; cx=&quot;105.5&quot; cy=&quot;78.5&quot; r=&quot;3.5&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2&quot; cx=&quot;65&quot; cy=&quot;117&quot; r=&quot;4&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2&quot; cx=&quot;113&quot; cy=&quot;3&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2&quot; cx=&quot;101&quot; cy=&quot;23&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy&quot; cx=&quot;84&quot; cy=&quot;12&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy-2&quot; cx=&quot;76&quot; cy=&quot;48&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy-3&quot; cx=&quot;64&quot; cy=&quot;29&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy-4&quot; cx=&quot;40&quot; cy=&quot;39&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy-5&quot; cx=&quot;48&quot; cy=&quot;20&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy-6&quot; cx=&quot;83&quot; cy=&quot;29&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy-7&quot; cx=&quot;25&quot; cy=&quot;60&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy-8&quot; cx=&quot;3&quot; cy=&quot;58&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2&quot; cx=&quot;121&quot; cy=&quot;39&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2&quot; cx=&quot;97&quot; cy=&quot;42&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2&quot; cx=&quot;37&quot; cy=&quot;117&quot; r=&quot;4&quot;&gt;&lt;/circle&gt;
+            &lt;/g&gt;
+            &lt;g id=&quot;1-4_phone&quot; transform=&quot;translate(325.000000, 247.000000)&quot;&gt;
+                &lt;g id=&quot;Rectangle&quot;&gt;
+                    &lt;use fill=&quot;#3A3A3A&quot; fill-rule=&quot;evenodd&quot; xlink:href=&quot;#path-2&quot;&gt;&lt;/use&gt;
+                    &lt;path stroke=&quot;#979797&quot; stroke-width=&quot;1&quot; d=&quot;M5.41280781,2.68424895 C2.46142817,3.7689342 0.5,6.57949295 0.5,9.72388222 L0.5,40.4559851 C0.5,41.2791197 0.646599691,42.0956756 0.932932058,42.8674038 C2.26472184,46.4568677 6.2541862,48.2870742 9.84365009,46.9552844 L14.6440767,45.1741941 C17.58414,44.0833498 19.5351562,41.2784917 19.5351562,38.1425845 L19.5351562,7.45026573 C19.5351562,6.6324392 19.3907743,5.82103436 19.1086577,5.05340784 C17.7849097,1.45154906 13.7919164,-0.395224566 10.1900576,0.928523495 L5.41280781,2.68424895 Z&quot;&gt;&lt;/path&gt;
+                &lt;/g&gt;
+                &lt;g id=&quot;Rectangle&quot;&gt;
+                    &lt;use fill=&quot;#353535&quot; fill-rule=&quot;evenodd&quot; xlink:href=&quot;#path-3&quot;&gt;&lt;/use&gt;
+                    &lt;path stroke=&quot;#979797&quot; stroke-width=&quot;1&quot; d=&quot;M5.41280781,3.68424895 C2.46142817,4.7689342 0.5,7.57949295 0.5,10.7238822 L0.5,41.4559851 C0.5,42.2791197 0.646599691,43.0956756 0.932932058,43.8674038 C2.26472184,47.4568677 6.2541862,49.2870742 9.84365009,47.9552844 L14.6440767,46.1741941 C17.58414,45.0833498 19.5351562,42.2784917 19.5351562,39.1425845 L19.5351562,8.45026573 C19.5351562,7.6324392 19.3907743,6.82103436 19.1086577,6.05340784 C17.7849097,2.45154906 13.7919164,0.604775434 10.1900576,1.92852349 L5.41280781,3.68424895 Z&quot;&gt;&lt;/path&gt;
+                &lt;/g&gt;
+            &lt;/g&gt;
+            &lt;g id=&quot;4-4_anchors&quot; transform=&quot;translate(146.000000, 86.000000)&quot;&gt;
+                &lt;path d=&quot;M26.1171875,153.894531 L26.1171875,75&quot; id=&quot;Path-4&quot; stroke=&quot;#000000&quot; stroke-width=&quot;2&quot; stroke-dasharray=&quot;2,2&quot;&gt;&lt;/path&gt;
+                &lt;polygon id=&quot;Path-6&quot; stroke=&quot;#000000&quot; points=&quot;0.359375 15.109375 44.578125 0.50390625 44.578125 67.8945313 0.359375 84.4160156&quot;&gt;&lt;/polygon&gt;
+                &lt;circle id=&quot;Oval-2-Copy-3&quot; fill=&quot;#000000&quot; cx=&quot;26&quot; cy=&quot;153&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+            &lt;/g&gt;
+        &lt;/g&gt;
+    &lt;/g&gt;
+&lt;/svg&gt;&lt;/div&gt;
+
+
+&lt;p&gt;&lt;/article&gt;&lt;/p&gt;
+
+&lt;p&gt;With ARKit at release in iOS 11.0, if enough feature points are detected in a series horizontally, then ARKit will also
+send you some information about the what it considers to be a horizontal plane.&lt;/p&gt;
+
+&lt;p&gt;Planes are what most AR apps use on iOS, the apps react to discovering a flat horizontal surface and then allows putting
+3d objects on to it. You would then interact with these object by doing a hit test for the closest plane or feature
+point to handle user interactions.&lt;/p&gt;
+
+&lt;a name=&quot;Quick.glossary&quot;&gt;&lt;/a&gt;
+&lt;h3&gt;Quick glossary&lt;/h3&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;p&gt;&lt;a href=&quot;https://developer.apple.com/documentation/arkit/arframe/2887449-rawfeaturepoints&quot;&gt;Feature Point&lt;/a&gt; - A physical point of reference created by ARKit. A feature point is found in a frame of the
+camera&#39;s image. The point is converted into a 3D world coordinate space by image analysis that ARKit performs to track
+the device&#39;s position, orientation, and movement. Taken together, these points roughly correlate to real-world objects
+through the view of the camera.&lt;/p&gt;&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;&lt;a href=&quot;https://developer.apple.com/documentation/arkit/aranchor&quot;&gt;Anchor&lt;/a&gt; - An anchor is a developer tool for building on top of feature points. Anchors allow connections
+between a real-world object and an augmented-reality object. Effectively, this provides the API to place objects in
+&quot;the room.&quot;&lt;/p&gt;&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;&lt;a href=&quot;https://developer.apple.com/documentation/arkit/arplaneanchor&quot;&gt;Plane&lt;/a&gt; - An anchor to a rectangle in 3D space. A set of feature points detected in a continuous direction. You
+can request for ARKit to find these for you, and common examples are tables, floors and walls.&lt;/p&gt;&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;&lt;a href=&quot;https://developer.apple.com/documentation/arkit/arskview/2875733-hittest&quot;&gt;Hit Test&lt;/a&gt; - Projects a line through the world from a location on the screen and oriented with the phone&#39;s world
+position and angle. This gives you a list of objects that intersect the line.&lt;/p&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+
+&lt;a name=&quot;AR.at.Artsy&quot;&gt;&lt;/a&gt;
+&lt;h2&gt;AR at Artsy&lt;/h2&gt;
+
+&lt;p&gt;We did some interesting work in the AR space already in 2017 with Microsoft, Studio Drift and the Armory Show using &lt;a href=&quot;http://fortune.com/2017/03/02/microsoft-hololens-art-show/&quot;&gt;the
+Holo Lens&lt;/a&gt;. When ARKit came out, we explored whether we could reliably place an artwork on a wall, but came
+to the conclusion that the technology was a bit too immature for us to build it reliably. The core problem was that
+ARKit at release could only be used to find horizontal planes.&lt;/p&gt;
+
+&lt;p&gt;Here&#39;s how our original approach worked:&lt;/p&gt;
+
+&lt;p&gt;&lt;article class=&quot;desktop-only&quot; style=&#39;display: flex; flex-flow:row; margin: 0px -60px;&#39;&gt;&lt;/p&gt;
+
+&lt;div style=&#39;flex:1;&#39;&gt;
+  &lt;ol class=&quot;workflow&quot; data-id=&quot;v1&quot;&gt;
+    &lt;li&gt;Open up ARKit and let it discover the world&lt;/li&gt;
+    &lt;li&gt;Detect the edge of a floor by asking a user to point at the floor near the wall&lt;/li&gt;
+    &lt;li&gt;Find the edge furthest away&lt;/li&gt;
+    &lt;li&gt;Attach a work to the floor closest to the wall&lt;/li&gt;
+  &lt;/ul&gt;
+&lt;/div&gt;
+
+
+&lt;div style=&#39;flex:1&#39;&gt;&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;
+&lt;svg width=&quot;530px&quot; height=&quot;460px&quot; viewBox=&quot;0 0 530 460&quot; version=&quot;1.1&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot; xmlns:xlink=&quot;http://www.w3.org/1999/xlink&quot;&gt;
+    &lt;!-- Generator: Sketch 47.1 (45422) - http://www.bohemiancoding.com/sketch --&gt;
+    &lt;title&gt;v1&lt;/title&gt;
+    &lt;desc&gt;Created with Sketch.&lt;/desc&gt;
+    &lt;defs&gt;
+        &lt;path d=&quot;M15.5931447,21.0693125 L20.3703944,19.313587 L20.3703944,19.313587 C24.2314454,17.8945812 28.5117771,19.8742499 29.9307829,23.7353008 C30.2332008,24.5581662 30.3879726,25.4279603 30.3879726,26.3046382 L30.3879726,56.9969569 L30.3879726,56.9969569 C30.3879726,60.3419246 28.3068886,63.3337733 25.1708211,64.4973405 L20.3703944,66.2784308 L20.3703944,66.2784308 C16.5220338,67.7062784 12.244822,65.7440649 10.8169744,61.8957043 C10.5099898,61.0683138 10.3528163,60.1928622 10.3528163,59.3103575 C10.3528163,50.8653937 10.3528163,42.42043 10.3528163,33.9754662 C10.3528163,32.1763957 10.3528163,30.3773252 10.3528163,28.5782547 L10.3528163,28.5782547 C10.3528163,25.2242394 12.4450064,22.2263101 15.5931447,21.0693125 Z&quot; id=&quot;path-1&quot;&gt;&lt;/path&gt;
+    &lt;/defs&gt;
+    &lt;g id=&quot;Page-1&quot; stroke=&quot;none&quot; stroke-width=&quot;1&quot; fill=&quot;none&quot; fill-rule=&quot;evenodd&quot;&gt;
+        &lt;g id=&quot;v1&quot;&gt;
+            &lt;g id=&quot;0-4_room&quot; transform=&quot;translate(18.000000, 14.000000)&quot;&gt;
+                &lt;polyline id=&quot;Path-2&quot; stroke=&quot;#BCEBED&quot; stroke-width=&quot;2&quot; transform=&quot;translate(250.949219, 301.207031) scale(1, -1) translate(-250.949219, -301.207031) &quot; points=&quot;0 290.9375 198.996094 360.277344 501.898438 242.136719&quot;&gt;&lt;/polyline&gt;
+                &lt;path d=&quot;M200,0.5 L200,242.5&quot; id=&quot;Path-3&quot; stroke=&quot;#BCEBED&quot; stroke-width=&quot;2&quot;&gt;&lt;/path&gt;
+                &lt;polygon id=&quot;Path&quot; stroke=&quot;#80D7DA&quot; stroke-width=&quot;4&quot; points=&quot;1 64.6445313 200.320312 1 502.441406 112.097656 502.441406 360.867188 312.496094 433.988281 1 313.414062&quot;&gt;&lt;/polygon&gt;
+            &lt;/g&gt;
+            &lt;g id=&quot;2-4_camera&quot; transform=&quot;translate(60.000000, 235.000000)&quot;&gt;
+                &lt;polygon id=&quot;Path-5&quot; fill-opacity=&quot;0.179630888&quot; fill=&quot;#F5A623&quot; points=&quot;228.488281 36.859375 158.785156 0.5 0.89453125 49.28125 0.89453125 76.3164063 29.2070312 95.1445313 131.007812 108.998047 220.933594 92.2890625&quot;&gt;&lt;/polygon&gt;
+                &lt;polygon id=&quot;Path-2&quot; stroke=&quot;#E2D52A&quot; stroke-width=&quot;2&quot; fill-opacity=&quot;0.27100317&quot; fill=&quot;#E2D52A&quot; transform=&quot;translate(132.255859, 63.898437) scale(1, -1) translate(-132.255859, -63.898437) &quot; points=&quot;38.3632813 58.0195312 158.996094 100.660156 226.148438 74.03125 98.1503906 27.1367187&quot;&gt;&lt;/polygon&gt;
+            &lt;/g&gt;
+            &lt;g id=&quot;2-4_features&quot; transform=&quot;translate(89.000000, 260.000000)&quot; fill=&quot;#E2D52A&quot;&gt;
+                &lt;circle id=&quot;Oval-2&quot; cx=&quot;66&quot; cy=&quot;66&quot; r=&quot;4&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2&quot; cx=&quot;86&quot; cy=&quot;28&quot; r=&quot;4&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2&quot; cx=&quot;104&quot; cy=&quot;36&quot; r=&quot;4&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2&quot; cx=&quot;35&quot; cy=&quot;52&quot; r=&quot;4&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2&quot; cx=&quot;46&quot; cy=&quot;48&quot; r=&quot;4&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2&quot; cx=&quot;152.5&quot; cy=&quot;61.5&quot; r=&quot;3.5&quot;&gt;&lt;/circle&gt;
+                &lt;ellipse id=&quot;Path&quot; cx=&quot;156.5&quot; cy=&quot;46&quot; rx=&quot;3.5&quot; ry=&quot;4&quot;&gt;&lt;/ellipse&gt;
+                &lt;circle id=&quot;Oval-2&quot; cx=&quot;50&quot; cy=&quot;64&quot; r=&quot;4&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2&quot; cx=&quot;118&quot; cy=&quot;27&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2&quot; cx=&quot;126.5&quot; cy=&quot;45.5&quot; r=&quot;3.5&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2&quot; cx=&quot;107&quot; cy=&quot;69&quot; r=&quot;4&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2&quot; cx=&quot;83&quot; cy=&quot;49&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy-2&quot; cx=&quot;97&quot; cy=&quot;15&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy-3&quot; cx=&quot;71&quot; cy=&quot;24&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy-4&quot; cx=&quot;65&quot; cy=&quot;32&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy-6&quot; cx=&quot;130&quot; cy=&quot;3&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy-7&quot; cx=&quot;46&quot; cy=&quot;27&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy-8&quot; cx=&quot;16&quot; cy=&quot;43&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2&quot; cx=&quot;142&quot; cy=&quot;6&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2&quot; cx=&quot;118&quot; cy=&quot;9&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2&quot; cx=&quot;4&quot; cy=&quot;53&quot; r=&quot;4&quot;&gt;&lt;/circle&gt;
+            &lt;/g&gt;
+            &lt;g id=&quot;1-4_phone&quot; transform=&quot;translate(257.431048, 288.284945) rotate(-37.000000) translate(-257.431048, -288.284945) translate(246.931048, 264.284945)&quot;&gt;&lt;/g&gt;
+            &lt;g id=&quot;0-4_person&quot; transform=&quot;translate(238.000000, 241.000000)&quot;&gt;
+                &lt;g id=&quot;Rectangle&quot; transform=&quot;translate(20.370394, 42.799490) rotate(-29.000000) translate(-20.370394, -42.799490) &quot;&gt;
+                    &lt;use fill=&quot;#353535&quot; fill-rule=&quot;evenodd&quot; xlink:href=&quot;#path-1&quot;&gt;&lt;/use&gt;
+                    &lt;path stroke=&quot;#979797&quot; stroke-width=&quot;1&quot; d=&quot;M15.7656241,21.5386214 C12.8142445,22.6233066 10.8528163,25.4338654 10.8528163,28.5782547 L10.8528163,59.3103575 C10.8528163,60.1334921 10.999416,60.950048 11.2857484,61.7217762 C12.6175382,65.3112401 16.6070025,67.1414466 20.1964664,65.8096568 L24.996893,64.0285666 C27.9369564,62.9377223 29.8879726,60.1328641 29.8879726,56.9969569 L29.8879726,26.3046382 C29.8879726,25.4868116 29.7435906,24.6754068 29.4614741,23.9077803 C28.137726,20.3059215 24.1447327,18.4591479 20.5428739,19.7828959 L15.7656241,21.5386214 Z&quot;&gt;&lt;/path&gt;
+                &lt;/g&gt;
+                &lt;path d=&quot;M57.8662109,54.2951339 C57.2197037,47.2391468 56.4052506,43.8266412 55.4228516,44.0576172 C49.9941406,45.3339844 42.5444721,9.38688117 44.8359375,6.22265625 C48.6060532,1.01660156 83.0625,-7.31651228 81.84375,16.3310547 C81.03125,32.0960993 77.9322917,44.7507924 72.546875,54.2951339 C80.7701069,49.2018936 86.1395731,46.6552734 88.6552734,46.6552734 C92.428824,46.6552734 95.2041008,52.8013269 94.8476562,55.4792972 C94.6100265,57.2646107 93.5517583,70.7331002 91.6728516,95.8847656 C83.9235026,105.734375 75.6959635,110.609701 66.9902344,110.510742 C53.9316406,110.362305 41.5716684,104.533615 39.8232422,101.063477 C38.6576247,98.7500512 36.6400466,83.5553248 33.7705078,55.4792972 L36.8642578,46.6552734 L57.8662109,54.2951339 Z&quot; id=&quot;Path-7&quot; fill=&quot;#80D7DA&quot;&gt;&lt;/path&gt;
+            &lt;/g&gt;
+            &lt;g id=&quot;4-4_anchors&quot; transform=&quot;translate(151.000000, 124.000000)&quot;&gt;
+                &lt;path d=&quot;M26.1171875,153.894531 L26.1171875,75&quot; id=&quot;Path-4&quot; stroke=&quot;#000000&quot; stroke-width=&quot;2&quot; stroke-dasharray=&quot;2,2&quot;&gt;&lt;/path&gt;
+                &lt;path d=&quot;M26.1171875,153.894531 L89,153.894531&quot; id=&quot;Path-4&quot; stroke=&quot;#000000&quot; stroke-width=&quot;2&quot; stroke-dasharray=&quot;2,2&quot;&gt;&lt;/path&gt;
+                &lt;polygon id=&quot;Path-6&quot; stroke=&quot;#000000&quot; points=&quot;0.359375 15.109375 44.578125 0.50390625 44.578125 67.8945313 0.359375 84.4160156&quot;&gt;&lt;/polygon&gt;
+                &lt;circle id=&quot;Oval-2-Copy-3&quot; fill=&quot;#000000&quot; cx=&quot;26&quot; cy=&quot;153&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+            &lt;/g&gt;
+            &lt;g id=&quot;3-4_line&quot; transform=&quot;translate(98.000000, 263.000000)&quot; stroke=&quot;#000000&quot; stroke-width=&quot;2&quot; stroke-dasharray=&quot;2,2&quot;&gt;
+                &lt;path d=&quot;M0,39.7773437 L123,0&quot; id=&quot;Path-4&quot;&gt;&lt;/path&gt;
+            &lt;/g&gt;
+        &lt;/g&gt;
+    &lt;/g&gt;
+&lt;/svg&gt;&lt;/div&gt;
+
+
+&lt;p&gt;&lt;/article&gt;&lt;/p&gt;
+
+&lt;p&gt;This could work, but it was hard to explain for a first time user. A user spent most of their time with their phone
+pointed at the floor, then we had no way to know if feature points had been detected all the way to the floor edges.&lt;/p&gt;
+
+&lt;p&gt;From there, we experimented with using the location of the iPhone as a point of reference:&lt;/p&gt;
+
+&lt;p&gt;&lt;article class=&quot;desktop-only&quot; style=&#39;display: flex; flex-flow:row; margin: 0px -60px;&#39;&gt;&lt;/p&gt;
+
+&lt;div style=&#39;flex:1;&#39;&gt;
+  &lt;ol class=&quot;workflow&quot; data-id=&quot;v2&quot;&gt;
+  &lt;li&gt;Open up ARKit and let it discover the world&lt;/li&gt;
+  &lt;li&gt;Ask a user to put their phone against the wall&lt;/li&gt;
+  &lt;li&gt;When the camera is fully osbscured, use the last known point as an anchor&lt;/li&gt;
+  &lt;li&gt;When the user pulls back and reconnects, place the work&lt;/li&gt;
+  &lt;/ul&gt;
+&lt;/div&gt;
+
+
+&lt;div style=&#39;flex:1&#39;&gt;&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;
+&lt;svg width=&quot;530px&quot; height=&quot;460px&quot; viewBox=&quot;0 0 530 460&quot; version=&quot;1.1&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot; xmlns:xlink=&quot;http://www.w3.org/1999/xlink&quot;&gt;
+    &lt;!-- Generator: Sketch 47.1 (45422) - http://www.bohemiancoding.com/sketch --&gt;
+    &lt;title&gt;v2&lt;/title&gt;
+    &lt;desc&gt;Created with Sketch.&lt;/desc&gt;
+    &lt;defs&gt;
+        &lt;path d=&quot;M9.24616479,13.5906941 L14.0234146,11.8349687 L14.0234146,11.8349687 C17.8844655,10.4159628 22.1647972,12.3956315 23.5838031,16.2566824 C23.886221,17.0795478 24.0409927,17.9493419 24.0409927,18.8260198 L24.0409927,49.5183386 L24.0409927,49.5183386 C24.0409927,52.8633062 21.9599088,55.8551549 18.8238412,57.0187222 L14.0234146,58.7998124 L14.0234146,58.7998124 C10.175054,60.22766 5.89784212,58.2654465 4.46999453,54.4170859 C4.16300992,53.5896954 4.00583645,52.7142438 4.00583645,51.8317391 C4.00583645,43.3867753 4.00583645,34.9418116 4.00583645,26.4968478 C4.00583645,24.6977773 4.00583645,22.8987068 4.00583645,21.0996363 L4.00583645,21.0996363 C4.00583645,17.745621 6.0980265,14.7476917 9.24616479,13.5906941 Z&quot; id=&quot;path-1&quot;&gt;&lt;/path&gt;
+        &lt;path d=&quot;M9.24616479,13.5906941 L14.0234146,11.8349687 L14.0234146,11.8349687 C17.8844655,10.4159628 22.1647972,12.3956315 23.5838031,16.2566824 C23.886221,17.0795478 24.0409927,17.9493419 24.0409927,18.8260198 L24.0409927,49.5183386 L24.0409927,49.5183386 C24.0409927,52.8633062 21.9599088,55.8551549 18.8238412,57.0187222 L14.0234146,58.7998124 L14.0234146,58.7998124 C10.175054,60.22766 5.89784212,58.2654465 4.46999453,54.4170859 C4.16300992,53.5896954 4.00583645,52.7142438 4.00583645,51.8317391 C4.00583645,43.3867753 4.00583645,34.9418116 4.00583645,26.4968478 C4.00583645,24.6977773 4.00583645,22.8987068 4.00583645,21.0996363 L4.00583645,21.0996363 C4.00583645,17.745621 6.0980265,14.7476917 9.24616479,13.5906941 Z&quot; id=&quot;path-2&quot;&gt;&lt;/path&gt;
+        &lt;path d=&quot;M5.24032834,2.21494006 L10.0175781,0.45921461 L10.0175781,0.45921461 C13.878629,-0.959791237 18.1589608,1.01987744 19.5779666,4.88092836 C19.8803845,5.7037938 20.0351562,6.57358786 20.0351562,7.45026573 L20.0351562,38.1425845 L20.0351562,38.1425845 C20.0351562,41.4875521 17.9540723,44.4794008 14.8180048,45.6429681 L10.0175781,47.4240584 L10.0175781,47.4240584 C6.16921751,48.8519059 1.89200567,46.8896924 0.464158083,43.0413318 C0.157173464,42.2139413 8.98985986e-15,41.3384898 8.8817842e-15,40.4559851 C5.28025569e-15,32.0110213 2.64012785e-15,23.5660575 0,15.1210938 C1.84503416e-15,13.3220232 3.69006831e-15,11.5229527 5.53510247e-15,9.72388222 L7.10542736e-15,9.72388222 C9.6736429e-15,6.36986699 2.09219005,3.37193766 5.24032834,2.21494006 Z&quot; id=&quot;path-3&quot;&gt;&lt;/path&gt;
+        &lt;path d=&quot;M5.24032834,2.21494006 L10.0175781,0.45921461 L10.0175781,0.45921461 C13.878629,-0.959791237 18.1589608,1.01987744 19.5779666,4.88092836 C19.8803845,5.7037938 20.0351562,6.57358786 20.0351562,7.45026573 L20.0351562,38.1425845 L20.0351562,38.1425845 C20.0351562,41.4875521 17.9540723,44.4794008 14.8180048,45.6429681 L10.0175781,47.4240584 L10.0175781,47.4240584 C6.16921751,48.8519059 1.89200567,46.8896924 0.464158083,43.0413318 C0.157173464,42.2139413 8.98985986e-15,41.3384898 8.8817842e-15,40.4559851 C5.28025569e-15,32.0110213 2.64012785e-15,23.5660575 0,15.1210938 C1.84503416e-15,13.3220232 3.69006831e-15,11.5229527 5.53510247e-15,9.72388222 L7.10542736e-15,9.72388222 C9.6736429e-15,6.36986699 2.09219005,3.37193766 5.24032834,2.21494006 Z&quot; id=&quot;path-4&quot;&gt;&lt;/path&gt;
+        &lt;mask id=&quot;mask-5&quot; maskContentUnits=&quot;userSpaceOnUse&quot; maskUnits=&quot;objectBoundingBox&quot; x=&quot;0&quot; y=&quot;0&quot; width=&quot;20.0351562&quot; height=&quot;47.8902345&quot; fill=&quot;white&quot;&gt;
+            &lt;use xlink:href=&quot;#path-4&quot;&gt;&lt;/use&gt;
+        &lt;/mask&gt;
+        &lt;path d=&quot;M5.24032834,2.21494006 L10.0175781,0.45921461 L10.0175781,0.45921461 C13.878629,-0.959791237 18.1589608,1.01987744 19.5779666,4.88092836 C19.8803845,5.7037938 20.0351562,6.57358786 20.0351562,7.45026573 L20.0351562,38.1425845 L20.0351562,38.1425845 C20.0351562,41.4875521 17.9540723,44.4794008 14.8180048,45.6429681 L10.0175781,47.4240584 L10.0175781,47.4240584 C6.16921751,48.8519059 1.89200567,46.8896924 0.464158083,43.0413318 C0.157173464,42.2139413 8.98985986e-15,41.3384898 8.8817842e-15,40.4559851 C5.28025569e-15,32.0110213 2.64012785e-15,23.5660575 0,15.1210938 C1.84503416e-15,13.3220232 3.69006831e-15,11.5229527 5.53510247e-15,9.72388222 L7.10542736e-15,9.72388222 C9.6736429e-15,6.36986699 2.09219005,3.37193766 5.24032834,2.21494006 Z&quot; id=&quot;path-6&quot;&gt;&lt;/path&gt;
+    &lt;/defs&gt;
+    &lt;g id=&quot;Page-1&quot; stroke=&quot;none&quot; stroke-width=&quot;1&quot; fill=&quot;none&quot; fill-rule=&quot;evenodd&quot;&gt;
+        &lt;g id=&quot;v2&quot;&gt;
+            &lt;g id=&quot;0-4_room&quot; transform=&quot;translate(18.000000, 14.000000)&quot;&gt;
+                &lt;polyline id=&quot;Path-2&quot; stroke=&quot;#BCEBED&quot; stroke-width=&quot;2&quot; transform=&quot;translate(250.949219, 301.207031) scale(1, -1) translate(-250.949219, -301.207031) &quot; points=&quot;0 290.9375 198.996094 360.277344 501.898438 242.136719&quot;&gt;&lt;/polyline&gt;
+                &lt;path d=&quot;M200,0.5 L200,242.5&quot; id=&quot;Path-3&quot; stroke=&quot;#BCEBED&quot; stroke-width=&quot;2&quot;&gt;&lt;/path&gt;
+                &lt;polygon id=&quot;Path&quot; stroke=&quot;#80D7DA&quot; stroke-width=&quot;4&quot; points=&quot;1 64.6445313 200.320312 1 502.441406 112.097656 502.441406 360.867188 312.496094 433.988281 1 313.414062&quot;&gt;&lt;/polygon&gt;
+            &lt;/g&gt;
+            &lt;g id=&quot;1-1_camera&quot; transform=&quot;translate(47.000000, 93.000000)&quot; fill-opacity=&quot;0.179630888&quot; fill=&quot;#F5A623&quot;&gt;
+                &lt;path d=&quot;M202.794922,125.993164 L193.664063,0.98828125 L0.509765625,63.03125 L13.8945312,218.316406 L42.2070312,237.144531 L144.007812,250.998047 L233.933594,234.289063 C246.292625,217.862243 249.991193,201.020446 245.029297,183.763672 C240.067401,166.506898 225.989276,147.250062 202.794922,125.993164 Z&quot; id=&quot;Path-5&quot;&gt;&lt;/path&gt;
+            &lt;/g&gt;
+            &lt;g id=&quot;2-2_camera&quot; transform=&quot;translate(100.000000, 157.000000)&quot; fill-opacity=&quot;0.179630888&quot; fill=&quot;#F5A623&quot;&gt;
+                &lt;polygon id=&quot;Path-5&quot; points=&quot;98.3828125 35.6894531 85.1152344 0.529296875 13.2519531 20.7773438 0.330078125 86.7519531 59.4433594 106.298828 79.1210937 101.582031 107.460937 104.070313&quot;&gt;&lt;/polygon&gt;
+            &lt;/g&gt;
+            &lt;g id=&quot;1-4_features&quot; transform=&quot;translate(75.000000, 148.000000)&quot; fill=&quot;#E2D52A&quot;&gt;
+                &lt;circle id=&quot;Oval-2&quot; cx=&quot;80&quot; cy=&quot;178&quot; r=&quot;4&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2&quot; cx=&quot;100&quot; cy=&quot;140&quot; r=&quot;4&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2&quot; cx=&quot;118&quot; cy=&quot;148&quot; r=&quot;4&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2&quot; cx=&quot;49&quot; cy=&quot;164&quot; r=&quot;4&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy-10&quot; cx=&quot;4&quot; cy=&quot;64&quot; r=&quot;4&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2&quot; cx=&quot;60&quot; cy=&quot;160&quot; r=&quot;4&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy&quot; cx=&quot;33&quot; cy=&quot;72&quot; r=&quot;4&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy-5&quot; cx=&quot;67&quot; cy=&quot;97&quot; r=&quot;4&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy-9&quot; cx=&quot;80&quot; cy=&quot;80&quot; r=&quot;4&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2&quot; cx=&quot;166.5&quot; cy=&quot;173.5&quot; r=&quot;3.5&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy-13&quot; cx=&quot;66.5&quot; cy=&quot;60.5&quot; r=&quot;3.5&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy-14&quot; cx=&quot;22.5&quot; cy=&quot;118.5&quot; r=&quot;3.5&quot;&gt;&lt;/circle&gt;
+                &lt;ellipse id=&quot;Path&quot; cx=&quot;170.5&quot; cy=&quot;158&quot; rx=&quot;3.5&quot; ry=&quot;4&quot;&gt;&lt;/ellipse&gt;
+                &lt;circle id=&quot;Oval-2&quot; cx=&quot;64&quot; cy=&quot;176&quot; r=&quot;4&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2&quot; cx=&quot;132&quot; cy=&quot;139&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2&quot; cx=&quot;140.5&quot; cy=&quot;157.5&quot; r=&quot;3.5&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2&quot; cx=&quot;121&quot; cy=&quot;181&quot; r=&quot;4&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy-12&quot; cx=&quot;133&quot; cy=&quot;4&quot; r=&quot;4&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2&quot; cx=&quot;97&quot; cy=&quot;161&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy-2&quot; cx=&quot;111&quot; cy=&quot;127&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy-3&quot; cx=&quot;85&quot; cy=&quot;136&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy-4&quot; cx=&quot;79&quot; cy=&quot;144&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy-6&quot; cx=&quot;144&quot; cy=&quot;115&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy-7&quot; cx=&quot;60&quot; cy=&quot;139&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy-8&quot; cx=&quot;30&quot; cy=&quot;155&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2&quot; cx=&quot;156&quot; cy=&quot;118&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2&quot; cx=&quot;132&quot; cy=&quot;121&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2&quot; cx=&quot;18&quot; cy=&quot;165&quot; r=&quot;4&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy-11&quot; cx=&quot;64&quot; cy=&quot;34&quot; r=&quot;4&quot;&gt;&lt;/circle&gt;
+            &lt;/g&gt;
+            &lt;g id=&quot;1-2_phone&quot; transform=&quot;translate(257.431048, 288.284945) rotate(-37.000000) translate(-257.431048, -288.284945) translate(246.931048, 264.284945)&quot;&gt;&lt;/g&gt;
+            &lt;g id=&quot;4-4_anchors&quot; transform=&quot;translate(140.000000, 173.000000)&quot; stroke=&quot;#000000&quot;&gt;
+                &lt;path d=&quot;M26.1171875,45 L26.1171875,75&quot; id=&quot;Path-4&quot; stroke-width=&quot;2&quot; stroke-dasharray=&quot;2,2&quot;&gt;&lt;/path&gt;
+                &lt;polygon id=&quot;Path-6&quot; points=&quot;0.359375 15.109375 44.578125 0.50390625 44.578125 67.8945313 0.359375 84.4160156&quot;&gt;&lt;/polygon&gt;
+            &lt;/g&gt;
+            &lt;g id=&quot;4-5_person&quot; transform=&quot;translate(252.000000, 241.000000)&quot;&gt;
+                &lt;g id=&quot;Rectangle&quot;&gt;
+                    &lt;use fill=&quot;#353535&quot; fill-rule=&quot;evenodd&quot; xlink:href=&quot;#path-1&quot;&gt;&lt;/use&gt;
+                    &lt;path stroke=&quot;#979797&quot; stroke-width=&quot;1&quot; d=&quot;M9.41864427,14.060003 C6.46726462,15.1446882 4.50583645,17.955247 4.50583645,21.0996363 L4.50583645,51.8317391 C4.50583645,52.6548737 4.65243614,53.4714297 4.93876851,54.2431578 C6.27055829,57.8326217 10.2600226,59.6628282 13.8494865,58.3310384 L18.6499132,56.5499482 C21.5899765,55.4591039 23.5409927,52.6542457 23.5409927,49.5183386 L23.5409927,18.8260198 C23.5409927,18.0081932 23.3966108,17.1967884 23.1144942,16.4291619 C21.7907461,12.8273031 17.7977528,10.9805295 14.1958941,12.3042775 L9.41864427,14.060003 Z&quot;&gt;&lt;/path&gt;
+                &lt;/g&gt;
+                &lt;path d=&quot;M43.8662109,54.2951339 C43.2197037,47.2391468 42.4052506,43.8266412 41.4228516,44.0576172 C35.9941406,45.3339844 28.5444721,9.38688117 30.8359375,6.22265625 C34.6060532,1.01660156 69.0625,-7.31651228 67.84375,16.3310547 C67.03125,32.0960993 63.9322917,44.7507924 58.546875,54.2951339 C66.7701069,49.2018936 72.1395731,46.6552734 74.6552734,46.6552734 C78.428824,46.6552734 81.2041008,52.8013269 80.8476562,55.4792972 C80.6100265,57.2646107 79.5517583,70.7331002 77.6728516,95.8847656 C69.9235026,105.734375 61.6959635,110.609701 52.9902344,110.510742 C39.9316406,110.362305 27.5716684,104.533615 25.8232422,101.063477 C24.6576247,98.7500512 22.6400466,83.5553248 19.7705078,55.4792972 L22.8642578,46.6552734 L43.8662109,54.2951339 Z&quot; id=&quot;Path-7&quot; fill=&quot;#80D7DA&quot;&gt;&lt;/path&gt;
+            &lt;/g&gt;
+            &lt;g id=&quot;0-1_person&quot; transform=&quot;translate(252.000000, 241.000000)&quot;&gt;
+                &lt;g id=&quot;Rectangle&quot;&gt;
+                    &lt;use fill=&quot;#353535&quot; fill-rule=&quot;evenodd&quot; xlink:href=&quot;#path-2&quot;&gt;&lt;/use&gt;
+                    &lt;path stroke=&quot;#979797&quot; stroke-width=&quot;1&quot; d=&quot;M9.41864427,14.060003 C6.46726462,15.1446882 4.50583645,17.955247 4.50583645,21.0996363 L4.50583645,51.8317391 C4.50583645,52.6548737 4.65243614,53.4714297 4.93876851,54.2431578 C6.27055829,57.8326217 10.2600226,59.6628282 13.8494865,58.3310384 L18.6499132,56.5499482 C21.5899765,55.4591039 23.5409927,52.6542457 23.5409927,49.5183386 L23.5409927,18.8260198 C23.5409927,18.0081932 23.3966108,17.1967884 23.1144942,16.4291619 C21.7907461,12.8273031 17.7977528,10.9805295 14.1958941,12.3042775 L9.41864427,14.060003 Z&quot;&gt;&lt;/path&gt;
+                &lt;/g&gt;
+                &lt;path d=&quot;M43.8662109,54.2951339 C43.2197037,47.2391468 42.4052506,43.8266412 41.4228516,44.0576172 C35.9941406,45.3339844 28.5444721,9.38688117 30.8359375,6.22265625 C34.6060532,1.01660156 69.0625,-7.31651228 67.84375,16.3310547 C67.03125,32.0960993 63.9322917,44.7507924 58.546875,54.2951339 C66.7701069,49.2018936 72.1395731,46.6552734 74.6552734,46.6552734 C78.428824,46.6552734 81.2041008,52.8013269 80.8476562,55.4792972 C80.6100265,57.2646107 79.5517583,70.7331002 77.6728516,95.8847656 C69.9235026,105.734375 61.6959635,110.609701 52.9902344,110.510742 C39.9316406,110.362305 27.5716684,104.533615 25.8232422,101.063477 C24.6576247,98.7500512 22.6400466,83.5553248 19.7705078,55.4792972 L22.8642578,46.6552734 L43.8662109,54.2951339 Z&quot; id=&quot;Path-7&quot; fill=&quot;#80D7DA&quot;&gt;&lt;/path&gt;
+            &lt;/g&gt;
+            &lt;g id=&quot;2-3_person&quot; transform=&quot;translate(183.000000, 203.000000)&quot; fill=&quot;#80D7DA&quot;&gt;
+                &lt;path d=&quot;M24.0957031,53.8487582 C23.4491959,46.7927711 22.6347428,43.3802655 21.6523438,43.6112415 C16.2236328,44.8876087 8.77396432,8.94050549 11.0654297,5.77628056 C14.8355454,0.570225875 49.2919922,-7.76288797 48.0732422,15.884679 C47.2607422,31.6497236 44.1617839,44.3044167 38.7763672,53.8487582 C46.9995991,48.7555179 52.3690653,46.2088977 54.8847656,46.2088977 C58.6583162,46.2088977 61.433593,52.3549512 61.0771484,55.0329215 C60.8395187,56.818235 59.7812505,70.2867245 57.9023438,95.4383899 C50.1529948,105.287999 41.9254557,110.163325 33.2197266,110.064366 C20.1611328,109.915929 7.80116056,104.087239 6.05273438,100.617101 C4.88711692,98.3036755 2.86953879,83.1089491 0,55.0329215 L3.09375,46.2088977 L24.0957031,53.8487582 Z&quot; id=&quot;Path-7&quot;&gt;&lt;/path&gt;
+            &lt;/g&gt;
+            &lt;g id=&quot;3-3_temp-phone&quot; transform=&quot;translate(155.000000, 195.000000)&quot;&gt;
+                &lt;g id=&quot;Rectangle&quot;&gt;
+                    &lt;use fill=&quot;#353535&quot; fill-rule=&quot;evenodd&quot; xlink:href=&quot;#path-3&quot;&gt;&lt;/use&gt;
+                    &lt;path stroke=&quot;#979797&quot; stroke-width=&quot;1&quot; d=&quot;M5.41280781,2.68424895 C2.46142817,3.7689342 0.5,6.57949295 0.5,9.72388222 L0.5,40.4559851 C0.5,41.2791197 0.646599691,42.0956756 0.932932058,42.8674038 C2.26472184,46.4568677 6.2541862,48.2870742 9.84365009,46.9552844 L14.6440767,45.1741941 C17.58414,44.0833498 19.5351562,41.2784917 19.5351562,38.1425845 L19.5351562,7.45026573 C19.5351562,6.6324392 19.3907743,5.82103436 19.1086577,5.05340784 C17.7849097,1.45154906 13.7919164,-0.395224566 10.1900576,0.928523495 L5.41280781,2.68424895 Z&quot;&gt;&lt;/path&gt;
+                &lt;/g&gt;
+            &lt;/g&gt;
+            &lt;g id=&quot;4-4_wall&quot; transform=&quot;translate(155.000000, 195.000000)&quot; stroke=&quot;#000000&quot; stroke-width=&quot;2&quot; stroke-dasharray=&quot;2&quot;&gt;
+                &lt;use id=&quot;Rectangle&quot; mask=&quot;url(#mask-5)&quot; xlink:href=&quot;#path-4&quot;&gt;&lt;/use&gt;
+            &lt;/g&gt;
+            &lt;g id=&quot;2-2_phone&quot; transform=&quot;translate(163.000000, 203.000000)&quot;&gt;
+                &lt;g id=&quot;Rectangle&quot;&gt;
+                    &lt;use fill=&quot;#353535&quot; fill-rule=&quot;evenodd&quot; xlink:href=&quot;#path-6&quot;&gt;&lt;/use&gt;
+                    &lt;path stroke=&quot;#979797&quot; stroke-width=&quot;1&quot; d=&quot;M5.41280781,2.68424895 C2.46142817,3.7689342 0.5,6.57949295 0.5,9.72388222 L0.5,40.4559851 C0.5,41.2791197 0.646599691,42.0956756 0.932932058,42.8674038 C2.26472184,46.4568677 6.2541862,48.2870742 9.84365009,46.9552844 L14.6440767,45.1741941 C17.58414,44.0833498 19.5351562,41.2784917 19.5351562,38.1425845 L19.5351562,7.45026573 C19.5351562,6.6324392 19.3907743,5.82103436 19.1086577,5.05340784 C17.7849097,1.45154906 13.7919164,-0.395224566 10.1900576,0.928523495 L5.41280781,2.68424895 Z&quot;&gt;&lt;/path&gt;
+                &lt;/g&gt;
+            &lt;/g&gt;
+        &lt;/g&gt;
+    &lt;/g&gt;
+&lt;/svg&gt;&lt;/div&gt;
+
+
+&lt;p&gt;&lt;/article&gt;&lt;/p&gt;
+
+&lt;p&gt;We got this to a point where it was working most of the time. One of the core issues was that there&#39;s a lot of
+guess-work at the end of the process. The artwork would usually be at the position of your phone, but it was rarely
+oriented correctly. We experimented by placing the artwork a meter away, but in user testing very few people could do
+that roughly in their head, and we opted to use the exact position of the phone. This meant that you had to move to
+touch the wall, then come back to see if the artwork was placed correctly.&lt;/p&gt;
+
+&lt;p&gt;This user flow was hard to explain, and it felt like we weren&#39;t setting people up to win. It was quite a debate about
+whether we could ship with this or not because we wanted to ship &lt;a href=&quot;https://github.com/artsy/meta/blob/master/meta/what_is_artsy.md#quality-worthy-of-art&quot;&gt;Quality worthy of Art&lt;/a&gt;. Then we read about the
+upcoming changes in ARKit 1.5. &lt;strong&gt;Vertical plane detection&lt;/strong&gt;. Or, &lt;em&gt;mostly&lt;/em&gt; wall detection. The debate over whether our
+initial approach was good enough became moot.&lt;/p&gt;
+
+&lt;p&gt;With the advent of vertical wall detection, we could change our flow to be a lot like what someone would have thought it
+should be:&lt;/p&gt;
+
+&lt;p&gt;&lt;article class=&quot;desktop-only&quot; style=&#39;display: flex; flex-flow:row; margin: 0px -60px;&#39;&gt;&lt;/p&gt;
+
+&lt;div style=&#39;flex:1;&#39;&gt;
+  &lt;ol class=&quot;workflow&quot; data-id=&quot;v3&quot;&gt;
+    &lt;li&gt;Open up ARKit and let it discover the world&lt;/li&gt;
+    &lt;li&gt;Ask a user to point at a wall&lt;/li&gt;
+    &lt;li&gt;Use the feature detection to detect a plane&lt;/li&gt;
+    &lt;li&gt;Use that plane to place an artwork&lt;/li&gt;
+  &lt;/ul&gt;
+&lt;/div&gt;
+
+
+&lt;div style=&#39;flex:1&#39;&gt;&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;
+&lt;svg width=&quot;530px&quot; height=&quot;460px&quot; viewBox=&quot;0 0 530 460&quot; version=&quot;1.1&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot; xmlns:xlink=&quot;http://www.w3.org/1999/xlink&quot;&gt;
+    &lt;!-- Generator: Sketch 47.1 (45422) - http://www.bohemiancoding.com/sketch --&gt;
+    &lt;title&gt;v3&lt;/title&gt;
+    &lt;desc&gt;Created with Sketch.&lt;/desc&gt;
+    &lt;defs&gt;
+        &lt;path d=&quot;M15.5931447,21.0693125 L20.3703944,19.313587 L20.3703944,19.313587 C24.2314454,17.8945812 28.5117771,19.8742499 29.9307829,23.7353008 C30.2332008,24.5581662 30.3879726,25.4279603 30.3879726,26.3046382 L30.3879726,56.9969569 L30.3879726,56.9969569 C30.3879726,60.3419246 28.3068886,63.3337733 25.1708211,64.4973405 L20.3703944,66.2784308 L20.3703944,66.2784308 C16.5220338,67.7062784 12.244822,65.7440649 10.8169744,61.8957043 C10.5099898,61.0683138 10.3528163,60.1928622 10.3528163,59.3103575 C10.3528163,50.8653937 10.3528163,42.42043 10.3528163,33.9754662 C10.3528163,32.1763957 10.3528163,30.3773252 10.3528163,28.5782547 L10.3528163,28.5782547 C10.3528163,25.2242394 12.4450064,22.2263101 15.5931447,21.0693125 Z&quot; id=&quot;path-1&quot;&gt;&lt;/path&gt;
+    &lt;/defs&gt;
+    &lt;g id=&quot;Page-1&quot; stroke=&quot;none&quot; stroke-width=&quot;1&quot; fill=&quot;none&quot; fill-rule=&quot;evenodd&quot;&gt;
+        &lt;g id=&quot;v3&quot;&gt;
+            &lt;g id=&quot;0-4_room&quot; transform=&quot;translate(18.000000, 14.000000)&quot;&gt;
+                &lt;polyline id=&quot;Path-2&quot; stroke=&quot;#BCEBED&quot; stroke-width=&quot;2&quot; transform=&quot;translate(250.949219, 301.207031) scale(1, -1) translate(-250.949219, -301.207031) &quot; points=&quot;0 290.9375 198.996094 360.277344 501.898438 242.136719&quot;&gt;&lt;/polyline&gt;
+                &lt;path d=&quot;M200,0.5 L200,242.5&quot; id=&quot;Path-3&quot; stroke=&quot;#BCEBED&quot; stroke-width=&quot;2&quot;&gt;&lt;/path&gt;
+                &lt;polygon id=&quot;Path&quot; stroke=&quot;#80D7DA&quot; stroke-width=&quot;4&quot; points=&quot;1 64.6445313 200.320312 1 502.441406 112.097656 502.441406 360.867188 312.496094 433.988281 1 313.414062&quot;&gt;&lt;/polygon&gt;
+            &lt;/g&gt;
+            &lt;g id=&quot;2-4_camera&quot; transform=&quot;translate(55.000000, 117.000000)&quot; fill-opacity=&quot;0.179630888&quot; fill=&quot;#F5A623&quot;&gt;
+                &lt;polygon id=&quot;Path-5&quot; points=&quot;218.78125 80.3027344 174.591797 0.3046875 0.55859375 24 5.89453125 194.316406 34.2070313 213.144531 136.007813 226.998047 225.933594 210.289063&quot;&gt;&lt;/polygon&gt;
+            &lt;/g&gt;
+            &lt;g id=&quot;2-4_features&quot; transform=&quot;translate(89.000000, 169.000000)&quot; fill=&quot;#E2D52A&quot;&gt;
+                &lt;circle id=&quot;Oval-2&quot; cx=&quot;66&quot; cy=&quot;157&quot; r=&quot;4&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2&quot; cx=&quot;86&quot; cy=&quot;119&quot; r=&quot;4&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2&quot; cx=&quot;104&quot; cy=&quot;127&quot; r=&quot;4&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2&quot; cx=&quot;35&quot; cy=&quot;143&quot; r=&quot;4&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2&quot; cx=&quot;46&quot; cy=&quot;139&quot; r=&quot;4&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2&quot; cx=&quot;152.5&quot; cy=&quot;152.5&quot; r=&quot;3.5&quot;&gt;&lt;/circle&gt;
+                &lt;ellipse id=&quot;Path&quot; cx=&quot;156.5&quot; cy=&quot;137&quot; rx=&quot;3.5&quot; ry=&quot;4&quot;&gt;&lt;/ellipse&gt;
+                &lt;circle id=&quot;Oval-2&quot; cx=&quot;50&quot; cy=&quot;155&quot; r=&quot;4&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2&quot; cx=&quot;118&quot; cy=&quot;118&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy-13&quot; cx=&quot;93&quot; cy=&quot;45&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy-14&quot; cx=&quot;42&quot; cy=&quot;42&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy-15&quot; cx=&quot;57&quot; cy=&quot;88&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy-16&quot; cx=&quot;108&quot; cy=&quot;68&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy-17&quot; cx=&quot;121&quot; cy=&quot;33&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy-18&quot; cx=&quot;117.5&quot; cy=&quot;2.5&quot; r=&quot;2.5&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy-19&quot; cx=&quot;113.5&quot; cy=&quot;27.5&quot; r=&quot;2.5&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy-20&quot; cx=&quot;118.5&quot; cy=&quot;56.5&quot; r=&quot;2.5&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy-21&quot; cx=&quot;66.5&quot; cy=&quot;61.5&quot; r=&quot;2.5&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2&quot; cx=&quot;126.5&quot; cy=&quot;136.5&quot; r=&quot;3.5&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2&quot; cx=&quot;107&quot; cy=&quot;160&quot; r=&quot;4&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2&quot; cx=&quot;83&quot; cy=&quot;140&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy&quot; cx=&quot;7&quot; cy=&quot;94&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy-5&quot; cx=&quot;19&quot; cy=&quot;68&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy-9&quot; cx=&quot;7&quot; cy=&quot;39&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy-10&quot; cx=&quot;46&quot; cy=&quot;62&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy-11&quot; cx=&quot;46&quot; cy=&quot;16&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy-23&quot; cx=&quot;22&quot; cy=&quot;54&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy-12&quot; cx=&quot;77&quot; cy=&quot;74&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy-2&quot; cx=&quot;97&quot; cy=&quot;106&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy-3&quot; cx=&quot;71&quot; cy=&quot;115&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy-4&quot; cx=&quot;65&quot; cy=&quot;123&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy-22&quot; cx=&quot;22&quot; cy=&quot;25&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy-6&quot; cx=&quot;130&quot; cy=&quot;94&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy-7&quot; cx=&quot;46&quot; cy=&quot;118&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy-8&quot; cx=&quot;16&quot; cy=&quot;134&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2&quot; cx=&quot;142&quot; cy=&quot;97&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2&quot; cx=&quot;118&quot; cy=&quot;100&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2&quot; cx=&quot;4&quot; cy=&quot;144&quot; r=&quot;4&quot;&gt;&lt;/circle&gt;
+            &lt;/g&gt;
+            &lt;g id=&quot;1-4_phone&quot; transform=&quot;translate(257.431048, 288.284945) rotate(-37.000000) translate(-257.431048, -288.284945) translate(246.931048, 264.284945)&quot;&gt;&lt;/g&gt;
+            &lt;g id=&quot;0-4_person&quot; transform=&quot;translate(238.000000, 241.000000)&quot;&gt;
+                &lt;g id=&quot;Rectangle&quot;&gt;
+                    &lt;use fill=&quot;#353535&quot; fill-rule=&quot;evenodd&quot; xlink:href=&quot;#path-1&quot;&gt;&lt;/use&gt;
+                    &lt;path stroke=&quot;#979797&quot; stroke-width=&quot;1&quot; d=&quot;M15.7656241,21.5386214 C12.8142445,22.6233066 10.8528163,25.4338654 10.8528163,28.5782547 L10.8528163,59.3103575 C10.8528163,60.1334921 10.999416,60.950048 11.2857484,61.7217762 C12.6175382,65.3112401 16.6070025,67.1414466 20.1964664,65.8096568 L24.996893,64.0285666 C27.9369564,62.9377223 29.8879726,60.1328641 29.8879726,56.9969569 L29.8879726,26.3046382 C29.8879726,25.4868116 29.7435906,24.6754068 29.4614741,23.9077803 C28.137726,20.3059215 24.1447327,18.4591479 20.5428739,19.7828959 L15.7656241,21.5386214 Z&quot;&gt;&lt;/path&gt;
+                &lt;/g&gt;
+                &lt;path d=&quot;M57.8662109,54.2951339 C57.2197037,47.2391468 56.4052506,43.8266412 55.4228516,44.0576172 C49.9941406,45.3339844 42.5444721,9.38688117 44.8359375,6.22265625 C48.6060532,1.01660156 83.0625,-7.31651228 81.84375,16.3310547 C81.03125,32.0960993 77.9322917,44.7507924 72.546875,54.2951339 C80.7701069,49.2018936 86.1395731,46.6552734 88.6552734,46.6552734 C92.428824,46.6552734 95.2041008,52.8013269 94.8476562,55.4792972 C94.6100265,57.2646107 93.5517583,70.7331002 91.6728516,95.8847656 C83.9235026,105.734375 75.6959635,110.609701 66.9902344,110.510742 C53.9316406,110.362305 41.5716684,104.533615 39.8232422,101.063477 C38.6576247,98.7500512 36.6400466,83.5553248 33.7705078,55.4792972 L36.8642578,46.6552734 L57.8662109,54.2951339 Z&quot; id=&quot;Path-7&quot; fill=&quot;#80D7DA&quot;&gt;&lt;/path&gt;
+            &lt;/g&gt;
+            &lt;g id=&quot;4-4_work&quot; transform=&quot;translate(136.000000, 165.000000)&quot; stroke=&quot;#000000&quot;&gt;
+                &lt;polygon id=&quot;Path-6&quot; points=&quot;0.359375 15.109375 44.578125 0.50390625 44.578125 67.8945313 0.359375 84.4160156&quot;&gt;&lt;/polygon&gt;
+            &lt;/g&gt;
+            &lt;g id=&quot;3-4-plane&quot; transform=&quot;translate(86.000000, 151.000000)&quot; stroke-width=&quot;2&quot; stroke=&quot;#E2D52A&quot; fill-opacity=&quot;0.27100317&quot; fill=&quot;#E2D52A&quot;&gt;
+                &lt;polygon id=&quot;Path-2&quot; transform=&quot;translate(64.065430, 59.840820) scale(1, -1) translate(-64.065430, -59.840820) &quot; points=&quot;0.537109375 81.3066406 127.59375 119.625 127.59375 40.6816406 5.53710938 0.056640625&quot;&gt;&lt;/polygon&gt;
+            &lt;/g&gt;
+        &lt;/g&gt;
+    &lt;/g&gt;
+&lt;/svg&gt;&lt;/div&gt;
+
+
+&lt;p&gt;&lt;/article&gt;&lt;/p&gt;
+
+&lt;p&gt;This seems almost perfect, except that it only works in theory. In practice, you don&#39;t get enough feature points on a
+blank wall. Recommending user point their phone at a blank wall (the kind of wall you&#39;d place an artwork on) is likely
+to end up in frustration. So instead, our user flow is:&lt;/p&gt;
+
+&lt;p&gt;&lt;article class=&quot;desktop-only&quot; style=&#39;display: flex; flex-flow:row; margin: 0px -60px;&#39;&gt;&lt;/p&gt;
+
+&lt;div style=&#39;flex:1;&#39;&gt;
+  &lt;ol class=&quot;workflow&quot; data-id=&quot;v4&quot;&gt;
+    &lt;li&gt;Open up ARKit and let it discover the world&lt;/li&gt;
+    &lt;li&gt;Ask a user to point at an existing object on a wall&lt;/li&gt;
+    &lt;li&gt;Expand the discovered plane in all directions&lt;/li&gt;
+    &lt;li&gt;Use the extended plane to place an artwork&lt;/li&gt;
+  &lt;/ul&gt;
+&lt;/div&gt;
+
+
+&lt;div style=&#39;flex:1&#39;&gt;&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;
+&lt;svg width=&quot;530px&quot; height=&quot;460px&quot; viewBox=&quot;0 0 530 460&quot; version=&quot;1.1&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot; xmlns:xlink=&quot;http://www.w3.org/1999/xlink&quot;&gt;
+    &lt;!-- Generator: Sketch 47.1 (45422) - http://www.bohemiancoding.com/sketch --&gt;
+    &lt;title&gt;v4&lt;/title&gt;
+    &lt;desc&gt;Created with Sketch.&lt;/desc&gt;
+    &lt;defs&gt;
+        &lt;path d=&quot;M15.5931447,21.0693125 L20.3703944,19.313587 L20.3703944,19.313587 C24.2314454,17.8945812 28.5117771,19.8742499 29.9307829,23.7353008 C30.2332008,24.5581662 30.3879726,25.4279603 30.3879726,26.3046382 L30.3879726,56.9969569 L30.3879726,56.9969569 C30.3879726,60.3419246 28.3068886,63.3337733 25.1708211,64.4973405 L20.3703944,66.2784308 L20.3703944,66.2784308 C16.5220338,67.7062784 12.244822,65.7440649 10.8169744,61.8957043 C10.5099898,61.0683138 10.3528163,60.1928622 10.3528163,59.3103575 C10.3528163,50.8653937 10.3528163,42.42043 10.3528163,33.9754662 C10.3528163,32.1763957 10.3528163,30.3773252 10.3528163,28.5782547 L10.3528163,28.5782547 C10.3528163,25.2242394 12.4450064,22.2263101 15.5931447,21.0693125 Z&quot; id=&quot;path-1&quot;&gt;&lt;/path&gt;
+    &lt;/defs&gt;
+    &lt;g id=&quot;Page-1&quot; stroke=&quot;none&quot; stroke-width=&quot;1&quot; fill=&quot;none&quot; fill-rule=&quot;evenodd&quot;&gt;
+        &lt;g id=&quot;v4&quot;&gt;
+            &lt;g id=&quot;0-4_room&quot; transform=&quot;translate(18.000000, 14.000000)&quot;&gt;
+                &lt;polyline id=&quot;Path-2&quot; stroke=&quot;#BCEBED&quot; stroke-width=&quot;2&quot; transform=&quot;translate(250.949219, 301.207031) scale(1, -1) translate(-250.949219, -301.207031) &quot; points=&quot;0 290.9375 198.996094 360.277344 501.898438 242.136719&quot;&gt;&lt;/polyline&gt;
+                &lt;path d=&quot;M200,0.5 L200,242.5&quot; id=&quot;Path-3&quot; stroke=&quot;#BCEBED&quot; stroke-width=&quot;2&quot;&gt;&lt;/path&gt;
+                &lt;polygon id=&quot;Path&quot; stroke=&quot;#80D7DA&quot; stroke-width=&quot;4&quot; points=&quot;1 64.6445313 200.320312 1 502.441406 112.097656 502.441406 360.867188 312.496094 433.988281 1 313.414062&quot;&gt;&lt;/polygon&gt;
+                &lt;polygon id=&quot;Path-9&quot; stroke=&quot;#BCEBED&quot; points=&quot;140 143.699219 140 220.496094 176.507812 208.332031 176.507812 132&quot;&gt;&lt;/polygon&gt;
+            &lt;/g&gt;
+            &lt;g id=&quot;1-4_camera&quot; transform=&quot;translate(55.000000, 117.000000)&quot; fill-opacity=&quot;0.179630888&quot; fill=&quot;#F5A623&quot;&gt;
+                &lt;polygon id=&quot;Path-5&quot; points=&quot;218.78125 80.3027344 174.591797 0.3046875 0.55859375 24 5.89453125 194.316406 34.2070313 213.144531 136.007813 226.998047 225.933594 210.289063&quot;&gt;&lt;/polygon&gt;
+            &lt;/g&gt;
+            &lt;g id=&quot;1-4_features&quot; transform=&quot;translate(89.000000, 156.000000)&quot; fill=&quot;#E2D52A&quot;&gt;
+                &lt;circle id=&quot;Oval-2&quot; cx=&quot;66&quot; cy=&quot;170&quot; r=&quot;4&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2&quot; cx=&quot;86&quot; cy=&quot;132&quot; r=&quot;4&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2&quot; cx=&quot;104&quot; cy=&quot;140&quot; r=&quot;4&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2&quot; cx=&quot;35&quot; cy=&quot;156&quot; r=&quot;4&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2&quot; cx=&quot;46&quot; cy=&quot;152&quot; r=&quot;4&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2&quot; cx=&quot;152.5&quot; cy=&quot;165.5&quot; r=&quot;3.5&quot;&gt;&lt;/circle&gt;
+                &lt;ellipse id=&quot;Path&quot; cx=&quot;156.5&quot; cy=&quot;150&quot; rx=&quot;3.5&quot; ry=&quot;4&quot;&gt;&lt;/ellipse&gt;
+                &lt;circle id=&quot;Oval-2&quot; cx=&quot;50&quot; cy=&quot;168&quot; r=&quot;4&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2&quot; cx=&quot;118&quot; cy=&quot;131&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy-13&quot; cx=&quot;93&quot; cy=&quot;58&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy-14&quot; cx=&quot;100&quot; cy=&quot;66&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy-15&quot; cx=&quot;57&quot; cy=&quot;101&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy-16&quot; cx=&quot;108&quot; cy=&quot;81&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy-17&quot; cx=&quot;81&quot; cy=&quot;34&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy-18&quot; cx=&quot;77.5&quot; cy=&quot;3.5&quot; r=&quot;2.5&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy-19&quot; cx=&quot;73.5&quot; cy=&quot;28.5&quot; r=&quot;2.5&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy-20&quot; cx=&quot;118.5&quot; cy=&quot;69.5&quot; r=&quot;2.5&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy-21&quot; cx=&quot;66.5&quot; cy=&quot;74.5&quot; r=&quot;2.5&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2&quot; cx=&quot;126.5&quot; cy=&quot;149.5&quot; r=&quot;3.5&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2&quot; cx=&quot;107&quot; cy=&quot;173&quot; r=&quot;4&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2&quot; cx=&quot;83&quot; cy=&quot;153&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy&quot; cx=&quot;65&quot; cy=&quot;81&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy-5&quot; cx=&quot;101&quot; cy=&quot;40&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy-9&quot; cx=&quot;89&quot; cy=&quot;11&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy-10&quot; cx=&quot;46&quot; cy=&quot;75&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy-11&quot; cx=&quot;104&quot; cy=&quot;3&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy-23&quot; cx=&quot;104&quot; cy=&quot;26&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy-12&quot; cx=&quot;77&quot; cy=&quot;87&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy-2&quot; cx=&quot;97&quot; cy=&quot;119&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy-3&quot; cx=&quot;71&quot; cy=&quot;128&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy-4&quot; cx=&quot;65&quot; cy=&quot;136&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy-22&quot; cx=&quot;80&quot; cy=&quot;49&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy-6&quot; cx=&quot;130&quot; cy=&quot;107&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy-7&quot; cx=&quot;46&quot; cy=&quot;131&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2-Copy-8&quot; cx=&quot;16&quot; cy=&quot;147&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2&quot; cx=&quot;142&quot; cy=&quot;110&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2&quot; cx=&quot;118&quot; cy=&quot;113&quot; r=&quot;3&quot;&gt;&lt;/circle&gt;
+                &lt;circle id=&quot;Oval-2&quot; cx=&quot;4&quot; cy=&quot;157&quot; r=&quot;4&quot;&gt;&lt;/circle&gt;
+            &lt;/g&gt;
+            &lt;g id=&quot;1-4_phone&quot; transform=&quot;translate(257.431048, 288.284945) rotate(-37.000000) translate(-257.431048, -288.284945) translate(246.931048, 264.284945)&quot;&gt;&lt;/g&gt;
+            &lt;g id=&quot;0-4_person&quot; transform=&quot;translate(238.000000, 241.000000)&quot;&gt;
+                &lt;g id=&quot;Rectangle&quot;&gt;
+                    &lt;use fill=&quot;#353535&quot; fill-rule=&quot;evenodd&quot; xlink:href=&quot;#path-1&quot;&gt;&lt;/use&gt;
+                    &lt;path stroke=&quot;#979797&quot; stroke-width=&quot;1&quot; d=&quot;M15.7656241,21.5386214 C12.8142445,22.6233066 10.8528163,25.4338654 10.8528163,28.5782547 L10.8528163,59.3103575 C10.8528163,60.1334921 10.999416,60.950048 11.2857484,61.7217762 C12.6175382,65.3112401 16.6070025,67.1414466 20.1964664,65.8096568 L24.996893,64.0285666 C27.9369564,62.9377223 29.8879726,60.1328641 29.8879726,56.9969569 L29.8879726,26.3046382 C29.8879726,25.4868116 29.7435906,24.6754068 29.4614741,23.9077803 C28.137726,20.3059215 24.1447327,18.4591479 20.5428739,19.7828959 L15.7656241,21.5386214 Z&quot;&gt;&lt;/path&gt;
+                &lt;/g&gt;
+                &lt;path d=&quot;M57.8662109,54.2951339 C57.2197037,47.2391468 56.4052506,43.8266412 55.4228516,44.0576172 C49.9941406,45.3339844 42.5444721,9.38688117 44.8359375,6.22265625 C48.6060532,1.01660156 83.0625,-7.31651228 81.84375,16.3310547 C81.03125,32.0960993 77.9322917,44.7507924 72.546875,54.2951339 C80.7701069,49.2018936 86.1395731,46.6552734 88.6552734,46.6552734 C92.428824,46.6552734 95.2041008,52.8013269 94.8476562,55.4792972 C94.6100265,57.2646107 93.5517583,70.7331002 91.6728516,95.8847656 C83.9235026,105.734375 75.6959635,110.609701 66.9902344,110.510742 C53.9316406,110.362305 41.5716684,104.533615 39.8232422,101.063477 C38.6576247,98.7500512 36.6400466,83.5553248 33.7705078,55.4792972 L36.8642578,46.6552734 L57.8662109,54.2951339 Z&quot; id=&quot;Path-7&quot; fill=&quot;#80D7DA&quot;&gt;&lt;/path&gt;
+            &lt;/g&gt;
+            &lt;g id=&quot;4-4_work&quot; transform=&quot;translate(94.000000, 166.000000)&quot; stroke=&quot;#000000&quot;&gt;
+                &lt;polygon id=&quot;Path-6&quot; points=&quot;0.359375 15.109375 44.578125 0.50390625 44.578125 67.8945313 0.359375 84.4160156&quot;&gt;&lt;/polygon&gt;
+            &lt;/g&gt;
+            &lt;g id=&quot;2-4-plane&quot; transform=&quot;translate(154.000000, 144.000000)&quot; stroke-width=&quot;2&quot; stroke=&quot;#E2D52A&quot; fill-opacity=&quot;0.27100317&quot; fill=&quot;#E2D52A&quot;&gt;
+                &lt;polygon id=&quot;Path-2&quot; transform=&quot;translate(22.351563, 46.503906) scale(1, -1) translate(-22.351563, -46.503906) &quot; points=&quot;0.724609375 81.4941406 43.9785156 92.9433594 43.9785156 14.2070312 0.724609375 0.064453125&quot;&gt;&lt;/polygon&gt;
+            &lt;/g&gt;
+            &lt;g id=&quot;3-4-extended-plane&quot; transform=&quot;translate(10.000000, 106.000000)&quot; stroke=&quot;#7ED321&quot; stroke-dasharray=&quot;2&quot;&gt;
+                &lt;polygon id=&quot;Path-10&quot; points=&quot;0.57421875 76.140625 288.720703 0.248046875 288.720703 94.5058594 0.57421875 187.464844&quot;&gt;&lt;/polygon&gt;
+            &lt;/g&gt;
+        &lt;/g&gt;
+    &lt;/g&gt;
+&lt;/svg&gt;&lt;/div&gt;
+
+
+&lt;p&gt;&lt;/article&gt;&lt;/p&gt;
+
+&lt;p&gt;:tada: - you have the Artsy workflow for putting a work on the wall.&lt;/p&gt;
+
+&lt;a name=&quot;Abstractions&quot;&gt;&lt;/a&gt;
+&lt;h2&gt;Abstractions&lt;/h2&gt;
+
+&lt;p&gt;While we were not initially sure about how well ARKit would work out for us, we thought the best way to get our feet wet
+would be to work with a contractor. We knew &lt;a href=&quot;http://www.lazerwalker.com&quot;&gt;@lazerwalker&lt;/a&gt; through the iOS dev community and asked if he
+was interested in prototyping it out. He built out a demo application of the first design iteration, you can &lt;a href=&quot;https://github.com/lazerwalker/art-on-walls-prototype&quot;&gt;see it
+here&lt;/a&gt; as it&#39;s MIT licensed.&lt;/p&gt;
+
+&lt;p&gt;I took his prototype and &lt;a href=&quot;https://github.com/artsy/eigen/pull/2501&quot;&gt;merged it into our app&lt;/a&gt; Eigen. From there, I started to turn the prototype into
+production code. We effectively had two state machines: one that was handling the internal state of the AR world, and
+another which handled the user interface from the UIKit world. We kept these in sync by having two protocols:
+&lt;code&gt;ARVIRInteractive&lt;/code&gt; and &lt;code&gt;ARVIRDelegate&lt;/code&gt;.&lt;/p&gt;
+
+&lt;p&gt;They didn&#39;t end up being that complex, you can see them in &lt;a href=&quot;https://github.com/artsy/eigen/blob/master/Artsy/View_Controllers/ARVIR/ARAugmentedVIRInteractionController.h&quot;&gt;&lt;code&gt;ARAugmentedVIRInteractionController.h&lt;/code&gt;&lt;/a&gt;. In fact,
+the story of AR at Artsy is that most of this is not too complex. Which I think is a testament to how well thought-out
+ARKit is.&lt;/p&gt;
+
+&lt;p&gt;So to make it work, we have a reasonably complicated UIViewController subclass,
+&lt;a href=&quot;https://github.com/artsy/eigen/blob/master/Artsy/View_Controllers/ARVIR/ARAugmentedVIRViewController.m&quot;&gt;&lt;code&gt;ARAugmentedVIRViewController.m&lt;/code&gt;&lt;/a&gt; which handles presenting a user interface above the camera, then an
+interaction controller &lt;a href=&quot;https://github.com/artsy/eigen/blob/master/Artsy/View_Controllers/ARVIR/ARAugmentedVIRInteractionController.m&quot;&gt;&lt;code&gt;ARAugmentedVIRInteractionController.m&lt;/code&gt;&lt;/a&gt; which handles all of the interactions inside
+AR. By using protocols to communicate between two, I could test out different AR interactions by duplicating the
+existing interaction controller and iterating on a new object for a while. This made it possible to prototype a few
+ideas, then switch between them - saving on dev time as this project wasn&#39;t a good fit for &lt;a href=&quot;http://artsy.github.io/series/react-native-at-artsy/&quot;&gt;React Native&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;React Native is really great for &lt;a href=&quot;http://artsy.github.io/blog/2018/03/17/two-years-of-react-native/&quot;&gt;nearly every screen we deal with&lt;/a&gt; typically. We tend to basically build pretty
+screens of JSON. This experience is far from that. It requires constantly changing states between two very separate but
+linked worlds. One of the biggest advantages to doing it in React Native would have been using it for cross-platform
+work, but that&#39;s speculative as only ARKit supports vertical plane detection today. We&#39;d have had to either use &lt;a href=&quot;https://github.com/react-native-ar/react-native-arkit&quot;&gt;a
+dependency&lt;/a&gt;, or build our own simpler bridge from ARKit to JS and maintain that. It just felt like a lot of work
+for a one-off section of the app.&lt;/p&gt;
+
+&lt;p&gt;Testing this code turned out to not be too valuable, I have tests that &lt;a href=&quot;https://github.com/artsy/eigen/tree/master/Artsy_Tests/View_Controller_Tests/ARVIR&quot;&gt;cover a lot of the UIKit level&lt;/a&gt; work but
+I avoided writing tests for ARKit code. It was changing too often, and was often exploratory. Also, our tests run on iOS
+10, which doesn&#39;t support ARKit anyway. So those tests would not run on CI.&lt;/p&gt;
+
+&lt;a name=&quot;Demo&quot;&gt;&lt;/a&gt;
+&lt;h2&gt;Demo&lt;/h2&gt;
+
+&lt;p&gt;Wonder what it looks like in production? Click through for a video of it in action in my &quot;cosy&quot; manhattan bedroom:&lt;/p&gt;
+
+&lt;center&gt;
+&lt;a href=&quot;http://files.artsy.net/videos/eigen-arvir-demo.mp4&quot;&gt;
+&lt;img src=&quot;/images/ar/ar-vir-demo.png&quot; width=325&gt;
+&lt;/a&gt;
+&lt;/center&gt;
+
+
+&lt;p&gt;We explicitly aimed to try and have this project as free as possible from dependencies so that others could re-use this
+code. It&#39;s not &lt;em&gt;quite&lt;/em&gt; generic enough to warrant making it&#39;s own CocoaPod, but it&#39;s MIT licensed and most of the
+dependencies are to do with user-interface styling and testing, which should be easily replaced in another codebase. Let
+us know if you&#39;ve explored adding something it to your app or have questions!&lt;/p&gt;
+
+&lt;p&gt; &lt;style type=&quot;text/css&quot;&gt;
+.workflow li {
+  width: 230px;
+  padding: 20px;
+  list-style:none;
+  color: #80D7DA;
+  border: 1px solid #80D7DA;
+  margin-top:-1px;
+}
+.workflow li.active {
+  border-left: 1px solid black;
+  border-right: 1px solid black;
+  color: black;
+}
+.diagram {
+  display: flex;
+  flex-flow:row;
+  margin: 0px -60px;
+}
+ol {
+  padding-left: 0;
+  margin-top: -20px;
+}
+@media screen and (min-width: 900px) {
+  body &gt; div {
+    background-image: url(/images/ar/cover.svg);
+    background-repeat: no-repeat;
+    background-position: 0px 00px;
+  }
+}
+&lt;/style&gt;&lt;/p&gt;
+
+&lt;script&gt;
+  $(() =&gt; {
+    // When hovering on an .workflow li, use it&#39;s index
+    // to disable groups in a correlating SVG. Groups in the SVG
+    // all are prefixed with `start-end_name`.
+    $(&quot;.workflow li&quot;).hover(function() {
+        var thisIndex = $(this).index()  + 1
+        var parentDataID = $(this).parent().data(&quot;id&quot;)
+        $(this).parent().children().removeClass(&#39;active&#39;)
+        $(this).addClass(&#39;active&#39;)
+
+        $(&#39;g#&#39; + parentDataID +&#39; g&#39;).toArray().forEach(g =&gt; {
+          if (!g.id.includes(&quot;-&quot;)) { return }
+
+          var before = parseInt(g.id.split(&quot;-&quot;)[0])
+          var after = parseInt(g.id.split(&quot;-&quot;)[1].split(&quot;_&quot;)[0])
+          var shouldShow = before &lt;= thisIndex &amp;&amp; thisIndex &lt;= after
+
+          g.style.display = shouldShow ? &quot;block&quot; : &quot;none&quot;
+        })
+    });
+    
+    // Select the first item in every SVG li
+    $(&quot;.workflow li:first-child&quot;).mouseenter()
+})&lt;/script&gt;
+
+
+
+</description>
+        <pubDate>Sun, 18 Mar 2018 00:00:00 +0000</pubDate>
+        <link>http://artsy.github.io/blog/2018/03/18/ar/</link>
+        <guid isPermaLink="true">http://artsy.github.io/blog/2018/03/18/ar/</guid>
+        
+        
+        <category>arkit</category>
+        
+        <category>ios</category>
+        
+        <category>native</category>
+        
+      </item>
     
       <item>
         <title>React Native, 2 years later</title>
@@ -1178,416 +1867,6 @@ what it&#39;s like in the industry, and what makes an Artsy engineer. The video 
         
         
         <category>blogging</category>
-        
-      </item>
-    
-      <item>
-        <title>Babel 7 + TypeScript</title>
-        <description>&lt;p&gt;At Artsy we &amp;lt;3 &lt;a href=&quot;https://www.typescriptlang.org/&quot;&gt;TypeScript&lt;/a&gt;. We use it with React Native via &lt;a href=&quot;https://github.com/artsy/emission&quot;&gt;Emission&lt;/a&gt; and on the web via &lt;a href=&quot;https://github.com/artsy/reaction&quot;&gt;Reaction&lt;/a&gt;. Until recently, however, projects that required the use of Babel had to implement convoluted tooling pipelines in order to work with the TypeScript compiler, increasing friction in an already complex landscape. (An example of this is Emission&#39;s use of Relay, which requires &lt;a href=&quot;https://facebook.github.io/relay/docs/babel-plugin-relay.html#setting-up-babel-plugin-relay&quot;&gt;babel-plugin-relay&lt;/a&gt; to convert &lt;code&gt;graphql&lt;/code&gt; literals into require calls.) Thankfully, those days &lt;a href=&quot;https://github.com/babel/babel/tree/master/packages/babel-preset-typescript&quot;&gt;are over&lt;/a&gt;. Read on for an example project, as well as some advice on how to avoid common pitfalls when working with the new beta version of Babel 7.&lt;/p&gt;
-
-&lt;!-- more --&gt;
-
-
-&lt;p&gt;Babel configurations can be complicated. They take time to set up and maintain and can often contain some pretty &lt;a href=&quot;https://github.com/kentcdodds/babel-macros&quot;&gt;far-out features&lt;/a&gt; that make interop with other environments difficult. That&#39;s why we were elated when &lt;a href=&quot;https://github.com/babel/babylon/pull/523&quot;&gt;this PR&lt;/a&gt; appeared in the wild from &lt;a href=&quot;https://github.com/andy-ms&quot;&gt;@andy-ms&lt;/a&gt;, a developer on the TypeScript team, announcing a new parser for Babylon. &lt;a href=&quot;https://github.com/babel/babel/tree/master/packages/babel-preset-typescript&quot;&gt;@babel/preset-typescript&lt;/a&gt; arrived soon after and we felt it was finally time to give it a try. There was a catch, however: TypeScript support only works with Babel 7+!&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;TLDR; &lt;a href=&quot;https://github.com/damassi/babel-7-typescript-example&quot; target=&quot;_blank&quot;&gt;Check out the project on GitHub &gt;&lt;/a&gt;&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;Here&#39;s list of setup issues we faced in no specific order:&lt;/p&gt;
-
-&lt;a name=&quot;L1..New..babel.Namespace&quot;&gt;&lt;/a&gt;
-&lt;h2&gt;1) New @babel Namespace&lt;/h2&gt;
-
-&lt;p&gt;One of the first things Babel 7 users will notice is the package ecosystem now exists as a &lt;a href=&quot;https://github.com/babel/babel/tree/master/packages&quot;&gt;monorepo&lt;/a&gt; and all NPM modules are namespaced behind the &lt;code&gt;@babel&lt;/code&gt; org address. Packages that used to be installed via&lt;/p&gt;
-
-&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
-&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;sh&#39;&gt;&lt;span class=&#39;line&#39;&gt;yarn add -D &lt;span class=&quot;se&quot;&gt;\&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  babel-core &lt;span class=&quot;se&quot;&gt;\&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  babel-preset-react &lt;span class=&quot;se&quot;&gt;\&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  babel-preset-stage-3
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  ...
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
-
-
-&lt;p&gt;are now installed via&lt;/p&gt;
-
-&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
-&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;sh&#39;&gt;&lt;span class=&#39;line&#39;&gt;yarn add -D &lt;span class=&quot;se&quot;&gt;\&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  @babel/core &lt;span class=&quot;se&quot;&gt;\&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  @babel/preset-react &lt;span class=&quot;se&quot;&gt;\&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  @babel/preset-stage-3
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  ...
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
-
-
-&lt;p&gt;which immediately creates upgrade conflicts between libraries that use Babel 6 and Babel 7. For example, &lt;code&gt;babel-jest&lt;/code&gt; internally points to &lt;code&gt;babel-core&lt;/code&gt; which supports a &lt;a href=&quot;https://github.com/facebook/jest/blob/master/packages/babel-jest/package.json#L19&quot;&gt;version range between 6 and 7&lt;/a&gt; -- but! -- &lt;code&gt;babel-core&lt;/code&gt; is now &lt;code&gt;@babel/core&lt;/code&gt; so this breaks.&lt;/p&gt;
-
-&lt;p&gt;This wasn&#39;t immediately apparent at the time, and so we would often find errors like&lt;/p&gt;
-
-&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
-&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;sh&#39;&gt;&lt;span class=&#39;line&#39;&gt;Error: Could not find preset &lt;span class=&quot;s2&quot;&gt;&amp;quot;@babel/env&amp;quot;&lt;/span&gt; relative to directory
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
-
-
-&lt;p&gt;These errors appeared ambiguous because the folder structure was correct and commands like &lt;code&gt;yarn list @babel/preset-env&lt;/code&gt; yielded expected results:&lt;/p&gt;
-
-&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
-&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;sh&#39;&gt;&lt;span class=&#39;line&#39;&gt;└─ @babel/preset-env@7.0.0-beta.32
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;✨  Done in 0.58s.
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
-
-
-&lt;p&gt;Why was the package not found? Digging deeper, it seemed like Babel 6 was still being used somewhere. Running &lt;code&gt;yarn list babel-core&lt;/code&gt; revealed the culprit:&lt;/p&gt;
-
-&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
-&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;sh&#39;&gt;&lt;span class=&#39;line&#39;&gt;└─ babel-core@6.25.0
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;✨  Done in 0.58s.
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
-
-
-&lt;p&gt;Thankfully, &lt;a href=&quot;https://github.com/babel/babel-bridge&quot;&gt;babel-bridge&lt;/a&gt; exists to &quot;bridge&quot; the gap, but one can see how complications can and will arise. Further, not all packages have implemented this fix and so we had to rely on &lt;code&gt;yarn&lt;/code&gt;&#39;s new &lt;a href=&quot;https://yarnpkg.com/lang/en/docs/selective-version-resolutions/&quot;&gt;selective dependency resolution&lt;/a&gt; feature which overrides child dependency versions with a fixed number set directly in &lt;code&gt;package.json&lt;/code&gt;:&lt;/p&gt;
-
-&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
-&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;json&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;resolutions&amp;quot;&lt;/span&gt;&lt;span class=&quot;err&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nt&quot;&gt;&amp;quot;babel-core&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;^7.0.0-bridge.0&amp;quot;&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;err&quot;&gt;,&lt;/span&gt;
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
-
-
-&lt;p&gt;With this in place many of our errors disappeared and packages like &lt;code&gt;jest&lt;/code&gt; now worked like a charm.&lt;/p&gt;
-
-&lt;a name=&quot;L2..Missing.ES2015.Features&quot;&gt;&lt;/a&gt;
-&lt;h2&gt;2) Missing ES2015 Features&lt;/h2&gt;
-
-&lt;p&gt;Another error we faced early on surrounded language features that worked with Babel &lt;em&gt;or&lt;/em&gt; TypeScript, but not with Babel &lt;em&gt;and&lt;/em&gt; TypeScript. For example, take an existing Babel project that points to &lt;code&gt;index.js&lt;/code&gt; as an entrypoint, configure it to support TypeScript via Babel 7, and then run it:&lt;/p&gt;
-
-&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
-&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;json&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;scripts&amp;quot;&lt;/span&gt;&lt;span class=&quot;err&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nt&quot;&gt;&amp;quot;start&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;babel-node index.js&amp;quot;&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
-
-
-&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
-&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;js&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;c1&quot;&gt;// index.js&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;nx&quot;&gt;require&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;@babel/register&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nx&quot;&gt;extensions&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;.js&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;.jsx&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;.ts&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;.tsx&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;})&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;nx&quot;&gt;require&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;app/server.ts&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
-
-
-&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
-&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;javascript&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;c1&quot;&gt;// app/server.ts&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;nx&quot;&gt;console&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;log&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;hi!&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
-
-
-&lt;p&gt;Running&lt;/p&gt;
-
-&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
-&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;sh&#39;&gt;&lt;span class=&#39;line&#39;&gt;yarn start
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;nv&quot;&gt;$ &lt;/span&gt;babel-node index.js
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;hi!
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;✨  Done in 1.88s.
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
-
-
-&lt;p&gt;Everything seems to be working; our &lt;code&gt;.js&lt;/code&gt; entrypoint is configured to support &lt;code&gt;.ts&lt;/code&gt; extensions and we kick off the boot process.&lt;/p&gt;
-
-&lt;p&gt;Let&#39;s now try to import a file from within &lt;code&gt;app/server.ts&lt;/code&gt;:&lt;/p&gt;
-
-&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
-&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;javascript&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;kr&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;path&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;path&amp;#39;&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;nx&quot;&gt;console&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;log&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;err&quot;&gt;`&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;Hello&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;$&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;path&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;resolve&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;process&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;cwd&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;())}&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;!&lt;/span&gt;&lt;span class=&quot;err&quot;&gt;`&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
-
-
-
-
-&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;6&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;7&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;8&lt;/span&gt;
-&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;sh&#39;&gt;&lt;span class=&#39;line&#39;&gt;yarn start
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;nv&quot;&gt;$ &lt;/span&gt;yarn run v1.3.2
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;nv&quot;&gt;$ &lt;/span&gt;babel-node index.js
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;sites/src/index.tsx:1
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;function&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;exports, require, module, __filename, __dirname&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt; import path from &lt;span class=&quot;s1&quot;&gt;&amp;#39;path&amp;#39;&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;                                                              ^^^^^^
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;SyntaxError: Unexpected token import
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
-
-
-&lt;p&gt;Maybe my &lt;code&gt;tsconfig.json&lt;/code&gt; file is misconfigured?&lt;/p&gt;
-
-&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
-&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;json&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nt&quot;&gt;&amp;quot;compilerOptions&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nt&quot;&gt;&amp;quot;module&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;es2015&amp;quot;&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
-
-
-&lt;p&gt;Nope, all good. How about my &lt;code&gt;.babelrc&lt;/code&gt;?&lt;/p&gt;
-
-&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;6&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;7&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;8&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;9&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;10&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;11&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;12&lt;/span&gt;
-&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;json&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nt&quot;&gt;&amp;quot;presets&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;@babel/env&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;nt&quot;&gt;&amp;quot;targets&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;        &lt;span class=&quot;nt&quot;&gt;&amp;quot;browsers&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;last 2 versions&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;p&quot;&gt;}],&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;s2&quot;&gt;&amp;quot;@babel/stage-3&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;s2&quot;&gt;&amp;quot;@babel/react&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;s2&quot;&gt;&amp;quot;@babel/typescript&amp;quot;&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
-
-
-&lt;p&gt;We&#39;re using &lt;a href=&quot;https://github.com/babel/babel/tree/master/packages/babel-preset-env&quot;&gt;&lt;code&gt;@babel/preset-env&lt;/code&gt;&lt;/a&gt; which handles selecting the JS features we need, so thats not it. And anyways, doesn&#39;t TypeScript support &lt;code&gt;ES2015&lt;/code&gt; modules right out of the box?&lt;/p&gt;
-
-&lt;p&gt;Continuing, how about specifying the extension list directly in &lt;code&gt;package.json&lt;/code&gt;:&lt;/p&gt;
-
-&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
-&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;json&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;start&amp;quot;&lt;/span&gt;&lt;span class=&quot;err&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;babel-node --extensions &amp;#39;.ts,.tsx&amp;#39; index.js&amp;quot;&lt;/span&gt;
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
-
-
-&lt;p&gt;Still no go 🙁&lt;/p&gt;
-
-&lt;p&gt;Last try: Create a new entrypoint file that uses a &lt;code&gt;.ts&lt;/code&gt; extension and then use &lt;em&gt;that&lt;/em&gt; to boot the rest of the app:&lt;/p&gt;
-
-&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
-&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;json&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;start&amp;quot;&lt;/span&gt;&lt;span class=&quot;err&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;babel-node --extensions &amp;#39;.ts,.tsx&amp;#39; index.ts&amp;quot;&lt;/span&gt;
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
-
-
-&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
-&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;javascript&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;c1&quot;&gt;// index.ts&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;kr&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;./app/server&amp;#39;&lt;/span&gt;
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
-
-
-&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
-&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;sh&#39;&gt;&lt;span class=&#39;line&#39;&gt;yarn start
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;nv&quot;&gt;$ &lt;/span&gt;yarn run v1.3.2
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;nv&quot;&gt;$ &lt;/span&gt;babel-node index.js
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;Hello /sites!
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
-
-
-&lt;p&gt;Once this change was in place, we could ditch &lt;code&gt;@babel/register&lt;/code&gt; and instead rely on the &lt;code&gt;--extensions&lt;/code&gt; configuration from &lt;code&gt;package.json&lt;/code&gt;, just like the &lt;a href=&quot;https://github.com/babel/babel/tree/master/packages/babel-preset-typescript&quot;&gt;README&lt;/a&gt; suggests (doh! 🤦).&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;NOTE:&lt;/strong&gt; If you&#39;re using &lt;a href=&quot;https://github.com/tleunen/babel-plugin-module-resolver&quot;&gt;&lt;code&gt;babel-plugin-module-resolver&lt;/code&gt;&lt;/a&gt; to support absolute path imports make sure to update the &lt;code&gt;extensions&lt;/code&gt; &lt;a href=&quot;https://github.com/tleunen/babel-plugin-module-resolver#options&quot;&gt;option&lt;/a&gt; with &lt;code&gt;.ts&lt;/code&gt; and &lt;code&gt;.tsx&lt;/code&gt;.&lt;/p&gt;
-
-&lt;a name=&quot;L3..Type-Checking&quot;&gt;&lt;/a&gt;
-&lt;h2&gt;3) Type-Checking&lt;/h2&gt;
-
-&lt;p&gt;Lastly, since Babel 7 is now responsible for compiling our TypeScript files we no longer need to rely on TypeScript&#39;s own &lt;code&gt;tsc&lt;/code&gt; compiler to output JavaScript and instead just use it to type-check our code. Again, in &lt;code&gt;package.json&lt;/code&gt;:&lt;/p&gt;
-
-&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
-&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;sh&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;type-check&amp;quot;&lt;/span&gt;: &lt;span class=&quot;s2&quot;&gt;&amp;quot;tsc&amp;quot;&lt;/span&gt;
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
-
-
-&lt;p&gt;This reads in settings located in &lt;code&gt;tsconfig.json&lt;/code&gt;:&lt;/p&gt;
-
-&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;6&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;7&lt;/span&gt;
-&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;json&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nt&quot;&gt;&amp;quot;compilerOptions&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nt&quot;&gt;&amp;quot;noEmit&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;kc&quot;&gt;true&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nt&quot;&gt;&amp;quot;pretty&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;kc&quot;&gt;true&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;err&quot;&gt;...&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
-
-
-&lt;p&gt;Notice the &lt;code&gt;noEmit&lt;/code&gt; flag? That tells &lt;code&gt;tsc&lt;/code&gt; not to output any JS and instead only check for correctness. The &quot;pretty&quot; flag gives us nicer type-checker output.&lt;/p&gt;
-
-&lt;p&gt;While this seemed to be all that was needed, running &lt;code&gt;yarn type-check&lt;/code&gt; would throw an error:&lt;/p&gt;
-
-&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;6&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;7&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;8&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;9&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;10&lt;/span&gt;
-&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;json&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;err&quot;&gt;$&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;yarn&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;type-check&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;err&quot;&gt;yarn&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;run&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;v&lt;/span&gt;&lt;span class=&quot;mf&quot;&gt;1.3&lt;/span&gt;&lt;span class=&quot;err&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;err&quot;&gt;$&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;tsc&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;err&quot;&gt;node_modules/@types/jest/index.d.ts(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1053&lt;/span&gt;&lt;span class=&quot;err&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;34&lt;/span&gt;&lt;span class=&quot;err&quot;&gt;):&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;error&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;TS&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;2304&lt;/span&gt;&lt;span class=&quot;err&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;Cannot&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;find&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;name&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;&amp;#39;Set&amp;#39;.&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;mi&quot;&gt;1053&lt;/span&gt;         &lt;span class=&quot;err&quot;&gt;onRunComplete?(contexts:&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;Set&amp;lt;Context&amp;gt;,&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;results:&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;AggregatedResult):&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;Maybe&amp;lt;Promise&amp;lt;void&amp;gt;&amp;gt;;&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;                                      &lt;span class=&quot;err&quot;&gt;~~~&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;err&quot;&gt;error&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;Command&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;failed&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;with&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;exit&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;code&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;err&quot;&gt;.&lt;/span&gt;
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
-
-
-&lt;p&gt;Why is it TypeChecking my &lt;code&gt;node_modules&lt;/code&gt; folder when &lt;code&gt;rootDirs&lt;/code&gt; is set to &lt;code&gt;src&lt;/code&gt;? It looks like we missed a TypeScript setting:&lt;/p&gt;
-
-&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
-&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;json&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nt&quot;&gt;&amp;quot;compilerOptions&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nt&quot;&gt;&amp;quot;skipLibCheck&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;kc&quot;&gt;true&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
-
-
-&lt;p&gt;With that last missing piece everything now works:&lt;/p&gt;
-
-&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;6&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;7&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;8&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;9&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;10&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;11&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;12&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;13&lt;/span&gt;
-&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;sh&#39;&gt;&lt;span class=&#39;line&#39;&gt;yarn &lt;span class=&quot;nb&quot;&gt;type&lt;/span&gt;-check -w
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;yarn run v1.3.2
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;nv&quot;&gt;$ &lt;/span&gt;tsc -w
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;src/index.tsx&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;5,7&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;: error TS2451: Cannot redeclare block-scoped variable &lt;span class=&quot;s1&quot;&gt;&amp;#39;test&amp;#39;&lt;/span&gt;.
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;m&quot;&gt;5&lt;/span&gt; const &lt;span class=&quot;nb&quot;&gt;test&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;foo: string&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&amp;gt; foo
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;        ~~~~
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;src/index.tsx&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;6,6&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;: error TS2345: Argument of &lt;span class=&quot;nb&quot;&gt;type&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;2&amp;#39;&lt;/span&gt; is not assignable to parameter of &lt;span class=&quot;nb&quot;&gt;type&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;string&amp;#39;&lt;/span&gt;.
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;m&quot;&gt;6&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;test&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;2&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;       ~
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
-
-
-&lt;p&gt;Proper type-checking, but compilation handled by Babel 😎.&lt;/p&gt;
-
-&lt;a name=&quot;L4..TypeScript.and.Flow&quot;&gt;&lt;/a&gt;
-&lt;h2&gt;4) TypeScript and Flow&lt;/h2&gt;
-
-&lt;p&gt;Unfortunately, the TypeScript and Flow plugins for Babel cannot be loaded at the same time, as there could be ambiguity about how to parse some code.&lt;/p&gt;
-
-&lt;p&gt;This is usually ok, because the general advice is to compile your library code to vanilla JS before publishing (and thus strip type annotations), but there are packages that could still enable the Flow plugin.&lt;/p&gt;
-
-&lt;p&gt;For example, &lt;a href=&quot;https://github.com/babel/babel/pull/6118&quot;&gt;the React Babel preset&lt;/a&gt; in the past would enable the Flow plugin without really needing it for its own source, but just as a default for consumers of React.&lt;/p&gt;
-
-&lt;p&gt;This issue cannot really be worked around without patching the code that loads the plugin. Ideally this patch would be sent upstream so that the issue goes away for everybody.&lt;/p&gt;
-
-&lt;p&gt;This issue can be worked around by either eliminating the dependency on the preset that loads the plugin, for instance by depending on the individual plugins directly, or if that’s not possible by patching the code. Ideally that patch should go upstream, of course, but if you need something immediate then we highly recommend &lt;a href=&quot;https://github.com/ds300/patch-package&quot;&gt;patch-package&lt;/a&gt;, as can be seen used in &lt;a href=&quot;https://github.com/artsy/emission/pull/780/files#diff-29cf179661e0495e62e9cd67dd0307dd&quot;&gt;this example&lt;/a&gt;.&lt;/p&gt;
-
-&lt;p&gt;There’s even projects that publish their Flow annotated code &lt;em&gt;without&lt;/em&gt; compiling/stripping type annotations, the one we know of and use is &lt;a href=&quot;https://github.com/facebook/react-native/issues/7850#issuecomment-225415645&quot;&gt;React Native&lt;/a&gt;. There’s no way around this other than patching the code. You may think that you could use a plugin like &lt;a href=&quot;https://babeljs.io/docs/plugins/transform-flow-strip-types/&quot;&gt;babel-plugin-transform-flow-strip-types&lt;/a&gt;, but in reality that transform needs the Flow plugin to be able to do its work and thus is a no-go.&lt;/p&gt;
-
-&lt;p&gt;The way we’ve worked around that is by &lt;a href=&quot;https://github.com/artsy/emission/pull/780/files#diff-b9cfc7f2cdf78a7f4b91a753d10865a2R36&quot;&gt;stripping Flow type annotations from &lt;em&gt;all&lt;/em&gt; dependencies&lt;/a&gt; at &lt;a href=&quot;https://github.com/artsy/emission/pull/780/files#diff-b9cfc7f2cdf78a7f4b91a753d10865a2R39&quot;&gt;dependency install time&lt;/a&gt; using the &lt;a href=&quot;https://github.com/flowtype/flow-remove-types&quot;&gt;&lt;code&gt;flow-remove-types&lt;/code&gt; tool&lt;/a&gt;. It can get a little slow on many files which is why we do a bunch of filtering to only process files that have &lt;code&gt;@flow&lt;/code&gt; directives, the downside is that some files don’t have directives like they should and so &lt;a href=&quot;https://github.com/artsy/emission/pull/780/files#diff-d6d30dd9bd4cdb1ac0d1268937508814R65&quot;&gt;we patch those to add them&lt;/a&gt; using the aforementioned &lt;a href=&quot;https://github.com/ds300/patch-package&quot;&gt;patch-package&lt;/a&gt;.&lt;/p&gt;
-
-&lt;a name=&quot;L5..Limitations.in.TypeScript.support&quot;&gt;&lt;/a&gt;
-&lt;h2&gt;5) Limitations in TypeScript support&lt;/h2&gt;
-
-&lt;p&gt;It is important to note that you &lt;em&gt;may&lt;/em&gt; run into a few cases that TypeScript’s Babel plugin does/can not support. From &lt;a href=&quot;https://github.com/babel/babel/blob/master/packages/babel-plugin-transform-typescript/README.md#babelplugin-transform-typescript&quot;&gt;the plugin’s README&lt;/a&gt;:&lt;/p&gt;
-
-&lt;blockquote&gt;&lt;p&gt;Does not support &lt;code&gt;namespace&lt;/code&gt;s or &lt;code&gt;const enum&lt;/code&gt;s because those require type information to transpile.
-Also does not support &lt;code&gt;export =&lt;/code&gt; and &lt;code&gt;import =&lt;/code&gt;, because those cannot be transpiled to ES.next.&lt;/p&gt;&lt;/blockquote&gt;
-
-&lt;p&gt;The lack of namespace support hasn’t been a problem for us, we’re only using it in one place which could easily be changed to use regular ES6 modules as namespace. This is also why for instance the ‘recommended’ list of TSLint checks includes &lt;a href=&quot;https://palantir.github.io/tslint/rules/no-namespace/&quot;&gt;the &lt;code&gt;no-namespace&lt;/code&gt; rule&lt;/a&gt;.&lt;/p&gt;
-
-&lt;p&gt;The &lt;code&gt;const enum&lt;/code&gt; feature is a runtime optimization that will cause the compiler to inline code. We don’t have a need for this at the moment, but &lt;a href=&quot;https://github.com/babel/babel/issues/6476&quot;&gt;some discussion&lt;/a&gt; is happening to possibly still being able to make use of this feature when compiling production builds with the TypeScript compiler instead.&lt;/p&gt;
-
-&lt;p&gt;The &lt;code&gt;export =&lt;/code&gt; and &lt;code&gt;import =&lt;/code&gt; syntax is meant to &lt;a href=&quot;https://github.com/Microsoft/TypeScript-Handbook/blob/master/pages/Modules.md#export--and-import--require&quot;&gt;work with CommonJS and AMD modules&lt;/a&gt;; however, we strictly use ES6 modules.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;References:&lt;/strong&gt;&lt;/p&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&quot;https://github.com/damassi/babel-7-typescript-example&quot;&gt;babel-7-typescript-example&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&quot;https://github.com/babel/babel/tree/master/packages/babel-preset-typescript&quot;&gt;babel-preset-typescript&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&quot;https://github.com/artsy/emission&quot;&gt;emission&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&quot;https://github.com/artsy/reaction&quot;&gt;reaction&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&quot;https://github.com/ds300/patch-package&quot;&gt;patch-package&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-</description>
-        <pubDate>Mon, 27 Nov 2017 14:18:00 +0000</pubDate>
-        <link>http://artsy.github.io/blog/2017/11/27/Babel-7-and-TypeScript/</link>
-        <guid isPermaLink="true">http://artsy.github.io/blog/2017/11/27/Babel-7-and-TypeScript/</guid>
-        
-        
-        <category>babel</category>
-        
-        <category>javascript</category>
-        
-        <category>typescript</category>
         
       </item>
     
