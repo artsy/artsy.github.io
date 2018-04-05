@@ -122,6 +122,6 @@ I love that I got to help make these changes, the web team started the process o
 [forks]: /blog/2012/01/29/how-art-dot-sy-uses-github-to-build-art-dot-sy/
 [roop]: http://www.anandarooproy.com/portfolio
 [eigen_tag]: /blog/2015/04/28/how-we-open-sourced-eigen/
-[ezel]: http://ezeljs.com
+[ezel]: https://github.com/artsy/ezel
 [issue_mover]: https://github-issue-mover.appspot.com
 [artsy_net]: https://www.artsy.net/
