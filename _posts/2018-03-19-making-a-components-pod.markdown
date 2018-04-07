@@ -469,23 +469,23 @@ $ mv ~/Desktop/*.podspec.json "Local Pods"
 
 Modify their `Gemfile` to include [cocoapods-fix-react-native][cpfrn]:
 
-```ruby
+```diff
 source 'https://rubygems.org'
 
 gem 'cocoapods', '~> 1.4.0'
-gem 'cocoapods-fix-react-native'
++ gem 'cocoapods-fix-react-native'
 ```
 
 Then run `bundle install`. Next we need to add GitDawg, and our custom Podspecs to the Podfile:
 
-```ruby
+```diff
 source 'https://github.com/CocoaPods/Specs.git'
 
 [...]
 
-pod 'GitDawg', :path => '../GitDawg'
-pod 'React', :podspec => 'Local Pods/React.podspec.json'
-pod 'yoga',  :podspec => 'Local Pods/yoga.podspec.json'
++ pod 'GitDawg', :path => '../GitDawg'
++ pod 'React', :podspec => 'Local Pods/React.podspec.json'
++ pod 'yoga',  :podspec => 'Local Pods/yoga.podspec.json'
 ```
 
 Then run `$ bundle exec pod install`. That should grab React Native for you. Unlike inside GitDawg, CocoaPods will
@@ -515,7 +515,7 @@ Then add our new view controller by replacing the bookmarks view controller
 ```
 
 That should get you to the same point as we were in the dev app. Now when you run the app, log in and hit the place
-where the bookmarks icon used to live.
+where the bookmarks icon used to live. Tada.
 
 [summary of native changes]
 
