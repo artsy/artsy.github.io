@@ -51,8 +51,8 @@ specifically to slow you down and make you think about each command.
 
 6.  We will expose a UIViewController which corresponds to the default screen from `react-native init` in our Pod
 
-7.  We will change the storyboard reference to point to the UIViewController from our Pod, and run the simulator to see
-    our welcome screen.
+7.  We will change the storyboard reference to point to the UIViewController from our Pod, and run the simulator to
+    see our welcome screen.
 
 8.  We will set up GitHawk to consume our new Pod
 
@@ -75,18 +75,18 @@ starting our repo.
 
 We need CocoaPods: `$ gem install cocoapods`.
 
-We're going to need node, and a dependency manager. If you run `$ brew install yarn` you will get both. I'm running
-on node `8.9.x` and yarn `1.5.x`. Honestly, it shouldn't matter if you're on node 8, or 9. Yarn is basically
-CocoaPods for node projects. If you're wondering what the differences are between [yarn][] and [npm][], then TLDR:
-there used to be some, but now there's little. I stick with yarn because I prefer how the CLI works, and I trust its
-lockfile.
+We're going to need node, and a dependency manager. If you run `$ brew install yarn` you will get both.
+
+I'm running on node `8.9.x` and yarn `1.5.x`. Honestly, it shouldn't matter if you're on node 8, or 9. Yarn is
+basically CocoaPods for node projects. If you're wondering what the differences are between [yarn][] and [NPM][],
+then TLDR: there used to be some, but now there's few. I stick with yarn because I prefer how the CLI works, and I
+can easily read the lockfile it generates.
 
 We need the React Native CLI, so let's install it globally: `$ yarn global add react-native-cli`.
 
 ### Starting with the Pod
 
-We're going to let CocoaPods create the initial folder for our project. Create your repo with
-`pod lib create GitDawg`.
+We're going to let CocoaPods create the initial folder for our project. Let's set up your Pod:
 
 ```sh
 $ pod lib create GitDawg
@@ -126,26 +126,30 @@ I'd recommend using Objective-C at this point, for simplicities sake. Swift is a
 after tooling simplicity. We're not going to write enough native code to warrent the setup for testing. Plus, if we
 skip native testing then we can run CI on linux - which is basically instant in comparison.
 
-So this has made a new library. Let's go into that folder with `cd GitDawg`. There shouldn't be too much in here:
+This has made a new library. Let's go into our project's root with `cd GitDawg`. There shouldn't be too much in
+here:
 
 ```sh
 $ ls
 Example         GitDawg         GitDawg.podspec LICENSE         README.md         _Pods.xcodeproj
 ```
 
-Because the core compentency of the repo is the JavaScript, we're going to rename the "GitDawg" folder to be about
-the CocoaPod instead of having the name of the project. So run `mv GitDawg Pod` to do that.
+Because the core competency of the repo is the JavaScript, we're going to rename the "GitDawg" folder in the root to
+be about the CocoaPod instead of owning the name of the project. Run `$ mv GitDawg Pod` to do that.
 
-Now we want to create our React Native project. I'm hardcoding my versions in these commands to try ensure it always
-works, but you never know what amazing changes the future brings.
+We want to create our React Native project. I'm hard-coding my versions in these commands to try ensure this post
+lasts some time, but you never know what amazing changes the future brings. If things are broken, leave a comment at
+the bottom of this post.
 
 Let’s create a GitDawg React Native project, and then rename the folder to src:
 
 ```sh
 # Use the RN CLI to create a new RN app in the folder GitDawg
 $ react-native init GitDawg --version react-native@0.54.4
+
 # Rename the folder to src
 $ mv GitDawg src
+
 # Remove _Pods.xcodeproj as it's relevant for our pod
 $ rm _Pods.xcodeproj
 ```
@@ -177,7 +181,6 @@ To ensure everything is still hooked up, let's make sure that all of your tests 
 $ yarn test
 
 yarn run v1.5.1
-$ jest
  PASS  src/__tests__/App.js
   ✓ renders correctly (176ms)
 
@@ -192,7 +195,11 @@ Ran all test suites.
 We're now going to be done with our JavaScript side, basically is our React Native "hello world". It's a React
 Native project that exposes a single component which says `"Welcome to React Native!"`.
 
-_Optional_ if you want to see what it looks like, run `yarn start` in the root directory, open the
+It looks like this:
+
+<center><img src="/images/making_cp_pod/success.png" width="50%" /></center>
+
+However, it's going to take a bit of work before we can see it in action.
 
 ### Deployment
 
@@ -409,7 +416,7 @@ Let's take a second to re-cover what has happened to get us to this point.
 
 4.  We set up the Podspec for GitDawg, and then the Podfile for the example project to consume it
 
-5.  We added [cocoapods-fix-react-native][cpfrn] to hotfix the native files
+5.  We added [cocoapods-fix-react-native][cpfrn] to hot-fix the native files
 
 6.  We added a UIViewController for the default screen from `react-native init` to our CocoaPod, and ran
     `bundle exec pod install` to update the example project
@@ -423,7 +430,7 @@ different root screens and admin flags.
 
 —
 
-OK, let’s go take this and migrate it into GitHawk. This is what our end-goal looks like:
+OK, let’s go take this and migrate it into GitHawk. This is our end-goal:
 
 <center><img src="/images/making_cp_pod/githawk.gif" width="75%" /></center>
 
@@ -438,7 +445,7 @@ Podspecs using `bundle exec pod ipc spec [file.podspec]`. Let's generate one for
 $ cd GitDawg/node_modules/react-native/; pod ipc spec React.podspec
 ```
 
-It will output a bunch of JSON to your terminal. This is :+1:. Let's move a copy to your desktop.
+It will output a bunch of JSON to your terminal. This is perfect. Let's move that text to a file on your desktop.
 
 ```sh
 $ pod ipc spec node_modules/react-native/React.podspec > ~/Desktop/React.podspec.json
@@ -450,15 +457,17 @@ You'll see no output if everything went fine. Before you grab that podspec, let'
 $ cd ReactCommon/yoga/; pod ipc spec yoga.podspec > ~/Desktop/yoga.podspec.json
 ```
 
-Again, no output means everything is great. You should now have two JSON files in your Desktop. Grab them, move them
-into a the `Local Pods` folder inside GitHawk.
+Again, no output means everything is perfect. You should now have two JSON files in your Desktop. Grab them, move
+them into the `Local Pods` folder inside GitHawk. It should already have a few Podspecs.
 
 ```sh
-$ cd GitHawk # However it takes to get back there.
+$ cd ../../../ # Or however it takes to get back to the project root
+
+# Move any podspec.json into the Local Pods folder
 $ mv ~/Desktop/*.podspec.json "Local Pods"
 ```
 
-Modify the `Gemfile` to include [cocoapods-fix-react-native][cpfrn]:
+Modify their `Gemfile` to include [cocoapods-fix-react-native][cpfrn]:
 
 ```ruby
 source 'https://rubygems.org'
@@ -467,7 +476,7 @@ gem 'cocoapods', '~> 1.4.0'
 gem 'cocoapods-fix-react-native'
 ```
 
-Then run `bundle install`. Next we need to add GitDawg, and its dependencies to the Podfile:
+Then run `bundle install`. Next we need to add GitDawg, and our custom Podspecs to the Podfile:
 
 ```ruby
 source 'https://github.com/CocoaPods/Specs.git'
@@ -479,9 +488,9 @@ pod 'React', :podspec => 'Local Pods/React.podspec.json'
 pod 'yoga',  :podspec => 'Local Pods/yoga.podspec.json'
 ```
 
-Then run `bundle exec pod install`. That should grab and set up React Native for you. Unlike inside GitDawg,
-CocoaPods will download the source code from the internet. `:podspec` only tells CocoaPods where to find the
-Podspec, but it will still download code externally.
+Then run `$ bundle exec pod install`. That should grab React Native for you. Unlike inside GitDawg, CocoaPods will
+download the source code from the internet. `:podspec` only tells CocoaPods where to find the Podspec, but it will
+still download code externally.
 
 Open up the Xcode Workspace - `open Freetime.xcworkspace`, and we're gonna make the code changes - it's all in one
 file. Open the file `RootNavigationController.swift` and add a new `import` at the top for `GitDawg`:
