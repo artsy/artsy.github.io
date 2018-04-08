@@ -64,7 +64,7 @@ specifically to slow you down and make you think about each command.
 
 Let's get started by having a working [copy of GitHawk][githawk]. I'll leave the README for GitHawk to do that, but
 if you want to be certain you're on the same version as me - I'm working from this commit
-`84ffeab2555c16e551ddba05fbb7b606ec9a958f`. [todo: this needs to be my merged PR now that 9.3 broke GitHawk]
+`6dc2988d23d70eb0862d11f4a365bf47a87848c6`.
 
 Clone a copy of GitHawk, and get it running in your Simulator, should take about 5 minutes Then we can move on to
 starting our repo.
@@ -126,7 +126,7 @@ I'd recommend using Objective-C at this point, for simplicities sake. Swift is a
 after tooling simplicity. We're not going to write enough native code to warrent the setup for testing. Plus, if we
 skip native testing then we can run CI on linux - which is basically instant in comparison.
 
-This has made a new library. Let's go into our project's root with `cd GitDawg`. There shouldn't be too much in
+This has made a new library. Let's go into our project's root with `$ cd GitDawg`. There shouldn't be too much in
 here:
 
 ```sh
@@ -283,13 +283,13 @@ end
 
 This Podspec is probably more complex then you're used to, but it means less config. To validate the Podspec, use
 `$ pod ipc spec GitDawg.podspec` and read the JSON it outputs. With the Podspec set up, it's time to set up the
-example project's `Gemfile` and `Podfile`.
+example project's `Podfile` and `Podfile`.
 
 We'll start with applying the [React Native hot-fix plugin][cpfrn], sometimes a version of React Native is released
 that doesn't support Swift frameworks (as Facebook don't use Swift) and so you have to apply some patches to the
 code. I made a CocoaPods Plugin that handles the hot-fixes for you.
 
-Start by making a `Gemfile` in the `Example` folder:
+Start by making a `Podfile` in the `Example` folder: `touch Example/Gemfile`
 
 ```ruby
 source 'https://rubygems.org'
@@ -298,8 +298,13 @@ gem 'cocoapods'
 gem 'cocoapods-fix-react-native'
 ```
 
-Then run `bundle install` in the `Example` folder, which will set up `cocoapods` and `cocoapods-fix-react-native`
+Then run `$ bundle install` in the `Example` folder, which will set up `cocoapods` and `cocoapods-fix-react-native`
 for your app. Making it possible to reference `"cocoapods-fix-react-native"` in your `Podfile`.
+
+```sh
+$ cd Example
+$ bundle install
+```
 
 We want to take the current Podfile and make sure that every React Native dependency comes from the folder in
 `node_modules`. We can do this using the `:path` operator to redeclare where you can find each Pod.
@@ -339,7 +344,6 @@ end
 Run the following to set up the React Native dependencies for your project.
 
 ```
-$ cd Example
 $ bundle exec pod install
 ```
 
@@ -348,6 +352,8 @@ in `Pod/Classes`:
 
 ```sh
 $ touch ../Pod/Classes/GDWelcomeViewController.h ../Pod/Classes/GDWelcomeViewController.m
+$ bundle exec pod install
+$ open GitDawg.xcworkspace
 ```
 
 It is a pretty vanilla `UIViewController`, so declare it exists in the interface and then use an `RCTRootView` as
@@ -394,18 +400,15 @@ Hello World app. We'll be going back to this later.
 @end
 ```
 
-To add these new new files to our Xcode project run `bundle exec pod install` inside the `Example` folder again to
-update the generated Pod's Xcodeproject. Then you're good to go.
-
-As the `pod lib create` template uses storyboards, you will need to open up the example app's storyboard and change
-the initial view controller to be a `GDWelcomeViewController`. If you see a white screen on the app launches then
-this hasn't been done.Then run the app in the simulator, and you should get this screen:
+As the `pod lib create` template uses storyboards, you will need to open up the example app's storyboard and [change
+the initial view controller](/images/making_cp_pod/settings_welcome.png) to be a `GDWelcomeViewController`. If you see a [white screen](/images/making_cp_pod/not_working.png) on the app launches then
+this hasn't been done. Run the app in the simulator, and you should get this screen:
 
 <center><img src="/images/making_cp_pod/success.png" width="50%" /></center>
 
-This is the default screen from the React Native template, and it's proof that everything has worked.
+This is the default screen from the React Native template, and it's proof that everything has worked for our dev app.
 
-Let's take a second to re-cover what has happened to get us to this point.
+Let's take a second to re-cover what has happened to get to this point.
 
 1.  We used the `pod lib create` template to make a library repo
 
@@ -422,7 +425,7 @@ Let's take a second to re-cover what has happened to get us to this point.
     `bundle exec pod install` to update the example project
 
 7.  We changed the storyboard reference to point to the UIViewController from our Pod, and ran the simulator to see
-    our welcome screen.
+    our welcome screen
 
 This is a full run-through of how your Pod would look when integrated into your main app's codebase. At this point
 you have a unique, isolated app which is going to be your development environment. In our case this app is a menu of
@@ -519,13 +522,175 @@ where the bookmarks icon used to live. Tada.
 
 [summary of native changes]
 
-So what now?
+## What now?
 
-* Convert dev mode to actually use RNP
-* Switch to deploys for GitDawg, instead of `:path`
-* Could I script this? Yep. Will I? No.
-* From here you are at a blank slate of React Native
-* Bunch o links for getting started
+We've now got a successful deploy of our React Native Pod into an external app. However, we need to make some
+changes in GitDawg now to start making it possible to develop efficiently.
+
+We will need to:
+
+1.  Make a singleton to handle setting up React Native between all potential UIViewControllers
+
+2.  Use the React Native Packager to get runtime editing support
+
+Move your terminal back to the GitDawg folder. We're going to make a class that represents our library, GitDawg
+
+```sh
+$ touch Pod/Classes/GitDawg.h Pod/Classes/GitDawg.m
+```
+
+Then we need to re-run `$ bundle exec pod install` to get it in Xcode. Open up the Xcode workspace for GitDawg and
+let's fill in these files. These files are based on [AREmission.h][areh] and [AREmission.m][arem]. For us, in a
+production app, `AREmission` has a few key responsibilities:
+
+1.  Pass through the non-optional environment variables to expose in JS
+
+2.  Create and retain the React Native bridge
+
+3.  Set up the native modules so that we React Native can communicate with the host app
+
+For this tutorial we don't need all of these responsibilities, but we will handle the second one.
+
+For the header file, `GitDawg.h`:
+
+```objc
+#import <Foundation/Foundation.h>
+#import <React/RCTBridge.h>
+
+NS_ASSUME_NONNULL_BEGIN
+
+/// The RN library API
+@interface GitDawg : NSObject
+
+/// The way in which we communicate with React Native
+@property (nonatomic, strong, readonly) RCTBridge *bridge;
+
+/// The single instance of a GitDawg
++ (instancetype)sharedInstance;
++ (void)setSharedInstance:(GitDawg *)instance;
+
+/// Pass in nil for a packagerURL to indicate this is in release mode
+- (instancetype)initWithPackagerURL:(nullable NSURL *)packagerURL NS_DESIGNATED_INITIALIZER;
+- (instancetype)init NS_UNAVAILABLE;
+
+@end
+
+NS_ASSUME_NONNULL_END
+```
+
+And for the implementation file `GitDawg.m`:
+
+```objc
+#import "GitDawg.h"
+
+@interface GitDawg() <RCTBridgeDelegate>
+@property (nonatomic, copy) NSURL *packagerURL;
+@end
+
+@implementation GitDawg
+
+static GitDawg *_sharedInstance = nil;
+
++ (void)setSharedInstance:(GitDawg *)instance;
+{
+    _sharedInstance = instance;
+}
+
++ (instancetype)sharedInstance;
+{
+    NSParameterAssert(_sharedInstance);
+    return _sharedInstance;
+}
+
+- (instancetype)initWithPackagerURL:(NSURL *)packagerURL
+{
+    self = [super init];
+
+    _packagerURL = packagerURL;
+    _bridge = [[RCTBridge alloc] initWithDelegate:self launchOptions:@{}];
+
+    return self;
+}
+
+- (NSURL *)sourceURLForBridge:(RCTBridge *)bridge
+{
+    return self.packagerURL ?: self.releaseBundleURL;
+}
+
+- (NSURL *)releaseBundleURL;
+{
+    return [[NSBundle bundleForClass:self.class] URLForResource:@"GitDawg" withExtension:@"js"];
+}
+
+@end
+```
+
+Then change your `GDWelcomeViewController.m` to use the shared `GitDawg`.
+
+```diff
+ #import "GDWelcomeViewController.h"
++#import "GitDawg.h"
+ #import <React/RCTRootView.h>
+-#import <React/RCTBridgeDelegate.h>
+-#import <React/RCTBridge.h>
+
+ - (void)loadView
+ {
+-    RCTBridge *bridge = [[RCTBridge alloc] initWithDelegate:self launchOptions:@{}];
++    RCTBridge *bridge = [GitDawg sharedInstance].bridge;
+     self.view = [[RCTRootView alloc] initWithBridge:bridge
+                                              moduleName:@"GitDawg"
+                                     initialProperties:@{}];
+ }
+
+-// Just use our packaged JS for now
+-- (NSURL *)sourceURLForBridge:(RCTBridge *)bridge
+-{
+-    NSBundle *emissionBundle = [NSBundle bundleForClass:GDWelcomeViewController.class];
+-    return [emissionBundle URLForResource:@"GitDawg" withExtension:@"js"];
+-}
+-
+ @end
+```
+
+We use the UIAppDelegate callback to set up our React Native bridge (you want this ready as fast as possible
+normally) so edit `Example/GitDawg/GDAppDelegate.m`
+
+```diff
+ #import "GDAppDelegate.h"
++#import <GitDawg/GitDawg.h>
+
+ @implementation GDAppDelegate
+
+ - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions
+ {
+-    // Override point for customization after application launch.
++    NSURL *packagerURL = [NSURL URLWithString:@"http://localhost:8081/src/index.bundle?platform=ios"];
++    GitDawg *dawg = [[GitDawg alloc] initWithPackagerURL:packagerURL];
++    [GitDawg setSharedInstance:dawg];
++
+     return YES;
+ }
+```
+
+These changes give you the ability to switch between a dev mode and a release mode. Consider that React Native
+just runs your JavaScript, the source of that could be anything, including from a local dev server. Well, almost.
+
+Because of Apple's HTTP security, you cannot connect to localhost in an app by default. To fix this, open up `GitDawg-info.plist` and right-click to add a new row. Paste in `NSAppTransportSecurity` as the name, and Xcode will switch it to "App Transport Security Settings". Hit the `+` and add "Allow arbitrary loads" then set it to true.
+
+From here: run the GitDawg app and you should see a red screen. This will be telling you to start the React Native Packager. Let's do that. From the root of the GitDwag repo run `$ yarn start`. This will start up a server. Once it says "Metro Bundler Ready." you can go back into your simulator for GitDawg and hit the reload button at the bottom.
+
+That's it. 
+
+We're done. 
+
+So, there's obviously a lot more to learn here. You've successfully set up a Pod that you can deploy to an app. To make a real version you'd need to do a bit more process like creating a repo, and making tags. 
+
+We use our root view controller in Emission to trigger loading any of our view controllers, in different states. We also mix that with some admin options, the ability to run someone's PRs and [storybooks](https://storybook.js.org).
+
+<center><img src="/images/making_cp_pod/emission.png" width="100%" /></center>
+
+So good luck! Something like this probably easily scripted, but there's a lot of value in understanding how every piece comes together. So let me know if you make something cool - we've been using this structure for 2 years now and I think it's the right way to integrate React Native into an existing complex app. It keeps your JS tooling in a completely different repo from your iOS tooling.
 
 [draw_tick]: http://2.bp.blogspot.com/_PekcT72-PGE/SK3PTKwW_eI/AAAAAAAAAGY/ALg_ApHyzR8/s1600-h/1219140692800.jpg
 [githawk]: https://github.com/GitHawkApp/GitHawk
@@ -534,3 +699,5 @@ So what now?
 [cpfrn]: https://github.com/orta/cocoapods-fix-react-native#readme
 [emission-y]: /blog/2016/08/24/On-Emission/
 [githawk]: https://github.com/GitHawkApp/GitHawk/
+[areh]: https://github.com/artsy/emission/blob/master/Pod/Classes/Core/AREmission.h
+[arem]: https://github.com/artsy/emission/blob/master/Pod/Classes/Core/AREmission.m
