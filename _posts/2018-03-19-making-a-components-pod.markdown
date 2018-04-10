@@ -539,8 +539,8 @@ Move your terminal back to the GitDawg folder. We're going to make a class that 
 $ touch Pod/Classes/GitDawg.h Pod/Classes/GitDawg.m
 ```
 
-Then we need to re-run `$ bundle exec pod install` to get it in Xcode. Open up the Xcode workspace for GitDawg and
-let's fill in these files. These files are based on [AREmission.h][areh] and [AREmission.m][arem]. For us, in a
+Then we need to re-run `$ bundle exec pod install` in the `Example` folder to get it in Xcode. 
+Open up the Xcode workspace for GitDawg and let's fill in these files. These files are based on [AREmission.h][areh] and [AREmission.m][arem]. For us, in a
 production app, `AREmission` has a few key responsibilities:
 
 1.  Pass through the non-optional environment variables to expose in JS
