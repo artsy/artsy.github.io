@@ -1,7 +1,7 @@
 ---
 layout: epic 
 title: "Making a React Native Components Pod" 
-date: 2018-03-19 
+date: 2012-03-19
 author: orta 
 categories: [Technology, emission, reaction, reactnative, react, javascript] 
 css: what-is-react-native 
@@ -22,14 +22,13 @@ consumed by GitHawk.
 
 To do this we're going to use the CocoaPods' `pod lib create` template, and React Native's `react-native init` to
 make a self-contained React Native repo. It will export a JS file, and some native code which Podspec will
-reference. Read on to start digging in.
+reference. This keeps the tooling complexity for iOS and React Native separate. Read on to start digging in.
 
 <!-- more -->
 
-[show existing links]
-
 So, I'm **choosing** to be annoying here. I will intentionally be adding `$`s before all of the commands, this is
-specifically to slow you down and make you think about each command.
+specifically to slow you down and make you think about each command. This isn't a quick tutorial you can skim in 2
+minutes, running though it properly should take about an hour.
 
 <div class="mobile-only">
 <p>
@@ -123,8 +122,8 @@ What is your class prefix?
 ```
 
 I'd recommend using Objective-C at this point, for simplicities sake. Swift is a great language and all, but I'm
-after tooling simplicity. We're not going to write enough native code to warrent the setup for testing. Plus, if we
-skip native testing then we can run CI on linux - which is basically instant in comparison.
+after tooling simplicity. for this tutorial. We're also not going to write enough native code to warrant the setup
+for testing. Plus, if we skip native testing then we can run CI on linux - which is basically instant in comparison.
 
 This has made a new library. Let's go into our project's root with `$ cd GitDawg`. There shouldn't be too much in
 here:
@@ -400,13 +399,15 @@ Hello World app. We'll be going back to this later.
 @end
 ```
 
-As the `pod lib create` template uses storyboards, you will need to open up the example app's storyboard and [change
-the initial view controller](/images/making_cp_pod/settings_welcome.png) to be a `GDWelcomeViewController`. If you see a [white screen](/images/making_cp_pod/not_working.png) on the app launches then
-this hasn't been done. Run the app in the simulator, and you should get this screen:
+As the `pod lib create` template uses storyboards, you will need to open up the example app's storyboard and
+[change the initial view controller](/images/making_cp_pod/settings_welcome.png) to be a `GDWelcomeViewController`.
+If you see a [white screen](/images/making_cp_pod/not_working.png) on the app launches then this hasn't been done.
+Run the app in the simulator, and you should get this screen:
 
 <center><img src="/images/making_cp_pod/success.png" width="50%" /></center>
 
-This is the default screen from the React Native template, and it's proof that everything has worked for our dev app.
+This is the default screen from the React Native template, and it's proof that everything has worked for our dev
+app.
 
 Let's take a second to re-cover what has happened to get to this point.
 
@@ -539,9 +540,9 @@ Move your terminal back to the GitDawg folder. We're going to make a class that 
 $ touch Pod/Classes/GitDawg.h Pod/Classes/GitDawg.m
 ```
 
-Then we need to re-run `$ bundle exec pod install` in the `Example` folder to get it in Xcode. 
-Open up the Xcode workspace for GitDawg and let's fill in these files. These files are based on [AREmission.h][areh] and [AREmission.m][arem]. For us, in a
-production app, `AREmission` has a few key responsibilities:
+Then we need to re-run `$ bundle exec pod install` in the `Example` folder to get it in Xcode. Open up the Xcode
+workspace for GitDawg and let's fill in these files. These files are based on [AREmission.h][areh] and
+[AREmission.m][arem]. For us, in a production app, `AREmission` has a few key responsibilities:
 
 1.  Pass through the non-optional environment variables to expose in JS
 
@@ -673,24 +674,33 @@ normally) so edit `Example/GitDawg/GDAppDelegate.m`
  }
 ```
 
-These changes give you the ability to switch between a dev mode and a release mode. Consider that React Native
-just runs your JavaScript, the source of that could be anything, including from a local dev server. Well, almost.
+These changes give you the ability to switch between a dev mode and a release mode. Consider that React Native just
+runs your JavaScript, the source of that could be anything, including from a local dev server. Well, almost.
 
-Because of Apple's HTTP security, you cannot connect to localhost in an app by default. To fix this, open up `GitDawg-info.plist` and right-click to add a new row. Paste in `NSAppTransportSecurity` as the name, and Xcode will switch it to "App Transport Security Settings". Hit the `+` and add "Allow arbitrary loads" then set it to true.
+Because of Apple's HTTP security, you cannot connect to localhost in an app by default. To fix this, open up
+`GitDawg-info.plist` and right-click to add a new row. Paste in `NSAppTransportSecurity` as the name, and Xcode will
+switch it to "App Transport Security Settings". Hit the `+` and add "Allow arbitrary loads" then set it to true.
 
-From here: run the GitDawg app and you should see a red screen. This will be telling you to start the React Native Packager. Let's do that. From the root of the GitDwag repo run `$ yarn start`. This will start up a server. Once it says "Metro Bundler Ready." you can go back into your simulator for GitDawg and hit the reload button at the bottom.
+From here: run the GitDawg app and you should see a red screen. This will be telling you to start the React Native
+Packager. Let's do that. From the root of the GitDwag repo run `$ yarn start`. This will start up a server. Once it
+says "Metro Bundler Ready." you can go back into your simulator for GitDawg and hit the reload button at the bottom.
 
-That's it. 
+That's it.
 
-We're done. 
+We're done.
 
-So, there's obviously a lot more to learn here. You've successfully set up a Pod that you can deploy to an app. To make a real version you'd need to do a bit more process like creating a repo, and making tags. 
+So, there's obviously a lot more to learn here. You've successfully set up a Pod that you can deploy to an app. To
+make a real version you'd need to do a bit more process like creating a repo, and making tags.
 
-We use our root view controller in Emission to trigger loading any of our view controllers, in different states. We also mix that with some admin options, the ability to run someone's PRs and [storybooks](https://storybook.js.org).
+We use our root view controller in Emission to trigger loading any of our view controllers, in different states. We
+also mix that with some admin options, the ability to run someone's PRs and [storybooks](https://storybook.js.org).
 
 <center><img src="/images/making_cp_pod/emission.png" width="100%" /></center>
 
-So good luck! Something like this probably easily scripted, but there's a lot of value in understanding how every piece comes together. So let me know if you make something cool - we've been using this structure for 2 years now and I think it's the right way to integrate React Native into an existing complex app. It keeps your JS tooling in a completely different repo from your iOS tooling.
+So good luck! Something like this probably easily scripted, but there's a lot of value in understanding how every
+piece comes together. So let me know if you make something cool - we've been using this structure for 2 years now
+and I think it's the right way to integrate React Native into an existing complex app. It keeps your JS tooling in a
+completely different repo from your iOS tooling.
 
 [draw_tick]: http://2.bp.blogspot.com/_PekcT72-PGE/SK3PTKwW_eI/AAAAAAAAAGY/ALg_ApHyzR8/s1600-h/1219140692800.jpg
 [githawk]: https://github.com/GitHawkApp/GitHawk
