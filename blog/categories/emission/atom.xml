@@ -4,7 +4,7 @@
   <title><![CDATA[Category: emission | Artsy Engineering]]></title>
   <link href="http://artsy.github.io/blog/categories/emission/atom.xml" rel="self"/>
   <link href="http://artsy.github.io/"/>
-  <updated>2018-04-12T14:43:36+00:00</updated>
+  <updated>2018-04-13T19:15:33+00:00</updated>
   <id>http://artsy.github.io/</id>
   <author>
     <name><![CDATA[]]></name>
@@ -12,682 +12,6 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
-  
-  <entry>
-    <title type="html"><![CDATA[Making a React Native Components Pod]]></title>
-    <link href="http://artsy.github.io/blog/2018/03/19/making-a-components-pod/"/>
-    <updated>2018-03-19T00:00:00+00:00</updated>
-    <id>http://artsy.github.io/blog/2018/03/19/making-a-components-pod</id>
-    <content type="html"><![CDATA[<p>When we talk about our React Native setup in abstract, there are two kinds of "<a href="http://2.bp.blogspot.com/_PekcT72-PGE/SK3PTKwW_eI/AAAAAAAAAGY/ALg_ApHyzR8/s1600-h/1219140692800.jpg">now draw The Tick</a>" for
-iOS developers:</p>
-
-<ul>
-<li>How do I build this React Native as a CocoaPods setup?</li>
-<li>How do I get all the JavaScript tooling setup up?</li>
-</ul>
-
-
-<p>We're going to address the first part in this post. By the end of this post we're going to get an <a href="/blog/2016/08/24/On-Emission/">Emission-like
-repo</a> set up for an existing OSS Swift iOS app called <a href="https://github.com/GitHawkApp/GitHawk/">GitHawk</a>. The aim being to introduce no
-JavaScript tooling into GitHawk itself, and to only expose iOS-native <code>UIViewControllers</code> via a CocoaPod which is
-consumed by GitHawk.</p>
-
-<p>To do this we're going to use the CocoaPods' <code>pod lib create</code> template, and React Native's <code>react-native init</code> to
-make a self-contained React Native repo. It will export a JS file, and some native code which Podspec will
-reference. Read on to start digging in.</p>
-
-<!-- more -->
-
-
-<p>[show existing links]</p>
-
-<p>So, I'm <strong>choosing</strong> to be annoying here. I will intentionally be adding <code>$</code>s before all of the commands, this is
-specifically to slow you down and make you think about each command.</p>
-
-<div class="mobile-only">
-<p>
-  <strong>Also, before you get started</strong>, it looks like you're using a really small screen, this post expects you would have a terminal around with useful tools for getting stuff done. I'm afraid without that, you're not going to get much out of it. I'd recommend switching to a computer.
-</p>
-</div>
-
-
-<a name="What.Are.We.Going.To.Do."></a>
-<h2>What Are We Going To Do?</h2>
-
-<ol>
-<li><p>We will use <code>pod lib create</code> to make a library repo</p></li>
-<li><p>We will use <code>react-native init</code> to make a React Native environment</p></li>
-<li><p>We will bundle the React Native code into our Pod's asset folder</p></li>
-<li><p>We will edit the Podspec for GitDawg, and then the Podfile for the example project to consume it</p></li>
-<li><p>We will use <a href="https://github.com/orta/cocoapods-fix-react-native#readme">cocoapods-fix-react-native</a> to hotfix the React Native files</p></li>
-<li><p>We will expose a UIViewController which corresponds to the default screen from <code>react-native init</code> in our Pod</p></li>
-<li><p>We will change the storyboard reference to point to the UIViewController from our Pod, and run the simulator to
-see our welcome screen.</p></li>
-<li><p>We will set up GitHawk to consume our new Pod</p></li>
-<li><p>We will change GitHawk to show our new UIViewController instead of the bookmarks screen</p></li>
-<li><p>We will edit GitDawg to act more like a development environment</p></li>
-</ol>
-
-
-<a name="GitHawk"></a>
-<h2>GitHawk</h2>
-
-<p>Let's get started by having a working <a href="https://github.com/GitHawkApp/GitHawk/">copy of GitHawk</a>. I'll leave the README for GitHawk to do that, but
-if you want to be certain you're on the same version as me - I'm working from this commit
-<code>6dc2988d23d70eb0862d11f4a365bf47a87848c6</code>.</p>
-
-<p>Clone a copy of GitHawk, and get it running in your Simulator, should take about 5 minutes Then we can move on to
-starting our repo.</p>
-
-<a name="GitDawg.JS"></a>
-<h2>GitDawg JS</h2>
-
-<a name="Pre-requisites"></a>
-<h3>Pre-requisites</h3>
-
-<p>We need CocoaPods: <code>$ gem install cocoapods</code>.</p>
-
-<p>We're going to need node, and a dependency manager. If you run <code>$ brew install yarn</code> you will get both.</p>
-
-<p>I'm running on node <code>8.9.x</code> and yarn <code>1.5.x</code>. Honestly, it shouldn't matter if you're on node 8, or 9. Yarn is
-basically CocoaPods for node projects. If you're wondering what the differences are between <a href="https://github.com/yarnpkg/yarn/">yarn</a> and <a href="https://www.npmjs.com/">NPM</a>,
-then TLDR: there used to be some, but now there's few. I stick with yarn because I prefer how the CLI works, and I
-can easily read the lockfile it generates.</p>
-
-<p>We need the React Native CLI, so let's install it globally: <code>$ yarn global add react-native-cli</code>.</p>
-
-<a name="Starting.with.the.Pod"></a>
-<h3>Starting with the Pod</h3>
-
-<p>We're going to let CocoaPods create the initial folder for our project. Let's set up your Pod:</p>
-
-<pre><code class="sh">$ pod lib create GitDawg
-
-Cloning `https://github.com/CocoaPods/pod-template.git` into `GitDawg`.
-Configuring GitDawg template.
-
-------------------------------
-
-To get you started we need to ask a few questions, this should only take a minute.
-
-If this is your first time we recommend running through with the guide:
- - http://guides.cocoapods.org/making/using-pod-lib-create.html
- ( hold cmd and click links to open in a browser. )
-
-
-What platform do you want to use?? [ iOS / macOS ]
- &gt; iOS
-
-What language do you want to use?? [ Swift / ObjC ]
- &gt; ObjC
-
-Would you like to include a demo application with your library? [ Yes / No ]
- &gt; Yes
-
-Which testing frameworks will you use? [ Specta / Kiwi / None ]
- &gt; None
-
-Would you like to do view based testing? [ Yes / No ]
- &gt; No
-
-What is your class prefix?
- &gt; GD
-</code></pre>
-
-<p>I'd recommend using Objective-C at this point, for simplicities sake. Swift is a great language and all, but I'm
-after tooling simplicity. We're not going to write enough native code to warrent the setup for testing. Plus, if we
-skip native testing then we can run CI on linux - which is basically instant in comparison.</p>
-
-<p>This has made a new library. Let's go into our project's root with <code>$ cd GitDawg</code>. There shouldn't be too much in
-here:</p>
-
-<pre><code class="sh">$ ls
-Example         GitDawg         GitDawg.podspec LICENSE         README.md         _Pods.xcodeproj
-</code></pre>
-
-<p>Because the core competency of the repo is the JavaScript, we're going to rename the "GitDawg" folder in the root to
-be about the CocoaPod instead of owning the name of the project. Run <code>$ mv GitDawg Pod</code> to do that.</p>
-
-<p>We want to create our React Native project. I'm hard-coding my versions in these commands to try ensure this post
-lasts some time, but you never know what amazing changes the future brings. If things are broken, leave a comment at
-the bottom of this post.</p>
-
-<p>Let’s create a GitDawg React Native project, and then rename the folder to src:</p>
-
-<pre><code class="sh"># Use the RN CLI to create a new RN app in the folder GitDawg
-$ react-native init GitDawg --version react-native@0.54.4
-
-# Rename the folder to src
-$ mv GitDawg src
-
-# Remove _Pods.xcodeproj as it's relevant for our pod
-$ rm _Pods.xcodeproj
-</code></pre>
-
-<p>We don't want all our project files living in a sub-folder though, so let's move a few of them back to the repo's
-root, then remove some unused files.</p>
-
-<pre><code class="sh"># Copy the package metadata, deps, lockfile and dotfiles to root
-$ mv src/package.json src/node_modules src/yarn.lock src/.* .
-
-# Remove the ios and android scaffolds as we have the CP one
-$ rm -rf src/ios src/android
-</code></pre>
-
-<p>Which should make your app's folder look something like this:</p>
-
-<pre><code class="sh">$ ls
-Example         GitDawg.podspec LICENSE         README.md       Pods        node_modules    package.json    src             yarn.lock
-
-$ ls src/
-App.js    __tests__ app.json  index.js
-</code></pre>
-
-<p>To ensure everything is still hooked up, let's make sure that all of your tests are working in the new repo.</p>
-
-<pre><code class="sh">$ yarn test
-
-yarn run v1.5.1
- PASS  src/__tests__/App.js
-  ✓ renders correctly (176ms)
-
-Test Suites: 1 passed, 1 total
-Tests:       1 passed, 1 total
-Snapshots:   0 total
-Time:        1.392s
-Ran all test suites.
-✨  Done in 2.32s.
-</code></pre>
-
-<p>We're now going to be done with our JavaScript side, basically is our React Native "hello world". It's a React
-Native project that exposes a single component which says <code>"Welcome to React Native!"</code>.</p>
-
-<p>It looks like this:</p>
-
-<center><img src="/images/making_cp_pod/success.png" width="50%" /></center>
-
-
-<p>However, it's going to take a bit of work before we can see it in action.</p>
-
-<a name="Deployment"></a>
-<h3>Deployment</h3>
-
-<p>We're going to want to have this exposed to our native libraries, so we're going to ship the bundled JavaScript as
-our library's source code. We do this via the React Native CLI, and it's going to place the file inside our Pod
-folder from earlier.</p>
-
-<pre><code class="sh">$ react-native bundle --entry-file src/index.js --bundle-output Pod/Assets/GitDawg.js --assets-dest Pod/Assets
-</code></pre>
-
-<a name="GitDawg.Pod"></a>
-<h2>GitDawg Pod</h2>
-
-<p>With that done, we can start looking at the native side of our codebase. We let <code>pod lib create</code> set up an Example
-app for us to work with in the repo, which consumes a Podspec in the root. So we're going to take a look at the
-Podspec, and update it.</p>
-
-<p>Our goal with the Example app is to set up an app exclusively for developing components in. In Artsy's case, this
-app handles auth and has a series of jump-off points for developing a component (either through Storybooks or
-directly using the Pods' <code>UIViewController</code>s.)</p>
-
-<p>To get started we need to modify the CocoaPod this repo represents:</p>
-
-<ul>
-<li>Update our Podspec to handle React Native as a dependency, and our assets</li>
-<li>Add support for native compilation via CocoaPods with <a href="https://github.com/orta/cocoapods-fix-react-native#readme">cocoapods-fix-react-native</a></li>
-<li>Create a single <code>UIViewController</code> subclass for the Welcome Screen using the bundled React Native JS</li>
-</ul>
-
-
-<p>We want to have our Podspec re-use the metadata from React Native to set up GitDawg's dependencies. So replace
-<code>GitDawg.podspec</code> with this:</p>
-
-<pre><code class="ruby">require 'json'
-
-# Returns the version number for a package.json file
-pkg_version = lambda do |dir_from_root = '', version = 'version'|
-  path = File.join(__dir__, dir_from_root, 'package.json')
-  JSON.parse(File.read(path))[version]
-end
-
-# Let the main package.json decide the version number for the pod
-gitdawg_version = pkg_version.call
-# Use the same RN version that the JS tools use
-react_native_version = pkg_version.call('node_modules/react-native')
-
-Pod::Spec.new do |s|
-  s.name             = 'GitDawg'
-  s.version          = gitdawg_version
-  s.description      = 'Components for GitHawk.'
-  s.summary          = 'Components for GitHawk.'
-  s.homepage         = 'https://github.com/orta/GitDawg'
-  s.license          = { type: 'MIT', file: 'LICENSE' }
-  s.author           = { 'orta' =&gt; 'orta.therox@gmail.com' }
-  s.source           = { git: 'https://github.com/orta/GitDawg.git', tag: s.version.to_s }
-
-  s.source_files   = 'Pod/Classes/**/*.{h,m}'
-  s.resources      = 'Pod/Assets/{GitDawg.js,assets}'
-  s.platform       = :ios, '8.0'
-
-  # React is split into a set of subspecs, these are the essentials
-  s.dependency 'React/Core', react_native_version
-  s.dependency 'React/CxxBridge', react_native_version
-  s.dependency 'React/RCTAnimation', react_native_version
-  s.dependency 'React/RCTImage', react_native_version
-  s.dependency 'React/RCTLinkingIOS', react_native_version
-  s.dependency 'React/RCTNetwork', react_native_version
-  s.dependency 'React/RCTText', react_native_version
-
-  # React's dependencies
-  s.dependency 'yoga', "#{react_native_version}.React"
-  podspecs = [
-    'node_modules/react-native/third-party-podspecs/DoubleConversion.podspec',
-    'node_modules/react-native/third-party-podspecs/Folly.podspec',
-    'node_modules/react-native/third-party-podspecs/glog.podspec'
-  ]
-  podspecs.each do |podspec_path|
-    spec = Pod::Specification.from_file podspec_path
-    s.dependency spec.name, "#{spec.version}"
-  end
-end
-</code></pre>
-
-<p>This Podspec is probably more complex then you're used to, but it means less config. To validate the Podspec, use
-<code>$ pod ipc spec GitDawg.podspec</code> and read the JSON it outputs. With the Podspec set up, it's time to set up the
-example project's <code>Podfile</code> and <code>Podfile</code>.</p>
-
-<p>We'll start with applying the <a href="https://github.com/orta/cocoapods-fix-react-native#readme">React Native hot-fix plugin</a>, sometimes a version of React Native is released
-that doesn't support Swift frameworks (as Facebook don't use Swift) and so you have to apply some patches to the
-code. I made a CocoaPods Plugin that handles the hot-fixes for you.</p>
-
-<p>Start by making a <code>Podfile</code> in the <code>Example</code> folder: <code>touch Example/Gemfile</code></p>
-
-<pre><code class="ruby">source 'https://rubygems.org'
-
-gem 'cocoapods'
-gem 'cocoapods-fix-react-native'
-</code></pre>
-
-<p>Then run <code>$ bundle install</code> in the <code>Example</code> folder, which will set up <code>cocoapods</code> and <code>cocoapods-fix-react-native</code>
-for your app. Making it possible to reference <code>"cocoapods-fix-react-native"</code> in your <code>Podfile</code>.</p>
-
-<pre><code class="sh">$ cd Example
-$ bundle install
-</code></pre>
-
-<p>We want to take the current Podfile and make sure that every React Native dependency comes from the folder in
-<code>node_modules</code>. We can do this using the <code>:path</code> operator to redeclare where you can find each Pod.</p>
-
-<p>Note: we also <em>extend</em> the amount of subspecs for <code>'React'</code> in this Podfile via <code>subspecs: ['DevSupport']</code> - this is
-what provide the hot code reloading and other developer tools. You'll want this, it will mean that the example app
-can be used as a dev environment, and your main app will only get a production environment.</p>
-
-<p>So edit <code>Example/Podfile</code> to look like this:</p>
-
-<pre><code class="ruby">platform :ios, '9.0'
-
-node_modules_path = '../node_modules'
-react_path = File.join(node_modules_path, 'react-native')
-yoga_path = File.join(react_path, 'ReactCommon/yoga')
-folly_spec_path = File.join(react_path, 'third-party-podspecs/Folly.podspec')
-glog_spec_path = File.join(react_path, 'third-party-podspecs/glog.podspec')
-double_conversion_spec_path = File.join(react_path, 'third-party-podspecs/DoubleConversion.podspec')
-
-plugin 'cocoapods-fix-react-native'
-
-target 'GitDawg_Example' do
-  pod 'GitDawg', path: '../'
-
-  # We want extra developer support in React inside this app
-  pod 'React', path: react_path, subspecs: ['DevSupport']
-
-  # We're letting CP know where it can find these Podspecs
-  pod 'yoga', path: yoga_path
-  pod 'Folly', podspec: folly_spec_path
-  pod 'DoubleConversion', podspec: double_conversion_spec_path
-  pod 'glog', podspec: glog_spec_path
-end
-</code></pre>
-
-<p>Run the following to set up the React Native dependencies for your project.</p>
-
-<pre><code>$ bundle exec pod install
-</code></pre>
-
-<p>We need some native code to represent our Welcome component from the React Native template. So create two new files
-in <code>Pod/Classes</code>:</p>
-
-<pre><code class="sh">$ touch ../Pod/Classes/GDWelcomeViewController.h ../Pod/Classes/GDWelcomeViewController.m
-$ bundle exec pod install
-$ open GitDawg.xcworkspace
-</code></pre>
-
-<p>It is a pretty vanilla <code>UIViewController</code>, so declare it exists in the interface and then use an <code>RCTRootView</code> as
-it's <code>self.view</code>.</p>
-
-<pre><code class="objc">#import &lt;UIKit/UIKit.h&gt;
-
-@interface GDWelcomeViewController : UIViewController
-@end
-</code></pre>
-
-<p>We're going to handle the React bridging in this <code>UIViewController</code>, because that is the simplest option for our
-Hello World app. We'll be going back to this later.</p>
-
-<pre><code class="objc">#import "GDWelcomeViewController.h"
-#import &lt;React/RCTRootView.h&gt;
-#import &lt;React/RCTBridgeDelegate.h&gt;
-#import &lt;React/RCTBridge.h&gt;
-
-// Let this View Controller handle getting the URL for the JS
-@interface GDWelcomeViewController () &lt;RCTBridgeDelegate&gt;
-@end
-
-@implementation GDWelcomeViewController
-
-// Set self.view on the VC to be an RCTRootView
-- (void)loadView
-{
-    RCTBridge *bridge = [[RCTBridge alloc] initWithDelegate:self launchOptions:@{}];
-    self.view = [[RCTRootView alloc] initWithBridge:bridge
-                                         moduleName:@"GitDawg"
-                                  initialProperties:@{}];
-}
-
-// Use our bundled JS for now
-- (NSURL *)sourceURLForBridge:(RCTBridge *)bridge
-{
-    NSBundle *gitdawgBundle = [NSBundle bundleForClass:GDWelcomeViewController.class];
-    return [gitdawgBundle URLForResource:@"GitDawg" withExtension:@"js"];
-}
-
-@end
-</code></pre>
-
-<p>As the <code>pod lib create</code> template uses storyboards, you will need to open up the example app's storyboard and <a href="/images/making_cp_pod/settings_welcome.png">change
-the initial view controller</a> to be a <code>GDWelcomeViewController</code>. If you see a <a href="/images/making_cp_pod/not_working.png">white screen</a> on the app launches then
-this hasn't been done. Run the app in the simulator, and you should get this screen:</p>
-
-<center><img src="/images/making_cp_pod/success.png" width="50%" /></center>
-
-
-<p>This is the default screen from the React Native template, and it's proof that everything has worked for our dev app.</p>
-
-<p>Let's take a second to re-cover what has happened to get to this point.</p>
-
-<ol>
-<li><p>We used the <code>pod lib create</code> template to make a library repo</p></li>
-<li><p>We used <code>react-native init</code> to make a React Native environment, which has the settings in the root and the
-source code inside <code>src</code></p></li>
-<li><p>We've bundled the React Native code into our CocoaPod's asset folder</p></li>
-<li><p>We set up the Podspec for GitDawg, and then the Podfile for the example project to consume it</p></li>
-<li><p>We added <a href="https://github.com/orta/cocoapods-fix-react-native#readme">cocoapods-fix-react-native</a> to hot-fix the native files</p></li>
-<li><p>We added a UIViewController for the default screen from <code>react-native init</code> to our CocoaPod, and ran
-<code>bundle exec pod install</code> to update the example project</p></li>
-<li><p>We changed the storyboard reference to point to the UIViewController from our Pod, and ran the simulator to see
-our welcome screen</p></li>
-</ol>
-
-
-<p>This is a full run-through of how your Pod would look when integrated into your main app's codebase. At this point
-you have a unique, isolated app which is going to be your development environment. In our case this app is a menu of
-different root screens and admin flags.</p>
-
-<p>—</p>
-
-<p>OK, let’s go take this and migrate it into GitHawk. This is our end-goal:</p>
-
-<center><img src="/images/making_cp_pod/githawk.gif" width="75%" /></center>
-
-
-<p>Our setup is going to be different here because we can't rely on React Native coming from the file-system, as we
-want to make sure our app has no hint of JS tooling. So we will use CocoaPods to handle downloading and setting up
-our versions of the React Native libraries. As of 0.54.x, that is React and Yoga.</p>
-
-<p>We want to have a local copy of the JSON version of Podspecs for each of these. They can be generated from the
-Podspecs using <code>bundle exec pod ipc spec [file.podspec]</code>. Let's generate one for React:</p>
-
-<pre><code class="sh">$ cd GitDawg/node_modules/react-native/; pod ipc spec React.podspec
-</code></pre>
-
-<p>It will output a bunch of JSON to your terminal. This is perfect. Let's move that text to a file on your desktop.</p>
-
-<pre><code class="sh">$ pod ipc spec node_modules/react-native/React.podspec &gt; ~/Desktop/React.podspec.json
-</code></pre>
-
-<p>You'll see no output if everything went fine. Before you grab that podspec, let's get the one for yoga too.</p>
-
-<pre><code class="sh">$ cd ReactCommon/yoga/; pod ipc spec yoga.podspec &gt; ~/Desktop/yoga.podspec.json
-</code></pre>
-
-<p>Again, no output means everything is perfect. You should now have two JSON files in your Desktop. Grab them, move
-them into the <code>Local Pods</code> folder inside GitHawk. It should already have a few Podspecs.</p>
-
-<pre><code class="sh">$ cd ../../../ # Or however it takes to get back to the project root
-
-# Move any podspec.json into the Local Pods folder
-$ mv ~/Desktop/*.podspec.json "Local Pods"
-</code></pre>
-
-<p>Modify their <code>Gemfile</code> to include <a href="https://github.com/orta/cocoapods-fix-react-native#readme">cocoapods-fix-react-native</a>:</p>
-
-<pre><code class="diff">source 'https://rubygems.org'
-
-gem 'cocoapods', '~&gt; 1.4.0'
-+ gem 'cocoapods-fix-react-native'
-</code></pre>
-
-<p>Then run <code>bundle install</code>. Next we need to add GitDawg, and our custom Podspecs to the Podfile:</p>
-
-<pre><code class="diff">source 'https://github.com/CocoaPods/Specs.git'
-
-[...]
-
-+ pod 'GitDawg', :path =&gt; '../GitDawg'
-+ pod 'React', :podspec =&gt; 'Local Pods/React.podspec.json'
-+ pod 'yoga',  :podspec =&gt; 'Local Pods/yoga.podspec.json'
-</code></pre>
-
-<p>Then run <code>$ bundle exec pod install</code>. That should grab React Native for you. Unlike inside GitDawg, CocoaPods will
-download the source code from the internet. <code>:podspec</code> only tells CocoaPods where to find the Podspec, but it will
-still download code externally.</p>
-
-<p>Open up the Xcode Workspace - <code>open Freetime.xcworkspace</code>, and we're gonna make the code changes - it's all in one
-file. Open the file <code>RootNavigationController.swift</code> and add a new <code>import</code> at the top for <code>GitDawg</code>:</p>
-
-<pre><code class="diff">import UIKit
-import GitHubAPI
-import GitHubSession
-+ import GitDawg
-</code></pre>
-
-<p>Then add our new view controller by replacing the bookmarks view controller</p>
-
-<pre><code class="diff">        tabBarController?.viewControllers = [
-            newNotificationsRootViewController(client: client),
-            newSearchRootViewController(client: client),
-+            GDWelcomeViewController(),
--            newBookmarksRootViewController(client: client),
-            settingsRootViewController ?? UIViewController() // simply satisfying compiler
-        ]
-</code></pre>
-
-<p>That should get you to the same point as we were in the dev app. Now when you run the app, log in and hit the place
-where the bookmarks icon used to live. Tada.</p>
-
-<p>[summary of native changes]</p>
-
-<a name="What.now."></a>
-<h2>What now?</h2>
-
-<p>We've now got a successful deploy of our React Native Pod into an external app. However, we need to make some
-changes in GitDawg now to start making it possible to develop efficiently.</p>
-
-<p>We will need to:</p>
-
-<ol>
-<li><p>Make a singleton to handle setting up React Native between all potential UIViewControllers</p></li>
-<li><p>Use the React Native Packager to get runtime editing support</p></li>
-</ol>
-
-
-<p>Move your terminal back to the GitDawg folder. We're going to make a class that represents our library, GitDawg</p>
-
-<pre><code class="sh">$ touch Pod/Classes/GitDawg.h Pod/Classes/GitDawg.m
-</code></pre>
-
-<p>Then we need to re-run <code>$ bundle exec pod install</code> in the <code>Example</code> folder to get it in Xcode.
-Open up the Xcode workspace for GitDawg and let's fill in these files. These files are based on <a href="https://github.com/artsy/emission/blob/master/Pod/Classes/Core/AREmission.h">AREmission.h</a> and <a href="https://github.com/artsy/emission/blob/master/Pod/Classes/Core/AREmission.m">AREmission.m</a>. For us, in a
-production app, <code>AREmission</code> has a few key responsibilities:</p>
-
-<ol>
-<li><p>Pass through the non-optional environment variables to expose in JS</p></li>
-<li><p>Create and retain the React Native bridge</p></li>
-<li><p>Set up the native modules so that we React Native can communicate with the host app</p></li>
-</ol>
-
-
-<p>For this tutorial we don't need all of these responsibilities, but we will handle the second one.</p>
-
-<p>For the header file, <code>GitDawg.h</code>:</p>
-
-<pre><code class="objc">#import &lt;Foundation/Foundation.h&gt;
-#import &lt;React/RCTBridge.h&gt;
-
-NS_ASSUME_NONNULL_BEGIN
-
-/// The RN library API
-@interface GitDawg : NSObject
-
-/// The way in which we communicate with React Native
-@property (nonatomic, strong, readonly) RCTBridge *bridge;
-
-/// The single instance of a GitDawg
-+ (instancetype)sharedInstance;
-+ (void)setSharedInstance:(GitDawg *)instance;
-
-/// Pass in nil for a packagerURL to indicate this is in release mode
-- (instancetype)initWithPackagerURL:(nullable NSURL *)packagerURL NS_DESIGNATED_INITIALIZER;
-- (instancetype)init NS_UNAVAILABLE;
-
-@end
-
-NS_ASSUME_NONNULL_END
-</code></pre>
-
-<p>And for the implementation file <code>GitDawg.m</code>:</p>
-
-<pre><code class="objc">#import "GitDawg.h"
-
-@interface GitDawg() &lt;RCTBridgeDelegate&gt;
-@property (nonatomic, copy) NSURL *packagerURL;
-@end
-
-@implementation GitDawg
-
-static GitDawg *_sharedInstance = nil;
-
-+ (void)setSharedInstance:(GitDawg *)instance;
-{
-    _sharedInstance = instance;
-}
-
-+ (instancetype)sharedInstance;
-{
-    NSParameterAssert(_sharedInstance);
-    return _sharedInstance;
-}
-
-- (instancetype)initWithPackagerURL:(NSURL *)packagerURL
-{
-    self = [super init];
-
-    _packagerURL = packagerURL;
-    _bridge = [[RCTBridge alloc] initWithDelegate:self launchOptions:@{}];
-
-    return self;
-}
-
-- (NSURL *)sourceURLForBridge:(RCTBridge *)bridge
-{
-    return self.packagerURL ?: self.releaseBundleURL;
-}
-
-- (NSURL *)releaseBundleURL;
-{
-    return [[NSBundle bundleForClass:self.class] URLForResource:@"GitDawg" withExtension:@"js"];
-}
-
-@end
-</code></pre>
-
-<p>Then change your <code>GDWelcomeViewController.m</code> to use the shared <code>GitDawg</code>.</p>
-
-<pre><code class="diff"> #import "GDWelcomeViewController.h"
-+#import "GitDawg.h"
- #import &lt;React/RCTRootView.h&gt;
--#import &lt;React/RCTBridgeDelegate.h&gt;
--#import &lt;React/RCTBridge.h&gt;
-
- - (void)loadView
- {
--    RCTBridge *bridge = [[RCTBridge alloc] initWithDelegate:self launchOptions:@{}];
-+    RCTBridge *bridge = [GitDawg sharedInstance].bridge;
-     self.view = [[RCTRootView alloc] initWithBridge:bridge
-                                              moduleName:@"GitDawg"
-                                     initialProperties:@{}];
- }
-
--// Just use our packaged JS for now
--- (NSURL *)sourceURLForBridge:(RCTBridge *)bridge
--{
--    NSBundle *emissionBundle = [NSBundle bundleForClass:GDWelcomeViewController.class];
--    return [emissionBundle URLForResource:@"GitDawg" withExtension:@"js"];
--}
--
- @end
-</code></pre>
-
-<p>We use the UIAppDelegate callback to set up our React Native bridge (you want this ready as fast as possible
-normally) so edit <code>Example/GitDawg/GDAppDelegate.m</code></p>
-
-<pre><code class="diff"> #import "GDAppDelegate.h"
-+#import &lt;GitDawg/GitDawg.h&gt;
-
- @implementation GDAppDelegate
-
- - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions
- {
--    // Override point for customization after application launch.
-+    NSURL *packagerURL = [NSURL URLWithString:@"http://localhost:8081/src/index.bundle?platform=ios"];
-+    GitDawg *dawg = [[GitDawg alloc] initWithPackagerURL:packagerURL];
-+    [GitDawg setSharedInstance:dawg];
-+
-     return YES;
- }
-</code></pre>
-
-<p>These changes give you the ability to switch between a dev mode and a release mode. Consider that React Native
-just runs your JavaScript, the source of that could be anything, including from a local dev server. Well, almost.</p>
-
-<p>Because of Apple's HTTP security, you cannot connect to localhost in an app by default. To fix this, open up <code>GitDawg-info.plist</code> and right-click to add a new row. Paste in <code>NSAppTransportSecurity</code> as the name, and Xcode will switch it to "App Transport Security Settings". Hit the <code>+</code> and add "Allow arbitrary loads" then set it to true.</p>
-
-<p>From here: run the GitDawg app and you should see a red screen. This will be telling you to start the React Native Packager. Let's do that. From the root of the GitDwag repo run <code>$ yarn start</code>. This will start up a server. Once it says "Metro Bundler Ready." you can go back into your simulator for GitDawg and hit the reload button at the bottom.</p>
-
-<p>That's it.</p>
-
-<p>We're done.</p>
-
-<p>So, there's obviously a lot more to learn here. You've successfully set up a Pod that you can deploy to an app. To make a real version you'd need to do a bit more process like creating a repo, and making tags.</p>
-
-<p>We use our root view controller in Emission to trigger loading any of our view controllers, in different states. We also mix that with some admin options, the ability to run someone's PRs and <a href="https://storybook.js.org">storybooks</a>.</p>
-
-<center><img src="/images/making_cp_pod/emission.png" width="100%" /></center>
-
-
-<p>So good luck! Something like this probably easily scripted, but there's a lot of value in understanding how every piece comes together. So let me know if you make something cool - we've been using this structure for 2 years now and I think it's the right way to integrate React Native into an existing complex app. It keeps your JS tooling in a completely different repo from your iOS tooling.</p>
-]]></content>
-  </entry>
   
   <entry>
     <title type="html"><![CDATA[React Native, 2 years later]]></title>
@@ -2300,6 +1624,299 @@ $ tree .
 <p>For us, React Native is a well thought out library, that can really help build better products when you understand the right way to apply it. It can help you be cross-platform on mobile, but also cross-platform with the web. For example, our React Native project has a sibling project on the web with the <a href="https://github.com/artsy/reaction">exact same setup</a>, so any improvements in one move to the other. Which was unimaginable 2 years ago. We can truly consider sharing logic and ideas with the web.</p>
 
 <p>If you're considering a new app, or a grand re-write, React Native should be considered as one of your options.</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Retrospective: Swift at Artsy]]></title>
+    <link href="http://artsy.github.io/blog/2017/02/05/Retrospective-Swift-at-Artsy/"/>
+    <updated>2017-02-05T12:18:00+00:00</updated>
+    <id>http://artsy.github.io/blog/2017/02/05/Retrospective-Swift-at-Artsy</id>
+    <content type="html"><![CDATA[<center>
+<img src="/images/swift-in-rn/swift-in-react-native.svg" style="width:300px;">
+</center>
+
+
+<p>Swift became public in June 2014, by August we had started using it in Artsy. By October, we had <a href="http://artsy.github.io/blog/2014/11/13/eidolon-retrospective/">Swift in production</a> channelling hundreds of thousands of dollars in auction bids.</p>
+
+<p>It is pretty obvious that Swift is the future of native development on Apple platforms. It was a no-brainer to then build an <a href="https://github.com/artsy/emergence">Apple TV app</a> in Swift, integrated Swift-support into our key app Eigen and built non-trivial parts of that <a href="http://artsy.github.io/blog/2016/08/09/the-tech-behind-live-auction-integration/">application in Swift</a>.</p>
+
+<p>We first started experimenting with React Native in February 2016, and by August 2016, we announced that <a href="/blog/2016/08/15/React-Native-at-Artsy/">Artsy moved to React Native</a> effectively meaning new code would be in JavaScript from here onwards.</p>
+
+<p>We're regularly asked <em>why</em> we moved, and it was touched on briefly in our announcement but I'd like to dig in to this and try to cover a lot of our decision process. So, if you're into understanding why a small team of iOS developers with decades of native experience switched to JavaScript, read on.</p>
+
+<p>This post will cover: <a href="/blog/2017/02/05/Retrospective-Swift-at-Artsy/#What.are.Artsy.s.apps.">What are Artsy's apps?</a>, Swifts <a href="/blog/2017/02/05/Retrospective-Swift-at-Artsy/#Swift.s.upsides">positives</a> and <a href="/blog/2017/02/05/Retrospective-Swift-at-Artsy/#Native.Downsides">negatives</a> for us, <a href="/blog/2017/02/05/Retrospective-Swift-at-Artsy/#React.Native">React Native</a>, and our <a href="/blog/2017/02/05/Retrospective-Swift-at-Artsy/#React.Native..one.year.later">1-year summary</a>.</p>
+
+<!-- more -->
+
+
+<p>We were finding that our current patterns of building apps were not scaling as the team and app scope grew. Building anything inside Eigen rarely re-used existing native code, and progressively took longer to build features. Our app and test target build times were increasing, till eventually it would take 2 iOS engineers to build a feature in a similar time-frame as a single web engineer. Our iOS engineers have a lot of experience across many platforms, are well versed in best practices and understand the value of building better tools to make it faster. We had the knowledge, but we weren't finding ourselves in a great position product development wise.</p>
+
+<p>By <a href="https://github.com/artsy/mobile/issues/22">March 2015</a>, we gave up trying to keep pace with the web.</p>
+
+<p>Once we came to this conclusion, our discussion came to "what can we do to fix this?" Over the course of the 2015 winter break we explored ideas on how we could write more re-usable code.</p>
+
+<a name="What.are.Artsy.s.apps."></a>
+<h1>What are Artsy's apps?</h1>
+
+<p>We have different apps with different trade-offs.</p>
+
+<p><a href="https://github.com/artsy/eigen">Eigen</a> is an app where we take JSON data from the server, and convert it into a user interface. Each view controller can nearly always be described as a function taking data and mapping it to a UI. <a href="https://github.com/artsy/eidolon">Eidolon</a> (our Auctions Kiosk app) which contains a lot of Artsy-wide unique business logic which is handled with local state like card reader input, or unique user identification modes. <a href="https://github.com/artsy/emergence">Emergence</a> is a trivial-ish tvOS app which has a few view controllers, and is mostly handled by Xcode's storyboards.</p>
+
+<p></article>
+<a href='/images/emission/eigen.svg' style="">
+  <img src="/images/emission/eigen.svg" alt="Eigen separated into app + components" style="">
+</a>
+<article class="post">
+</p>
+
+<p>Eigen is where we worried about how we were building apps, other apps are limited in their scope, but Eigen is basically the mobile representation of Artsy. We're never <em>not</em> going to have something like Eigen.</p>
+
+<p>We eventually came to the conclusion that we needed to re-think our entire UIKit stack for Eigen. Strictly speaking, Objective-C was not a problem for us, our issues came from abstractions around the way we built apps.</p>
+
+<p>Re-writing from scratch was not an option. That takes <a href="https://www.joelonsoftware.com/2000/04/06/things-you-should-never-do-part-i/">a lot of time and effort</a>, which will happily remove technical debt, but that's not our issue. We also don't need or have a big redesign. However, a lot of companies used the Objective-C -> Swift transition as a time to re-write from scratch. We asked for the experiences from developers who had opted to do this, they said it was a great marketing tool for hiring - but was a lot of pain to actually work with day to day. They tend to talk about technical debt, and clean slates - but not that Objective-C was painful and Swift solves major architectural problems. With the notable exception of functional programming purists.</p>
+
+<p>In the end, for Eigen, we came to the conclusion that we wanted to work with a component-based architecture. This architectural choice comes from studying how other larger apps handle code-reuse.</p>
+
+<p>We were considering:</p>
+
+<ul>
+<li>View Controllers being a mix of Components which could be extended using protocols in Swift.</li>
+<li>JSON defined Components ( which would have ended up like Spotify's (<a href="https://cocoapods.org/pods/HubFramework">hub</a>) or Hyperslo's (<a href="https://cocoapods.org/pods/Spots">Spots</a>) ).</li>
+<li>Building a Component structure heavily inspired by React ( like Bending Spoons's (<a href="https://cocoapods.org/pods/Katana">Katana</a>) ).</li>
+</ul>
+
+
+<center>
+ <img src="/images/js2017/swift.svg" style="width:250px;">
+</center>
+
+
+<a name="Swift.s.upsides"></a>
+<h1>Swift's upsides</h1>
+
+<p>Had we continued with native apps via native code, we'd have put more resources behind Swift, which had quite a bit running for it:</p>
+
+<ul>
+<li><p><strong>It was consistent with our existing code.</strong> We wrote hundreds of thousands of lines of code in Objective-C and maybe around a hundred thousand of Swift. The majority of the team had 5+ years of Cocoa experience and no-one needs to essentially argue that <em>continuing</em> with that has value.</p></li>
+<li><p><strong>Swift code can interact with Objective-C and can work on its own.</strong> We can write Swift libraries that can build on-top of our existing infrastructure to work at a higher level of abstraction. Building a component-based infrastructure via Swift could allow easy-reuse of existing code, while providing a language difference for "new app code" vs "infra."</p></li>
+<li><p><strong>People are excited about Swift.</strong> It's an interesting, growing language, and one of the few ones non-technical people ask about. "Oh you're an iOS developer, do you use Swift?" is something I've been asked a lot. The developers outside of the mobile team have signed up multiple times for Swift workshops and want to know what Swift is, and what its trade-offs are.</p></li>
+<li><p><strong>It's evolving</strong> the language changes at a fast rate, with new ideas coming from, and influencing other languages. People inside the community influence and shape its growth. There are some great claims being made <a href="https://twitter.com/wilshipley/status/565001293975257091">about Swift</a> by people we respect.</p></li>
+<li><p><strong>Swift improves on a lot of Objective-C.</strong> Most of the patterns that we use in Objective-C are verbose, and they can become extremely terse inside Swift. Potentially making it easier to read and understand.</p></li>
+<li><p><strong>We would be using the official route.</strong> Apple obviously <em>wants</em> you to be using Swift, they are putting a <em>lot</em> of resources into the language. There are smart people working on the project, and it's become more stable and useful every year. There aren't any <em>Swift-only</em> APIs yet, but obviously they'll be coming.</p></li>
+<li><p><strong>It's a <a href="https://en.wikipedia.org/wiki/There_are_known_knowns">known-unknown</a> territory.</strong> We have a lot of knowledge around building better tooling for iOS apps. From libraries like <a href="https://github.com/moya/moya">Moya</a>, to foundational projects like <a href="https://cocoapods.org">CocoaPods</a>. Coming up with, and executing dramatic tooling improvements is possible. Perhaps we had overlooked a smarter abstraction which would have worked around the downsides, and thus making it worth expanding our search.</p>
+
+<p>If we end up building something which gains popularity, we get the advantage of working with a lot of fresh perspectives, and being able to gain from other people working on the same project. This is what happened with <a href="https://github.com/moya/moya">Moya</a>. It's a pattern Basecamp discuss when they <a href="https://signalvnoise.com/posts/660-ask-37signals-the-genesis-and-benefits-of-rails">talk about rails</a> by beginning with a real project and abstracting outwards.</p></li>
+</ul>
+
+
+<a name="Native.Downsides"></a>
+<h1>Native Downsides</h1>
+
+<p>The dominant two issues come from differences in opinions in how software should be built</p>
+
+<ul>
+<li><p><strong>Types.</strong> Types are useful. Overly strict typing systems make it too hard to <em>quickly</em> change codebases.</p>
+
+<p>Strictly typed languages work <em>really</em> well for <a href="http://mjtsai.com/blog/2014/10/14/hypothetical-objective-c-3-0/#comment-2177091">building systems</a>, or completely atomic apps - the sort Apple have to build on a day to day basis. When I say an atomic app, I mean one where the majority of the inputs and outputs exist within the domain of the application. Think of apps with their own filetypes, that can control inputs and outputs really easily.</p>
+
+<p>Even in Objective-C, a looser-typed language where you were not discouraged from using meta--programming, handling JSON required <em>a tonne</em> of boilerplate laden, inelegant code when working with an API. Considering how bread-and-butter working with an API is for most 3rd party developers it should come as no surprise that the most popular CocoaPods are about handling JSON parsing, and making network requests.</p>
+
+<p>Problems which Apple, generally speaking, don't have. They use iCloud, or CloudKit, or whatever, and expect you will also. The official Apple opinion was neatly summed up on the official Swift blog on how to handle JSON parsing <a href="https://developer.apple.com/swift/blog/?id=37">exhibits the problem well</a>.</p>
+
+<blockquote><p>Swift’s built-in language features make it easy to safely extract and work with JSON data decoded with Foundation APIs — without the need for an external library or framework.</p></blockquote>
+
+<p>They do, but it's not great code to write nor maintain. I don't know anyone who does what they recommend in production.</p>
+
+<p>The stricter type system in Swift made it harder to work on JSON-driven apps.</p></li>
+<li><p><strong>Slow.</strong> Native development when put next to web development is slow. Application development requires full compilation cycles, and full state restart of the application that you're working on. A trivial string change in Eigen takes <a href="https://twitter.com/orta/status/778242899821621249">25 seconds</a> to show up. When I tell some developers that time, they laugh and say I have it good.</p>
+
+<p><center><blockquote class="twitter-tweet" data-lang="en"><p lang="en" dir="ltr">Making a single edit in a string takes 25 seconds to see the difference in the swift parts of Eigen <a href="https://t.co/MOPGPEWqxX">pic.twitter.com/MOPGPEWqxX</a></p>&mdash; 💍rta Therox (@orta) <a href="https://twitter.com/orta/status/778242899821621249">September 20, 2016</a></blockquote></center></p>
+
+<p>The moment that this really stood out for me was when I <a href="https://twitter.com/orta/status/271559616888967168">re</a>-discovered <a href="https://twitter.com/orta/status/705890397810257921">Injection for Xcode</a> which ruined my appetite for building apps the traditional way. It reduced an iteration cycle to about <a href="https://twitter.com/orta/status/706165678177390592">a second</a>. With Apple's resources, and the fact that Injection for Xcode has existed for years by a single developer, it's frustrating that iOS is a <a href="https://developer.android.com/studio/run/index.html#instant-run">mobile platform</a> with no support for code reloading. I filed bug reports (<a href="https://forums.developer.apple.com/thread/8796">radars</a>), they were marked as duped with no comment. I talked to Apple engineers at WWDC, the idea was dismissed as "didn't work" when it was <a href="http://stpeterandpaul.ca/tiger/documentation/DeveloperTools/Conceptual/XcodeUserGuide/Contents/Resources/en.lproj/06_06_db_fix_and_continue/chapter_44_section_1.html">tried before</a>.</p>
+
+<p>I've heard developers say they use Playgrounds to work around some of these problems, and the Kickstarter app has probably the closest I've seen to an <a href="https://github.com/kickstarter/ios-oss/tree/master/Kickstarter-iOS.playground/Pages">actual implementation of this</a>, so check that out if you're hitting these issues.</p>
+
+<p>The Swift compiler is slow. Yes, it will improve. One of my favourite Swift features, inferred typing, can accidentally increase compile times non-obviously. Which can make it feel arbitrary about what code takes longer to compile or not. We eventually <a href="https://github.com/artsy/eigen/pull/1465">automated having our CI warn us</a> whether the code we were adding was slow as it felt hard to predict.</p></li>
+</ul>
+
+
+<center>
+ <img src="/images/react-native/artsy_react_logo.svg" style="width:300px;">
+</center>
+
+
+<a name="React.Native"></a>
+<h1>React Native</h1>
+
+<p>You may want to read our announcement of switching to <a href="/blog/2016/08/15/React-Native-at-Artsy/">React Native</a> in anticipation of this. However the big three reasons are:</p>
+
+<ul>
+<li>Better developer experience.</li>
+<li>Same conceptual levels as the rest of the team.</li>
+<li>Ownership of the whole stack.</li>
+</ul>
+
+
+<p>However, the key part of this post is how does this compare to native development? Also, have these arguments stood up to the test of time a year later?</p>
+
+<p><em>Sidenote:</em> I found it hard to write this without being able to comprehensively reference what we are doing now, and so, I'll be referencing a sibling article: <a href="/blog/2017/02/05/Front-end-JavaScript-at-Artsy-2017/">JS 2017</a>.</p>
+
+<a name="Developer.Experience"></a>
+<h3>Developer Experience</h3>
+
+<p>The JavaScript ecosystem cares about how someone using the tool will feel. This is a part of what separates the good from the great in the community. It's not enough to just provide a great API, and comprehensive documentation but it should substantially improve the way you work.</p>
+
+<blockquote><p>References from JS 2017: <a href="/blog/2017/02/05/Front-end-JavaScript-at-Artsy-2017/#Relay">Relay</a>, <a href="/blog/2017/02/05/Front-end-JavaScript-at-Artsy-2017/#Jest">Jest</a></p></blockquote>
+
+<p>As <em>everyone</em> inside the community has both the ability and the tools to contribute to the ecosystem you get better tools.</p>
+
+<p>Apple make <em>great</em> tools. I do miss Xcode sometimes. It's cohesive, beautifully designed and doesn't show its age. It's a perfect Mac citizen.</p>
+
+<p>Though it's important to note that they make tools for Apple first and then for us 3rd party devs. Outside influence obviously exists, but they're shipping whatever <em>they</em> want and you can only influence that via Radars and through going to a conference once a year and talking directly to the dev tools team. Only the Swift language is Open Source (and <a href="https://github.com/apple/swift-package-manager">SwiftPM</a>)</p>
+
+<p>There are so few well built, large developer tools for the Apple ecosystem. Developers are wary <a href="https://twitter.com/orta/status/608013279433138176">of</a> <a href="https://twitter.com/mattt/status/473544723118837760">being copied by Apple</a> - something so prevalent that there is a common word for it, being <a href="https://www.cocoanetics.com/2011/06/on-getting-sherlocked/">Sherlocked</a>. The project I've worked on for 5 years, CocoaPods, had an announcement of being sherlocked in late-2015 - you just have to deal with it. The idea that only Apple should be shipping these kind of things kills community momentum.</p>
+
+<center><blockquote class="twitter-tweet" data-lang="en"><p lang="en" dir="ltr">Alfred, Dropbox, Snapchat, Parse, OpenGL, Objective-C… <br><br>Quite the body count this WWDC.</p>&mdash; Mattt (@mattt) <a href="https://twitter.com/mattt/status/473544723118837760">June 2, 2014</a></blockquote> <script async src="//platform.twitter.com/widgets.js" charset="utf-8"></script></center>
+
+
+<p>If you're going to build something amazing, only to have all support pulled out from under you once it gets popular because Apple copied it and made it for free and with a full time team behind it - why bother?</p>
+
+<p>This makes it tough for us, as the 3rd party community, to build useful tools on the kind of scale that is normal in other developer ecosystems.</p>
+
+<p>This contrasts drastically with the JavaScript ecosystem, check out my explanation of Jest - and compare Jest to either Quick or Specta. Then remind yourself that only Apple has the power to do most of what Jest does.</p>
+
+<blockquote><p>Reference from JS 2017: <a href="/blog/2017/02/05/Front-end-JavaScript-at-Artsy-2017/#Jest">Jest</a></p></blockquote>
+
+<center>
+ <img src="/images/js2017/relay.svg" style="width:300px;">
+</center>
+
+
+<a name="Better.Abstractions..Better.Developer.Experience"></a>
+<h3>Better Abstractions, Better Developer Experience</h3>
+
+<p>I've mentioned that the apps we build have problems specific to API-driven applications. This means that the majority of our work tends to be that we have the full data already, and need to iterate to get the right styling and logic mapping correct, in doing so we want to also make it easy to re-use code.</p>
+
+<p>The React component-oriented architecture makes it very easy to build these types of applications. Born out of the <a href="/blog/2016/11/14/JS-Glossary/#javascript-fatigue">JavaScript primordial soup</a>, where conceptual frameworks come and go every year or so. React has been around for a while now, and seems to have a lot of momentum.</p>
+
+<p>All of these frameworks have the same domain problems that our iOS apps have, external API stores, complex user device state and a mature user-interface API (either the DOM, or UIKit.)</p>
+
+<p>With React, the core concept of a virtual DOM means that you can simplify a lot of complicated state-management for your application. It becomes trivial, removing the need for more complicated state-handling ideas like functional or reactive programming.</p>
+
+<p>With Relay, we got an genuinely ground-breaking change in how interactions get handled with our API. I don't want to  work against an API without a tool like Relay again.</p>
+
+<blockquote><p>References from JS 2017: <a href="/blog/2017/02/05/Front-end-JavaScript-at-Artsy-2017/#React...React.Native">React</a>, <a href="/blog/2017/02/05/Front-end-JavaScript-at-Artsy-2017/#Relay">Relay</a></p></blockquote>
+
+<p>Both of these tools provide a developer experience better than iOS native tooling. React's strict state management rules allow external tools to extend a React application easily, so the onus is not on the React team to make better tools. Other projects provide tools like: <a href="https://github.com/jhen0409/react-native-debugger">debuggers</a>, <a href="https://github.com/infinitered/reactotron">external state viewers</a>, <a href="https://github.com/gaearon/react-hot-loader">runtime code injection</a>, <a href="https://github.com/storybooks/react-storybook">component storyboarding</a> all of which can be running simultaneously as you are building your application. Imagine being given the flow of all state in your app in <a href="https://logrocket.com">every bug report</a>.</p>
+
+<p>A single press of save would take your changes, inject it into your current running application, keep you in the exact same place, depending on the type of change it could re-layout your views, and so you can stay in your editor and make your changes. <em>From 25 seconds, to less than one</em>. For a lot of my work, I can put my tests, debuggers and the application on another screen, and just move my head to watch changes propagate on pressing save.</p>
+
+<p>So, you're thinking <em>"Yeah, but JavaScript..."</em> - well, we use <a href="http://typescriptlang.org">TypeScript</a> and it fixes pretty much every issue with JavaScript. It's also no problem for us to write native code when we need to, we are still adding to an existing native codebase. The last project I did on our React Native codebase required bi-directional JS <-> Swift communication.</p>
+
+<p>React Native feels like the best of both worlds: Elegant, fast to work with application code, which the whole dev team understands. Falling back to native tooling when we think it will be best for the project.</p>
+
+<blockquote><p>Reference from JS 2017: <a href="/blog/2017/02/05/Front-end-JavaScript-at-Artsy-2017/#TypeScript">TypeScript</a></p></blockquote>
+
+<p>There's one more thing that I want to really stress around developer experience, it's really easy to write tests for our React components. Testing in JavaScript is night-and-day better than native testing. Because we can run our tests outside of the simulator (due to React's virtual DOM) we run tests whenever you press save. These tests are only the ones related to the current <a href="/blog/2017/02/05/Front-end-JavaScript-at-Artsy-2017/#Jest">changes in git</a>. The only thing we miss is visual snapshots <a href="https://www.objc.io/issues/15-testing/snapshot-testing/">from the simulator</a>, not having to restart a simulator to run tests makes it worth it though.</p>
+
+<a name="Same.Tools..Different.Dev"></a>
+<h4>Same Tools, Different Dev</h4>
+
+<p>We wanted to stop being highly unique inside the dev team. Artsy has around 25 developers, the majority of which work with Ruby and JavaScript on a day-to-day basis. The mobile team was the single development team that didn't make their own API changes, used different toolchains and were much slower in shipping anything.</p>
+
+<p>This isn't a great position to be in.</p>
+
+<p>We wanted all developers to feel like they can contribute to any area of the company. For the past 5 years, the native mobile projects had close to zero contributions from anyone outside of the mobile team. Due to differences in tooling, and the idea that there was a cultural difference between us. Since the mobile team moved to React Native we have received features and bug fixes from the web team, and fit in better overall.</p>
+
+<p>This expansion of a mobile team developer's scope has made it much easier for us to reason about finding better ways to share code with the web team. At the end of 2015, the Collector Web team introduced GraphQL to Artsy. I wrote about how this affected the <a href="http://artsy.github.io/blog/2016/06/19/graphql-for-mobile/">mobile team</a>. This acts as an API layer owned by the front-end side of Artsy. Meaning that it could contain a lot of API-derived client-specific logic. Previously, this work was done by the web team, and then consumed by mobile - now both teams build their APIs and consume them.</p>
+
+<blockquote><p>Reference from JS 2017: <a href="/blog/2017/02/05/Front-end-JavaScript-at-Artsy-2017/#GraphQL">GraphQL</a></p></blockquote>
+
+<p>This is not something we have explored too deeply, however we expect to be able to port a lot of our React Native to Android. I got a rough prototype ported in 2 days work. By working at React-level, and allowing the React Native bindings to handle the interactions with the host OS, we've been writing cross-platform code.</p>
+
+<p>We consider ourselves blocked on Android support, specifically by not having an engineer in our team with <em>deep</em> experience in Android. Moving to React Native does not obviate our native skills, you're going to be significantly better in that environment with those skills than without. As we mentioned in our <a href="/blog/2016/08/15/React-Native-at-Artsy/">announcement</a>:</p>
+
+<blockquote><p>If you’re not already knowledgeable about iOS development, are not motivated to put in the time to learn about the
+  platform specific details, and think making rich iOS applications with React Native will be a breeze, you’ll
+  <a href="http://www.dwotd.nl/2008/06/443-van-een-kouwe-kermis-thuiskomen.html">come home from a very cold fair</a> indeed.</p></blockquote>
+
+<p>We need someone with a similar depth of knowledge in the Android ecosystem as our iOS, but we may need one or two for the entire team. The rest can continue to be a mix of Web and iOS engineers. You gain a subset of cross-platform skills using React Native. Had we continued down the path of using Swift, our skills would continue to be siloed.</p>
+
+<p>There is an argument that Swift will be running servers soon, and so you can re-use Swift code across platforms. I could see myself writing server-side back-end code in Swift (you're writing systems, not apps) but it has a <a href="https://ashfurrow.com/blog/swift-on-linux/">long way to go</a>. It also isn't an argument towards using it in our native apps, we'd have to re-write servers and implement our own GraphQL and Relay stack. This also would not impact the front-end code for the web - they would still be using JavaScript.</p>
+
+<p>With respect to Swift on Android, potentially, logic code could be shared between platforms but realistically for our setup that's just not worth it. We're moving that kind of logic into the GraphQL instance and sharing across <em>all</em> clients, not only native platforms. If you're sharing model code, you could generate that per-project instead from the server. Since GraphQL is strongly-typed, we're doing this for both <a href="https://github.com/alloy/relational-theory/pull/18">TypeScript + GraphQL</a> and <a href="https://github.com/alloy/vscode-relay">TypeScript + Relay</a>.</p>
+
+<p>We don't know where this will end, but we've prototyped porting one of our view controllers from React Native <a href="https://github.com/alloy/relational-theory/pull/16">to a website</a>. It's almost source-compatible. This such a completely different mindset from where we were a year ago.</p>
+
+<a name="Owning.the.stack"></a>
+<h4>Owning the stack</h4>
+
+<p>Pick an abstraction level of our application above UIKit and we can fork it. All our tools can be also be forked. We can fix our own issues.</p>
+
+<p>In native, there are no concepts like, <em>"We'll use Steipete's fork of UIKit for UIPopover rotation fixes"</em> or <em>"My version of Xcode will run tests when you press save."</em>. Well, hopefully the latter <a href="https://twitter.com/orta/status/790589579552296966">may be fixed</a> in time, but the "you have no choice but to wait, and maybe it won't happen" aspect is part of the problem.</p>
+
+<p>You have your tools given to you, in a year you get some new ones and lose some old ones. In contrast, we've built <a href="https://github.com/orta/vscode-jest#vscode-jest-">many</a> <a href="https://github.com/orta/vscode-react-native-storybooks">extensions</a> <a href="https://github.com/alloy/vscode-relay">for</a> <a href="https://github.com/orta/vscode-ios-common-files">VS</a> <a href="https://github.com/orta/vscode-danger">Code</a> for our own use, and helped out on <a href="https://github.com/flowtype/flow-for-vscode/blob/master/CHANGELOG.md">major ones</a>. When VS Code didn't do what I wanted, I started using <a href="https://github.com/orta/Essence">use my own fork</a>.</p>
+
+<blockquote><p>Reference from JS 2017: <a href="/blog/2017/02/05/Front-end-JavaScript-at-Artsy-2017/#Visual.Studio.Code">VS Code</a></p></blockquote>
+
+<p>In the last year, we have submitted code to major JavaScript dependencies of ours: React Native, Relay, VS Code, Jest and a few libraries in-between - fixing problems where we see them, offering features if we need them. Some of these changes are <a href="https://github.com/Microsoft/vscode/pull/12628">small</a>, but some <a href="https://github.com/facebook/relay/issues/1061">are</a> <a href="https://github.com/facebook/jest/pull/2192">big</a> <a href="https://github.com/facebook/react-native/pull/6114">moves</a>. Being able to help out on any problem makes it much easier to live with the <a href="/blog/2016/08/15/React-Native-at-Artsy/">593 dependencies</a> that using React Native brings.</p>
+
+<p>It's worth highlighting that all of this is done on GitHub, in the open. We can write issues, get responses, and have direct line to the people who are working on something we depend on. This is a stark contrast to the Radar system used internally at Apple, and which external developers have write-only access to. For external contributors radar is opaque, and <a href="https://thenextweb.com/apple/2012/04/13/app-developers-frustrated-with-bug-reporting-tools-call-on-apple-to-fix-radar-or-gtfo/">often feels like a waste of time</a>. On the other hand, a GitHub issue doesn't have to wait for the repo maintainers, others can get value from it and it's publicly indexed. If we had put all our effort into Radars instead of <a href="https://github.com/artsy/eigen/issues/586">issues like</a> this, the whole community would be worse off.</p>
+
+<p>This isn't all doom and gloom. With Swift the language, and SwiftPM the package manager, Apple are more open with the feedback cycle using tools like <a href="https://lists.swift.org/pipermail/swift-build-dev/Week-of-Mon-20160530/000497.html">Slack</a>, Mailing Lists, JIRA and Twitter.</p>
+
+<p>One aspect of working with JavaScript that has been particularly pleasant is the idea that your language is effectively a buffet. If you want to use the latest features of the language you can opt-in to it. We've slowly added language features, while retaining backwards compatibility. First using <a href="https://babeljs.io">Babel</a>, then <a href="https://flowtype.org">Flow</a> and finally with <a href="http://www.typescriptlang.org">TypeScript</a>.</p>
+
+<p>In contrast, and this may be the last major time it happens, but people refer to the time it took to migrate <a href="https://engblog.nextdoor.com/migrating-to-swift-3-7add0ce0655#.rvyrohyhq">in</a> <a href="https://tech.zalando.com/blog/app-migration-to-swift-3/">the</a> <a href="https://github.com/kickstarter/ios-oss/pull/26">scale</a> <a href="https://twitter.com/guidomb/status/817363981216129025">of</a> <em>weeks</em> during the Swift 2 -> 3 migration. Having the language evolve is great, sometimes in ways that you <a href="https://swift.org/documentation/api-design-guidelines/">agree with</a> and sometimes in ways <a href="http://mjtsai.com/blog/2016/07/17/swift-classes-to-be-non-publicly-subclassable-by-default/">you don't</a>. Being able to use your own version of your tools frees you to make it work for you and your business. We have been talking about <a href="/blog/2017/02/05/Front-end-JavaScript-at-Artsy-2017/#TypeScript-Extension">extending TypeScript</a> specifically for our applications.</p>
+
+<a name="React.Native..one.year.later"></a>
+<h1>React Native, one year later</h1>
+
+<p>In our announcement we talked about the lack of nuanced post-mortems on React Native. We're now a year in, we can at least try to help out in that space. We're sticking with React Native for the foreseeable future. It would take some <em>drastic</em> changes in the Apple ecosystem for us to re-consider this decision. So here's the summary after 1 year.</p>
+
+<ul>
+<li>We can share concepts with web</li>
+<li>Tools are built for apps like ours</li>
+<li>To do it right requires engineers willing to dive deep in JS</li>
+<li>You need native experience to have a polished app</li>
+<li>Dependency stack is still obscenely big</li>
+<li>Opens native engineers to more projects, makes yours more welcoming to others</li>
+<li>Problems do, and will occur, but everything is fixable by forking</li>
+<li>Extensive communication with native code gets tricky to test and maintain</li>
+<li>We ended up re-using quite a lot of existing native code</li>
+<li>It makes working in native code feel more like a chore, as you lose the JS developer experience</li>
+<li>Spending so much time in another environment will erode native knowledge</li>
+<li>Makes a lot of sense in an <a href="/blog/2016/08/24/On-Emission/">additive approach</a> to existing apps</li>
+<li>We're not making plans to re-write other Apps into React Native, they are fine as-is</li>
+<li>New apps going forward we will default to React Native apps, unless there is a good reason to not</li>
+</ul>
+
+
+<p>So, should you use React Native? Maybe. If you have an API driven app, <em>probably.</em></p>
+
+<p>It's definitely worth a week of prototyping for any engineering team, then if that goes well you should look into GraphQL and Relay. They really make React Native shine.</p>
+
+<a name="Want.to.get.started."></a>
+<h1>Want to get started?</h1>
+
+<ul>
+<li>Here's the <a href="https://facebook.github.io/react-native/">official site</a>.</li>
+<li>These <a href="https://egghead.io/courses/react-native-fundamentals">two</a> <a href="https://egghead.io/courses/build-a-react-native-todo-application">series</a> are high-quality. I studied JavaScript by watching hours of egghead videos.</li>
+<li>Run through the <a href="https://github.com/fbsamples/f8app/">f8 app</a> series on  <a href="http://makeitopen.com/">makeitopen.com</a>.</li>
+<li>Clone our React Native app, <a href="https://github.com/artsy/emission/">Emission</a>.</li>
+<li>Read the rest of our <a href="/series/react-native-at-artsy/">series on React Native</a>.</li>
+<li>Read our summary on <a href="/blog/2017/02/05/Front-end-JavaScript-at-Artsy-2017/">our JavaScript stack choices</a>.</li>
+</ul>
+
+
+<p>If you'd like to look into GraphQL + Relay, but don't want to start building a server yourself, consider these GraphQL as a Services:</p>
+
+<ul>
+<li><a href="https://scaphold.io">scraphold</a>.</li>
+<li><a href="https://www.graph.cool/">graphcool</a>.</li>
+</ul>
+
 ]]></content>
   </entry>
   
