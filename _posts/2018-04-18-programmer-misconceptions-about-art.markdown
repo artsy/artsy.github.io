@@ -1,7 +1,7 @@
 ---
 layout: post
 title: Programmer Misconceptions about Art
-date: 2018-04-10
+date: 2018-04-18
 author: ash
 categories: [best practices, data, programming]
 ---
