@@ -71,10 +71,12 @@ Let's get started by having a working [copy of GitHawk][githawk]. I'll leave the
 if you want to be certain you're on the same version as me - I'm working from this commit
 `6dc2988d23d70eb0862d11f4a365bf47a87848c6`.
 
-Clone a copy of GitHawk, and get it running in your Simulator, should take about 5 minutes Then we can move on to
-starting our repo.
+Clone a copy of GitHawk, and get it running in your Simulator, should take about 5-10 minutes, you'll need Xcode
+9.3. Then we can move on to starting our components repo.
 
 ## GitDawg JS
+
+When you're done with GitHawk, go back a folder so that you're ready to create the GitDawg repo: `$ cd ..`.
 
 ### Pre-requisites
 
@@ -127,10 +129,10 @@ What is your class prefix?
  > GD
 ```
 
-I'd recommend using Objective-C at this point, for simplicities sake. Swift is a great language, but in practice in
-our after tooling simplicity. for this tutorial. We're also not going to write enough native code to warrant the
-setup for testing. Plus, if we skip native testing then we can run CI on linux - which is basically instant in
-comparison.
+I'd recommend using only Objective-C at this point, for simplicities sake. Swift is a great language, but I want
+tooling simplicity. Swift and React Native is [docs] though. We're also not going to write enough native code to
+warrant the setup for testing. Plus, if we skip native testing then we can run CI on linux - which is basically
+instant in comparison.
 
 This has made a new library. Let's go into our project's root with `$ cd GitDawg`. There shouldn't be too much in
 here:
@@ -157,7 +159,7 @@ $ react-native init GitDawg --version react-native@0.54.4
 $ mv GitDawg src
 
 # Remove _Pods.xcodeproj as it's relevant for our pod
-$ rm _Pods.xcodeproj
+$ rm -rf _Pods.xcodeproj
 ```
 
 We don't want all our project files living in a sub-folder though, so let's move a few of them back to the repo's
@@ -201,10 +203,6 @@ Ran all test suites.
 We're now going to be done with our JavaScript side, basically is our React Native "hello world". It's a React
 Native project that exposes a single component which says `"Welcome to React Native!"`.
 
-It looks like this:
-
-<center><img src="/images/making_cp_pod/success.png" width="50%" /></center>
-
 However, it's going to take a bit of work before we can see it in action.
 
 ### Deployment
@@ -216,6 +214,10 @@ folder from earlier.
 ```sh
 $ react-native bundle --entry-file src/index.js --bundle-output Pod/Assets/GitDawg.js --assets-dest Pod/Assets
 ```
+
+It looks like this, when you run it via the sim:
+
+<center><img src="/images/making_cp_pod/success.png" width="50%" /></center>
 
 ## GitDawg Pod
 
@@ -476,7 +478,7 @@ For the yoga podspec, you should just grab our version, it's not worth me explai
 the PR I made to fix a bug isn't shipped in 0.54 so run:
 
 ```sh
-curl https://github.com/artsy/emission/blob/v1.5.0/externals/yoga/yoga.podspec.json > ~/Desktop/yoga.podspec.json
+curl https://raw.githubusercontent.com/artsy/emission/v1.5.0/externals/yoga/yoga.podspec.json > ~/Desktop/yoga.podspec.json
 ```
 
 You should now have two JSON files in your Desktop. Grab them, move them into the `Local Pods` folder inside
