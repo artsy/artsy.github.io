@@ -1,7 +1,7 @@
 ---
 layout: epic 
 title: "Making a React Native Components Pod" 
-date: 2012-03-19
+date: 2018-04-17
 author: orta 
 categories: [Technology, emission, reaction, reactnative, react, javascript] 
 css: what-is-react-native 
@@ -38,26 +38,32 @@ minutes, running though it properly should take about an hour.
 
 ## What Are We Going To Do?
 
-1.  We will use `pod lib create` to make a library repo
+We will make a React Native components library (GitDawg) for an existing open-source iOS Swift Application
+(GitHawk). This reflects an existing app with a team who wants to experiment with React Native in a way that doesn't
+affect the main codebase. In Artsy, GitDawg is [Emission][emission], and GitHawk is [Eigen][eigen].
 
-2.  We will use `react-native init` to make a React Native environment
+1.  We will clone and set up GitHawk
 
-3.  We will bundle the React Native code into our Pod's asset folder
+2.  We will use `pod lib create` to make a library repo called GitDawg
 
-4.  We will edit the Podspec for GitDawg, and then the Podfile for the example project to consume it
+3.  We will use `react-native init` to make a React Native environment
 
-5.  We will use [cocoapods-fix-react-native][cpfrn] to hotfix the React Native files
+4.  We will bundle the React Native code into our Pod's asset folder
 
-6.  We will expose a UIViewController which corresponds to the default screen from `react-native init` in our Pod
+5.  We will edit the Podspec for GitDawg, and then the Podfile for the example project to consume it
 
-7.  We will change the storyboard reference to point to the UIViewController from our Pod, and run the simulator to
+6.  We will use [cocoapods-fix-react-native][cpfrn] to hotfix the React Native files
+
+7.  We will expose a UIViewController which corresponds to the default screen from `react-native init` in our Pod
+
+8.  We will change the storyboard reference to point to the UIViewController from our Pod, and run the simulator to
     see our welcome screen.
 
-8.  We will set up GitHawk to consume our new Pod
+9.  We will set up GitHawk to consume our new Pod
 
-9.  We will change GitHawk to show our new UIViewController instead of the bookmarks screen
+10. We will change GitHawk to show our new UIViewController instead of the bookmarks screen
 
-10. We will edit GitDawg to act more like a development environment
+11. We will edit GitDawg to act more like a development environment
 
 ## GitHawk
 
@@ -65,10 +71,12 @@ Let's get started by having a working [copy of GitHawk][githawk]. I'll leave the
 if you want to be certain you're on the same version as me - I'm working from this commit
 `6dc2988d23d70eb0862d11f4a365bf47a87848c6`.
 
-Clone a copy of GitHawk, and get it running in your Simulator, should take about 5 minutes Then we can move on to
-starting our repo.
+Clone a copy of GitHawk, and get it running in your Simulator, should take about 5-10 minutes, you'll need Xcode
+9.3. Then we can move on to starting our components repo.
 
 ## GitDawg JS
+
+When you're done with GitHawk, go back a folder so that you're ready to create the GitDawg repo: `$ cd ..`.
 
 ### Pre-requisites
 
@@ -121,9 +129,10 @@ What is your class prefix?
  > GD
 ```
 
-I'd recommend using Objective-C at this point, for simplicities sake. Swift is a great language and all, but I'm
-after tooling simplicity. for this tutorial. We're also not going to write enough native code to warrant the setup
-for testing. Plus, if we skip native testing then we can run CI on linux - which is basically instant in comparison.
+I'd recommend using only Objective-C at this point, for simplicities sake. Swift is a great language, but I want
+tooling simplicity. Swift and React Native is [docs] though. We're also not going to write enough native code to
+warrant the setup for testing. Plus, if we skip native testing then we can run CI on linux - which is basically
+instant in comparison.
 
 This has made a new library. Let's go into our project's root with `$ cd GitDawg`. There shouldn't be too much in
 here:
@@ -150,7 +159,7 @@ $ react-native init GitDawg --version react-native@0.54.4
 $ mv GitDawg src
 
 # Remove _Pods.xcodeproj as it's relevant for our pod
-$ rm _Pods.xcodeproj
+$ rm -rf _Pods.xcodeproj
 ```
 
 We don't want all our project files living in a sub-folder though, so let's move a few of them back to the repo's
@@ -194,10 +203,6 @@ Ran all test suites.
 We're now going to be done with our JavaScript side, basically is our React Native "hello world". It's a React
 Native project that exposes a single component which says `"Welcome to React Native!"`.
 
-It looks like this:
-
-<center><img src="/images/making_cp_pod/success.png" width="50%" /></center>
-
 However, it's going to take a bit of work before we can see it in action.
 
 ### Deployment
@@ -210,6 +215,10 @@ folder from earlier.
 $ react-native bundle --entry-file src/index.js --bundle-output Pod/Assets/GitDawg.js --assets-dest Pod/Assets
 ```
 
+It looks like this, when you run it via the sim:
+
+<center><img src="/images/making_cp_pod/success.png" width="50%" /></center>
+
 ## GitDawg Pod
 
 With that done, we can start looking at the native side of our codebase. We let `pod lib create` set up an Example
@@ -217,8 +226,7 @@ app for us to work with in the repo, which consumes a Podspec in the root. So we
 Podspec, and update it.
 
 Our goal with the Example app is to set up an app exclusively for developing components in. In Artsy's case, this
-app handles auth and has a series of jump-off points for developing a component (either through Storybooks or
-directly using the Pods' `UIViewController`s.)
+app handles auth to the Artsy API and has a series of jump-off points for developing a component.
 
 To get started we need to modify the CocoaPod this repo represents:
 
@@ -282,13 +290,13 @@ end
 
 This Podspec is probably more complex then you're used to, but it means less config. To validate the Podspec, use
 `$ pod ipc spec GitDawg.podspec` and read the JSON it outputs. With the Podspec set up, it's time to set up the
-example project's `Podfile` and `Podfile`.
+example project's `Gemfile` and `Podfile`.
 
 We'll start with applying the [React Native hot-fix plugin][cpfrn], sometimes a version of React Native is released
-that doesn't support Swift frameworks (as Facebook don't use Swift) and so you have to apply some patches to the
+that doesn't support Swift frameworks (as Facebook doesn't use Swift) and so you have to apply some patches to the
 code. I made a CocoaPods Plugin that handles the hot-fixes for you.
 
-Start by making a `Podfile` in the `Example` folder: `touch Example/Gemfile`
+Start by making a `Gemfile` in the `Example` folder: `touch Example/Gemfile`
 
 ```ruby
 source 'https://rubygems.org'
@@ -297,20 +305,21 @@ gem 'cocoapods'
 gem 'cocoapods-fix-react-native'
 ```
 
-Then run `$ bundle install` in the `Example` folder, which will set up `cocoapods` and `cocoapods-fix-react-native`
-for your app. Making it possible to reference `"cocoapods-fix-react-native"` in your `Podfile`.
+Then run `$ bundle install` in the `Example` folder, which will set up the ruby dependencies of `cocoapods` and
+`cocoapods-fix-react-native` for your app. This makes it possible to reference `"cocoapods-fix-react-native"` in
+your `Podfile` next.
 
 ```sh
 $ cd Example
 $ bundle install
 ```
 
-We want to take the current Podfile and make sure that every React Native dependency comes from the folder in
-`node_modules`. We can do this using the `:path` operator to redeclare where you can find each Pod.
+We want to take the current `Podfile` and make sure that every React Native dependency comes from the folder
+`node_modules/react-native`. We can do this using the `:path` operator to redeclare where you can find each Pod.
 
-Note: we also _extend_ the amount of subspecs for `'React'` in this Podfile via `subspecs: ['DevSupport']` - this is
-what provide the hot code reloading and other developer tools. You'll want this, it will mean that the example app
-can be used as a dev environment, and your main app will only get a production environment.
+Note: we also _extend_ the amount of subspecs for `'React'` in this Podfile via `subspecs: ['DevSupport']` - this
+subspec is what provide the hot code reloading and other developer tools. You'll want this, in here, it will mean
+that the example app can be used as a dev environment, and your main app will only get a production environment.
 
 So edit `Example/Podfile` to look like this:
 
@@ -346,8 +355,8 @@ Run the following to set up the React Native dependencies for your project.
 $ bundle exec pod install
 ```
 
-We need some native code to represent our Welcome component from the React Native template. So create two new files
-in `Pod/Classes`:
+We need some native code to represent our Welcome component from the React Native template. Create two new files in
+`Pod/Classes`, then re-create the CocoaPods project for it by `pod install`ing again.
 
 ```sh
 $ touch ../Pod/Classes/GDWelcomeViewController.h ../Pod/Classes/GDWelcomeViewController.m
@@ -355,8 +364,8 @@ $ bundle exec pod install
 $ open GitDawg.xcworkspace
 ```
 
-It is a pretty vanilla `UIViewController`, so declare it exists in the interface and then use an `RCTRootView` as
-it's `self.view`.
+We're going to make a pretty vanilla `UIViewController`, so declare it exists in the interface and then use an
+`RCTRootView` as it's `self.view`.
 
 ```objc
 #import <UIKit/UIKit.h>
@@ -365,8 +374,8 @@ it's `self.view`.
 @end
 ```
 
-We're going to handle the React bridging in this `UIViewController`, because that is the simplest option for our
-Hello World app. We'll be going back to this later.
+The `GDWelcomeViewController` is going to handle the React bridging, because that is the simplest option for our
+Hello World app. We'll be going back to improve this later.
 
 ```objc
 #import "GDWelcomeViewController.h"
@@ -452,8 +461,10 @@ $ cd GitDawg/node_modules/react-native/; pod ipc spec React.podspec
 It will output a bunch of JSON to your terminal. This is perfect. Let's move that text to a file on your desktop.
 
 ```sh
-$ pod ipc spec node_modules/react-native/React.podspec > ~/Desktop/React.podspec.json
+$ pod ipc spec React.podspec > ~/Desktop/React.podspec.json
 ```
+
+<!--
 
 You'll see no output if everything went fine. Before you grab that podspec, let's get the one for yoga too.
 
@@ -461,8 +472,17 @@ You'll see no output if everything went fine. Before you grab that podspec, let'
 $ cd ReactCommon/yoga/; pod ipc spec yoga.podspec > ~/Desktop/yoga.podspec.json
 ```
 
-Again, no output means everything is perfect. You should now have two JSON files in your Desktop. Grab them, move
-them into the `Local Pods` folder inside GitHawk. It should already have a few Podspecs.
+-->
+
+For the yoga podspec, you should just grab our version, it's not worth me explaining all the details why, other than
+the PR I made to fix a bug isn't shipped in 0.54 so run:
+
+```sh
+curl https://raw.githubusercontent.com/artsy/emission/v1.5.0/externals/yoga/yoga.podspec.json > ~/Desktop/yoga.podspec.json
+```
+
+You should now have two JSON files in your Desktop. Grab them, move them into the `Local Pods` folder inside
+GitHawk. It should already have a few Podspecs.
 
 ```sh
 $ cd ../../../ # Or however it takes to get back to the project root
@@ -485,11 +505,18 @@ Then run `bundle install`. Next we need to add GitDawg, and our custom Podspecs 
 ```diff
 source 'https://github.com/CocoaPods/Specs.git'
 
-[...]
+# Local Pods w/ custom changes
+pod 'SwipeCellKit', :path => 'Local Pods/SwipeCellKit'
+pod 'GitHubAPI', :path => 'Local Pods/GitHubAPI'
+pod 'GitHubSession', :path => 'Local Pods/GitHubSession'
 
++ # React Native Support
++ plugin 'cocoapods-fix-react-native'
 + pod 'GitDawg', :path => '../GitDawg'
 + pod 'React', :podspec => 'Local Pods/React.podspec.json'
 + pod 'yoga',  :podspec => 'Local Pods/yoga.podspec.json'
+
+target 'Freetime' do
 ```
 
 Then run `$ bundle exec pod install`. That should grab React Native for you. Unlike inside GitDawg, CocoaPods will
@@ -497,7 +524,8 @@ download the source code from the internet. `:podspec` only tells CocoaPods wher
 still download code externally.
 
 Open up the Xcode Workspace - `open Freetime.xcworkspace`, and we're gonna make the code changes - it's all in one
-file. Open the file `RootNavigationController.swift` and add a new `import` at the top for `GitDawg`:
+file. Open the file `RootNavigationManager.swift` (it's in `Classes/Systems`) and add a new `import` at the top for
+`GitDawg`:
 
 ```diff
 import UIKit
@@ -506,7 +534,7 @@ import GitHubSession
 + import GitDawg
 ```
 
-Then add our new view controller by replacing the bookmarks view controller
+Then add our new view controller by replacing the bookmarks view controller on line 78.
 
 ```diff
         tabBarController?.viewControllers = [
@@ -521,7 +549,11 @@ Then add our new view controller by replacing the bookmarks view controller
 That should get you to the same point as we were in the dev app. Now when you run the app, log in and hit the place
 where the bookmarks icon used to live. Tada.
 
-[summary of native changes]
+So what did we do? First, we added GitDawg, React and Yoga as dependencies in GitHawk's Podfile to get them
+installed. Then we switched to using GitDawg's native view controller in 2 lines of code. No JavaScript in GitHawk,
+little faffing overall.
+
+This is how all our view controllers are exposed and used in production.
 
 ## What now?
 
@@ -711,3 +743,5 @@ completely different repo from your iOS tooling.
 [githawk]: https://github.com/GitHawkApp/GitHawk/
 [areh]: https://github.com/artsy/emission/blob/master/Pod/Classes/Core/AREmission.h
 [arem]: https://github.com/artsy/emission/blob/master/Pod/Classes/Core/AREmission.m
+[emission]: https://github.com/artsy/emission
+[eigen]: https://github.com/artsy/eigen
