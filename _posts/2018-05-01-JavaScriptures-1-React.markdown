@@ -14,7 +14,7 @@ run a series of workshops for the whole engineering team.
 
 We called this JavaScriptures, 6 workshop-style deep dives into the major parts of the [Artsy JavaScript
 omakase][omakase]. They are: React, TypeScript, Styled Components, Relay and Redux, Babel and Webpack. Today I'm
-posting the [recording][recording] and [slides][slides] , a deep dive into React hosted by [Luc Succes][luc] and
+posting the [recording][recording] and [slides][slides] from a deep dive into React hosted by [Luc Succes][luc] and
 myself.
 
 <!-- more -->
