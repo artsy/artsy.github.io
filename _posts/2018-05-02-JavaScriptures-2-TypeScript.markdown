@@ -11,7 +11,7 @@ The second in our JavaScriptures series on the Artsy [omakase][omakase]. This on
 a minor-focus on working with React. We run through a series of excercises you can run [through yourself
 here][exer].
 
-It's ran by [alloy][alloy] and [sarah scott][ss] and covers compilation, errors, default types, interfaces,
+It's ran by [@alloy][alloy] and [Sarah Scott][ss] and covers compilation, errors, default types, interfaces,
 inference, generics and how they all come together in your tools.
 
 <!-- more -->
