@@ -1,14 +1,14 @@
 ---
-layout: post
+layout: epic
 title: "Fully Automated Standups"
 date: 2018-05-07
 author: [ash]
-categories: [team, people, best practices]
+categories: [team, people, best practices, culture]
 ---
 
 When I began working at Artsy four years ago, remotely, I really didn't like the weekly engineering standup. I'd sit in front of my computer and strain to hear a dozen people gathered around a laptop with Google Hangout. They'd discuss implementation details for projects I wasn't familiar with, and then I'd do the same to them (our mobile team was still very separate from our web team). Twenty minutes would pass and I didn't feel like my work experience at Artsy had been enriched in any way.
 
-The first time I came to New York to visit the office – before moving here – I sat down with Dylan and Orta. Dylan ran the weekly standup, and Orta was also not a fan of the meeting. Dylan was clear: if the standup wasn't working for the two of us, then it wasn't working for anyone. So let's fix it together.
+The first time I came to New York to visit the office – before moving here – I sat down with [Dylan](https://github.com/dylanfareed) and [Orta](https://github.com/orta). Dylan ran the weekly standup, and Orta was also not a fan of the meeting. Dylan was clear: if the standup wasn't working for the two of us, then it wasn't working for anyone. So let's fix it together.
 
 <!-- more -->
 
@@ -16,7 +16,7 @@ And we did. We installed new sound-baffling ceiling tiles to help remote workers
 
 At Artsy, when you see something that could be improved about the way that we work, you are expected to help improve it. Dylan taught me that lesson, and I still take it to heart.
 
-Last summer, I started taking on more responsibilities for the Artsy Engineering team, including running the weekly standup meeting. It was previously run by a single engineer, Craig, who was juggling a lot of team-wide responsibilities. I was happy to help him out and run the meeting, but I had only replaced _myself_ as a single-point-of-failure for standup; even with Orta running things sometimes, the process itself was still as brittle as when Craig was running things alone. After a few months, Orta and I decided to fix things.
+Last summer, I started taking on more responsibilities for the Artsy Engineering team, including running the weekly standup meeting. It was previously run by a single engineer, [Craig](https://github.com/craigspaeth), who was juggling a lot of team-wide responsibilities. I was happy to help him out and run the meeting, but I had only replaced _myself_ as a single-point-of-failure for standup; even with Orta running things sometimes, the process itself was still as brittle as when Craig was running things alone. After a few months, Orta and I decided to fix things.
 
 Our goal: fully automated standups. No single person should ever be a point-of-failure for our team. We moved through a few distinct steps.
 
