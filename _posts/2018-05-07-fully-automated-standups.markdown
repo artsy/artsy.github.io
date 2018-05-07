@@ -26,7 +26,7 @@ Next, we had to get other engineers running the meeting. We split up the respons
 
 Once the meeting was a two-person responsibility, we started bringing on other engineers to help. I would ask around to see who was interested in helping running a meeting, giving choice of role to the other person. After each meeting, I'd ask the person about how we could improve the docs. Each week, the docs got better and better.
   
-Next phase was moving to entirely to other engineers running things. I had a list of engineers who had never run a standup, and worked down the list to get as many engineers having run a meeting as possible. I made [this pull request](https://github.com/artsy/meta/pull/21) making it clear that running the standup meeting is a responsibility that every member of the team _shares_.
+The next phase was moving to having standup run entirely by other engineers. I had a list of engineers who had never run a standup, and worked down the list to get as many engineers having run a meeting as possible. I made [this pull request](https://github.com/artsy/meta/pull/21) making it clear that running the standup meeting is a responsibility that every member of the team _shares_.
 
 Eventually, I felt we were ready to move to a self-perpetuating standup. At the end of each standup, we would solicit volunteers to run next week's meeting. Fully-automated standups! We'd done it! Things were working, though we did recently decide to [integrate the standup schedule into our new support on-call schedule](https://github.com/artsy/meta/pull/32); the engineers beginning their rotation were responsible for running the standup. This eliminated the kind of awkward "okay who wants to do this next week?" part of our meeting.
 
