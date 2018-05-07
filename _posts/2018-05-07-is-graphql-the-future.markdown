@@ -72,7 +72,9 @@ Take this query, for example:
 }
 ```
 
-Here, we tell the server to look up an Artwork by its slug, and tell us the title. So far, this is just like REST. But we _also_ tell it to find us the Artist for us. Importantly, object fields _must_ be followed up with further queries, and scalar fields _cannot_ be. With that in mind, it’s easy to see that `artwork` and `artist` are object fields, while `title` and `name` are scalar fields. Also note that the fact that there’s also an `artist` root query field actually has nothing to do with the fact that
+Here, we tell the server to look up an Artwork by its slug, and tell us the title. So far, this is just like REST. But we _also_ tell it to find us the Artist for us. Importantly, object fields _must_ be followed up with further queries, and scalar fields _cannot_ be. With that in mind, it’s easy to see that `artwork` and `artist` are object fields, while `title` and `name` are scalar fields.
+
+Also note that the fact that there’s also an `artist` root query field actually has nothing to do with its presence under `Artwork`. There can be multiple paths to reach the same GraphQL type. This is defined explicitly by the schema.
 
 Usefully, the server’s response to a GraphQL request will directly mirror the shape of the request itself. The result of the query above looks like:
 
@@ -91,13 +93,13 @@ Usefully, the server’s response to a GraphQL request will directly mirror the 
 
 # GraphQL as a (meta-)scripting language
 
-Let’s dig a little deeper into the scripting language interpretation of GraphQL, because this is the crux of how I think people should think of GraphQL. If I were to guess, I think Facebook:
+Let’s dig a little deeper into the scripting language interpretation of GraphQL, because this is the crux of how I think people should think of GraphQL. If I were to guess, I think Facebook…
 
-* …knows this is true. After all, much of the spec is devoted to the execution model of GraphQL
-* …might have backed into this design. It’s well known that they think of their data as a graph.
+* …knows this is true. After all, much of the spec is devoted to [the execution model of GraphQL](http://facebook.github.io/graphql/October2016/#sec-Execution).
+* …might have backed into this design. It’s well known that they think of their data as a graph, so I suspect GraphQL might have begun literally as a graph query language.
 * …thinks that this too difficult to explain, and thus, settled on the query language paradigm.
 
-There are a couple reasons GraphQL might not look like a scripting language to you. It didn’t to me, at first! After all, it doesn’t have a linear flow of operations. It doesn’t have a concept of (explicit) variables, other than parameters to the whole document. There are no looping constructs or recursion. Let’s look into each of these.
+There are a couple reasons GraphQL might not look like a scripting language to you. It didn’t to me, at first! After all, you don't write your query as sequence of operations. It doesn’t have a concept of variables, other than parameters to the whole document. There are no looping constructs or recursion. But I think a closer look might shift your perspective.
 
 ## Operation flow
 
@@ -122,7 +124,9 @@ step2()
 return step3(“something else”)
 ```
 
-So, sequencing got a bit more verbose, but it _is_ there. Interestingly, GraphQL reserves vertical stacking for something that’s an afterthought in most languages: _concurrency_. Granted, there’s no way to synchronize concurrent paths of execution, to unify them, but still. I’m not going to quote [the spec](https://facebook.github.io/graphql/October2016/), but search it yourself, and you can find the word “parallel” in there several times. This design is intentional.
+So, sequencing got a bit more verbose, but it _is_ there.
+
+Interestingly, GraphQL reserves vertical stacking for something that’s an afterthought in most languages: _concurrency_. (Granted, there’s no way to [synchronize](<https://en.wikipedia.org/wiki/Synchronization_(computer_science)>) concurrent paths of execution.) I’m not going to quote [the spec](https://facebook.github.io/graphql/October2016/), but search it yourself, and you can find the word “parallel” in there several times. This design is intentional.
 
 ## Variables
 
@@ -142,6 +146,10 @@ This pattern reminds me a bit of when [jQuery](https://api.jquery.com/) first cl
 ## Looping and recursion
 
 GraphQL doesn’t have them, plain and simple. Consequently, the GraphQL DSLs you design are not [Turing-complete](https://en.wikipedia.org/wiki/Turing_completeness)--they will always halt in a finite amount of steps. This is really important, because it prevents clients from being able to send servers on errands that will never end. Of course, the _implementations_ of field resolvers on the server are free to do whatever they want in full Turing-complete glory.
+
+## Putting it together
+
+My point here is that the execution model of GraphQL is in many ways just like a scripting language interpreter. The limitations of its model are strategic, to keep the technology focused on client-server interaction. What's interesting is that you as a developer provide nearly all of the definition of what operations exist, what they mean, and how they compose. For this reason, I consider GraphQL to be a _meta-scripting language_, or an other words, a toolkit for building scripting languages.
 
 # The post-REST world
 
