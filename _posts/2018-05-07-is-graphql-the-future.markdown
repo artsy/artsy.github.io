@@ -16,7 +16,7 @@ That’s...different from how GraphQL’s own page describes it. GraphQL is bett
 
 I’m not trying to be pedantic. I believe GraphQL succeeds at something subtler and more important than literally being a graph query language. I’m writing this piece because I kept running into difficulties approaching GraphQL from the standpoints of REST, graph theory, or typical query languages. As I read blog posts, StackOverflow Q&As, issues on the GraphQL repo and the GraphQL spec itself, I developed a much more nuanced understanding, which I outline below.
 
-For brevity, the following assumes a intermediate familiarity with GraphQL, including its type system, syntax, and server-side implementation. If you don’t have this level of familiarity, I recommend going through any tutorial that requires you to set up a GraphQL server, not just play with the query language (which is how I ended up with a lot of misconceptions). I’m going to start with the basics, but only so I can put my own spin on those concepts, not to really illustrate them with examples.
+For brevity, the following assumes a intermediate familiarity with GraphQL, including its type system, syntax, and server-side implementation. If you don’t have this level of familiarity, I recommend going through any tutorial that requires you to set up a GraphQL server, not just play with the query language (which is how I ended up with a lot of misconceptions). [The docs for the official JavaScript server library](https://graphql.org/graphql-js/) are a good option. I’m going to start with the basics, but only so I can put my own spin on those concepts, not to really illustrate them with examples.
 
 # A tree of fetches
 
@@ -39,7 +39,7 @@ A GraphQL request always starts with at least _one root API operation_ and some 
 
 The entire model for a given API is known as its **schema**. Every schema has a root query object type, whose fields serve as the API’s entry points.
 
-```graphql
+```
 # The root query object type
 type Query {
   artwork(id: ID): Artwork
@@ -61,7 +61,7 @@ A GraphQL request begins by mentioning at least one of the fields of the root qu
 
 Take this query, for example:
 
-```graphql
+```
 {
   artwork(id: "andy-warhol-campbells-soup-i-black-bean") {
     title
@@ -105,7 +105,7 @@ There are a couple reasons GraphQL might not look like a scripting language to y
 
 It’s true that a GraphQL request doesn’t follow the same vertical sequence of steps model familiar to most programming languages. But sequencing _does_ exist. It’s just represented by calling nested fields of object types, terminating in a scalar field. See this query:
 
-```graphql
+```
 {
   step1(arg: “something”) {
     step2 {
