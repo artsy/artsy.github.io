@@ -1,7 +1,7 @@
 ---
 layout: epic
 title: Is GraphQL The Future?
-date: 2018-05-07
+date: 2018-05-08
 author: acjay
 categories: [programming, api, graphql, rest]
 ---
