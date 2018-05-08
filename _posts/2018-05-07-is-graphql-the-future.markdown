@@ -32,10 +32,10 @@ Data from early responses contain the keys for subsequent requests, but the link
 
 # GraphQL anatomy
 
-A GraphQL always request starts with at least _one root API operation_ and some finite number of follow-up operations. Idiomatically, these follow-up operations are queries, meaning that they just return data, without changing the server state in observable ways. Every operation—-root or otherwise—-can specify some finite number of follow-up operations. GraphQL models API operations as **fields**. How a field works in GraphQL depends on its **type**, which falls into one of two basic categories:
+A GraphQL request always starts with at least _one root API operation_ and some finite number of follow-up operations. Idiomatically, these follow-up operations are queries, meaning that they just retrieve data, without changing the server state in observable ways. GraphQL models API operations as **fields**. How a field works in GraphQL depends on its **type**, which falls into one of two basic categories:
 
 * **Scalar** types (`Int`, `Float`, `String`, `Boolean`, and `ID`, as well as application-defined `enum` and `scalar` types) represent the individual pieces of _data actually sent to the client_. Contrary how I think of the term scalar in other contexts, the data can be arbitrarily complex. As far as the GraphQL spec is concerned, scalars are just opaque blobs of data with validation and serialization rules. As an operation, a scalar field is terminal data fetch, with no follow-ups. They are the leaves of the request tree.
-* **Object** types (`type`, `union` and `interface`) are collections of fields. As an operation, an object-typed field is an intermediate operation that serves as the junction point for follow-up operations. But itself, it doesn’t return any data. They are the branches of the request tree.
+* **Object** types (`type`, `union` and `interface`) are collections of fields. As an operation, an object-typed field is an intermediate operation that serves as the junction point for follow-up operations. But, it doesn’t directly return any data. They are the branches of the request tree.
 
 The entire model for a given API is known as its **schema**. Every schema has a root query object type, whose fields serve as the API’s entry points.
 
@@ -57,7 +57,7 @@ type Artist {
 }
 ```
 
-A GraphQL request begins by mentioning at least one of the fields of the root query object. This represents an initial query. And if that field is an object, _its_ fields any number of follow-up queries. Critically, _any_ field in the request tree can take arguments, allowing a request to be parameterized at all depths.
+A GraphQL request begins by mentioning at least one of the fields of the root query object. This represents an initial query. And if that field is an object, _its_ fields are used to specify any number of follow-up queries. Critically, _any_ field in the request tree can take arguments, allowing a request to be parameterized at all depths.
 
 Take this query, for example:
 
@@ -72,7 +72,7 @@ Take this query, for example:
 }
 ```
 
-Here, we tell the server to look up an Artwork by its slug, and tell us the title. So far, this is just like REST. But we _also_ tell it to find us the Artist for us. Importantly, object fields _must_ be followed up with further queries, and scalar fields _cannot_ be. With that in mind, it’s easy to see that `artwork` and `artist` are object fields, while `title` and `name` are scalar fields.
+Here, we tell the server to look up an Artwork by its slug, and tell us the title. So far, this is just like REST. But we _also_ tell it to find us the `Artist` for us. Importantly, object fields _must_ be followed up with further queries, and scalar fields _cannot_ be. With that in mind, it’s easy to see that `artwork` and `artist` are object fields, while `title` and `name` are scalar fields.
 
 Also note that the fact that there’s also an `artist` root query field actually has nothing to do with its presence under `Artwork`. There can be multiple paths to reach the same GraphQL type. This is defined explicitly by the schema.
 
@@ -96,7 +96,7 @@ Usefully, the server’s response to a GraphQL request will directly mirror the 
 Let’s dig a little deeper into the scripting language interpretation of GraphQL, because this is the crux of how I think people should think of GraphQL. If I were to guess, I think Facebook…
 
 * …knows this is true. After all, much of the spec is devoted to [the execution model of GraphQL](http://facebook.github.io/graphql/October2016/#sec-Execution).
-* …might have backed into this design. It’s well known that they think of their data as a graph, so I suspect GraphQL might have begun literally as a graph query language.
+* …might have backed into this design. It’s well known that they think of their data as a graph, so I suspect GraphQL might have begun literally as a "graph query language", analogous to [SQL](https://en.wikipedia.org/wiki/SQL) for relational databases.
 * …thinks that this too difficult to explain, and thus, settled on the query language paradigm.
 
 There are a couple reasons GraphQL might not look like a scripting language to you. It didn’t to me, at first! After all, you don't write your query as sequence of operations. It doesn’t have a concept of variables, other than parameters to the whole document. There are no looping constructs or recursion. But I think a closer look might shift your perspective.
