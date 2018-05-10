@@ -10,7 +10,7 @@ I have seen the future, and it looks a lot like GraphQL. Mark my words: in 5 yea
 
 <!-- more -->
 
-GraphQL is taking the full-stack world by storm. In case you’re not familiar, GraphQL is a language-independent framework for client-server communication. It lets you model the resources and operations provided by a server as a [domain-specific language (DSL)](https://en.wikipedia.org/wiki/Domain-specific_language). Clients can use to send scripts written in your DSL to the server to process and respond to as a batch.
+GraphQL is taking the full-stack world by storm. In case you’re not familiar, GraphQL is a language-independent specification for client-server communication. It lets you model the resources and processes provided by a server as a [domain-specific language (DSL)](https://en.wikipedia.org/wiki/Domain-specific_language). Clients can use it to send scripts written in your DSL to the server to process and respond to as a batch.
 
 That’s...different from how GraphQL’s own page describes it. GraphQL is better known as a query language designed for clients to fetch exactly the data they need. While this is sort of true, I would argue that GraphQL actually fails this test in reality. It’s neither a query language, nor particularly graph-oriented. I argue that it's _not_ a query language because it comes with no native concepts of operators and expressions that build up to queries. _You_ build whatever facilities for specifying and fulfilling queries on your own. Likewise, if your data is a graph, it’s on you to expose that structure. But your requests are, if anything, trees.
 
@@ -32,12 +32,14 @@ Data from early responses contain the keys for subsequent requests, but the link
 
 # GraphQL anatomy
 
-A GraphQL request always starts with at least _one root API operation_ and some finite number of follow-up operations. Idiomatically, these follow-up operations are queries, meaning that they just retrieve data, without changing the server state in observable ways. GraphQL models API operations as **fields**. How a field works in GraphQL depends on its **type**, which falls into one of two basic categories:
+> **Editorial note** I'm going to use the term "operation" pretty liberally here, but I mean it in the conceptual sense, not in the sense of the GraphQL spec, where it defines the semantics of an entire GraphQL request.
+
+A GraphQL request always starts with at least _one root API operation_ and some finite number of follow-ups. Idiomatically, these follow-ups are queries, meaning that they just retrieve data, without changing the server state in observable ways. GraphQL models API operations as **fields**. How a field works in GraphQL depends on its **type**, which falls into one of two basic categories:
 
 * **Scalar** types (`Int`, `Float`, `String`, `Boolean`, and `ID`, as well as application-defined `enum` and `scalar` types) represent the individual pieces of _data actually sent to the client_. Contrary how I think of the term scalar in other contexts, the data can be arbitrarily complex. As far as the GraphQL spec is concerned, scalars are just opaque blobs of data with validation and serialization rules. As an operation, a scalar field is terminal data fetch, with no follow-ups. They are the leaves of the request tree.
 * **Object** types (`type`, `union` and `interface`) are collections of fields. As an operation, an object-typed field is an intermediate operation that serves as the junction point for follow-up operations. But, it doesn’t directly return any data. They are the branches of the request tree.
 
-The entire model for a given API is known as its **schema**. Every schema has a root query object type, whose fields serve as the API’s entry points.
+The entire model for a given API is known as its **schema**. Every schema has a root query type, whose fields serve as the API’s entry points.
 
 ```
 # The root query object type
@@ -57,7 +59,7 @@ type Artist {
 }
 ```
 
-A GraphQL request begins by mentioning at least one of the fields of the root query object. This represents an initial query. And if that field is an object, _its_ fields are used to specify any number of follow-up queries. Critically, _any_ field in the request tree can take arguments, allowing a request to be parameterized at all depths.
+A GraphQL query request begins by mentioning at least one of the fields of the root query object. This represents an initial query. And if that field is an object, _its_ fields are used to specify any number of follow-up queries. Critically, _any_ field in the request tree can take arguments, allowing a request to be parameterized at all depths.
 
 Take this query, for example:
 
@@ -72,11 +74,11 @@ Take this query, for example:
 }
 ```
 
-Here, we tell the server to look up an Artwork by its slug, and tell us the title. So far, this is just like REST. But we _also_ tell it to find us the `Artist` for us. Importantly, object fields _must_ be followed up with further queries, and scalar fields _cannot_ be. With that in mind, it’s easy to see that `artwork` and `artist` are object fields, while `title` and `name` are scalar fields.
+Here, we tell the server to look up an `Artwork` by its slug, and tell us the title. So far, this is just like REST. But we _also_ tell it to find us the `Artist` for us. Importantly, object fields _must_ be followed up with further queries, and scalar fields _cannot_ be. With that in mind, it’s easy to see that `artwork` and `artist` are object fields, while `title` and `name` are scalar fields.
 
 Also note that the fact that there’s also an `artist` root query field actually has nothing to do with its presence under `Artwork`. There can be multiple paths to reach the same GraphQL type. This is defined explicitly by the schema.
 
-Usefully, the server’s response to a GraphQL request will directly mirror the shape of the request itself. The result of the query above looks like:
+Usefully, the server’s response to a GraphQL request will directly mirror the shape of the request itself. The result of the request above looks like:
 
 ```
 {
@@ -99,11 +101,11 @@ Let’s dig a little deeper into the scripting language interpretation of GraphQ
 * …might have backed into this design. It’s well known that they think of their data as a graph, so I suspect GraphQL might have begun literally as a "graph query language", analogous to [SQL](https://en.wikipedia.org/wiki/SQL) for relational databases.
 * …thinks that this too difficult to explain, and thus, settled on the query language paradigm.
 
-There are a couple reasons GraphQL might not look like a scripting language to you. It didn’t to me, at first! After all, you don't write your query as sequence of operations. It doesn’t have a concept of variables, other than parameters to the whole document. There are no looping constructs or recursion. But I think a closer look might shift your perspective.
+There are a couple reasons GraphQL might not look like a scripting language to you. It didn’t to me, at first! After all, you don't write your request as list of statements. It doesn’t have a concept of variables, other than parameters to the whole document. There are no looping constructs or recursion. But I think a closer look might shift your perspective.
 
-## Operation flow
+## Control flow
 
-It’s true that a GraphQL request doesn’t follow the same vertical sequence of steps model familiar to most programming languages. But sequencing _does_ exist. It’s just represented by calling nested fields of object types, terminating in a scalar field. See this query:
+It’s true that a GraphQL request doesn’t follow the same vertical sequence of steps model familiar to most programming languages. But sequencing _does_ exist. It’s just represented by calling nested fields of object types, terminating in a scalar field. See this request:
 
 ```
 {
@@ -130,7 +132,7 @@ Interestingly, GraphQL reserves vertical stacking for something that’s an afte
 
 ## Variables
 
-One of the core aspects of programming is the ability to pass intermediate data around. The most basic way languages accomplish this with named variables. Many languages allow variables to be reassigned; some don't. GraphQL doesn’t have them at all! But that doesn’t mean data can’t be propagated.
+One of the core aspects of programming is the ability to pass intermediate data around. The most basic way languages accomplish this is with named variables. Many languages allow variables to be reassigned; some don't. GraphQL doesn’t have them at all! But that doesn’t mean data can’t be propagated.
 
 GraphQL supports one kind of propagation, which is the propagation of context down the sequence of resolvers. It happens implicitly and invisibly. Exactly what data is propagated and what that means is up to you.
 
@@ -149,7 +151,7 @@ GraphQL doesn’t have them, plain and simple. Consequently, the GraphQL DSLs yo
 
 ## Putting it together
 
-My point here is that the execution model of GraphQL is in many ways just like a scripting language interpreter. The limitations of its model are strategic, to keep the technology focused on client-server interaction. What's interesting is that you as a developer provide nearly all of the definition of what operations exist, what they mean, and how they compose. For this reason, I consider GraphQL to be a _meta-scripting language_, or an other words, a toolkit for building scripting languages.
+My point here is that the execution model of GraphQL is in many ways just like a scripting language interpreter. The limitations of its model are strategic, to keep the technology focused on client-server interaction. What's interesting is that you as a developer provide nearly all of the definition of what operations exist, what they mean, and how they compose. For this reason, I consider GraphQL to be a _meta-scripting language_, or, in other words, a toolkit for building scripting languages.
 
 # The post-REST world
 
@@ -157,9 +159,9 @@ Subtly, this paradigm is a sharp step away from a whole body of knowledge that m
 
 ## Verb orientation
 
-Speaking of verbs, you can think of _query_ as being the default verb in GraphQL. You model other verbs as mutations. I delayed learning about mutations, because I thought they must be way more complex than queries. Quite the opposite! They all sit in one big, flat bucket at the root of your schema, as the fields of the root `mutation` type. These fields have a type too, and if it is an object type, then you can issue effectively issue any number of follow-up queries after your mutation completes. Learning about mutations was when it really dawned on me that _fields are just function calls_.
+Speaking of verbs, you can think of "fetch" as being the default verb in GraphQL. You model other verbs as **mutations**. I delayed learning about mutations, because I thought they must be way more complex than queries. Quite the opposite! They all sit in one big, flat bucket at the root of your schema, as the fields of the root `mutation` type. These fields have a type too, and if it is an object type, then you can issue effectively any number of follow-up queries after your mutation completes. Learning about mutations was when it really dawned on me that _fields are just function calls_.
 
-Mutations are a major break with REST. Separating them from the query structure means that they are not verbs on a resource, but verbs _on your entire service_. This eliminates one of REST’s key weak points, namely that complex operations that touch multiple parts of an application’s data model are difficult to model as a PUT, DELETE, POST, or PATCH on a single resource. In my experience, this "impedance mismatch” between API modeling and domain modeling has led to the worst aspects of my HTTP API designs.
+Mutations are a major break with REST. In GraphQL, your mutations are defined under root mutation object that is separate from your root query object, and you are immediately asked to accept that they don't represent verbs on a resource, but verbs _on your entire service_. This eliminates one of REST’s key weak points, namely that complex operations that touch multiple parts of an application’s data model are difficult to model as a PUT, DELETE, POST, or PATCH on a single resource. In my experience, this "impedance mismatch” between API modeling and domain modeling has led to the worst aspects of my HTTP API designs.
 
 ## REST is dead. Long live REST!
 
@@ -180,9 +182,9 @@ Another realization I’ve had in learning to apply GraphQL is that the schema i
 
 * [There is no free-form map data structure](https://github.com/facebook/graphql/issues/101). There are only objects with fixed fields, scalars, and lists.
 * It is difficult to design abstractions over types.
-* The object tree you get in return from a query is neither normalized nor is it an object graph (multiple copies of the same object may be returned).
+* The object tree you get in return from a query request is neither normalized nor is it an object graph (multiple copies of the same object may be returned).
 * Commonly used protocol patterns, like [the connection pattern](https://facebook.github.io/relay/docs/graphql-connections.html), require explicit modeling within your schema.
-* The limitations of GraphQLs type system make certain modeling techniques difficult to directly model, such as [singletons within unions](https://stackoverflow.com/questions/47933512/representing-enum-object-variant-type-in-graphql).
+* The limitations of GraphQL's type system make certain modeling techniques difficult to directly model, such as [singletons within unions](https://stackoverflow.com/questions/47933512/representing-enum-object-variant-type-in-graphql).
 * Recursive data types can’t be queried to undefined depth in their nested form. Think of your comment board with nested replies.
 
 The upshot of this is that there likely needs to be some process of conversion from your native data model on your server to your GraphQL API, and then again from your client’s API consumption code to its internal data model. [Relay](https://facebook.github.io/relay/) and [Apollo](https://www.apollographql.com/client) serve this purpose. Their utility wasn’t immediately clear to me when I naively imagined GraphQL to literally be a system for reproducing a slice of server-side object graph. (Hmm, where might I have gotten that impression from?)
@@ -191,6 +193,6 @@ A lot of discussion in the GraphQL space centers on data modeling—the nouns. T
 
 # So, where to now?
 
-I began by asserted that the future looks a lot _like_ GraphQL. But I did not say that GraphQL _is the future_. I hedge because there are a lot of unanswered questions and some pain points within today’s GraphQL, even as it paints a compelling picture of the future. I may write a follow-up piece bringing up some of these gripes. At the moment, Facebook still largely controls the development of the technology and it has been slow to evolve. Arguably, this is a good thing, as the full-stack community continues to digest the basic concepts. But I’m sure impatient folks will attempt forks or create parallel technologies. How it all balances out is anybody’s guess.
+I began by asserting that the future looks a lot _like_ GraphQL. But I did not say that GraphQL _is the future_. I hedge because there are a lot of unanswered questions and some pain points within today’s GraphQL, even as it paints a compelling picture of the future. I may write a follow-up piece bringing up some of these gripes. At the moment, Facebook still largely controls the development of the technology and it has been slow to evolve. Arguably, this is a good thing, as the full-stack community continues to digest the basic concepts. But I’m sure impatient folks will attempt forks or create parallel technologies. How it all balances out is anybody’s guess.
 
 Nonetheless, today’s GraphQL is already a tremendous leap forward from REST API design. It much more directly models the sort of data traversals a client needs to perform in order to do its job. I expect significant refinement within this space over the next couple years. And after a couple more, the days before GraphQL will be just another source of lore for grizzled vets like us.
