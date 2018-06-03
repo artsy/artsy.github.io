@@ -5,7 +5,7 @@ date: 2018-06-02
 author: [orta]
 categories: [graphql, stitching, metaphysics]
 css: graphql
-# comment_id: 443
+comment_id: 450
 ---
 
 Micro-Services make sense. You can scope a domain of your business to particular small unit of abstraction like an
@@ -31,7 +31,7 @@ We started experimenting last year and, we have all the code [in metaphysics][st
 feature flag. Every so often an engineer picks the project back up and we get a little bit closer to having it
 running in production. Safe, incremental evolutions over bold revolution.
 
-Here are the principals:
+Here's a quick glossary of terms before we start:
 
 * **GraphQL Schema** - a representation of your GraphQL's type system, containing all Types and fields on them
 * **GraphQL Resolver** - every field accessed in a query has a corresponding resolver
@@ -39,7 +39,7 @@ Here are the principals:
 * **Schema Stitching** - extending a GraphQL Schema by using Types from another schema
 
 Stitching is one of the end-goals, but merging may be enough for a lot of cases. Both of the two launch posts above
-give a much more in-depth explanation of how everything comes together, but that should be enough for this post.
+give a much more in-depth explanation of how everything comes together, but these should be enough for this post.
 
 ## How Do We Do It?
 
@@ -57,7 +57,7 @@ Let's dig, with some code into how we do each of these steps.
 
 #### Downloading Schemas
 
-We created a [pretty minimal script][dl-schema] which can be run from a developer's computer.
+We created a [pretty minimal script][dl-schema] which can be run periodically from a developer's computer.
 
 ```js
 const destination = "src/data"
@@ -72,12 +72,13 @@ introspectSchema(httpConvectionLink).then(schema => {
 })
 ```
 
-This uses a [apollo-http-link][] to grab our schema, and store it in our repo, see
+The script uses an [apollo-http-link][] to grab our schema, and store it in our repo, see
 [`src/data/convection.graphql`][c-gql]. This means that when someone wants to update to a new version of the schema,
-it will go through code review and a normal testing-flow. This is useful because you don't know how the schema will
-grow in the future.
+it will go through code review and a normal testing-flow. The trade-off being that it will always be out of date a
+little bit, but you don't know how the schema will grow in the future.
 
-Plus, if you have a local copy of the schemas, it's much easier to write tests for the next few steps.
+This file is the [GraphQL SDL][sdl] representations of the entire type system for that schema. This means we have a
+local copy of the schemas, so we can use it for tests for the next few steps.
 
 #### Schema Manipulation
 
@@ -171,7 +172,10 @@ it("Does not include blacklisted types", async () => {
 
 #### Merging Schemas
 
-[Merging a schema][merging] has a pretty small API surface,
+There are two classes of schemas involved in our stitching. Local Schemas, which is our existing schema (e.g. the
+resolver live inside the current source code) and Remote Schemas (e.g. where you make an API request to run those
+resolvers). [Merging a schema][merging] has a pretty small API surface and doesn't mind about which type of schemas
+you merge together.
 
 ```js
 import { mergeSchemas as _mergeSchemas } from "graphql-tools"
@@ -183,20 +187,116 @@ import localSchema from "../../schema"
 
 export const mergeSchemas = async () => {
   const convectionSchema = await executableConvectionSchema()
-  const convectionStitching = consignmentStitchingEnvironment(localSchema, convectionSchema)
-
   const gravitySchema = await executableGravitySchema()
-  const lewittSchema = await executableLewittSchema()
 
-  // The order should only matter in that extension schemas come after the
-  // objects that they are expected to build upon
   const mergedSchema = _mergeSchemas({
-    schemas: [gravitySchema, localSchema, convectionSchema, lewittSchema]
+    schemas: [gravitySchema, localSchema, convectionSchema]
   })
 
   return mergedSchema
 }
 ```
+
+It's a pretty simple composition model, makes it real easy to do some verification tests using the same techniques
+as above.
+
+#### Stitching Schemas
+
+Today we only really have a toy example of schema stitching inside metaphysics. It's important to verify that all
+the pieces work up-front though. We opted to take a Type from our local schema, (`Artist`), and add that a Type that
+was added from a remote schema (`ConsignmentSubmission`).
+
+The API works by using [Type Extensions][t-e] which are a way of opening up an existing Type and adding new fields
+on it. We want to be working with the highest level abstraction, which in this case is directly writing [GraphQL
+SDL][sdl] (basically writing the interface) and then hooking that up to its resolvers.
+
+Here's what that looks like in our app:
+
+```js
+export const consignmentStitchingEnvironment = (
+  localSchema: GraphQLSchema,
+  convectionSchema: GraphQLSchema
+) => ({
+  // The SDL used to declare how to stitch an object
+  extensionSchema: `
+    extend type ConsignmentSubmission {
+      artist: Artist
+    }
+  `,
+
+  // Resolvers which correspond to the above type extension
+  resolvers: {
+    ConsignmentSubmission: {
+      artist: {
+        // The required query to get access to the object, e.g. we have to
+        // request `artist_id` on a ConsignmentSubmission in order to access the artist
+        // at all
+        fragment: `fragment SubmissionArtist on ConsignmentSubmission { artist_id }`,
+        // The function to handle getting the Artist data correctly, we
+        // use the root query `artist(id: id)` to grab the data from the local
+        // metaphysics schema
+        resolve: (parent, _args, context, info) => {
+          const id = parent.artist_id
+          return info.mergeInfo.delegateToSchema({
+            schema: localSchema,
+            operation: "query",
+            fieldName: "artist",
+            args: {
+              id,
+            },
+            context,
+            info,
+            transforms: (convectionSchema as any).transforms,
+          })
+        },
+      },
+    },
+  },
+})
+```
+
+This file consolidates the two parts
+
+```diff
+export const mergeSchemas = async () => {
+  const convectionSchema = await executableConvectionSchema()
++ const convectionStitching = consignmentStitchingEnvironment(localSchema, convectionSchema)
+
+  const gravitySchema = await executableGravitySchema()
+
+  // The order should only matter in that extension schemas come after the
+  // objects that they are expected to build upon
+  const mergedSchema = _mergeSchemas({
+    schemas: [
+      gravitySchema,
+      localSchema,
+      convectionSchema,
++      convectionStitching.extensionSchema,
++    ],
++    resolvers: {
++      ...convectionStitching.resolvers,
++    },
+  })
+
+  return mergedSchema
+}
+```
+
+We then extend the merge schema function to also include the SDL for our stitching, and de-structure in the
+extension resolvers. We're still exploring how to write _useful_ tests for this part.
+
+## Not Quite in Production
+
+We've been using GraphQL [since mid-2015][init] and we've also used it with Relay for the past two years, this has
+meant we have quite a few interesting edge cases in our use of the tech. We got in touch with [Mikhail Novikov][mn]
+and he contracted to help us with most of these issues and I'd strongly recommend doing the same (with any OSS
+dependency, but that's, like, just my opinion man) we got really far.
+
+GraphQL Stitching solves the problem of API consolidation in a really well thought out abstraction, and I consider
+it one of the most interesting avenues of exploration into what GraphQL will be in the future (see [Is GraphQL The
+Future?][igtf] for a more philosophical take also.)
+
+Would I recommend it if you're starting to map many services inside a single point of origin? Yep.
 
 [stitching_announcement]: https://dev-blog.apollodata.com/the-next-generation-of-schema-stitching-2716b3b259c0
 [stitching_out]: https://dev-blog.apollodata.com/graphql-tools-2-0-with-schema-stitching-8944064904a5
@@ -210,3 +310,8 @@ export const mergeSchemas = async () => {
 [transform]: https://www.apollographql.com/docs/graphql-tools/schema-transforms.html
 [type-q]: https://github.com/artsy/metaphysics/blob/1423ee39f8e348805710080a4857e6575d3ddade/src/lib/stitching/lib/getTypesFromSchema.ts
 [merging]: https://github.com/artsy/metaphysics/blob/1423ee39f8e348805710080a4857e6575d3ddade/src/lib/stitching/mergeSchemas.ts#L9-L39
+[t-e]: https://github.com/graphql/graphql-js/pull/1117
+[sdl]: https://blog.graph.cool/graphql-sdl-schema-definition-language-6755bcb9ce51
+[init]: https://github.com/artsy/metaphysics/commit/50b23f1738b9fa9757ff83c2d1e0d265c70e4e90
+[mn]: https://www.freiksenet.com
+[igtf]: http://artsy.github.io/blog/2018/05/08/is-graphql-the-future/
