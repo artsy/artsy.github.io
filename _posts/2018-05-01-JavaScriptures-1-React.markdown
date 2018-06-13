@@ -2,7 +2,7 @@
 layout: epic
 title: "JavaScriptures 1 - React"
 date: 2018-05-01
-author: [orta, luc]
+author: [luc, orta]
 categories: [event, react]
 series: JavaScriptures
 ---
