@@ -2,17 +2,17 @@
 layout: epic
 title: "JavaScriptures 4.2 - Local State"
 date: 2018-06-15
-author: [chris, orta]
+author: [chris, eve, orta]
 categories: [event, react, babel, webpack]
 series: JavaScriptures
 ---
 
 The fifth in our JavaScriptures series on the Artsy [omakase][omakase]. This talk is the second part on state
-management inside JavaScript projects. In this talk [Chris][] covers the basics of how we handle interacting with
-local state in our different applications.
+management inside JavaScript projects. In this talk [Chris][] and [Eve][] cover the basics of how we handle
+interacting with local state in our different applications.
 
-[Chris][] [creates three demos][demo] which cover using Reacts `setState`, [Redux][redux] and [Unstated][] to make
-complex applications.
+[Chris][] and [Eve][] [create three demos][demo] which cover using Reacts `setState`, [Redux][redux] and
+[Unstated][] to make complex applications.
 
 <!-- more -->
 
@@ -33,3 +33,4 @@ Slides on Speakerdeck
 [demo]: https://github.com/artsy/javascriptures/tree/master/5_intro-to-state
 [redux]: https://github.com/artsy/javascriptures/blob/master/5_intro-to-state/2-redux
 [unstated]: https://github.com/jamiebuilds/unstated
+[eve]: https://twitter.com/seevexes
