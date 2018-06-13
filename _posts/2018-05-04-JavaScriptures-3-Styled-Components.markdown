@@ -2,7 +2,7 @@
 layout: epic
 title: "JavaScriptures 3 - Styled Components"
 date: 2018-05-04
-author: [orta, roop, jonallured]
+author: [roop, jonallured, orta]
 categories: [event, styledcomponents, javascript]
 series: JavaScriptures
 ---

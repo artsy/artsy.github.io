@@ -4,7 +4,7 @@ title: "Announcing: Artsy x React Native"
 date: 2018-06-03
 author: [orta, maxim]
 categories: [event, typescript, javascript]
-series: JavaScriptures
+series: React Native at Artsy
 ---
 
 React Native has a lot of buzz around it. It is some serious and cool tech, yet can feel like a big departure from
