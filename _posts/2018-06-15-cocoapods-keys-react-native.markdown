@@ -1,6 +1,6 @@
 ---
 layout: epic
-title: Exposing secrets in a React Native app
+title: Managing Secrets in a React Native App
 date: 2018-06-15
 author: erik
 categories: [Technology, emission, reactnative, react, javascript, ios]
@@ -66,7 +66,7 @@ Note that this is happening in our _Emission Pod_; The pod now expects that key 
                      userAgent:(NSString *)userAgent;
 ```
 
-`AREmission`'s implementation (.m) needs to be configured to take this new key- It will be exported to our our React Native components as `Emission`.
+`AREmission`'s implementation (.m) needs to be configured to take this new key- It will be exported to our our React Native components as `Emission`. We make our intializer match the signature defined in the header (.h) file, and add an instance `_stripePublishableKey` to match the `@property` declaration.
 [/Pod/Classes/Core/AREmission.m](https://github.com/artsy/emission/blob/4a2a3e9260e97d791536cf38376a06b0ad0946a8/Pod/Classes/Core/AREmission.m#L24-L60):
 
 ```diff
@@ -93,7 +93,6 @@ Note that this is happening in our _Emission Pod_; The pod now expects that key 
  {
      self = [super init];
      _userID = userID.copy;
-     # _properties match the @property getters defined in the header (.h) file above
 +    _stripePublishableKey = stripePublishableKey.copy;
      # ... More copies...
      return self;
@@ -104,7 +103,7 @@ Note that this is happening in our _Emission Pod_; The pod now expects that key 
 
 #### 3. Configure the example app to expose the new key to our library
 
-Make sure we have imported they keys from `cocoapods-keys` and initialize the new configuration with the ~signature~ function we defined above.
+Make sure we have imported they keys from `cocoapods-keys` and initialize the new configuration with the function we defined above.
 
 [Example/Emission/AppDelegate.m](https://github.com/artsy/emission/blob/4a2a3e9260e97d791536cf38376a06b0ad0946a8/Example/Emission/AppDelegate.m#L109)
 
