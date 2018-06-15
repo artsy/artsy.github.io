@@ -4,7 +4,7 @@
   <title><![CDATA[Category: javascript | Artsy Engineering]]></title>
   <link href="http://artsy.github.io/blog/categories/javascript/atom.xml" rel="self"/>
   <link href="http://artsy.github.io/"/>
-  <updated>2018-06-14T21:22:08+00:00</updated>
+  <updated>2018-06-15T21:31:19+00:00</updated>
   <id>http://artsy.github.io/</id>
   <author>
     <name><![CDATA[]]></name>
@@ -12,6 +12,165 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Managing Secrets in a React Native App]]></title>
+    <link href="http://artsy.github.io/blog/2018/06/15/cocoapods-keys-react-native/"/>
+    <updated>2018-06-15T00:00:00+00:00</updated>
+    <id>http://artsy.github.io/blog/2018/06/15/cocoapods-keys-react-native</id>
+    <content type="html"><![CDATA[<!--
+Iɴᴛʀᴏᴅᴜᴄᴛɪᴏɴ
+-->
+
+
+<p>Hi! I'm Erik, a software engineer on the Purchase team. One of the most visible payoffs from Artsy's investments in React Native <a href="https://artsy.github.io/search/?q=react+native">over the past two years</a> has been the opening up of our mobile codebase to contributors like myself coming primarily from web stacks. It's nice to be able to build mobile interfaces with the same declarative API used by so many of our web projects, but sometimes we still need to bridge the divide to our Objective-C and Swift ecosystem. One such case: replacing the app secrets typically loaded from a deploy environment or web developer's <a href="https://www.npmjs.com/package/dotenv">dotenv</a> file.</p>
+
+<!-- more -->
+
+
+<!--
+Mᴀɪɴ Bᴏᴅʏ
+-->
+
+
+<p><a href="https://github.com/artsy/emission">Emission</a> is Artsy's React Native component library. It contains its own native app in the <code>/Example</code> folder, which uses <a href="https://artsy.github.io/blog/2015/01/21/cocoapods-keys-and-CI/">cocoapods-keys</a> to store secrets while still letting us code in the open. In order to expose these keys to our React Native components, however, we must do a fair bit of setup. Here's a straightforward how-to that also makes a quick tour through the iOS ecosystem for web developers looking at the React Native JavaScript runtime today.</p>
+
+<p>Links to examples below come from <a href="https://github.com/artsy/emission/pull/1086/commits/4a2a3e9260e97d791536cf38376a06b0ad0946a8">this commit</a> which adds a key for the Stripe API to Emission. When we are finished, a client app (<code>/Example</code>, <a href="https://github.com/artsy/eigen">Eigen</a>, etc.) will be able to initialize Emission with this secret, which will in turn make it available to React Native components.</p>
+
+<a name="Steps"></a>
+<h2>Steps</h2>
+
+<a name="L1..Add.the.key.to.the.app.s.Podfile."></a>
+<h4>1. Add the key to the app's Podfile.</h4>
+
+<p>This is the extent of <code>cocoapods-keys</code> official <a href="https://github.com/orta/cocoapods-keys#usage">setup</a>, and after this you <strong>could</strong> set the key via <code>pod keys set &lt;NAME&gt;</code> or <code>pod install</code>... but we have more to do.</p>
+
+<p><a href="https://github.com/artsy/emission/blob/4a2a3e9260e97d791536cf38376a06b0ad0946a8/Example/Podfile#L63">/Example/Podfile</a>:</p>
+
+<pre><code class="diff">plugin 'cocoapods-keys', {
+  :target =&gt; 'Emission',
+  :keys =&gt; [
+    'ArtsyAPIClientSecret',
+    'ArtsyAPIClientKey',
++    'StripePublishableKey',
+  ]
+}
+</code></pre>
+
+<hr />
+
+<a name="L2..Configure.the.library.to.consume.our.new.key"></a>
+<h4>2. Configure the library to consume our new key</h4>
+
+<p>We'll need to update the <code>initWithUserId...</code> function — one <strong>fun</strong> part of adjusting to Objective-C is that rather than named functions, we just refer to them by their entire signatures — to expose the new key as a property and add it to <code>constantsToExport</code> (<a href="https://facebook.github.io/react-native/docs/native-modules-ios.html#exporting-constants">docs</a>).</p>
+
+<p>Note that this is happening in our <em>Emission Pod</em>; The pod now expects that key to be available in our <em>consuming</em> Example app as defined above.</p>
+
+<p><a href="https://github.com/artsy/emission/blob/4a2a3e9260e97d791536cf38376a06b0ad0946a8/Pod/Classes/Core/AREmission.h#L17-L34">/Pod/Classes/Core/AREmission.h</a>:</p>
+
+<pre><code class="diff">// ENV Variables
+ #import &lt;React/RCTBridgeModule.h&gt;
+
+ @interface AREmissionConfiguration : NSObject &lt;RCTBridgeModule&gt;
+
++ @property (nonatomic, copy, readonly, nullable) NSString *stripePublishableKey;
+
+ - (instancetype)initWithUserID:(NSString *)userID
+           authenticationToken:(NSString *)token
+                     sentryDSN:(nullable NSString *)sentryDSN
++         stripePublishableKey:(NSString *)stripePublishableKey
+              googleMapsAPIKey:(nullable NSString *)googleAPIKey
+                    gravityURL:(NSString *)gravity
+                metaphysicsURL:(NSString *)metaphysics
+                     userAgent:(NSString *)userAgent;
+</code></pre>
+
+<p><code>AREmission</code>'s implementation (.m) needs to be configured to take this new key- It will be exported to our React Native components as <code>Emission</code>. We make our initializer match the signature defined in the header (.h) file, and add an instance <code>_stripePublishableKey</code> to match the <code>@property</code> declaration.</p>
+
+<p><a href="https://github.com/artsy/emission/blob/4a2a3e9260e97d791536cf38376a06b0ad0946a8/Pod/Classes/Core/AREmission.m#L24-L60">/Pod/Classes/Core/AREmission.m</a>:</p>
+
+<pre><code class="diff"> @implementation AREmissionConfiguration
+ RCT_EXPORT_MODULE(Emission);
+ # ...
+
+ - (NSDictionary *)constantsToExport
+ {
+   return @{
++    @"stripePublishableKey": self.stripePublishableKey ?: @"",
+     # ...lots more
+   };
+ }
+
+ - (instancetype)initWithUserID:(NSString *)userID
+            authenticationToken:(NSString *)token
+                      sentryDSN:(NSString *)sentryDSN
++          stripePublishableKey:(NSString *)stripePublishableKey
+               googleMapsAPIKey:(NSString *)googleAPIKey
+                     gravityURL:(NSString *)gravity
+                 metaphysicsURL:(NSString *)metaphysics
+                      userAgent:(nonnull NSString *)userAgent
+ {
+     self = [super init];
+     _userID = [userID copy];
++    _stripePublishableKey = [stripePublishableKey copy];
+     # ... More copies...
+     return self;
+ }
+</code></pre>
+
+<p><em>Why is <code>copy</code> needed at all? See <a href="https://stackoverflow.com/questions/387959/nsstring-property-copy-or-retain/388002#388002">here</a>.</em></p>
+
+<hr />
+
+<a name="L3..Configure.the.example.app.to.expose.the.new.key.to.our.library"></a>
+<h4>3. Configure the example app to expose the new key to our library</h4>
+
+<p>After making sure we have imported the keys from <code>cocoapods-keys</code> we update Emission's setup to use the new initializer signature we defined above.</p>
+
+<p><a href="https://github.com/artsy/emission/blob/4a2a3e9260e97d791536cf38376a06b0ad0946a8/Example/Emission/AppDelegate.m#L109">Example/Emission/AppDelegate.m</a>:</p>
+
+<pre><code class="diff">#import &lt;Keys/EmissionKeys.h&gt;
+
+  - (void)setupEmissionWithUserID:(NSString *)userID accessToken:(NSString *)accessToken keychainService:(NSString *)service;
+  {
+    # ...
+     AREmissionConfiguration *config = [[AREmissionConfiguration alloc]
+      initWithUserID:userID
+      authenticationToken:accessToken
+      sentryDSN:nil
++     stripePublishableKey:keys.stripePublishableKey
+      googleMapsAPIKey:nil
+      gravityURL:setup.gravityURL
+      metaphysicsURL:setup.metaphysicsURL
+      userAgent:@"Emission Example"];
+    # ...
+</code></pre>
+
+<hr />
+
+<a name="L4..Use.that.configured.key.in.a.React.Native.component."></a>
+<h4>4. Use that configured key in a React Native component.</h4>
+
+<p><code>Emission</code> is now exposed along with its configured keys via React Native's <a href="https://facebook.github.io/react-native/docs/native-modules-ios.html">NativeModules</a>.</p>
+
+<p><a href="https://github.com/artsy/emission/blob/4a2a3e9260e97d791536cf38376a06b0ad0946a8/src/lib/components/bidding/screens/confirmfirsttimebid.tsx#l31">src/lib/Components/Bidding/Screens/ConfirmFirstTimeBid.tsx</a>:</p>
+
+<pre><code class="js">import { NativeModules } from "react-native";
+const Emission = NativeModules.Emission || {};
+
+stripe.setOptions({
+  publishableKey: Emission.stripePublishableKey
+});
+</code></pre>
+
+<!--
+Cᴏɴᴄʟᴜsɪᴏɴ
+-->
+
+
+<p>That's it! Compared to a familiar dotenv file, <strong>it</strong> certainly means a bit more ceremony here, but we are working through React Native code, its containing Pod <em>and</em> a consuming app. The process is more complicated, but it's also a nice overview of some fundamentals of Objective-C, iOS development and bridging the gap between react and mobile native code.</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Announcing: Artsy x React Native]]></title>
@@ -814,68 +973,6 @@ also mix that with some admin options, the ability to run someone's PRs and <a h
 piece comes together. So let me know if you make something cool - we've been using this structure for 2 years now
 and I think it's the right way to integrate React Native into an existing complex app. It keeps your JS tooling in a
 completely different repo from your iOS tooling.</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[React Native, 2 years later]]></title>
-    <link href="http://artsy.github.io/blog/2018/03/17/two-years-of-react-native/"/>
-    <updated>2018-03-17T00:00:00+00:00</updated>
-    <id>http://artsy.github.io/blog/2018/03/17/two-years-of-react-native</id>
-    <content type="html"><![CDATA[<p><a href="https://twitter.com/alloy/">@alloy</a> first mentioned React Native as an option for Artsy back <a href="https://github.com/artsy/mobile/issues/22">in March 2015</a>, and in February 2016 he
-made <a href="https://github.com/artsy/emission/commit/b9154d4145feb49b38e713ee84594de04ea377e3#diff-9879d6db96fd29134fc802214163b95a">our first commit</a> to get the ball rolling. Since then, we've grown a new codebase, <a href="https://github.com/artsy/emission/">Emission</a>,
-which has slowly taken over the responsibility for creating the UIViewControllers presented inside our iOS app.</p>
-
-<p>We've come quite far from where we started, and I was asked if I could give a talk to summerize what we've learned in
-the last 2 years as a set of native developers using React Native.</p>
-
-<p>The <a href="https://speakerdeck.com/orta/react-native-2-years-later">slides are on speakerdeck</a>, and I've <a href="https://github.com/artsy/artsy.github.io/issues/420">opened comments</a> for this post if people have questions. Jump
-through to get to the video or watch it <a href="https://www.prolificinteractive.com/iosoho/">on Prolific's site</a> for <a href="https://www.meetup.com/iOSoho/">iOSoho</a>.</p>
-
-<!-- more -->
-
-
-<p>Table of Contents for the Video:</p>
-
-<ul id="timers">
-  <li><a href="#video" data-time="330">Why move? 5:30</a></li>
-  <li><a href="#video" data-time="520">Why not Swift? 8:40</a></li>
-  <li><a href="#video" data-time="590">What we expected vs what we have: 9:50</a></li>
-  <li><a href="#video" data-time="960">Downsides: 16:00</a></li>
-  <li><a href="#video" data-time="1235">Artsy Omakase: 20:35</a></li>
-  <li><a href="#video" data-time="1420">Upsides: 23:40</a></li>
-  <li><a href="#video" data-time="1645">In-App demo of Emission: 27:25</a></li>
-  <li><a href="#video" data-time="2195">RN Brownfield Apps: 36:35</a></li>
-  <li><a href="#video" data-time="2379">Our Deployment: 39:30</a></li>
-</ul>
-
-
-
-
-<center id="video">
-  <iframe src="https://player.vimeo.com/video/260417482" width="100%" height="600" frameborder="0" webkitallowfullscreen mozallowfullscreen allowfullscreen></iframe>
-</center>
-
-
-
-
-<script src="https://player.vimeo.com/api/player.js"></script>
-
-
-<script>
-  $(() => {
-    $('#timers a').click( function(e) {
-      var time = $(this).attr("data-time");
-      var iframe = document.querySelector('iframe');
-      var player = new Vimeo.Player(iframe);
-      player.setCurrentTime(time)
-      e.stopPropagation()
-    });
-  })
-</script>
-
-
-
 ]]></content>
   </entry>
   

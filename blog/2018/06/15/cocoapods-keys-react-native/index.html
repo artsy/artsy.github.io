@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Managing Secrets in a React Native App - Artsy Engineering</title>
+  <meta name="author" content="">
+
+  
+  <meta name="description" content="
+
+
+Hi! I'm Erik, a software engineer on the Purchase team. One of the most visible payoffs from Artsy's investments in React Native over the past t...">
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <meta property="og:image" content="http://artsy.github.io/images/artsy_oss_image.png" />
+  <meta property="og:image:type" content="image/png" />
+
+  
+  <link rel="canonical" href="http://artsy.github.io/blog/2018/06/15/cocoapods-keys-react-native/">
+  <link rel="alternate" type="application/rss+xml" title="Artsy Engineering Blog" href="/feed">
+
+  <link href="/favicon.ico" rel="icon">
+  <link href="/css/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+
+  <script src="/javascripts/jquery-1.11.3.min.js"> </script>
+  <script src="/javascripts/gradient-fade.js"></script>
+  <script src="/javascripts/noframework.waypoints.min.js"></script>
+  <script src="/javascripts/sticky.min.js"></script>
+  <script src="/javascripts/search.min.js"></script>
+
+  
+
+  <script type="text/javascript" src="https://fast.fonts.net/jsapi/f7f47a40-b25b-44ee-9f9c-cfdfc8bb2741.js"></script>
+
+
+  <link href="" rel="alternate" title="Artsy Engineering" type="application/atom+xml">
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-12450662-3']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+  <!--[if IE 8]><link href="/stylesheets/custom/ie_font.css" type="text/css"><![endif]-->
+
+</head>
+
+
+<link href="/css/epic.css" media="screen, projection" rel="stylesheet" type="text/css">
+
+
+
+<body>
+  <div>
+    <div id="bodywrapper">
+      <header>
+        <ul>
+          <li><a href="/">Artsy Engineering Blog</a></li>
+          <li><a href="https://www.artsy.net/jobs">Careers</a></li>
+          <li><a href="https://developers.artsy.net">API</a></li>
+        </ul>
+
+        <ul>
+          <li><a href="http://artsy.github.io/open-source/">Our Open Source</a></li>
+          <li><a href="http://twitter.com/artsyopensource">@artsyopensource</a></li>
+          <li><a href="https://www.artsy.net">artsy.net</a></li>
+        </ul>
+      </header>
+
+      <section>
+        <header id="page">
+          <h1>Managing Secrets in a React Native App</h1>
+          <h3>
+          <!-- Yep, single line so the comma lines up right -->
+          By  Erik Stockmeier
+          </h3>
+        </header>
+
+        <article class='post'>
+          <!--
+Iɴᴛʀᴏᴅᴜᴄᴛɪᴏɴ
+-->
+
+
+<p>Hi! I'm Erik, a software engineer on the Purchase team. One of the most visible payoffs from Artsy's investments in React Native <a href="https://artsy.github.io/search/?q=react+native">over the past two years</a> has been the opening up of our mobile codebase to contributors like myself coming primarily from web stacks. It's nice to be able to build mobile interfaces with the same declarative API used by so many of our web projects, but sometimes we still need to bridge the divide to our Objective-C and Swift ecosystem. One such case: replacing the app secrets typically loaded from a deploy environment or web developer's <a href="https://www.npmjs.com/package/dotenv">dotenv</a> file.</p>
+
+<!-- more -->
+
+
+<!--
+Mᴀɪɴ Bᴏᴅʏ
+-->
+
+
+<p><a href="https://github.com/artsy/emission">Emission</a> is Artsy's React Native component library. It contains its own native app in the <code>/Example</code> folder, which uses <a href="https://artsy.github.io/blog/2015/01/21/cocoapods-keys-and-CI/">cocoapods-keys</a> to store secrets while still letting us code in the open. In order to expose these keys to our React Native components, however, we must do a fair bit of setup. Here's a straightforward how-to that also makes a quick tour through the iOS ecosystem for web developers looking at the React Native JavaScript runtime today.</p>
+
+<p>Links to examples below come from <a href="https://github.com/artsy/emission/pull/1086/commits/4a2a3e9260e97d791536cf38376a06b0ad0946a8">this commit</a> which adds a key for the Stripe API to Emission. When we are finished, a client app (<code>/Example</code>, <a href="https://github.com/artsy/eigen">Eigen</a>, etc.) will be able to initialize Emission with this secret, which will in turn make it available to React Native components.</p>
+
+<a name="Steps"></a>
+<h2>Steps</h2>
+
+<a name="L1..Add.the.key.to.the.app.s.Podfile."></a>
+<h4>1. Add the key to the app's Podfile.</h4>
+
+<p>This is the extent of <code>cocoapods-keys</code> official <a href="https://github.com/orta/cocoapods-keys#usage">setup</a>, and after this you <strong>could</strong> set the key via <code>pod keys set &lt;NAME&gt;</code> or <code>pod install</code>... but we have more to do.</p>
+
+<p><a href="https://github.com/artsy/emission/blob/4a2a3e9260e97d791536cf38376a06b0ad0946a8/Example/Podfile#L63">/Example/Podfile</a>:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class='diff'><span class='line'>plugin &#39;cocoapods-keys&#39;, {
+</span><span class='line'>  :target =&gt; &#39;Emission&#39;,
+</span><span class='line'>  :keys =&gt; [
+</span><span class='line'>    &#39;ArtsyAPIClientSecret&#39;,
+</span><span class='line'>    &#39;ArtsyAPIClientKey&#39;,
+</span><span class='line'><span class="gi">+    &#39;StripePublishableKey&#39;,</span>
+</span><span class='line'>  ]
+</span><span class='line'>}
+</span></code></pre></td></tr></table></div></figure>
+
+
+<hr />
+
+<a name="L2..Configure.the.library.to.consume.our.new.key"></a>
+<h4>2. Configure the library to consume our new key</h4>
+
+<p>We'll need to update the <code>initWithUserId...</code> function — one <strong>fun</strong> part of adjusting to Objective-C is that rather than named functions, we just refer to them by their entire signatures — to expose the new key as a property and add it to <code>constantsToExport</code> (<a href="https://facebook.github.io/react-native/docs/native-modules-ios.html#exporting-constants">docs</a>).</p>
+
+<p>Note that this is happening in our <em>Emission Pod</em>; The pod now expects that key to be available in our <em>consuming</em> Example app as defined above.</p>
+
+<p><a href="https://github.com/artsy/emission/blob/4a2a3e9260e97d791536cf38376a06b0ad0946a8/Pod/Classes/Core/AREmission.h#L17-L34">/Pod/Classes/Core/AREmission.h</a>:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+</pre></td><td class='code'><pre><code class='diff'><span class='line'>// ENV Variables
+</span><span class='line'> #import &lt;React/RCTBridgeModule.h&gt;
+</span><span class='line'>
+</span><span class='line'> @interface AREmissionConfiguration : NSObject &lt;RCTBridgeModule&gt;
+</span><span class='line'>
+</span><span class='line'><span class="gi">+ @property (nonatomic, copy, readonly, nullable) NSString *stripePublishableKey;</span>
+</span><span class='line'>
+</span><span class='line'> - (instancetype)initWithUserID:(NSString *)userID
+</span><span class='line'>           authenticationToken:(NSString *)token
+</span><span class='line'>                     sentryDSN:(nullable NSString *)sentryDSN
+</span><span class='line'><span class="gi">+         stripePublishableKey:(NSString *)stripePublishableKey</span>
+</span><span class='line'>              googleMapsAPIKey:(nullable NSString *)googleAPIKey
+</span><span class='line'>                    gravityURL:(NSString *)gravity
+</span><span class='line'>                metaphysicsURL:(NSString *)metaphysics
+</span><span class='line'>                     userAgent:(NSString *)userAgent;
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p><code>AREmission</code>'s implementation (.m) needs to be configured to take this new key- It will be exported to our React Native components as <code>Emission</code>. We make our initializer match the signature defined in the header (.h) file, and add an instance <code>_stripePublishableKey</code> to match the <code>@property</code> declaration.</p>
+
+<p><a href="https://github.com/artsy/emission/blob/4a2a3e9260e97d791536cf38376a06b0ad0946a8/Pod/Classes/Core/AREmission.m#L24-L60">/Pod/Classes/Core/AREmission.m</a>:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+</pre></td><td class='code'><pre><code class='diff'><span class='line'> @implementation AREmissionConfiguration
+</span><span class='line'> RCT_EXPORT_MODULE(Emission);
+</span><span class='line'> # ...
+</span><span class='line'>
+</span><span class='line'> - (NSDictionary *)constantsToExport
+</span><span class='line'> {
+</span><span class='line'>   return @{
+</span><span class='line'><span class="gi">+    @&quot;stripePublishableKey&quot;: self.stripePublishableKey ?: @&quot;&quot;,</span>
+</span><span class='line'>     # ...lots more
+</span><span class='line'>   };
+</span><span class='line'> }
+</span><span class='line'>
+</span><span class='line'> - (instancetype)initWithUserID:(NSString *)userID
+</span><span class='line'>            authenticationToken:(NSString *)token
+</span><span class='line'>                      sentryDSN:(NSString *)sentryDSN
+</span><span class='line'><span class="gi">+          stripePublishableKey:(NSString *)stripePublishableKey</span>
+</span><span class='line'>               googleMapsAPIKey:(NSString *)googleAPIKey
+</span><span class='line'>                     gravityURL:(NSString *)gravity
+</span><span class='line'>                 metaphysicsURL:(NSString *)metaphysics
+</span><span class='line'>                      userAgent:(nonnull NSString *)userAgent
+</span><span class='line'> {
+</span><span class='line'>     self = [super init];
+</span><span class='line'>     _userID = [userID copy];
+</span><span class='line'><span class="gi">+    _stripePublishableKey = [stripePublishableKey copy];</span>
+</span><span class='line'>     # ... More copies...
+</span><span class='line'>     return self;
+</span><span class='line'> }
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p><em>Why is <code>copy</code> needed at all? See <a href="https://stackoverflow.com/questions/387959/nsstring-property-copy-or-retain/388002#388002">here</a>.</em></p>
+
+<hr />
+
+<a name="L3..Configure.the.example.app.to.expose.the.new.key.to.our.library"></a>
+<h4>3. Configure the example app to expose the new key to our library</h4>
+
+<p>After making sure we have imported the keys from <code>cocoapods-keys</code> we update Emission's setup to use the new initializer signature we defined above.</p>
+
+<p><a href="https://github.com/artsy/emission/blob/4a2a3e9260e97d791536cf38376a06b0ad0946a8/Example/Emission/AppDelegate.m#L109">Example/Emission/AppDelegate.m</a>:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+</pre></td><td class='code'><pre><code class='diff'><span class='line'>#import &lt;Keys/EmissionKeys.h&gt;
+</span><span class='line'>
+</span><span class='line'>  - (void)setupEmissionWithUserID:(NSString *)userID accessToken:(NSString *)accessToken keychainService:(NSString *)service;
+</span><span class='line'>  {
+</span><span class='line'>    # ...
+</span><span class='line'>     AREmissionConfiguration *config = [[AREmissionConfiguration alloc]
+</span><span class='line'>      initWithUserID:userID
+</span><span class='line'>      authenticationToken:accessToken
+</span><span class='line'>      sentryDSN:nil
+</span><span class='line'><span class="gi">+     stripePublishableKey:keys.stripePublishableKey</span>
+</span><span class='line'>      googleMapsAPIKey:nil
+</span><span class='line'>      gravityURL:setup.gravityURL
+</span><span class='line'>      metaphysicsURL:setup.metaphysicsURL
+</span><span class='line'>      userAgent:@&quot;Emission Example&quot;];
+</span><span class='line'>    # ...
+</span></code></pre></td></tr></table></div></figure>
+
+
+<hr />
+
+<a name="L4..Use.that.configured.key.in.a.React.Native.component."></a>
+<h4>4. Use that configured key in a React Native component.</h4>
+
+<p><code>Emission</code> is now exposed along with its configured keys via React Native's <a href="https://facebook.github.io/react-native/docs/native-modules-ios.html">NativeModules</a>.</p>
+
+<p><a href="https://github.com/artsy/emission/blob/4a2a3e9260e97d791536cf38376a06b0ad0946a8/src/lib/components/bidding/screens/confirmfirsttimebid.tsx#l31">src/lib/Components/Bidding/Screens/ConfirmFirstTimeBid.tsx</a>:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+</pre></td><td class='code'><pre><code class='js'><span class='line'><span class="kr">import</span> <span class="p">{</span> <span class="nx">NativeModules</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;react-native&quot;</span><span class="p">;</span>
+</span><span class='line'><span class="kr">const</span> <span class="nx">Emission</span> <span class="o">=</span> <span class="nx">NativeModules</span><span class="p">.</span><span class="nx">Emission</span> <span class="o">||</span> <span class="p">{};</span>
+</span><span class='line'>
+</span><span class='line'><span class="nx">stripe</span><span class="p">.</span><span class="nx">setOptions</span><span class="p">({</span>
+</span><span class='line'>  <span class="nx">publishableKey</span><span class="o">:</span> <span class="nx">Emission</span><span class="p">.</span><span class="nx">stripePublishableKey</span>
+</span><span class='line'><span class="p">});</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<!--
+Cᴏɴᴄʟᴜsɪᴏɴ
+-->
+
+
+<p>That's it! Compared to a familiar dotenv file, <strong>it</strong> certainly means a bit more ceremony here, but we are working through React Native code, its containing Pod <em>and</em> a consuming app. The process is more complicated, but it's also a nice overview of some fundamentals of Objective-C, iOS development and bridging the gap between react and mobile native code.</p>
+
+        </article>
+
+        <article class='post'>
+          <p style="padding-bottom: 0; margin-bottom:0;">
+            <a href="https://www.artsy.net/" style="background-image: none;">
+              <svg viewBox="0 0 510 510" width="40" height="40" xmlns="http://www.w3.org/2000/svg">
+                <path transform="scale(1, -1) translate(0, -480)" d="M0 -32h512v512h-512v-512v0zM464 16h-80v80h-48v-80h-288v416h416v-416v0zM194 384h-40l-74 -186h38l20 52h72l19 -52h39l-74 186v0zM149 282l25 66l24 -66h-49v0z"></path>
+              </svg>
+            </a>
+          <p/>
+        </article>
+
+      
+
+      </section>
+
+      <footer>
+        <article>
+
+          <section>
+            <h4>Author</h4>
+            <p> <a href="/author/erik"/>Erik Stockmeier</a></p>
+            <p></a></p>
+          </section>
+
+          <section>
+            <h4>Post Meta</h4>
+            <p>Jun 15, 2018</p>
+            <p>Tagged: <a class='category' href='/blog/categories/emission/'>emission</a>, <a class='category' href='/blog/categories/ios/'>ios</a>, <a class='category' href='/blog/categories/javascript/'>javascript</a>, <a class='category' href='/blog/categories/react/'>react</a>, <a class='category' href='/blog/categories/reactnative/'>reactnative</a>, <a class='category' href='/blog/categories/technology/'>technology</a></p>
+          </section>
+          <br/>
+          <section>
+            <h4>Artsy OSS</h4>
+            <ul>
+              <li><a href='https://www.artsy.net'>Artsy.net</a></li>
+              <li><a href='https://developers.artsy.net'>API</a></li>
+              <li><a href='http://artsy.github.io/open-source/'>Featured OSS</a></li>
+              <li><a href='https://www.artsy.net/jobs'>Careers</a></li>
+            </ul>
+          </section>
+
+          <section>
+            <h4>Blog</h4>
+            <ul>
+              <li><a href='http://artsy.github.io/blog/archives/'>Archives</a></li>
+              <li><a href='http://artsy.github.io/search/'>Search</a></li>
+              <li><a href='https://github.com/artsy/artsy.github.io'>Code on GitHub</a></li>
+              <li><a href='https://github.com/artsy/artsy.github.io/edit/source/_posts/2018-06-15-cocoapods-keys-react-native.markdown'>Fix typoes in this post</a></li>
+            </ul>
+          </section>
+
+        </article>
+
+        <article>
+          <section>
+            <h4>Post Series on the Blog</h4>
+            <ul>
+              
+              <li><a href='/series/react-native-at-artsy/'>React Native at Artsy</a></li>
+              
+              <li><a href='/series/javascriptures/'>JavaScriptures</a></li>
+              
+              <li><a href='/series/stages-of-professional-growth/'>Stages of Professional Growth</a></li>
+              
+              <li><a href='/series/artsy-tech-stack/'>Artsy Tech Stack</a></li>
+              
+              <li><a href='/series/open-source-by-default/'>Open Source by Default</a></li>
+              
+            </ul>
+          </section>
+
+          <section>
+          
+          </section>
+        </article>
+
+      </footer>
+    </div>
+  </div>
+</body>

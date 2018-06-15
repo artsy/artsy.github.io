@@ -4,7 +4,7 @@
   <title><![CDATA[Category: ios | Artsy Engineering]]></title>
   <link href="http://artsy.github.io/blog/categories/ios/atom.xml" rel="self"/>
   <link href="http://artsy.github.io/"/>
-  <updated>2018-06-14T21:22:08+00:00</updated>
+  <updated>2018-06-15T21:31:19+00:00</updated>
   <id>http://artsy.github.io/</id>
   <author>
     <name><![CDATA[]]></name>
@@ -12,6 +12,165 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Managing Secrets in a React Native App]]></title>
+    <link href="http://artsy.github.io/blog/2018/06/15/cocoapods-keys-react-native/"/>
+    <updated>2018-06-15T00:00:00+00:00</updated>
+    <id>http://artsy.github.io/blog/2018/06/15/cocoapods-keys-react-native</id>
+    <content type="html"><![CDATA[<!--
+Iɴᴛʀᴏᴅᴜᴄᴛɪᴏɴ
+-->
+
+
+<p>Hi! I'm Erik, a software engineer on the Purchase team. One of the most visible payoffs from Artsy's investments in React Native <a href="https://artsy.github.io/search/?q=react+native">over the past two years</a> has been the opening up of our mobile codebase to contributors like myself coming primarily from web stacks. It's nice to be able to build mobile interfaces with the same declarative API used by so many of our web projects, but sometimes we still need to bridge the divide to our Objective-C and Swift ecosystem. One such case: replacing the app secrets typically loaded from a deploy environment or web developer's <a href="https://www.npmjs.com/package/dotenv">dotenv</a> file.</p>
+
+<!-- more -->
+
+
+<!--
+Mᴀɪɴ Bᴏᴅʏ
+-->
+
+
+<p><a href="https://github.com/artsy/emission">Emission</a> is Artsy's React Native component library. It contains its own native app in the <code>/Example</code> folder, which uses <a href="https://artsy.github.io/blog/2015/01/21/cocoapods-keys-and-CI/">cocoapods-keys</a> to store secrets while still letting us code in the open. In order to expose these keys to our React Native components, however, we must do a fair bit of setup. Here's a straightforward how-to that also makes a quick tour through the iOS ecosystem for web developers looking at the React Native JavaScript runtime today.</p>
+
+<p>Links to examples below come from <a href="https://github.com/artsy/emission/pull/1086/commits/4a2a3e9260e97d791536cf38376a06b0ad0946a8">this commit</a> which adds a key for the Stripe API to Emission. When we are finished, a client app (<code>/Example</code>, <a href="https://github.com/artsy/eigen">Eigen</a>, etc.) will be able to initialize Emission with this secret, which will in turn make it available to React Native components.</p>
+
+<a name="Steps"></a>
+<h2>Steps</h2>
+
+<a name="L1..Add.the.key.to.the.app.s.Podfile."></a>
+<h4>1. Add the key to the app's Podfile.</h4>
+
+<p>This is the extent of <code>cocoapods-keys</code> official <a href="https://github.com/orta/cocoapods-keys#usage">setup</a>, and after this you <strong>could</strong> set the key via <code>pod keys set &lt;NAME&gt;</code> or <code>pod install</code>... but we have more to do.</p>
+
+<p><a href="https://github.com/artsy/emission/blob/4a2a3e9260e97d791536cf38376a06b0ad0946a8/Example/Podfile#L63">/Example/Podfile</a>:</p>
+
+<pre><code class="diff">plugin 'cocoapods-keys', {
+  :target =&gt; 'Emission',
+  :keys =&gt; [
+    'ArtsyAPIClientSecret',
+    'ArtsyAPIClientKey',
++    'StripePublishableKey',
+  ]
+}
+</code></pre>
+
+<hr />
+
+<a name="L2..Configure.the.library.to.consume.our.new.key"></a>
+<h4>2. Configure the library to consume our new key</h4>
+
+<p>We'll need to update the <code>initWithUserId...</code> function — one <strong>fun</strong> part of adjusting to Objective-C is that rather than named functions, we just refer to them by their entire signatures — to expose the new key as a property and add it to <code>constantsToExport</code> (<a href="https://facebook.github.io/react-native/docs/native-modules-ios.html#exporting-constants">docs</a>).</p>
+
+<p>Note that this is happening in our <em>Emission Pod</em>; The pod now expects that key to be available in our <em>consuming</em> Example app as defined above.</p>
+
+<p><a href="https://github.com/artsy/emission/blob/4a2a3e9260e97d791536cf38376a06b0ad0946a8/Pod/Classes/Core/AREmission.h#L17-L34">/Pod/Classes/Core/AREmission.h</a>:</p>
+
+<pre><code class="diff">// ENV Variables
+ #import &lt;React/RCTBridgeModule.h&gt;
+
+ @interface AREmissionConfiguration : NSObject &lt;RCTBridgeModule&gt;
+
++ @property (nonatomic, copy, readonly, nullable) NSString *stripePublishableKey;
+
+ - (instancetype)initWithUserID:(NSString *)userID
+           authenticationToken:(NSString *)token
+                     sentryDSN:(nullable NSString *)sentryDSN
++         stripePublishableKey:(NSString *)stripePublishableKey
+              googleMapsAPIKey:(nullable NSString *)googleAPIKey
+                    gravityURL:(NSString *)gravity
+                metaphysicsURL:(NSString *)metaphysics
+                     userAgent:(NSString *)userAgent;
+</code></pre>
+
+<p><code>AREmission</code>'s implementation (.m) needs to be configured to take this new key- It will be exported to our React Native components as <code>Emission</code>. We make our initializer match the signature defined in the header (.h) file, and add an instance <code>_stripePublishableKey</code> to match the <code>@property</code> declaration.</p>
+
+<p><a href="https://github.com/artsy/emission/blob/4a2a3e9260e97d791536cf38376a06b0ad0946a8/Pod/Classes/Core/AREmission.m#L24-L60">/Pod/Classes/Core/AREmission.m</a>:</p>
+
+<pre><code class="diff"> @implementation AREmissionConfiguration
+ RCT_EXPORT_MODULE(Emission);
+ # ...
+
+ - (NSDictionary *)constantsToExport
+ {
+   return @{
++    @"stripePublishableKey": self.stripePublishableKey ?: @"",
+     # ...lots more
+   };
+ }
+
+ - (instancetype)initWithUserID:(NSString *)userID
+            authenticationToken:(NSString *)token
+                      sentryDSN:(NSString *)sentryDSN
++          stripePublishableKey:(NSString *)stripePublishableKey
+               googleMapsAPIKey:(NSString *)googleAPIKey
+                     gravityURL:(NSString *)gravity
+                 metaphysicsURL:(NSString *)metaphysics
+                      userAgent:(nonnull NSString *)userAgent
+ {
+     self = [super init];
+     _userID = [userID copy];
++    _stripePublishableKey = [stripePublishableKey copy];
+     # ... More copies...
+     return self;
+ }
+</code></pre>
+
+<p><em>Why is <code>copy</code> needed at all? See <a href="https://stackoverflow.com/questions/387959/nsstring-property-copy-or-retain/388002#388002">here</a>.</em></p>
+
+<hr />
+
+<a name="L3..Configure.the.example.app.to.expose.the.new.key.to.our.library"></a>
+<h4>3. Configure the example app to expose the new key to our library</h4>
+
+<p>After making sure we have imported the keys from <code>cocoapods-keys</code> we update Emission's setup to use the new initializer signature we defined above.</p>
+
+<p><a href="https://github.com/artsy/emission/blob/4a2a3e9260e97d791536cf38376a06b0ad0946a8/Example/Emission/AppDelegate.m#L109">Example/Emission/AppDelegate.m</a>:</p>
+
+<pre><code class="diff">#import &lt;Keys/EmissionKeys.h&gt;
+
+  - (void)setupEmissionWithUserID:(NSString *)userID accessToken:(NSString *)accessToken keychainService:(NSString *)service;
+  {
+    # ...
+     AREmissionConfiguration *config = [[AREmissionConfiguration alloc]
+      initWithUserID:userID
+      authenticationToken:accessToken
+      sentryDSN:nil
++     stripePublishableKey:keys.stripePublishableKey
+      googleMapsAPIKey:nil
+      gravityURL:setup.gravityURL
+      metaphysicsURL:setup.metaphysicsURL
+      userAgent:@"Emission Example"];
+    # ...
+</code></pre>
+
+<hr />
+
+<a name="L4..Use.that.configured.key.in.a.React.Native.component."></a>
+<h4>4. Use that configured key in a React Native component.</h4>
+
+<p><code>Emission</code> is now exposed along with its configured keys via React Native's <a href="https://facebook.github.io/react-native/docs/native-modules-ios.html">NativeModules</a>.</p>
+
+<p><a href="https://github.com/artsy/emission/blob/4a2a3e9260e97d791536cf38376a06b0ad0946a8/src/lib/components/bidding/screens/confirmfirsttimebid.tsx#l31">src/lib/Components/Bidding/Screens/ConfirmFirstTimeBid.tsx</a>:</p>
+
+<pre><code class="js">import { NativeModules } from "react-native";
+const Emission = NativeModules.Emission || {};
+
+stripe.setOptions({
+  publishableKey: Emission.stripePublishableKey
+});
+</code></pre>
+
+<!--
+Cᴏɴᴄʟᴜsɪᴏɴ
+-->
+
+
+<p>That's it! Compared to a familiar dotenv file, <strong>it</strong> certainly means a bit more ceremony here, but we are working through React Native code, its containing Pod <em>and</em> a consuming app. The process is more complicated, but it's also a nice overview of some fundamentals of Objective-C, iOS development and bridging the gap between react and mobile native code.</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Augmenting Artworks: AR at Artsy]]></title>
@@ -1243,36 +1402,6 @@ Xcode updates, <a href="http://stackoverflow.com/questions/4057241/iphone-what-i
 
 <p>So would I move <a href="https://github.com/artsy/eigen">Eigen</a> to match? Maybe, next time something breaks. Till then I think new apps, and less-often updated
 apps should use match.</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Xcode 8 Manual Codesigning with Fastlane]]></title>
-    <link href="http://artsy.github.io/blog/2017/01/13/xcode-8-fastlane-codesigning/"/>
-    <updated>2017-01-13T14:00:00+00:00</updated>
-    <id>http://artsy.github.io/blog/2017/01/13/xcode-8-fastlane-codesigning</id>
-    <content type="html"><![CDATA[<p>New year, new deploy process! Late last year our mobile team completed the update to Swift 3 (and thus, the update to Xcode 8). The latest version of Apple's IDE includes a lovely feature: automating provisioning profile management! (Note: not sarcasm, the feature is really nice. Check out the <a href="https://developer.apple.com/videos/play/wwdc2016/401/">WWDC video</a> for an in-depth exploration.)</p>
-
-<p><img src="/images/2017-01-13-xcode-8-fastlane-codesigning/xcode-screenshot.png" alt="Automatic code signing settings" /></p>
-
-<p>However, when I went to make our first <a href="http://artsy.github.io/blog/2015/12/15/Automating-Testflight-Deploys/">automated deploy</a> today, things didn't work; I got a somewhat cryptic error about code signing.</p>
-
-<!-- more -->
-
-
-<blockquote><p>Code signing is required for product type 'Application' in SDK 'iOS 10.1'</p></blockquote>
-
-<p>Code signing was failing for our project. Hmm. First step in fixing a bug is always to reproduce it, which I could do locally. I started looking into the code that manages our deploys' signing process and got lost. My colleague Orta was kind enough to give me a hand.</p>
-
-<p>Some background: the Fastlane suite of tools includes <a href="https://github.com/fastlane/fastlane/tree/master/match">Match</a>, which manages your signing certificates and provisioning profiles in a private GitHub repository. We don't use match due to complications with our multiple apps, but we use <a href="https://github.com/artsy/eigen/blob/608f60860165dd9b3c376da00492a3cb36bf5214/fastlane/Fastfile#L95-L130">very similar logic</a> to clone the repo, extract the certificate and profile, and install the keys on CI.</p>
-
-<p>So what wasn't working?</p>
-
-<p>Well it turns out that Xcode's fancy new automatic code signing was incompatible with our manual process of specifying certificates and profiles. The easy solution would be to simply disable that setting, but that would be a shame: the new automatic code signing makes developing on devices way easier and we didn't want to sacrifice that for the sake of our deploys.</p>
-
-<p>So we went looking and luckily found <a href="https://github.com/artsy/eigen/pull/2104">the solution</a>. We amended our codesigning setup with the <a href="https://docs.fastlane.tools/actions/#update_project_provisioning">update_project_provisioning</a> and <a href="https://docs.fastlane.tools/actions/#update_project_team">update_project_team</a> Fastlane actions, and the <a href="https://github.com/hjanuschka/fastlane-plugin-update_project_codesigning">update_project_codesigning plugin</a>. Basically, we disable the automatic signing feature and then manually set the provisioning profile to the one we cloned from our private GitHub repo.</p>
-
-<p>So remember folks, if you're ever asked to sacrifice ease of development for the sake of getting computers to behave, there's probably a better way.</p>
 ]]></content>
   </entry>
   
