@@ -6,7 +6,7 @@ author: ash
 categories: [best practices, data, programming]
 ---
 
-Our mission at Artsy has been to make art as popular as music, and at a high level, the way that our engineering team supports that mission is through building software. We have built systems and databases and user interfaces that represent different facets of the art world, and throughout our work, we have... made some mistakes.
+Our mission at Artsy has been to make a world where everyone is moved by art every day, and at a high level, the way that our engineering team supports that mission is through building software. We have built systems and databases and user interfaces that represent different facets of the art world, and throughout our work, we have... made some mistakes.
 
 That's okay! Programmers make mistakes all the time. There is [a large list of blog posts][falsehoods] describing various programmer misconceptions, from subjects you might expect would be simple to model in computers, like units of measurement and time, to subjects that are based more in the human condition, like postal addresses and marriage.
 
