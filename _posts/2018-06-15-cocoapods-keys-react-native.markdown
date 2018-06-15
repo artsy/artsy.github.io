@@ -44,7 +44,7 @@ plugin 'cocoapods-keys', {
 
 #### 2. Configure the library to consume our new key
 
-We'll need to update the `initWithUserId...` function -- one **fun** part of adjusting to Objective-C is that rather than named functions, we just refer to them by their entire signatures -- to expose the new key as a property and add it to `constantsToExport` ([docs][constantsToExport]).
+We'll need to update the `initWithUserId...` function — one **fun** part of adjusting to Objective-C is that rather than named functions, we just refer to them by their entire signatures — to expose the new key as a property and add it to `constantsToExport` ([docs][constantsToExport]).
 
 Note that this is happening in our _Emission Pod_; The pod now expects that key to be available in our _consuming_ Example app as defined above.
 
