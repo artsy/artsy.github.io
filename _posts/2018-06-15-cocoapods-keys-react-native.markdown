@@ -33,8 +33,8 @@ This is the extent of `cocoapods-keys` official [setup][ck-setup], and after thi
 plugin 'cocoapods-keys', {
   :target => 'Emission',
   :keys => [
-    'ArtsyAPIClientSecret',   # Authing to the Artsy API
-    'ArtsyAPIClientKey',      #
+    'ArtsyAPIClientSecret',
+    'ArtsyAPIClientKey',
 +    'StripePublishableKey',
   ]
 }
@@ -44,7 +44,7 @@ plugin 'cocoapods-keys', {
 
 #### 2. Configure the library to consume our new key
 
-We'll need to update the `initWithUserId...` function — one **fun** part of adjusting to Objective-C is that rather than named functions, we just refer to them by their entire signatures — to expose the new key as a property and add it to `constantsToExport` ([docs][constantsToExport]).
+We'll need to update the `initWithUserId...` function — one **fun** part of adjusting to Objective-C is that rather than named functions, we just refer to them by their entire signatures — to expose the new key as a property and add it to `constantsToExport` ([docs][constantstoexport]).
 
 Note that this is happening in our _Emission Pod_; The pod now expects that key to be available in our _consuming_ Example app as defined above.
 
@@ -69,6 +69,7 @@ Note that this is happening in our _Emission Pod_; The pod now expects that key 
 ```
 
 `AREmission`'s implementation (.m) needs to be configured to take this new key- It will be exported to our React Native components as `Emission`. We make our initializer match the signature defined in the header (.h) file, and add an instance `_stripePublishableKey` to match the `@property` declaration.
+
 [/Pod/Classes/Core/AREmission.m](https://github.com/artsy/emission/blob/4a2a3e9260e97d791536cf38376a06b0ad0946a8/Pod/Classes/Core/AREmission.m#L24-L60):
 
 ```diff
@@ -100,6 +101,7 @@ Note that this is happening in our _Emission Pod_; The pod now expects that key 
      return self;
  }
 ```
+
 _Why is `copy` needed at all? See [here](https://stackoverflow.com/questions/387959/nsstring-property-copy-or-retain/388002#388002)._
 
 ---
@@ -108,7 +110,7 @@ _Why is `copy` needed at all? See [here](https://stackoverflow.com/questions/387
 
 After making sure we have imported the keys from `cocoapods-keys` we update Emission's setup to use the new initializer signature we defined above.
 
-[Example/Emission/AppDelegate.m](https://github.com/artsy/emission/blob/4a2a3e9260e97d791536cf38376a06b0ad0946a8/Example/Emission/AppDelegate.m#L109)
+[Example/Emission/AppDelegate.m](https://github.com/artsy/emission/blob/4a2a3e9260e97d791536cf38376a06b0ad0946a8/Example/Emission/AppDelegate.m#L109):
 
 ```diff
 #import <Keys/EmissionKeys.h>
@@ -134,11 +136,11 @@ After making sure we have imported the keys from `cocoapods-keys` we update Emis
 
 `Emission` is now exposed along with its configured keys via React Native's [NativeModules][].
 
+[src/lib/Components/Bidding/Screens/ConfirmFirstTimeBid.tsx](https://github.com/artsy/emission/blob/4a2a3e9260e97d791536cf38376a06b0ad0946a8/src/lib/components/bidding/screens/confirmfirsttimebid.tsx#l31):
+
 ```js
 import { NativeModules } from "react-native";
 const Emission = NativeModules.Emission || {};
-
-// ... other setup ...
 
 stripe.setOptions({
   publishableKey: Emission.stripePublishableKey
@@ -159,4 +161,4 @@ That's it! Compared to a familiar dotenv file, **it** certainly means a bit more
 [cocoapods-keys]: https://artsy.github.io/blog/2015/01/21/cocoapods-keys-and-CI/
 [ash]: https://twitter.com/ashfurrow/
 [nativemodules]: https://facebook.github.io/react-native/docs/native-modules-ios.html
-[constantsToExport]: https://facebook.github.io/react-native/docs/native-modules-ios.html#exporting-constants
+[constantstoexport]: https://facebook.github.io/react-native/docs/native-modules-ios.html#exporting-constants
