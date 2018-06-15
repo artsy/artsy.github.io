@@ -132,7 +132,7 @@ After making sure we have imported the keys from `cocoapods-keys` we update Emis
 
 ---
 
-#### 4. Use that configured key in a `react-native` component.
+#### 4. Use that configured key in a React Native component.
 
 `Emission` is now exposed along with its configured keys via React Native's [NativeModules][].
 
