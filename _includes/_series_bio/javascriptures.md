@@ -4,8 +4,9 @@ encourage the growth of both within our engineering team. To address this our fr
 run a series of workshops for the whole engineering team.
 
 We called this JavaScriptures, 6 workshop-style deep dives into the major parts of the [Artsy JavaScript
-omakase][omakase].
+omakase][omakase]. You can see the YouTube playlist of [them all here][yt].
 
 [omakase]: http://artsy.github.io/blog/2017/02/05/Front-end-JavaScript-at-Artsy-2017/
+[yt]: https://www.youtube.com/playlist?list=PLKqXGUTH_9hrr5z97OnL31bmQDDnn2WlU
 
 <hr />
