@@ -96,9 +96,7 @@ JWT to replace a user model completely.
 
 #### Here's an example JWT
 
-```sh
-eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE1MjkxOTgwOTcsImlzcyI6WyIxMjMiLCIzMjEiXSwiZGF0YSI6eyJ1c2VyIjp7Im5hbWUiOiJPcnRhIiwiYXZhdGFyX3VybCI6Imh0dHBzOi8vYXZhdGFyczIuZ2l0aHVidXNlcmNvbnRlbnQuY29tL3UvNDkwMzg_dj00In19LCJleHAiOjE1MjkyMDE2OTd9.E4NgIYCLdOkGO76fgQ7ERnYGErX90Bg_JpfmoPSmamU8F-6578FQBpEhu9sWo337uIc379L6P61NTKcpiC09jhhTXdESeiVT2-gW3HK1XhI7fRibu42wMi3R-mdv30u9uN75d-2QqQhxitk9Dr6u1zaPeMEVX6c-J9TGX6kVAPas506zn9vbnWrAEgpZnCC7c7-vgdoHOvTZE7ugjvi16GmMfQjKSFDAh43fpgf_2c9Es6RtB1vaTu1TVuVB-Slvu7NbczJQcGRa1fAPdKp8JWvaXXDYrKIDeSC-YJxZZcSqSAuso6UZ8-DJLcHVquEgZVM3AfSVgX04JORzA_G_wg
-```
+<script src="https://gist.github.com/orta/0265c143e2c4f473d4dff5cc6980d1a4.js"></script>
 
 You could throw it into [jwt.io][jwtio] to look at what's inside it, but I'll do that for you:
 
