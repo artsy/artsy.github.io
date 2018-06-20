@@ -10,6 +10,7 @@ desc 'Builds the site locally'
 task :build do
   puts 'Building site.'
   sh 'PRODUCTION="YES" jekyll build --destination _gh-pages'
+  sh 'PRODUCTION="YES" jekyll build --destination _gh-pages'
 end
 
 # Deprecated, but leaving shortcut in because I'm sure Orta, at least, has this
