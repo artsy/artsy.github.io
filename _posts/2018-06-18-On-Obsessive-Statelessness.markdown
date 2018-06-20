@@ -33,7 +33,7 @@ Let's start with grounding how Peril works. The GitHub term for when someone add
 creates an "Installation" of the
 [GitHub App](https://blog.github.com/2016-09-14-a-whole-new-github-universe-announcing-new-tools-forums-and-features/#integrate-seamlessly-with-github).
 When a webhook from GitHub is sent to Peril, Peril grabs the installation metadata (env vars, settings repo
-addresses, cached config etc) out a mongo database (yeah, I know, [how early-2010s][nosqliscool]) and pulls out a
+addresses, cached config etc) out of a mongo database (yeah, I know, [how early-2010s][nosqliscool]) and pulls out a
 set of rules. These rules are a map of Webhook events and actions to files. For example:
 
 ```json
