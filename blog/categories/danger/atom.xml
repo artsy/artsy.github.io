@@ -4,7 +4,7 @@
   <title><![CDATA[Category: danger | Artsy Engineering]]></title>
   <link href="http://artsy.github.io/blog/categories/danger/atom.xml" rel="self"/>
   <link href="http://artsy.github.io/"/>
-  <updated>2018-06-18T17:44:34+00:00</updated>
+  <updated>2018-06-20T17:40:33+00:00</updated>
   <id>http://artsy.github.io/</id>
   <author>
     <name><![CDATA[]]></name>
@@ -12,6 +12,247 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[On the obsessive statelessness of Peril]]></title>
+    <link href="http://artsy.github.io/blog/2018/06/18/On-Obsessive-Statelessness/"/>
+    <updated>2018-06-18T00:00:00+00:00</updated>
+    <id>http://artsy.github.io/blog/2018/06/18/On-Obsessive-Statelessness</id>
+    <content type="html"><![CDATA[<p>We're at 9 months of serious usage <a href="/blog/2017/09/04/Introducing-Peril/">of Peril in Artsy</a>. However, I've been worried.</p>
+
+<p>To get you up to speed on Peril, Peril is a tool that takes GitHub webhooks, and makes it easy to build one-off
+actions. It does this by having a per-account settings JSON, that connects JavaScript files to events from webhooks.
+So, for example, you can write a rule which runs when closing an issue in GitHub that looks for associated Jira
+tickets and resolves them. Peril provides no implicit actions like that, it instead offers a JavaScript runtime
+environment optimised to this domain so you can make actions to fit your needs. Like a collection of single-file
+<a href="https://probot.github.io">probots</a>.</p>
+
+<p>Three months ago I started building out a "true" staging environment for Peril, one that allows any user or org on
+GitHub to click a button and have Peril running on their account. Pulling this off has two real interesting
+problems. Problem number one, security. Problem number two, my wallet.</p>
+
+<p>Both of these issues stem from one simple problem: I need to run other people's code on my machines and I think they
+should be able to store data. Which to be quite frank, is horrifying for a side-project. So, this post explores one
+of main aspects which I've architected Peril to make this problem tractable. Avoiding storing state in the form of
+data.</p>
+
+<!-- more -->
+
+
+<a name="Evaluation.Context"></a>
+<h2>Evaluation Context</h2>
+
+<p>Let's start with grounding how Peril works. The GitHub term for when someone adds Peril to their account is that it
+creates an "Installation" of the
+<a href="https://blog.github.com/2016-09-14-a-whole-new-github-universe-announcing-new-tools-forums-and-features/#integrate-seamlessly-with-github">GitHub App</a>.
+When a webhook from GitHub is sent to Peril, Peril grabs the installation metadata (env vars, settings repo
+addresses, cached config etc) out a mongo database (yeah, I know, <a href="https://www.infoworld.com/article/2990184/database/nosql-simply-isnt-hip-anymore.html">how early-2010s</a>) and pulls out a
+set of rules. These rules are a map of Webhook events and actions to files. For example:</p>
+
+<pre><code class="json">{
+  "rules": {
+    "issues.opened": "artsy/peril-settings@danger/new-rfc.ts",
+    "issue_comment": "artsy/peril-settings@org/markAsMergeOnGreen.ts",
+    "pull_request.closed": "artsy/peril-settings@org/closed-prs.ts"
+  }
+}
+</code></pre>
+
+<p>This <a href="https://github.com/danger/peril/blob/93439da3a088e9a7824192e24d33295ced017239/docs/settings_repo_info.md">custom JSON DSL</a> maps opening an <code>issue</code> on GitHub to the evaluation of
+<a href="https://github.com/artsy/peril-settings/blob/6ec744e552df0828b3de2c5bc72e97accc6f562f/danger/new-rfc.ts"><code>artsy/peril-settings@danger/new-rfc.ts</code></a>. Peril runs the code which is declared as the <code>default export</code> with
+the JSON contents of the webhook. Then the file can execute with the DSL provided in both <a href="http://danger.systems/js/">danger-js</a> and
+<a href="http://danger.systems/js/reference.html#PerilDSL">peril</a>'s extensions. Peril's runtime is a reasonably normal nodejs environment, so it supports working with
+<code>node_modules</code> to get stuff done. Here's what <a href="https://github.com/artsy/peril-settings/blob/6ec744e552df0828b3de2c5bc72e97accc6f562f/danger/new-rfc.ts"><code>artsy/peril-settings@danger/new-rfc.ts</code></a> looks like:</p>
+
+<pre><code class="js">import { danger, peril } from "danger"
+import { Issues } from "github-webhook-event-types"
+
+export default async (issues: Issues) =&gt; {
+  const issue = issues.issue
+
+  const slackify = (text: string) =&gt; ({
+    unfurl_links: false,
+    attachments: [
+      {
+        pretext: text,
+        color: "good",
+        title: issue.title,
+        title_link: issue.html_url,
+        author_name: issue.user.login,
+        author_icon: issue.user.avatar_url
+      }
+    ]
+  })
+
+  if (issue.title.includes("RFC:") || issue.title.includes("[RFC]")) {
+    console.log("Triggering slack notifications")
+
+    await peril.runTask("slack-dev-channel", "in 5 minutes", slackify("🎉: A new RFC has been published."))
+    await peril.runTask("slack-dev-channel", "in 3 days", slackify("🕰: A new RFC was published 3 days ago."))
+    await peril.runTask("slack-dev-channel", "in 7 days", slackify("🕰: A new RFC is ready to be resolved."))
+
+    console.log("Triggered slack notifications")
+  }
+}
+</code></pre>
+
+<p>Implementation-wise, there is a single Peril API which recieves webhooks from GitHub. This triggers a "Runner" which
+is a hosted docker container (think, like, serverless) which hosts the runtime. The runner will then run the
+Dangerfile, triggering things like comments on PRs or any other interesting side-effect.</p>
+
+<p><img src="/images/peril-state/peril-stack.png"></p>
+
+<p>This is where things get tricky, I first explored running code inside a tightened <a href="https://github.com/patriksimek/vm2">virtual machine for node</a>
+but eventually found enough holes that it was definitely not going to work against malicious user-code in the same
+process as Peril. I lucked out to a potential answer to this when building out documentation for <a href="http://danger.systems/js/">danger-js</a>,
+which could <a href="https://celebrateurbanbirds.org/learn/gardening/providing-water-for-birds/">feed many birds with one bowl</a>. I could separate out the execution context (think: the runtime
+DSL, the webhook JSON, and a bunch of installation specific config) as JSON and then pass that servers/processes
+then turn that back into a useful runtime again in a separate client which runs the Dangerfile (the name for a
+<code>js</code>/<code>ts</code> file running in the Peril JavaScript Environment. )</p>
+
+<p>This idea was so compelling that I first used it to create a version of Danger that runs
+<a href="https://github.com/danger/danger-swift">native to swift</a> to figure out the kinks of what actually needs to be
+transmitted. For Peril, this meant I could explore having the evaluation of user-code inside a completely different
+server. I initially explored <a href="https://github.com/danger/peril/issues/159">using AWS Lambda</a> to run user-code, it's cheap, fast and mature. However, it's
+possible for lambda instances to communicate with each other, as each run is not <a href="https://aws.amazon.com/blogs/compute/container-reuse-in-lambda/">a fresh process</a>.
+Making it not a secure platform for un-trusted code.</p>
+
+<p>Not deterred, I explored the world of docker hosting as a service - first exploring running my own cluster <a href="https://aws.amazon.com/ecs/">on AWS
+ECS</a> and then settling <a href="https://hyper.sh">on Hyper</a> which offered sandboxed runs that booted in a few seconds. This is
+where my first real dive into obsessive statelessness comes in. The docker container, and the hyper environment
+contains no config by default. There is no Peril information available inside that runtime environment.</p>
+
+<p>The information about a Peril run comes exclusively from Peril, in my head, I call this dependency injection for the
+runtime environment. You can get a sense for what the full JSON looks like in this
+<a href="https://github.com/danger/peril/blob/master/source/github/events/handlers/_tests/fixtures/PerilRunnerEventBootStrapExample.json">fixtured file generated by tests</a>.
+It contains everything from (temporary) GitHub access tokens (only for your installation), to environment variables
+for your run and the webhook JSON. The runtime environment only knows that information for the duration of the
+process then all access tokens expires after 30 seconds of it starting regardless.</p>
+
+<a name="User.Sessions.are.ephemeral"></a>
+<h2>User Sessions are ephemeral</h2>
+
+<p>With the runtime security figured out, and reasonably stable, I could start thinking about how people can understand
+what's happening on their installations inside peril.</p>
+
+<p><img src="/images/peril-state/peril-dashboard.png"></p>
+
+<p>I know, a beauty right? Taking ideas from Ashkan's <a href="https://artsy.github.io/blog/2016/10/26/jwt-artsy-journey/">post on JWT's</a> I explored using JWTs to a few user-y,
+database-y related problems.</p>
+
+<p>A JWT is a string made of three components, a header which says how it is signed, a base64 chunk of JSON data and a
+signature verifying the data. You can always read the data inside a JWT, but you need to know the public key used to
+sign the token to verify that it's not been tampered with or created from another source.</p>
+
+<p>This brings us to my first problem when building out multi-account Peril: User accounts. For Peril the root element
+of the domain model is a GitHub Installation. A first-glance perspective on building a web service like this would
+have me creating a user model which can keep track of permission to installations and unique user settings. With
+<a href="https://www.wired.co.uk/article/what-is-gdpr-uk-eu-legislation-compliance-summary-fines-2018">GDPR so freshly baked</a> I really didn't see any actual value in keeping this kind of data. Instead I added
+enough metadata to a JWT to replace a user model completely.</p>
+
+<p>I opted to rely on GitHub's Oauth API to verify what orgs a user has access to. This means GitHub hosts both the
+user model, and the permission relationships. This is always set up outside of Peril, and so there's no need for
+duplication of the objects and connections inside this service.</p>
+
+<a name="Here.s.an.example.JWT"></a>
+<h4>Here's an example JWT</h4>
+
+<script src="https://gist.github.com/orta/0265c143e2c4f473d4dff5cc6980d1a4.js"></script>
+
+
+<p>You could throw it into <a href="https://jwt.io">jwt.io</a> to look at what's inside it, but I'll do that for you:</p>
+
+<a name="When.decrypted"></a>
+<h4>When decrypted</h4>
+
+<pre><code class="json">{
+  "iat": 1529198097,
+  "iss": ["123", "321"],
+  "data": {
+    "user": {
+      "name": "Orta",
+      "avatar_url": "https://avatars2.githubusercontent.com/u/49038?v=4"
+    }
+  },
+  "exp": 1529201697
+}
+</code></pre>
+
+<p>So far, I think that's enough information for the dashboard. You can let people know what account they're logged
+into, and a show an avatar in a UI. The JWT is generated when you log in to Peril via GitHub OAuth, and Peril looks
+up what installations you have access to via the GitHub API. The connected installations IDs are stamped into the
+JWT in the <code>iss</code> section. This JWT is stored in the user's browser via cookies, and the server never stores it.</p>
+
+<p>In every API call from the front-end, the server validates that the JWT was signed by Peril, and has not expired. If
+it's OK - the server trusts the data inside the JWT and you have access to administrate the installations. No stored
+sessions, no stored users.</p>
+
+<p>There's downsides to using a JWT like this. For example, what happens if the user is removed from the org? Until
+that JWT has expired (1 month), the user will continue have access to the installation. This is a trade-off which
+I'm OK to take right now. I think <a href="http://cryto.net/~joepie91/blog/2016/06/13/stop-using-jwt-for-sessions/">this post</a> covers a lot of the downsides of this stateless JWT
+technique well. In the future, as Peril has access to org members being added or removed, I can build a way to
+expire the token at runtime.</p>
+
+<a name="Temporary.Tokens"></a>
+<h2>Temporary Tokens</h2>
+
+<p>The user/authentication JWT is not the only JWT in play in Peril.</p>
+
+<p>I needed the ability for the JavaScript Runtime to send messages back to the Peril server. Peril re-uses [JWTs for
+creating a short-lived (2 min) token][jwt_two]. This token only has access to a single installation and is given a
+list of mutations it has whitelisted access to in the GraphQL API. This token is a part of the data injected in at
+the start of the process. The Peril JavaScript DSL uses this token under the hood when you run particular functions.
+This the above post argues is a perfect use-case for JWTs.</p>
+
+<a name="Temporary.Webhooks"></a>
+<h2>Temporary Webhooks</h2>
+
+<p>With an an admin user interface set up, you can now get a good overview of what your installation looks like in
+Peril.</p>
+
+<p><img src="/images/peril-state/admin.png"></p>
+
+<p>This is a good start, but it's a static representation of a live system. In order to do any development of your
+dangerfiles in Peril, you would need to keep triggering the same event inside the GitHub and seeing how Peril
+evaluates your code. Event with the rich type definitions, you're unlikely to get it right first time.</p>
+
+<p>And here's where I made a compromise or two, in favour of a good abstraction. Ash recommended that perhaps storing
+webhooks from GitHub and making it feasible to re-send them in Peril would make a great development environment. I
+couldn't think of a way to do that statelessly, so I opted to time-box them. Now you can trigger a 5 minute window
+on an installation where any event sent to Peril will be stored in mongo for a week. After that they're gone.</p>
+
+<p>This is a great trade-off on data storage vs value of a feature. It's been the best idea so far on how to handle
+building a development mode into Peril, so I wouldn't want to compromise the feature in favour of something that
+won't store any data.</p>
+
+<a name="Real-time.logging"></a>
+<h2>Real-time logging</h2>
+
+<p>On the flip side, I spent a long time thinking about how I can get logs from a Peril run to a user without having to
+store those.</p>
+
+<p>I came up with what feels like such an obvious answer in retrospect. When you open up the admin dashboard, it
+connects to Peril via a websocket. This websocket is used to send real-time updates about when an event is
+triggering a dangerfile evaluation and its changing status. When the evaluation is finished, then the logs are
+collected and sent through the websocket to any users connected to the associated installation. The feature is
+particularly elegant because storing the logs for every Dangerfile run on something like S3 will not scale with my
+wallet. Plus, I don't want to have access to your logs ideally.</p>
+
+<p><img src="/images/peril-state/websocket.png"></p>
+
+<p>Again, an interesting trade-off. You can only get logs when you're looking for them, as opposed to when a problem
+may actually have occurred. There's things I can do to work around this if and when it becomes a pressing need, for
+example keeping an installation's logs around for a day in Peril. Alternatives to this could be that Peril allows
+installations to define a webhook to receive the logs, or for Peril to pass them directly to a installation's
+<a href="https://papertrailapp.com">Papertrail</a> (or other hosted log services).</p>
+
+<p>A lot of the obsession comes from a reasonable enough desire to ship something that people can trust, that could
+start off small and hard enough that it doesn't consume all my spare time with support and fixing fires. With a lot
+of these ideas in tow, I've been able to feel pretty confident in letting others access staging environments and use
+my hosted version of Peril. Which means I can move on to the next items in my TODO list, making the dashboard make
+sense and to start thinking about what the public facing product pages look like for Peril.</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[In the 'Whelp!' of the Great Wave]]></title>
@@ -1185,130 +1426,6 @@ $("a[name]").each(function(i, el){
 
 
 
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Using VS Code for JavaScript]]></title>
-    <link href="http://artsy.github.io/blog/2016/08/15/vscode/"/>
-    <updated>2016-08-15T22:17:00+00:00</updated>
-    <id>http://artsy.github.io/blog/2016/08/15/vscode</id>
-    <content type="html"><![CDATA[<center>
- <img src="/images/vscode/vscode_logo_artsy.svg" style="width:300px;">
-</center>
-
-
-<p>I'm an old school TextMate user, who has also been using Xcode for the last decade. These two sit at a very opposite ends of an "editor" spectrum.</p>
-
-<p>TextMate is extremely bare bones at the core, but introduced the idea of bundles as plugins. Making it really easy for others to build their own plugins for their own contexts. Xcode on the other-hand includes a 3D scene editor, the best interface builder I've seen, super rich debugging tools and close to zero support for improving it yourself.</p>
-
-<p>As we agreed on moving to React Native, we needed to decide what the team should use for <a href="https://github.com/artsy/emission/blob/master/docs/vscode.md">working in that environment</a>. After experimentation with many editors, we decided on Microsoft's <a href="https://code.visualstudio.com/">Visual Studio Code</a>.</p>
-
-<p>We wanted to keep a lot of the best features from Xcode, while working in a completely JavaScript environment. For example: debuggers, inline errors, auto-complete, symbol mapping and to ideally have them all inside a single editor.</p>
-
-<p>Let's dig into the principals of how Visual Studio Code works, what makes it a better option for us, and what parts of it really shine.</p>
-
-<!-- more -->
-
-
-<hr />
-
-<a name="What.is.Visual.Studio.Code."></a>
-<h3>What is Visual Studio Code?</h3>
-
-<p>Visual Studio Code (VS Code) is <em>yet another</em>, JavaScript-based text editor. It's built atop of GitHub's <a href="http://electron.atom.io">Electron</a>. Electron is a framework for writing native apps as easy as building websites. It started as a web component for some Microsoft web-service, and eventually evolved into a fully-fledged text editor.</p>
-
-<a name="IDE.-.Editor.hybrid"></a>
-<h4>IDE - Editor hybrid</h4>
-
-<p>Visual Studio Code (VS Code) believes that the sweet-spot between and IDE and a plain Text Editor, is somewhere a little bit closer to the IDE side.</p>
-
-<p></article>
-<a href='/images/vscode/editors.png' style="">
-  <img src="/images/vscode/editors.png" alt="Editors" style="width:100%;">
-</a>
-<article class="post">
-</p>
-
-<p>This means instead of the Text-Editor style folder based approach, VS Code expects to set up a project structure per-project to start supporting from of the more useful IDE-like features.</p>
-
-<p>It supports TextMate style plugins (called Extensions) through a controlled, but expanding <a href="https://code.visualstudio.com/docs/extensions/overview">extension API</a>. The extension API work takes an <a href="https://developer.apple.com/library/mac/documentation/MacOSX/Conceptual/BPSystemStartup/Chapters/CreatingXPCServices.html">Apple-like</a> approach to ensuring stability by having all extensions run outside of the host process. <a href="https://code.visualstudio.com/docs/extensions/our-approach">This approach</a> ensures any extension crash does not take down the editor.</p>
-
-<p>It's also smart about deciding when to load an extension, for example, my <a href="https://marketplace.visualstudio.com/items?itemName=Orta.vscode-danger">Danger</a> extension will <a href="https://github.com/orta/vscode-danger/blob/a21ccc101b2b1c1be595b10565bca9c88242fb6f/package.json#L18-L20">only load</a> if there is a <code>Dangerfile</code> in the root of the workspace.</p>
-
-<p>These two approaches to extensions are specifically aimed at <a href="https://discuss.atom.io/t/why-is-atom-so-slow/11376">addressing issues</a> seen inside Atom, where any user actions can be / are blocked by extensions, and extensions have full-reign to make any change they want. Even on my Mac Pro, there is a noticable lag. I initially assumed this was the "JavaScript tax" for all Electron apps, but VS Code is fast.</p>
-
-<a name="Making.Intellisense"></a>
-<h3>Making Intellisense</h3>
-
-<p>By default a JavaScript project does not have a way to provide auto-completion, or in VS Code's terminology: Intellisense. Trying to make auto-complete based on a <a href="https://en.wikipedia.org/wiki/Read%E2%80%93eval%E2%80%93print_loop">REPL</a> can only get you so far, because it has to be wary against functions with side-effects. Other alternatives are to build an <a href="http://jointjs.com/demos/javascript-ast">AST</a> from the code, and then introspect that.</p>
-
-<p>In Xcode the auto-complete tools are powered by the type systems of Objective-C and Swift. This means that you can know the structure of an object, without having to dig inside it, potentially breaking it in the process. Vanilla JavaScript does not have a type system. There are a few root classes though: String, Object, Number etc.</p>
-
-<p>To work around this problem, VS Code uses <a href="http://www.typescriptlang.org">TypeScript</a> behind the scenes. TypeScript is a language that compiles down to JavaScript which provides a typing structure on top of JavaScript. This is a similar approach to how <a href="https://flowtype.org">Flow works</a> too, which is the language <a href="https://github.com/artsy/emission/pull/220">we write React Native</a> in.</p>
-
-<p>This can work out really well for your own classes if you are declaring your types, but the npm ecosystem is <em>full</em> of untyped JavaScript, and a lot of your work is about sitting atop those abstractions. The fix for this is offered via <a href="http://definitelytyped.org">DefinitelyTyped</a> which provides type definitions for popular npm modules. For example here is <a href="https://github.com/DefinitelyTyped/DefinitelyTyped/blob/master/redux/redux.d.ts">one for Redux</a> - these act like <a href="https://github.com/artsy/eigen/blob/master/Artsy/App/ARSwitchBoard.h">header files in Objective-C</a> - offering inline documentation, and the shape of the object.</p>
-
-<p>I use an extension to keep these up to date and to have them installed in every project I work in: <a href="https://marketplace.visualstudio.com/items?itemName=jvitor83.types-autoinstaller">Types auto installer</a>. Here's an example of auto-complete for <a href="http://redux.js.org/docs/api/Store.html">a Redux store</a>.</p>
-
-<p></article>
-<a href='/images/vscode/redux.png' style="">
-  <img src="/images/vscode/redux.png" alt="Redux" style="width:100%;">
-</a>
-<article class="post">
-</p>
-
-<p>It'll also provide information about the parameters, which is a life-saver for me. Having grown up with <a href="https://developer.apple.com/library/ios/documentation/Swift/Conceptual/Swift_Programming_Language/Functions.html">named</a> <a href="https://robots.thoughtbot.com/ruby-2-keyword-arguments">parameters</a>.</p>
-
-<p></article>
-<a href='/images/vscode/redux-params.png' style="">
-  <img src="/images/vscode/redux-params.png" alt="Redux Params" style="width:100%;">
-</a>
-<article class="post">
-</p>
-
-<a name="Runtime"></a>
-<h3>Runtime</h3>
-
-<p>Using console logs to debug isn't an acceptable answer when debugging for me anymore. <a href="http://blog.cleancoder.com/uncle-bob/2016/07/27/TheChurn.html">That's churn</a> that I'm not willing to lose time to. Luckily for me, VS Code supports debugging across many languages.</p>
-
-<p>It does this by having a generic VS Code <a href="https://code.visualstudio.com/docs/extensions/example-debuggers">Debug Protocol</a> which lets extensions use their own processes to run the debugger. So the ruby debugger runs on the <a href="https://github.com/rubyide/vscode-ruby#debugger"><code>ruby-debug-ide</code></a> gem, and for node-based projects it uses the debugger built into node.</p>
-
-<p>So, here is a common case. I want to start up my web-server, so I need to run <code>npm dev</code>. I can run this from VS Code:</p>
-
-<p></article>
-<a href='/images/vscode/start.png' style="">
-  <img src="/images/vscode/start.png" alt="Editors" style="width:100%;">
-</a>
-<article class="post">
-</p>
-
-<p>Once that's running - I can attach a debugger. This is listing all of the available node processes on my computer:</p>
-
-<p></article>
-<a href='/images/vscode/attatch.png' style="">
-  <img src="/images/vscode/attatch.png" alt="Editors" style="width:100%;">
-</a>
-<article class="post">
-</p>
-
-<p>Then I can add a breakpoint, and when it is triggered, I have a full stack trace and REPL. The REPL is very barebones, for example - there's no auto-complete. However, it's good for quick exploration. I keep <a href="https://www.objc.io/issues/19-debugging/lldb-debugging/#printing-objects">accidentally prefixing</a> my REPL code with <code>po</code>.</p>
-
-<p></article>
-<a href='/images/vscode/debug.png' style="">
-  <img src="/images/vscode/debug.png" alt="Editors" style="width:100%;">
-</a>
-<article class="post">
-</p>
-
-<p>The breakpoint works through a <a href="http://blog.teamtreehouse.com/introduction-source-maps">source map</a>, and so the line you expect is the one that you're working in. That stuff is all pretty magic to me. Good on Microsoft, and the node community for pulling that off.</p>
-
-<a name="Wrapup"></a>
-<h3>Wrapup</h3>
-
-<p>I still feel a little bit uncomfortable in JavaScript projects, as a long-time native developer. However feel like VS Code is a nice mix of the freeform "just do something" style of Text Editors, which work across a lot of systems and the tight-knit IDEs that are bound to a specific domain. It can be a bridge between worlds.</p>
-
-<p>VS Code has become my main editor in Ruby and JavaScript, due to having great support for the projects and being an OSS project which I feel like I can contribute to. No more being <a href="https://github.com/alcatraz/Alcatraz/issues/475">locked out</a> of improving my editor. Awesome!</p>
 ]]></content>
   </entry>
   
