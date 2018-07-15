@@ -12,8 +12,8 @@ comment_id: 430
 When we talk about our React Native setup in abstract, there are two kinds of "[now draw The Tick][draw_tick]" for
 iOS developers:
 
-* How do I build this React Native as a CocoaPods setup?
-* How do I get all the JavaScript tooling setup up?
+- How do I build this React Native as a CocoaPods setup?
+- How do I get all the JavaScript tooling setup up?
 
 We're going to address the first part in this post. By the end of this post we're going to get an [Emission-like
 repo][emission-y] set up for an existing OSS Swift iOS app called [GitHawk][githawk]. The aim being to introduce no
@@ -29,6 +29,9 @@ reference. This keeps the tooling complexity for iOS and React Native separate. 
 So, I'm **choosing** to be annoying here. I will intentionally be adding `$`s before all of the commands, this is
 specifically to slow you down and make you think about each command. This isn't a quick tutorial you can skim in 2
 minutes, running though it properly should take about an hour.
+
+_You can also watch along with [this YouTube video](https://www.youtube.com/watch?v=ucQXL4vkP78) of me going through
+the tutorial at [Artsy x React Native_](http://artsy.github.io/artsy-x-react-native.html).
 
 <div class="mobile-only">
 <p>
@@ -230,9 +233,9 @@ app handles auth to the Artsy API and has a series of jump-off points for develo
 
 To get started we need to modify the CocoaPod this repo represents:
 
-* Update our Podspec to handle React Native as a dependency, and our assets
-* Add support for native compilation via CocoaPods with [cocoapods-fix-react-native][cpfrn]
-* Create a single `UIViewController` subclass for the Welcome Screen using the bundled React Native JS
+- Update our Podspec to handle React Native as a dependency, and our assets
+- Add support for native compilation via CocoaPods with [cocoapods-fix-react-native][cpfrn]
+- Create a single `UIViewController` subclass for the Welcome Screen using the bundled React Native JS
 
 We want to have our Podspec re-use the metadata from React Native to set up GitDawg's dependencies. So replace
 `GitDawg.podspec` with this:
