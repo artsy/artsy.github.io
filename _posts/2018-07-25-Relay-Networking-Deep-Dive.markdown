@@ -1,6 +1,6 @@
 ---
 layout: epic
-title: Relay Modern Network Deep Dive
+title: The Relay Network Deep Dive
 date: 2018-07-25
 categories: [relay, graphql, JavaScript, guest]
 author: sibelius
@@ -10,30 +10,39 @@ author: sibelius
 >
 > -- Orta
 
-Data fetching is a hard problem. How to ask data to a server? When to ask data to server? How to make sure you have
-all necessary data to render your View? How to handle lazy loading? When to lazy load data? When to prefetch data?
+Data fetching is a hard problem: How to ask for data from a server? When is the right time to request data? How know
+you have all necessary data to render your views? Can you do lazy loading? When should you trigger lazy loading of
+data? What about to pre-fetching data?
 
-Relay Modern is a framework to build data driven applications that solves data fetching problems. For introduction
-to Relay Modern reads their docs, and check my Relay Modern talk in [React Conf BR][rbr]
+[Relay][relay] is a framework for building data-driven applications which handles data fetching for you. For an
+introduction to Relay, read [their docs][relay], and check my Relay Modern talk in [React Conf BR][rbr].
 
 > You don’t deep dive if you don’t know how to swim
 
 ## TL;DR Relay Modern Network
 
-Relay will aggregate all components data requirements (fragments) and create a request to fulfill it. The network is
-responsible to get this request, send it to a server or a local graphql and return the response data to it.
+Relay will aggregate the data requirements (fragments) for your components, then create a request to fulfill it. The
+API to do this is via the [Relay Environment][env]:
 
-This article will provide 5 implementations of Relay Modern Network, each of one providing more capabilities than
-the other one, enabling GraphQL Live Queries and Deferrable Queries.
+> The Relay "Environment" bundles together the configuration, cache storage, and network-handling that Relay needs
+> in order to operate.
 
-All the code implementation for these 5 implementations are open source here:
+This post focuses on the "network-handling" part, the [Network Layer][network]. The network layer's responsibility
+is to make a request to a server (or a local graphql) and return the response data to Relay. Your implementation
+should conform to either [FetchFunction][ff] for a Promise-like API, or [SubscribeFunction][sf] for an
+Observable-like API.
+
+This article will provide 5 implementations of a Relay Network Interface, each of one providing more capabilities
+than the other one, eventually enabling GraphQL Live Queries and Deferrable Queries.
+
+You can see the code for these 5 network layers on GitHub here, open source under MIT license:
 https://github.com/sibelius/relay-modern-network-deep-dive.
 
 <!-- more -->
 
 ### Simplest Network Layer
 
-The simplest network layer would get the request and send it to a GraphQL server to resolve and return the data to
+The simplest network layer would; get the request, send it to a GraphQL server to resolve and return the data to
 Relay environment.
 
 ```js
@@ -43,6 +52,8 @@ const fetchFunction = async (
   cacheConfig: CacheConfig,
   uploadables: ?UploadableMap
 ) => {
+  // Most GraphQL APIs expect a POST with a JSON
+  // string containing the query and associated variables
   const body = JSON.stringify({
     query: request.text, // GraphQL text from input
     variables
@@ -64,21 +75,25 @@ const fetchFunction = async (
 
   const data = await response.json();
 
+  // Mutations should throw when they have errors, making it easier
+  // for client code to react
   if (isMutation(request) && data.errors) {
     throw data;
   }
 
+  // We return the GraphQL response to update the Relay Environment
+  // which updates internal store where relay keeps its data
   return data;
 };
 ```
 
-The body of our request has the GraphQL query and the variables.
-
-If it is a mutation it throw an error when there is data.errors.
-
-We return the GraphQL response to update the Relay Environment (store where relay keep the data).
-
 ### Network that Handle Uploadables
+
+The GraphQL spec does not handle form data, and so if you need to send along files to upload to your server with a
+mutation, you'll want to use the uploadables API in Relay when you commit the mutation.
+
+This will get passed to your network interface, where you'll need to change your request body to use FormData
+instead of as JSON string.
 
 ```js
 function getRequestBodyWithUploadables(request, variables, uploadables) {
@@ -96,11 +111,17 @@ function getRequestBodyWithUploadables(request, variables, uploadables) {
 }
 ```
 
-If you wanna send files to your GraphQL Server, you need to change your request body to use FormData.
-
 ### Network that Caches Requests
 
+This builds on top of the other 2 implementations, we use
+[RelayQueryResponseCache](https://github.com/facebook/relay/blob/v1.6.0/packages/relay-runtime/network/RelayQueryResponseCache.js#L24-L29)
+to query GraphQL requests based on query and variables.
+
+Every time a mutation happens, we should invalidate our cache as we are not sure how a change can affect all cached
+query responses.
+
 ```js
+// Create our own in-memory cache
 const relayResponseCache = new RelayQueryResponseCache({ size: 250, ttl: oneMinute });
 
 const cacheHandler = async (
@@ -111,17 +132,20 @@ const cacheHandler = async (
 ) => {
   const queryID = request.text;
 
+  // If it's a mutation, clear all cache, then call the implementation above
   if (isMutation(request)) {
     relayResponseCache.clear();
     return fetchFunction(request, variables, cacheConfig, uploadables);
   }
 
+  // Try grab the request from the cache first
   const fromCache = relayResponseCache.get(queryID, variables);
-
+  // Did it hit? Or did we suppress the cache for this request
   if (isQuery(request) && fromCache !== null && !forceFetch(cacheConfig)) {
     return fromCache;
   }
 
+  // Make the request, and cache it if we get a response
   const fromServer = await fetchFunction(request, variables, cacheConfig, uploadables);
   if (fromServer) {
     relayResponseCache.set(queryID, variables, fromServer);
@@ -131,15 +155,11 @@ const cacheHandler = async (
 };
 ```
 
-Built on top of the other 2 implementations, we use RelayQueryResponseCache to query GraphQL requests based on query
-and variables. Every time a mutation is done, we should invalidate all cache as we are not sure how this affect all
-cached queries responses.
-
 ### Network using Observable
 
-Relay provides a limited implementation of [ESObservables][]. I recommend reading [A General Theory of
-Reactivity][reactivity] to understand why we need to use Observable instead of promises in some situations. While a
-promise is one value in a time space, an observable is a stream of values in a time space.
+Relay provides a limited implementation of the upcoming [ESObservables][] spec. I recommend reading [A General
+Theory of Reactivity][reactivity] to understand why Observables are a great solution instead of promises in some
+situations. Notably; a promise is one value in a time space, an observable is a stream of values in a time space.
 
 ```js
 const fetchFunction = async (
@@ -319,3 +339,8 @@ twitter https://twitter.com/sseraphini
 [reactivity]: https://kriskowal.gitbooks.io/gtor/content/
 [live]: https://github.com/facebook/relay/issues/2174
 [include]: https://facebook.github.io/relay/docs/en/graphql-in-relay.html#directives
+[relay]: https://facebook.github.io/relay/
+[env]: https://facebook.github.io/relay/docs/en/relay-environment.html
+[network]: https://facebook.github.io/relay/docs/en/network-layer.html
+[ff]: https://github.com/facebook/relay/blob/v1.6.0/packages/relay-runtime/network/RelayNetworkTypes.js#L79-L90
+[sf]: https://github.com/facebook/relay/blob/v1.6.0/packages/relay-runtime/network/RelayNetworkTypes.js#L92-L107
