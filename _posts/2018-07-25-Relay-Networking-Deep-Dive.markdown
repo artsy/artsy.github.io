@@ -6,13 +6,15 @@ categories: [relay, graphql, JavaScript, guest]
 author: sibelius
 ---
 
-> [BLURB]
+> Hey all, we have another guest post, this one comes from [Sibelius Seraphini][sib] - a very active contributor to
+> Relay and it's eco-system. When we spotted he had wrote an amazing article on how the networking aspects of Relay
+> comes together, we wanted to expand his reach and inform more people on how Relay comes together.
 >
 > -- Orta
 
-Data fetching is a hard problem: How to ask for data from a server? When is the right time to request data? How know
-you have all necessary data to render your views? Can you do lazy loading? When should you trigger lazy loading of
-data? What about to pre-fetching data?
+Data fetching is a hard problem: How to ask for data from a server? When is the right time to request data? How can
+you ensure you have all the necessary data to render your views? How can you make sure you're not over-fetching? Can
+you do lazy loading? When should you trigger lazy loading of data? What about to pre-fetching data?
 
 [Relay][relay] is a framework for building data-driven applications which handles data fetching for you. For an
 introduction to Relay, read [their docs][relay], and also check out my Relay talk at [React Conf BR][rbr].
@@ -390,3 +392,4 @@ If you have questions about this or anything send me a DM on twitter https://twi
 [artsy]: https://github.com/artsy/emission/blob/master/src/lib/relay/fetchQuery.ts
 [reactrelaynetworkmodern]: https://github.com/relay-tools/react-relay-network-modern
 [timobetina]: https://github.com/facebook/relay/issues/2174#issuecomment-375274003
+[sib]: https://github.com/sibelius
