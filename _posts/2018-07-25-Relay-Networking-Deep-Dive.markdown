@@ -217,6 +217,9 @@ const fetchFunction = async (
   sink.complete();
 };
 
+// Instead of returning a Promise that will resolve a single GraphQL response.
+// We return an Observable that could fulfill many responses before it finishes.
+
 const executeFunction = (
   request: RequestNode,
   variables: Variables,
@@ -229,25 +232,26 @@ const executeFunction = (
 };
 ```
 
-Instead of return a promise that will resolve a single GraphQL response. We return an Observable that could fulfill
-many responses before it finishes.
-
-This is used on [GraphQL Live Queries][live] (based on polling), as you are going to resolve the same query more
-than once.
+This is an implementation you would need when working with [GraphQL Live Queries][live] (based on polling), as you
+are going to resolve the same query more than once.
 
 ### Deferrable Queries Network
 
-A common case for deferrable queries is to lazy load fragments, like let's load Post content first and then load all
-comments of this post after the post is loaded.
+A common case for deferrable queries is to lazy load fragments. This lets you get request content above the page
+fold first, and then request additional data after. A good example is loading a Post's content first and then
+subsequently loading all comments of this post after the post has finished.
 
-Without deferrable queries you could simulate this using [@include Relay Modern][include] directive and a refetch
-container, when the component mounts it will change the variable used on @include to true and get the rest of the
-data.
+Without deferrable queries you could simulate this using the [@include][include] directive in your Relay fragment
+and a [refetch container][refetch]. When the component mounts the refetch container changes the variable used on the
+`@include` to true and it will request the rest of the data.
 
-The problem with above approach is that you need to wait the component to mount before start the next request, this
-will be more a big deal when Async React start working.
+The problem with above approach is that you need to wait for the component to mount before you can start the next
+request. This becomes a bigger problem as React does more work asynchronously.
 
-The deferrable query will start as soon as the previous query has finished.
+<!-- TODO: There are no docs for relay deferrable -->
+
+An ideal deferrable query will start as soon as the previous query has finished, rather than depending on your React
+components render cycles. Relay provides a [directive][] for this: `@relay(deferrable: true)`:
 
 ```js
 const PostFragment = createFragmentContainer(Post, {
@@ -261,8 +265,8 @@ const PostFragment = createFragmentContainer(Post, {
 });
 ```
 
-In the fragment above, it will first get title and commentsCount data from Post, and after it will get the data for
-CommentsList_post fragment.
+In the fragment above, Relay will first get the `title` and `commentsCount` from the Post, then afterwards Relay
+will get the data for `CommentsList_post` fragment. Sending both through the observable.
 
 Here is the implementation of an execute function to handle a batched request:
 
@@ -285,12 +289,17 @@ const executeFunction = (
 };
 ```
 
-Our execute function now can handle 2 types of requests: a `Request` that is a single GraphQL query; and a
-`BatchRequest` that could have many queries with interrelated data among them.
+This execute function now can handle 2 types of requests:
 
-So how does a batchRequestQuery looks like:
+- a single GraphQL query `Request`
+- or a `BatchRequest` that could have be many queries with inter-related data
+
+So, what does the `batchRequestQuery` function look like?
+
+<!-- TODO: Annotate ths code, I'm not 100% what it's doing myself -->
 
 ```js
+// Get variables from the results that have already been sent
 const getDeferrableVariables = (requests, request, variables: Variables) => {
   const { argumentDependencies } = request;
 
@@ -304,6 +313,7 @@ const getDeferrableVariables = (requests, request, variables: Variables) => {
     const variable = get(response.data, ad.fromRequestPath);
 
     // TODO - handle ifList, ifNull
+    // See: https://github.com/facebook/relay/issues/2194
     return {
       ...acc,
       [ad.name]: variable
@@ -311,6 +321,10 @@ const getDeferrableVariables = (requests, request, variables: Variables) => {
   }, {});
 };
 
+// Execute each of the requests, and call `sink.next()` as soon as it has the GraphQL
+/// server response data.
+//
+// It will only close the Observable stream when all requests has been fulfilled.
 const batchRequestQuery = async (
   request: RequestNode,
   variables: Variables,
@@ -332,28 +346,34 @@ const batchRequestQuery = async (
 };
 ```
 
-`getDeferrableVariables` function will get variables from result data from other requests.
+## Relay Modern is very flexible
 
-`batchRequestQuery` function will execute each of the requests, and will `sink.next()` as soon as it has the GraphQL
-server response data. It will only close the Observable stream when all requests has been fullfiled.
+Depending on your application needs, you can scale from a simpler Promise-based API for your custom network layer to
+one that uses Observables to always resolves from cache data first and then resolves from the server.
 
---
+Here are some production examples:
 
-Relay Modern is very flexible!
+- [Artsy Emission][artsy]: Uses the Promise API, caches the results locally, and shares logic with native code in an
+  iOS app so that queries can be pre-cached before the JavaScript runtime has started.
 
-You can have a custom network layer that uses observables to always resolves from cache data first and then resolves
-from the server.
+- [ReactRelayNetworkModern][]: A network layer that uses the middleware pattern to separate responsibilities like
+  retrying, logging, caching and auth.
 
-You can implement offline first apps using a custom network layer.
+- [timobetina's example][timobetina]: The simplest Observable network layer you can start with.
+
+<!-- TODO: More, @sibelius do you have some good examples? -->
 
 ## More Resources
 
-If you don't know GraphQL or you want to improve it, take a look on our boilerplate that uses dataloader to batch
-and cache requests to database https://github.com/entria/graphql-dataloader-boilerplate
+If you want to expand your understanding of GraphQL and Relay Modern, I have two great related resources:
 
-We also have a simple boilerplate for Relay Modern with React Navigation
-https://github.com/entria/ReactNavigationRelayModern If you have questions about this or anything send me a DM on
-twitter https://twitter.com/sseraphini
+- A boilerplate that uses dataloader to batch and cache requests to your database in a GraphQL API:
+  https://github.com/entria/graphql-dataloader-boilerplate
+
+- A simple boilerplate for working with Relay Modern and React Navigation:
+  https://github.com/entria/ReactNavigationRelayModern
+
+If you have questions about this or anything send me a DM on twitter https://twitter.com/sseraphini
 
 [rbr]: https://speakerdeck.com/sibelius/reactconfbr-is-relay-modern-the-future
 [esobservables]: https://github.com/tc39/proposal-observable
@@ -365,3 +385,8 @@ twitter https://twitter.com/sseraphini
 [network]: https://facebook.github.io/relay/docs/en/network-layer.html
 [ff]: https://github.com/facebook/relay/blob/v1.6.0/packages/relay-runtime/network/RelayNetworkTypes.js#L79-L90
 [sf]: https://github.com/facebook/relay/blob/v1.6.0/packages/relay-runtime/network/RelayNetworkTypes.js#L92-L107
+[refetch]: https://facebook.github.io/relay/docs/en/refetch-container.html
+[directive]: https://github.com/facebook/relay/issues/2194#issuecomment-383466255
+[artsy]: https://github.com/artsy/emission/blob/master/src/lib/relay/fetchQuery.ts
+[reactrelaynetworkmodern]: https://github.com/relay-tools/react-relay-network-modern
+[timobetina]: https://github.com/facebook/relay/issues/2174#issuecomment-375274003
