@@ -15,7 +15,7 @@ you have all necessary data to render your views? Can you do lazy loading? When 
 data? What about to pre-fetching data?
 
 [Relay][relay] is a framework for building data-driven applications which handles data fetching for you. For an
-introduction to Relay, read [their docs][relay], and check my Relay Modern talk in [React Conf BR][rbr].
+introduction to Relay, read [their docs][relay], and also check out my Relay talk at [React Conf BR][rbr].
 
 > You don’t deep dive if you don’t know how to swim
 
@@ -92,8 +92,8 @@ const fetchFunction = async (
 The GraphQL spec does not handle form data, and so if you need to send along files to upload to your server with a
 mutation, you'll want to use the uploadables API in Relay when you commit the mutation.
 
-This will get passed to your network interface, where you'll need to change your request body to use FormData
-instead of as JSON string.
+Adding uploadables in a mutation will inevitably get passed to your network interface, where you'll need to change
+your request body to use FormData instead of the JSON string above:
 
 ```js
 function getRequestBodyWithUploadables(request, variables, uploadables) {
@@ -161,6 +161,26 @@ Relay provides a limited implementation of the upcoming [ESObservables][] spec. 
 Theory of Reactivity][reactivity] to understand why Observables are a great solution instead of promises in some
 situations. Notably; a promise is one value in a time space, an observable is a stream of values in a time space.
 
+[TODO: Why Sink and not the Relay Observable? Observable is exported but has one more function (complete)]
+
+To work with this API, we're going to use a private interface for the observable object called Sink:
+
+```js
+/**
+ * A Sink is an object of methods provided by Observable during construction.
+ * The methods are to be called to trigger each event. It also contains a closed
+ * field to see if the resulting subscription has closed.
+ */
+export type Sink<-T> = {|
+  +next: T => void,
+  +error: (Error, isUncaughtThrownError?: boolean) => void,
+  +complete: () => void,
+  +closed: boolean
+|};
+```
+
+Which is the shape of the Observable object we pass back to Relay:
+
 ```js
 const fetchFunction = async (
   request: RequestNode,
@@ -212,7 +232,8 @@ const executeFunction = (
 Instead of return a promise that will resolve a single GraphQL response. We return an Observable that could fulfill
 many responses before it finishes.
 
-This is used on [GraphQL Living Queries][live], as you are going to resolve the same query more than once.
+This is used on [GraphQL Live Queries][live] (based on polling), as you are going to resolve the same query more
+than once.
 
 ### Deferrable Queries Network
 
