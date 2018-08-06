@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>The Relay Network Deep Dive - Artsy Engineering</title>
+  <meta name="author" content="">
+
+  
+  <meta name="description" content="Hey all, we have another guest post, this one comes from Sibelius Seraphini - a very active contributor to
+Relay and it's eco-system. When we spott...">
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <meta property="og:image" content="http://artsy.github.io/images/artsy_oss_image.png" />
+  <meta property="og:image:type" content="image/png" />
+
+  
+  <link rel="canonical" href="http://artsy.github.io/blog/2018/07/25/Relay-Networking-Deep-Dive/">
+  <link rel="alternate" type="application/rss+xml" title="Artsy Engineering Blog" href="/feed">
+
+  <link href="/favicon.ico" rel="icon">
+  <link href="/css/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+
+  <script src="/javascripts/jquery-1.11.3.min.js"> </script>
+  <script src="/javascripts/gradient-fade.js"></script>
+  <script src="/javascripts/noframework.waypoints.min.js"></script>
+  <script src="/javascripts/sticky.min.js"></script>
+  <script src="/javascripts/search.min.js"></script>
+
+  
+
+  <script type="text/javascript" src="https://fast.fonts.net/jsapi/f7f47a40-b25b-44ee-9f9c-cfdfc8bb2741.js"></script>
+
+
+  <link href="" rel="alternate" title="Artsy Engineering" type="application/atom+xml">
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-12450662-3']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+  <!--[if IE 8]><link href="/stylesheets/custom/ie_font.css" type="text/css"><![endif]-->
+
+</head>
+
+
+<link href="/css/epic.css" media="screen, projection" rel="stylesheet" type="text/css">
+
+
+
+<body>
+  <div>
+    <div id="bodywrapper">
+      <header>
+        <ul>
+          <li><a href="/">Artsy Engineering Blog</a></li>
+          <li><a href="https://www.artsy.net/jobs">Careers</a></li>
+          <li><a href="https://developers.artsy.net">API</a></li>
+        </ul>
+
+        <ul>
+          <li><a href="http://artsy.github.io/open-source/">Our Open Source</a></li>
+          <li><a href="http://twitter.com/artsyopensource">@artsyopensource</a></li>
+          <li><a href="https://www.artsy.net">artsy.net</a></li>
+        </ul>
+      </header>
+
+      <section>
+        <header id="page">
+          <h1>The Relay Network Deep Dive</h1>
+          <h3>
+          <!-- Yep, single line so the comma lines up right -->
+          By  Sibelius Seraphini
+          </h3>
+        </header>
+
+        <article class='post'>
+          <blockquote><p>Hey all, we have another guest post, this one comes from <a href="https://github.com/sibelius">Sibelius Seraphini</a> - a very active contributor to
+Relay and it's eco-system. When we spotted he had wrote an amazing article on how the networking aspects of Relay
+comes together, we wanted to expand his reach and inform more people on how Relay comes together.</p>
+
+<p>-- Orta</p></blockquote>
+
+<p>Data fetching is a hard problem: How to ask for data from a server? When is the right time to request data? How can
+you ensure you have all the necessary data to render your views? How can you make sure you're not over-fetching? Can
+you do lazy loading? When should you trigger lazy loading of data? What about to pre-fetching data?</p>
+
+<p><a href="https://facebook.github.io/relay/">Relay</a> is a framework for building data-driven applications which handles data fetching for you. For an
+introduction to Relay, read <a href="https://facebook.github.io/relay/">their docs</a>, and also check out my Relay talk at <a href="https://speakerdeck.com/sibelius/reactconfbr-is-relay-modern-the-future">React Conf BR</a>.</p>
+
+<blockquote><p>You don’t deep dive if you don’t know how to swim</p></blockquote>
+
+<a name="TL.DR.Relay.Modern.Network"></a>
+<h2>TL;DR Relay Modern Network</h2>
+
+<p>Relay will aggregate the data requirements (fragments) for your components, then create a request to fulfill it. The
+API to do this is via the <a href="https://facebook.github.io/relay/docs/en/relay-environment.html">Relay Environment</a>:</p>
+
+<blockquote><p>The Relay "Environment" bundles together the configuration, cache storage, and network-handling that Relay needs
+in order to operate.</p></blockquote>
+
+<p>This post focuses on the "network-handling" part, the <a href="https://facebook.github.io/relay/docs/en/network-layer.html">Network Layer</a>. The network layer's responsibility
+is to make a request to a server (or a local graphql) and return the response data to Relay. Your implementation
+should conform to either <a href="https://github.com/facebook/relay/blob/v1.6.0/packages/relay-runtime/network/RelayNetworkTypes.js#L79-L90">FetchFunction</a> for a Promise-like API, or <a href="https://github.com/facebook/relay/blob/v1.6.0/packages/relay-runtime/network/RelayNetworkTypes.js#L92-L107">SubscribeFunction</a> for an
+Observable-like API.</p>
+
+<p>This article will provide 5 implementations of a Relay Network Interface, each of one providing more capabilities
+than the other one, eventually enabling GraphQL Live Queries and Deferrable Queries.</p>
+
+<p>You can see the code for these 5 network layers on GitHub here, open source under MIT license:
+https://github.com/sibelius/relay-modern-network-deep-dive.</p>
+
+<!-- more -->
+
+
+<a name="Simplest.Network.Layer"></a>
+<h3>Simplest Network Layer</h3>
+
+<p>The simplest network layer would; get the request, send it to a GraphQL server to resolve and return the data to
+Relay environment.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+<span class='line-number'>38</span>
+<span class='line-number'>39</span>
+</pre></td><td class='code'><pre><code class='js'><span class='line'><span class="kr">const</span> <span class="nx">fetchFunction</span> <span class="o">=</span> <span class="nx">async</span> <span class="p">(</span>
+</span><span class='line'>  <span class="nx">request</span><span class="o">:</span> <span class="nx">RequestNode</span><span class="p">,</span>
+</span><span class='line'>  <span class="nx">variables</span><span class="o">:</span> <span class="nx">Variables</span><span class="p">,</span>
+</span><span class='line'>  <span class="nx">cacheConfig</span><span class="o">:</span> <span class="nx">CacheConfig</span><span class="p">,</span>
+</span><span class='line'>  <span class="nx">uploadables</span><span class="o">:</span> <span class="o">?</span><span class="nx">UploadableMap</span>
+</span><span class='line'><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span>
+</span><span class='line'>  <span class="c1">// Most GraphQL APIs expect a POST with a JSON</span>
+</span><span class='line'>  <span class="c1">// string containing the query and associated variables</span>
+</span><span class='line'>  <span class="kr">const</span> <span class="nx">body</span> <span class="o">=</span> <span class="nx">JSON</span><span class="p">.</span><span class="nx">stringify</span><span class="p">({</span>
+</span><span class='line'>    <span class="nx">query</span><span class="o">:</span> <span class="nx">request</span><span class="p">.</span><span class="nx">text</span><span class="p">,</span> <span class="c1">// GraphQL text from input</span>
+</span><span class='line'>    <span class="nx">variables</span>
+</span><span class='line'>  <span class="p">});</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="kr">const</span> <span class="nx">headers</span> <span class="o">=</span> <span class="p">{</span>
+</span><span class='line'>    <span class="nx">Accept</span><span class="o">:</span> <span class="s2">&quot;application/json&quot;</span><span class="p">,</span>
+</span><span class='line'>    <span class="s2">&quot;Content-type&quot;</span><span class="o">:</span> <span class="s2">&quot;application/json&quot;</span><span class="p">,</span>
+</span><span class='line'>    <span class="nx">authorization</span><span class="o">:</span> <span class="nx">getToken</span><span class="p">()</span>
+</span><span class='line'>  <span class="p">};</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="kr">const</span> <span class="nx">response</span> <span class="o">=</span> <span class="nx">await</span> <span class="nx">fetchWithRetries</span><span class="p">(</span><span class="nx">ENV</span><span class="p">.</span><span class="nx">GRAPHQL_URL</span><span class="p">,</span> <span class="p">{</span>
+</span><span class='line'>    <span class="nx">method</span><span class="o">:</span> <span class="s2">&quot;POST&quot;</span><span class="p">,</span>
+</span><span class='line'>    <span class="nx">headers</span><span class="p">,</span>
+</span><span class='line'>    <span class="nx">body</span><span class="p">,</span>
+</span><span class='line'>    <span class="nx">fetchTimeout</span><span class="o">:</span> <span class="mi">20000</span><span class="p">,</span>
+</span><span class='line'>    <span class="nx">retryDelays</span><span class="o">:</span> <span class="p">[</span><span class="mi">1000</span><span class="p">,</span> <span class="mi">3000</span><span class="p">,</span> <span class="mi">5000</span><span class="p">,</span> <span class="mi">10000</span><span class="p">]</span>
+</span><span class='line'>  <span class="p">});</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="kr">const</span> <span class="nx">data</span> <span class="o">=</span> <span class="nx">await</span> <span class="nx">response</span><span class="p">.</span><span class="nx">json</span><span class="p">();</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c1">// Mutations should throw when they have errors, making it easier</span>
+</span><span class='line'>  <span class="c1">// for client code to react</span>
+</span><span class='line'>  <span class="k">if</span> <span class="p">(</span><span class="nx">isMutation</span><span class="p">(</span><span class="nx">request</span><span class="p">)</span> <span class="o">&amp;&amp;</span> <span class="nx">data</span><span class="p">.</span><span class="nx">errors</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>    <span class="k">throw</span> <span class="nx">data</span><span class="p">;</span>
+</span><span class='line'>  <span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c1">// We return the GraphQL response to update the Relay Environment</span>
+</span><span class='line'>  <span class="c1">// which updates internal store where relay keeps its data</span>
+</span><span class='line'>  <span class="k">return</span> <span class="nx">data</span><span class="p">;</span>
+</span><span class='line'><span class="p">};</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<a name="Network.that.Handle.Uploadables"></a>
+<h3>Network that Handle Uploadables</h3>
+
+<p>The GraphQL spec does not handle form data, and so if you need to send along files to upload to your server with a
+mutation, you'll want to use the uploadables API in Relay when you commit the mutation.</p>
+
+<p>Adding uploadables in a mutation will inevitably get passed to your network interface, where you'll need to change
+your request body to use FormData instead of the JSON string above:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+</pre></td><td class='code'><pre><code class='js'><span class='line'><span class="kd">function</span> <span class="nx">getRequestBodyWithUploadables</span><span class="p">(</span><span class="nx">request</span><span class="p">,</span> <span class="nx">variables</span><span class="p">,</span> <span class="nx">uploadables</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>  <span class="kd">let</span> <span class="nx">formData</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">FormData</span><span class="p">();</span>
+</span><span class='line'>  <span class="nx">formData</span><span class="p">.</span><span class="nx">append</span><span class="p">(</span><span class="s2">&quot;query&quot;</span><span class="p">,</span> <span class="nx">request</span><span class="p">.</span><span class="nx">text</span><span class="p">);</span>
+</span><span class='line'>  <span class="nx">formData</span><span class="p">.</span><span class="nx">append</span><span class="p">(</span><span class="s2">&quot;variables&quot;</span><span class="p">,</span> <span class="nx">JSON</span><span class="p">.</span><span class="nx">stringify</span><span class="p">(</span><span class="nx">variables</span><span class="p">));</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="nb">Object</span><span class="p">.</span><span class="nx">keys</span><span class="p">(</span><span class="nx">uploadables</span><span class="p">).</span><span class="nx">forEach</span><span class="p">(</span><span class="nx">key</span> <span class="o">=&gt;</span> <span class="p">{</span>
+</span><span class='line'>    <span class="k">if</span> <span class="p">(</span><span class="nb">Object</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">hasOwnProperty</span><span class="p">.</span><span class="nx">call</span><span class="p">(</span><span class="nx">uploadables</span><span class="p">,</span> <span class="nx">key</span><span class="p">))</span> <span class="p">{</span>
+</span><span class='line'>      <span class="nx">formData</span><span class="p">.</span><span class="nx">append</span><span class="p">(</span><span class="nx">key</span><span class="p">,</span> <span class="nx">uploadables</span><span class="p">[</span><span class="nx">key</span><span class="p">]);</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'>  <span class="p">});</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">return</span> <span class="nx">formData</span><span class="p">;</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<a name="Network.that.Caches.Requests"></a>
+<h3>Network that Caches Requests</h3>
+
+<p>This builds on top of the other 2 implementations, we use
+<a href="https://github.com/facebook/relay/blob/v1.6.0/packages/relay-runtime/network/RelayQueryResponseCache.js#L24-L29">RelayQueryResponseCache</a>
+to query GraphQL requests based on query and variables.</p>
+
+<p>Every time a mutation happens, we should invalidate our cache as we are not sure how a change can affect all cached
+query responses.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+</pre></td><td class='code'><pre><code class='js'><span class='line'><span class="c1">// Create our own in-memory cache</span>
+</span><span class='line'><span class="kr">const</span> <span class="nx">relayResponseCache</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">RelayQueryResponseCache</span><span class="p">({</span> <span class="nx">size</span><span class="o">:</span> <span class="mi">250</span><span class="p">,</span> <span class="nx">ttl</span><span class="o">:</span> <span class="nx">oneMinute</span> <span class="p">});</span>
+</span><span class='line'>
+</span><span class='line'><span class="kr">const</span> <span class="nx">cacheHandler</span> <span class="o">=</span> <span class="nx">async</span> <span class="p">(</span>
+</span><span class='line'>  <span class="nx">request</span><span class="o">:</span> <span class="nx">RequestNode</span><span class="p">,</span>
+</span><span class='line'>  <span class="nx">variables</span><span class="o">:</span> <span class="nx">Variables</span><span class="p">,</span>
+</span><span class='line'>  <span class="nx">cacheConfig</span><span class="o">:</span> <span class="nx">CacheConfig</span><span class="p">,</span>
+</span><span class='line'>  <span class="nx">uploadables</span><span class="o">:</span> <span class="nx">UploadableMap</span>
+</span><span class='line'><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span>
+</span><span class='line'>  <span class="kr">const</span> <span class="nx">queryID</span> <span class="o">=</span> <span class="nx">request</span><span class="p">.</span><span class="nx">text</span><span class="p">;</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c1">// If it&#39;s a mutation, clear all cache, then call the implementation above</span>
+</span><span class='line'>  <span class="k">if</span> <span class="p">(</span><span class="nx">isMutation</span><span class="p">(</span><span class="nx">request</span><span class="p">))</span> <span class="p">{</span>
+</span><span class='line'>    <span class="nx">relayResponseCache</span><span class="p">.</span><span class="nx">clear</span><span class="p">();</span>
+</span><span class='line'>    <span class="k">return</span> <span class="nx">fetchFunction</span><span class="p">(</span><span class="nx">request</span><span class="p">,</span> <span class="nx">variables</span><span class="p">,</span> <span class="nx">cacheConfig</span><span class="p">,</span> <span class="nx">uploadables</span><span class="p">);</span>
+</span><span class='line'>  <span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c1">// Try grab the request from the cache first</span>
+</span><span class='line'>  <span class="kr">const</span> <span class="nx">fromCache</span> <span class="o">=</span> <span class="nx">relayResponseCache</span><span class="p">.</span><span class="nx">get</span><span class="p">(</span><span class="nx">queryID</span><span class="p">,</span> <span class="nx">variables</span><span class="p">);</span>
+</span><span class='line'>  <span class="c1">// Did it hit? Or did we suppress the cache for this request</span>
+</span><span class='line'>  <span class="k">if</span> <span class="p">(</span><span class="nx">isQuery</span><span class="p">(</span><span class="nx">request</span><span class="p">)</span> <span class="o">&amp;&amp;</span> <span class="nx">fromCache</span> <span class="o">!==</span> <span class="kc">null</span> <span class="o">&amp;&amp;</span> <span class="o">!</span><span class="nx">forceFetch</span><span class="p">(</span><span class="nx">cacheConfig</span><span class="p">))</span> <span class="p">{</span>
+</span><span class='line'>    <span class="k">return</span> <span class="nx">fromCache</span><span class="p">;</span>
+</span><span class='line'>  <span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c1">// Make the request, and cache it if we get a response</span>
+</span><span class='line'>  <span class="kr">const</span> <span class="nx">fromServer</span> <span class="o">=</span> <span class="nx">await</span> <span class="nx">fetchFunction</span><span class="p">(</span><span class="nx">request</span><span class="p">,</span> <span class="nx">variables</span><span class="p">,</span> <span class="nx">cacheConfig</span><span class="p">,</span> <span class="nx">uploadables</span><span class="p">);</span>
+</span><span class='line'>  <span class="k">if</span> <span class="p">(</span><span class="nx">fromServer</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>    <span class="nx">relayResponseCache</span><span class="p">.</span><span class="nx">set</span><span class="p">(</span><span class="nx">queryID</span><span class="p">,</span> <span class="nx">variables</span><span class="p">,</span> <span class="nx">fromServer</span><span class="p">);</span>
+</span><span class='line'>  <span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">return</span> <span class="nx">fromServer</span><span class="p">;</span>
+</span><span class='line'><span class="p">};</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<a name="Network.using.Observable"></a>
+<h3>Network using Observable</h3>
+
+<p>Relay provides a limited implementation of the upcoming <a href="https://github.com/tc39/proposal-observable">ESObservables</a> spec. I recommend reading <a href="https://kriskowal.gitbooks.io/gtor/content/">A General
+Theory of Reactivity</a> to understand why Observables are a great solution instead of promises in some
+situations. Notably; a promise is one value in a time space, an observable is a stream of values in a time space.</p>
+
+<p>[TODO: Why Sink and not the Relay Observable? Observable is exported but has one more function (complete)]</p>
+
+<p>To work with this API, we're going to use a private interface for the observable object called Sink:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+</pre></td><td class='code'><pre><code class='js'><span class='line'><span class="cm">/**</span>
+</span><span class='line'><span class="cm"> * A Sink is an object of methods provided by Observable during construction.</span>
+</span><span class='line'><span class="cm"> * The methods are to be called to trigger each event. It also contains a closed</span>
+</span><span class='line'><span class="cm"> * field to see if the resulting subscription has closed.</span>
+</span><span class='line'><span class="cm"> */</span>
+</span><span class='line'><span class="kr">export</span> <span class="nx">type</span> <span class="nx">Sink</span><span class="o">&lt;-</span><span class="nx">T</span><span class="o">&gt;</span> <span class="o">=</span> <span class="p">{</span><span class="o">|</span>
+</span><span class='line'>  <span class="o">+</span><span class="nx">next</span><span class="o">:</span> <span class="nx">T</span> <span class="o">=&gt;</span> <span class="k">void</span><span class="p">,</span>
+</span><span class='line'>  <span class="o">+</span><span class="nx">error</span><span class="o">:</span> <span class="p">(</span><span class="nb">Error</span><span class="p">,</span> <span class="nx">isUncaughtThrownError</span><span class="o">?:</span> <span class="kr">boolean</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="k">void</span><span class="p">,</span>
+</span><span class='line'>  <span class="o">+</span><span class="nx">complete</span><span class="o">:</span> <span class="p">()</span> <span class="o">=&gt;</span> <span class="k">void</span><span class="p">,</span>
+</span><span class='line'>  <span class="o">+</span><span class="nx">closed</span><span class="o">:</span> <span class="kr">boolean</span>
+</span><span class='line'><span class="o">|</span><span class="p">};</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Which is the shape of the Observable object we pass back to Relay:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+<span class='line-number'>38</span>
+<span class='line-number'>39</span>
+<span class='line-number'>40</span>
+<span class='line-number'>41</span>
+<span class='line-number'>42</span>
+<span class='line-number'>43</span>
+<span class='line-number'>44</span>
+<span class='line-number'>45</span>
+<span class='line-number'>46</span>
+<span class='line-number'>47</span>
+<span class='line-number'>48</span>
+</pre></td><td class='code'><pre><code class='js'><span class='line'><span class="kr">const</span> <span class="nx">fetchFunction</span> <span class="o">=</span> <span class="nx">async</span> <span class="p">(</span>
+</span><span class='line'>  <span class="nx">request</span><span class="o">:</span> <span class="nx">RequestNode</span><span class="p">,</span>
+</span><span class='line'>  <span class="nx">variables</span><span class="o">:</span> <span class="nx">Variables</span><span class="p">,</span>
+</span><span class='line'>  <span class="nx">cacheConfig</span><span class="o">:</span> <span class="nx">CacheConfig</span><span class="p">,</span>
+</span><span class='line'>  <span class="nx">uploadables</span><span class="o">:</span> <span class="o">?</span><span class="nx">UploadableMap</span><span class="p">,</span>
+</span><span class='line'>  <span class="nx">sink</span><span class="o">:</span> <span class="nx">Sink</span><span class="o">&lt;</span><span class="nx">any</span><span class="o">&gt;</span>
+</span><span class='line'><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span>
+</span><span class='line'>  <span class="kr">const</span> <span class="nx">body</span> <span class="o">=</span> <span class="nx">getRequestBody</span><span class="p">(</span><span class="nx">request</span><span class="p">,</span> <span class="nx">variables</span><span class="p">,</span> <span class="nx">uploadables</span><span class="p">);</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="kr">const</span> <span class="nx">headers</span> <span class="o">=</span> <span class="p">{</span>
+</span><span class='line'>    <span class="p">...</span><span class="nx">getHeaders</span><span class="p">(</span><span class="nx">uploadables</span><span class="p">),</span>
+</span><span class='line'>    <span class="nx">authorization</span><span class="o">:</span> <span class="nx">getToken</span><span class="p">()</span>
+</span><span class='line'>  <span class="p">};</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="kr">const</span> <span class="nx">response</span> <span class="o">=</span> <span class="nx">await</span> <span class="nx">fetchWithRetries</span><span class="p">(</span><span class="nx">ENV</span><span class="p">.</span><span class="nx">GRAPHQL_URL</span><span class="p">,</span> <span class="p">{</span>
+</span><span class='line'>    <span class="nx">method</span><span class="o">:</span> <span class="s2">&quot;POST&quot;</span><span class="p">,</span>
+</span><span class='line'>    <span class="nx">headers</span><span class="p">,</span>
+</span><span class='line'>    <span class="nx">body</span><span class="p">,</span>
+</span><span class='line'>    <span class="nx">fetchTimeout</span><span class="o">:</span> <span class="mi">20000</span><span class="p">,</span>
+</span><span class='line'>    <span class="nx">retryDelays</span><span class="o">:</span> <span class="p">[</span><span class="mi">1000</span><span class="p">,</span> <span class="mi">3000</span><span class="p">,</span> <span class="mi">5000</span><span class="p">,</span> <span class="mi">10000</span><span class="p">]</span>
+</span><span class='line'>  <span class="p">});</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="kr">const</span> <span class="nx">data</span> <span class="o">=</span> <span class="nx">await</span> <span class="nx">handleData</span><span class="p">(</span><span class="nx">response</span><span class="p">);</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">if</span> <span class="p">(</span><span class="nx">isMutation</span><span class="p">(</span><span class="nx">request</span><span class="p">)</span> <span class="o">&amp;&amp;</span> <span class="nx">data</span><span class="p">.</span><span class="nx">errors</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>    <span class="nx">sink</span><span class="p">.</span><span class="nx">error</span><span class="p">(</span><span class="nx">data</span><span class="p">);</span>
+</span><span class='line'>    <span class="nx">sink</span><span class="p">.</span><span class="nx">complete</span><span class="p">();</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="k">return</span><span class="p">;</span>
+</span><span class='line'>  <span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="nx">sink</span><span class="p">.</span><span class="nx">next</span><span class="p">(</span><span class="nx">data</span><span class="p">);</span>
+</span><span class='line'>  <span class="nx">sink</span><span class="p">.</span><span class="nx">complete</span><span class="p">();</span>
+</span><span class='line'><span class="p">};</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1">// Instead of returning a Promise that will resolve a single GraphQL response.</span>
+</span><span class='line'><span class="c1">// We return an Observable that could fulfill many responses before it finishes.</span>
+</span><span class='line'>
+</span><span class='line'><span class="kr">const</span> <span class="nx">executeFunction</span> <span class="o">=</span> <span class="p">(</span>
+</span><span class='line'>  <span class="nx">request</span><span class="o">:</span> <span class="nx">RequestNode</span><span class="p">,</span>
+</span><span class='line'>  <span class="nx">variables</span><span class="o">:</span> <span class="nx">Variables</span><span class="p">,</span>
+</span><span class='line'>  <span class="nx">cacheConfig</span><span class="o">:</span> <span class="nx">CacheConfig</span><span class="p">,</span>
+</span><span class='line'>  <span class="nx">uploadables</span><span class="o">:</span> <span class="o">?</span><span class="nx">UploadableMap</span>
+</span><span class='line'><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span>
+</span><span class='line'>  <span class="k">return</span> <span class="nx">Observable</span><span class="p">.</span><span class="nx">create</span><span class="p">(</span><span class="nx">sink</span> <span class="o">=&gt;</span> <span class="p">{</span>
+</span><span class='line'>    <span class="nx">fetchFunction</span><span class="p">(</span><span class="nx">request</span><span class="p">,</span> <span class="nx">variables</span><span class="p">,</span> <span class="nx">cacheConfig</span><span class="p">,</span> <span class="nx">uploadables</span><span class="p">,</span> <span class="nx">sink</span><span class="p">);</span>
+</span><span class='line'>  <span class="p">});</span>
+</span><span class='line'><span class="p">};</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>This is an implementation you would need when working with <a href="https://github.com/facebook/relay/issues/2174">GraphQL Live Queries</a> (based on polling), as you
+are going to resolve the same query more than once.</p>
+
+<a name="Deferrable.Queries.Network"></a>
+<h3>Deferrable Queries Network</h3>
+
+<p>A common case for deferrable queries is to lazy load fragments. This lets you get request content above the page
+fold first, and then request additional data after. A good example is loading a Post's content first and then
+subsequently loading all comments of this post after the post has finished.</p>
+
+<p>Without deferrable queries you could simulate this using the <a href="https://facebook.github.io/relay/docs/en/graphql-in-relay.html#directives">@include</a> directive in your Relay fragment
+and a <a href="https://facebook.github.io/relay/docs/en/refetch-container.html">refetch container</a>. When the component mounts the refetch container changes the variable used on the
+<code>@include</code> to true and it will request the rest of the data.</p>
+
+<p>The problem with above approach is that you need to wait for the component to mount before you can start the next
+request. This becomes a bigger problem as React does more work asynchronously.</p>
+
+<!-- TODO: There are no docs for relay deferrable -->
+
+
+<p>An ideal deferrable query will start as soon as the previous query has finished, rather than depending on your React
+components render cycles. Relay provides a <a href="https://github.com/facebook/relay/issues/2194#issuecomment-383466255">directive</a> for this: <code>@relay(deferrable: true)</code>:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+</pre></td><td class='code'><pre><code class='js'><span class='line'><span class="kr">const</span> <span class="nx">PostFragment</span> <span class="o">=</span> <span class="nx">createFragmentContainer</span><span class="p">(</span><span class="nx">Post</span><span class="p">,</span> <span class="p">{</span>
+</span><span class='line'>  <span class="nx">post</span><span class="o">:</span> <span class="nx">graphql</span><span class="err">`</span>
+</span><span class='line'>    <span class="nx">fragment</span> <span class="nx">Post_post</span> <span class="nx">on</span> <span class="nx">Post</span> <span class="p">{</span>
+</span><span class='line'>      <span class="nx">title</span>
+</span><span class='line'>      <span class="nx">commentsCount</span>
+</span><span class='line'>      <span class="p">...</span><span class="nx">CommentsList_post</span> <span class="err">@</span><span class="nx">relay</span><span class="p">(</span><span class="nx">deferrable</span><span class="o">:</span> <span class="kc">true</span><span class="p">)</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'>  <span class="err">`</span>
+</span><span class='line'><span class="p">});</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>In the fragment above, Relay will first get the <code>title</code> and <code>commentsCount</code> from the Post, then afterwards Relay
+will get the data for <code>CommentsList_post</code> fragment. Sending both through the observable.</p>
+
+<p>Here is the implementation of an execute function to handle a batched request:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+</pre></td><td class='code'><pre><code class='js'><span class='line'><span class="kr">const</span> <span class="nx">executeFunction</span> <span class="o">=</span> <span class="p">(</span>
+</span><span class='line'>  <span class="nx">request</span><span class="o">:</span> <span class="nx">RequestNode</span><span class="p">,</span>
+</span><span class='line'>  <span class="nx">variables</span><span class="o">:</span> <span class="nx">Variables</span><span class="p">,</span>
+</span><span class='line'>  <span class="nx">cacheConfig</span><span class="o">:</span> <span class="nx">CacheConfig</span><span class="p">,</span>
+</span><span class='line'>  <span class="nx">uploadables</span><span class="o">:</span> <span class="o">?</span><span class="nx">UploadableMap</span>
+</span><span class='line'><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span>
+</span><span class='line'>  <span class="k">return</span> <span class="nx">Observable</span><span class="p">.</span><span class="nx">create</span><span class="p">(</span><span class="nx">sink</span> <span class="o">=&gt;</span> <span class="p">{</span>
+</span><span class='line'>    <span class="k">if</span> <span class="p">(</span><span class="nx">request</span><span class="p">.</span><span class="nx">kind</span> <span class="o">===</span> <span class="s2">&quot;Request&quot;</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>      <span class="nx">cacheHandler</span><span class="p">(</span><span class="nx">request</span><span class="p">,</span> <span class="nx">variables</span><span class="p">,</span> <span class="nx">cacheConfig</span><span class="p">,</span> <span class="nx">uploadables</span><span class="p">,</span> <span class="nx">sink</span><span class="p">,</span> <span class="kc">true</span><span class="p">);</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="k">if</span> <span class="p">(</span><span class="nx">request</span><span class="p">.</span><span class="nx">kind</span> <span class="o">===</span> <span class="s2">&quot;BatchRequest&quot;</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>      <span class="nx">batchRequestQuery</span><span class="p">(</span><span class="nx">request</span><span class="p">,</span> <span class="nx">variables</span><span class="p">,</span> <span class="nx">cacheConfig</span><span class="p">,</span> <span class="nx">uploadables</span><span class="p">,</span> <span class="nx">sink</span><span class="p">);</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'>  <span class="p">});</span>
+</span><span class='line'><span class="p">};</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>This execute function now can handle 2 types of requests:</p>
+
+<ul>
+<li>a single GraphQL query <code>Request</code></li>
+<li>or a <code>BatchRequest</code> that could have be many queries with inter-related data</li>
+</ul>
+
+
+<p>So, what does the <code>batchRequestQuery</code> function look like?</p>
+
+<!-- TODO: Annotate ths code, I'm not 100% what it's doing myself -->
+
+
+
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+<span class='line-number'>38</span>
+<span class='line-number'>39</span>
+<span class='line-number'>40</span>
+<span class='line-number'>41</span>
+<span class='line-number'>42</span>
+<span class='line-number'>43</span>
+<span class='line-number'>44</span>
+<span class='line-number'>45</span>
+</pre></td><td class='code'><pre><code class='js'><span class='line'><span class="c1">// Get variables from the results that have already been sent</span>
+</span><span class='line'><span class="kr">const</span> <span class="nx">getDeferrableVariables</span> <span class="o">=</span> <span class="p">(</span><span class="nx">requests</span><span class="p">,</span> <span class="nx">request</span><span class="p">,</span> <span class="nx">variables</span><span class="o">:</span> <span class="nx">Variables</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span>
+</span><span class='line'>  <span class="kr">const</span> <span class="p">{</span> <span class="nx">argumentDependencies</span> <span class="p">}</span> <span class="o">=</span> <span class="nx">request</span><span class="p">;</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">if</span> <span class="p">(</span><span class="nx">argumentDependencies</span><span class="p">.</span><span class="nx">length</span> <span class="o">===</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>    <span class="k">return</span> <span class="nx">variables</span><span class="p">;</span>
+</span><span class='line'>  <span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">return</span> <span class="nx">argumentDependencies</span><span class="p">.</span><span class="nx">reduce</span><span class="p">((</span><span class="nx">acc</span><span class="p">,</span> <span class="nx">ad</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span>
+</span><span class='line'>    <span class="kr">const</span> <span class="p">{</span> <span class="nx">response</span> <span class="p">}</span> <span class="o">=</span> <span class="nx">requests</span><span class="p">[</span><span class="nx">ad</span><span class="p">.</span><span class="nx">fromRequestName</span><span class="p">];</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="kr">const</span> <span class="nx">variable</span> <span class="o">=</span> <span class="nx">get</span><span class="p">(</span><span class="nx">response</span><span class="p">.</span><span class="nx">data</span><span class="p">,</span> <span class="nx">ad</span><span class="p">.</span><span class="nx">fromRequestPath</span><span class="p">);</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="c1">// TODO - handle ifList, ifNull</span>
+</span><span class='line'>    <span class="c1">// See: https://github.com/facebook/relay/issues/2194</span>
+</span><span class='line'>    <span class="k">return</span> <span class="p">{</span>
+</span><span class='line'>      <span class="p">...</span><span class="nx">acc</span><span class="p">,</span>
+</span><span class='line'>      <span class="p">[</span><span class="nx">ad</span><span class="p">.</span><span class="nx">name</span><span class="p">]</span><span class="o">:</span> <span class="nx">variable</span>
+</span><span class='line'>    <span class="p">};</span>
+</span><span class='line'>  <span class="p">},</span> <span class="p">{});</span>
+</span><span class='line'><span class="p">};</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1">// Execute each of the requests, and call `sink.next()` as soon as it has the GraphQL</span>
+</span><span class='line'><span class="c1">/// server response data.</span>
+</span><span class='line'><span class="c1">//</span>
+</span><span class='line'><span class="c1">// It will only close the Observable stream when all requests has been fulfilled.</span>
+</span><span class='line'><span class="kr">const</span> <span class="nx">batchRequestQuery</span> <span class="o">=</span> <span class="nx">async</span> <span class="p">(</span>
+</span><span class='line'>  <span class="nx">request</span><span class="o">:</span> <span class="nx">RequestNode</span><span class="p">,</span>
+</span><span class='line'>  <span class="nx">variables</span><span class="o">:</span> <span class="nx">Variables</span><span class="p">,</span>
+</span><span class='line'>  <span class="nx">cacheConfig</span><span class="o">:</span> <span class="nx">CacheConfig</span><span class="p">,</span>
+</span><span class='line'>  <span class="nx">uploadables</span><span class="o">:</span> <span class="o">?</span><span class="nx">UploadableMap</span><span class="p">,</span>
+</span><span class='line'>  <span class="nx">sink</span><span class="o">:</span> <span class="nx">Sink</span><span class="o">&lt;</span><span class="nx">ExecutePayload</span><span class="o">&gt;</span>
+</span><span class='line'><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span>
+</span><span class='line'>  <span class="kr">const</span> <span class="nx">requests</span> <span class="o">=</span> <span class="p">{};</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">for</span> <span class="p">(</span><span class="kr">const</span> <span class="nx">r</span> <span class="nx">of</span> <span class="nx">request</span><span class="p">.</span><span class="nx">requests</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>    <span class="kr">const</span> <span class="nx">v</span> <span class="o">=</span> <span class="nx">getDeferrableVariables</span><span class="p">(</span><span class="nx">requests</span><span class="p">,</span> <span class="nx">r</span><span class="p">,</span> <span class="nx">variables</span><span class="p">);</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="kr">const</span> <span class="nx">response</span> <span class="o">=</span> <span class="nx">await</span> <span class="nx">cacheHandler</span><span class="p">(</span><span class="nx">r</span><span class="p">,</span> <span class="nx">v</span><span class="p">,</span> <span class="nx">cacheConfig</span><span class="p">,</span> <span class="nx">uploadables</span><span class="p">,</span> <span class="nx">sink</span><span class="p">,</span> <span class="kc">false</span><span class="p">);</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="nx">requests</span><span class="p">[</span><span class="nx">r</span><span class="p">.</span><span class="nx">name</span><span class="p">]</span> <span class="o">=</span> <span class="nx">response</span><span class="p">;</span>
+</span><span class='line'>  <span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="nx">sink</span><span class="p">.</span><span class="nx">complete</span><span class="p">();</span>
+</span><span class='line'><span class="p">};</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<a name="Relay.Modern.is.very.flexible"></a>
+<h2>Relay Modern is very flexible</h2>
+
+<p>Depending on your application needs, you can scale from a simpler Promise-based API for your custom network layer to
+one that uses Observables to always resolves from cache data first and then resolves from the server.</p>
+
+<p>Here are some production examples:</p>
+
+<ul>
+<li><p><a href="https://github.com/artsy/emission/blob/master/src/lib/relay/fetchQuery.ts">Artsy Emission</a>: Uses the Promise API, caches the results locally, and shares logic with native code in an
+iOS app so that queries can be pre-cached before the JavaScript runtime has started.</p></li>
+<li><p><a href="https://github.com/relay-tools/react-relay-network-modern">ReactRelayNetworkModern</a>: A network layer that uses the middleware pattern to separate responsibilities like
+retrying, logging, caching and auth.</p></li>
+<li><p><a href="https://github.com/facebook/relay/issues/2174#issuecomment-375274003">timobetina's example</a>: The simplest Observable network layer you can start with.</p></li>
+</ul>
+
+
+<!-- TODO: More, @sibelius do you have some good examples? -->
+
+
+<a name="More.Resources"></a>
+<h2>More Resources</h2>
+
+<p>If you want to expand your understanding of GraphQL and Relay Modern, I have two great related resources:</p>
+
+<ul>
+<li><p>A boilerplate that uses dataloader to batch and cache requests to your database in a GraphQL API:
+https://github.com/entria/graphql-dataloader-boilerplate</p></li>
+<li><p>A simple boilerplate for working with Relay Modern and React Navigation:
+https://github.com/entria/ReactNavigationRelayModern</p></li>
+</ul>
+
+
+<p>If you have questions about this or anything send me a DM on twitter https://twitter.com/sseraphini</p>
+
+        </article>
+
+        <article class='post'>
+          <p style="padding-bottom: 0; margin-bottom:0;">
+            <a href="https://www.artsy.net/" style="background-image: none;">
+              <svg viewBox="0 0 510 510" width="40" height="40" xmlns="http://www.w3.org/2000/svg">
+                <path transform="scale(1, -1) translate(0, -480)" d="M0 -32h512v512h-512v-512v0zM464 16h-80v80h-48v-80h-288v416h416v-416v0zM194 384h-40l-74 -186h38l20 52h72l19 -52h39l-74 186v0zM149 282l25 66l24 -66h-49v0z"></path>
+              </svg>
+            </a>
+          <p/>
+        </article>
+
+      
+
+      </section>
+
+      <footer>
+        <article>
+
+          <section>
+            <h4>Author</h4>
+            <p> <a href="/author/sibelius"/>Sibelius Seraphini</a></p>
+            <p>Full Stack Developer from São Paulo.</a></p>
+          </section>
+
+          <section>
+            <h4>Post Meta</h4>
+            <p>Jul 25, 2018</p>
+            <p>Tagged: <a class='category' href='/blog/categories/graphql/'>graphql</a>, <a class='category' href='/blog/categories/guest/'>guest</a>, <a class='category' href='/blog/categories/javascript/'>javascript</a>, <a class='category' href='/blog/categories/relay/'>relay</a></p>
+          </section>
+          <br/>
+          <section>
+            <h4>Artsy OSS</h4>
+            <ul>
+              <li><a href='https://www.artsy.net'>Artsy.net</a></li>
+              <li><a href='https://developers.artsy.net'>API</a></li>
+              <li><a href='http://artsy.github.io/open-source/'>Featured OSS</a></li>
+              <li><a href='https://www.artsy.net/jobs'>Careers</a></li>
+            </ul>
+          </section>
+
+          <section>
+            <h4>Blog</h4>
+            <ul>
+              <li><a href='http://artsy.github.io/blog/archives/'>Archives</a></li>
+              <li><a href='http://artsy.github.io/search/'>Search</a></li>
+              <li><a href='https://github.com/artsy/artsy.github.io'>Code on GitHub</a></li>
+              <li><a href='https://github.com/artsy/artsy.github.io/edit/source/_posts/2018-07-25-Relay-Networking-Deep-Dive.markdown'>Fix typoes in this post</a></li>
+            </ul>
+          </section>
+
+        </article>
+
+        <article>
+          <section>
+            <h4>Post Series on the Blog</h4>
+            <ul>
+              
+              <li><a href='/series/react-native-at-artsy/'>React Native at Artsy</a></li>
+              
+              <li><a href='/series/javascriptures/'>JavaScriptures</a></li>
+              
+              <li><a href='/series/stages-of-professional-growth/'>Stages of Professional Growth</a></li>
+              
+              <li><a href='/series/artsy-tech-stack/'>Artsy Tech Stack</a></li>
+              
+              <li><a href='/series/open-source-by-default/'>Open Source by Default</a></li>
+              
+            </ul>
+          </section>
+
+          <section>
+          
+          </section>
+        </article>
+
+      </footer>
+    </div>
+  </div>
+</body>

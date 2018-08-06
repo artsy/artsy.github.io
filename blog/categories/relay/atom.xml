@@ -4,7 +4,7 @@
   <title><![CDATA[Category: relay | Artsy Engineering]]></title>
   <link href="http://artsy.github.io/blog/categories/relay/atom.xml" rel="self"/>
   <link href="http://artsy.github.io/"/>
-  <updated>2018-07-25T23:57:17+00:00</updated>
+  <updated>2018-08-06T17:18:51+00:00</updated>
   <id>http://artsy.github.io/</id>
   <author>
     <name><![CDATA[]]></name>
@@ -12,6 +12,394 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[The Relay Network Deep Dive]]></title>
+    <link href="http://artsy.github.io/blog/2018/07/25/Relay-Networking-Deep-Dive/"/>
+    <updated>2018-07-25T00:00:00+00:00</updated>
+    <id>http://artsy.github.io/blog/2018/07/25/Relay-Networking-Deep-Dive</id>
+    <content type="html"><![CDATA[<blockquote><p>Hey all, we have another guest post, this one comes from <a href="https://github.com/sibelius">Sibelius Seraphini</a> - a very active contributor to
+Relay and it's eco-system. When we spotted he had wrote an amazing article on how the networking aspects of Relay
+comes together, we wanted to expand his reach and inform more people on how Relay comes together.</p>
+
+<p>-- Orta</p></blockquote>
+
+<p>Data fetching is a hard problem: How to ask for data from a server? When is the right time to request data? How can
+you ensure you have all the necessary data to render your views? How can you make sure you're not over-fetching? Can
+you do lazy loading? When should you trigger lazy loading of data? What about to pre-fetching data?</p>
+
+<p><a href="https://facebook.github.io/relay/">Relay</a> is a framework for building data-driven applications which handles data fetching for you. For an
+introduction to Relay, read <a href="https://facebook.github.io/relay/">their docs</a>, and also check out my Relay talk at <a href="https://speakerdeck.com/sibelius/reactconfbr-is-relay-modern-the-future">React Conf BR</a>.</p>
+
+<blockquote><p>You don’t deep dive if you don’t know how to swim</p></blockquote>
+
+<a name="TL.DR.Relay.Modern.Network"></a>
+<h2>TL;DR Relay Modern Network</h2>
+
+<p>Relay will aggregate the data requirements (fragments) for your components, then create a request to fulfill it. The
+API to do this is via the <a href="https://facebook.github.io/relay/docs/en/relay-environment.html">Relay Environment</a>:</p>
+
+<blockquote><p>The Relay "Environment" bundles together the configuration, cache storage, and network-handling that Relay needs
+in order to operate.</p></blockquote>
+
+<p>This post focuses on the "network-handling" part, the <a href="https://facebook.github.io/relay/docs/en/network-layer.html">Network Layer</a>. The network layer's responsibility
+is to make a request to a server (or a local graphql) and return the response data to Relay. Your implementation
+should conform to either <a href="https://github.com/facebook/relay/blob/v1.6.0/packages/relay-runtime/network/RelayNetworkTypes.js#L79-L90">FetchFunction</a> for a Promise-like API, or <a href="https://github.com/facebook/relay/blob/v1.6.0/packages/relay-runtime/network/RelayNetworkTypes.js#L92-L107">SubscribeFunction</a> for an
+Observable-like API.</p>
+
+<p>This article will provide 5 implementations of a Relay Network Interface, each of one providing more capabilities
+than the other one, eventually enabling GraphQL Live Queries and Deferrable Queries.</p>
+
+<p>You can see the code for these 5 network layers on GitHub here, open source under MIT license:
+https://github.com/sibelius/relay-modern-network-deep-dive.</p>
+
+<!-- more -->
+
+
+<a name="Simplest.Network.Layer"></a>
+<h3>Simplest Network Layer</h3>
+
+<p>The simplest network layer would; get the request, send it to a GraphQL server to resolve and return the data to
+Relay environment.</p>
+
+<pre><code class="js">const fetchFunction = async (
+  request: RequestNode,
+  variables: Variables,
+  cacheConfig: CacheConfig,
+  uploadables: ?UploadableMap
+) =&gt; {
+  // Most GraphQL APIs expect a POST with a JSON
+  // string containing the query and associated variables
+  const body = JSON.stringify({
+    query: request.text, // GraphQL text from input
+    variables
+  });
+
+  const headers = {
+    Accept: "application/json",
+    "Content-type": "application/json",
+    authorization: getToken()
+  };
+
+  const response = await fetchWithRetries(ENV.GRAPHQL_URL, {
+    method: "POST",
+    headers,
+    body,
+    fetchTimeout: 20000,
+    retryDelays: [1000, 3000, 5000, 10000]
+  });
+
+  const data = await response.json();
+
+  // Mutations should throw when they have errors, making it easier
+  // for client code to react
+  if (isMutation(request) &amp;&amp; data.errors) {
+    throw data;
+  }
+
+  // We return the GraphQL response to update the Relay Environment
+  // which updates internal store where relay keeps its data
+  return data;
+};
+</code></pre>
+
+<a name="Network.that.Handle.Uploadables"></a>
+<h3>Network that Handle Uploadables</h3>
+
+<p>The GraphQL spec does not handle form data, and so if you need to send along files to upload to your server with a
+mutation, you'll want to use the uploadables API in Relay when you commit the mutation.</p>
+
+<p>Adding uploadables in a mutation will inevitably get passed to your network interface, where you'll need to change
+your request body to use FormData instead of the JSON string above:</p>
+
+<pre><code class="js">function getRequestBodyWithUploadables(request, variables, uploadables) {
+  let formData = new FormData();
+  formData.append("query", request.text);
+  formData.append("variables", JSON.stringify(variables));
+
+  Object.keys(uploadables).forEach(key =&gt; {
+    if (Object.prototype.hasOwnProperty.call(uploadables, key)) {
+      formData.append(key, uploadables[key]);
+    }
+  });
+
+  return formData;
+}
+</code></pre>
+
+<a name="Network.that.Caches.Requests"></a>
+<h3>Network that Caches Requests</h3>
+
+<p>This builds on top of the other 2 implementations, we use
+<a href="https://github.com/facebook/relay/blob/v1.6.0/packages/relay-runtime/network/RelayQueryResponseCache.js#L24-L29">RelayQueryResponseCache</a>
+to query GraphQL requests based on query and variables.</p>
+
+<p>Every time a mutation happens, we should invalidate our cache as we are not sure how a change can affect all cached
+query responses.</p>
+
+<pre><code class="js">// Create our own in-memory cache
+const relayResponseCache = new RelayQueryResponseCache({ size: 250, ttl: oneMinute });
+
+const cacheHandler = async (
+  request: RequestNode,
+  variables: Variables,
+  cacheConfig: CacheConfig,
+  uploadables: UploadableMap
+) =&gt; {
+  const queryID = request.text;
+
+  // If it's a mutation, clear all cache, then call the implementation above
+  if (isMutation(request)) {
+    relayResponseCache.clear();
+    return fetchFunction(request, variables, cacheConfig, uploadables);
+  }
+
+  // Try grab the request from the cache first
+  const fromCache = relayResponseCache.get(queryID, variables);
+  // Did it hit? Or did we suppress the cache for this request
+  if (isQuery(request) &amp;&amp; fromCache !== null &amp;&amp; !forceFetch(cacheConfig)) {
+    return fromCache;
+  }
+
+  // Make the request, and cache it if we get a response
+  const fromServer = await fetchFunction(request, variables, cacheConfig, uploadables);
+  if (fromServer) {
+    relayResponseCache.set(queryID, variables, fromServer);
+  }
+
+  return fromServer;
+};
+</code></pre>
+
+<a name="Network.using.Observable"></a>
+<h3>Network using Observable</h3>
+
+<p>Relay provides a limited implementation of the upcoming <a href="https://github.com/tc39/proposal-observable">ESObservables</a> spec. I recommend reading <a href="https://kriskowal.gitbooks.io/gtor/content/">A General
+Theory of Reactivity</a> to understand why Observables are a great solution instead of promises in some
+situations. Notably; a promise is one value in a time space, an observable is a stream of values in a time space.</p>
+
+<p>[TODO: Why Sink and not the Relay Observable? Observable is exported but has one more function (complete)]</p>
+
+<p>To work with this API, we're going to use a private interface for the observable object called Sink:</p>
+
+<pre><code class="js">/**
+ * A Sink is an object of methods provided by Observable during construction.
+ * The methods are to be called to trigger each event. It also contains a closed
+ * field to see if the resulting subscription has closed.
+ */
+export type Sink&lt;-T&gt; = {|
+  +next: T =&gt; void,
+  +error: (Error, isUncaughtThrownError?: boolean) =&gt; void,
+  +complete: () =&gt; void,
+  +closed: boolean
+|};
+</code></pre>
+
+<p>Which is the shape of the Observable object we pass back to Relay:</p>
+
+<pre><code class="js">const fetchFunction = async (
+  request: RequestNode,
+  variables: Variables,
+  cacheConfig: CacheConfig,
+  uploadables: ?UploadableMap,
+  sink: Sink&lt;any&gt;
+) =&gt; {
+  const body = getRequestBody(request, variables, uploadables);
+
+  const headers = {
+    ...getHeaders(uploadables),
+    authorization: getToken()
+  };
+
+  const response = await fetchWithRetries(ENV.GRAPHQL_URL, {
+    method: "POST",
+    headers,
+    body,
+    fetchTimeout: 20000,
+    retryDelays: [1000, 3000, 5000, 10000]
+  });
+
+  const data = await handleData(response);
+
+  if (isMutation(request) &amp;&amp; data.errors) {
+    sink.error(data);
+    sink.complete();
+
+    return;
+  }
+
+  sink.next(data);
+  sink.complete();
+};
+
+// Instead of returning a Promise that will resolve a single GraphQL response.
+// We return an Observable that could fulfill many responses before it finishes.
+
+const executeFunction = (
+  request: RequestNode,
+  variables: Variables,
+  cacheConfig: CacheConfig,
+  uploadables: ?UploadableMap
+) =&gt; {
+  return Observable.create(sink =&gt; {
+    fetchFunction(request, variables, cacheConfig, uploadables, sink);
+  });
+};
+</code></pre>
+
+<p>This is an implementation you would need when working with <a href="https://github.com/facebook/relay/issues/2174">GraphQL Live Queries</a> (based on polling), as you
+are going to resolve the same query more than once.</p>
+
+<a name="Deferrable.Queries.Network"></a>
+<h3>Deferrable Queries Network</h3>
+
+<p>A common case for deferrable queries is to lazy load fragments. This lets you get request content above the page
+fold first, and then request additional data after. A good example is loading a Post's content first and then
+subsequently loading all comments of this post after the post has finished.</p>
+
+<p>Without deferrable queries you could simulate this using the <a href="https://facebook.github.io/relay/docs/en/graphql-in-relay.html#directives">@include</a> directive in your Relay fragment
+and a <a href="https://facebook.github.io/relay/docs/en/refetch-container.html">refetch container</a>. When the component mounts the refetch container changes the variable used on the
+<code>@include</code> to true and it will request the rest of the data.</p>
+
+<p>The problem with above approach is that you need to wait for the component to mount before you can start the next
+request. This becomes a bigger problem as React does more work asynchronously.</p>
+
+<!-- TODO: There are no docs for relay deferrable -->
+
+
+<p>An ideal deferrable query will start as soon as the previous query has finished, rather than depending on your React
+components render cycles. Relay provides a <a href="https://github.com/facebook/relay/issues/2194#issuecomment-383466255">directive</a> for this: <code>@relay(deferrable: true)</code>:</p>
+
+<pre><code class="js">const PostFragment = createFragmentContainer(Post, {
+  post: graphql`
+    fragment Post_post on Post {
+      title
+      commentsCount
+      ...CommentsList_post @relay(deferrable: true)
+    }
+  `
+});
+</code></pre>
+
+<p>In the fragment above, Relay will first get the <code>title</code> and <code>commentsCount</code> from the Post, then afterwards Relay
+will get the data for <code>CommentsList_post</code> fragment. Sending both through the observable.</p>
+
+<p>Here is the implementation of an execute function to handle a batched request:</p>
+
+<pre><code class="js">const executeFunction = (
+  request: RequestNode,
+  variables: Variables,
+  cacheConfig: CacheConfig,
+  uploadables: ?UploadableMap
+) =&gt; {
+  return Observable.create(sink =&gt; {
+    if (request.kind === "Request") {
+      cacheHandler(request, variables, cacheConfig, uploadables, sink, true);
+    }
+
+    if (request.kind === "BatchRequest") {
+      batchRequestQuery(request, variables, cacheConfig, uploadables, sink);
+    }
+  });
+};
+</code></pre>
+
+<p>This execute function now can handle 2 types of requests:</p>
+
+<ul>
+<li>a single GraphQL query <code>Request</code></li>
+<li>or a <code>BatchRequest</code> that could have be many queries with inter-related data</li>
+</ul>
+
+
+<p>So, what does the <code>batchRequestQuery</code> function look like?</p>
+
+<!-- TODO: Annotate ths code, I'm not 100% what it's doing myself -->
+
+
+<pre><code class="js">// Get variables from the results that have already been sent
+const getDeferrableVariables = (requests, request, variables: Variables) =&gt; {
+  const { argumentDependencies } = request;
+
+  if (argumentDependencies.length === 0) {
+    return variables;
+  }
+
+  return argumentDependencies.reduce((acc, ad) =&gt; {
+    const { response } = requests[ad.fromRequestName];
+
+    const variable = get(response.data, ad.fromRequestPath);
+
+    // TODO - handle ifList, ifNull
+    // See: https://github.com/facebook/relay/issues/2194
+    return {
+      ...acc,
+      [ad.name]: variable
+    };
+  }, {});
+};
+
+// Execute each of the requests, and call `sink.next()` as soon as it has the GraphQL
+/// server response data.
+//
+// It will only close the Observable stream when all requests has been fulfilled.
+const batchRequestQuery = async (
+  request: RequestNode,
+  variables: Variables,
+  cacheConfig: CacheConfig,
+  uploadables: ?UploadableMap,
+  sink: Sink&lt;ExecutePayload&gt;
+) =&gt; {
+  const requests = {};
+
+  for (const r of request.requests) {
+    const v = getDeferrableVariables(requests, r, variables);
+
+    const response = await cacheHandler(r, v, cacheConfig, uploadables, sink, false);
+
+    requests[r.name] = response;
+  }
+
+  sink.complete();
+};
+</code></pre>
+
+<a name="Relay.Modern.is.very.flexible"></a>
+<h2>Relay Modern is very flexible</h2>
+
+<p>Depending on your application needs, you can scale from a simpler Promise-based API for your custom network layer to
+one that uses Observables to always resolves from cache data first and then resolves from the server.</p>
+
+<p>Here are some production examples:</p>
+
+<ul>
+<li><p><a href="https://github.com/artsy/emission/blob/master/src/lib/relay/fetchQuery.ts">Artsy Emission</a>: Uses the Promise API, caches the results locally, and shares logic with native code in an
+iOS app so that queries can be pre-cached before the JavaScript runtime has started.</p></li>
+<li><p><a href="https://github.com/relay-tools/react-relay-network-modern">ReactRelayNetworkModern</a>: A network layer that uses the middleware pattern to separate responsibilities like
+retrying, logging, caching and auth.</p></li>
+<li><p><a href="https://github.com/facebook/relay/issues/2174#issuecomment-375274003">timobetina's example</a>: The simplest Observable network layer you can start with.</p></li>
+</ul>
+
+
+<!-- TODO: More, @sibelius do you have some good examples? -->
+
+
+<a name="More.Resources"></a>
+<h2>More Resources</h2>
+
+<p>If you want to expand your understanding of GraphQL and Relay Modern, I have two great related resources:</p>
+
+<ul>
+<li><p>A boilerplate that uses dataloader to batch and cache requests to your database in a GraphQL API:
+https://github.com/entria/graphql-dataloader-boilerplate</p></li>
+<li><p>A simple boilerplate for working with Relay Modern and React Navigation:
+https://github.com/entria/ReactNavigationRelayModern</p></li>
+</ul>
+
+
+<p>If you have questions about this or anything send me a DM on twitter https://twitter.com/sseraphini</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[JavaScriptures 5 - Tooling]]></title>
@@ -674,362 +1062,6 @@ curl -L https://github.com/artsy/Artsy-OSSUIFonts/raw/master/Pod/Assets/texgyrea
 </code></pre>
 
 <p>And that is our styles. Covering all of the major use cases of React Native for us.</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Exploration: Front-end JavaScript at Artsy in 2017]]></title>
-    <link href="http://artsy.github.io/blog/2017/02/05/Front-end-JavaScript-at-Artsy-2017/"/>
-    <updated>2017-02-05T12:17:00+00:00</updated>
-    <id>http://artsy.github.io/blog/2017/02/05/Front-end-JavaScript-at-Artsy-2017</id>
-    <content type="html"><![CDATA[<center>
- <img src="/images/js2017/js.svg" style="width:300px;">
-</center>
-
-
-<p>The Artsy web team have been early adopters of node, and for the last 4 years the stable stack for the Artsy website has been predominantly been Node + CoffeeScript + Express + Backbone. In 2016 the mobile team <a href="/blog/2016/08/15/React-Native-at-Artsy/">announced</a> that it had moved to React Native, matching the web team as using JavaScript as the tools of their trade.</p>
-
-<p>Historically we have always had two separate dev teams for building Artsy.net and the corresponding iOS app, we call them (Art) Collector Web, and Collector Mobile. By the end of 2016 we decided to merge the teams. The merger has given way to a whole plethora of ideas about what contemporary JavaScript looks like and we've been experimenting with finding common, natural patterns between web and native.</p>
-
-<p>This post tries to encapsulate what we consider to be our consolidated stack for web/native Artsy in 2017.</p>
-
-<p><strong>TLDR:</strong> <a href="#TypeScript">TypeScript</a>, <a href="#GraphQL">GraphQL</a>, <a href="#React...React.Native">React/React Native</a>, <a href="#Relay">Relay</a>, <a href="#Yarn">Yarn</a>, <a href="#Jest">Jest</a>, and <a href="#Visual.Studio.Code">Visual Studio Code</a>.</p>
-
-<!-- more -->
-
-
-<a name="Overview"></a>
-<h2>Overview</h2>
-
-<p>Our web stack has been <a href="/blog/2013/11/30/rendering-on-the-server-and-client-in-node-dot-js/">ezel.js</a> since 2013, and continues to be a mature and well thought out technology. Since then, there has been explorations on a successor to that framework using React and GraphQL with <a href="https://github.com/muraljs/mural">muraljs</a>. However, since the merger, a lot more of our focus has been on trying to find something that feels similar on both React and React Native.</p>
-
-<center>
- <img src="/images/js2017/ts.svg" style="width:300px;">
-</center>
-
-
-<a name="TypeScript"></a>
-<h2>TypeScript</h2>
-
-<p><a href="http://www.typescriptlang.org">TypeScript</a> and <a href="https://flowtype.org/">Flow</a> really moved JavaScript forwards in the last few years. They both tackle the essential problems of "how can I trust my code does what I think", "how can I be sure of this change" and "how can I build better tools for JavaScript" in different ways.</p>
-
-<p>Yes, the title of this section is TypeScript and yet I instantly include Flow. I don't think you can, or should talk about TypeScript without understanding it's relationship to Flow.</p>
-
-<p>Both <a href="http://www.typescriptlang.org/play/#src=function%20addNumbers(first%3A%20number%2C%20second%3A%20number)%20%7B%0D%0A%09return%20first%20%2B%20second%0D%0A%7D%0D%0A%0D%0AaddNumbers(1%2C%202)%0D%0A">TypeScript</a> and <a href="https://flowtype.org/docs/five-simple-examples.html#adding-type-annotations">Flow</a> provide a structure for applying Types to JavaScript.</p>
-
-<p>Both <a href="http://www.typescriptlang.org/play/#src=var%20one%20%3D%201%0D%0A%0D%0Aone%20%3D%20%22%22%0D%0A">TypeScript</a> and <a href="https://flowtype.org/docs/classes.html#type-annotations-vs-inference">Flow</a> will infer typing metadata from untyped data.</p>
-
-<p>Both <a href="https://www.npmjs.com/%7Etypes">TypeScript</a> and <a href="https://github.com/flowtype/flow-typed">Flow</a> have systems for applying types to node modules.</p>
-
-<p>We initially went with Flow, as Flow is a <a href="https://discuss.reactjs.org/t/if-typescript-is-so-great-how-come-all-notable-reactjs-projects-use-babel/4887">considerably easier sell</a> to others, as it integrates inside existing JavaScript projects with less issues. Flow acts as a separate tool to a babel-based JavaScript project, whereas TypeScript is a full on replacement for that tooling.</p>
-
-<p><em>Why bother though?</em> JavaScript has existed for decades without type annotations, and everyone seems to have got on pretty well. One of the key features that a typing system gives you is top-notch tooling. An editor can use the type interfaces to provide auto-completion, inline documentation and inline warning/errors as you work. Type systems will help catch errors before you have even pressed save.</p>
-
-<p></article>
-<a href='/images/js2017/types.png' style="">
-  <img src="/images/js2017/types.png" alt="The Artsy Tech Stack 2017" style="width:100%;">
-</a>
-<article class="post">
-</p>
-
-<p>What works really well for typed JavaScript is that you can easily opt out of it when you need to. Then you're back to normal "do whatever you want" JavaScript land, no problem.</p>
-
-<p>We moved from Flow simply because TypeScript had better integration with <a href="https://code.visualstudio.com">Visual Studio Code</a> (VS Code). For a few months I devoted time to improving the Flow integration in VS Code, and tried learning OCaml to help out on the <a href="https://github.com/facebook/flow">Flow tool</a> itself. In the end though, when we compared to how solid VS Code felt with TypeScript - we decided it was worth converting our projects.</p>
-
-<p>Both TypeScript and Flow provide nearly every Type structure found inside Objective-C and Swift, so teaching the rest of the team how they work is easy from our native experiences.</p>
-
-<p><a name="TypeScript-Extension"></a>One particularly interesting part of TypeScript that we are keeping our eyes on is this <a href="https://github.com/Microsoft/TypeScript/issues/6508">language extensibility issue</a>, if it turns out well, we will be looking into integrating the other technologies mentioned here into TypeScript itself.</p>
-
-<center>
- <img src="/images/js2017/graphql.svg" style="width:300px;">
-</center>
-
-
-<a name="GraphQL"></a>
-<h2>GraphQL</h2>
-
-<p>GraphQL is a way to handle API requests. I consider it the successor to REST when working with front-end clients. A big claim, yeah. So, what is it?</p>
-
-<p>Officially <a href="https://github.com/facebook/graphql">GraphQL is a specification</a>. A server can conform to the GraphQL spec, and then clients can make queries against it. Think of it a bit like how SQL is a standardized way of doing database queries across multiple databases types.</p>
-
-<p>As a client, you <a href="https://github.com/artsy/eigen/blob/dac7c80b66b600f9a45aaae6095544fe420f0bbc/Artsy/Networking/ARRouter.m#L1011">send</a> a "<a href="http://graphql.org/docs/getting-started/#queries">JSON-shaped query</a>" structure, which is hierarchical and easy to read:</p>
-
-<pre><code class="json">{
-  artwork(id: "kimber-berry-as-close-to-magic-as-you-can-get") {
-    id
-    additional_information
-
-    is_price_hidden
-    is_inquireable
-  }
-}
-</code></pre>
-
-<blockquote><p>This will search for a <a href="https://www.artsy.net/artwork/kimber-berry-as-close-to-magic-as-you-can-get">specific artwork</a>, with the response JSON as the Artwork's <code>id</code>, <code>additional_information</code>, <code>is_price_hidden</code> and <code>is_inquireable</code>.</p></blockquote>
-
-<p>It's important to note here, the data being sent <em>back</em> is specifically  what you ask for. This is not defined on the server as a <em>short</em> or <em>embedded</em> version of a model, but the specific data the client requested. When bandwidth and speed is crucial, this is the other way in which GraphQL vastly improves an app-user's experience.</p>
-
-<p>This is in stark contrast to other successors to REST APIs, the hypermedia APIs, like <a href="http://stateless.co/hal_specification.html">HAL</a> and <a href="http://jsonapi.org">JSON-API</a> - both of which are optimised for caching, and rely on "one model, one request" types of API access. E.g. a list of Artworks would actually contain a list of hrefs instead of the model data, and you have to fetch each model in a separate request.</p>
-
-<p>Hypermedia APIs have a really useful space in cross-server communications, but are extremely wasteful of the most precious resource for a front-end device - bandwidth. <a href="latency">Latency matters considerably</a>, on mobile where bandwidth is spotty, and attention spans are short you need to do everything possible to show more than a loading spinner.</p>
-
-<p>I have previously explored our usage of GraphQL from the perspective of a native developer <a href="/blog/2016/06/19/graphql-for-mobile/">in 2016</a>. So I'll leave that post to describe our implementation of a GraphQL server.</p>
-
-<p>One exciting movement in the space of GraphQL is <a href="https://githubengineering.com/the-github-graphql-api/">GitHub moving to GraphQL</a> for their new APIs.</p>
-
-<center>
- <img src="/images/react-native/artsy_react_logo.svg" style="width:300px;">
-</center>
-
-
-<a name="React...React.Native"></a>
-<h2>React / React Native</h2>
-
-<p>React is a Facebook project which offers a uni-direction Component model that <em>can</em> replace MVC in a front-end application. React was built out of a desire to abstract away a web page's true view hierarchy (called the DOM) so that they could make changes to the view in memory and then React would handle finding the differences between view states.</p>
-
-<p>You create a set of Components to encapsulate each part of the state of the page. React makes it easy to make components that are functional in the <a href="https://en.wikipedia.org/wiki/functional_reactive_programming">Functional Reactive Programming</a> sense. They act like a function which takes some specially declared state and it is rendered into HTML.</p>
-
-<p>A component optionally uses a language called <a href="#jsx">JSX</a> to visualise how each component's child components are set up, here's an example of a React component using JSX <a href="https://github.com/artsy/emission/blob/c558323e4276699925b4edb3d448812005ae6b5d/lib/components/home/search_bar.js">from Emission, our React Native library</a>:</p>
-
-<pre><code class="js">export default class SearchBar extends React.Component {
-  render() {
-    return (
-      &lt;TouchableWithoutFeedback onPress={this.handleTap.bind(this)}&gt;
-        &lt;View style={styles.container}&gt;
-          &lt;Image style={styles.searchIcon} source={require('../../../images/SearchButton.png')}/&gt;
-          &lt;Text style={styles.text}&gt;Search for artists and artworks...&lt;/Text&gt;
-        &lt;/View&gt;
-      &lt;/TouchableWithoutFeedback&gt;
-    )
-  }
-
-  handleTap() {
-    Switchboard.presentModalViewController(this, '/search')
-  }
-}
-</code></pre>
-
-<p>By providing a well encapsulated Component model, you can aggressively reduce the amount of redundant code you need to build an application. By not initially writing to the DOM, React can decide what has changed between user actions and that means you have to juggle significantly less state.</p>
-
-<p>We can then build on React via React-Native to allow the same style of code to exist inside the mobile sphere, where typically you have had unique languages and tooling.</p>
-
-<p>React Native is an implementation of React where instead of having React's virtual DOM map to a web page's DOM, it creates a native view hierarchy. In the case of iOS that is a <code>UIView</code> hierarchy, and in Android, a <code>View</code> hierarchy.</p>
-
-<p>If you'd like to find out why the iOS team moved to React Native, check our <a href="/series/react-native-at-artsy/">series of posts on React Native</a>.</p>
-
-<center>
- <img src="/images/js2017/relay.svg" style="width:300px;">
-</center>
-
-
-<a name="Relay"></a>
-<h2>Relay</h2>
-
-<p>Any front-end client has a lot of work to do on every page:</p>
-
-<ul>
-<li>Fetching all the data for a view hierarchy.</li>
-<li>Managing asynchronous state transitions and coordinating concurrent requests.</li>
-<li>Managing errors.</li>
-<li>Retrying failed requests.</li>
-<li>Updating the local cache after receiving new results/changes the server objects responses.</li>
-<li>Optimistically updating the UI while waiting for the server to respond to mutations.</li>
-</ul>
-
-
-<p>This is typically handled in a per-page basis, for example the API details, and state management between a Gene page, and an Artist page are different. In part because they have different data-models, but also that they have different correlated data. However, they do share a lot of the common responsibilities mentioned above. In our native side, we struggled to find abstractions that would work across multiple pages. Relay fixes this, and does it in a shockingly elegant way.</p>
-
-<p>Relay is a framework for building data-driven React apps which relies on a deep connection to GraphQL. You wrap your React components inside a Relay container, which handles the networking and setting the state for your component.</p>
-
-<pre><code class="js">// This is a normal React component, taken directly from our app
-// It will optionally show a description if one exists on a gene.
-
-class Biography extends React.Component {
-  render() {
-    const gene = this.props.gene
-    if (!gene.description) { return null }
-
-    return (
-      &lt;View&gt;
-        &lt;SerifText style={styles.blurb} numberOfLines={0}&gt;{gene.description}&lt;/SerifText&gt;
-      &lt;/View&gt;
-    )
-  }
-}
-
-// Take the above component `Biography`, and wrap it with a Relay Container.
-// Then provide what parts of a GraphQL request the `Biography` needs
-
-export default Relay.createContainer(Biography, {
-  fragments: {
-    gene: () =&gt; Relay.QL`
-      fragment on Gene {
-        description
-      }
-    `,
-  }
-})
-
-// When the `Biography` component is rendered, the component is given props of 
-// `gene` with a `description` by the Relay container. 
-</code></pre>
-
-<p>Relay handles this by having each component in your view hierarchy exposing the fragments of a GraphQL query. There is a pre-render stage where all of your components fragments are brought together to make a single API request. So in the case of the Gene, it may look something like:</p>
-
-<pre><code class="json">{
-  gene(id: "the-fantastic") {
-    // could have come from the root component's fragment
-    id
-    name 
-
-    // came from the above Header fragment
-    description 
-
-    // could have come from a RelatedArtists component's fragment
-    trending_artists {
-      name
-      href
-    }
-  }
-}
-</code></pre>
-
-<p>The data is first looked up inside Relay's local cache, and then any un-cached items are requested from the network. The results of the query is then moved into the component via it's props. Relay will only provide the specific data each component has requested. So the <code>Header</code> component would get nothing for <code>this.props.gene.name</code>. This data-masking is a great way of ensuring the connection between component and API.</p>
-
-<p>I'd strongly recommend taking the dive into both the <a href="https://facebook.github.io/relay/docs/thinking-in-graphql.html">Thinking with GraphQL</a> and then <a href="https://facebook.github.io/relay/docs/thinking-in-relay.html">Thinking with Relay</a> tutorials to learn more. Finally, <a href="https://www.learnrelay.org">Learn Relay</a> and <a href="https://sgwilym.github.io/relay-visual-learners/">Relay for Visual Learners</a> are great tutorials to help you get comfortable with the concepts.</p>
-
-<center>
- <img src="/images/js2017/yarn.svg" style="width:300px;">
-</center>
-
-
-<a name="Yarn"></a>
-<h2>Yarn</h2>
-
-<p>I have a lot of respect for NPM, their scale is <a href="http://blog.npmjs.org/post/143451680695/how-many-npm-users-are-there">through the roof</a>. They built out the foundations for a massive, thriving community. They did a great job. Like a lot of the JavaScript ecosystem, their tooling allows you to get away with a lot of things. You can have the same dependency inside the app with multiple versions, or apps with a dependency tree that is different each time you run <code>npm install</code>.</p>
-
-<p>We have multiple engineers who have worked on a dependency manager for half a decade, having indeterminate builds in JavaScript was something that worried us greatly. Luckily, there is <a href="https://yarnpkg.com">Yarn</a>.</p>
-
-<p>Yarn is a Facebook project that replaces the NPM <a href="https://en.wikipedia.org/wiki/Command-line_interface">cli</a> client. It's very new, so unlike NPM it does not have to worry about backwards compatibility. It is what I'd imagine a fresh re-write of the NPM cli would look like.</p>
-
-<p>Yarn is significantly faster, has a determinate process for setting up projects and uses a lockfile by default to ensure everyone using the project gets the exact same dependency tree. It uses NPM as a server, and so you get the same node modules as with the NPM cli.</p>
-
-<p>Sometimes Yarn gives you pleasant surprises too, my favourite being that <code>yarn [x]</code> will check to see if that is a local command that you could run, saving a bunch of redundant settings.</p>
-
-<p>Converting a codebase can be as simple as going into your project and running:</p>
-
-<pre><code class="sh">npm install -g yarn
-yarn install
-</code></pre>
-
-<p>Now you have a lockfile, and are using yarn. Awesome, if you are migrating from a project with a shrink-wrap - I have a script which will generate a summary of the changes for you: <a href="https://gist.github.com/orta/cb6d0b8256852c1f01ecf1d803b664c9">script</a>, <a href="https://github.com/artsy/metaphysics/pull/479">example</a>.</p>
-
-<center>
- <img src="/images/js2017/jest.svg" style="width:300px;">
-</center>
-
-
-<a name="Jest"></a>
-<h2>Jest</h2>
-
-<p>One of the things that I find particularly pleasant about the JavaScript ecosystem are their testing tools. With our React Native, we came into the ecosystem with fresh eyes, and it was pretty obvious that Jest was an exceptional testing framework. I hear historically Jest has been a bit meh, but it is without a doubt worth another look.</p>
-
-<p><strong>The watcher</strong> - The majority of your usage of Jest is with it running in watcher mode. This mode uses your git diff as a seed for what to run tests against. Jest will use that diff to define all the files that the changed code touches, and then all of the tests that cover those files.</p>
-
-<p>For example, I make a change in one source file and 60 tests run from 6 different test suites. Finishing in under a second.</p>
-
-<p></article>
-<a href='/images/js2017/jest-watcher.gif' style="">
-  <img src="/images/js2017/jest-watcher.gif" alt="Jest's awesome watch mode" style="width:100%;">
-</a>
-<article class="post">
-</p>
-
-<p>Not all tests are as important to a run, so Jest also keeps track of which tests failed last time and will run those first next time. This reduces iteration time considerably.</p>
-
-<p><strong>Fast and safe</strong> - You think the watcher is smart? Well the way Jest handle test suites is also extremely elegant. Jest keeps track of how long each test suite took to run, and then will weigh the test suites across different processes in order to speed up the overall test suite. If Jest thinks they're all going to be really quick (like my GIF above) they will all happen in one process, as that can also be faster.</p>
-
-<p>Each test suite is an entirely sandboxed node virtual machine, so you cannot have tests influencing each other.</p>
-
-<p><strong>Snapshots</strong> - Jest provides a concept called snapshots, which provides an easy way to compare JavaScript objects. One place where this really shines is with React components. <a href="https://github.com/artsy/emission/blob/ec565b8492540b4e33066364b415c7906ec1e028/lib/containers/__tests__/gene-tests.js#L121-L158">For example</a>:</p>
-
-<pre><code class="js">it('looks like expected', () =&gt; {
-  const props = {
-      gene:{...}
-    }
-
-  const tree = renderer.create(
-    &lt;Gene geneID={props.gene.name} medium="painting" price_range="*-100000" gene={props.gene}/&gt;
-  ).toJSON()
-
-  expect(tree).toMatchSnapshot()
-})
-</code></pre>
-
-<p>Now we will get a test failure when any changes happen in the component tree. For example, if I changed the background color to <code>blue</code> from <code>white</code>. I get a fail like this:</p>
-
-<p><img src="/images/js2017/jest-snapshots.png" style="width:100%"></p>
-
-<p>While that example is trivial, we really want to have tests like this to ensure we understand how changes propagate throughout the app.</p>
-
-<p><strong>No config</strong> - When we first integrated Jest, we had no config. Now, to make sure that TypeScript works how we'd like, we require some setup. However, having smart defaults which works in most cases say a lot about the care and attention paid to Developer Experience from the Jest team. The documentation covers default integrations for: Babel, TypeScript and webpack. Three of the biggest modern tools for getting stuff done with node.</p>
-
-<p><strong>Comprehensive API</strong> - Snapshots, watchers, custom matchers, useful JSON output, ESLint linters, Elegant Mocking tools and natural support for async code. All in one project.</p>
-
-<p>If you're interested, there is a lot of work around automating the migration between different testing frameworks in <a href="https://github.com/skovhus/jest-codemods">jest-codemods</a> - getting started has never been easier. I'd also recommend looking at <a href="https://wallabyjs.com">wallaby.js</a> and <a href="https://github.com/orta/vscode-jest">vscode-jest</a> for tooling.</p>
-
-<center>
- <img src="/images/vscode/vscode_logo_artsy.svg" style="width:300px;">
-</center>
-
-
-<a name="Visual.Studio.Code"></a>
-<h2>Visual Studio Code</h2>
-
-<p>Had you told me two years ago that my main editor would be a JavaScript app, I'd have bought you a beer for such a great joke.</p>
-
-<p>Visual Studio Code was the app that changed my mind.</p>
-
-<p>I've done a longer write up on the how and why we use VS Code in <a href="/blog/2016/08/15/vscode/">JavaScript projects</a>, however here I'd like to consider the cultural aspect of the choice. It's common practice among web technologists to all have different editors on a project, and for their editors to generally do little work for them. A lot of this culture came from the TextMate and Rails days with the infamous <a href="https://twitter.com/dhh/status/492706473936314369?lang=en">blog in 15 minutes video</a>. When I was a web developer, I also did this.</p>
-
-<p>When you spend a lot of time in a <a href="https://developer.apple.com/xcode/">powerful IDE</a>, it gets pretty hard to go back to a bare-bones editor. VS Code sits at a good (just past) half-way point between text editor and IDE. You can get a lot of the flexibility from a text editor, making it good for one off files and IDEs where you have fully spec'd out projects.</p>
-
-<p>Being able to have project specific setups is where VS Code really starts to shine. One thing that is working well for us is to gradually add project settings for our apps, first we add the ability to run tests with an attached debugger by adding a <code>launch.json</code>:</p>
-
-<pre><code class="json">{
-    "name": "Run Tests With Debugger (slower, use yarn for normal work)",
-    "type": "node2",
-    "request": "launch",
-    "port": 5858,
-    "address": "localhost",
-    "sourceMaps": true,
-    "stopOnEntry": false,
-    "runtimeExecutable": null,
-    "runtimeArgs": [
-      "--debug-brk",
-      "./node_modules/.bin/jest",
-      "-i"
-    ],
-    "cwd": "${workspaceRoot}"
-}
-</code></pre>
-
-<p>With this we can showcase how easy it is to use an inline debugger with source-maps, when working with tricky test logic. No more <code>console.log</code>. That's usually a great way to start moving everyone to a consistent environment. Then we add <a href="https://code.visualstudio.com/updates/v1_6#_workspace-extension-recommendations">recommended extensions</a> to the project.</p>
-
-<p>Trying to set a consistent  development environment might sound a bit corporate for a ~25 person dev team, but one chief advantage is that you can feel comfortable taking time at work to improve your tooling knowing it will improve the tooling of everyone else on your team.</p>
-
-<p>I've been exploring a consolidated <a href="https://github.com/artsy/vscode-artsy">Artsy VS Code</a> extension to handle extension dependencies and small tasks, but it's still early days. It's awesome that I can even think at that level of abstraction though.</p>
-
-<a name="End"></a>
-<h3>End</h3>
-
-<p>None of these technologies are under a year old, all of them have adoption by substantial amount of companies. Nothing feels  either controversial or novel. This is great. It feels like a lot of the interesting work for us so far has been around improving the spaces between the projects: Finding improvements for generating types <a href="https://github.com/avantcredit/gql2ts/blob/master/Changelog.md">from GraphQL</a> or <a href="https://github.com/alloy/relay2ts">Relay</a>, adding <a href="https://github.com/facebook/jest/commit/e597e5c46f8f4925d9a10c73d8eab05a2c4b8bc3">editor support to jest</a>, adding Danger to <a href="https://github.com/facebook/jest/pull/2508">our dependencies</a> and improving our <a href="https://github.com/orta/vscode-react-native-storybooks">tooling</a> <a href="https://github.com/orta/vscode-jest">for</a> <a href="https://github.com/alloy/vscode-relay">vscode</a>. The front-end is still a pretty small dev team, so we want to do high impact, small projects that can make our tools drastically better.</p>
-
-<p>React, React-Native, Jest, Yarn are all big Facebook projects. In the iOS world, there is a sense of wariness around building an app so heavily around Facebook tech, based on <a href="http://joehewitt.com/2009/03/23/the-three20-project">three20</a> - which I think is a bit unfair. From my perspective, determining whether you should have something as a dependency <a href="/blog/2015/09/18/Cocoa-Architecture-Dependencies/">should be nuanced</a>, but at a minimum you should feel like you can contribute bug fixes and ideally you should be able to maintain the project if it needs it. With Facebook projects, they've shown to be really open to PRs and discussion, and our work in them makes us feel comfortable to maintain a fork if needed.</p>
-
-<p>We're still exploring the space where we can share code between web and mobile. I'd like to hope within a few months we can write up how that is going on. For now, if you're interested in prototypes, we've been moving our React Native components to the web inside <a href="https://github.com/alloy/relational-theory/">Relational Theory</a> and <a href="https://github.com/orta/systems-theory/">Systems Theory</a> tries bringing new ideas from Relational Theory back to React Native.</p>
-
-<p>I have grown to love working with typed JavaScript to ensure soundness, with React and Relay to drastically reduce the amount of code we need to write and to provide awesome root abstractions to build on. Mix that with a hackable editor with substantial language support and it feels like almost exclusively writing business domain logic.</p>
 ]]></content>
   </entry>
   

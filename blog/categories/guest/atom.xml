@@ -4,7 +4,7 @@
   <title><![CDATA[Category: guest | Artsy Engineering]]></title>
   <link href="http://artsy.github.io/blog/categories/guest/atom.xml" rel="self"/>
   <link href="http://artsy.github.io/"/>
-  <updated>2018-07-25T23:57:17+00:00</updated>
+  <updated>2018-08-06T17:18:51+00:00</updated>
   <id>http://artsy.github.io/</id>
   <author>
     <name><![CDATA[]]></name>
@@ -12,6 +12,394 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[The Relay Network Deep Dive]]></title>
+    <link href="http://artsy.github.io/blog/2018/07/25/Relay-Networking-Deep-Dive/"/>
+    <updated>2018-07-25T00:00:00+00:00</updated>
+    <id>http://artsy.github.io/blog/2018/07/25/Relay-Networking-Deep-Dive</id>
+    <content type="html"><![CDATA[<blockquote><p>Hey all, we have another guest post, this one comes from <a href="https://github.com/sibelius">Sibelius Seraphini</a> - a very active contributor to
+Relay and it's eco-system. When we spotted he had wrote an amazing article on how the networking aspects of Relay
+comes together, we wanted to expand his reach and inform more people on how Relay comes together.</p>
+
+<p>-- Orta</p></blockquote>
+
+<p>Data fetching is a hard problem: How to ask for data from a server? When is the right time to request data? How can
+you ensure you have all the necessary data to render your views? How can you make sure you're not over-fetching? Can
+you do lazy loading? When should you trigger lazy loading of data? What about to pre-fetching data?</p>
+
+<p><a href="https://facebook.github.io/relay/">Relay</a> is a framework for building data-driven applications which handles data fetching for you. For an
+introduction to Relay, read <a href="https://facebook.github.io/relay/">their docs</a>, and also check out my Relay talk at <a href="https://speakerdeck.com/sibelius/reactconfbr-is-relay-modern-the-future">React Conf BR</a>.</p>
+
+<blockquote><p>You don’t deep dive if you don’t know how to swim</p></blockquote>
+
+<a name="TL.DR.Relay.Modern.Network"></a>
+<h2>TL;DR Relay Modern Network</h2>
+
+<p>Relay will aggregate the data requirements (fragments) for your components, then create a request to fulfill it. The
+API to do this is via the <a href="https://facebook.github.io/relay/docs/en/relay-environment.html">Relay Environment</a>:</p>
+
+<blockquote><p>The Relay "Environment" bundles together the configuration, cache storage, and network-handling that Relay needs
+in order to operate.</p></blockquote>
+
+<p>This post focuses on the "network-handling" part, the <a href="https://facebook.github.io/relay/docs/en/network-layer.html">Network Layer</a>. The network layer's responsibility
+is to make a request to a server (or a local graphql) and return the response data to Relay. Your implementation
+should conform to either <a href="https://github.com/facebook/relay/blob/v1.6.0/packages/relay-runtime/network/RelayNetworkTypes.js#L79-L90">FetchFunction</a> for a Promise-like API, or <a href="https://github.com/facebook/relay/blob/v1.6.0/packages/relay-runtime/network/RelayNetworkTypes.js#L92-L107">SubscribeFunction</a> for an
+Observable-like API.</p>
+
+<p>This article will provide 5 implementations of a Relay Network Interface, each of one providing more capabilities
+than the other one, eventually enabling GraphQL Live Queries and Deferrable Queries.</p>
+
+<p>You can see the code for these 5 network layers on GitHub here, open source under MIT license:
+https://github.com/sibelius/relay-modern-network-deep-dive.</p>
+
+<!-- more -->
+
+
+<a name="Simplest.Network.Layer"></a>
+<h3>Simplest Network Layer</h3>
+
+<p>The simplest network layer would; get the request, send it to a GraphQL server to resolve and return the data to
+Relay environment.</p>
+
+<pre><code class="js">const fetchFunction = async (
+  request: RequestNode,
+  variables: Variables,
+  cacheConfig: CacheConfig,
+  uploadables: ?UploadableMap
+) =&gt; {
+  // Most GraphQL APIs expect a POST with a JSON
+  // string containing the query and associated variables
+  const body = JSON.stringify({
+    query: request.text, // GraphQL text from input
+    variables
+  });
+
+  const headers = {
+    Accept: "application/json",
+    "Content-type": "application/json",
+    authorization: getToken()
+  };
+
+  const response = await fetchWithRetries(ENV.GRAPHQL_URL, {
+    method: "POST",
+    headers,
+    body,
+    fetchTimeout: 20000,
+    retryDelays: [1000, 3000, 5000, 10000]
+  });
+
+  const data = await response.json();
+
+  // Mutations should throw when they have errors, making it easier
+  // for client code to react
+  if (isMutation(request) &amp;&amp; data.errors) {
+    throw data;
+  }
+
+  // We return the GraphQL response to update the Relay Environment
+  // which updates internal store where relay keeps its data
+  return data;
+};
+</code></pre>
+
+<a name="Network.that.Handle.Uploadables"></a>
+<h3>Network that Handle Uploadables</h3>
+
+<p>The GraphQL spec does not handle form data, and so if you need to send along files to upload to your server with a
+mutation, you'll want to use the uploadables API in Relay when you commit the mutation.</p>
+
+<p>Adding uploadables in a mutation will inevitably get passed to your network interface, where you'll need to change
+your request body to use FormData instead of the JSON string above:</p>
+
+<pre><code class="js">function getRequestBodyWithUploadables(request, variables, uploadables) {
+  let formData = new FormData();
+  formData.append("query", request.text);
+  formData.append("variables", JSON.stringify(variables));
+
+  Object.keys(uploadables).forEach(key =&gt; {
+    if (Object.prototype.hasOwnProperty.call(uploadables, key)) {
+      formData.append(key, uploadables[key]);
+    }
+  });
+
+  return formData;
+}
+</code></pre>
+
+<a name="Network.that.Caches.Requests"></a>
+<h3>Network that Caches Requests</h3>
+
+<p>This builds on top of the other 2 implementations, we use
+<a href="https://github.com/facebook/relay/blob/v1.6.0/packages/relay-runtime/network/RelayQueryResponseCache.js#L24-L29">RelayQueryResponseCache</a>
+to query GraphQL requests based on query and variables.</p>
+
+<p>Every time a mutation happens, we should invalidate our cache as we are not sure how a change can affect all cached
+query responses.</p>
+
+<pre><code class="js">// Create our own in-memory cache
+const relayResponseCache = new RelayQueryResponseCache({ size: 250, ttl: oneMinute });
+
+const cacheHandler = async (
+  request: RequestNode,
+  variables: Variables,
+  cacheConfig: CacheConfig,
+  uploadables: UploadableMap
+) =&gt; {
+  const queryID = request.text;
+
+  // If it's a mutation, clear all cache, then call the implementation above
+  if (isMutation(request)) {
+    relayResponseCache.clear();
+    return fetchFunction(request, variables, cacheConfig, uploadables);
+  }
+
+  // Try grab the request from the cache first
+  const fromCache = relayResponseCache.get(queryID, variables);
+  // Did it hit? Or did we suppress the cache for this request
+  if (isQuery(request) &amp;&amp; fromCache !== null &amp;&amp; !forceFetch(cacheConfig)) {
+    return fromCache;
+  }
+
+  // Make the request, and cache it if we get a response
+  const fromServer = await fetchFunction(request, variables, cacheConfig, uploadables);
+  if (fromServer) {
+    relayResponseCache.set(queryID, variables, fromServer);
+  }
+
+  return fromServer;
+};
+</code></pre>
+
+<a name="Network.using.Observable"></a>
+<h3>Network using Observable</h3>
+
+<p>Relay provides a limited implementation of the upcoming <a href="https://github.com/tc39/proposal-observable">ESObservables</a> spec. I recommend reading <a href="https://kriskowal.gitbooks.io/gtor/content/">A General
+Theory of Reactivity</a> to understand why Observables are a great solution instead of promises in some
+situations. Notably; a promise is one value in a time space, an observable is a stream of values in a time space.</p>
+
+<p>[TODO: Why Sink and not the Relay Observable? Observable is exported but has one more function (complete)]</p>
+
+<p>To work with this API, we're going to use a private interface for the observable object called Sink:</p>
+
+<pre><code class="js">/**
+ * A Sink is an object of methods provided by Observable during construction.
+ * The methods are to be called to trigger each event. It also contains a closed
+ * field to see if the resulting subscription has closed.
+ */
+export type Sink&lt;-T&gt; = {|
+  +next: T =&gt; void,
+  +error: (Error, isUncaughtThrownError?: boolean) =&gt; void,
+  +complete: () =&gt; void,
+  +closed: boolean
+|};
+</code></pre>
+
+<p>Which is the shape of the Observable object we pass back to Relay:</p>
+
+<pre><code class="js">const fetchFunction = async (
+  request: RequestNode,
+  variables: Variables,
+  cacheConfig: CacheConfig,
+  uploadables: ?UploadableMap,
+  sink: Sink&lt;any&gt;
+) =&gt; {
+  const body = getRequestBody(request, variables, uploadables);
+
+  const headers = {
+    ...getHeaders(uploadables),
+    authorization: getToken()
+  };
+
+  const response = await fetchWithRetries(ENV.GRAPHQL_URL, {
+    method: "POST",
+    headers,
+    body,
+    fetchTimeout: 20000,
+    retryDelays: [1000, 3000, 5000, 10000]
+  });
+
+  const data = await handleData(response);
+
+  if (isMutation(request) &amp;&amp; data.errors) {
+    sink.error(data);
+    sink.complete();
+
+    return;
+  }
+
+  sink.next(data);
+  sink.complete();
+};
+
+// Instead of returning a Promise that will resolve a single GraphQL response.
+// We return an Observable that could fulfill many responses before it finishes.
+
+const executeFunction = (
+  request: RequestNode,
+  variables: Variables,
+  cacheConfig: CacheConfig,
+  uploadables: ?UploadableMap
+) =&gt; {
+  return Observable.create(sink =&gt; {
+    fetchFunction(request, variables, cacheConfig, uploadables, sink);
+  });
+};
+</code></pre>
+
+<p>This is an implementation you would need when working with <a href="https://github.com/facebook/relay/issues/2174">GraphQL Live Queries</a> (based on polling), as you
+are going to resolve the same query more than once.</p>
+
+<a name="Deferrable.Queries.Network"></a>
+<h3>Deferrable Queries Network</h3>
+
+<p>A common case for deferrable queries is to lazy load fragments. This lets you get request content above the page
+fold first, and then request additional data after. A good example is loading a Post's content first and then
+subsequently loading all comments of this post after the post has finished.</p>
+
+<p>Without deferrable queries you could simulate this using the <a href="https://facebook.github.io/relay/docs/en/graphql-in-relay.html#directives">@include</a> directive in your Relay fragment
+and a <a href="https://facebook.github.io/relay/docs/en/refetch-container.html">refetch container</a>. When the component mounts the refetch container changes the variable used on the
+<code>@include</code> to true and it will request the rest of the data.</p>
+
+<p>The problem with above approach is that you need to wait for the component to mount before you can start the next
+request. This becomes a bigger problem as React does more work asynchronously.</p>
+
+<!-- TODO: There are no docs for relay deferrable -->
+
+
+<p>An ideal deferrable query will start as soon as the previous query has finished, rather than depending on your React
+components render cycles. Relay provides a <a href="https://github.com/facebook/relay/issues/2194#issuecomment-383466255">directive</a> for this: <code>@relay(deferrable: true)</code>:</p>
+
+<pre><code class="js">const PostFragment = createFragmentContainer(Post, {
+  post: graphql`
+    fragment Post_post on Post {
+      title
+      commentsCount
+      ...CommentsList_post @relay(deferrable: true)
+    }
+  `
+});
+</code></pre>
+
+<p>In the fragment above, Relay will first get the <code>title</code> and <code>commentsCount</code> from the Post, then afterwards Relay
+will get the data for <code>CommentsList_post</code> fragment. Sending both through the observable.</p>
+
+<p>Here is the implementation of an execute function to handle a batched request:</p>
+
+<pre><code class="js">const executeFunction = (
+  request: RequestNode,
+  variables: Variables,
+  cacheConfig: CacheConfig,
+  uploadables: ?UploadableMap
+) =&gt; {
+  return Observable.create(sink =&gt; {
+    if (request.kind === "Request") {
+      cacheHandler(request, variables, cacheConfig, uploadables, sink, true);
+    }
+
+    if (request.kind === "BatchRequest") {
+      batchRequestQuery(request, variables, cacheConfig, uploadables, sink);
+    }
+  });
+};
+</code></pre>
+
+<p>This execute function now can handle 2 types of requests:</p>
+
+<ul>
+<li>a single GraphQL query <code>Request</code></li>
+<li>or a <code>BatchRequest</code> that could have be many queries with inter-related data</li>
+</ul>
+
+
+<p>So, what does the <code>batchRequestQuery</code> function look like?</p>
+
+<!-- TODO: Annotate ths code, I'm not 100% what it's doing myself -->
+
+
+<pre><code class="js">// Get variables from the results that have already been sent
+const getDeferrableVariables = (requests, request, variables: Variables) =&gt; {
+  const { argumentDependencies } = request;
+
+  if (argumentDependencies.length === 0) {
+    return variables;
+  }
+
+  return argumentDependencies.reduce((acc, ad) =&gt; {
+    const { response } = requests[ad.fromRequestName];
+
+    const variable = get(response.data, ad.fromRequestPath);
+
+    // TODO - handle ifList, ifNull
+    // See: https://github.com/facebook/relay/issues/2194
+    return {
+      ...acc,
+      [ad.name]: variable
+    };
+  }, {});
+};
+
+// Execute each of the requests, and call `sink.next()` as soon as it has the GraphQL
+/// server response data.
+//
+// It will only close the Observable stream when all requests has been fulfilled.
+const batchRequestQuery = async (
+  request: RequestNode,
+  variables: Variables,
+  cacheConfig: CacheConfig,
+  uploadables: ?UploadableMap,
+  sink: Sink&lt;ExecutePayload&gt;
+) =&gt; {
+  const requests = {};
+
+  for (const r of request.requests) {
+    const v = getDeferrableVariables(requests, r, variables);
+
+    const response = await cacheHandler(r, v, cacheConfig, uploadables, sink, false);
+
+    requests[r.name] = response;
+  }
+
+  sink.complete();
+};
+</code></pre>
+
+<a name="Relay.Modern.is.very.flexible"></a>
+<h2>Relay Modern is very flexible</h2>
+
+<p>Depending on your application needs, you can scale from a simpler Promise-based API for your custom network layer to
+one that uses Observables to always resolves from cache data first and then resolves from the server.</p>
+
+<p>Here are some production examples:</p>
+
+<ul>
+<li><p><a href="https://github.com/artsy/emission/blob/master/src/lib/relay/fetchQuery.ts">Artsy Emission</a>: Uses the Promise API, caches the results locally, and shares logic with native code in an
+iOS app so that queries can be pre-cached before the JavaScript runtime has started.</p></li>
+<li><p><a href="https://github.com/relay-tools/react-relay-network-modern">ReactRelayNetworkModern</a>: A network layer that uses the middleware pattern to separate responsibilities like
+retrying, logging, caching and auth.</p></li>
+<li><p><a href="https://github.com/facebook/relay/issues/2174#issuecomment-375274003">timobetina's example</a>: The simplest Observable network layer you can start with.</p></li>
+</ul>
+
+
+<!-- TODO: More, @sibelius do you have some good examples? -->
+
+
+<a name="More.Resources"></a>
+<h2>More Resources</h2>
+
+<p>If you want to expand your understanding of GraphQL and Relay Modern, I have two great related resources:</p>
+
+<ul>
+<li><p>A boilerplate that uses dataloader to batch and cache requests to your database in a GraphQL API:
+https://github.com/entria/graphql-dataloader-boilerplate</p></li>
+<li><p>A simple boilerplate for working with Relay Modern and React Navigation:
+https://github.com/entria/ReactNavigationRelayModern</p></li>
+</ul>
+
+
+<p>If you have questions about this or anything send me a DM on twitter https://twitter.com/sseraphini</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Relay Mutations]]></title>
