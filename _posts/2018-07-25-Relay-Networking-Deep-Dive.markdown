@@ -39,7 +39,7 @@ This article will provide 5 implementations of a Relay Network Interface, each o
 than the other one, eventually enabling GraphQL Live Queries and Deferrable Queries.
 
 You can see the code for these 5 network layers on GitHub here, open source under MIT license:
-https://github.com/sibelius/relay-modern-network-deep-dive.
+[https://github.com/sibelius/relay-modern-network-deep-dive](https://github.com/sibelius/relay-modern-network-deep-dive).
 
 <!-- more -->
 
@@ -371,12 +371,12 @@ Here are some production examples:
 If you want to expand your understanding of GraphQL and Relay Modern, I have two great related resources:
 
 - A boilerplate that uses dataloader to batch and cache requests to your database in a GraphQL API:
-  https://github.com/entria/graphql-dataloader-boilerplate
+  [https://github.com/entria/graphql-dataloader-boilerplate](https://github.com/entria/graphql-dataloader-boilerplate)
 
 - A simple boilerplate for working with Relay Modern and React Navigation:
-  https://github.com/entria/ReactNavigationRelayModern
+  [https://github.com/entria/ReactNavigationRelayModern](https://github.com/entria/ReactNavigationRelayModern)
 
-If you have questions about this or anything send me a DM on twitter https://twitter.com/sseraphini
+If you have questions about this or anything send me a DM on twitter [https://twitter.com/sseraphini](https://twitter.com/sseraphini)
 
 [rbr]: https://speakerdeck.com/sibelius/reactconfbr-is-relay-modern-the-future
 [esobservables]: https://github.com/tc39/proposal-observable
