@@ -12,9 +12,10 @@ author: sibelius
 >
 > -- Orta
 
-Data fetching is a hard problem: How to ask for data from a server? When is the right time to request data? How can
-you ensure you have all the necessary data to render your views? How can you make sure you're not over-fetching? Can
-you do lazy loading? When should you trigger lazy loading of data? What about to pre-fetching data?
+Data fetching is a hard problem for apps. You need to ask yourself a lot of questions: How do you ask for data from
+a server? How do you handle authentication? When is the right time to request data? How can you ensure you have all
+the necessary data to render your views? How can you make sure you're not over-fetching? Can you do lazy loading?
+When should you trigger lazy loading of data? What about to pre-fetching data?
 
 [Relay][relay] is a framework for building data-driven applications which handles data fetching for you. For an
 introduction to Relay, read [their docs][relay], and also check out my Relay talk at [React Conf BR][rbr].
@@ -163,7 +164,7 @@ Relay provides a limited implementation of the upcoming [ESObservables][] spec. 
 Theory of Reactivity][reactivity] to understand why Observables are a great solution instead of promises in some
 situations. Notably; a promise is one value in a time space, an observable is a stream of values in a time space.
 
-[TODO: Why Sink and not the Relay Observable? Observable is exported but has one more function (complete)]
+<!-- [TODO: Why Sink and not the Relay Observable? Observable is exported but has one more function (complete)] -->
 
 To work with this API, we're going to use a private interface for the observable object called Sink:
 
