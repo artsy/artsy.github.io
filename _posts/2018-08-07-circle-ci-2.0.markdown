@@ -1,0 +1,93 @@
+---
+layout: epic
+title: The complexities of Circle CI 2.0
+date: 2018-08-07
+categories: [circle-ci, ci]
+author: justin
+---
+
+A few weeks ago I went through the process of upgrading Reaction to Circle CI 2.0. Whereas Circle CI 1.0 provided a lot of prebaked utilities based on the type of project it's configured for, 2.0 focuses on providing a generic dockerized environment that can theoretically be used to target any type of project. It's a lot more powerful, but also a lot more difficult to configure.
+
+I'm going to go through a few different lessons I learned.
+
+## Configuration has a new home
+
+A minor note, but still something I got tripped up on. In CircleCI 1.0 there was a `circle.yml` file in the root of the project. For CircleCI 2.0 gets moved to `.circleci/config.yml`.
+
+The basic structure of a Circle 2.0 config is as follows
+
+```yaml
+version: 2
+jobs:
+  ...
+workflows:
+  ...
+```
+
+## Pick the right docker image for the job
+
+Reaction is a node based project. Prior to the upgrade we were using `nvm` to install the correct version of node (maybe unnecessarily) and hooking into CircleCI 1.0's provided `yarn` configuration. I spent a long time trying to get `nvm` and `yarn` configured. A lesson that Orta has taught me is that if it's too hard... give up. Find a different way.
+
+CircleCI 2.0, like 1.0, allows you to specify the docker image to run your CI on. Pick the docker image right for the job. In our case, `circleci/node:8` was the best candidate for the job. It's using a compatible version of `node` for the project and comes preinstalled with `yarn` `1.6.0` which was sufficient for our needs.
+
+**Tip**: You can specify the exact version of node you want by simply changing the name of the image. `circleci/node:8.4.0` is what I initially started with for Reaction. Be warned though, that the version of `yarn` that's tied to an earlier image might be highly outdated. `circleci/node:8.4.0` uses yarn `0.24.6`.
+
+Configuring a docker image for a job will look something like this
+
+```yaml
+version: 2
+jobs:
+  build:
+    docker:
+      - image: circleci/node:8
+```
+
+## Prepare your job
+
+Every CircleCI 2.0 config has a list of jobs. Jobs are the tasks your CI setup will perform. Each action that a `Job` executes is called a `step`. Very likely the first step of any job should be to checkout the code of your project.
+
+```yaml
+jobs:
+  build:
+    steps:
+      - checkout
+```
+
+## Cache, but carefully
+
+Saving and restoring from cache are special steps of a job.
+
+Think of CircleCI's cache like a key-value pair. Every cache entry has a unique key that represents it. The value is the collection of files that are specified to be cached. An important note though, is that CircleCI's cache is _immutable_ meaning you can't overwrite a cache's value if it already has an associated key. Give that you should think of a way to generate a new key every time the value of your cache changes.
+
+Here's an example of saving `node_modules` to cache.
+
+```yaml
+jobs:
+  build:
+    steps:
+      # ...
+      - save_cache:
+        key: yarn-deps-{{ checksum "yarn.lock" }}
+        paths:
+          - ./node_modules
+      # ...
+```
+
+I'll start with `paths` as it's the most straight forward. Specify the path to the directory or files you'd like to save in cache and they'll be saved. A word of warning: restoring cache can be slow. When I started this process, I tried to cache both the node*modules and yarn's package cache which ended up being \_slower* than a full yarn install.
+
+As stated in the previous section, the `key` is a unique string that's associated to the cached files specified in `paths`.
+
+There are a few ways to generate random keys. There are a few [mustache templates](https://circleci.com/docs/2.0/caching/#using-keys-and-templates) that can be used to inject things like the git branch name, the CircleCI build number, the unix epoch, and the most useful (in my opinion) a file's checksum. I use the latter in the example above to generate a key that contains the checksum of our `yarn.lock`. When you're using [yarn]() in a node project, the `yarn.lock` file is a detailed manifest of all the project's dependencies. That means, if the `yarn.lock` file changes then the dependencies have changed and we want to update the cache. If not, we'll just rely on CircleCI to skip caching these dependencies because they're already present.
+
+When reading from CircleCI's cache, you can specify multiple cache keys. Circle will start with the first key and try to find any key that's a partial match of that key. If it fails to find any, it'll fall back to the next key. It'll continue to do that until it finds a cache entry which it will return, or it'll fail to find any and continue onto the next step.
+
+```yaml
+jobs:
+  build:
+    steps:
+      - checkout
+      - restore_cache:
+        keys:
+          - yarn-deps-{{ checksum "yarn.lock" }}
+          - yarn-deps
+```
