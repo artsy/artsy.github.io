@@ -43,10 +43,24 @@ pairing, you might also find additional ways to improve the daily workflow for s
 
 Trying to have a shallow and wide understanding of many systems means accepting that you can't know the finer
 details about how everything works. You want to know when really big interesting things are happening, but most work
-should be iterative and less relevant to external folk like you. One technique I use for keeping track of system
-changes is by making my own streams of updates and not being too concerned about reading every single one of them.
-For my GitHub organisations this means making a slack channel that gets updates for PRs and releases. You can see
-many overviews, but not get bogged down in the useful discussion.
+should be iterative and less relevant to external folk like you.
+
+With this in mind you can change your perspective to aim for having overviews on many things, but not get bogged
+down in the useful discussion.
+
+Techniques for this are:
+
+- Making a custom stream of updates and not being too concerned about reading every single one of them. For Artsy,
+  with many contributors and contexts - I create slack channels like: `#front-end-ios-notifs`,
+  `#front-end-web-notifs`, `#orta-misc-notifs` and business specific ones like `#consignments-notifs` that contain
+  PR or Issue information creation from GitHub but nothing with more details. I do the same but smaller for Danger
+  and CocoaPods.
+
+- I set [Slack keywords][keywords] to key GitHub repo names, or internal facing app names that I care about. This
+  means I don't have to monitor every channel.
+
+* I don't read my email. All 13,489 of them right now. I read the subjects and decide if it's worth reading. Every
+  few months I declare inbox zero so others are less distracted by the number.
 
 The tricky thing with this sort of work is trying not to be a blocker for someone else. A lot of this is about being
 cautious about what you strive to help with, and about finding ways to boost others asynchronously. Am I good at
@@ -62,11 +76,11 @@ it.
 ## Deep Automation
 
 Remove as much ambiguity as possible for discussion. Project tools like [prettier][] really help focus code review
-away from the petty formatting issues. Linters like tslint, eslint and rubocop remove another series of discussion
-points. When you find yourself surprised by a cultural rule for a codebase, add [a danger][danger] rule so you and
-others have it codified. Use tools like [husky][] and [lint-staged][] to get that feedback when you're still in a
-development context. Danger can even run as a [git-hook/husky task][danger-local] too, so that feedback can be
-_blazing_ too.
+away from the petty formatting issues. Linters like [tslint][], [eslint][] and [rubocop][] remove another series of
+discussion points. When you find yourself surprised by a cultural rule for a codebase, add [a danger][danger] rule
+so you and others have it codified. Use tools like [husky][] and [lint-staged][] to get that feedback when you're
+still in a development context. Danger can even run as a [git-hook/husky task][danger-local] too, so that feedback
+can be _blazing_ too.
 
 You can automate via tools, sure, but you can also encourage independent work via documentation.(TO DO: saves your
 time, but isn't "automation") If something is confusing enough that, as an outsider, you don't get it without
@@ -111,7 +125,7 @@ Guidelines][hig], which means logical shortcuts and great accessibility support.
 Electron-y apps made the most sense when there is a big
 [user-land](https://unix.stackexchange.com/questions/137820/whats-the-difference-of-the-userland-vs-the-kernel)
 customization scene. So, basically if there's a community around extending the app ([Hyper](https://hyper.is) is a
-reasonable example, [Visual Studio Code](https://code.visualstudio.com) and [Atom](https://atom.io) is the best
+reasonable example, [Visual Studio Code](https://code.visualstudio.com) and [Atom](https://atom.io) are the best
 example) then Electron apps make sense.
 
 Some highlights for non-native apps are [Mailplane](https://mailplaneapp.com) and
@@ -216,3 +230,7 @@ Do you have any useful ideas for speeding up context switching? I'm open to impr
 [gs]: https://github.com/kamranahmedse/git-standup
 [tweet]: https://twitter.com/orta/status/1028764128310185984
 [rt]: https://www.rescuetime.com
+[keywords]: https://get.slack.help/hc/en-us/articles/201398467-Set-up-keyword-notifications
+[tslint]: https://github.com/palantir/tslint
+[eslint]: https://eslint.org
+[rubocop]: https://www.github.com/bbatsov/rubocop
