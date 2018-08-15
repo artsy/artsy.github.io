@@ -4,16 +4,18 @@ title: "Context Switching"
 date: 2018-08-10
 author: [orta]
 categories: [tooling, danger, shortcuts, concepts]
+comment_id: 474
+css: context
 ---
 
 Programming generally requires getting into a good [flow state][flow] and working on a tricky problem for some time.
-In the last few years, most of my work at Artsy (and in the OSS world) has been less about longer-term building of
-hard things, but working on many smaller tasks across a lot of different contexts.
+In the last 2 years, most of my work at Artsy (and in the OSS world) has been less about longer-term building of
+hard things, but working on many smaller tasks across a lot of different areas.
 
-Somehow, I managed to end up in the top of "most active" [GitHub members][active], I feel like a lot of this is due
-to doing [Open Source by Default][ossd] at Artsy and second to being good at context switching. I want to try and
-talk though some of my techniques for handling context switching, as well as a bit of philosophy around adopting and
-owning your tools.
+Somehow, during this period I managed to end up in the top of "most active" [GitHub members][active], I feel like a
+lot of this is due to doing [Open Source by Default][ossd] at Artsy and second to being good at context switching. I
+want to try and talk though some of my techniques for handling context switching, as well as a bit of philosophy
+around adopting and owning your tools.
 
 <!-- more -->
 
@@ -85,7 +87,7 @@ However, there's definitely space for independent apps. Here's a list of apps br
 running at least one from each genre, and have it's features deeply committed to memory. The ones in bold are what I
 use.
 
-- Window management: [**Moom**](https://manytricks.com/moom/), [Magnet](http://magnet.crowdcafe.com),
+- Window Management: [**Moom**](https://manytricks.com/moom/), [Magnet](http://magnet.crowdcafe.com),
   [Spectacles](https://www.spectacleapp.com), [Divvy](http://mizage.com/divvy/)
 - Effective Keyboard Shortcuts: [**Shortcat**](https://shortcatapp.com), [Keytty](https://keytty.com),
   [Vimium](https://vimium.github.io)/[**Vimari**](https://github.com/guyht/vimari)
@@ -93,12 +95,13 @@ use.
   [Keyboard Meastro](http://www.keyboardmaestro.com/main/)
 - Recently changed files: [**Fresh**](http://www.ironicsoftware.com/fresh/),
   [**Alfred**](http://www.ironicsoftware.com/fresh/)
-- Text Snippets: [*Al*fred\*\*](https://www.alfredapp.com), macOS System Settings
+- Text Snippets: [**Alfred**](https://www.alfredapp.com), [TextExpander](https://textexpander.com/), macOS System
+  Settings
 - Terminal: [**iTerm 2**](https://iterm2.com), [Hyper](https://hyper.is)
 - Learning Keyboard Shortcuts: [**CheatSheet**](https://www.mediaatelier.com/CheatSheet/)
 - Shell: [Oh my ZSH](https://github.com/robbyrussell/oh-my-zsh), **[Fish](http://fishshell.com) +
   [Fisherman](https://fisherman.github.io)**
-- _Simple_ note-taking: [**nvalt**](http://brettterpstra.com/projects/nvalt/),
+- _Simple_ Note Taking: [**nvalt**](http://brettterpstra.com/projects/nvalt/),
   [**Things**](https://culturedcode.com/things/), Notes.app, [Evernote](https://evernote.com)
 
 Use native apps by default, they are better for your time. Native apps will usually conform to the [Human Interface
@@ -156,7 +159,7 @@ set up in your terminal input.
 
 Take the time every few years to re-think your previous decisions, I try to start from scratch every 2-3 years, I'm
 writing this on a MacBook that's a week old and I've still not installed something from all of the above categories.
-Re-evaluate your software priorities as your personal/professional aims/responsibilities change.
+It's a good time to re-evaluate your software priorities as your personal/professional aims/responsibilities change.
 
 A pattern I aim to strive for with tools is:
 
@@ -169,7 +172,29 @@ It's not a very traditional way to work as a programmer, but it fits my personal
 commits and contributions across the board. Being able to quickly jump contexts makes a lot more sense in the node
 ecosystem - where the boundaries between projects can be as small as per-function.
 
-[More TBD on wrapup]
+Working this way can make it really hard to monitor what you've done on a regular basis, a technique I've used to
+stay on top of is [git-standup][gs] and a dev folder structure that corresponds to [areas of work][tweet]. For
+example, here's what a week roughly looks like on a slow week for Danger/Peril for me:
+
+```sh
+~/dev/projects/danger
+❯ git standup -m 7 -d 7
+/Users/orta/dev/projects/danger/hazmat/peril
+c1d6893 - Update danger (2 days ago) <Orta Therox>
+/Users/orta/dev/projects/danger/danger-js
+a90d74c - Version bump, and peril fix (2 days ago) <Orta Therox>
+f4836a1 - Version bump (2 days ago) <Orta Therox>
+fbbcc1c - Adds a create/update label function to the github utils func (2 days ago) <Orta Therox>
+702e51d - More dep updates (4 days ago) <Orta Therox>
+```
+
+Working this way requires trust from others that you're doing things that are valuable, which can be tricky when
+your responses to "what did you get up to yesterday" end up being a bit ephemeral. Tools like `git-standup` help on
+the code front, and [RescueTime][rt] can help you understand how much time you've spent in greenhouse.
+
+It's your time, you should use it fastly.
+
+Do you have any useful ideas for speeding up context switching? I'm open to improvements.
 
 [active]: https://gist.github.com/paulmillr/2657075
 [flow]: https://en.wikipedia.org/wiki/Flow_(psychology)
@@ -188,3 +213,6 @@ ecosystem - where the boundaries between projects can be as small as per-functio
 [oma]: https://www.youtube.com/watch?v=1Z3loALSVQM
 [sherlock]: http://artsy.github.io/blog/2017/02/05/Retrospective-Swift-at-Artsy/#Developer.Experience
 [hig]: https://developer.apple.com/design/human-interface-guidelines/macos/overview/themes/
+[gs]: https://github.com/kamranahmedse/git-standup
+[tweet]: https://twitter.com/orta/status/1028764128310185984
+[rt]: https://www.rescuetime.com
