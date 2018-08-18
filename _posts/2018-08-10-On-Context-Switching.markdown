@@ -139,6 +139,7 @@ next. For example:
 - [Resize/move windows with modal commands](https://www.youtube.com/watch?v=4CRbJwOctMo)
 - [Making a new Jira ticket with a hotkey](https://www.neat.io/bee/)
 - [Open any recent file per-app](/images/context-switching/sketch.mov)
+- [Use a shortcut for every Mac app you use regularly](https://krausefx.com/blog/use-custom-shortcuts-for-every-application)
 
 App-wise there's always more all of us can do, but constant improvement is key to getting there.
 
