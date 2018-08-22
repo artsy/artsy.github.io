@@ -10,16 +10,17 @@ series: Open Source by Default
 Artsy is growing up. We have thousands of subscriber galleries paying 3 to 4 figure monthly fees. As we're starting
 to see a real market-fit, and have started to mature our organization. For example, this year we introduced product
 managers into our 8 year old company to help us figure out how to build the right things. We actually started having
-spare headcount on Engineering again, for the first time _in years_.
+open headcount on Engineering again, for the first time _in years_.
 
 As a part of maturing, our team has really had to start considering how to make parts of our culture explicit
 instead of implicit. We have new, awesome folks wanting to understand why things are the way they are as well as
 folk who are raising up to new responsibilities only to find them completely un-documented.
 
-In-part, a consistent team for so long hasn't made it worth the time to document things everyone knows, but growth
-is very happy to disrupt that balance. Now we're shipping documentation updates weekly, to all sorts of places. In
-trying to write an awesome document, which I'll cover later, I looked at how we had consolidated our documentation
-over the last few years, and saw that we had fragmented due the tensions around wanting to write publicly.
+In-part, having a consistent team for so long hasn't made it worth the time to document things everyone knows, but
+growth is very happy to disrupt that balance. Now we're shipping documentation updates weekly, to all sorts of
+places. In trying to write an awesome document, which I'll cover later, I looked at how we had consolidated our
+documentation over the last few years, and saw that we had fragmented due the tensions around wanting to write
+publicly.
 
 This post covers that tension, and how we came about to the new docs setup.
 
@@ -39,25 +40,25 @@ Now we have two:
 - 🔒 `artsy/potential` - Support docs, and private documentation
 - [`artsy/README`][a_rm] - Documentation Hub, split into sections
 
-When potential was created, it was first created as an open repo with the focus of on-boarding information. Over
-time it's scope grew to cover more general team, repo and setup documentation. We ended up debating whether it
-should be a private repo instead though.
+When we created potential, it started as an open repo with the focus of on-boarding information. Over time it's
+scope grew to cover more general team, repo and setup documentation. We ended up debating whether it should be a
+private repo instead though.
 
 The key arguments for closing it were:
 
 - There are sensitive things we want to document
-- We might want to document things that live in a private repo
+- We can to write about info which lives in other private repos with full context
 - By making potential private we could have one, authoritative source of truth for Artsy engineering newcomers
 
 These are all great, reasonable arguments and so we made the repo private - but with hindsight, closing the repo
 split contributors to our documentation. For example, the mobile team split moved their documentation into separate
 repo the week potential was made private. The web team used the blog, or kept notes in a per-project basis.
-Culturally, our main documentation repo was considered the domain of our platform team. The platform team had the
-most cross-cutting concerns, and were also the team with the strongest need for documenting private information like
-domain models, outages, system failures, server access details and contact details.
+Culturally, potential was considered the domain of our platform team. The platform team had the most cross-cutting
+concerns, and were also the team with the strongest need for documenting private information like domain models,
+outages, system failures, server access details and contact details.
 
 By 2016, we had successfully [de-silo'd][desilo] mobile engineering at Artsy via React Native, so the mobile team
-wasn't a centralized team with resources anymore. This meant that new docs shouldn't really live inside that the
+wasn't a centralized team with resources anymore. This meant that new docs shouldn't really live inside the
 artsy/mobile repo. The front-end teams had been using the blog posts and public gists to keep track of
 documentation, which isn't really a good pattern. GitHub gists get lost, and blog posts aren't living documents.
 
@@ -71,10 +72,11 @@ Once we had a space, then new docs started coming. We documented the RFC process
 the guides repo. As a guide on _how-to-do-x_ - these all made sense. What didn't make sense was that we were
 regularly repeating ourselves when talking about Artsy Engineering to the public.
 
-There wasn't a good space for that in mobile nor guides, and so a new repo was created: [`artsy/meta`][a_mt]. \
+There wasn't a good space for that in mobile nor guides, and so a new repo was created: [`artsy/meta`][a_mt].
 
 Soon, this became the home of docs from anyone that preferred writing in the public. [`artsy/meta`'s][a_mt] domain
-was vague enough that anyone could document any internal processes as being something externally facing.
+was vague enough that anyone could document any internal processes as being something externally facing. For example
+documentation on how to run [our Lunch & Learn][rlnl], or [Open Stand-up][ros].
 
 ## Open Docs by Default
 
@@ -87,7 +89,7 @@ So I spent some time debating the merits of our current infrastructure for docs:
 
 ```diff
 + New folk know to start at artsy/potential
-+ The platform team have a safe space for writing any private details about architecture and security
++ The platform team have a private space for writing any private details about architecture and security
 + The wiki is well used as a source for all information on our engineering support process
 - By having our primary source of docs being private, we fragmented into many sources
 - New people have to figure out what team may have wrote docs to guess where docs might be
@@ -95,8 +97,8 @@ So I spent some time debating the merits of our current infrastructure for docs:
 ```
 
 I wanted to imagine what a world looked like where the docs were [open by default][ossbd]. So, I consulted our
-friends in openness: Buffer. I found that they had [`bufferapp/README`][buf] - which looked an awful lot like what I
-was thinking.
+friends in openness: [Buffer][buffer]. I found that they had [`bufferapp/README`][buf] - which looked an awful lot
+like what I was thinking.
 
 I wondered about if we moved Artsy to have an open space for the initial docs, and treated potential as it's private
 sidekick:
@@ -106,7 +108,7 @@ sidekick:
 + We can migrate all sources of docs into one place
 + artsy/potential can still be used as a place for writing private details
 + Our methodology for docs aligns with our methodology for source code
-+ By consolidating, we can writing scripts/tooling to make it feel good
++ By consolidating, we can improve working via scripts/tooling to make it feel good
 - It gives up on the idea that you can have a single source of documentation
 - You have to be a bit more cautious about what you write in docs
 - It's a bunch of work, and you have to deprecate a lot of docs and handle re-directs for URLs
@@ -125,7 +127,8 @@ This [artsy/README#1][rd1] outlined my thoughts on how the merge can work, and g
 doc shouldn't be public."
 
 I focused on making minimal changes, but on making sure that all docs were back up to date with whatever they were
-covering.
+covering. However, I set up tooling like [prettier][], [commit-hooks][] for tables of contents and [danger][] to
+make life easier for anyone wanting to make larger changes, see the [`CONTRIBUTING.md`][cont].
 
 Once the opening PR was merged, I converted the repo to be public, sent off PRs closing [meta][md_s], [guide][g_s]
 and [mobile][m_s], then marked them as archived, and started debating how to announce that this happened. What
@@ -151,3 +154,10 @@ better form than a blog post? So I started writing:
 [md_s]: https://github.com/artsy/meta/pull/45
 [g_s]: https://github.com/artsy/guides/pull/8
 [m_s]: https://github.com/artsy/mobile/pull/106
+[rlnl]: https://github.com/artsy/README/blob/master/playbooks/running-lunch-and-learn.md#running-a-lunch--learn
+[ros]: https://github.com/artsy/README/blob/master/events/open-standup.md#dev-team-standup-at-artsy
+[buffer]: https://buffer.com
+[prettier]: https://prettier.io
+[commit-hooks]: https://github.com/typicode/husky#husky---
+[danger]: https://danger.systems
+[cont]: https://github.com/artsy/README/blob/master/CONTRIBUTING.md
