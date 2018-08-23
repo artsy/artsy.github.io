@@ -23,7 +23,7 @@ Artsy's CEO has a [blog post][company_values] that discusses why you should defi
 - Undefined principles lead to cultural debt (similar to technical debt, but in terms of a team's culture).
 - Defined values lead to greater empowerment (engineers feel safe making decisions on their own, based on the principles).
 - Defined values reduce the risk of unconscious bias (we help our decisions get made consistently).
-- Values are your brand (less applicable for Artsy Engineering; our [contributions][gh] to the software industry are our brand).
+- Values are your brand (this is true for Artsy Engineering, but our [contributions][gh] to the software industry are also a significant part of brand).
 
 I think each of these reasons applies to defining guiding principles as well. Over the past four years, I've seen the Artsy Engineering team encounter situations related to the reasons outlined above and, while the company values have helped us navigate disagreement, they haven't been entirely satisfactory.
 
