@@ -1,6 +1,6 @@
 ---
 layout: epic
-title: "Engineering Guiding Principles"
+title: "Defining Our Engineering Guiding Principles"
 date: 2018-08-22
 author: [ash]
 categories: [concepts, teams, engineering, culture, meta]
@@ -31,7 +31,7 @@ The two biggest shortcomings of the values have been an **inconsistent practice*
 
 Artsy Engineering supports the business primarily through product teams, which each have their own responsibilities and KPIs. Over time, different teams have developed their own subculture. In earnest, I think this is really cool, but it _has_ eventually led to two teams taking radically different approaches to similar problems, or even repeating work that another team is already working on.
 
-That missing consistency also led to difficult making team-based decisions: how can teams make decisions _as a team_ without having a clear set of guidelines with which to evaluate a decision? As I'll explain in the next section, the Artsy company values often left us without a clear answer.
+That missing consistency also led to difficulties making team-based decisions: how can teams make decisions _as a team_ without having a clear set of guidelines with which to evaluate a decision? As I'll explain in the next section, the Artsy company values often left us without a clear answer.
 
 ## What Makes Guiding Principles Different from Company Values?
 
