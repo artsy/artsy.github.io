@@ -23,6 +23,18 @@ Instead, [Orta](/author/orta) suggested we used the Chrome Node DevTools. Since 
 node --inspect node_modules/.bin/jest --runInBand <path_to_test>
 ```
 
+Or you can add it to your `package.json` as a script:
+
+```diff
+  {
+    "scripts" : {
++    "test:debug": "node --inspect node_modules/.bin/jest --runInBand",
+    }
+  }
+```
+
+Which you can then run as `yarn test:debug <path_to_test>`.
+
 Voila! Your test should now be running in the Chrome debugger. And you get your handy console to poke around all sorts of stuff! The only downside is if you make changes to your test, you'll have to `Ctrl + c` out of the node process and re-run it (but you don't need to close the Chrome debugger, it'll attach right back to the node process again)
 
 You might be wondering how this fixed our tests. Well, turns out that we missed a `jest.unmock()` call at the top of the test file. _Facepalm._ To prevent this from biting other developers in the future, [Orta](/author/orta) whipped up a [pull request](https://github.com/artsy/reaction/pull/1174) to add a rule in our TypeScript linter, check it out!
