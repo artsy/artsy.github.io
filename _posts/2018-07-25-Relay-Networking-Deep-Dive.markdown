@@ -7,7 +7,7 @@ author: sibelius
 ---
 
 > Hey all, we have another guest post, this one comes from [Sibelius Seraphini][sib] - a very active contributor to
-> Relay and it's eco-system. When we spotted he had wrote an amazing article on how the networking aspects of Relay
+> Relay and its eco-system. When we spotted he had wrote an amazing article on how the networking aspects of Relay
 > comes together, we wanted to expand his reach and inform more people on how Relay comes together.
 >
 > -- Orta
@@ -15,7 +15,7 @@ author: sibelius
 Data fetching is a hard problem for apps. You need to ask yourself a lot of questions: How do you ask for data from
 a server? How do you handle authentication? When is the right time to request data? How can you ensure you have all
 the necessary data to render your views? How can you make sure you're not over-fetching? Can you do lazy loading?
-When should you trigger lazy loading of data? What about to pre-fetching data?
+When should you trigger lazy loading of data? What about pre-fetching data?
 
 [Relay][relay] is a framework for building data-driven applications which handles data fetching for you. For an
 introduction to Relay, read [their docs][relay], and also check out my Relay talk at [React Conf BR][rbr].
