@@ -8,7 +8,7 @@ author: justin
 
 A few weeks ago I went through the process of upgrading Reaction to Circle CI 2.0. Whereas Circle CI 1.0 provided a lot of prebaked utilities based on the type of project it's configured for, 2.0 focuses on providing a generic dockerized environment that can theoretically be used to target any type of project. It's a lot more powerful, but also a lot more difficult to configure.
 
-I'm going to go through a few different lessons I learned.
+Here's a few lessons that I learned.
 
 ## Configuration has a new home
 
@@ -18,10 +18,8 @@ The basic structure of a Circle 2.0 config is as follows
 
 ```yaml
 version: 2
-jobs:
-  ...
-workflows:
-  ...
+jobs: ...
+workflows: ...
 ```
 
 ## Pick the right docker image for the job
@@ -67,9 +65,9 @@ jobs:
     steps:
       # ...
       - save_cache:
-        key: yarn-deps-{{ checksum "yarn.lock" }}
-        paths:
-          - ./node_modules
+          key: yarn-deps-{{ checksum "yarn.lock" }}
+          paths:
+            - ./node_modules
       # ...
 ```
 
@@ -79,6 +77,8 @@ As stated in the previous section, the `key` is a unique string that's associate
 
 There are a few ways to generate random keys. There are a few [mustache templates](https://circleci.com/docs/2.0/caching/#using-keys-and-templates) that can be used to inject things like the git branch name, the CircleCI build number, the unix epoch, and the most useful (in my opinion) a file's checksum. I use the latter in the example above to generate a key that contains the checksum of our `yarn.lock`. When you're using [yarn]() in a node project, the `yarn.lock` file is a detailed manifest of all the project's dependencies. That means, if the `yarn.lock` file changes then the dependencies have changed and we want to update the cache. If not, we'll just rely on CircleCI to skip caching these dependencies because they're already present.
 
+Check the [docs](https://circleci.com/docs/2.0/configuration-reference/#save_cache) for more details on saving cache.
+
 When reading from CircleCI's cache, you can specify multiple cache keys. Circle will start with the first key and try to find any key that's a partial match of that key. If it fails to find any, it'll fall back to the next key. It'll continue to do that until it finds a cache entry which it will return, or it'll fail to find any and continue onto the next step.
 
 ```yaml
@@ -86,8 +86,36 @@ jobs:
   build:
     steps:
       - checkout
-      - restore_cache:
+      - restore_cache
         keys:
           - yarn-deps-{{ checksum "yarn.lock" }}
           - yarn-deps
 ```
+
+In this configuration, the first key should match exactly with what the dependencies of this build will be. That means if the dependencies haven't changed since the last run, we'll get an exact cache match. If the dependencies have changed since the last run, it'll fall back to the second key. Being as CircleCI searches for caches in a partial string match, it'll find the latest version of the cache whose key matches the string. This means we'll get a cache hit, but the dependencies will just be slightly out of date. Ultimately this means that after the first CI run there should _always_ be a cache hit.
+
+**Note**: By default yarn doesn't check the filesystem when doing an install. That means if you have slightly out of date dependencies like we can in this situation, it won't try to install the missing packages. To account for this use `yarn install --check-files` (docs here)[https://yarnpkg.com/en/docs/cli/install#toc-yarn-install-check-files].
+
+Putting this all together the job will look something like this
+
+```yaml
+jobs:
+  build:
+    docker:
+      - image: circleci/node:8
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - yarn-deps-{{ checksum "yarn.lock" }}
+            - yarn-deps
+      - run: yarn --check-files
+      - save_cache:
+          key: yarn-deps-{{ checksum "yarn.lock" }}
+          paths:
+            - ./node_module
+      - run: yarn build
+# ...
+```
+
+Checkout [Reaction's config file](https://github.com/artsy/reaction/blob/8ebd646d5dadcdb7434e6405d393a4a4d3624de7/.circleci/config.yml) for a complete example, as well as some other tricks.
