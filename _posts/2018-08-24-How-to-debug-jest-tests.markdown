@@ -10,9 +10,9 @@ Hey there! My name is Anson and I work on the Platform team at Artsy. Recently, 
 
 <!-- more -->
 
-We thought it was an issue with the mock testing library we had written. We tried to fix the problem by sprinkling `console.log` calls throughout the test, but it was still hard to figure out what was going on, especially without knowing how to peak into the properties of certain objects.
+We thought it was an issue with the mock testing library we had written. We tried to fix the problem by sprinkling `console.log` calls throughout the test, but it was still hard to figure out what was going on, especially without knowing how to peek into the properties of certain objects.
 
-Instead, [Orta](/author/orta) suggested we used the Chrome Node DevTools. Since the Enzyme test is run via `yarn jest`, yarn is acting as a frontend for running the Enzyme test with Node. This means that we can use the Chrome Node DevTools as a debugger to run the Enzyme test. This was super useful since the one thing we needed was to be able to peak inside certain objects to see what they looked like and how they were failing. It was a much faster, more methodical way to approach debugging this test. Here are the steps we took:
+Instead, [Orta](/author/orta) suggested we used the Chrome Node DevTools. Since the Enzyme test is run via `yarn jest`, yarn is acting as a frontend for running the Enzyme test with Node. This means that we can use the Chrome Node DevTools as a debugger to run the Enzyme test. This was super useful since the one thing we needed was to be able to peek inside certain objects to see what they looked like and how they were failing. It was a much faster, more methodical way to approach debugging this test. Here are the steps we took:
 
 - First, insert a new line in your test where you think it might be failing and type `debugger`. This will serve as a break point for the debugger to stop at.
 - Open up Chrome and type in the address bar : `chrome://inspect`
@@ -35,7 +35,7 @@ Or you can add it to your `package.json` as a script:
 
 Which you can then run as `yarn test:debug <path_to_test>`.
 
-Voila! Your test should now be running in the Chrome debugger. And you get your handy console to poke around all sorts of stuff! The only downside is if you make changes to your test, you'll have to `Ctrl + c` out of the node process and re-run it (but you don't need to close the Chrome debugger, it'll attach right back to the node process again)
+Voila! Your test should now be running in the Chrome debugger. And you get your handy console to poke around all sorts of stuff! The only downside is if you make changes to your test, you'll have to `Ctrl + c` out of the node process and re-run it (but you don't need to close the Chrome debugger, it'll attach right back to the node process again).
 
 You might be wondering how this fixed our tests. Well, turns out that we missed a `jest.unmock()` call at the top of the test file. _Facepalm._ To prevent this from biting other developers in the future, [Orta](/author/orta) whipped up a [pull request](https://github.com/artsy/reaction/pull/1174) to add a rule in our TypeScript linter, check it out!
 
