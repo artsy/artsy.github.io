@@ -1,7 +1,7 @@
 ---
 layout: epic
 title: "Stamping the commit SHA into the ENV vars of a running Docker-based app"
-date: 2018-08-26
+date: 2018-09-10
 author: orta
 categories: [docker, peril, env-vars]
 ---
