@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Stamping the commit SHA into the ENV vars of a running Docker-based app - Artsy Engineering</title>
+  <meta name="author" content="">
+
+  
+  <meta name="description" content="For what feels like the last 3-6 months, I've been trying to figure out how to know what the commit is for the
+Docker runtime in Peril. Roughly: ev...">
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <meta property="og:image" content="http://artsy.github.io/images/artsy_oss_image.png" />
+  <meta property="og:image:type" content="image/png" />
+
+  
+  <link rel="canonical" href="http://artsy.github.io/blog/2018/09/10/Dockerhub-Stamping-Commits/">
+  <link rel="alternate" type="application/rss+xml" title="Artsy Engineering Blog" href="/feed">
+
+  <link href="/favicon.ico" rel="icon">
+  <link href="/css/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+
+  <script src="/javascripts/jquery-1.11.3.min.js"> </script>
+  <script src="/javascripts/gradient-fade.js"></script>
+  <script src="/javascripts/noframework.waypoints.min.js"></script>
+  <script src="/javascripts/sticky.min.js"></script>
+  <script src="/javascripts/search.min.js"></script>
+
+  
+
+  <script type="text/javascript" src="https://fast.fonts.net/jsapi/f7f47a40-b25b-44ee-9f9c-cfdfc8bb2741.js"></script>
+
+
+  <link href="" rel="alternate" title="Artsy Engineering" type="application/atom+xml">
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-12450662-3']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+  <!--[if IE 8]><link href="/stylesheets/custom/ie_font.css" type="text/css"><![endif]-->
+
+</head>
+
+
+<link href="/css/epic.css" media="screen, projection" rel="stylesheet" type="text/css">
+
+
+
+<body>
+  <div>
+    <div id="bodywrapper">
+      <header>
+        <ul>
+          <li><a href="/">Artsy Engineering Blog</a></li>
+          <li><a href="https://www.artsy.net/jobs">Careers</a></li>
+          <li><a href="https://developers.artsy.net">API</a></li>
+        </ul>
+
+        <ul>
+          <li><a href="http://artsy.github.io/open-source/">Our Open Source</a></li>
+          <li><a href="http://twitter.com/artsyopensource">@artsyopensource</a></li>
+          <li><a href="https://www.artsy.net">artsy.net</a></li>
+        </ul>
+      </header>
+
+      <section>
+        <header id="page">
+          <h1>Stamping the commit SHA into the ENV vars of a running Docker-based app</h1>
+          <h3>
+          <!-- Yep, single line so the comma lines up right -->
+          By  Orta Therox
+          </h3>
+        </header>
+
+        <article class='post'>
+          <p>For what feels like the last 3-6 months, I've been trying to figure out how to know what the commit is for the
+Docker runtime in Peril. Roughly: every master commit on Peril triggers a Docker image on Docker Hub for the
+environment in which JavaScript is running. There's a lag between creating the commit, having the image ready on
+Docker Hub, and Peril using the new image. There's also space for these automated systems to go wrong, so I'd like
+to be able to be certain in logging.</p>
+
+<p>I've thrown a lot of commits and time every few weeks at this, so now that I've figured it out, I'll give you an
+idea of what I needed to do to make it work in a micro-post.</p>
+
+<!-- more -->
+
+
+<p><strong>Step 1:</strong> You need a custom build step, to do this, you need to create a file <code>hooks/build</code> in your repo:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+</pre></td><td class='code'><pre><code class='sh'><span class='line'><span class="c">#!/usr/bin/env sh</span>
+</span><span class='line'>
+</span><span class='line'><span class="c"># This is so we can get the commit into the build log of a Dangerfile runner</span>
+</span><span class='line'><span class="c"># These come from https://docs.docker.com/docker-cloud/builds/advanced/</span>
+</span><span class='line'>
+</span><span class='line'><span class="c"># For debugging all env vars</span>
+</span><span class='line'><span class="c"># printenv</span>
+</span><span class='line'>
+</span><span class='line'><span class="c">#  Convert the location &quot;/Dockerfile&quot; to &quot;Dockerfile&quot;</span>
+</span><span class='line'><span class="nv">FILE</span><span class="o">=</span><span class="k">$(</span><span class="nb">echo</span> -n <span class="nv">$BUILD_PATH</span> <span class="p">|</span> tail -c +2<span class="k">)</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">if</span> <span class="o">[</span> -z <span class="s2">&quot;${DOCKER_TAG}&quot;</span> <span class="o">]</span><span class="p">;</span> <span class="k">then</span>
+</span><span class='line'>  docker build --build-arg<span class="o">=</span><span class="nv">COMMIT</span><span class="o">=</span><span class="k">$(</span>git rev-parse --short HEAD<span class="k">)</span> --build-arg<span class="o">=</span><span class="nv">BRANCH</span><span class="o">=</span><span class="nv">$SOURCE_BRANCH</span> -t <span class="nv">$IMAGE_NAME</span> -f <span class="nv">$FILE</span> .
+</span><span class='line'><span class="k">else</span>
+</span><span class='line'>  docker build --build-arg<span class="o">=</span><span class="nv">COMMIT</span><span class="o">=</span><span class="k">$(</span>git rev-parse --short HEAD<span class="k">)</span> --build-arg<span class="o">=</span><span class="nv">BRANCH</span><span class="o">=</span><span class="nv">$DOCKER_TAG</span> -t <span class="nv">$IMAGE_NAME</span> -f <span class="nv">$FILE</span> .
+</span><span class='line'><span class="k">fi</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>There's a list of examples in <a href="https://github.com/thibaultdelor/testAutobuildHooks">this repo</a> - though the build
+one is too simple for our needs here. If you need something that's not there, then remove the comment marker before
+<code>printenv</code> to the script to see
+<a href="https://github.com/danger/peril/commit/61f447d13476fee9fa0686225ff3ca76d416088f">what env vars</a> are available
+(<a href="https://hub.docker.com/r/dangersystems/peril/builds/benoxzftncgdsmwugr9bpjn/">here's an example build</a>).</p>
+
+<p><strong>Step 2:</strong> Edit your <code>Dockerfile</code> to take the additional arguments <code>COMMIT</code> and <code>BRANCH</code> from <code>ARG</code>.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+</pre></td><td class='code'><pre><code class='diff'><span class='line'>MAINTAINER Orta Therox
+</span><span class='line'><span class="gi">+ ARG BRANCH=&quot;master&quot;</span>
+</span><span class='line'><span class="gi">+ ARG COMMIT=&quot;&quot;</span>
+</span><span class='line'><span class="gi">+ LABEL branch=${BRANCH}</span>
+</span><span class='line'><span class="gi">+ LABEL commit=${COMMIT}</span>
+</span><span class='line'>
+</span><span class='line'>ADD . /app
+</span><span class='line'>WORKDIR /app
+</span><span class='line'>
+</span><span class='line'><span class="gi">+ # Now set it as an env var</span>
+</span><span class='line'><span class="gi">+ ENV COMMIT_SHA=${COMMIT}</span>
+</span><span class='line'><span class="gi">+ ENV COMMIT_BRANCH=${BRANCH}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Err, that should be everything. I mean, I did call it a micro-post. Trying to implement this has broken the Peril
+runner a bunch of times on staging, so I'm mainly just helping out other docker newbies.</p>
+
+<p>Some links that helped me get there:</p>
+
+<ul>
+<li><a href="https://github.com/docker/hub-feedback/issues/600">Add git commit hash to ENV</a></li>
+<li><a href="https://github.com/docker/hub-feedback/issues/508#issuecomment-243968310">Feature request: Build args on docker hub</a></li>
+<li><a href="https://github.com/elasticdog/tiddlywiki-docker/commit/993c7e9e8d5207d110270458f0f18839656ca126">Inject Git source commit metadata into the image</a></li>
+<li><a href="https://docs.docker.com/docker-hub/github/">Configure automated builds from GitHub</a></li>
+</ul>
+
+
+<p>Remember folks, Ash says you should <a href="https://ashfurrow.com/blog/contemporaneous-blogging/">write as you learn</a>, so
+write up those small wins.</p>
+
+        </article>
+
+        <article class='post'>
+          <p style="padding-bottom: 0; margin-bottom:0;">
+            <a href="https://www.artsy.net/" style="background-image: none;">
+              <svg viewBox="0 0 510 510" width="40" height="40" xmlns="http://www.w3.org/2000/svg">
+                <path transform="scale(1, -1) translate(0, -480)" d="M0 -32h512v512h-512v-512v0zM464 16h-80v80h-48v-80h-288v416h416v-416v0zM194 384h-40l-74 -186h38l20 52h72l19 -52h39l-74 186v0zM149 282l25 66l24 -66h-49v0z"></path>
+              </svg>
+            </a>
+          <p/>
+        </article>
+
+      
+
+      </section>
+
+      <footer>
+        <article>
+
+          <section>
+            <h4>Author</h4>
+            <p> <a href="/author/orta"/>Orta Therox</a></p>
+            <p>Code Janitor at Artsy, thinking about JS tooling.</a></p>
+          </section>
+
+          <section>
+            <h4>Post Meta</h4>
+            <p>Sep 10, 2018</p>
+            <p>Tagged: <a class='category' href='/blog/categories/docker/'>docker</a>, <a class='category' href='/blog/categories/env-vars/'>env-vars</a>, <a class='category' href='/blog/categories/peril/'>peril</a></p>
+          </section>
+          <br/>
+          <section>
+            <h4>Artsy OSS</h4>
+            <ul>
+              <li><a href='https://www.artsy.net'>Artsy.net</a></li>
+              <li><a href='https://developers.artsy.net'>API</a></li>
+              <li><a href='http://artsy.github.io/open-source/'>Featured OSS</a></li>
+              <li><a href='https://www.artsy.net/jobs'>Careers</a></li>
+            </ul>
+          </section>
+
+          <section>
+            <h4>Blog</h4>
+            <ul>
+              <li><a href='http://artsy.github.io/blog/archives/'>Archives</a></li>
+              <li><a href='http://artsy.github.io/search/'>Search</a></li>
+              <li><a href='https://github.com/artsy/artsy.github.io'>Code on GitHub</a></li>
+              <li><a href='https://github.com/artsy/artsy.github.io/edit/source/_posts/2018-09-10-Dockerhub-Stamping-Commits.markdown'>Fix typoes in this post</a></li>
+            </ul>
+          </section>
+
+        </article>
+
+        <article>
+          <section>
+            <h4>Post Series on the Blog</h4>
+            <ul>
+              
+              <li><a href='/series/react-native-at-artsy/'>React Native at Artsy</a></li>
+              
+              <li><a href='/series/javascriptures/'>JavaScriptures</a></li>
+              
+              <li><a href='/series/stages-of-professional-growth/'>Stages of Professional Growth</a></li>
+              
+              <li><a href='/series/artsy-tech-stack/'>Artsy Tech Stack</a></li>
+              
+              <li><a href='/series/open-source-by-default/'>Open Source by Default</a></li>
+              
+            </ul>
+          </section>
+
+          <section>
+          
+          </section>
+        </article>
+
+      </footer>
+    </div>
+  </div>
+</body>
