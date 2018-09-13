@@ -1,6 +1,6 @@
 ---
 layout: epic
-title: "How To Debug Jest Tests"
+title: 'How To Debug Jest Tests'
 date: 2018-08-24
 author: anson
 categories: [Node.js, Jest, testing, tooling]
@@ -35,7 +35,15 @@ Or you can add it to your `package.json` as a script:
 
 Which you can then run as `yarn test:debug <path_to_test>`.
 
-Voila! Your test should now be running in the Chrome debugger. And you get your handy console to poke around all sorts of stuff! The only downside is if you make changes to your test, you'll have to `Ctrl + c` out of the node process and re-run it (but you don't need to close the Chrome debugger, it'll attach right back to the node process again).
+Voila! Your test should now be running in the Chrome debugger. And you get your handy console to poke around all sorts of stuff!
+
+You also have the option of using this with Jest's `--watch` mode in order easily re-run tests, after changes to app or test code.
+
+```bash
+node --inspect node_modules/.bin/jest --watch --runInBand <path_to_test>
+```
+
+Now simply hit Enter in the terminal running your Jest process anytime you want to re-run your currently selected specs. You'll be dropped right back into the Chrome debugger.
 
 You might be wondering how this fixed our tests. Well, turns out that we missed a `jest.unmock()` call at the top of the test file. _Facepalm._ To prevent this from biting other developers in the future, [Orta](/author/orta) whipped up a [pull request](https://github.com/artsy/reaction/pull/1174) to add a rule in our TypeScript linter, check it out!
 
