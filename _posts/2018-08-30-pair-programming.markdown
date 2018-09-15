@@ -6,7 +6,7 @@ author: [yuki, orta]
 categories: [pairing, culture]
 ---
 
-Why pair program? As new engineers join Artsy we've been experimenting with different programming cultures - Yuki
+Why pair program? As new engineers join Artsy, we've been experimenting with different programming cultures - Yuki
 came from Pivotal Labs where they have a strong pair programming culture and introduced it at Artsy - it's been
 about a year and a half and we're all really loving the changes he's introduced.
 
@@ -20,7 +20,7 @@ more often.
 ## Why pair program?
 
 The idea of pair programming came from a very popular book called [Extreme Programming Explained: Embrace
-Change][extreme-explained]. Code review has been a good practice in software development. Many organizations have
+Change][extreme-explained]. Code review has been a good practice in software development for decades. Many organizations have
 adopted it, but XP (Extreme Programming) literally takes this **more extremely** - what if the engineer sitting next
 to you is reviewing your code as soon as you write it? This requires two engineers to simultaneously pay attention
 to the code that's being written, discuss implementation details, and sometimes socialize. That's how pair
@@ -40,7 +40,7 @@ of extra commits, or even re-wrote the entire pull request. That's when pairing 
 Another good example is on-boarding new hires. Coming from an agile consultancy and a photo-product company, I was
 nowhere close to an Art expert when I joined Artsy. This was the time I wanted to question not just technical
 questions, but also very basic questions about art. How do people find and purchase artworks? Who actually sells
-artworks? What is an art fair? And auctions? Christina Thompson, on the other hand, has been at Artsy for more than
+artworks? What is an art fair? And auctions? [Christina Thompson](christina-thompson), on the other hand, has been at Artsy for more than
 two years. She also has strong experience in agile software development and practices, including pair-programming.
 Naturally, we started pairing to familiarize myself both with the code base and basic knowledge about Art on my first
 week at Artsy.
@@ -56,14 +56,12 @@ should be, then you don’t have to pair. Sometimes it may make sense for two of
 check in later to share findings and learnings. In an occasional case, even swapping a pair is also a good way to make
 the entire team more productive.
 
-<!---------------------------------------------- I wonder if this "I believe" 👇 is okay -->
-
 So what is the key point that makes a pair-programming session successful? I believe pair-programming works best when
 there is a fair amount of knowledge gap between two people. One is coding and teaching simultaneously, and the
 other is reviewing and learning simultaneously. Here the crucial part is _teaching_. It is easy, especially for more
 seasoned developers, to ignore the opportunity to share thoughts and knowledge with new hires, losing productivity
 they could've gained by pairing. Joining a new company is always scary, and pair-programming with a new hire will
-avoid a lot of "I wasn't sure about X" moments new hires might have encountered. At the same time, as mentioned above,
+reduce a lot of "I wasn't sure about X" moments new hires might have encountered. At the same time, as mentioned above,
 pair-programming is not a silver bullet. It is important to be able to use pair-programming as a tool in your toolbox
 to solve a particular issue in your engineering team.
 
@@ -74,7 +72,7 @@ programming setup looks like.
 
 ### Offline
 
-If you can have physical access to the other engineer, then you should aim to have:
+If you and the other engineer are in the same physical space, then you should aim to have:
 
 - One computer set up as a workstation.
 - Two sets of keyboards, mice and monitors attached.
@@ -98,7 +96,7 @@ and that feature still isn't available for everyone. So, a lot of our pairing is
 
 There's a newcomer to the scene though, [VS Code's LiveShare][ls] gives you the ability to share an IDE, do voice
 chat, server ports and terminal sessions with a very low amount of setup. We wrote the initial draft of this post
-in-person, in aN Artsy meeting room writing and talking in real-time. If you've not seen Live Share, we posted a
+in-person, in an Artsy meeting room writing and talking in real-time. If you've not seen Live Share, we posted a
 video of a [workshop we ran][ls-yt] at Artsy on YouTube.
 
 If you're looking to find more resources on pair programming, Joe Moore's: [Remote Pair Programming][rpp] is a great
@@ -138,7 +136,7 @@ the default email address host for someone. So it would infer that Craig Spaeth'
 If they've not set up that email yet, then you can use `email_addresses:` to provide overrides.
 
 Now your config is set up, you can start using it. In your terminal you can use `git duet ot af` to start a session
-with myself and Ash Furrow.
+with Orta and Ash.
 
 ```sh
 ~/d/p/a/j/a/metaphysics  $ git duet ot af
@@ -156,6 +154,7 @@ use `git duet-commit --amend` to overwrite the last commit with a duet commit in
 
 Pair-programming is a fantastic way to collaborate. If your organization hasn't incorporated it yet, I would highly recommend doing so. At Artsy, we've been experimenting with pair-programming for quite a long time, but this is only the start. We haven't figured out the form of pair-programming that works best for us, and it'll probably never end (and it's a good thing). There are also a lot more to think about that didn't get into this blog post, such as mental model one should have while pairing and techniques that keep you focused. We will re-visit once we gain more feedback and iterate on our pairing process.
 
+[christina-thompson]: https://medium.com/artsy-blog/what-it-feels-like-to-work-in-a-supportive-environment-for-female-engineers-3c994a001007
 [extreme-explained]: https://www.goodreads.com/book/show/67833.Extreme_Programming_Explained
 [sh]: https://slack.com/screenhero
 [ls]: https://visualstudio.microsoft.com/services/live-share
