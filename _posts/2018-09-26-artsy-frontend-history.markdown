@@ -127,8 +127,9 @@ that was important to mobile engineers was type safety, so we had to have a conv
 On its own, JavaScript can't guarantee type safety. We investigated two options: [TypeScript][] and [Flow][]. [This
 blog post][fe_js] goes into detail about our decision, but tl;dr we chose TypeScript. We have been building (and
 helping to build) tools [relay-compiler-language-typescript][rclt] to take full advantage of interoperability
-between TypeScript types and GraphQL types through [Relay][]. It's all very exciting – you can read more on how
-Relay and GraphQL interoperate [in this blog post][relay_post].
+between TypeScript types and GraphQL types through [Relay][], as well as using Babel 7 to migrate existing projects
+to TypeScript incrementally, which you can read about in more detail [here][ts_inc]. It's all very exciting – you
+can read more on how Relay and GraphQL interoperate [in this blog post][relay_post].
 
 ---
 
@@ -168,3 +169,4 @@ coming next, and I can't wait to share it with you. Have a great day!
 [metaphysics]: https://github.com/artsy/metaphysics/
 [replay_post]: http://artsy.github.io/blog/2018/07/25/Relay-Networking-Deep-Dive/
 [hokusai]: https://github.com/artsy/hokusai
+[ts_inc]: https://artsy.github.io/blog/2017/11/27/Babel-7-and-TypeScript/
