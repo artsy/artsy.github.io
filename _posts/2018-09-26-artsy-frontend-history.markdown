@@ -1,7 +1,7 @@
 ---
 layout: epic
 title: "A History of Artsy's Web Frontend"
-date: 2018-09-18
+date: 2018-09-26
 author: ash
 categories: [react, ezel, javascript, force, architecture, best practices]
 ---
