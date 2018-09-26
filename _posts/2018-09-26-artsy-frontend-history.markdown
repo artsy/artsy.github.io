@@ -72,7 +72,7 @@ project called [Ezel][].
 
 We used Ezel for a few years without too much change in our web frontend stack. It proved really useful for helping
 build other web apps – CMS systems for our partners, auction-management systems for our admins, all kinds of
-projects – and most of those projects started on Heroku before moving to our Ops Works stack as needed. Our
+projects – and most of those projects started on Heroku before moving to heavier-duty deployments as needed. Our
 frontend mindset at the time (2015) was focused on getting to a stable, predictable stack. However... we started
 experimenting with React around the same time.
 
@@ -84,7 +84,8 @@ configuration" is a good mantra _if_ you can expect that incoming engineers are 
 That's just not the case anymore.
 
 By 2016, we launched our [first app built with React][auctions], which both proved the technology was ready for
-production use _and_ convinced our engineers that React is simply a better paradigm for building user interfaces.
+production use _and_ convinced our engineers that React is simply a better paradigm for building the kinds of user
+interfaces that Artsy builds.
 
 ## React
 
