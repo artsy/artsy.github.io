@@ -94,7 +94,52 @@ post][2017_review] discusses this in depth, but our goal was really to unify the
 at Artsy use to build user interfaces, whether that's on mobile or web. React and React Native were our answer to
 that challenge.
 
-TODO: stitch, typescript, palette, reaction, etc
+On the web side of things, however, Artsy had another challenge. Sure, React is great, and sure, it's how we want
+to build user interfaces, but how do we get there? We're not fans of large rewriting projects, so we opted for what
+we call an "incremental revolution" approach. We built a library called [Stitch][] that would let us mount React
+components inside our existing app. Using this approach, we could migrate to React component-by-component. We've
+been using Stitch in production for over a year and have been very happy with its approach; you can read more
+details of integrating it into our main frontend app [in this blog post][force_modern].
+
+Today, principal React work takes place in [a shared components repo][reaction]. We share these components across
+several of our web apps using Stitch. We have been pretty pleased with the results! But our dive into React is only
+just beginning. The community is moving quickly to figure out what best practices make sense in the React paradigm,
+and we're a part of that. We are evaluating technologies like [styled-components][] and [styled-system][] to create
+a universal design system within Artsy. The area is under very active development, so I'll save details for a
+future blog post.
+
+I can't go too much further without talking about GraphQL. v1 of our API (REST) is still in use around much of
+Artsy and, despite the best efforts of some of our engineers, v2 of our API ([HAL][]) hasn't gained significant
+internal use yet. Instead, we found ourselves building a [GraphQL][] server to orchestrate API calls to our
+existing APIs. This confers many benefits, which I describe from a mobile perspective in some detail [here][moya].
+The key thing to understand about our GraphQL server, [which is open source][metaphysics], is that it is under the
+stewardship of our frontend engineers, not our platform engineers. That's not to say that our platform team isn't
+involved with its development – in fact, they've been key to scaling it up – but Artsy frontend engineers created
+the server to help us build better UIs, and while the technology is still very new, we continue to see it pay
+dividends.
+
+Okay so remember earlier when I said that we dissolved our mobile team? Well, I was on that team and it wasn't like
+our mobile engineers all learned how Artsy does web – we brought our culture and tools with us and, together with
+our web colleagues, have built an integrate engineering team that's greater than the sum of its parts. One thing
+that was important to mobile engineers was type safety, so we had to have a conversation about JavaScript.
+
+On its own, JavaScript can't guarantee type safety. We investigated two options: [TypeScript][] and [Flow][]. [This
+blog post][fe_js] goes into detail about our decision, but tl;dr we chose TypeScript. We have been building (and
+helping to build) tools [relay-compiler-language-typescript][rclt] to take full advantage of interoperability
+between TypeScript types and GraphQL types through [Relay][]. It's all very exciting – you can read more on how
+Relay and GraphQL interoperate [in this blog post][relay_post].
+
+---
+
+Since I joined Artsy, I've seen us continually investing in tooling that helps us build better software. The
+results of this culture-of-continuous-improvement speak for themselves: with fewer than 30 engineers total, we
+support a growing company with a suite of software built for many canvasses _and_ we have an outsized impact on the
+software industry relative to our size. Our frontend web stack is just one facet of our evolving technology –
+there's lots of exciting stuff on the backend, too ([for example...][hokusai]). Through my research for this blog
+post, I learned a lot about what drives technological decisions on our team. From humble beginnings as a Rails app,
+to CoffeeScript and Boostrap, to React and GraphQL, Artsy Engineering has evolved our frontend software to achieve
+a quality worthy of art – both from the user's perspective and from the developer's. I'm very excited about what's
+coming next, and I can't wait to share it with you. Have a great day!
 
 [force]: https://github.com/artsy/force
 [backbone]: http://backbonejs.org
@@ -106,3 +151,19 @@ TODO: stitch, typescript, palette, reaction, etc
 [2013_review]: http://artsy.github.io/blog/2013/11/30/rendering-on-the-server-and-client-in-node-dot-js/
 [2017_review]: http://artsy.github.io/blog/2017/04/14/artsy-technology-stack-2017/
 [auctions]: http://artsy.github.io/blog/2016/08/09/the-tech-behind-live-auction-integration/
+[stitch]: https://github.com/artsy/stitch
+[force_modern]: http://artsy.github.io/blog/2017/09/05/Modernizing-Force/
+[typescript]: http://artsy.github.io/blog/2017/09/05/Modernizing-Force/
+[flow]: https://flow.org
+[fe_js]: http://artsy.github.io/blog/2017/02/05/Front-end-JavaScript-at-Artsy-2017/
+[rclt]: https://github.com/relay-tools/relay-compiler-language-typescript
+[reaction]: https://github.com/artsy/reaction
+[styled-components]: https://www.styled-components.com
+[styled-system]: https://jxnblk.com/styled-system/
+[relay]: https://facebook.github.io/relay/
+[hal]: http://stateless.co/hal_specification.html
+[graphql]: https://graphql.org
+[moya]: https://ashfurrow.com/blog/the-spirit-of-moya/
+[metaphysics]: https://github.com/artsy/metaphysics/
+[replay_post]: http://artsy.github.io/blog/2018/07/25/Relay-Networking-Deep-Dive/
+[hokusai]: https://github.com/artsy/hokusai
