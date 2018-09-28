@@ -6,7 +6,7 @@ author: ash
 categories: [react, ezel, javascript, force, architecture, best practices]
 ---
 
-As Artsy Engineering grows this in 2018, we have so many newcomers looking for context: they want to understand the
+As Artsy Engineering grows in 2018, we have so many newcomers looking for context: they want to understand the
 systems they'll be working in day-to-day. Awesome! But it's not enough to understand the systems themselves, it's
 often helpful to understand the _history_ of how we ended up where we are. In an effort to help contextualize our
 web frontend (which is [open source][force]), this blog post will document the major transitions that Artsy's web
@@ -37,10 +37,10 @@ As an outsider to the web at that time, I can't comment too heavily on Backbone.
 freedom on the web frontend has evolved since then, but that's just my feeling.
 
 The other key component to our web frontend was [CoffeeScript][]. According to its documentation, "CoffeeScript is
-a little language that compiles into JavaScript", which was pretty important at the time. JavaScript in 2011 is
+a little language that compiles into JavaScript", which was pretty important at the time. JavaScript in 2011 was
 very different from JavaScript today. The CoffeeScript docs also state that "JavaScript has always had a gorgeous
 heart", which I'm not sure I'd agree with to be honest, but the CoffeeScript project really shows how a handful of
-engineers working to improve something they care about can change and entire industry. While I don't think
+engineers working to improve something they care about can change an entire industry. While I don't think
 contemporary JavaScript would have gotten as good as it has without CoffeeScript, it's a bit anachronistic to see
 it used today.
 
@@ -48,33 +48,32 @@ Our goal as a (very small!) engineering team at the time was to keep our moving 
 Rails+SASS+CoffeeScript+Backbone helped us achieve that goal, and we couldn't have gotten this far without the help
 of those projects.
 
-## Ezel
+## Ezel & Friends
 
 In November 2013, we split our web frontend from the API backend. You can read
 [all the details in this blog post](2013_review), but the story is summarized nicely as "moving from a single
 monolithic application to modular Backbone apps that run in Node and the browser and consume our external API."
 This move from monolith to modular systems continues to influence day-to-day work on the Artsy Engineering team.
 
-We moved our API from Rails to [Grape][], partially motivated by a desire to build an iOS application that would
-consume this API. We faced a lot of problems with the split, including SEO problems, severe page load times,
+We had already started moving away from a typical Rails app by moving our API to [Grape][] in order to support an
+iOS application. The monolith also had some clear drawbacks including SEO problems, severe page load times,
 maintaining duplicated backend and frontend UI templates, slow test suites, and poor developer productivity. We
 took the project of building our mobile web frontend, m.artsy.net (still known as "martsy" internally) as an
 opportunity to address these problems.
 
-We built our new site with [Node.js][node] since it easily allowed server-side rendering. We split out areas of
-concern into separate "apps", with their own bundled CSS/JS to help page load times. We server-side rendered
-above-the-fold content and used client-side JS to load the rest, which helped SEO and user experience. We took a
-[BEM][]-like approach to our CSS, which helped developer productivity. Our technical decisions were driven
-primarily by our desire to create great user experiences.
+We built our new site with [Node.js][node] since it allowed us to share and consolidate our server/client rendering
+code. We split out areas of concern into separate "apps", with their own bundled CSS/JS to help page load times. We
+server-side rendered above-the-fold content and used client-side JS to load the rest, which helped SEO and user
+experience. We took a [BEM][]-like approach to our CSS, which helped developer productivity. Our technical
+decisions were driven primarily by our desire to create great user experiences.
 
 And because we are an open source by default organization, we collected these approaches into an open source
-project called [Ezel][].
-
-We used Ezel for a few years without too much change in our web frontend stack. It proved really useful for helping
-build other web apps – CMS systems for our partners, auction-management systems for our admins, all kinds of
-projects – and most of those projects started on Heroku before moving to heavier-duty deployments as needed. Our
-frontend mindset at the time (2015) was focused on getting to a stable, predictable stack. However... we started
-experimenting with React around the same time.
+project called [Ezel][]. While our main app used this Ezel approach, other new web apps – CMS systems for our
+partners, auction-management systems for our admins, etc – were built on new internal tools to share assets and
+code across the apps. We experimented a lot; we got pretty good at sharing resources across codebases. Most of our
+web projects started on Heroku before moving to heavier-duty deployments as needed. Our frontend mindset at the
+time (2015) was focused on getting to a stable, predictable stack. However... we started experimenting with React
+around the same time.
 
 CoffeeScript and Backbone were still working for us, and we still use them in production in many systems. However,
 the state of the art in web development moved on. When I joined the auctions team and helped maintain one of our
@@ -83,9 +82,12 @@ languages, with a lot of magic happening. I think that's typical in these kinds 
 configuration" is a good mantra _if_ you can expect that incoming engineers are familiar with the conventions.
 That's just not the case anymore.
 
-By 2016, we launched our [first app built with React][auctions], which both proved the technology was ready for
-production use _and_ convinced our engineers that React is simply a better paradigm for building the kinds of user
-interfaces that Artsy builds.
+By 2016, we had [experimented with React][helix] and followed up with [another app built with teh
+technology][auctions]. React, and Redux, were very well-suited for our realtime auction bidding UI, and would later
+prove helpful in our [editorial CMS][positron]. These experiences helped prove the technology was ready for
+production use _and_ convinced us that React was great at reducing the complexities of building user interfaces
+(the realtime nature of our auctions product was particularly well-suited for Redux's state management; it was our
+first from-scratch React app).
 
 ## React
 
@@ -121,7 +123,7 @@ dividends.
 
 Okay so remember earlier when I said that we dissolved our mobile team? Well, I was on that team and it wasn't like
 our mobile engineers all learned how Artsy does web – we brought our culture and tools with us and, together with
-our web colleagues, have built an integrate engineering team that's greater than the sum of its parts. One thing
+our web colleagues, have built an integrated engineering team that's greater than the sum of its parts. One thing
 that was important to mobile engineers was type safety, so we had to have a conversation about JavaScript.
 
 On its own, JavaScript can't guarantee type safety. We investigated two options: [TypeScript][] and [Flow][]. [This
@@ -170,3 +172,5 @@ coming next, and I can't wait to share it with you. Have a great day!
 [replay_post]: http://artsy.github.io/blog/2018/07/25/Relay-Networking-Deep-Dive/
 [hokusai]: https://github.com/artsy/hokusai
 [ts_inc]: https://artsy.github.io/blog/2017/11/27/Babel-7-and-TypeScript/
+[helix]: http://artsy.github.io/blog/2015/04/08/creating-a-dynamic-single-page-app-for-our-genome-team-using-react/
+[positron]: https://github.com/artsy/positron
