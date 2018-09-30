@@ -32,7 +32,7 @@ you'll be able to make your pairing session much more valuable.
 To think about when pairing is most valuable, let's think about code review first. Modern software organizations
 have implemented a process where engineers send pull requests to get reviews on GitHub (or whatever tool your
 organization uses for reviewing code). This is a very powerful process, but most of us have probably experienced a
-situation where a pull request with a very simple change created a very long discussion. Sometimes
+situation where a pull request with [a very simple change created a very long discussion](https://github.com/artsy/reaction/pull/1114#discussion_r209354107). Sometimes
 that's because of your lack of context in the work you are doing. Sometimes it's because you are working on a
 system you are unfamiliar with. Your co-worker left a lot of comments on your pull request, and you had to push a lot
 of extra commits, or even re-wrote the entire pull request. That's when pairing becomes very valuable to your team.
