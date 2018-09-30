@@ -121,9 +121,7 @@ You'll then need to set up a `~/.git-authors` file which is a map of people's na
 ```yml
 pairs:
   ot: Orta Therox; orta
-  cs: Craig Spaeth; craig
   af: Ash Furrow; ash
-  ka: Kana Abe; kana
   md: Matt Dole;
 email:
   domain: artsymail.com
@@ -132,7 +130,7 @@ email_addresses:
 ```
 
 The format for each pair is `[tag]: [Name]; [email-prefix]`. This works in combination with the `email:domain` as
-the default email address host for someone. So it would infer that Craig Spaeth's email is `craig@artsymail.com`.
+the default email address host for someone. So it would infer that Ash Furrow's email is `ash@artsymail.com`.
 If they've not set up that email yet, then you can use `email_addresses:` to provide overrides.
 
 Now your config is set up, you can start using it. In your terminal you can use `git duet ot af` to start a session
