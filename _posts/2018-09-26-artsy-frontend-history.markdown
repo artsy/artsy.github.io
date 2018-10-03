@@ -8,9 +8,17 @@ categories: [react, ezel, javascript, force, architecture, best practices]
 
 As Artsy Engineering grows in 2018, we have so many newcomers looking for context: they want to understand the
 systems they'll be working in day-to-day. Awesome! But it's not enough to understand the systems themselves, it's
-often helpful to understand the _history_ of how we ended up where we are. In an effort to help contextualize our
-web frontend (which is [open source][force]), this blog post will document the major transitions that Artsy's web
-presence has made over the past seven years. Let's begin!
+often helpful to understand the _history_ of how we ended up where we are.
+
+Frontend web development has changed a _lot_ during Artsy's existence, and it continues to advance at a blistering
+pace. It's easy to get caught up in the churn of frameworks and languages and tools, so I want to use this post as
+an opportunity to contextualize each transition that Artsy's web presence has made over the past seven years. We've
+changed technologies, but we've tried to do so with care and attention. Documenting these decisions is important
+(and is ideally done [contemporaneously][]), but even with the best documentation, [sometimes our own documentation
+is unclear to us][github_convo].
+
+In an effort to help contextualize our web frontend (which is [open source][force]), this blog post will document
+the major transitions that Artsy's web presence has made over the past seven years. Let's begin!
 
 <!-- more -->
 
@@ -56,10 +64,10 @@ monolithic application to modular Backbone apps that run in Node and the browser
 This move from monolith to modular systems continues to influence day-to-day work on the Artsy Engineering team.
 
 We had already started moving away from a typical Rails app by moving our API to [Grape][] in order to support an
-iOS application. The monolith also had some clear drawbacks including SEO problems, severe page load times,
-maintaining duplicated backend and frontend UI templates, slow test suites, and poor developer productivity. We
-took the project of building our mobile web frontend, m.artsy.net (still known as "martsy" internally) as an
-opportunity to address these problems.
+iOS application. The monolith also had some clear drawbacks including severe page load times, maintaining
+duplicated backend and frontend UI templates, slow test suites, and poor developer productivity. We took the
+project of building our mobile web frontend, m.artsy.net (still known as "martsy" internally) as an opportunity to
+address these problems.
 
 We built our new site with [Node.js][node] since it allowed us to share and consolidate our server/client rendering
 code. We split out areas of concern into separate "apps", with their own bundled CSS/JS to help page load times. We
@@ -82,12 +90,18 @@ languages, with a lot of magic happening. I think that's typical in these kinds 
 configuration" is a good mantra _if_ you can expect that incoming engineers are familiar with the conventions.
 That's just not the case anymore.
 
-By 2016, we had [experimented with React][helix] and followed up with [another app built with teh
-technology][auctions]. React, and Redux, were very well-suited for our realtime auction bidding UI, and would later
+By 2016, we had [experimented with React][helix] and followed up with [another app built with the
+technology][auctions]. React (and Redux) were very well-suited for our realtime auction bidding UI, and would later
 prove helpful in our [editorial CMS][positron]. These experiences helped prove the technology was ready for
 production use _and_ convinced us that React was great at reducing the complexities of building user interfaces
 (the realtime nature of our auctions product was particularly well-suited for Redux's state management; it was our
 first from-scratch React app).
+
+When the Artsy business require us to make changes to how we build software, like splitting up our monolith, we try
+to take full advantage of those changes to improve how we work, which means evaluating new tools. Adopting Node.js
+and Ezel wouldn't make sense today, but at the time, they helped us scale up Artsy's business without the same
+scaling up of our engineering resources. Ezel helped us do more with less, which is still an important criteria we
+use for evaluating new tools.
 
 ## React
 
@@ -133,6 +147,12 @@ between TypeScript types and GraphQL types through [Relay][], as well as using B
 to TypeScript incrementally, which you can read about in more detail [here][ts_inc]. It's all very exciting – you
 can read more on how Relay and GraphQL interoperate [in this blog post][relay_post].
 
+We started building software in React not because it was trendy, but because it helped our engineering team deliver
+more value to the business. It's been a huge success, but not without its costs. We've tried to mitigate those
+costs by using tools like Stitch to migrate apps to React incrementally, and through spreading knowledge of how our
+stack through internal knowledge-sharing like [JavaScriptures][]. While the transition to React has had its costs,
+_not_ moving would also be costly, too.
+
 ---
 
 Since I joined Artsy, I've seen us continually investing in tooling that helps us build better software. The
@@ -146,6 +166,8 @@ a quality worthy of art – both from the user's perspective and from the develo
 coming next, and I can't wait to share it with you. Have a great day!
 
 [force]: https://github.com/artsy/force
+[contemporaneously]: https://ashfurrow.com/blog/contemporaneous-blogging/
+[github_convo]: https://github.com/artsy/artsy.github.io/pull/489#discussion_r221301472
 [backbone]: http://backbonejs.org
 [coffeescript]: https://coffeescript.org
 [grape]: https://github.com/ruby-grape/grape
@@ -174,3 +196,4 @@ coming next, and I can't wait to share it with you. Have a great day!
 [ts_inc]: https://artsy.github.io/blog/2017/11/27/Babel-7-and-TypeScript/
 [helix]: http://artsy.github.io/blog/2015/04/08/creating-a-dynamic-single-page-app-for-our-genome-team-using-react/
 [positron]: https://github.com/artsy/positron
+[javascriptures]: http://artsy.github.io/series/javascriptures/
