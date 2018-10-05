@@ -161,7 +161,7 @@ support a growing company with a suite of software built for many canvasses _and
 software industry relative to our size. Our frontend web stack is just one facet of our evolving technology –
 there's lots of exciting stuff on the backend, too ([for example...][hokusai]). Through my research for this blog
 post, I learned a lot about what drives technological decisions on our team. From humble beginnings as a Rails app,
-to CoffeeScript and Boostrap, to React and GraphQL, Artsy Engineering has evolved our frontend software to achieve
+to CoffeeScript and Bootstrap, to React and GraphQL, Artsy Engineering has evolved our frontend software to achieve
 a quality worthy of art – both from the user's perspective and from the developer's. I'm very excited about what's
 coming next, and I can't wait to share it with you. Have a great day!
 
