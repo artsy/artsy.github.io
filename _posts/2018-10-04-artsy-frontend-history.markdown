@@ -180,7 +180,7 @@ coming next, and I can't wait to share it with you. Have a great day!
 [auctions]: http://artsy.github.io/blog/2016/08/09/the-tech-behind-live-auction-integration/
 [stitch]: https://github.com/artsy/stitch
 [force_modern]: http://artsy.github.io/blog/2017/09/05/Modernizing-Force/
-[typescript]: http://artsy.github.io/blog/2017/09/05/Modernizing-Force/
+[typescript]: http://www.typescriptlang.org
 [flow]: https://flow.org
 [fe_js]: http://artsy.github.io/blog/2017/02/05/Front-end-JavaScript-at-Artsy-2017/
 [rclt]: https://github.com/relay-tools/relay-compiler-language-typescript
@@ -192,7 +192,7 @@ coming next, and I can't wait to share it with you. Have a great day!
 [graphql]: https://graphql.org
 [moya]: https://ashfurrow.com/blog/the-spirit-of-moya/
 [metaphysics]: https://github.com/artsy/metaphysics/
-[replay_post]: http://artsy.github.io/blog/2018/07/25/Relay-Networking-Deep-Dive/
+[relay_post]: http://artsy.github.io/blog/2018/07/25/Relay-Networking-Deep-Dive/
 [hokusai]: https://github.com/artsy/hokusai
 [ts_inc]: https://artsy.github.io/blog/2017/11/27/Babel-7-and-TypeScript/
 [helix]: http://artsy.github.io/blog/2015/04/08/creating-a-dynamic-single-page-app-for-our-genome-team-using-react/
