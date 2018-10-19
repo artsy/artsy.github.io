@@ -8,8 +8,6 @@ css: graphql
 comment_id: 495
 ---
 
-# Where art thou, my error?
-
 _Note: This is the text of a presentation given at [GraphQL Finland 2018](https://graphql-finland.fi), as such the
 language may in some cases be slightly awkward for a blog post. You can find those slides on
 [Speaker Deck](https://speakerdeck.com/alloy/where-art-thou-my-error)._
@@ -108,7 +106,7 @@ So how _do_ we model errors in such a way that they can be meaningful and in con
 
 Some clients, such as Apollo and Relay Classic, have made the decision to reject a response entirely, by default,
 if any top-level GraphQL errors exist. This is because clients can really only fully assume that the response data
-is incomplete, not wether or not your application could handle that case.
+is incomplete, not whether or not your application could handle that case.
 
 This may be an ok solution when you’re starting out or all the requested data is part of a single holistic view,
 but it quickly breaks down when you want a little more than that.
@@ -444,7 +442,7 @@ query {
 }
 ```
 
-This duplication is slightly unfortunate, from a clean schema design perspective, but it’s not a very uncommon
+This duplication is slightly unfortunate, from a clean schema design perspective, but it’s similar to an existing
 pattern in the community. For instance, many schemas provide 2 ways to retrieve lists:
 
 - one as an immediate list:
@@ -471,7 +469,7 @@ type Query {
 }
 ```
 
-So the jury is still out on wether or not that’s a bad way to name things. We’ll have to see after using this for a
+So the jury is still out on whether or not that’s a bad way to name things. We’ll have to see after using this for a
 while.
 
 ### Downside of using a union
@@ -607,9 +605,13 @@ export const SubmitOrderContainer = createFragmentContainer(
 )
 ```
 
+<!--
+
 ### Show example of factory code that produces both single and union typed fields
 
 TODO
+
+-->
 
 ## Final thoughts
 
