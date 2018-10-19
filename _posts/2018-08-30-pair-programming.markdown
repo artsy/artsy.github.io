@@ -6,14 +6,16 @@ author: [yuki, orta]
 categories: [pairing, culture]
 ---
 
-Why pair program? As new engineers join Artsy, we've been experimenting with different programming cultures - Yuki
+_Why pair program? As new engineers join Artsy, we've been experimenting with different programming cultures - Yuki
 came from Pivotal Labs where they have a strong pair programming culture and introduced it at Artsy - it's been
-about a year and a half and we're all really loving the changes he's introduced.
+about a year and a half and we're all really loving the changes he's introduced._
 
-I asked Yuki if he'd pair program with me on a blog, post on Pair Programming, and this is it. So, we're going to
+_I asked Yuki if he'd pair program with me on a blog, post on Pair Programming, and this is it. He's going to
 dive into what pair programming is, why you should do it, what are good mental models to think about, the techniques
 you can use to make it work, what hardware you might need and how Yuki persuaded so many of us to start doing it
-more often.
+more often._
+
+&mdash; Orta
 
 <!-- more -->
 
@@ -32,7 +34,7 @@ you'll be able to make your pairing session much more valuable.
 To think about when pairing is most valuable, let's think about code review first. Modern software organizations
 have implemented a process where engineers send pull requests to get reviews on GitHub (or whatever tool your
 organization uses for reviewing code). This is a very powerful process, but most of us have probably experienced a
-situation where a pull request with [a very simple change created a very long discussion](https://github.com/artsy/reaction/pull/1114#discussion_r209354107). Sometimes
+situation where a pull request with [a very simple change created a very long discussion][simple_changes]. Sometimes
 that's because of your lack of context in the work you are doing. Sometimes it's because you are working on a
 system you are unfamiliar with. Your co-worker left a lot of comments on your pull request, and you had to push a lot
 of extra commits, or even re-wrote the entire pull request. That's when pairing becomes very valuable to your team.
@@ -40,10 +42,10 @@ of extra commits, or even re-wrote the entire pull request. That's when pairing 
 Another good example is on-boarding new hires. Coming from an agile consultancy and a photo-product company, I was
 nowhere close to an Art expert when I joined Artsy. This was the time I wanted to question not just technical
 questions, but also very basic questions about art. How do people find and purchase artworks? Who actually sells
-artworks? What is an art fair? And auctions? [Christina Thompson](christina-thompson), on the other hand, has been at Artsy for more than
-two years. She also has strong experience in agile software development and practices, including pair-programming.
-Naturally, we started pairing to familiarize myself both with the code base and basic knowledge about Art on my first
-week at Artsy.
+artworks? What is an art fair? And auctions? [Christina Thompson][christina-thompson], on the other hand, has been at 
+Artsy for more than two years. She also has strong experience in agile software development and practices, including 
+pair-programming. Naturally, we started pairing to familiarize myself both with the code base and basic knowledge 
+about Art on my first week at Artsy.
 
 ### When not to pair program?
 
@@ -91,16 +93,16 @@ with one computer.
 It's worth noting that remote pairing requires stable internet, and with high bandwidth. We've both had situations
 in the past where we've had to abort pairing sessions due to internet un-reliability.
 
-We used to use ScreenHero a lot, to support multiple mice and keyboards, but [ScreenHero was bought by slack][sh]
-and that feature still isn't available for everyone. So, a lot of our pairing is done via screen sharing.
+In the past, we used to use ScreenHero a lot, because of it's great support for multiple mice and keyboards, but 
+[ScreenHero was bought by slack][sh] and those feature aren't available for everyone. 
 
-There's a newcomer to the scene though, [VS Code's LiveShare][ls] gives you the ability to share an IDE, do voice
-chat, server ports and terminal sessions with a very low amount of setup. We wrote the initial draft of this post
-in-person, in an Artsy meeting room writing and talking in real-time. If you've not seen Live Share, we posted a
-video of a [workshop we ran][ls-yt] at Artsy on YouTube.
+A lot of our pairing is done via the built-in Slack screen sharing. There's a newcomer to the scene though! 
 
-If you're looking to find more resources on pair programming, Joe Moore's: [Remote Pair Programming][rpp] is a great
-place to start. He's been working at Pivotal Labs for over a decade.
+[VS Code's LiveShare][ls] gives you the ability to share an IDE: it can handle voice
+chat, sharing server ports and sharing terminal sessions with a very  minimal amount of setup.
+
+We wrote the initial draft of this post in-person, in an Artsy meeting room writing and talking in real-time. 
+If you've not seen Live Share, we posted a video of a [workshop we ran][ls-yt] at Artsy on YouTube.
 
 ### Attribution
 
@@ -145,12 +147,17 @@ GIT_COMMITTER_NAME='Ash Furrow'
 GIT_COMMITTER_EMAIL='ash@artsymail.com'
 ```
 
-Now we just have to remember to use `git duet-commit` instead of `git commit` for our work. If you forget, you can
+Now you just have to remember to use `git duet-commit` instead of `git commit` for our work. If you forget, you can
 use `git duet-commit --amend` to overwrite the last commit with a duet commit instead.
 
 ## Where to go from here?
 
 Pair-programming is a fantastic way to collaborate. If your organization hasn't incorporated it yet, I would highly recommend doing so. At Artsy, we've been experimenting with pair-programming for quite a long time, but this is only the start. We haven't figured out the form of pair-programming that works best for us, and it'll probably never end (and it's a good thing). There are also a lot more to think about that didn't get into this blog post, such as mental model one should have while pairing and techniques that keep you focused. We will re-visit once we gain more feedback and iterate on our pairing process.
+
+If you're looking to find more resources on pair programming
+
+- Joe Moore's [Remote Pair Programming][rpp] is a great place to start. He's been working at Pivotal Labs for over a decade.
+- Tuple’s [Pair Programming Guide][ppg] is a good work in progress at centralizing a lot of information.
 
 [christina-thompson]: https://medium.com/artsy-blog/what-it-feels-like-to-work-in-a-supportive-environment-for-female-engineers-3c994a001007
 [extreme-explained]: https://www.goodreads.com/book/show/67833.Extreme_Programming_Explained
@@ -159,10 +166,13 @@ Pair-programming is a fantastic way to collaborate. If your organization hasn't 
 [ls-yt]: https://twitter.com/ArtsyOpenSource/status/1034555778210910209
 [rpp]: http://remotepairprogramming.com/
 [git-duet]: https://github.com/git-duet/git-duet/
+[simple_changes]: https://github.com/artsy/reaction/pull/1114#discussion_r209354107
+[ppg]: https://tuple.app/pair-programming-guide/
 
+<!-- 
 Notes:
 
-- http://www.extremeprogramming.org/rules/pair.html
+- http://www.extremeprogramming.org/rules/pair.html -->
 
 <!-- Appendix
   - Ways in which you can encourage more pairing?
