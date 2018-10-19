@@ -1,7 +1,7 @@
 ---
 layout: epic
 title: "The Hows and Whys of Pair Programming"
-date: 2018-08-30
+date: 2018-10-19
 author: [yuki, orta]
 categories: [pairing, culture]
 ---
