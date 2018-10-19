@@ -4,7 +4,7 @@
   <title><![CDATA[Category: design | Artsy Engineering]]></title>
   <link href="http://artsy.github.io/blog/categories/design/atom.xml" rel="self"/>
   <link href="http://artsy.github.io/"/>
-  <updated>2018-10-06T14:40:21+00:00</updated>
+  <updated>2018-10-19T13:04:12+00:00</updated>
   <id>http://artsy.github.io/</id>
   <author>
     <name><![CDATA[]]></name>
@@ -12,6 +12,672 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Where art thou, my error?]]></title>
+    <link href="http://artsy.github.io/blog/2018/10/19/where-art-thou-my-error/"/>
+    <updated>2018-10-19T00:00:00+00:00</updated>
+    <id>http://artsy.github.io/blog/2018/10/19/where-art-thou-my-error</id>
+    <content type="html"><![CDATA[<p><em>Note: This is the text of a presentation given at <a href="https://graphql-finland.fi">GraphQL Finland 2018</a>, as such the
+language may in some cases be slightly awkward for a blog post. You can find those slides on
+<a href="https://speakerdeck.com/alloy/where-art-thou-my-error">Speaker Deck</a>.</em></p>
+
+<p>GraphQL is still in its early stages and thus these are very exciting times, indeed! Traditionally the GraphQL team
+has taken the approach of defining the bare minimum in the specification that was deemed needed and otherwise
+letting the community come-up with defining problems and experimenting with solutions for those. One such example
+is how metadata about the location in the graph where errors occurred during execution were <a href="https://github.com/facebook/graphql/pull/230">added to the
+specification</a>.</p>
+
+<p>This is great in the sense that we still have the ability, as a community, to shape the future of a GraphQL
+specification that we all <em>want</em> to use, but on the other hand it also means that we may need to spend significant
+amounts of time on thinking about these problems and iterating. Seeing as we all strive to have backwards
+compatible schemas, it’s of great importance that we know of the various iterations that people have experimented
+with and what the outcome was.</p>
+
+<p>This is our story of thinking about and working with errors, thus far.</p>
+
+<!-- more -->
+
+
+<p>NOTE: Throughout this talk I’ll use ‘query execution’ to indicate executing a GraphQL document, be it a query or
+mutation operation. I have a hard time relating to ‘document execution’, mostly because I don’t see others using
+it, but perhaps I’ve just missed it. Come at me, at the bar, and set me straight!</p>
+
+<a name="Errors.vs.errors"></a>
+<h2>Errors vs errors</h2>
+
+<p>First of all, I want to take a step back and talk about errors in general. The nomenclature around these can get
+confusing, suffice to say that during this session we’ll talk about these two types:</p>
+
+<ul>
+<li><p>Errors that occur during query execution, that were unexpected, and <em>could</em> lead to corrupted data. We’ll refer
+to these as (top-level) ‘GraphQL errors’, going forward.</p>
+
+<p>These could be due to hardware failures, such as running out of memory or disk space, network failures, or
+unexpected upstream data etc.</p>
+
+<p>When these occur, <code>graphql-js</code> will return <code>null</code> for the field that triggered the error and serialize the error
+into the top-level <code>errors</code> list, next to the successful response <code>data</code>. (Presumably other implementations
+follow this reference implementation.)</p></li>
+</ul>
+
+
+<pre><code class="json">{
+  "data": {
+    "artwork": {
+      "artist": {
+        "name": "Vincent van Gogh",
+        "leftEarSize": null
+      }
+    }
+  },
+  "errors": [
+    {
+      "message": "An unexpected error occurred",
+      "path": ["artwork", "artist", "leftEarSize"]
+    }
+  ]
+}
+</code></pre>
+
+<ul>
+<li><p>Exceptions to these are errors that are <em>known</em> to occur and are expected to be handled by the user of an API.
+We’ll refer to these as ‘exceptions’, going forward.</p>
+
+<p>By default these are treated equally by <code>graphql-js</code> to top-level GraphQL errors, if uncaught.</p></li>
+</ul>
+
+
+<p>We will <strong>not</strong> be speaking about errors that occur <em>outside</em> of query execution, such as network failures reaching
+the GraphQL server, parsing a syntactically incorrect document, or passing variables that don’t satisfy the
+type-system; as these will all lead to a query being rejected wholesale and are solve-able using traditional means,
+such as a <code>4xx</code> HTTP status code or <code>5xx</code> in some cases.</p>
+
+<a name="What.is.the.problem.we...re.trying.to.solve."></a>
+<h2>What is the problem we’re trying to solve?</h2>
+
+<p>Because with GraphQL we’re usually requesting data for multiple resources, there may be a situation where some
+fields resolve successfully and some may fail. This is also why, when using an HTTP transport layer, the advice is
+to always respond with a HTTP 200 (ok) status. Determining how to process the response is left up to the client.</p>
+
+<p>So how <em>do</em> we model errors in such a way that they can be meaningful and in context of their origin?</p>
+
+<ul>
+<li><p>What if you want to render partial data?</p>
+
+<ul>
+<li><p>Maybe the failed data is unrelated to other components that you were also requesting data for.</p>
+
+<p><img src="/images/2018-10-19-where-art-thou-my-error/partial-data-unrelated-annotated.png" alt="Unrelated component" /></p></li>
+<li><p>Or the data that failed was part of a list and other entries can still be rendered just fine.</p>
+
+<p><img src="/images/2018-10-19-where-art-thou-my-error/partial-data-list-annotated.png" alt="Partial list data" /></p></li>
+</ul>
+</li>
+<li><p>Or what if you’d (additionally) like to communicate the error in your interface?</p>
+
+<ul>
+<li><p>When the query is in response to a mutation and you’d like to communicate input validation failures.</p>
+
+<p><img src="/images/2018-10-19-where-art-thou-my-error/mutation-validation-error.png" alt="Surface validation error" /></p></li>
+</ul>
+</li>
+</ul>
+
+
+<a name="Possible.solutions"></a>
+<h2>Possible solutions</h2>
+
+<a name="Top-level.GraphQL.errors.and.treating.an.entire.response.as.unusable.when.such.errors.exist"></a>
+<h3>Top-level GraphQL errors and treating an entire response as unusable when such errors exist</h3>
+
+<p>Some clients, such as Apollo and Relay Classic, have made the decision to reject a response entirely, by default,
+if any top-level GraphQL errors exist. This is because clients can really only fully assume that the response data
+is incomplete, not whether or not your application could handle that case.</p>
+
+<p>This may be an ok solution when you’re starting out or all the requested data is part of a single holistic view,
+but it quickly breaks down when you want a little more than that.</p>
+
+<a name="Top-level.GraphQL.errors.with.extra.metadata"></a>
+<h3>Top-level GraphQL errors with extra metadata</h3>
+
+<p>GraphQL errors only have a single field in <a href="https://facebook.github.io/graphql/draft/#sec-Errors">the specification</a> to provide context around the cause of
+the error, which is the <code>message</code> field. However, <a href="https://facebook.github.io/graphql/draft/#sec-Response-Format">the specification</a> also defines a top-level
+<code>extensions</code> key, which may hold a map of freeform data for the schema implementors to extend the protocol however
+they see fit.</p>
+
+<p>Apollo Server 2.0, for instance, <a href="https://blog.apollographql.com/full-stack-error-handling-with-graphql-apollo-5c12da407210">introduced standardized errors</a> you can throw from your
+resolvers, which end up being serialized into the <code>extensions</code> map. An example they give is for bad user input:</p>
+
+<pre><code class="js">import { UserInputError } from "apollo-server"
+
+const resolvers = {
+  Query: {
+    events(root, { zipCode }) {
+      // do custom validation for user inputs
+      const validationErrors = {}
+      if (!isValidZipCode(zipCode)) {
+        validationErrors.zipCode = "This is not a valid zipcode"
+      }
+      if (Object.keys(validationErrors).length &gt; 0) {
+        throw new UserInputError("Failed to get events due to validation errors", { validationErrors })
+      }
+      // actually query events here and return successfully
+      return getEventsByZipcode(zipCode)
+    }
+  }
+}
+</code></pre>
+
+<p>Seeing as these extensions are freeform, however, this builds an <strong>implicit</strong> contract between the server and
+client that then needs to be abstracted away by additional client code. This is unfortunate, when you think about
+it, because GraphQL is meant to explicitly express shapes of data.</p>
+
+<p>The Apollo team acknowledges this by adding:</p>
+
+<blockquote><p>While convenient, the weakness of this approach is that the format of the validation error messages is not
+captured by your schema, making it brittle to changes. Unless you maintain tight control of both server and
+client, you should keep the error responses as simple as possible.</p>
+
+<p>For mutations, it can be worthwhile defining these validation errors as first class citizens within your schema.</p></blockquote>
+
+<p>(Which we’ll address next.)</p>
+
+<a name="Make..mutation..error.metadata.part.of.schema.as.separate.fields"></a>
+<h3>Make (mutation) error metadata part of schema as separate fields</h3>
+
+<p>One <a href="https://www.apollographql.com/docs/guides/schema-design.html#mutation-responses">commonly suggested approach</a> around mutations is to define status metadata on the
+response type next to the field of the affected entity. For example, a response type could look like:</p>
+
+<pre><code>type UpdateArtworkMutationResponse {
+  success: Boolean!
+  message: String!
+  artwork: Artwork
+}
+</code></pre>
+
+<p>Here there’s a boolean that indicates success, an extra message that sheds context on the situation when a failure
+occurs, and finally the <code>artwork</code> that an update was attempted to be made to.</p>
+
+<p>Adding these fields to the same namespace makes sense when we’re thinking of the failure case, but what about the
+success case? Do we really need a <code>success</code> boolean to indicate that updates to the <code>artwork</code> were made? What
+purpose serves the <code>message</code> field, other than possibly being a sign of an overly positive schema that sends you
+happy messages?</p>
+
+<p>Finally, this approach only really works for mutations, as their return type acts as a distinct root type to start
+a query from. It would be hard to imagine how to apply this to queries.</p>
+
+<a name="Make.error.metadata.part.of.schema.as.separate.field"></a>
+<h3>Make error metadata part of schema as separate field</h3>
+
+<p>Similarly, <a href="https://itnext.io/the-definitive-guide-to-handling-graphql-errors-e0c58b52b5e1">another suggested approach</a> is to add an additional <code>error</code> field to the type in
+question, which then describes the error that occurred. The previous example could be rewritten like so:</p>
+
+<pre><code>type GenericError {
+  message: String!
+}
+
+type UpdateArtworkMutationResponse {
+  error: GenericError
+  artwork: Artwork
+}
+</code></pre>
+
+<p>If <code>error</code> is not <code>null</code>, something went wrong. This cleans up the namespace a bit, but more importantly this
+approach can be applied to queries too:</p>
+
+<pre><code>type PublishedArtworkNotification {
+  artwork: Artwork
+}
+
+type PublishedArtworkNotificationsPayload {
+  error: GenericError
+  notifications: [PublishedArtworkNotification]
+}
+
+type Query {
+  publishedArtworkNotificationsPayload: PublishedArtworkNotificationsPayload!
+}
+</code></pre>
+
+<p>Neat.</p>
+
+<p>However, and this may just be our use-case, we don’t have partial data at these stages. We’ve either resolved the
+data or we have an error. Hence, this approach would mean we’d always have an unneeded <code>null</code> field, which pollutes
+the namespace of the type unnecessarily.</p>
+
+<p>Side-note: if you don’t control the server schema, and are using a client that can extend a server schema on the
+client, you could try to retrofit top-level GraphQL errors to these suggested error fields into the schema where
+they occurred based on the error <code>path</code>, as shown <a href="https://github.com/facebook/relay/issues/1913#issuecomment-358636018">here</a>.</p>
+
+<a name="Recap"></a>
+<h2>Recap</h2>
+
+<p>So to quickly recap, ideally we want a solution to:</p>
+
+<ul>
+<li>Use GraphQL: Utilize GraphQL to explicitly describe the error data.</li>
+<li>In context: Present the error data exactly where the error occurred in the schema.</li>
+<li>All operations: Work for both mutations and queries.</li>
+<li>Explicit status: Be concise and encourage ‘clean’ types; that is, no pollution of namespaces with fields only
+needed in some cases.</li>
+</ul>
+
+
+<a name="Make.exceptions.first-class.citizens.of.your.schema"></a>
+<h3>Make exceptions first-class citizens of your schema</h3>
+
+<p>To that end, the final approach we’ll be discussing, and the one that we at Artsy have started adopting, is to give
+exceptions their own type and return those instead of the success type, when they occur. To do this we make use of
+a union of both the success and the exception type (or multiples thereof) and then query for those.</p>
+
+<p>The benefits are:</p>
+
+<ul>
+<li><p>You can further model the exception in an explicit and introspect-able way.</p>
+
+<p>For example, in the case of an HTTP failure to an upstream service, your exception type could include an integer
+status-code field and document it as such.</p></li>
+</ul>
+
+
+<pre><code>type Artwork {
+  title: String!
+}
+
+type HTTPError {
+  message: String!
+  statusCode: Int!
+}
+
+union ArtworkOrError = Artwork | HTTPError
+
+type Query {
+  artworkOrError(id: ID!): ArtworkOrError
+}
+</code></pre>
+
+<pre><code>query {
+  artworkOrError("mona-lisa") {
+    ... on Artwork {
+      title
+    }
+    ... on HTTPError {
+      statusCode
+    }
+  }
+}
+</code></pre>
+
+<ul>
+<li>You know exactly where the exception occurred in the graph.</li>
+</ul>
+
+
+<pre><code>type Artist {
+  artworksOrErrors: [ArtworkOrError]
+}
+
+type Query {
+  artist(id: ID!): Artist
+}
+</code></pre>
+
+<pre><code>query {
+  artist("leonardo-da-vinci") {
+    artworksOrErrors {
+      ... on Artwork {
+        title
+      }
+      ... on HTTPError {
+        statusCode
+      }
+    }
+  }
+}
+</code></pre>
+
+<ul>
+<li>You can use it for both mutations and queries.</li>
+</ul>
+
+
+<pre><code>type UpdateArtworkMutationResponse {
+  artworkOrError: ArtworkOrError
+}
+</code></pre>
+
+<ul>
+<li>All fields will always be captured in the single <code>artworkOrError</code> field <em>or</em>, if no information about the error
+is needed, you simply don’t query for it and get back <code>null</code> instead.</li>
+</ul>
+
+
+<pre><code>query {
+  artworkOrError("mona-lisa") {
+    ... on Artwork {
+      title
+    }
+  }
+}
+</code></pre>
+
+<a name="How.we.encode.it.into.our.schema"></a>
+<h2>How we encode it into our schema</h2>
+
+<p>I should preface this by clearly stating that while have been thinking about this problem for a while now, only
+recently have we started rolling these changes out into our schema, so some of these are not yet discoverable in
+<a href="http://github.com/artsy/metaphysics">our open-source GraphQL service</a>.</p>
+
+<a name="Types"></a>
+<h3>Types</h3>
+
+<p>As shown before, we define a union of the actual result type <em>and</em> the error type. However, we additionally (will)
+define a set of error interfaces, which make it possible for clients to query for errors in a more generic way.</p>
+
+<pre><code>interface Error {
+  message: String!
+}
+
+interface HTTPError {
+  message: String!
+  statusCode: Int!
+}
+
+type HTTPErrorType implements Error &amp; HTTPError {
+  message: String!
+  statusCode: Int!
+}
+
+type Artwork {
+  title: String!
+}
+
+union ArtworkOrError = Artwork | HTTPErrorType
+
+type Query {
+  artworkOrError(id: ID!): ArtworkOrError
+}
+</code></pre>
+
+<p>We can now still query as shown in the earlier examples:</p>
+
+<pre><code>query {
+  artworkOrError("mona-lisa") {
+    ... on Artwork {
+      title
+    }
+    ... on HTTPError {
+      message
+      statusCode
+    }
+  }
+}
+</code></pre>
+
+<p>…but we can now also have generic error components that would query like so:</p>
+
+<pre><code>query {
+  artworkOrError("mona-lisa") {
+    ... on Artwork {
+      title
+    }
+    ...GenericErrorComponent
+    ...GenericHTTPErrorComponent
+  }
+}
+
+fragment GenericErrorComponent on Error {
+  message
+}
+
+fragment GenericHTTPErrorComponent on HTTPError {
+  message
+  statusCode
+}
+</code></pre>
+
+<p>For the record, we have <em>not</em> yet put these interfaces into production, so the nomenclature is not set in stone yet
+and I’d love to hear your input on this. Is <code>Error</code> <em>too</em> generic to use as the base error type? Is there a nicer
+naming pattern that would allow us to avoid having to suffix concrete types of an error interface with <code>...Type</code>?</p>
+
+<p>Side-note: there’s <a href="https://github.com/facebook/graphql/pull/373">an RFC</a> to the GraphQL specification that would make it possible to
+have interfaces implement other interfaces, thus removing the need to keep repeating the fields of
+super-interfaces. This RFC has recently been moved to the draft stage, yay!</p>
+
+<a name="Field.naming"></a>
+<h3>Field naming</h3>
+
+<p>As you may have noticed, we’re calling these fields <code>something</code> <em>or</em> <code>error</code>. We are mostly doing this to stay
+backwards compatible with our existing schema. While we could certainly add exception types to existing union
+fields, we can’t change a single type field into a union type field without breaking compatibility.</p>
+
+<p>Instead we may now have 2 versions of a given field:</p>
+
+<ul>
+<li>one with the single type field which is nullable, in case an exception occurred</li>
+</ul>
+
+
+<pre><code>query {
+  artwork("mona-lisa") {
+    title
+  }
+}
+</code></pre>
+
+<ul>
+<li>and another that has the error union type</li>
+</ul>
+
+
+<pre><code>query {
+  artworkOrError("mona-lisa") {
+    ... on Artwork {
+      title
+    }
+    ... on HTTPError {
+      statusCode
+    }
+  }
+}
+</code></pre>
+
+<p>This duplication is slightly unfortunate, from a clean schema design perspective, but it’s similar to an existing
+pattern in the community. For instance, many schemas provide 2 ways to retrieve lists:</p>
+
+<ul>
+<li>one as an immediate list:</li>
+</ul>
+
+
+<pre><code>type Query {
+  artworks: [Artwork]
+}
+</code></pre>
+
+<ul>
+<li>and one as a ‘connection’ (as defined by the <a href="https://facebook.github.io/relay/graphql/connections.htm">Relay Connection specification</a>)</li>
+</ul>
+
+
+<pre><code>type ArtworkEdge {
+  node: Artwork
+}
+
+type ArtworksConnection {
+  edges: [ArtworkEdge]
+}
+
+type Query {
+  artworksConnection: ArtworksConnection
+}
+</code></pre>
+
+<p>So the jury is still out on whether or not that’s a bad way to name things. We’ll have to see after using this for a
+while.</p>
+
+<a name="Downside.of.using.a.union"></a>
+<h3>Downside of using a union</h3>
+
+<p>One notable downside is that GraphQL scalar types can <em>not</em> be included in unions. Thus, if you have scalar fields
+that could lead to exceptions, you will have to ‘box’ those in object types.</p>
+
+<pre><code>type ArtworkPurchasableBox {
+  value: Boolean!
+}
+
+union ArtworkPurchasableOrError = ArtworkPurchasableBox | HTTPError
+
+type Artwork {
+  currentlyPurchasableOrError: ArtworkPurchasableOrError
+}
+</code></pre>
+
+<p>This is definitely a case where the pattern of defining 2 fields, one with and one without exception types, comes
+in handy. Having to always query through the box type is inelegant, to put it softly.</p>
+
+<p>Side-note: there actually is <a href="https://github.com/facebook/graphql/issues/215">an open RFC</a> to the specification to allow scalars in unions, but
+it’s still in stage 0 and is in need of a champion in order to proceed. We may end up trying to do so, based on our
+actual experiences with these cases where they may need to be boxed.</p>
+
+<a name="Example.of.how.we.consume.query.errors"></a>
+<h3>Example of how we consume query errors</h3>
+
+<pre><code class="ts">import { OrderStatus_order } from "__generated__/OrderStatus_order.graphql"
+import React from "react"
+import { createFragmentContainer, graphql } from "react-relay"
+
+interface Props {
+  order: OrderStatus_order
+}
+
+const OrderStatus: React.SFC&lt;Props&gt; = ({ order: orderStatusOrError }) =&gt;
+  orderStatusOrError.__typename === "OrderStatus" ? (
+    &lt;div&gt;
+      {orderStatusOrError.deliveryDispatched
+        ? "Your order has been dispatched."
+        : "Your order has not been dispatched yet."}
+    &lt;/div&gt;
+  ) : (
+    &lt;div className="error"&gt;
+      {orderStatusOrError.code === "unpublished"
+        ? "Please contact gallery services."
+        : `An unexpected error occurred: ${orderStatusOrError.message}`}
+    &lt;/div&gt;
+  )
+
+export const OrderStatusContainer = createFragmentContainer(
+  OrderStatus,
+  graphql`
+    fragment OrderStatus_order on Order {
+      orderStatusOrError {
+        __typename
+        ... on OrderStatus {
+          deliveryDispatched
+        }
+        ... on OrderError {
+          message
+          code
+        }
+      }
+    }
+  `
+)
+</code></pre>
+
+<a name="Example.of.how.we.consume.mutation.errors"></a>
+<h3>Example of how we consume mutation errors</h3>
+
+<pre><code class="ts">import { SubmitOrder_order } from "__generated__/SubmitOrder_order.graphql"
+import { SubmitOrderMutation } from "__generated__/SubmitOrderMutation.graphql"
+import { Router } from "found-relay"
+import React from "react"
+import { commitMutation, createFragmentContainer, graphql, RelayProp } from "react-relay"
+
+interface Props {
+  order: SubmitOrder_order
+  relay: RelayProp
+  router: Router
+}
+
+const SubmitOrder: React.SFC&lt;Props&gt; = props =&gt; (
+  &lt;button
+    onClick={() =&gt; {
+      commitMutation&lt;SubmitOrderMutation&gt;(props.relay.environment, {
+        mutation: graphql`
+          mutation SubmitOrderMutation($input: SubmitOrder!) {
+            submitOrder(input: $input) {
+              orderStatusOrError {
+                __typename
+                ... on OrderStatus {
+                  submitted
+                }
+                ... on OrderError {
+                  message
+                  code
+                }
+              }
+            }
+          }
+        `,
+        variables: { input: { orderID: props.order.id } },
+        onCompleted: ({ submitOrder: { orderStatusOrError } }, errors) =&gt; {
+          if (orderStatusOrError.__typename === "OrderStatus") {
+            props.router.push(
+              `/orders/${props.order.id}/${orderStatusOrError.submitted ? "submitted" : "pending"}`
+            )
+          } else {
+            alert(
+              orderStatusOrError.code === "unpublished"
+                ? "Please contact gallery services."
+                : `An unexpected error occurred: ${orderStatusOrError.message}`
+            )
+          }
+        }
+      })
+    }}
+  /&gt;
+)
+
+export const SubmitOrderContainer = createFragmentContainer(
+  SubmitOrder,
+  graphql`
+    fragment SubmitOrder_order on Order {
+      id
+    }
+  `
+)
+</code></pre>
+
+<!--
+
+### Show example of factory code that produces both single and union typed fields
+
+TODO
+
+-->
+
+
+<a name="Final.thoughts"></a>
+<h2>Final thoughts</h2>
+
+<p>As stated before, we having only recently begun rolling out these changes into our production schema. However, much
+thought and experimentation has gone into this to ensure we will be able to address all of <em>our</em> needs, at least.</p>
+
+<p>I would love to hear other people’s thoughts on this and definitely feedback if they try to adopt it themselves. As
+a community we should openly iterate together, as much as possible, as we try to make the future of GraphQL a great
+one and put legit questions to ‘REST’ ;)</p>
+
+<p>For now, I’ll leave you with this message from some internet ‘rando’:</p>
+
+<blockquote><p>@alloy That diff makes a lot of sense to me. I've also seen user errors as a field on the mutation result, but I
+like that union makes it explicit that there was either success or failure and in the case of failure provides
+rich information that's in your app's domain.</p></blockquote>
+
+<p>-- <a href="https://twitter.com/leeb/status/1020054709694943232">Lee Byron</a></p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[CSS Trick: Adjusting Text Underlines]]></title>

@@ -1,0 +1,1294 @@
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Where art thou, my error? - Artsy Engineering</title>
+  <meta name="author" content="">
+
+  
+  <meta name="description" content="Note: This is the text of a presentation given at GraphQL Finland 2018, as such the
+language may in some cases be slightly awkward for a blog post....">
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <meta property="og:image" content="http://artsy.github.io/images/artsy_oss_image.png" />
+  <meta property="og:image:type" content="image/png" />
+
+  
+  <link rel="canonical" href="http://artsy.github.io/blog/2018/10/19/where-art-thou-my-error/">
+  <link rel="alternate" type="application/rss+xml" title="Artsy Engineering Blog" href="/feed">
+
+  <link href="/favicon.ico" rel="icon">
+  <link href="/css/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+
+  <script src="/javascripts/jquery-1.11.3.min.js"> </script>
+  <script src="/javascripts/gradient-fade.js"></script>
+  <script src="/javascripts/noframework.waypoints.min.js"></script>
+  <script src="/javascripts/sticky.min.js"></script>
+  <script src="/javascripts/search.min.js"></script>
+
+  
+
+  <script type="text/javascript" src="https://fast.fonts.net/jsapi/f7f47a40-b25b-44ee-9f9c-cfdfc8bb2741.js"></script>
+
+
+  <link href="" rel="alternate" title="Artsy Engineering" type="application/atom+xml">
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-12450662-3']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+  <!--[if IE 8]><link href="/stylesheets/custom/ie_font.css" type="text/css"><![endif]-->
+
+</head>
+
+
+<link href="/css/epic.css" media="screen, projection" rel="stylesheet" type="text/css">
+
+
+<link href="/css/posts/graphql.css" media="screen, projection" rel="stylesheet" type="text/css">
+
+
+<body>
+  <div>
+    <div id="bodywrapper">
+      <header>
+        <ul>
+          <li><a href="/">Artsy Engineering Blog</a></li>
+          <li><a href="https://www.artsy.net/jobs">Careers</a></li>
+          <li><a href="https://developers.artsy.net">API</a></li>
+        </ul>
+
+        <ul>
+          <li><a href="http://artsy.github.io/open-source/">Our Open Source</a></li>
+          <li><a href="http://twitter.com/artsyopensource">@artsyopensource</a></li>
+          <li><a href="https://www.artsy.net">artsy.net</a></li>
+        </ul>
+      </header>
+
+      <section>
+        <header id="page">
+          <h1>Where art thou, my error?</h1>
+          <h3>
+          <!-- Yep, single line so the comma lines up right -->
+          By  Eloy Durán
+          </h3>
+        </header>
+
+        <article class='post'>
+          <p><em>Note: This is the text of a presentation given at <a href="https://graphql-finland.fi">GraphQL Finland 2018</a>, as such the
+language may in some cases be slightly awkward for a blog post. You can find those slides on
+<a href="https://speakerdeck.com/alloy/where-art-thou-my-error">Speaker Deck</a>.</em></p>
+
+<p>GraphQL is still in its early stages and thus these are very exciting times, indeed! Traditionally the GraphQL team
+has taken the approach of defining the bare minimum in the specification that was deemed needed and otherwise
+letting the community come-up with defining problems and experimenting with solutions for those. One such example
+is how metadata about the location in the graph where errors occurred during execution were <a href="https://github.com/facebook/graphql/pull/230">added to the
+specification</a>.</p>
+
+<p>This is great in the sense that we still have the ability, as a community, to shape the future of a GraphQL
+specification that we all <em>want</em> to use, but on the other hand it also means that we may need to spend significant
+amounts of time on thinking about these problems and iterating. Seeing as we all strive to have backwards
+compatible schemas, it’s of great importance that we know of the various iterations that people have experimented
+with and what the outcome was.</p>
+
+<p>This is our story of thinking about and working with errors, thus far.</p>
+
+<!-- more -->
+
+
+<p>NOTE: Throughout this talk I’ll use ‘query execution’ to indicate executing a GraphQL document, be it a query or
+mutation operation. I have a hard time relating to ‘document execution’, mostly because I don’t see others using
+it, but perhaps I’ve just missed it. Come at me, at the bar, and set me straight!</p>
+
+<a name="Errors.vs.errors"></a>
+<h2>Errors vs errors</h2>
+
+<p>First of all, I want to take a step back and talk about errors in general. The nomenclature around these can get
+confusing, suffice to say that during this session we’ll talk about these two types:</p>
+
+<ul>
+<li><p>Errors that occur during query execution, that were unexpected, and <em>could</em> lead to corrupted data. We’ll refer
+to these as (top-level) ‘GraphQL errors’, going forward.</p>
+
+<p>These could be due to hardware failures, such as running out of memory or disk space, network failures, or
+unexpected upstream data etc.</p>
+
+<p>When these occur, <code>graphql-js</code> will return <code>null</code> for the field that triggered the error and serialize the error
+into the top-level <code>errors</code> list, next to the successful response <code>data</code>. (Presumably other implementations
+follow this reference implementation.)</p></li>
+</ul>
+
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+</pre></td><td class='code'><pre><code class='json'><span class='line'><span class="p">{</span>
+</span><span class='line'>  <span class="nt">&quot;data&quot;</span><span class="p">:</span> <span class="p">{</span>
+</span><span class='line'>    <span class="nt">&quot;artwork&quot;</span><span class="p">:</span> <span class="p">{</span>
+</span><span class='line'>      <span class="nt">&quot;artist&quot;</span><span class="p">:</span> <span class="p">{</span>
+</span><span class='line'>        <span class="nt">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;Vincent van Gogh&quot;</span><span class="p">,</span>
+</span><span class='line'>        <span class="nt">&quot;leftEarSize&quot;</span><span class="p">:</span> <span class="kc">null</span>
+</span><span class='line'>      <span class="p">}</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'>  <span class="p">},</span>
+</span><span class='line'>  <span class="nt">&quot;errors&quot;</span><span class="p">:</span> <span class="p">[</span>
+</span><span class='line'>    <span class="p">{</span>
+</span><span class='line'>      <span class="nt">&quot;message&quot;</span><span class="p">:</span> <span class="s2">&quot;An unexpected error occurred&quot;</span><span class="p">,</span>
+</span><span class='line'>      <span class="nt">&quot;path&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;artwork&quot;</span><span class="p">,</span> <span class="s2">&quot;artist&quot;</span><span class="p">,</span> <span class="s2">&quot;leftEarSize&quot;</span><span class="p">]</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'>  <span class="p">]</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<ul>
+<li><p>Exceptions to these are errors that are <em>known</em> to occur and are expected to be handled by the user of an API.
+We’ll refer to these as ‘exceptions’, going forward.</p>
+
+<p>By default these are treated equally by <code>graphql-js</code> to top-level GraphQL errors, if uncaught.</p></li>
+</ul>
+
+
+<p>We will <strong>not</strong> be speaking about errors that occur <em>outside</em> of query execution, such as network failures reaching
+the GraphQL server, parsing a syntactically incorrect document, or passing variables that don’t satisfy the
+type-system; as these will all lead to a query being rejected wholesale and are solve-able using traditional means,
+such as a <code>4xx</code> HTTP status code or <code>5xx</code> in some cases.</p>
+
+<a name="What.is.the.problem.we...re.trying.to.solve."></a>
+<h2>What is the problem we’re trying to solve?</h2>
+
+<p>Because with GraphQL we’re usually requesting data for multiple resources, there may be a situation where some
+fields resolve successfully and some may fail. This is also why, when using an HTTP transport layer, the advice is
+to always respond with a HTTP 200 (ok) status. Determining how to process the response is left up to the client.</p>
+
+<p>So how <em>do</em> we model errors in such a way that they can be meaningful and in context of their origin?</p>
+
+<ul>
+<li><p>What if you want to render partial data?</p>
+
+<ul>
+<li><p>Maybe the failed data is unrelated to other components that you were also requesting data for.</p>
+
+<p><img src="/images/2018-10-19-where-art-thou-my-error/partial-data-unrelated-annotated.png" alt="Unrelated component" /></p></li>
+<li><p>Or the data that failed was part of a list and other entries can still be rendered just fine.</p>
+
+<p><img src="/images/2018-10-19-where-art-thou-my-error/partial-data-list-annotated.png" alt="Partial list data" /></p></li>
+</ul>
+</li>
+<li><p>Or what if you’d (additionally) like to communicate the error in your interface?</p>
+
+<ul>
+<li><p>When the query is in response to a mutation and you’d like to communicate input validation failures.</p>
+
+<p><img src="/images/2018-10-19-where-art-thou-my-error/mutation-validation-error.png" alt="Surface validation error" /></p></li>
+</ul>
+</li>
+</ul>
+
+
+<a name="Possible.solutions"></a>
+<h2>Possible solutions</h2>
+
+<a name="Top-level.GraphQL.errors.and.treating.an.entire.response.as.unusable.when.such.errors.exist"></a>
+<h3>Top-level GraphQL errors and treating an entire response as unusable when such errors exist</h3>
+
+<p>Some clients, such as Apollo and Relay Classic, have made the decision to reject a response entirely, by default,
+if any top-level GraphQL errors exist. This is because clients can really only fully assume that the response data
+is incomplete, not whether or not your application could handle that case.</p>
+
+<p>This may be an ok solution when you’re starting out or all the requested data is part of a single holistic view,
+but it quickly breaks down when you want a little more than that.</p>
+
+<a name="Top-level.GraphQL.errors.with.extra.metadata"></a>
+<h3>Top-level GraphQL errors with extra metadata</h3>
+
+<p>GraphQL errors only have a single field in <a href="https://facebook.github.io/graphql/draft/#sec-Errors">the specification</a> to provide context around the cause of
+the error, which is the <code>message</code> field. However, <a href="https://facebook.github.io/graphql/draft/#sec-Response-Format">the specification</a> also defines a top-level
+<code>extensions</code> key, which may hold a map of freeform data for the schema implementors to extend the protocol however
+they see fit.</p>
+
+<p>Apollo Server 2.0, for instance, <a href="https://blog.apollographql.com/full-stack-error-handling-with-graphql-apollo-5c12da407210">introduced standardized errors</a> you can throw from your
+resolvers, which end up being serialized into the <code>extensions</code> map. An example they give is for bad user input:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+</pre></td><td class='code'><pre><code class='js'><span class='line'><span class="kr">import</span> <span class="p">{</span> <span class="nx">UserInputError</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;apollo-server&quot;</span>
+</span><span class='line'>
+</span><span class='line'><span class="kr">const</span> <span class="nx">resolvers</span> <span class="o">=</span> <span class="p">{</span>
+</span><span class='line'>  <span class="nx">Query</span><span class="o">:</span> <span class="p">{</span>
+</span><span class='line'>    <span class="nx">events</span><span class="p">(</span><span class="nx">root</span><span class="p">,</span> <span class="p">{</span> <span class="nx">zipCode</span> <span class="p">})</span> <span class="p">{</span>
+</span><span class='line'>      <span class="c1">// do custom validation for user inputs</span>
+</span><span class='line'>      <span class="kr">const</span> <span class="nx">validationErrors</span> <span class="o">=</span> <span class="p">{}</span>
+</span><span class='line'>      <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="nx">isValidZipCode</span><span class="p">(</span><span class="nx">zipCode</span><span class="p">))</span> <span class="p">{</span>
+</span><span class='line'>        <span class="nx">validationErrors</span><span class="p">.</span><span class="nx">zipCode</span> <span class="o">=</span> <span class="s2">&quot;This is not a valid zipcode&quot;</span>
+</span><span class='line'>      <span class="p">}</span>
+</span><span class='line'>      <span class="k">if</span> <span class="p">(</span><span class="nb">Object</span><span class="p">.</span><span class="nx">keys</span><span class="p">(</span><span class="nx">validationErrors</span><span class="p">).</span><span class="nx">length</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>        <span class="k">throw</span> <span class="k">new</span> <span class="nx">UserInputError</span><span class="p">(</span><span class="s2">&quot;Failed to get events due to validation errors&quot;</span><span class="p">,</span> <span class="p">{</span> <span class="nx">validationErrors</span> <span class="p">})</span>
+</span><span class='line'>      <span class="p">}</span>
+</span><span class='line'>      <span class="c1">// actually query events here and return successfully</span>
+</span><span class='line'>      <span class="k">return</span> <span class="nx">getEventsByZipcode</span><span class="p">(</span><span class="nx">zipCode</span><span class="p">)</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'>  <span class="p">}</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Seeing as these extensions are freeform, however, this builds an <strong>implicit</strong> contract between the server and
+client that then needs to be abstracted away by additional client code. This is unfortunate, when you think about
+it, because GraphQL is meant to explicitly express shapes of data.</p>
+
+<p>The Apollo team acknowledges this by adding:</p>
+
+<blockquote><p>While convenient, the weakness of this approach is that the format of the validation error messages is not
+captured by your schema, making it brittle to changes. Unless you maintain tight control of both server and
+client, you should keep the error responses as simple as possible.</p>
+
+<p>For mutations, it can be worthwhile defining these validation errors as first class citizens within your schema.</p></blockquote>
+
+<p>(Which we’ll address next.)</p>
+
+<a name="Make..mutation..error.metadata.part.of.schema.as.separate.fields"></a>
+<h3>Make (mutation) error metadata part of schema as separate fields</h3>
+
+<p>One <a href="https://www.apollographql.com/docs/guides/schema-design.html#mutation-responses">commonly suggested approach</a> around mutations is to define status metadata on the
+response type next to the field of the affected entity. For example, a response type could look like:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='js'><span class='line'><span class="nx">type</span> <span class="nx">UpdateArtworkMutationResponse</span> <span class="p">{</span>
+</span><span class='line'>  <span class="nx">success</span><span class="o">:</span> <span class="nb">Boolean</span><span class="o">!</span>
+</span><span class='line'>  <span class="nx">message</span><span class="o">:</span> <span class="nb">String</span><span class="o">!</span>
+</span><span class='line'>  <span class="nx">artwork</span><span class="o">:</span> <span class="nx">Artwork</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Here there’s a boolean that indicates success, an extra message that sheds context on the situation when a failure
+occurs, and finally the <code>artwork</code> that an update was attempted to be made to.</p>
+
+<p>Adding these fields to the same namespace makes sense when we’re thinking of the failure case, but what about the
+success case? Do we really need a <code>success</code> boolean to indicate that updates to the <code>artwork</code> were made? What
+purpose serves the <code>message</code> field, other than possibly being a sign of an overly positive schema that sends you
+happy messages?</p>
+
+<p>Finally, this approach only really works for mutations, as their return type acts as a distinct root type to start
+a query from. It would be hard to imagine how to apply this to queries.</p>
+
+<a name="Make.error.metadata.part.of.schema.as.separate.field"></a>
+<h3>Make error metadata part of schema as separate field</h3>
+
+<p>Similarly, <a href="https://itnext.io/the-definitive-guide-to-handling-graphql-errors-e0c58b52b5e1">another suggested approach</a> is to add an additional <code>error</code> field to the type in
+question, which then describes the error that occurred. The previous example could be rewritten like so:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class='js'><span class='line'><span class="nx">type</span> <span class="nx">GenericError</span> <span class="p">{</span>
+</span><span class='line'>  <span class="nx">message</span><span class="o">:</span> <span class="nb">String</span><span class="o">!</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="nx">type</span> <span class="nx">UpdateArtworkMutationResponse</span> <span class="p">{</span>
+</span><span class='line'>  <span class="nx">error</span><span class="o">:</span> <span class="nx">GenericError</span>
+</span><span class='line'>  <span class="nx">artwork</span><span class="o">:</span> <span class="nx">Artwork</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>If <code>error</code> is not <code>null</code>, something went wrong. This cleans up the namespace a bit, but more importantly this
+approach can be applied to queries too:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+</pre></td><td class='code'><pre><code class='js'><span class='line'><span class="nx">type</span> <span class="nx">PublishedArtworkNotification</span> <span class="p">{</span>
+</span><span class='line'>  <span class="nx">artwork</span><span class="o">:</span> <span class="nx">Artwork</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="nx">type</span> <span class="nx">PublishedArtworkNotificationsPayload</span> <span class="p">{</span>
+</span><span class='line'>  <span class="nx">error</span><span class="o">:</span> <span class="nx">GenericError</span>
+</span><span class='line'>  <span class="nx">notifications</span><span class="o">:</span> <span class="p">[</span><span class="nx">PublishedArtworkNotification</span><span class="p">]</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="nx">type</span> <span class="nx">Query</span> <span class="p">{</span>
+</span><span class='line'>  <span class="nx">publishedArtworkNotificationsPayload</span><span class="o">:</span> <span class="nx">PublishedArtworkNotificationsPayload</span><span class="o">!</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Neat.</p>
+
+<p>However, and this may just be our use-case, we don’t have partial data at these stages. We’ve either resolved the
+data or we have an error. Hence, this approach would mean we’d always have an unneeded <code>null</code> field, which pollutes
+the namespace of the type unnecessarily.</p>
+
+<p>Side-note: if you don’t control the server schema, and are using a client that can extend a server schema on the
+client, you could try to retrofit top-level GraphQL errors to these suggested error fields into the schema where
+they occurred based on the error <code>path</code>, as shown <a href="https://github.com/facebook/relay/issues/1913#issuecomment-358636018">here</a>.</p>
+
+<a name="Recap"></a>
+<h2>Recap</h2>
+
+<p>So to quickly recap, ideally we want a solution to:</p>
+
+<ul>
+<li>Use GraphQL: Utilize GraphQL to explicitly describe the error data.</li>
+<li>In context: Present the error data exactly where the error occurred in the schema.</li>
+<li>All operations: Work for both mutations and queries.</li>
+<li>Explicit status: Be concise and encourage ‘clean’ types; that is, no pollution of namespaces with fields only
+needed in some cases.</li>
+</ul>
+
+
+<a name="Make.exceptions.first-class.citizens.of.your.schema"></a>
+<h3>Make exceptions first-class citizens of your schema</h3>
+
+<p>To that end, the final approach we’ll be discussing, and the one that we at Artsy have started adopting, is to give
+exceptions their own type and return those instead of the success type, when they occur. To do this we make use of
+a union of both the success and the exception type (or multiples thereof) and then query for those.</p>
+
+<p>The benefits are:</p>
+
+<ul>
+<li><p>You can further model the exception in an explicit and introspect-able way.</p>
+
+<p>For example, in the case of an HTTP failure to an upstream service, your exception type could include an integer
+status-code field and document it as such.</p></li>
+</ul>
+
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+</pre></td><td class='code'><pre><code class='js'><span class='line'><span class="nx">type</span> <span class="nx">Artwork</span> <span class="p">{</span>
+</span><span class='line'>  <span class="nx">title</span><span class="o">:</span> <span class="nb">String</span><span class="o">!</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="nx">type</span> <span class="nx">HTTPError</span> <span class="p">{</span>
+</span><span class='line'>  <span class="nx">message</span><span class="o">:</span> <span class="nb">String</span><span class="o">!</span>
+</span><span class='line'>  <span class="nx">statusCode</span><span class="o">:</span> <span class="nx">Int</span><span class="o">!</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="nx">union</span> <span class="nx">ArtworkOrError</span> <span class="o">=</span> <span class="nx">Artwork</span> <span class="o">|</span> <span class="nx">HTTPError</span>
+</span><span class='line'>
+</span><span class='line'><span class="nx">type</span> <span class="nx">Query</span> <span class="p">{</span>
+</span><span class='line'>  <span class="nx">artworkOrError</span><span class="p">(</span><span class="nx">id</span><span class="o">:</span> <span class="nx">ID</span><span class="o">!</span><span class="p">)</span><span class="o">:</span> <span class="nx">ArtworkOrError</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+</pre></td><td class='code'><pre><code class='js'><span class='line'><span class="nx">query</span> <span class="p">{</span>
+</span><span class='line'>  <span class="nx">artworkOrError</span><span class="p">(</span><span class="s2">&quot;mona-lisa&quot;</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>    <span class="p">...</span> <span class="nx">on</span> <span class="nx">Artwork</span> <span class="p">{</span>
+</span><span class='line'>      <span class="nx">title</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'>    <span class="p">...</span> <span class="nx">on</span> <span class="nx">HTTPError</span> <span class="p">{</span>
+</span><span class='line'>      <span class="nx">statusCode</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'>  <span class="p">}</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<ul>
+<li>You know exactly where the exception occurred in the graph.</li>
+</ul>
+
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+</pre></td><td class='code'><pre><code class='js'><span class='line'><span class="nx">type</span> <span class="nx">Artist</span> <span class="p">{</span>
+</span><span class='line'>  <span class="nx">artworksOrErrors</span><span class="o">:</span> <span class="p">[</span><span class="nx">ArtworkOrError</span><span class="p">]</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="nx">type</span> <span class="nx">Query</span> <span class="p">{</span>
+</span><span class='line'>  <span class="nx">artist</span><span class="p">(</span><span class="nx">id</span><span class="o">:</span> <span class="nx">ID</span><span class="o">!</span><span class="p">)</span><span class="o">:</span> <span class="nx">Artist</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+</pre></td><td class='code'><pre><code class='js'><span class='line'><span class="nx">query</span> <span class="p">{</span>
+</span><span class='line'>  <span class="nx">artist</span><span class="p">(</span><span class="s2">&quot;leonardo-da-vinci&quot;</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>    <span class="nx">artworksOrErrors</span> <span class="p">{</span>
+</span><span class='line'>      <span class="p">...</span> <span class="nx">on</span> <span class="nx">Artwork</span> <span class="p">{</span>
+</span><span class='line'>        <span class="nx">title</span>
+</span><span class='line'>      <span class="p">}</span>
+</span><span class='line'>      <span class="p">...</span> <span class="nx">on</span> <span class="nx">HTTPError</span> <span class="p">{</span>
+</span><span class='line'>        <span class="nx">statusCode</span>
+</span><span class='line'>      <span class="p">}</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'>  <span class="p">}</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<ul>
+<li>You can use it for both mutations and queries.</li>
+</ul>
+
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='js'><span class='line'><span class="nx">type</span> <span class="nx">UpdateArtworkMutationResponse</span> <span class="p">{</span>
+</span><span class='line'>  <span class="nx">artworkOrError</span><span class="o">:</span> <span class="nx">ArtworkOrError</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<ul>
+<li>All fields will always be captured in the single <code>artworkOrError</code> field <em>or</em>, if no information about the error
+is needed, you simply don’t query for it and get back <code>null</code> instead.</li>
+</ul>
+
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+</pre></td><td class='code'><pre><code class='js'><span class='line'><span class="nx">query</span> <span class="p">{</span>
+</span><span class='line'>  <span class="nx">artworkOrError</span><span class="p">(</span><span class="s2">&quot;mona-lisa&quot;</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>    <span class="p">...</span> <span class="nx">on</span> <span class="nx">Artwork</span> <span class="p">{</span>
+</span><span class='line'>      <span class="nx">title</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'>  <span class="p">}</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<a name="How.we.encode.it.into.our.schema"></a>
+<h2>How we encode it into our schema</h2>
+
+<p>I should preface this by clearly stating that while have been thinking about this problem for a while now, only
+recently have we started rolling these changes out into our schema, so some of these are not yet discoverable in
+<a href="http://github.com/artsy/metaphysics">our open-source GraphQL service</a>.</p>
+
+<a name="Types"></a>
+<h3>Types</h3>
+
+<p>As shown before, we define a union of the actual result type <em>and</em> the error type. However, we additionally (will)
+define a set of error interfaces, which make it possible for clients to query for errors in a more generic way.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+</pre></td><td class='code'><pre><code class='js'><span class='line'><span class="kr">interface</span> <span class="nb">Error</span> <span class="p">{</span>
+</span><span class='line'>  <span class="nx">message</span><span class="o">:</span> <span class="nb">String</span><span class="o">!</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="kr">interface</span> <span class="nx">HTTPError</span> <span class="p">{</span>
+</span><span class='line'>  <span class="nx">message</span><span class="o">:</span> <span class="nb">String</span><span class="o">!</span>
+</span><span class='line'>  <span class="nx">statusCode</span><span class="o">:</span> <span class="nx">Int</span><span class="o">!</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="nx">type</span> <span class="nx">HTTPErrorType</span> <span class="kr">implements</span> <span class="nb">Error</span> <span class="o">&amp;</span> <span class="nx">HTTPError</span> <span class="p">{</span>
+</span><span class='line'>  <span class="nx">message</span><span class="o">:</span> <span class="nb">String</span><span class="o">!</span>
+</span><span class='line'>  <span class="nx">statusCode</span><span class="o">:</span> <span class="nx">Int</span><span class="o">!</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="nx">type</span> <span class="nx">Artwork</span> <span class="p">{</span>
+</span><span class='line'>  <span class="nx">title</span><span class="o">:</span> <span class="nb">String</span><span class="o">!</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="nx">union</span> <span class="nx">ArtworkOrError</span> <span class="o">=</span> <span class="nx">Artwork</span> <span class="o">|</span> <span class="nx">HTTPErrorType</span>
+</span><span class='line'>
+</span><span class='line'><span class="nx">type</span> <span class="nx">Query</span> <span class="p">{</span>
+</span><span class='line'>  <span class="nx">artworkOrError</span><span class="p">(</span><span class="nx">id</span><span class="o">:</span> <span class="nx">ID</span><span class="o">!</span><span class="p">)</span><span class="o">:</span> <span class="nx">ArtworkOrError</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>We can now still query as shown in the earlier examples:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+</pre></td><td class='code'><pre><code class='js'><span class='line'><span class="nx">query</span> <span class="p">{</span>
+</span><span class='line'>  <span class="nx">artworkOrError</span><span class="p">(</span><span class="s2">&quot;mona-lisa&quot;</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>    <span class="p">...</span> <span class="nx">on</span> <span class="nx">Artwork</span> <span class="p">{</span>
+</span><span class='line'>      <span class="nx">title</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'>    <span class="p">...</span> <span class="nx">on</span> <span class="nx">HTTPError</span> <span class="p">{</span>
+</span><span class='line'>      <span class="nx">message</span>
+</span><span class='line'>      <span class="nx">statusCode</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'>  <span class="p">}</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>…but we can now also have generic error components that would query like so:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+</pre></td><td class='code'><pre><code class='js'><span class='line'><span class="nx">query</span> <span class="p">{</span>
+</span><span class='line'>  <span class="nx">artworkOrError</span><span class="p">(</span><span class="s2">&quot;mona-lisa&quot;</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>    <span class="p">...</span> <span class="nx">on</span> <span class="nx">Artwork</span> <span class="p">{</span>
+</span><span class='line'>      <span class="nx">title</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'>    <span class="p">...</span><span class="nx">GenericErrorComponent</span>
+</span><span class='line'>    <span class="p">...</span><span class="nx">GenericHTTPErrorComponent</span>
+</span><span class='line'>  <span class="p">}</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="nx">fragment</span> <span class="nx">GenericErrorComponent</span> <span class="nx">on</span> <span class="nb">Error</span> <span class="p">{</span>
+</span><span class='line'>  <span class="nx">message</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="nx">fragment</span> <span class="nx">GenericHTTPErrorComponent</span> <span class="nx">on</span> <span class="nx">HTTPError</span> <span class="p">{</span>
+</span><span class='line'>  <span class="nx">message</span>
+</span><span class='line'>  <span class="nx">statusCode</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>For the record, we have <em>not</em> yet put these interfaces into production, so the nomenclature is not set in stone yet
+and I’d love to hear your input on this. Is <code>Error</code> <em>too</em> generic to use as the base error type? Is there a nicer
+naming pattern that would allow us to avoid having to suffix concrete types of an error interface with <code>...Type</code>?</p>
+
+<p>Side-note: there’s <a href="https://github.com/facebook/graphql/pull/373">an RFC</a> to the GraphQL specification that would make it possible to
+have interfaces implement other interfaces, thus removing the need to keep repeating the fields of
+super-interfaces. This RFC has recently been moved to the draft stage, yay!</p>
+
+<a name="Field.naming"></a>
+<h3>Field naming</h3>
+
+<p>As you may have noticed, we’re calling these fields <code>something</code> <em>or</em> <code>error</code>. We are mostly doing this to stay
+backwards compatible with our existing schema. While we could certainly add exception types to existing union
+fields, we can’t change a single type field into a union type field without breaking compatibility.</p>
+
+<p>Instead we may now have 2 versions of a given field:</p>
+
+<ul>
+<li>one with the single type field which is nullable, in case an exception occurred</li>
+</ul>
+
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='js'><span class='line'><span class="nx">query</span> <span class="p">{</span>
+</span><span class='line'>  <span class="nx">artwork</span><span class="p">(</span><span class="s2">&quot;mona-lisa&quot;</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>    <span class="nx">title</span>
+</span><span class='line'>  <span class="p">}</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<ul>
+<li>and another that has the error union type</li>
+</ul>
+
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+</pre></td><td class='code'><pre><code class='js'><span class='line'><span class="nx">query</span> <span class="p">{</span>
+</span><span class='line'>  <span class="nx">artworkOrError</span><span class="p">(</span><span class="s2">&quot;mona-lisa&quot;</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>    <span class="p">...</span> <span class="nx">on</span> <span class="nx">Artwork</span> <span class="p">{</span>
+</span><span class='line'>      <span class="nx">title</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'>    <span class="p">...</span> <span class="nx">on</span> <span class="nx">HTTPError</span> <span class="p">{</span>
+</span><span class='line'>      <span class="nx">statusCode</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'>  <span class="p">}</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>This duplication is slightly unfortunate, from a clean schema design perspective, but it’s similar to an existing
+pattern in the community. For instance, many schemas provide 2 ways to retrieve lists:</p>
+
+<ul>
+<li>one as an immediate list:</li>
+</ul>
+
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='js'><span class='line'><span class="nx">type</span> <span class="nx">Query</span> <span class="p">{</span>
+</span><span class='line'>  <span class="nx">artworks</span><span class="o">:</span> <span class="p">[</span><span class="nx">Artwork</span><span class="p">]</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<ul>
+<li>and one as a ‘connection’ (as defined by the <a href="https://facebook.github.io/relay/graphql/connections.htm">Relay Connection specification</a>)</li>
+</ul>
+
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+</pre></td><td class='code'><pre><code class='js'><span class='line'><span class="nx">type</span> <span class="nx">ArtworkEdge</span> <span class="p">{</span>
+</span><span class='line'>  <span class="nx">node</span><span class="o">:</span> <span class="nx">Artwork</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="nx">type</span> <span class="nx">ArtworksConnection</span> <span class="p">{</span>
+</span><span class='line'>  <span class="nx">edges</span><span class="o">:</span> <span class="p">[</span><span class="nx">ArtworkEdge</span><span class="p">]</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="nx">type</span> <span class="nx">Query</span> <span class="p">{</span>
+</span><span class='line'>  <span class="nx">artworksConnection</span><span class="o">:</span> <span class="nx">ArtworksConnection</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>So the jury is still out on whether or not that’s a bad way to name things. We’ll have to see after using this for a
+while.</p>
+
+<a name="Downside.of.using.a.union"></a>
+<h3>Downside of using a union</h3>
+
+<p>One notable downside is that GraphQL scalar types can <em>not</em> be included in unions. Thus, if you have scalar fields
+that could lead to exceptions, you will have to ‘box’ those in object types.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+</pre></td><td class='code'><pre><code class='js'><span class='line'><span class="nx">type</span> <span class="nx">ArtworkPurchasableBox</span> <span class="p">{</span>
+</span><span class='line'>  <span class="nx">value</span><span class="o">:</span> <span class="nb">Boolean</span><span class="o">!</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="nx">union</span> <span class="nx">ArtworkPurchasableOrError</span> <span class="o">=</span> <span class="nx">ArtworkPurchasableBox</span> <span class="o">|</span> <span class="nx">HTTPError</span>
+</span><span class='line'>
+</span><span class='line'><span class="nx">type</span> <span class="nx">Artwork</span> <span class="p">{</span>
+</span><span class='line'>  <span class="nx">currentlyPurchasableOrError</span><span class="o">:</span> <span class="nx">ArtworkPurchasableOrError</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>This is definitely a case where the pattern of defining 2 fields, one with and one without exception types, comes
+in handy. Having to always query through the box type is inelegant, to put it softly.</p>
+
+<p>Side-note: there actually is <a href="https://github.com/facebook/graphql/issues/215">an open RFC</a> to the specification to allow scalars in unions, but
+it’s still in stage 0 and is in need of a champion in order to proceed. We may end up trying to do so, based on our
+actual experiences with these cases where they may need to be boxed.</p>
+
+<a name="Example.of.how.we.consume.query.errors"></a>
+<h3>Example of how we consume query errors</h3>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+<span class='line-number'>38</span>
+<span class='line-number'>39</span>
+<span class='line-number'>40</span>
+</pre></td><td class='code'><pre><code class='ts'><span class='line'><span class="kr">import</span> <span class="p">{</span> <span class="nx">OrderStatus_order</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;__generated__/OrderStatus_order.graphql&quot;</span>
+</span><span class='line'><span class="kr">import</span> <span class="nx">React</span> <span class="nx">from</span> <span class="s2">&quot;react&quot;</span>
+</span><span class='line'><span class="kr">import</span> <span class="p">{</span> <span class="nx">createFragmentContainer</span><span class="p">,</span> <span class="nx">graphql</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;react-relay&quot;</span>
+</span><span class='line'>
+</span><span class='line'><span class="kr">interface</span> <span class="nx">Props</span> <span class="p">{</span>
+</span><span class='line'>  <span class="nx">order</span>: <span class="kt">OrderStatus_order</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="kr">const</span> <span class="nx">OrderStatus</span>: <span class="kt">React.SFC</span><span class="o">&lt;</span><span class="nx">Props</span><span class="o">&gt;</span> <span class="o">=</span> <span class="p">({</span> <span class="nx">order</span>: <span class="kt">orderStatusOrError</span> <span class="p">})</span> <span class="o">=&gt;</span>
+</span><span class='line'>  <span class="nx">orderStatusOrError</span><span class="p">.</span><span class="nx">__typename</span> <span class="o">===</span> <span class="s2">&quot;OrderStatus&quot;</span> <span class="o">?</span> <span class="p">(</span>
+</span><span class='line'>    <span class="o">&lt;</span><span class="nx">div</span><span class="o">&gt;</span>
+</span><span class='line'>      <span class="p">{</span><span class="nx">orderStatusOrError</span><span class="p">.</span><span class="nx">deliveryDispatched</span>
+</span><span class='line'>        <span class="o">?</span> <span class="s2">&quot;Your order has been dispatched.&quot;</span>
+</span><span class='line'>        <span class="o">:</span> <span class="s2">&quot;Your order has not been dispatched yet.&quot;</span><span class="p">}</span>
+</span><span class='line'>    <span class="o">&lt;</span><span class="err">/div&gt;</span>
+</span><span class='line'>  <span class="p">)</span> <span class="o">:</span> <span class="p">(</span>
+</span><span class='line'>    <span class="o">&lt;</span><span class="nx">div</span> <span class="nx">className</span><span class="o">=</span><span class="s2">&quot;error&quot;</span><span class="o">&gt;</span>
+</span><span class='line'>      <span class="p">{</span><span class="nx">orderStatusOrError</span><span class="p">.</span><span class="nx">code</span> <span class="o">===</span> <span class="s2">&quot;unpublished&quot;</span>
+</span><span class='line'>        <span class="o">?</span> <span class="s2">&quot;Please contact gallery services.&quot;</span>
+</span><span class='line'>        <span class="o">:</span> <span class="err">`</span><span class="nx">An</span> <span class="nx">unexpected</span> <span class="nx">error</span> <span class="nx">occurred</span>: <span class="kt">$</span><span class="p">{</span><span class="nx">orderStatusOrError</span><span class="p">.</span><span class="nx">message</span><span class="p">}</span><span class="err">`</span><span class="p">}</span>
+</span><span class='line'>    <span class="o">&lt;</span><span class="err">/div&gt;</span>
+</span><span class='line'>  <span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'><span class="kr">export</span> <span class="kr">const</span> <span class="nx">OrderStatusContainer</span> <span class="o">=</span> <span class="nx">createFragmentContainer</span><span class="p">(</span>
+</span><span class='line'>  <span class="nx">OrderStatus</span><span class="p">,</span>
+</span><span class='line'>  <span class="nx">graphql</span><span class="err">`</span>
+</span><span class='line'>    <span class="nx">fragment</span> <span class="nx">OrderStatus_order</span> <span class="nx">on</span> <span class="nx">Order</span> <span class="p">{</span>
+</span><span class='line'>      <span class="nx">orderStatusOrError</span> <span class="p">{</span>
+</span><span class='line'>        <span class="nx">__typename</span>
+</span><span class='line'>        <span class="p">...</span> <span class="nx">on</span> <span class="nx">OrderStatus</span> <span class="p">{</span>
+</span><span class='line'>          <span class="nx">deliveryDispatched</span>
+</span><span class='line'>        <span class="p">}</span>
+</span><span class='line'>        <span class="p">...</span> <span class="nx">on</span> <span class="nx">OrderError</span> <span class="p">{</span>
+</span><span class='line'>          <span class="nx">message</span>
+</span><span class='line'>          <span class="nx">code</span>
+</span><span class='line'>        <span class="p">}</span>
+</span><span class='line'>      <span class="p">}</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'>  <span class="err">`</span>
+</span><span class='line'><span class="p">)</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<a name="Example.of.how.we.consume.mutation.errors"></a>
+<h3>Example of how we consume mutation errors</h3>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+<span class='line-number'>38</span>
+<span class='line-number'>39</span>
+<span class='line-number'>40</span>
+<span class='line-number'>41</span>
+<span class='line-number'>42</span>
+<span class='line-number'>43</span>
+<span class='line-number'>44</span>
+<span class='line-number'>45</span>
+<span class='line-number'>46</span>
+<span class='line-number'>47</span>
+<span class='line-number'>48</span>
+<span class='line-number'>49</span>
+<span class='line-number'>50</span>
+<span class='line-number'>51</span>
+<span class='line-number'>52</span>
+<span class='line-number'>53</span>
+<span class='line-number'>54</span>
+<span class='line-number'>55</span>
+<span class='line-number'>56</span>
+<span class='line-number'>57</span>
+<span class='line-number'>58</span>
+<span class='line-number'>59</span>
+</pre></td><td class='code'><pre><code class='ts'><span class='line'><span class="kr">import</span> <span class="p">{</span> <span class="nx">SubmitOrder_order</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;__generated__/SubmitOrder_order.graphql&quot;</span>
+</span><span class='line'><span class="kr">import</span> <span class="p">{</span> <span class="nx">SubmitOrderMutation</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;__generated__/SubmitOrderMutation.graphql&quot;</span>
+</span><span class='line'><span class="kr">import</span> <span class="p">{</span> <span class="nx">Router</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;found-relay&quot;</span>
+</span><span class='line'><span class="kr">import</span> <span class="nx">React</span> <span class="nx">from</span> <span class="s2">&quot;react&quot;</span>
+</span><span class='line'><span class="kr">import</span> <span class="p">{</span> <span class="nx">commitMutation</span><span class="p">,</span> <span class="nx">createFragmentContainer</span><span class="p">,</span> <span class="nx">graphql</span><span class="p">,</span> <span class="nx">RelayProp</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;react-relay&quot;</span>
+</span><span class='line'>
+</span><span class='line'><span class="kr">interface</span> <span class="nx">Props</span> <span class="p">{</span>
+</span><span class='line'>  <span class="nx">order</span>: <span class="kt">SubmitOrder_order</span>
+</span><span class='line'>  <span class="nx">relay</span>: <span class="kt">RelayProp</span>
+</span><span class='line'>  <span class="nx">router</span>: <span class="kt">Router</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="kr">const</span> <span class="nx">SubmitOrder</span>: <span class="kt">React.SFC</span><span class="o">&lt;</span><span class="nx">Props</span><span class="o">&gt;</span> <span class="o">=</span> <span class="nx">props</span> <span class="o">=&gt;</span> <span class="p">(</span>
+</span><span class='line'>  <span class="o">&lt;</span><span class="nx">button</span>
+</span><span class='line'>    <span class="nx">onClick</span><span class="o">=</span><span class="p">{()</span> <span class="o">=&gt;</span> <span class="p">{</span>
+</span><span class='line'>      <span class="nx">commitMutation</span><span class="o">&lt;</span><span class="nx">SubmitOrderMutation</span><span class="o">&gt;</span><span class="p">(</span><span class="nx">props</span><span class="p">.</span><span class="nx">relay</span><span class="p">.</span><span class="nx">environment</span><span class="p">,</span> <span class="p">{</span>
+</span><span class='line'>        <span class="nx">mutation</span>: <span class="kt">graphql</span><span class="err">`</span>
+</span><span class='line'>          <span class="nx">mutation</span> <span class="nx">SubmitOrderMutation</span><span class="p">(</span><span class="nx">$input</span>: <span class="kt">SubmitOrder</span><span class="o">!</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>            <span class="nx">submitOrder</span><span class="p">(</span><span class="nx">input</span>: <span class="kt">$input</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>              <span class="nx">orderStatusOrError</span> <span class="p">{</span>
+</span><span class='line'>                <span class="nx">__typename</span>
+</span><span class='line'>                <span class="p">...</span> <span class="nx">on</span> <span class="nx">OrderStatus</span> <span class="p">{</span>
+</span><span class='line'>                  <span class="nx">submitted</span>
+</span><span class='line'>                <span class="p">}</span>
+</span><span class='line'>                <span class="p">...</span> <span class="nx">on</span> <span class="nx">OrderError</span> <span class="p">{</span>
+</span><span class='line'>                  <span class="nx">message</span>
+</span><span class='line'>                  <span class="nx">code</span>
+</span><span class='line'>                <span class="p">}</span>
+</span><span class='line'>              <span class="p">}</span>
+</span><span class='line'>            <span class="p">}</span>
+</span><span class='line'>          <span class="p">}</span>
+</span><span class='line'>        <span class="err">`</span><span class="p">,</span>
+</span><span class='line'>        <span class="nx">variables</span><span class="o">:</span> <span class="p">{</span> <span class="nx">input</span><span class="o">:</span> <span class="p">{</span> <span class="nx">orderID</span>: <span class="kt">props.order.id</span> <span class="p">}</span> <span class="p">},</span>
+</span><span class='line'>        <span class="nx">onCompleted</span><span class="o">:</span> <span class="p">({</span> <span class="nx">submitOrder</span><span class="o">:</span> <span class="p">{</span> <span class="nx">orderStatusOrError</span> <span class="p">}</span> <span class="p">},</span> <span class="nx">errors</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span>
+</span><span class='line'>          <span class="k">if</span> <span class="p">(</span><span class="nx">orderStatusOrError</span><span class="p">.</span><span class="nx">__typename</span> <span class="o">===</span> <span class="s2">&quot;OrderStatus&quot;</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>            <span class="nx">props</span><span class="p">.</span><span class="nx">router</span><span class="p">.</span><span class="nx">push</span><span class="p">(</span>
+</span><span class='line'>              <span class="err">`</span><span class="o">/</span><span class="nx">orders</span><span class="o">/</span><span class="nx">$</span><span class="p">{</span><span class="nx">props</span><span class="p">.</span><span class="nx">order</span><span class="p">.</span><span class="nx">id</span><span class="p">}</span><span class="o">/</span><span class="nx">$</span><span class="p">{</span><span class="nx">orderStatusOrError</span><span class="p">.</span><span class="nx">submitted</span> <span class="o">?</span> <span class="s2">&quot;submitted&quot;</span> <span class="o">:</span> <span class="s2">&quot;pending&quot;</span><span class="p">}</span><span class="err">`</span>
+</span><span class='line'>            <span class="p">)</span>
+</span><span class='line'>          <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+</span><span class='line'>            <span class="nx">alert</span><span class="p">(</span>
+</span><span class='line'>              <span class="nx">orderStatusOrError</span><span class="p">.</span><span class="nx">code</span> <span class="o">===</span> <span class="s2">&quot;unpublished&quot;</span>
+</span><span class='line'>                <span class="o">?</span> <span class="s2">&quot;Please contact gallery services.&quot;</span>
+</span><span class='line'>                <span class="o">:</span> <span class="err">`</span><span class="nx">An</span> <span class="nx">unexpected</span> <span class="nx">error</span> <span class="nx">occurred</span>: <span class="kt">$</span><span class="p">{</span><span class="nx">orderStatusOrError</span><span class="p">.</span><span class="nx">message</span><span class="p">}</span><span class="err">`</span>
+</span><span class='line'>            <span class="p">)</span>
+</span><span class='line'>          <span class="p">}</span>
+</span><span class='line'>        <span class="p">}</span>
+</span><span class='line'>      <span class="p">})</span>
+</span><span class='line'>    <span class="p">}}</span>
+</span><span class='line'>  <span class="o">/&gt;</span>
+</span><span class='line'><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'><span class="kr">export</span> <span class="kr">const</span> <span class="nx">SubmitOrderContainer</span> <span class="o">=</span> <span class="nx">createFragmentContainer</span><span class="p">(</span>
+</span><span class='line'>  <span class="nx">SubmitOrder</span><span class="p">,</span>
+</span><span class='line'>  <span class="nx">graphql</span><span class="err">`</span>
+</span><span class='line'>    <span class="nx">fragment</span> <span class="nx">SubmitOrder_order</span> <span class="nx">on</span> <span class="nx">Order</span> <span class="p">{</span>
+</span><span class='line'>      <span class="nx">id</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'>  <span class="err">`</span>
+</span><span class='line'><span class="p">)</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<!--
+
+### Show example of factory code that produces both single and union typed fields
+
+TODO
+
+-->
+
+
+<a name="Final.thoughts"></a>
+<h2>Final thoughts</h2>
+
+<p>As stated before, we having only recently begun rolling out these changes into our production schema. However, much
+thought and experimentation has gone into this to ensure we will be able to address all of <em>our</em> needs, at least.</p>
+
+<p>I would love to hear other people’s thoughts on this and definitely feedback if they try to adopt it themselves. As
+a community we should openly iterate together, as much as possible, as we try to make the future of GraphQL a great
+one and put legit questions to ‘REST’ ;)</p>
+
+<p>For now, I’ll leave you with this message from some internet ‘rando’:</p>
+
+<blockquote><p>@alloy That diff makes a lot of sense to me. I've also seen user errors as a field on the mutation result, but I
+like that union makes it explicit that there was either success or failure and in the case of failure provides
+rich information that's in your app's domain.</p></blockquote>
+
+<p>-- <a href="https://twitter.com/leeb/status/1020054709694943232">Lee Byron</a></p>
+
+        </article>
+
+        <article class='post'>
+          <p style="padding-bottom: 0; margin-bottom:0;">
+            <a href="https://www.artsy.net/" style="background-image: none;">
+              <svg viewBox="0 0 510 510" width="40" height="40" xmlns="http://www.w3.org/2000/svg">
+                <path transform="scale(1, -1) translate(0, -480)" d="M0 -32h512v512h-512v-512v0zM464 16h-80v80h-48v-80h-288v416h416v-416v0zM194 384h-40l-74 -186h38l20 52h72l19 -52h39l-74 186v0zM149 282l25 66l24 -66h-49v0z"></path>
+              </svg>
+            </a>
+          <p/>
+        </article>
+
+      
+        <article class='post'>
+          <section id="comments" />
+
+<script type="text/javascript">
+  // Comes from https://stackoverflow.com/questions/3177836/how-to-format-time-since-xxx-e-g-4-minutes-ago-similar-to-stack-exchange-site
+  function timeSince(date) {
+    var seconds = Math.floor((new Date() - date) / 1000)
+    var interval = Math.floor(seconds / 31536000)
+
+    if (interval > 1) {
+      return interval + " years"
+    }
+    interval = Math.floor(seconds / 2592000)
+    if (interval > 1) {
+      return interval + " months"
+    }
+    interval = Math.floor(seconds / 86400)
+    if (interval > 1) {
+      return interval + " days"
+    }
+    interval = Math.floor(seconds / 3600)
+    if (interval > 1) {
+      return interval + " hours"
+    }
+    interval = Math.floor(seconds / 60)
+    if (interval > 1) {
+      return interval + " minutes"
+    }
+    return Math.floor(seconds) + " seconds"
+  }
+
+  var writeToComment = function (element, html) {
+    var element = document.createElement(element)
+    element.innerHTML = html
+    document.getElementById("comments").appendChild(element)
+  }
+
+  var addReactions = function (reactions, link) {
+    var returnString = ""
+    var emojiCode = {
+      '+1': "<g-emoji alias='+1' fallback-src='https://assets-cdn.github.com/images/icons/emoji/unicode/1f44d.png' class='emoji'>👍</g-emoji>",
+      '-1': "<g-emoji alias='-1' fallback-src='https://assets-cdn.github.com/images/icons/emoji/unicode/1f44e.png' class='emoji'>👎</g-emoji>",
+      laugh: "<g-emoji alias='smile' fallback-src='https://assets-cdn.github.com/images/icons/emoji/unicode/1f604.png' class='emoji'>😄</g-emoji>",
+      hooray: "<g-emoji alias='tada' fallback-src='https://assets-cdn.github.com/images/icons/emoji/unicode/1f389.png' class='emoji'>🎉</g-emoji>",
+      confused: "<g-emoji alias='thinking_face' fallback-src='https://assets-cdn.github.com/images/icons/emoji/unicode/1f615.png' class='emoji'>😕</g-emoji>",
+      heart: "<g-emoji alias='framed_picture' fallback-src='https://assets-cdn.github.com/images/icons/emoji/unicode/1f5bc.png' class='emoji'>🖼</g-emoji>"
+    }
+
+    if (reactions.total_count > 0) {
+      returnString += "<div class='comment-reactions'>"
+      for (var key in reactions) {
+        if (reactions.hasOwnProperty(key)) {
+          if (reactions[key] > 0 && key !== "total_count") {
+            returnString += "<a href='" + link + "' class='emoji-wrapper'>" + emojiCode[key] + reactions[key] + "</a>"
+          }
+        }
+      }
+      returnString += "</div>"
+      return returnString
+    } else {
+      return "<div></div>"
+    }
+  }
+
+  // Based on http://ivanzuzak.info/2011/02/18/github-hosted-comments-for-github-hosted-blogs.html
+  // And http://donw.io/post/github-comments/
+
+  var loadComments = function (data) {
+    writeToComment("h2", "Comments")
+    for (var i = 0; i < data.length; i++) {
+      var cuser = data[i].user.login
+      var cuserlink = data[i].user.html_url
+      var clink = data[i].html_url
+      var cbody = data[i].body_html
+      var cavatarlink = data[i].user.avatar_url
+      var cdate = new Date(data[i].created_at)
+      var creactions = addReactions(data[i].reactions, clink)
+
+      var commentHTML =
+        "<div class='comment'>" +
+        "<div class='comment-header'>" +
+        "<a class='comment-username' href=\"" + cuserlink + '">' +
+        '<img src="' + cavatarlink + '" alt="" width="40" height="40">' +
+        cuser +
+        "</a>" + " commented " +
+        "<a class='comment-date' href=\"" + clink + '">' +
+        timeSince(cdate) + " ago" +
+        "</a>" +
+        "</div>" +
+        "<div class='comment-body'>"
+        + cbody +
+        "</div>" +
+        creactions +
+        "</div>"
+      writeToComment("div", commentHTML)
+    }
+
+    var callToAction =
+      "<hr/>" +
+      "<p>" +
+      "Our comments are using GitHub Issues on the Artsy Blog repo. You can post by replying to <a href='https://github.com/artsy/artsy.github.io/issues/495'>issue #495</a>." +
+      "</p>"
+    writeToComment("div", callToAction)
+  }
+
+  var writeFirstComment = function () {
+    var callToAction =
+      "<hr/>" +
+      "<p>" +
+      "This post has no comments, yet, you could be the first. Our comments are using GitHub Issues on the Artsy Blog repo. You can post by replying to <a href='https://github.com/artsy/artsy.github.io/issues/495'>issue #495</a>." +
+      "</p>"
+    writeToComment("div", callToAction)
+  }
+
+  if (window.fetch) {
+    var url =
+      "https://artsy-blog-gh-commentify.herokuapp.com/repos/artsy/artsy.github.io/issues/495/comments"
+    window
+      .fetch(url, { Accept: "application/vnd.github.v3.html+json" })
+      .then(function (response) {
+        return response.json()
+      })
+      .then(function (json) {
+        if (json.length) {
+          loadComments(json)
+        } else {
+          writeFirstComment()
+        }
+      })
+  }
+
+</script>
+        </article>
+      
+
+      </section>
+
+      <footer>
+        <article>
+
+          <section>
+            <h4>Author</h4>
+            <p> <a href="/author/eloy"/>Eloy Durán</a></p>
+            <p></a></p>
+          </section>
+
+          <section>
+            <h4>Post Meta</h4>
+            <p>Oct 19, 2018</p>
+            <p>Tagged: <a class='category' href='/blog/categories/api/'>api</a>, <a class='category' href='/blog/categories/design/'>design</a>, <a class='category' href='/blog/categories/graphql/'>graphql</a>, <a class='category' href='/blog/categories/programming/'>programming</a></p>
+          </section>
+          <br/>
+          <section>
+            <h4>Artsy OSS</h4>
+            <ul>
+              <li><a href='https://www.artsy.net'>Artsy.net</a></li>
+              <li><a href='https://developers.artsy.net'>API</a></li>
+              <li><a href='http://artsy.github.io/open-source/'>Featured OSS</a></li>
+              <li><a href='https://www.artsy.net/jobs'>Careers</a></li>
+            </ul>
+          </section>
+
+          <section>
+            <h4>Blog</h4>
+            <ul>
+              <li><a href='http://artsy.github.io/blog/archives/'>Archives</a></li>
+              <li><a href='http://artsy.github.io/search/'>Search</a></li>
+              <li><a href='https://github.com/artsy/artsy.github.io'>Code on GitHub</a></li>
+              <li><a href='https://github.com/artsy/artsy.github.io/edit/source/_posts/2018-10-19-where-art-thou-my-error.markdown'>Fix typoes in this post</a></li>
+            </ul>
+          </section>
+
+        </article>
+
+        <article>
+          <section>
+            <h4>Post Series on the Blog</h4>
+            <ul>
+              
+              <li><a href='/series/react-native-at-artsy/'>React Native at Artsy</a></li>
+              
+              <li><a href='/series/javascriptures/'>JavaScriptures</a></li>
+              
+              <li><a href='/series/stages-of-professional-growth/'>Stages of Professional Growth</a></li>
+              
+              <li><a href='/series/artsy-tech-stack/'>Artsy Tech Stack</a></li>
+              
+              <li><a href='/series/open-source-by-default/'>Open Source by Default</a></li>
+              
+            </ul>
+          </section>
+
+          <section>
+          
+          </section>
+        </article>
+
+      </footer>
+    </div>
+  </div>
+</body>
