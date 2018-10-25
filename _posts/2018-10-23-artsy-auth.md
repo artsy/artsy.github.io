@@ -5,9 +5,7 @@ categories: [tech, oauth, security, infosec, authentication]
 author: myk
 ---
 
-# Everything You Ever Wanted To Know About Authentication At Artsy (But Didn't Know How To Ask)
-
-Hi! If you're reading this you're probably trying to figure out user authentication in an artsy application.
+Hi! If you're reading this you're probably trying to figure out user authentication in an Artsy application.
 Depending on what you're trying to do, you may need to set up [OAuth](https://oauth.net/2/) to allow users to log
 into your application by delegating authentication to gravity. Alternately, you may be working on an application
 that will only be called by other applications - in this case, you don't care about user authentication - you just
@@ -15,9 +13,12 @@ need to establish permissions between services. In both cases you'll be working 
 [JSON Web Tokens (JWTs)](https://jwt.io/introduction/), and the difference is how the token you're looking at is
 generated.
 
-During user authentication, on login the user receives a token which explicitly grants their user account
-permission to use a specific application. For app authentication you'll create the token in advance and simply
-share it with whatever application you want to grant access to.
+User authentication happens at login - when the user provides their credentials to our server, our server confirms
+that they are who they claim to be and then generates a cryptographically signed token that encodes a few facts
+about that user.
+
+App authentication, by contrast, all gets done in advance. We create the token manually, and share it with whatever
+application we want to grant access to.
 
 In this document we'll first develop an understanding of what OAuth is and how it works. Then we'll examine the
 tokens we're using to get a better sense of what kind of information we have to work with. Finally, we'll go into
@@ -40,8 +41,8 @@ much about who you are as long as they can trust Twitter to tell them, etc.
 We use a similar approach here at Artsy. We've got dozens of applications, some outward-facing, some internal only.
 If every single application had to handle its own authentication then we'd have user objects stored all over the
 place and we'd be constantly trying to figure out if User 123 on service A is the same person as User 321 on
-service B, etc, right? So instead we delegate authentication to a single core service, Gravity. Gravity is the
-canonical source of truth for user information, and that includes authentication logic.
+service B, etc, right? So instead we delegate authentication to a single core service, Gravity. Gravity is Artsy's
+core API, and therefore is the canonical source of truth for user information.
 
 So at a high level, OAuth works like this:
 
@@ -91,9 +92,12 @@ things depending on what exactly is being secured and from whom. If you want to 
 but you only want a specific person to be able to read it, you can encrypt it with your secret and then share the
 secret with only those people that you want to allow to read your message.
 
-This is what's going on with our `Authorization` token. Gravity encrypts user data using a secret key, and under
-the hood you've got that same secret key in your application. This allows your app to decrypt the value of the
-`Authorization` token and get at the JWT that it contains. So what's _that_ look like?
+This is what's going on with our `Authorization` token. Gravity generates a JWT which encodes some facts about the
+user or application under discussion. It then encrypts that JWT using a secret key, and attaches the encrypted
+token to the HTTP request using the `Authorization` header. You've got that same secret key in your application.
+This allows your app to decrypt the value of the `Authorization` token and get at the JWT that it contains.
+
+So what's _that_ look like?
 
 ### JWT Details
 
@@ -101,7 +105,7 @@ A JWT (or JSON Web Token) is a small JSON object that stores information about s
 pre-defined fields, some of which we use, as well as support for arbitrary custom fields.
 
 When Gravity generates a JWT for a user it
-[specifies four fields](https://github.com/artsy/gravity/blob/master/app/models/util/user_trust.rb#L29-L34):
+[specifies four fields 🔒](https://github.com/artsy/gravity/blob/master/app/models/util/user_trust.rb#L29-L34):
 
 1. `sub` is part of the JWT spec and is short for `subject` - this encodes the subject of the token, in other words
    the user on whose behalf it's been generated.
@@ -111,7 +115,7 @@ When Gravity generates a JWT for a user it
 4. `partner_ids` holds references to any Partner objects to which the user has access.
 
 When Gravity generates a JWT for an application, on the other hand, it
-[only specifies roles](https://github.com/artsy/gravity/blob/master/app/models/util/application_trust.rb#L14).
+[only specifies roles 🔒](https://github.com/artsy/gravity/blob/master/app/models/util/application_trust.rb#L14).
 There is no subject - the fact that it was encoded using a secret relevant to our application is sufficient grounds
 to know that it's about our application. Does that make sense? We don't need to specify a subject because if it was
 generated for any other application we'd never be able to decrypt it. So we just need to know what roles this
@@ -120,6 +124,9 @@ application has been granted.
 So when we decrypt the JWT in our application we get either a token that represents a trusted user or a token that
 represents a trusted application. We need to know what to do with this JWT next, but before we do that we need to
 set up our shared secrets so that our new app can decrypt tokens encoded for it in gravity.
+
+If you'd like to learn more about how Artsy thinks about and uses JWTs you can read
+[this blog post](http://artsy.github.io/blog/2016/10/26/jwt-artsy-journey/)
 
 ### Generating Secret Keys
 
