@@ -308,7 +308,7 @@ type Action =
 And then there was a global `dispatch` function that I could use directly to broadcast messages across contexts
 
 ```ts
-declare function dispatch(action: Action): void;
+declare function dispatch(action: Action): void
 
 // ...
 
@@ -359,32 +359,39 @@ nobody in particular.
         Is someone there?
 
                     VOICE (V.O.)
-        It's me, the conciseness devil.
+        It's me, the DRY devil.
 
-A painful sigh of recognition.
+David heaves a painful sigh of recognition.
 
                     DAVID
         Not you again! Leave me alone!
 
-                    CONCISENESS DEVIL (V.O.)
-        I've got an idea for you.
+                    DRY DEVIL (V.O.)
+        DRY stands for "Don't Repeat Yourself"
 
                     DAVID
-        Go away! I'm busy solving user problems
-        and creating business value.
+        I know, you've told me that before! Now
+        get lost!
 
-                    CONCISENESS DEVIL (V.O.)
-        But every time you call `dispatch` you
-        are typing 6 characters of redundant
-        code.
+                    DRY DEVIL (V.O.)
+        I've noticed an issue with your code.
+
                     DAVID
-        Oh no you're right! I must fix this.
+        Seriously, go away! I'm busy solving
+        user problems to create business value.
+
+                    DRY DEVIL (V.O.)
+        Every time you call `dispatch` you
+        are typing 6 redundant characters.
+
+                    DAVID
+        Oh snap! You're right! I must fix this.
 
 MONTAGE
 
-David proceeds to spend the next 2 hours wrestling with
-TypeScript trying to figure out how to get rid of those
-6 characters while retaining type safety.
+David spends the next 2 hours wrestling with TypeScript,
+accumulating a pile of empty coffee cups and protein ball
+wrappers.
 ```
 
 We've all been there.
@@ -392,11 +399,204 @@ We've all been there.
 I wanted the dispatch function to work like this:
 
 ```ts
-// first argument is 'type'
+// first argument is the 'type'
+// second is any extra parameters
 dispatch("LOG_IN_SUCCESS", {
   accessToken: "038fh239h923908h"
 })
-// no need to specify a second argument if the
-// action has no parameters.
+```
+
+Deriving the type for that first argument is easy enough
+
+```ts
+type ActionType = Action["type"]
+// => "INIT" | "LOG_IN" | "LOG_IN_SUCCESS"
+```
+
+But what about the second argument? The exact type _depends on_ the first argument. We can use a type variable for
+that.
+
+<!-- prettier-ignore -->
+```ts
+declare function dispatch<T extends ActionType>(
+  type: T,
+  args: ExtractActionParameters<Action, T>
+): void
+```
+
+_Woah woah woah, what's this_ `ExtractActionParameters` _voodoo?_
+
+It's a conditional type of course! Here's a first stab at implementing it:
+
+```ts
+type ExtractActionParameters<A, T> = A extends { type: T } ? A : never
+```
+
+This is a lot like the `ExtractCat` example from before, where we were were refining the `Animals` union by
+searching for something that can `meow()`. Here, we're refining the `Action` union type by searching for an action
+with a particular `type` property. Let's see if it works:
+
+```ts
+type Test = ExtractActionParameters<Action, "LOG_IN">
+// => { type: "LOG_IN", emailAddress: string }
+```
+
+Almost there! We don't want to keep the `type` field after extraction because then we would still have to specify
+it when calling `dispatch`. And that would somewhat defeat the purpose of this entire exercise.
+
+We can get rid the `type` field by combining a **mapped type** with a conditional type and the `keyof` operator.
+
+A **mapped type** lets you create a new type by 'mapping' over a union of keys. You can get a union of keys from an
+existing type by using the `keyof` operator. And finally, you can remove things from a union using a conditional
+type. Here's how they play together (with some inline test cases for illustration):
+
+```ts
+type RemoveTypeKey<K> = K extends "type" ? never : K
+
+type Test = RemoveTypeKey<"emailAddress" | "type" | "foo">
+// => "emailAddress" | "foo"
+
+// here's the mapped type
+type RemoveTypeField<A> = { [K in RemoveTypeKey<keyof A>]: A[K] }
+
+type Test = RemoveTypeField<{ type: "LOG_IN"; emailAddress: string }>
+// => { emailAddress: string }
+```
+
+Then we can use `RemoveTypeField` to redefine `ExtractActionParameters`:
+
+<!-- prettier-ignore -->
+```ts
+type ExtractActionParameters<A, T> = A extends { type: T }
+  ? RemoveTypeField<A>
+  : never
+```
+
+And now the new version of `dipsatch` is type safe!
+
+```ts
+// All clear! :)
+dispatch("LOG_IN_SUCCESS", {
+  accessToken: "038fh239h923908h"
+})
+
+dispatch("LOG_IN_SUCCESS", {
+  // Type Error! :)
+  badKey: "038fh239h923908h"
+})
+
+// Type Error! :)
+dispatch("BAD_TYPE", {
+  accessToken: "038fh239h923908h"
+})
+```
+
+But the DRY devil is still on my back. If the action has no extra parameters, I still have to pass a second empty
+argument:
+
+```ts
+dispatch("INIT", {})
+```
+
+That's four whole wasted characters! I can't let that happen! Creating business value can wait!
+
+The naïve thing to do would be to make the second argument optional, but that would be unsafe because it would let
+us dispatch, e.g. a `"LOG_IN"` action without an `emailAddress` field.
+
+Instead, let's overload the `dispatch` function.
+
+<!-- prettier-ignore -->
+```ts
+// And let's say that any actions that don't require
+// extra parameters are 'simple' actions.
+declare function dispatch(type: SimpleActionType): void
+// this signature is just like before
+declare function dispatch<T extends ActionType>(
+  type: T,
+  args: ExtractActionParameters<Action, T>
+): void
+
+type SimpleActionType = ExtractSimpleAction<Action>['type']
+```
+
+But how can we define this `ExtractSimpleAction` conditional type? We know that if we remove the `type` field from
+an action and the result is an empty interface, then that is a simple action. So something like this might work
+
+```ts
+type ExtractSimpleAction<A> = RemoveTypeField<A> extends {} ? A : never
+```
+
+Except that doesn't work. `RemoveTypeField<A> extends {}` is always going to be true, because `{}` is like a top
+type for interfaces. _Pretty much everything_ is more specific than `{}`.
+
+So we have to switch the arguments around:
+
+```ts
+type ExtractSimpleAction<A> = {} extends RemoveTypeField<A> ? A : never
+```
+
+Now if `RemoveTypeField<A>` is empty, the condition will be true, otherwise it will be false.
+
+But this still doesn't work! On-the-ball readers might remember this:
+
+> That 'distribution', where the union is unrolled recursively, only happens when the thing on the left of the
+> `extends` keyword is a plain type variable. We'll see what that means and how to work around it in the next
+> section.
+
+-- Me
+
+_We're in the next section right now_ 🤯.
+
+A plain type variable looks like this: `A`. Or like this: `Foo`. Or like this: `ROFL`.
+
+A plain type variable does not look like this: `{}`. Or like this: `RemoveTypeField<A>`. And probably not like
+this: `string`.
+
+When I discovered that the thing to the left of `extends` needed to be a plain type variable I thought that it
+signalled a fundamental limitation in the way distributive conditional types work under the hood. I thought it was
+some kind of concession to algorithmic complexity. I thought that my use case was too advanced, and that TypeScript had just thrown its hands up in the air and said, "Sorry mate, you're on your own".
+
+But it turns out I was wrong. This is just a bizzare and unintuitive bit of language design and you can work around
+it super easily:
+
+<!-- prettier-ignore -->
+```ts
+type ExtractSimpleAction<A> = A extends any
+  ? {} extends RemoveTypeField<A>
+    ? A
+    : never
+  : never
+```
+
+All we did is wrap the meat of our logic in a flimsy tortilla of inevitability, since the outer condition
+`A extends any` will, of course, always be true.
+
+The unrolling happens specifically to `A` because that's just how you decide which union to unroll: by placing it to the left of `extends`.
+
+And, finally, we can delete those four characters 🎉🕺🏼💃🏽🎈
+
+```ts
 dispatch("INIT")
+```
+
+One yak successfully shaved ✔
+
+TODO: add ts playground links for the various stages of this tutorial
+
+## Destructuring types with `infer`
+
+## Built-in conditional types
+
+TypeScript already has some useful conditional types built-in. We could have used the first two in the previous
+section:
+
+```
+// Exclude from U those types that are assignable to T
+type Exclude<U, T> = U extends T ? never : U;
+
+// Extract from U those types that are assignable to T
+type Extract<U, T> = U extends T ? U : never;
+
+// Exclude null and undefined from T
+type NonNullable<T> = T extends null | undefined ? never : T;
 ```
