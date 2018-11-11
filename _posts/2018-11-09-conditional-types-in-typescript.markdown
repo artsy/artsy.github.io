@@ -451,24 +451,24 @@ existing type by using the `keyof` operator. And finally, you can remove things 
 type. Here's how they play together (with some inline test cases for illustration):
 
 ```ts
-type RemoveTypeKey<K> = K extends "type" ? never : K
+type ExcludeTypeKey<K> = K extends "type" ? never : K
 
-type Test = RemoveTypeKey<"emailAddress" | "type" | "foo">
+type Test = ExcludeTypeKey<"emailAddress" | "type" | "foo">
 // => "emailAddress" | "foo"
 
 // here's the mapped type
-type RemoveTypeField<A> = { [K in RemoveTypeKey<keyof A>]: A[K] }
+type ExcludeTypeField<A> = { [K in ExcludeTypeKey<keyof A>]: A[K] }
 
-type Test = RemoveTypeField<{ type: "LOG_IN"; emailAddress: string }>
+type Test = ExcludeTypeField<{ type: "LOG_IN"; emailAddress: string }>
 // => { emailAddress: string }
 ```
 
-Then we can use `RemoveTypeField` to redefine `ExtractActionParameters`:
+Then we can use `ExcludeTypeField` to redefine `ExtractActionParameters`:
 
 <!-- prettier-ignore -->
 ```ts
 type ExtractActionParameters<A, T> = A extends { type: T }
-  ? RemoveTypeField<A>
+  ? ExcludeTypeField<A>
   : never
 ```
 
@@ -491,17 +491,18 @@ dispatch("BAD_TYPE", {
 })
 ```
 
-But the DRY devil is still on my back. If the action has no extra parameters, I still have to pass a second empty
-argument:
+But there's one more very serious problem to address: If the action has no extra parameters, I still have to pass a
+second empty argument:
 
 ```ts
 dispatch("INIT", {})
 ```
 
-That's four whole wasted characters! I can't let that happen! Creating business value can wait!
+That's four whole wasted characters! Cancel my meetings and tell my partner not to wait up tonight, we are going to
+_fix this_.
 
-The naïve thing to do would be to make the second argument optional, but that would be unsafe because it would let
-us dispatch, e.g. a `"LOG_IN"` action without an `emailAddress` field.
+The naïve thing to do would be to make the second argument optional. That would be unsafe because, e.g. it would
+allow us to dispatch a `"LOG_IN"` action without specifying an `emailAddress`.
 
 Instead, let's overload the `dispatch` function.
 
@@ -523,19 +524,19 @@ But how can we define this `ExtractSimpleAction` conditional type? We know that 
 an action and the result is an empty interface, then that is a simple action. So something like this might work
 
 ```ts
-type ExtractSimpleAction<A> = RemoveTypeField<A> extends {} ? A : never
+type ExtractSimpleAction<A> = ExcludeTypeField<A> extends {} ? A : never
 ```
 
-Except that doesn't work. `RemoveTypeField<A> extends {}` is always going to be true, because `{}` is like a top
+Except that doesn't work. `ExcludeTypeField<A> extends {}` is always going to be true, because `{}` is like a top
 type for interfaces. _Pretty much everything_ is more specific than `{}`.
 
 So we have to switch the arguments around:
 
 ```ts
-type ExtractSimpleAction<A> = {} extends RemoveTypeField<A> ? A : never
+type ExtractSimpleAction<A> = {} extends ExcludeTypeField<A> ? A : never
 ```
 
-Now if `RemoveTypeField<A>` is empty, the condition will be true, otherwise it will be false.
+Now if `ExcludeTypeField<A>` is empty, the condition will be true, otherwise it will be false.
 
 But this still doesn't work! On-the-ball readers might remember this:
 
@@ -549,20 +550,23 @@ _We're in the next section right now_ 🤯.
 
 A plain type variable looks like this: `A`. Or like this: `Foo`. Or like this: `ROFL`.
 
-A plain type variable does not look like this: `{}`. Or like this: `RemoveTypeField<A>`. And probably not like
+A plain type variable does not look like this: `{}`. Or like this: `ExcludeTypeField<A>`. And probably not like
 this: `string`.
+
+TODO: Explicitly define a type variable. This is not great.
 
 When I discovered that the thing to the left of `extends` needed to be a plain type variable I thought that it
 signalled a fundamental limitation in the way distributive conditional types work under the hood. I thought it was
-some kind of concession to algorithmic complexity. I thought that my use case was too advanced, and that TypeScript had just thrown its hands up in the air and said, "Sorry mate, you're on your own".
+some kind of concession to algorithmic complexity. I thought that my use case was too advanced, and that TypeScript
+had just thrown its hands up in the air and said, "Sorry mate, you're on your own".
 
 But it turns out I was wrong. This is just a bizzare and unintuitive bit of language design and you can work around
-it super easily:
+it easily:
 
 <!-- prettier-ignore -->
 ```ts
 type ExtractSimpleAction<A> = A extends any
-  ? {} extends RemoveTypeField<A>
+  ? {} extends ExcludeTypeField<A>
     ? A
     : never
   : never
@@ -571,9 +575,10 @@ type ExtractSimpleAction<A> = A extends any
 All we did is wrap the meat of our logic in a flimsy tortilla of inevitability, since the outer condition
 `A extends any` will, of course, always be true.
 
-The unrolling happens specifically to `A` because that's just how you decide which union to unroll: by placing it to the left of `extends`.
+The unrolling happens specifically to `A` because that's just how you decide which union to unroll: by placing it
+to the left of `extends`.
 
-And, finally, we can delete those four characters 🎉🕺🏼💃🏽🎈
+And finally we can delete those four characters 🎉🕺🏼💃🏽🎈
 
 ```ts
 dispatch("INIT")
@@ -581,22 +586,112 @@ dispatch("INIT")
 
 One yak successfully shaved ✔
 
+---
+
+TypeScript has a couple of built-in types that we could have used in this section:
+
+```ts
+// Exclude from U those types that are assignable to T
+type Exclude<U, T> = U extends T ? never : U
+
+// Extract from U those types that are assignable to T
+type Extract<U, T> = U extends T ? U : never
+```
+
+e.g. instead of defining `ExcludeTypeField` like this:
+
+```ts
+type ExcludeTypeField<A> = { [K in ExcludeTypeKey<keyof A>]: A[K] }
+```
+
+we could have done this:
+
+```ts
+type ExcludeTypeField<A> = { [K in Exclude<keyof A, "type">]: A[K] }
+```
+
+And instead of defining `ExtractActionParameters` like this:
+
+<!-- prettier-ignore -->
+```ts
+type ExtractActionParameters<A, T> = A extends { type: T }
+  ? ExcludeTypeField<A>
+  : never
+```
+
+we could have done this:
+
+```ts
+type ExtractActionParameters<A, T> = ExcludeTypeField<Extract<A, { type: T }>>
+```
+
 TODO: add ts playground links for the various stages of this tutorial
 
 ## Destructuring types with `infer`
 
-## Built-in conditional types
+Conditional types have another trick up their sleeve: the `infer` keyword. It can be used anywhere in the type
+expression to the right of the `extends` keyword. It gives a name to whichever type would appear in that place.
+e.g.
 
-TypeScript already has some useful conditional types built-in. We could have used the first two in the previous
-section:
+```ts
+type Unpack<A> = A extends Array<infer E> ? E : A
 
+type Test = Unpack<Apple[]>
+// => Apple
+type Test = Unpack<Apple>
+// => Apple
 ```
-// Exclude from U those types that are assignable to T
-type Exclude<U, T> = U extends T ? never : U;
 
-// Extract from U those types that are assignable to T
-type Extract<U, T> = U extends T ? U : never;
+It handles ambiguity gracefully:
 
+```ts
+type Stairs = Unpack<Apple[] | Pear[]>
+// => Apple | Pear
+```
+
+You can even use `infer` multiple times.
+
+```ts
+type Flip<T> = T extends [infer A, infer B] ? [B, A] : never
+type Stairs = Flip<[Pear, Apple]>
+// => [Apple, Pear]
+
+type Union<T> = T extends [infer A, infer A] ? A : never
+type Stairs = Union<[Apple, Pear]>
+// => Apple | Pear
+```
+
+## Other built-in conditional types
+
+We've already seen `Exclude` and `Extract`, and TypeScript provides a few other conditional types out of the box.
+
+<!-- prettier-ignore -->
+```ts
 // Exclude null and undefined from T
-type NonNullable<T> = T extends null | undefined ? never : T;
+type NonNullable<T> =
+  T extends null | undefined ? never : T
+
+// Obtain the parameters of a function type in a tuple
+type Parameters<T> =
+  T extends (...args: infer P) => any ? P : never
+
+// Obtain the parameters of a constructor function type in a tuple
+type ConstructorParameters<T> =
+  T extends new (...args: infer P) => any ? P : never
+
+// Obtain the return type of a function type
+type ReturnType<T> =
+  T extends (...args: any[]) => infer R ? R : any
+
+// Obtain the return type of a constructor function type
+type InstanceType<T> =
+  T extends new (...args: any[]) => infer R ? R : any
 ```
+
+## Further reading
+
+- [TypeScript 2.8 release notes](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-2-8.html)
+- [Microsoft/Typescript#21316](https://github.com/Microsoft/TypeScript/pull/21316) Conditional types pull request
+- [Microsoft/Typescript#21496](https://github.com/Microsoft/TypeScript/pull/21496) `infer` pull request
+- [lib.es5.d.ts#L1446](https://github.com/Microsoft/TypeScript/blob/a2205ad53d8f65a129a552b752d1e06fee3d41fc/lib/lib.es5.d.ts#L1446)
+  built-in conditional type definitions
