@@ -370,7 +370,7 @@ David heaves a painful sigh of recognition.
         DRY stands for "Don't Repeat Yourself"
 
                     DAVID
-        I know, you've told me that before! Now
+        I know, you say that every time! Now
         get lost!
 
                     DRY DEVIL (V.O.)
