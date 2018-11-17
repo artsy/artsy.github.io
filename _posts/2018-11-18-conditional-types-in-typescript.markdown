@@ -1,7 +1,7 @@
 ---
 layout: epic
 title: Conditional types in TypeScript
-date: 2018-11-15
+date: 2018-11-18
 author: [david]
 categories: [programming, typescript]
 comment_id: 500
