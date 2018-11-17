@@ -1,37 +1,37 @@
 ---
 layout: epic
 title: Conditional types in TypeScript
-date: 2018-10-19
+date: 2018-11-15
 author: [david]
-categories: [programming, api, graphql, design]
-css: graphql
-comment_id: 495
+categories: [programming, typescript]
+comment_id: 500
 ---
 
-\_Note: This is a straightforward adaptation of a 35-minute presentation given at
-[Futurice London's TypeScript Night meetup](https://www.meetup.com/Futurice-London-Beer-Tech/events/255295412/),
-and therefore gives a lot more context than an ordinary blog post might. I hope a lot of that context is
-interesting and useful even for seasonsed TypeScript developers, but if you want the short-and-sweet version check
-out the
-[TypeScript 2.8 Release notes](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-2-8.html)
-instead.
-
-TypeScript 2.8, released earlier this year, came with a new feature that punches far above its weight: Conditional
-types.
-
-Conditional types probably aren't something you'll write every day, but you might end up using them indirectly all
-the time. That's because they're great for writing 'plumbing' or 'framework' code, and for dealing with API
-boundaries. So even though they're mainly a behind-the-scenes kind of tool, I think it's good to learn how the
-sausage is made. Then you can make sausage of your own! Typewurst! 🌭
+TypeScript 2.8, released earlier this year, came with a new feature that punches far above its weight.
 
 > Working through our (enormous) backlog of unsorted TypeScript "Suggestions" and it's remarkable how many of them
 > are solved by conditional types.
 
 -- [Ryan Cavanaugh](https://twitter.com/SeaRyanC/status/1029846761718702081), TypeScript maintainer
 
+Conditional types probably aren't something you'll write every day, but you might end up using them indirectly all
+the time. That's because they're great for 'plumbing' or 'framework' code, for dealing with API boundaries and
+other behind-the-scenes kinda stuff. So, dear reader, read on! It's always good to learn how the sausage is made.
+Then you can make sausage of your own.
+
+Typewurst! 🌭
+
+<!-- more -->
+
+_Note: This is a straightforward adaptation of a 35-minute presentation given at
+[Futurice London's TypeScript Night meetup](https://www.meetup.com/Futurice-London-Beer-Tech/events/255295412/),
+and therefore provides more context than an ordinary blog post might. I hope a lot of that context is interesting
+and useful even for seasoned TypeScript developers. If you'd prefer a no-frills experience, check out the
+[TypeScript 2.8 Release notes](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-2-8.html) ._
+
 ## Your first conditional type
 
-To get an initial impression of what conditional types are about, let's jump right into some code.
+Here's some plain JavaScript
 
 ```ts
 function process(text) {
@@ -41,12 +41,16 @@ function process(text) {
 process("foo").toUpperCase()
 ```
 
-Above I have a plain javascript function that processes some given text. And then I'm calling the function, and
-doing something with the result. Reading the code, it's clear to a human that this usage is safe. Notice that the
-function checks first whether the value is truthy before using it, so we know that whenever a string is passed in,
-a string will be returned.
+We define a function which processes text called `process`. Then `process` is called with a string as an argument,
+and finally the result is converted to uppercase.
 
-Let's add types to this function so we can let TypeScript worry about whether it is safe or not.
+Reading the code, it's clear to a human that the `.toUpperCase()` method call is safe. We can tell that whenever a
+string is passed in to `process`, a string will be returned.
+
+But notice that we could also pass something like `null` into the function, in which case `null` would be returned.
+Then calling `.toUpperCase()` on the result would be an error.
+
+Let's add types to this function so we can let TypeScript worry about whether we are using it safely or not.
 
 ```ts
 function process(text: string | null): string | null {
@@ -62,12 +66,12 @@ we try to use it like before?
 process("foo").toUpperCase()
 ```
 
-TypeScript complains because it thinks that the result of `process("foo")` might be null. It can't figure out the
-semantics of the function on its own.
+TypeScript complains because it thinks that the result of `process("foo")` might be `null`, even though we humans
+know that it won't be. It can't figure out the semantics of the function on its own.
 
 One way of helping TS understand the function better is to use 'overloading'. Overloading involves providing
-multiple type signatures for a single function, and letting TypeScript figure out which one is most appropriate in
-any given context.
+multiple type signatures for a single function, and letting TypeScript figure out which one to use in any given
+context.
 
 ```ts
 function process(text: null): null;
@@ -78,19 +82,18 @@ function process(text: any) {
 ```
 
 Here we've said that if we pass a `string`, it returns a `string`, and if we pass `null`, it returns `null`. _(The
-`any` type is ignored but still needs to be there for some reason 🤷‍♀️)_
+`any` type is ignored but still needs to be there for some reason_ 🤷‍️*)*
 
 That works nicely:
 
 ```ts
-// All clear! :)
+// All clear!
 process("foo").toUpperCase()
 //           ⌄ Type Error! :)
 process(null).toUpperCase()
 ```
 
-See that if we pass a string, TS doesn't complain, and if we pass null, there's a type error, just like you'd
-expect. But there's a problem:
+But there's another use case that doesn't work:
 
 ```ts
 declare const maybeFoo: string | null
@@ -101,7 +104,8 @@ process(maybeFoo)
 
 TypeScript won't let us pass something that is of type `string | null` because it's not smart enough to collapse
 the overloaded signatures when that's possible. So we can either add yet another overload signature for the
-`string | null` case, or we can be like (╯°□°）╯︵ ┻━┻ and switch to using **conditional types**.
+`string | null` case, or we can be like <span style="white-space: nowrap; font-family: sans-serif;">(╯°□°)╯︵
+┻━┻</span> and switch to using **conditional types**.
 
 ```ts
 function process<T extends string | null>(
@@ -135,22 +139,28 @@ In the `A extends B` condition.
 
 ## Assignability
 
-This `extends` keyword is the heart of a conditional type, and its semantics are very important and maybe a little
-counterintuitive if you come from a Java or C# background.
+This `extends` keyword is the heart of a conditional type. `A extends B` means precisely that any value of type `A`
+can safely be assigned to a variable of type `B`. In type system jargon we can say that "A is _assignable_ to B".
 
-To begin with, when we say that `A extends B`, what we really mean is that any value of type `A` can safely be
-assigned to a varaible of type `B`. In type system jargon we can say that "`A` is _assignable_ to `B`". But how
-does TypeScript decide whether one type is assignable to another?
+```ts
+declare const a: A
+const b: B = a
+// type check succeeds only if A is assignable to B
+```
 
-It uses a system called 'structural typing'. You might have heard of 'duck typing' in relation to dynamically-typed
-languages. The phrase 'duck typing' comes from the proverb
+TypeScript decides which types are assignable to each other using an approach called 'structural typing'. This kind
+of type system started appearing in mainstream languages relatively recently (in the last 10 years or so), and
+might be a little counterintuitive if you come from a Java or C# background.
+
+You might have heard of 'duck typing' in relation to dynamically-typed languages. The phrase 'duck typing' comes
+from the proverb
 
 > If it looks like a duck, swims like a duck, and quacks like a duck, then it probably is a duck.
 
 In duck typing, you judge a thing by how it behaves, rather than what it is called or who its parents are. It's a
-kind of meritocracy. Structural typing is a way of applying that same idea to static typing. So, when it comes to
-assignability, TypeScript only cares about what types can do, not what they are called or where they exist in a
-type hierarchy.
+kind of meritocracy. Structural typing is a way of applying that same idea to a static compile-time type system.
+
+So TypeScript only cares about what types can do, not what they are called or where they exist in a type hierarchy.
 
 Take this simple example:
 
@@ -171,9 +181,9 @@ equivalent.
 This is a notable example of where the semantics of TypeScript are at odds with JavaScript. It might seem like a
 problem, but in practice structural typing is a lot more flexible than Java-esque 'nominal' typing, where names and
 hierarchy matter. The two aren't mutually exclusive, however. Some languages, like Scala and Flow, allow you to mix
-and match.
+and match to suit particular problems.
 
-Aside from that, the way that assignability works in TypeScript is quite intuitive.
+Aside from that, the way that assignability works with structural typing is very intuitive.
 
 ```ts
 interface Shape {
@@ -192,9 +202,9 @@ const circle: Circle = shape
 ```
 
 Speaking structurally we can say that `A extends B` is a lot like '`A` is a superset of `B`', or, to be more
-verbose, '`A` has all of `B`'s properties, and maybe some more'.
+verbose, '`A` has all of `B`'s properties, _and maybe some more_'.
 
-There's one minor caveat though, and that's with literal types. In TypeScript you can use literal values of
+There's one minor caveat though, and that's with 'literal' types. In TypeScript you can use literal values of
 primitive types as types themselves.
 
 ```ts
@@ -207,20 +217,33 @@ fruit = "apple"
 The string `"banana"` doesn't have any more or fewer properties than any other `string`. But the type `"banana"`
 is, conceptually, more _specific_ than the type `string`.
 
-So another way to think of it is that `A extends B` is like '`A` is a possibly-more-specific version of `B`'.
+So another way to think of `A extends B` is like '`A` is a possibly-more-specific version of `B`'.
 
 Which brings us to 'top' and 'bottom' types: the _least_ and _most_ specific types, respectively.
 
 In type theory a 'top' type is one which all other types are assignable to. It is the type you use to say "I have
-absolutely no information about what this value is". TypeScript has two top types: `any` and `unknown`.
+absolutely no information about what this value is". Think of it as the union of all possible types:
+
+```ts
+type Top = string | number | {foo: Bar} | Baz[] | ... | ∞
+```
+
+TypeScript has two top types: `any` and `unknown`.
 
 - Using `any` is like saying "I have no idea what this value looks like. So, TypeScript, please assume I'm using it
-  correctly, and don't complain if anything I do seems unsafe.".
+  correctly, and don't complain if anything I do seems dangerous".
 - Using `unknown` is like saying "I have no idea what this value looks like. So, TypeScript, please make sure I
   check what it is capable of at run time."
 
-A 'bottom' type is one which no other types are assignable to, and that no values can be an instance of. TypeScript
-has one bottom type: `never`. That's a nice descriptive name because it literally means _this can never happen_.
+A 'bottom' type is one which no other types are assignable to, and that no values can be an instance of. Think of
+it as the empty union type:
+
+```ts
+type Bottom = ∅
+```
+
+TypeScript has one bottom type: `never`. That's a nice descriptive name because it literally means _this can never
+happen_.
 
 Top and bottom types are useful to know about when working with conditional types. `never` is especially useful
 when using conditional types to refine unions...
@@ -283,8 +306,8 @@ section.
 
 A while ago I was building a Chrome extension. It had a 'background' script and a 'view' script that ran in
 different execution contexts. They needed to communicate and share state, and the only way to do that is via
-serializable message passing. I took inspiration from Redux and defined a global union type called `Action` to
-model the messages that I wanted to be able to pass between the contexts.
+serializable message passing. I took inspiration from Redux and defined a global union of interfaces called
+`Action` to model the messages that I wanted to be able to pass between the contexts.
 
 ```ts
 type Action =
@@ -331,68 +354,77 @@ dispatch({
 })
 ```
 
-These usages are all typesafe and good and I could have left it there. I could have moved on to other things.
+<a
+  target="_blank"
+  style="font-size: 0.8em"
+  href="https://www.typescriptlang.org/play/#src=type%20Action%20%3D%0D%0A%20%20%7C%20%7B%0D%0A%20%20%20%20%20%20type%3A%20%22INIT%22%0D%0A%20%20%20%20%7D%0D%0A%20%20%7C%20%7B%0D%0A%20%20%20%20%20%20type%3A%20%22SYNC%22%0D%0A%20%20%20%20%7D%0D%0A%20%20%7C%20%7B%0D%0A%20%20%20%20%20%20type%3A%20%22LOG_IN%22%0D%0A%20%20%20%20%20%20emailAddress%3A%20string%0D%0A%20%20%20%20%7D%0D%0A%20%20%7C%20%7B%0D%0A%20%20%20%20%20%20type%3A%20%22LOG_IN_SUCCESS%22%0D%0A%20%20%20%20%20%20accessToken%3A%20string%0D%0A%20%20%20%20%7D%0D%0A%0D%0Adeclare%20function%20dispatch(action%3A%20Action)%3A%20void%0D%0A%0D%0Adispatch(%7B%0D%0A%20%20type%3A%20%22INIT%22%0D%0A%7D)%0D%0A%0D%0Adispatch(%7B%0D%0A%20%20type%3A%20%22LOG_IN%22%2C%0D%0A%20%20emailAddress%3A%20%22david.sheldrick%40artsy.net%22%0D%0A%7D)%0D%0A%0D%0Adispatch(%7B%0D%0A%20%20type%3A%20%22LOG_IN_SUCCESS%22%2C%0D%0A%20%20accessToken%3A%20%22038fh239h923908h%22%0D%0A%7D)">
+_Try it in the TypeScript playground_ </a>
+
+This API is typesafe and it plays well with my IDE's autocomplete and I could have left it there. I could have
+moved on to other things.
 
 But there's this little voice inside my head. I think most developers have this voice.
 
-```
+<pre style="background: transparent; color: #333; border: 0; box-shadow: none; padding: 0;">
 INT. HIPSTER CO-WORKING SPACE - DAY
 
-DAVID sits on an orange bean bag. His laptop rests askew on
-his lap. He stares at colorful text on a dark screen.
+DAVID sits on an oddly-shaped orange chair.
+His MacBook rests askew on a lumpy reclaimed
+wood desk. He stares at colorful text on a
+dark screen.
 
 A tiny whisper.
 
-                    VOICE (V.O.)
-        Psst!
+              VOICE (V.O.)
+    Psst!
 
-David looks around for a moment and then stares back at the
-laptop.
+David looks around for a moment and then
+stares back at the laptop.
 
-                    VOICE (V.O.)
-        Psst! Hey!
+              VOICE (V.O.)
+    Psst! Hey!
 
-Startled this time, David looks around again. He speaks to
-nobody in particular.
+Startled this time, David looks around
+again. He speaks to nobody in particular.
 
-                    DAVID
-        Is someone there?
+              DAVID
+    Is someone there?
 
-                    VOICE (V.O.)
-        It's me, the DRY devil.
+              VOICE (V.O.)
+    It's me, the DRY devil.
 
 David heaves a painful sigh of recognition.
 
-                    DAVID
-        Not you again! Leave me alone!
+              DAVID
+    Not you again! Leave me alone!
 
-                    DRY DEVIL (V.O.)
-        DRY stands for "Don't Repeat Yourself"
+              DRY DEVIL (V.O.)
+    DRY stands for "Don't Repeat Yourself"
 
-                    DAVID
-        I know, you say that every time! Now
-        get lost!
+              DAVID
+    I know, you say that every time! Now
+    get lost!
 
-                    DRY DEVIL (V.O.)
-        I've noticed an issue with your code.
+              DRY DEVIL (V.O.)
+    I've noticed an issue with your code.
 
-                    DAVID
-        Seriously, go away! I'm busy solving
-        user problems to create business value.
+              DAVID
+    Seriously, go away! I'm busy solving
+    user problems to create business value.
 
-                    DRY DEVIL (V.O.)
-        Every time you call `dispatch` you
-        are typing 6 redundant characters.
+              DRY DEVIL (V.O.)
+    Every time you call `dispatch` you
+    are typing 6 redundant characters.
 
-                    DAVID
-        Oh snap! You're right! I must fix this.
+              DAVID
+    Oh snap! You're right! I must fix this.
 
 MONTAGE
 
-David spends the next 2 hours wrestling with TypeScript,
-accumulating a pile of empty coffee cups and protein ball
-wrappers.
-```
+David spends the next 2 hours wrestling
+with TypeScript, accumulating a pile of
+empty coffee cups and protein ball wrappers.
+</pre>
 
 We've all been there.
 
@@ -406,15 +438,15 @@ dispatch("LOG_IN_SUCCESS", {
 })
 ```
 
-Deriving the type for that first argument is easy enough
+Deriving the type for that first argument is easy enough:
 
 ```ts
 type ActionType = Action["type"]
-// => "INIT" | "LOG_IN" | "LOG_IN_SUCCESS"
+// => "INIT" | "SYNC" | "LOG_IN" | "LOG_IN_SUCCESS"
 ```
 
-But what about the second argument? The exact type _depends on_ the first argument. We can use a type variable for
-that.
+But the type of the second argument _depends on_ the first argument. We can use a type variable to model that
+dependency.
 
 <!-- prettier-ignore -->
 ```ts
@@ -426,15 +458,15 @@ declare function dispatch<T extends ActionType>(
 
 _Woah woah woah, what's this_ `ExtractActionParameters` _voodoo?_
 
-It's a conditional type of course! Here's a first stab at implementing it:
+It's a conditional type of course! Here's a first attempt at implementing it:
 
 ```ts
 type ExtractActionParameters<A, T> = A extends { type: T } ? A : never
 ```
 
 This is a lot like the `ExtractCat` example from before, where we were were refining the `Animals` union by
-searching for something that can `meow()`. Here, we're refining the `Action` union type by searching for an action
-with a particular `type` property. Let's see if it works:
+searching for something that can `meow()`. Here, we're refining the `Action` union type by searching for an
+interface with a particular `type` property. Let's see if it works:
 
 ```ts
 type Test = ExtractActionParameters<Action, "LOG_IN">
@@ -444,11 +476,11 @@ type Test = ExtractActionParameters<Action, "LOG_IN">
 Almost there! We don't want to keep the `type` field after extraction because then we would still have to specify
 it when calling `dispatch`. And that would somewhat defeat the purpose of this entire exercise.
 
-We can get rid the `type` field by combining a **mapped type** with a conditional type and the `keyof` operator.
+We can omit the `type` field by combining a **mapped type** with a conditional type and the `keyof` operator.
 
-A **mapped type** lets you create a new type by 'mapping' over a union of keys. You can get a union of keys from an
-existing type by using the `keyof` operator. And finally, you can remove things from a union using a conditional
-type. Here's how they play together (with some inline test cases for illustration):
+A **mapped type** lets you create a new interface by 'mapping' over a union of keys. You can get a union of keys
+from an existing interface by using the `keyof` operator. And finally, you can remove things from a union using a
+conditional type. Here's how they play together (with some inline test cases for illustration):
 
 ```ts
 type ExcludeTypeKey<K> = K extends "type" ? never : K
@@ -472,7 +504,7 @@ type ExtractActionParameters<A, T> = A extends { type: T }
   : never
 ```
 
-And now the new version of `dipsatch` is type safe!
+And now the new version of `dipsatch` is typesafe!
 
 ```ts
 // All clear! :)
@@ -491,15 +523,21 @@ dispatch("BAD_TYPE", {
 })
 ```
 
+<a
+  target="_blank"
+  style="font-size: 0.8em"
+  href="https://www.typescriptlang.org/play/#src=type%20Action%20%3D%0D%0A%20%20%7C%20%7B%0D%0A%20%20%20%20%20%20type%3A%20%22INIT%22%0D%0A%20%20%20%20%7D%0D%0A%20%20%7C%20%7B%0D%0A%20%20%20%20%20%20type%3A%20%22SYNC%22%0D%0A%20%20%20%20%7D%0D%0A%20%20%7C%20%7B%0D%0A%20%20%20%20%20%20type%3A%20%22LOG_IN%22%0D%0A%20%20%20%20%20%20emailAddress%3A%20string%0D%0A%20%20%20%20%7D%0D%0A%20%20%7C%20%7B%0D%0A%20%20%20%20%20%20type%3A%20%22LOG_IN_SUCCESS%22%0D%0A%20%20%20%20%20%20accessToken%3A%20string%0D%0A%20%20%20%20%7D%0D%0A%0D%0Atype%20ActionType%20%3D%20Action%5B%22type%22%5D%0D%0A%0D%0Adeclare%20function%20dispatch%3CT%20extends%20ActionType%3E(%0D%0A%20%20%20%20type%3A%20T%2C%0D%0A%20%20%20%20args%3A%20ExtractActionParameters%3CAction%2C%20T%3E%0D%0A)%3A%20void%0D%0A%0D%0Atype%20ExcludeTypeKey%3CK%3E%20%3D%20K%20extends%20%22type%22%20%3F%20never%20%3A%20K%0D%0A%0D%0Atype%20ExcludeTypeField%3CA%3E%20%3D%20%7B%20%5BK%20in%20ExcludeTypeKey%3Ckeyof%20A%3E%5D%3A%20A%5BK%5D%20%7D%0D%0A%0D%0Atype%20ExtractActionParameters%3CA%2C%20T%3E%20%3D%20A%20extends%20%7B%20type%3A%20T%20%7D%0D%0A%20%20%20%20%3F%20ExcludeTypeField%3CA%3E%0D%0A%20%20%20%20%3A%20never%0D%0A%20%20%0D%0A%2F%2F%20All%20clear!%20%3A)%0D%0Adispatch(%22LOG_IN_SUCCESS%22%2C%20%7B%0D%0A%20%20%20%20accessToken%3A%20%22038fh239h923908h%22%0D%0A%7D)%0D%0A%0D%0Adispatch(%22LOG_IN_SUCCESS%22%2C%20%7B%0D%0A%20%20%20%20%2F%2F%20Type%20Error!%20%3A)%0D%0A%20%20%20%20badKey%3A%20%22038fh239h923908h%22%0D%0A%7D)%0D%0A%0D%0A%2F%2F%20Type%20Error!%20%3A)%0D%0Adispatch(%22BAD_TYPE%22%2C%20%7B%0D%0A%20%20%20%20accessToken%3A%20%22038fh239h923908h%22%0D%0A%7D)">
+_Try it in the TypeScript playground_ </a>
+
 But there's one more very serious problem to address: If the action has no extra parameters, I still have to pass a
-second empty argument:
+second empty argument.
 
 ```ts
 dispatch("INIT", {})
 ```
 
-That's four whole wasted characters! Cancel my meetings and tell my partner not to wait up tonight, we are going to
-_fix this_.
+That's four whole wasted characters! Cancel my meetings and tell my partner not to wait up tonight! We need to
+_fix. this_.
 
 The naïve thing to do would be to make the second argument optional. That would be unsafe because, e.g. it would
 allow us to dispatch a `"LOG_IN"` action without specifying an `emailAddress`.
@@ -520,7 +558,7 @@ declare function dispatch<T extends ActionType>(
 type SimpleActionType = ExtractSimpleAction<Action>['type']
 ```
 
-But how can we define this `ExtractSimpleAction` conditional type? We know that if we remove the `type` field from
+How can we define this `ExtractSimpleAction` conditional type? We know that if we remove the `type` field from
 an action and the result is an empty interface, then that is a simple action. So something like this might work
 
 ```ts
@@ -530,7 +568,7 @@ type ExtractSimpleAction<A> = ExcludeTypeField<A> extends {} ? A : never
 Except that doesn't work. `ExcludeTypeField<A> extends {}` is always going to be true, because `{}` is like a top
 type for interfaces. _Pretty much everything_ is more specific than `{}`.
 
-So we have to switch the arguments around:
+We need to swap the arguments around:
 
 ```ts
 type ExtractSimpleAction<A> = {} extends ExcludeTypeField<A> ? A : never
@@ -544,24 +582,41 @@ But this still doesn't work! On-the-ball readers might remember this:
 > `extends` keyword is a plain type variable. We'll see what that means and how to work around it in the next
 > section.
 
--- Me
+-- Me, in the previous section
 
-_We're in the next section right now_ 🤯.
+Type variables are always defined in a generic parameter list, delimited by `<` and `>`. e.g.
 
-A plain type variable looks like this: `A`. Or like this: `Foo`. Or like this: `ROFL`.
+```ts
+type Blah<These, Are, Type, Variables> = ...
 
-A plain type variable does not look like this: `{}`. Or like this: `ExcludeTypeField<A>`. And probably not like
-this: `string`.
+function blah<And, So, Are, These>() {
+  ...
+}
+```
 
-TODO: Explicitly define a type variable. This is not great.
+And if you want a conditional type to distribute over a union, the union a) needs to have been bound to a type
+variable, and b) that variable needs to appear alone to the left of the `extends` keyword.
 
-When I discovered that the thing to the left of `extends` needed to be a plain type variable I thought that it
-signalled a fundamental limitation in the way distributive conditional types work under the hood. I thought it was
-some kind of concession to algorithmic complexity. I thought that my use case was too advanced, and that TypeScript
-had just thrown its hands up in the air and said, "Sorry mate, you're on your own".
+e.g. this is a distributive conditional type:
 
-But it turns out I was wrong. This is just a bizzare and unintuitive bit of language design and you can work around
-it easily:
+```ts
+type Blah<Var> = Var extends Whatever ? A : B
+```
+
+and these are not:
+
+```ts
+type Blah<Var> = Foo<Var> extends Whatever ? A : B
+type Blah<Var> = Whatever extends Var ? A : B
+```
+
+When I discovered this limitation I thought that it exposed a fundamental shortcoming in the way distributive
+conditional types work under the hood. I thought it might be some kind of concession to algorithmic complexity. I
+thought that my use case was too advanced, and that TypeScript had just thrown its hands up in the air and said,
+"Sorry mate, you're on your own".
+
+But it turns out I was wrong. It is just a pragmatic language design decision to avoid extra syntax, and you can
+work around it easily:
 
 <!-- prettier-ignore -->
 ```ts
@@ -575,20 +630,17 @@ type ExtractSimpleAction<A> = A extends any
 All we did is wrap the meat of our logic in a flimsy tortilla of inevitability, since the outer condition
 `A extends any` will, of course, always be true.
 
-The unrolling happens specifically to `A` because that's just how you decide which union to unroll: by placing it
-to the left of `extends`.
-
 And finally we can delete those four characters 🎉🕺🏼💃🏽🎈
 
 ```ts
 dispatch("INIT")
 ```
 
-One yak successfully shaved ✔
+That's one yak successfully shaved ✔
 
 ---
 
-TypeScript has a couple of built-in types that we could have used in this section:
+TypeScript provides a couple of built-in types that we could have used in this section:
 
 ```ts
 // Exclude from U those types that are assignable to T
@@ -625,7 +677,15 @@ we could have done this:
 type ExtractActionParameters<A, T> = ExcludeTypeField<Extract<A, { type: T }>>
 ```
 
-TODO: add ts playground links for the various stages of this tutorial
+## 💡 Exercise for the intrepid reader
+
+Notice that this still works.
+
+```ts
+dispatch("INIT", {})
+```
+
+Use what you've learned so far to make it an error to supply a second argument for 'simple' actions.
 
 ## Destructuring types with `infer`
 
