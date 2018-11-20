@@ -25,12 +25,12 @@ There are a few services out there that connect to [GitHub][github] and helps yo
 date. I'd personally used [Greenkeeper][greenkeeper] in the past and it seemed to work fairly well for my uses. I'd
 also heard about [Renovate][renovate] which is another option that actually supports more package managers than
 just yarn/npm. Great! Plenty to evaluate here. Anytime I'm evaluating a new service there are a few questions I ask
-myself upfront to help a good decision.
+myself upfront to help a good decision:
 
 1. What are my exact needs
 2. Can this solution scale to meet future needs
 
-The first point straight-forward, but there's a little twist. We have a _lot_ of dependencies. If we got PRs for
+The first point is straight-forward, but there's a little twist. We have a _lot_ of dependencies. If we got PRs for
 all of them we'd be pretty much unable to do anything. In this case we wanted to specifically limit it to packages
 that are published by Artsy (on the `@artsy` npm namespace).
 
