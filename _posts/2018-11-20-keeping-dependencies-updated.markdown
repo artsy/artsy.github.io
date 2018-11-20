@@ -55,11 +55,12 @@ package managers, and had a more friendly pricing scheme than [Greenkeeper][gree
 
 ### Making it happen
 
-Started by enabling [Renovate][renovate] on [Force][force]. You can see the PR [here][renovate-pr].
-[Renovate][renovate] has a really excellent on-boarding experience where it creates an initial PR with the
-configuration that'll let you know which packages will be updated before it ever creates a PR to update anything.
-If you click the edited dropdown on the PR body you'll see all the changes renovate made to the issue while I was
-trying to figure out the configuration.
+I began by enabling [Renovate][renovate] on [Force][force]. You can see the PR [here][renovate-pr].
+[Renovate][renovate] has a _really_ excellent on-boarding experience. It first creates a PR that adds its own
+configuration. It shows you what packages will be updated based on that configuration. As you update the config,
+Renovate will update the PR body to show you the results of your changes. This gives you the opportunity to update
+the configuration before it officially activates. If you click the edited dropdown on the PR body you'll see all
+the changes Renovate made to the issue while I was trying to figure out the configuration.
 
 ![GitHub PR edit history](/images/2018-11-20-keeping-dependencies-updated/issue-history.png)
 
@@ -79,6 +80,7 @@ First, I extended [Renovate][renovate]'s base config.
 
 If you've worked with [eslint][eslint], [babel][babel-extends], or other tools in the js ecosystem, you've probably
 seen this type of configuration extension. It essentially allows us to use their best practices out of the box.
+Check out their [presets repo][renovate-presets] if you want to know what it adds specifically.
 
 Next, I set the [assignees][assignees]. When [Renovate][renovate] opens a new PR, it'll assign it to these people
 so that the PR doesn't get missed.
@@ -119,8 +121,8 @@ a blog post for another day.
 
 Be well friends.
 
-[design-system]:
-  https://www.uxpin.com/studio/blog/design-systems-vs-pattern-libraries-vs-style-guides-whats-difference/
+<!-- prettier-ignore -->
+[design-system]: https://www.uxpin.com/studio/blog/design-systems-vs-pattern-libraries-vs-style-guides-whats-difference/
 [positron]: https://github.com/artsy/positron
 [palette]: https://github.com/artsy/palette
 [force]: https://github.com/artsy/force
@@ -136,3 +138,6 @@ Be well friends.
 [renovate-vulnerabilityalerts]: https://renovatebot.com/docs/configuration-options/#vulnerabilityalerts
 [babel-extends]: https://babeljs.io/docs/en/options#extends
 [eslint-extends]: https://eslint.org/docs/user-guide/configuring#extending-configuration-files
+
+<!-- prettier-ignore -->
+[renovate-presets]: https://github.com/renovatebot/presets/blob/ef6a6e2e6d3e6ba25239d57d808b0e4dc64f32a3/packages/renovate-config-config/package.json#L19-L34
