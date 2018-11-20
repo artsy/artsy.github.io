@@ -23,7 +23,7 @@ Pull Requests to get everything synced up across our many projects. And that's j
 
 There are a few services out there that connect to [GitHub][github] and helps you keep your dependencies up to
 date. I'd personally used [Greenkeeper][greenkeeper] in the past and it seemed to work fairly well for my uses. I'd
-also heard about [Renovate][renvoate] which is another option that actually supports more package managers than
+also heard about [Renovate][renovate] which is another option that actually supports more package managers than
 just yarn/npm. Great! Plenty to evaluate here. Anytime I'm evaluating a new service there are a few questions I ask
 myself upfront to help a good decision.
 
@@ -47,11 +47,11 @@ Essentially any package that you don't want [GreenKeeper][greenkeeper] to automa
 ignore list. That's not really doable in our usecase because we want to ignore everything but a small subset of
 packages.
 
-Checking out [Renovate][renvoate]'s docs I found a more promising option:
+Checking out [Renovate][renovate]'s docs I found a more promising option:
 [excludePackagePatterns][renovate-exclude]. All I really want to do is include Artsy packages, but this sounded
 like I could do the inverse by excluding all non-Artsy packages. Being as it had that option, supported more
 package managers, and had a more friendly pricing scheme than [Greenkeeper][greenkeeper] I decided to give
-[Renovate][renvoate] a shot.
+[Renovate][renovate] a shot.
 
 ### Making it happen
 
@@ -100,7 +100,7 @@ The actual meat of the change is the `packageRules` setup.
 [Renovate][renovate] allows you to set up multiple different `packageRules` and there's a lot of configuration for
 them. I'm not going to go through more than I did, but feel free to read more in their
 [docs][renovate-packagerules-docs]. In the `packageRule` that I setup, I specified `packagePatterns` with an
-astrisk to select all dependencies. Then using `excludePackagePatteners` I excluded anything that started with
+asterisk to select all dependencies. Then using `excludePackagePatteners` I excluded anything that started with
 `@artsy`. Finally (and most importantly), I set `enabled` to `false` to disable the dependencies matching those
 combinations of rules. That last part took me a while to figure out. When you're building package rules in
 [Renovate][renovate], think of it as building out a list of operations to perform.
