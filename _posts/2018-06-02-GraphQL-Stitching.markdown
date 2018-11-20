@@ -1,7 +1,7 @@
 ---
 layout: epic
 title: GraphQL Stitching 101
-date: 2018-06-02
+date: 2018-11-19
 author: [orta]
 categories: [graphql, stitching, metaphysics]
 css: graphql
@@ -12,28 +12,27 @@ Micro-Services make sense. You can scope a domain of your business to particular
 API. Doing so makes it easy to work in isolation, experiment with new ideas and evolve in many directions.
 
 We've been [carefully pushing][monolith] for years to move away from our single monolithic API, to a collection of
-smaller, more focused projects. This is great from a platform/systems perspective but is a bit tricky to handle from
-major front-end clients. The main way that we've addressed this has been to store a lot of that complexity inside
-our main GraphQL API, [metaphyics][mp].
+smaller, more focused projects. Our [highlights docs][high] showcase this well. The movement to smaller composable services works great 
+from an isolated platform/systems perspective but can be a bit tricky to handle with front-end clients. Until 2018, the way that we've addressed the growing complexity in our service later has been to migrate the complexity inside our main GraphQL API, [metaphyics][mp]. Metaphysics is our API gateway that consolidates many API resources into a single source.
 
-As more services have been created, and grown - so has metaphysics. This creates a worrying trend. Our main
-line-of-thought on how to address this is via GraphQL Stitching. This post goes into some of the implementation
-details, and ideas.
+However, as more services have been created, and grown - so has metaphysics. This creates a worrying trend, as the growth isn't quite linear. 
+
+Our main line-of-thought on how to address this is via GraphQL schema stitching. We've been [running experiments][ex] in stitching for over a year, and have  have been running with stitching enabled in production for a few months.
 
 <!-- more -->
 
 ## What is Schema Stitching?
 
-Schema Stitching came out at the [end of 2017][stitching_out] and became very production-[ready in April
+The core idea behind schema stitching is that because GraphQL talks in type systems, you should be able to 
+merge type systems from many GraphQL APIs into a single source of truth. Schema Stitching came out at the [end of 2017][stitching_out] via the [`graphql-tools`][tools] and became very production-[ready in April
 2018][stitching_announcement].
 
-We started experimenting last year and, we have all the code [in metaphysics][stitch_mp], but it's still behind a
-feature flag. Every so often an engineer picks the project back up and we get a little bit closer to having it
-running in production. Safe, incremental evolutions over bold revolution.
 
-Here's a quick glossary of terms before we start:
+We started experimenting last year and would occasionally run it on staging to discover edge case issues. This meant the state of the project would ebb & flow between a blocked, or no-one having the bandwidth to work on it. This was fine, because our aim was [incremental evolutions over bold revolution][rev].
 
-* **GraphQL Schema** - a representation of your GraphQL's type system, containing all Types and fields on them
+Before we dive into implementation details, here's a quick glossary of terms before we start:
+
+* **GraphQL Schema** - a  representation of your GraphQL's type system, containing all Types and fields on them
 * **GraphQL Resolver** - every field accessed in a query has a corresponding resolver
 * **Schema Merging** - taking two GraphQL schemas, and merging all the Types and resolvers
 * **Schema Stitching** - extending a GraphQL Schema by using Types from another schema
@@ -315,3 +314,7 @@ Would I recommend it if you're starting to map many services inside a single poi
 [init]: https://github.com/artsy/metaphysics/commit/50b23f1738b9fa9757ff83c2d1e0d265c70e4e90
 [mn]: https://www.freiksenet.com
 [igtf]: http://artsy.github.io/blog/2018/05/08/is-graphql-the-future/
+[high]: https://github.com/artsy/README/blob/master/culture/highlights.md#highlights
+[ex]: https://github.com/artsy/metaphysics/pull/809
+[rev]: https://github.com/artsy/README/blob/master/culture/engineering-principles.md#incremental-revolution
+[tools]: https://github.com/apollographql/graphql-tools/
