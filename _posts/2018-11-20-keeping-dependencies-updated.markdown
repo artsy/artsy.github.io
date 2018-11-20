@@ -14,14 +14,14 @@ describing infrastructure and tooling work here at Artsy.
 
 Here at Artsy we have a lot of internal dependencies. Keeping these dependencies up to date across all of our
 projects can be a bit of a headache. For example, there's [Palette][palette] (our [design system][design-system])
-which is consumed by [Reaction][reaction] (our react component/app library), [Emission][emission] (our react native
+which is consumed by [Reaction][reaction] (our react component/app library), [Emission][emission] (our React Native
 application), [Force][force] (our main site), and [Positron][positron] (our editorial creation tool). That's not
 even an exhaustive list. As you can imagine, after making an update to [Palette][palette] we have to make a lot of
 Pull Requests to get everything synced up across our many projects. And that's just _one_ dependency.
 
 ### Evaluating the problem
 
-There are a few services out there that connect to [Github][github] and helps you keep your dependencies up to
+There are a few services out there that connect to [GitHub][github] and helps you keep your dependencies up to
 date. I'd personally used [Greenkeeper][greenkeeper] in the past and it seemed to work fairly well for my uses. I'd
 also heard about [Renovate][renvoate] which is another option that actually supports more package managers than
 just yarn/npm. Great! Plenty to evaluate here. Anytime I'm evaluating a new service there are a few questions I ask
@@ -61,7 +61,7 @@ configuration that'll let you know which packages will be updated before it ever
 If you click the dropdown edited dropdown on the PR body you'll see all the changes renovate made to the issue
 while I was trying to figure out the configuration.
 
-![Github PR edit history](/images/2018-11-20-keeping-dependencies-updated/issue-history.png)
+![GitHub PR edit history](/images/2018-11-20-keeping-dependencies-updated/issue-history.png)
 
 It took me a while to figure everything out, just take a look at the [commit history][pr-commits]. I'm going to
 work through the final setup just to give you an idea of our setup.
