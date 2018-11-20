@@ -13,17 +13,17 @@ describing infrastructure and tooling work here at Artsy.
 ### Backstory
 
 Here at Artsy we have a lot of internal dependencies. Keeping these dependencies up to date across all of our
-projects can be a bit of a headache. For example, there's [Palette](palette) (our [design system](design-system))
-which is consumed by [Reaction](reaction) (our react component/app library), [Emission](emission) (our react native
-application), [Force](force) (our main site), and [Positron](positron) (our editorial creation tool). That's not
-even an exhaustive list. As you can imagine, after making an update to [Palette](palette) we have to make a lot of
+projects can be a bit of a headache. For example, there's [Palette][palette] (our [design system][design-system])
+which is consumed by [Reaction][reaction] (our react component/app library), [Emission][emission] (our react native
+application), [Force][force] (our main site), and [Positron][positron] (our editorial creation tool). That's not
+even an exhaustive list. As you can imagine, after making an update to [Palette][palette] we have to make a lot of
 Pull Requests to get everything synced up across our many projects. And that's just _one_ dependency.
 
 ### Evaluating the problem
 
-There are a few services out there that connect to [Github](github) and helps you keep your dependencies up to
-date. I'd personally used [Greenkeeper](greenkeeper) in the past and it seemed to work fairly well for my uses. I'd
-also heard about [Renovate](renvoate) which is another option that actually supports more package managers than
+There are a few services out there that connect to [Github][github] and helps you keep your dependencies up to
+date. I'd personally used [Greenkeeper][greenkeeper] in the past and it seemed to work fairly well for my uses. I'd
+also heard about [Renovate][renvoate] which is another option that actually supports more package managers than
 just yarn/npm. Great! Plenty to evaluate here. Anytime I'm evaluating a new service there are a few questions I ask
 myself upfront to help a good decision.
 
@@ -42,30 +42,31 @@ ton of noise.
 ### Picking a solution
 
 First things first... we have to have a solution that can update only Artsy's dependencies. I started digging
-through [Greenkeeper](greenkeeper)'s docs and found a reference to an [ignore](greenkeeper-ignore) option.
-Essentially any package that you don't want [GreenKeeper] to automatically update you can put in this ignore list.
-That's not really doable in our usecase because we want to ignore everything but a small subset of packages.
+through [Greenkeeper][greenkeeper]'s docs and found a reference to an [ignore][greenkeeper-ignore] option.
+Essentially any package that you don't want [GreenKeeper][greenkeeper] to automatically update you can put in this
+ignore list. That's not really doable in our usecase because we want to ignore everything but a small subset of
+packages.
 
-Checking out [Renovate](renvoate)'s docs I found a more promising option:
-[excludePackagePatterns](renovate-exclude). All I really want to do is include Artsy packages, but this sounded
+Checking out [Renovate][renvoate]'s docs I found a more promising option:
+[excludePackagePatterns][renovate-exclude]. All I really want to do is include Artsy packages, but this sounded
 like I could do the inverse by excluding all non-Artsy packages. Being as it had that option, supported more
-package managers, and had a more friendly pricing scheme than [Greenkeeper](greenkeeper) I decided to give
-[Renovate](renvoate) a shot.
+package managers, and had a more friendly pricing scheme than [Greenkeeper][greenkeeper] I decided to give
+[Renovate][renvoate] a shot.
 
 ### Making it happen
 
-Started by enabling [Renovate](renovate) on [Force](force). You can see the PR [here](renovate-pr).
-[Renovate](renovate) has a really excellent on-boarding experience where it creates an initial PR with the
+Started by enabling [Renovate][renovate] on [Force][force]. You can see the PR [here][renovate-pr].
+[Renovate][renovate] has a really excellent on-boarding experience where it creates an initial PR with the
 configuration that'll let you know which packages will be updated before it ever creates a PR to update anything.
 If you click the dropdown edited dropdown on the PR body you'll see all the changes renovate made to the issue
 while I was trying to figure out the configuration.
 
 ![Github PR edit history](/images/2018-11-20-keeping-dependencies-updated/issue-history.png)
 
-It took me a while to figure everything out, just take a look at the [commit history](pr-commits). I'm going to
+It took me a while to figure everything out, just take a look at the [commit history][pr-commits]. I'm going to
 work through the final setup just to give you an idea of our setup.
 
-First, I extended [Renovate]()'s base config.
+First, I extended [Renovate][renovate]'s base config.
 
 ```
 {
@@ -76,8 +77,8 @@ First, I extended [Renovate]()'s base config.
 }
 ```
 
-If you've worked with [eslint](eslint), [babel](babel), or other tools in the js ecosystem, you've probably seen
-this type of configuration extension. It essentially allows us to use their best practices out of the box.
+If you've worked with [eslint][eslint], [babel][babel-extends], or other tools in the js ecosystem, you've probably
+seen this type of configuration extension. It essentially allows us to use their best practices out of the box.
 
 Next, I set the [assignees][assignees]. When [Renovate][renovate] opens a new PR, it'll assign it to these people
 so that the PR doesn't get missed.
@@ -118,7 +119,20 @@ a blog post for another day.
 
 Be well friends.
 
+[design-system]:
+  https://www.uxpin.com/studio/blog/design-systems-vs-pattern-libraries-vs-style-guides-whats-difference/
+[positron]: https://github.com/artsy/positron
+[palette]: https://github.com/artsy/palette
+[force]: https://github.com/artsy/force
+[reaction]: https://github.com/artsy/reaction
+[renovate]: https://renovatebot.com/
+[renovate-exclude]: https://renovatebot.com/docs/configuration-options/#excludepackagepatterns
+[greenkeeper]: https://greenkeeper.io/
+[greenkeeper-ignore]: https://greenkeeper.io/docs.html#ignoring-dependencies
 [pr-commits]: https://github.com/artsy/force/pull/3086/commits
 [assignees]: https://help.github.com/articles/assigning-issues-and-pull-requests-to-other-github-users/
 [renovate-packagerules-docs]: https://renovatebot.com/docs/configuration-options/#packagerules
 [artsy-renovate-config]: https://github.com/artsy/renovate-config
+[renovate-vulnerabilityalerts]: https://renovatebot.com/docs/configuration-options/#vulnerabilityalerts
+[babel-extends]: https://babeljs.io/docs/en/options#extends
+[eslint-extends]: https://eslint.org/docs/user-guide/configuring#extending-configuration-files
