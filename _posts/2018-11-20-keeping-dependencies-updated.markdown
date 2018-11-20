@@ -58,8 +58,8 @@ package managers, and had a more friendly pricing scheme than [Greenkeeper][gree
 Started by enabling [Renovate][renovate] on [Force][force]. You can see the PR [here][renovate-pr].
 [Renovate][renovate] has a really excellent on-boarding experience where it creates an initial PR with the
 configuration that'll let you know which packages will be updated before it ever creates a PR to update anything.
-If you click the dropdown edited dropdown on the PR body you'll see all the changes renovate made to the issue
-while I was trying to figure out the configuration.
+If you click the edited dropdown on the PR body you'll see all the changes renovate made to the issue while I was
+trying to figure out the configuration.
 
 ![GitHub PR edit history](/images/2018-11-20-keeping-dependencies-updated/issue-history.png)
 
