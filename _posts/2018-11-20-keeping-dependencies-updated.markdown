@@ -7,8 +7,8 @@ categories: [best practices, dependencies, javascript, node, roads and bridges]
 ---
 
 Hey everyone! I'm Justin, a senior engineer here at Artsy. I've been here for about 6 months and I'm a bit overdue
-on my first blog post. This will be one of a series of posts I'm dubbing _roads and bridges_ (a catch phrase I'm
-stealing from Orta).
+on my first blog post. This will be one of a series of posts I'm dubbing _roads and bridges_ (thanks Orta)
+describing infrastructure and tooling work here at Artsy.
 
 ### Backstory
 
