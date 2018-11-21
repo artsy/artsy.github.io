@@ -79,7 +79,7 @@ Another error we faced early on surrounded language features that worked with Ba
 ```
 ```js
 // index.js
-require('@babel/register', {
+require('@babel/register')({
   extensions: ['.js', '.jsx', '.ts', '.tsx']
 })
 require('app/server.ts')

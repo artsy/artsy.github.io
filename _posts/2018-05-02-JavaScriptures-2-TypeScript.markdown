@@ -2,7 +2,7 @@
 layout: epic
 title: "JavaScriptures 2 - TypeScript"
 date: 2018-05-02
-author: [orta, eloy, sarahscott]
+author: [eloy, sarahscott, orta]
 categories: [event, typescript, javascript]
 series: JavaScriptures
 ---

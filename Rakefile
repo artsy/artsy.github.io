@@ -10,6 +10,7 @@ desc 'Builds the site locally'
 task :build do
   puts 'Building site.'
   sh 'PRODUCTION="YES" jekyll build --destination _gh-pages'
+  sh 'PRODUCTION="YES" jekyll build --destination _gh-pages'
 end
 
 # Deprecated, but leaving shortcut in because I'm sure Orta, at least, has this
@@ -17,16 +18,25 @@ end
 task :init => :bootstrap
 
 namespace :serve do
+  def run_server(extra_flags = "")
+    jekyll = Process.spawn('PRODUCTION="NO" bundle exec jekyll serve --watch --port 4000 ' + extra_flags)
+    trap("INT") {
+      Process.kill(9, jekyll) rescue Errno::ESRCH
+      exit 0
+    }
+    Process.wait(jekyll)
+  end
+
   desc 'Runs a local server *with* draft posts and watches for changes'
   task :drafts do
     puts 'Starting the server locally on http://localhost:4000'
-    sh 'PRODUCTION="NO" jekyll serve --watch --drafts --port 4000'
+    run_server '--drafts'
   end
 
   desc 'Runs a local server *without* draft posts and watches for changes'
   task :published do
     puts 'Starting the server locally on http://localhost:4000'
-    sh 'PRODUCTION="NO" jekyll serve --watch --port 4000'
+    run_server
   end
 end
 
