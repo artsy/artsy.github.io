@@ -7,7 +7,7 @@ categories: [programming, typescript]
 comment_id: 500
 ---
 
-TypeScript 2.8, released earlier this year, came with a new feature that punches far above its weight.
+This year TypeScript gained a new feature that punches far above its weight.
 
 > Working through our (enormous) backlog of unsorted TypeScript "Suggestions" and it's remarkable how many of them
 > are solved by conditional types.
@@ -41,16 +41,13 @@ function process(text) {
 process("foo").toUpperCase()
 ```
 
-We define a function which processes text called `process`. Then `process` is called with a string as an argument,
-and finally the result is converted to uppercase.
-
 Reading the code, it's clear to a human that the `.toUpperCase()` method call is safe. We can tell that whenever a
 string is passed in to `process`, a string will be returned.
 
 But notice that we could also pass something like `null` into the function, in which case `null` would be returned.
 Then calling `.toUpperCase()` on the result would be an error.
 
-Let's add types to this function so we can let TypeScript worry about whether we are using it safely or not.
+Let's add basic types to this function so we can let TypeScript worry about whether we are using it safely or not.
 
 ```ts
 function process(text: string | null): string | null {
@@ -58,16 +55,15 @@ function process(text: string | null): string | null {
 }
 ```
 
-Here we've told TypeScript that the function takes a `string | null` and returns a `string | null`. What happens if
-we try to use it like before?
+Seems sensible. What happens if we try to use it like before?
 
 ```ts
 //            ⌄ Type Error! :(
 process("foo").toUpperCase()
 ```
 
-TypeScript complains because it thinks that the result of `process("foo")` might be `null`, even though we humans
-know that it won't be. It can't figure out the semantics of the function on its own.
+TypeScript complains because it thinks that the result of `process("foo")` might be `null`, even though we clever
+humans know that it won't be. It can't figure out the runtime semantics of the function on its own.
 
 One way of helping TS understand the function better is to use 'overloading'. Overloading involves providing
 multiple type signatures for a single function, and letting TypeScript figure out which one to use in any given
@@ -115,10 +111,9 @@ function process<T extends string | null>(
 }
 ```
 
-Here we create a generic type variable for the `text` parameter: `T`. It is constrained to be something that
-extends `string | null`. Then we use `T` as part of a conditional return type: `T extends string ? string : null`.
-You probably noticed that this looks just like a ternary expression! Indeed, it's doing the same kind of thing, but
-within the type system at compile time.
+Here we've introduced a type variable `T` for the `text` parameter. We can then use `T` as part of a conditional
+return type: `T extends string ? string : null`. You probably noticed that this looks just like a ternary
+expression! Indeed, it's doing the same kind of thing, but within the type system at compile time.
 
 And that takes care of all our use cases:
 
@@ -152,8 +147,8 @@ TypeScript decides which types are assignable to each other using an approach ca
 of type system started appearing in mainstream languages relatively recently (in the last 10 years or so), and
 might be a little counterintuitive if you come from a Java or C# background.
 
-You might have heard of 'duck typing' in relation to dynamically-typed languages. The phrase 'duck typing' comes
-from the proverb
+You may have heard of 'duck typing' in relation to dynamically-typed languages. The phrase 'duck typing' comes from
+the proverb
 
 > If it looks like a duck, swims like a duck, and quacks like a duck, then it probably is a duck.
 
@@ -214,8 +209,8 @@ let fruit: "banana" = "banana"
 fruit = "apple"
 ```
 
-The string `"banana"` doesn't have any more or fewer properties than any other `string`. But the type `"banana"`
-is, conceptually, more _specific_ than the type `string`.
+The string `"banana"` doesn't have more properties than any other `string`. But the type `"banana"` is
+still more _specific_ than the type `string`.
 
 So another way to think of `A extends B` is like '`A` is a possibly-more-specific version of `B`'.
 
@@ -438,7 +433,7 @@ dispatch("LOG_IN_SUCCESS", {
 })
 ```
 
-Deriving the type for that first argument is easy enough:
+Deriving the type for that first argument is easy enough.
 
 ```ts
 type ActionType = Action["type"]
@@ -495,7 +490,7 @@ type Test = ExcludeTypeField<{ type: "LOG_IN"; emailAddress: string }>
 // => { emailAddress: string }
 ```
 
-Then we can use `ExcludeTypeField` to redefine `ExtractActionParameters`:
+Then we can use `ExcludeTypeField` to redefine `ExtractActionParameters`.
 
 <!-- prettier-ignore -->
 ```ts
@@ -558,8 +553,8 @@ declare function dispatch<T extends ActionType>(
 type SimpleActionType = ExtractSimpleAction<Action>['type']
 ```
 
-How can we define this `ExtractSimpleAction` conditional type? We know that if we remove the `type` field from
-an action and the result is an empty interface, then that is a simple action. So something like this might work
+How can we define this `ExtractSimpleAction` conditional type? We know that if we remove the `type` field from an
+action and the result is an empty interface, then that is a simple action. So something like this might work
 
 ```ts
 type ExtractSimpleAction<A> = ExcludeTypeField<A> extends {} ? A : never
