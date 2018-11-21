@@ -1,7 +1,7 @@
 ---
 layout: epic
 title: GraphQL Stitching 101
-date: 2018-11-19
+date: 2018-11-21
 author: [orta]
 categories: [graphql, stitching, metaphysics]
 css: graphql
@@ -12,37 +12,47 @@ Micro-Services make sense. You can scope a domain of your business to particular
 API. Doing so makes it easy to work in isolation, experiment with new ideas and evolve in many directions.
 
 We've been [carefully pushing][monolith] for years to move away from our single monolithic API, to a collection of
-smaller, more focused projects. Our [highlights docs][high] showcase this well. The movement to smaller composable services works great 
-from an isolated platform/systems perspective but can be a bit tricky to handle with front-end clients. Until 2018, the way that we've addressed the growing complexity in our service later has been to migrate the complexity inside our main GraphQL API, [metaphyics][mp]. Metaphysics is our API gateway that consolidates many API resources into a single source.
+smaller, more focused projects. Our [highlights docs][high] showcase this well. The movement to smaller composable
+services works great from an isolated platform/systems perspective but can be a bit tricky to handle with front-end
+clients. Until 2018, the way that we've addressed the growing complexity in our service later has been to migrate
+the complexity inside our main GraphQL API, [metaphyics][mp]. Metaphysics is our GraphQL API gateway that
+consolidates many API sources into a single service, then extending and interleaving and their data to make clients
+easier to write.
 
-However, as more services have been created, and grown - so has metaphysics. This creates a worrying trend, as the growth isn't quite linear. 
+However, as more services have been created, and grown - so has metaphysics. This creates a worrying trend, as the
+growth of code in metaphysics isn't quite linear.
 
-Our main line-of-thought on how to address this is via GraphQL schema stitching. We've been [running experiments][ex] in stitching for over a year, and have  have been running with stitching enabled in production for a few months.
+Our main line-of-thought on how to address this is via GraphQL schema stitching. We've been [running
+experiments][ex] in stitching for over a year, and have have been running with stitching enabled in production for
+a few months.
 
 <!-- more -->
 
 ## What is Schema Stitching?
 
-The core idea behind schema stitching is that because GraphQL talks in type systems, you should be able to 
-merge type systems from many GraphQL APIs into a single source of truth. Schema Stitching came out at the [end of 2017][stitching_out] via the [`graphql-tools`][tools] and became very production-[ready in April
+The core idea behind schema stitching is that because GraphQL talks in type systems, you should be able to merge
+type systems from many GraphQL APIs into a single source of truth. Schema Stitching came out at the [end of
+2017][stitching_out] via the [`graphql-tools`][tools] and became very production-[ready in April
 2018][stitching_announcement].
 
-
-We started experimenting last year and would occasionally run it on staging to discover edge case issues. This meant the state of the project would ebb & flow between a blocked, or no-one having the bandwidth to work on it. This was fine, because our aim was [incremental evolutions over bold revolution][rev].
+We started experimenting last year and would occasionally run it on staging to discover edge case issues. This
+meant the state of the project would ebb & flow between a blocked, or no-one having the bandwidth to work on it.
+This was fine, because our aim was [incremental evolutions over bold revolution][rev].
 
 Before we dive into implementation details, here's a quick glossary of terms before we start:
 
-* **GraphQL Schema** - a  representation of your GraphQL's type system, containing all Types and fields on them
-* **GraphQL Resolver** - every field accessed in a query has a corresponding resolver
-* **Schema Merging** - taking two GraphQL schemas, and merging all the Types and resolvers
-* **Schema Stitching** - extending a GraphQL Schema by using Types from another schema
+- **GraphQL Schema** - a representation of your GraphQL's type system, containing all types and fields on them
+- **GraphQL Resolver** - every field accessed in a query has a corresponding resolver
+- **Schema Merging** - taking two GraphQL schemas, and merging all the types and resolvers into one schema
+- **Schema Stitching** - extending a GraphQL Schema programmatically, with the ability to delegate to merged
+  schemas
 
 Stitching is one of the end-goals, but merging may be enough for a lot of cases. Both of the two launch posts above
 give a much more in-depth explanation of how everything comes together, but these should be enough for this post.
 
 ## How Do We Do It?
 
-We have 4 GraphQL APIs inside the Artsy ecosystem, our aim is to cautiously include these APIs inside metaphysics.
+We have 5 GraphQL APIs inside the Artsy ecosystem, our aim is to cautiously include these APIs inside metaphysics.
 We don't need the entire contents of those APIs, and as you'll learn - we couldn't do that even if we wanted.
 
 The technique we settled on was:
@@ -67,14 +77,19 @@ const httpConvectionLink = createHttpLink({
 })
 
 introspectSchema(httpConvectionLink).then(schema => {
-  fs.writeFileSync(path.join(destination, "convection.graphql"), printSchema(schema, { commentDescriptions: true }))
+  fs.writeFileSync(
+    path.join(destination, "convection.graphql"),
+    printSchema(schema, { commentDescriptions: true })
+  )
 })
 ```
 
 The script uses an [apollo-http-link][] to grab our schema, and store it in our repo, see
-[`src/data/convection.graphql`][c-gql]. This means that when someone wants to update to a new version of the schema,
-it will go through code review and a normal testing-flow. The trade-off being that it will always be out of date a
-little bit, but you don't know how the schema will grow in the future.
+[`src/data/convection.graphql`][c-gql]. This means that when someone wants to update to a new version of the
+schema, it will go through code review and a normal testing-flow. The trade-off being that it will always be out of
+date a little bit, but you can make guarantees about the current schema. This is a reasonable trade-off, as GraphQL
+schemas should always be forward compatible for queries, and when someone wants to use a new field from another
+service they can move the schema definition from [the git repo][rfc31].
 
 This file is the [GraphQL SDL][sdl] representations of the entire type system for that schema. This means we have a
 local copy of the schemas, so we can use it for tests for the next few steps.
@@ -169,6 +184,11 @@ it("Does not include blacklisted types", async () => {
 })
 ```
 
+This one is interesting, we _don't_ want the version of `Artist` and `Artwork` from Gravity's GraphQL
+implementation - because the hand-rolled `Artwork` and `Artist` types which lives in the source code of Metaphysics
+right now is a combination of many sources, and front-end-client specific code. If we allowed the `Artist` or
+`Artwork` to overwrite the existing implementations it would be a massively breaking change.
+
 #### Merging Schemas
 
 There are two classes of schemas involved in our stitching. Local Schemas, which is our existing schema (e.g. the
@@ -201,9 +221,13 @@ as above.
 
 #### Stitching Schemas
 
-Today we only really have a toy example of schema stitching inside metaphysics. It's important to verify that all
-the pieces work up-front though. We opted to take a Type from our local schema, (`Artist`), and add that a Type that
-was added from a remote schema (`ConsignmentSubmission`).
+The next step from merging is stitching. Stitching is about taking the merged schemas and taking data from one and
+re-applying it via another API. For example, we have a consignments API (for when you want to sell a work at
+auction) and a consignment references the artwork's artist.
+
+In this case, the consignment has an `artist_id` which represents an `Artist` type which lives in metaphysics. We
+would like to stitch an Artist in from the local schema, into a `ConsignmentSubmission` which has come in from a
+remote schema.
 
 The API works by using [Type Extensions][t-e] which are a way of opening up an existing Type and adding new fields
 on it. We want to be working with the highest level abstraction, which in this case is directly writing [GraphQL
@@ -254,7 +278,7 @@ export const consignmentStitchingEnvironment = (
 })
 ```
 
-This file consolidates the two parts
+This file consolidates the two steps of merging and then stitching:
 
 ```diff
 export const mergeSchemas = async () => {
@@ -281,21 +305,44 @@ export const mergeSchemas = async () => {
 }
 ```
 
-We then extend the merge schema function to also include the SDL for our stitching, and de-structure in the
-extension resolvers. We're still exploring how to write _useful_ tests for this part.
+We extend the merge schema function to also include the SDL for our stitching, and de-structure in the extension
+resolvers. We're still exploring how to write _useful_ tests for this part.
 
-## Not Quite in Production
+## Validating your changes
+
+We had some useful tools which were used to make the switch to using schema-stitching in production.
+
+1. Stored Queries
+
+   In order to validate that the runtime behavior of our queries wasn't changing, we used the [persistent
+   queries][ps] generated by our iOS app Emission to create JSON dumps of the results of many API calls in both
+   stitched and un-stitched environments in a script and compared the results.
+
+1. SDL dumps
+
+   We can use the GraphQL type system to validate our changes don't break clients. We used a schema dump script to
+   validate the type system was the same across stitched and un-stitched environments.
+
+## Alternatives
+
+https://github.com/orta/incorporeal
+
+## In Production
+
+Today we stitch all new APIs by default, see [Kaws' integration][kaws] PR. We're _slowly_ trying to retro-actively
+migrate existing APIs into stitching and then deleting the existing code, but that's real tricky when those APIs
+are being used or use advanced features of GraphQL.
 
 We've been using GraphQL [since mid-2015][init] and we've also used it with Relay for the past two years, this has
-meant we have quite a few interesting edge cases in our use of the tech. We got in touch with [Mikhail Novikov][mn]
-and he contracted to help us with most of these issues and I'd strongly recommend doing the same (with any OSS
-dependency, but that's, like, just my opinion man) we got really far.
+meant we have quite a few interesting edge cases in our use of the GraphQL. We got in touch with [Mikhail
+Novikov][mn] and he contracted to help us with most of these issues and I'd strongly recommend doing the same (with
+any OSS dependency, but that's, like, just my opinion man) we got really far.
 
 GraphQL Stitching solves the problem of API consolidation in a really well thought out abstraction, and I consider
 it one of the most interesting avenues of exploration into what GraphQL will be in the future (see [Is GraphQL The
 Future?][igtf] for a more philosophical take also.)
 
-Would I recommend it if you're starting to map many services inside a single point of origin? Yep.
+<!-- prettier-ignore-start -->
 
 [stitching_announcement]: https://dev-blog.apollodata.com/the-next-generation-of-schema-stitching-2716b3b259c0
 [stitching_out]: https://dev-blog.apollodata.com/graphql-tools-2-0-with-schema-stitching-8944064904a5
@@ -318,3 +365,9 @@ Would I recommend it if you're starting to map many services inside a single poi
 [ex]: https://github.com/artsy/metaphysics/pull/809
 [rev]: https://github.com/artsy/README/blob/master/culture/engineering-principles.md#incremental-revolution
 [tools]: https://github.com/apollographql/graphql-tools/
+[rfc31]: https://github.com/artsy/README/issues/31
+[kaws]: https://github.com/artsy/metaphysics/pull/1327
+[ps]: https://github.com/artsy/emission/pull/999
+
+
+<!-- prettier-ignore-end -->
