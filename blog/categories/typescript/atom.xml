@@ -4,7 +4,7 @@
   <title><![CDATA[Category: typescript | Artsy Engineering]]></title>
   <link href="http://artsy.github.io/blog/categories/typescript/atom.xml" rel="self"/>
   <link href="http://artsy.github.io/"/>
-  <updated>2018-11-21T16:36:07+00:00</updated>
+  <updated>2018-11-21T16:52:42+00:00</updated>
   <id>http://artsy.github.io/</id>
   <author>
     <name><![CDATA[]]></name>
@@ -12,6 +12,738 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Conditional types in TypeScript]]></title>
+    <link href="http://artsy.github.io/blog/2018/11/21/conditional-types-in-typescript/"/>
+    <updated>2018-11-21T00:00:00+00:00</updated>
+    <id>http://artsy.github.io/blog/2018/11/21/conditional-types-in-typescript</id>
+    <content type="html"><![CDATA[<p>This year TypeScript gained a new feature that punches far above its weight.</p>
+
+<blockquote><p>Working through our (enormous) backlog of unsorted TypeScript "Suggestions" and it's remarkable how many of them
+are solved by conditional types.</p></blockquote>
+
+<p>-- <a href="https://twitter.com/SeaRyanC/status/1029846761718702081">Ryan Cavanaugh</a>, TypeScript maintainer</p>
+
+<p>Conditional types probably aren't something you'll write every day, but you might end up using them indirectly all
+the time. That's because they're great for 'plumbing' or 'framework' code, for dealing with API boundaries and
+other behind-the-scenes kinda stuff. So, dear reader, read on! It's always good to learn how the sausage is made.
+Then you can make sausage of your own.</p>
+
+<p>Typewurst! 🌭</p>
+
+<!-- more -->
+
+
+<p><em>Note: This is a straightforward adaptation of a 35-minute presentation given at
+<a href="https://www.meetup.com/Futurice-London-Beer-Tech/events/255295412/">Futurice London's TypeScript Night meetup</a>,
+and therefore provides more context than an ordinary blog post might. I hope a lot of that context is interesting
+and useful even for seasoned TypeScript developers. If you'd prefer a no-frills experience, check out the
+<a href="https://www.typescriptlang.org/docs/handbook/release-notes/typescript-2-8.html">TypeScript 2.8 Release notes</a> .</em></p>
+
+<a name="Your.first.conditional.type"></a>
+<h2>Your first conditional type</h2>
+
+<p>Here's some plain JavaScript</p>
+
+<pre><code class="ts">function process(text) {
+  return text &amp;&amp; text.replace(/f/g, "p")
+}
+
+process("foo").toUpperCase()
+</code></pre>
+
+<p>Reading the code, it's clear to a human that the <code>.toUpperCase()</code> method call is safe. We can tell that whenever a
+string is passed in to <code>process</code>, a string will be returned.</p>
+
+<p>But notice that we could also pass something like <code>null</code> into the function, in which case <code>null</code> would be returned.
+Then calling <code>.toUpperCase()</code> on the result would be an error.</p>
+
+<p>Let's add basic types to this function so we can let TypeScript worry about whether we are using it safely or not.</p>
+
+<pre><code class="ts">function process(text: string | null): string | null {
+  return text &amp;&amp; text.replace(/f/g, "p")
+}
+</code></pre>
+
+<p>Seems sensible. What happens if we try to use it like before?</p>
+
+<pre><code class="ts">//            ⌄ Type Error! :(
+process("foo").toUpperCase()
+</code></pre>
+
+<p>TypeScript complains because it thinks that the result of <code>process("foo")</code> might be <code>null</code>, even though we clever
+humans know that it won't be. It can't figure out the runtime semantics of the function on its own.</p>
+
+<p>One way of helping TS understand the function better is to use 'overloading'. Overloading involves providing
+multiple type signatures for a single function, and letting TypeScript figure out which one to use in any given
+context.</p>
+
+<pre><code class="ts">function process(text: null): null;
+function process(text: string): string;
+function process(text: any) {
+  ...
+}
+</code></pre>
+
+<p>Here we've said that if we pass a <code>string</code>, it returns a <code>string</code>, and if we pass <code>null</code>, it returns <code>null</code>. <em>(The
+<code>any</code> type is ignored but still needs to be there for some reason</em> 🤷‍️<em>)</em></p>
+
+<p>That works nicely:</p>
+
+<pre><code class="ts">// All clear!
+process("foo").toUpperCase()
+//           ⌄ Type Error! :)
+process(null).toUpperCase()
+</code></pre>
+
+<p>But there's another use case that doesn't work:</p>
+
+<pre><code class="ts">declare const maybeFoo: string | null
+
+//      ⌄ Type Error! :(
+process(maybeFoo)
+</code></pre>
+
+<p>TypeScript won't let us pass something that is of type <code>string | null</code> because it's not smart enough to collapse
+the overloaded signatures when that's possible. So we can either add yet another overload signature for the
+<code>string | null</code> case, or we can be like <span style="white-space: nowrap; font-family: sans-serif;">(╯°□°)╯︵
+┻━┻</span> and switch to using <strong>conditional types</strong>.</p>
+
+<pre><code class="ts">function process&lt;T extends string | null&gt;(
+  text: T
+): T extends string ? string : null {
+  ...
+}
+</code></pre>
+
+<p>Here we've introduced a type variable <code>T</code> for the <code>text</code> parameter. We can then use <code>T</code> as part of a conditional
+return type: <code>T extends string ? string : null</code>. You probably noticed that this looks just like a ternary
+expression! Indeed, it's doing the same kind of thing, but within the type system at compile time.</p>
+
+<p>And that takes care of all our use cases:</p>
+
+<pre><code class="ts">typeof process("foo") // =&gt; string
+typeof process(null) // =&gt; null
+typeof process(maybeFoo) // =&gt; string | null
+</code></pre>
+
+<p>So that's what a conditional type is! A kind of ternary type expression. It always has this form:</p>
+
+<pre><code>A extends B ? C : D
+</code></pre>
+
+<p><code>A</code>, <code>B</code>, <code>C</code>, and <code>D</code> can be any old type expressions, but all the important stuff is happening on the left there.
+In the <code>A extends B</code> condition.</p>
+
+<a name="Assignability"></a>
+<h2>Assignability</h2>
+
+<p>This <code>extends</code> keyword is the heart of a conditional type. <code>A extends B</code> means precisely that any value of type <code>A</code>
+can safely be assigned to a variable of type <code>B</code>. In type system jargon we can say that "A is <em>assignable</em> to B".</p>
+
+<pre><code class="ts">declare const a: A
+const b: B = a
+// type check succeeds only if A is assignable to B
+</code></pre>
+
+<p>TypeScript decides which types are assignable to each other using an approach called 'structural typing'. This kind
+of type system started appearing in mainstream languages relatively recently (in the last 10 years or so), and
+might be a little counterintuitive if you come from a Java or C# background.</p>
+
+<p>You may have heard of 'duck typing' in relation to dynamically-typed languages. The phrase 'duck typing' comes from
+the proverb</p>
+
+<blockquote><p>If it looks like a duck, swims like a duck, and quacks like a duck, then it probably is a duck.</p></blockquote>
+
+<p>In duck typing, you judge a thing by how it behaves, rather than what it is called or who its parents are. It's a
+kind of meritocracy. Structural typing is a way of applying that same idea to a static compile-time type system.</p>
+
+<p>So TypeScript only cares about what types can do, not what they are called or where they exist in a type hierarchy.</p>
+
+<p>Take this simple example:</p>
+
+<pre><code class="ts">class A {}
+class B {}
+
+const b: B = new A() // ✔ all good
+const a: A = new B() // ✔ all good
+
+new A() instanceof B // =&gt; false
+</code></pre>
+
+<p>TypeScript is happy treating two completely unrelated classes as equivalent because they have the same <em>structure</em>
+and the same <em>capabilities</em>. Meanwhile, when checking the types at runtime, we discover that they are actually not
+equivalent.</p>
+
+<p>This is a notable example of where the semantics of TypeScript are at odds with JavaScript. It might seem like a
+problem, but in practice structural typing is a lot more flexible than Java-esque 'nominal' typing, where names and
+hierarchy matter. The two aren't mutually exclusive, however. Some languages, like Scala and Flow, allow you to mix
+and match to suit particular problems.</p>
+
+<p>Aside from that, the way that assignability works with structural typing is very intuitive.</p>
+
+<pre><code class="ts">interface Shape {
+  color: string
+}
+
+class Circle {
+  color: string
+  radius: number
+}
+
+// ✔ All good! Cirlces have a color
+const shape: Shape = new Circle()
+// ✘ Type error! Not all shapes have a radius!
+const circle: Circle = shape
+</code></pre>
+
+<p>Speaking structurally we can say that <code>A extends B</code> is a lot like '<code>A</code> is a superset of <code>B</code>', or, to be more
+verbose, '<code>A</code> has all of <code>B</code>'s properties, <em>and maybe some more</em>'.</p>
+
+<p>There's one minor caveat though, and that's with 'literal' types. In TypeScript you can use literal values of
+primitive types as types themselves.</p>
+
+<pre><code class="ts">let fruit: "banana" = "banana"
+
+// Type Error! "apple" is not assignable to "banana"
+fruit = "apple"
+</code></pre>
+
+<p>The string <code>"banana"</code> doesn't have more properties than any other <code>string</code>. But the type <code>"banana"</code> is
+still more <em>specific</em> than the type <code>string</code>.</p>
+
+<p>So another way to think of <code>A extends B</code> is like '<code>A</code> is a possibly-more-specific version of <code>B</code>'.</p>
+
+<p>Which brings us to 'top' and 'bottom' types: the <em>least</em> and <em>most</em> specific types, respectively.</p>
+
+<p>In type theory a 'top' type is one which all other types are assignable to. It is the type you use to say "I have
+absolutely no information about what this value is". Think of it as the union of all possible types:</p>
+
+<pre><code class="ts">type Top = string | number | {foo: Bar} | Baz[] | ... | ∞
+</code></pre>
+
+<p>TypeScript has two top types: <code>any</code> and <code>unknown</code>.</p>
+
+<ul>
+<li>Using <code>any</code> is like saying "I have no idea what this value looks like. So, TypeScript, please assume I'm using it
+correctly, and don't complain if anything I do seems dangerous".</li>
+<li>Using <code>unknown</code> is like saying "I have no idea what this value looks like. So, TypeScript, please make sure I
+check what it is capable of at run time."</li>
+</ul>
+
+
+<p>A 'bottom' type is one which no other types are assignable to, and that no values can be an instance of. Think of
+it as the empty union type:</p>
+
+<pre><code class="ts">type Bottom = ∅
+</code></pre>
+
+<p>TypeScript has one bottom type: <code>never</code>. That's a nice descriptive name because it literally means <em>this can never
+happen</em>.</p>
+
+<p>Top and bottom types are useful to know about when working with conditional types. <code>never</code> is especially useful
+when using conditional types to refine unions...</p>
+
+<a name="Refining.unions.with.distributive.conditional.types"></a>
+<h2>Refining unions with distributive conditional types</h2>
+
+<p>Conditional types let you filter out particular members of a union type. To illustrate, let's say we have a union
+type called <code>Animal</code>:</p>
+
+<pre><code class="ts">type Animal = Lion | Zebra | Tiger | Shark
+</code></pre>
+
+<p>And imagine that we needed to write a function that used only those animals which are also cats. We might write
+some helper type called <code>ExtractCat</code> to do that:</p>
+
+<pre><code class="ts">type ExtractCat&lt;A&gt; = A extends { meow(): void } ? A : never
+
+type Cat = ExtractCat&lt;Animal&gt;
+// =&gt; Lion | Tiger
+</code></pre>
+
+<p><em>I know lions and tigers don't meow, but how cute would it be if they did</em> ^_^</p>
+
+<p>This seemed vague and magical to me at first. Let's see what TypeScript is doing under the hood when it evaluates
+<code>ExtractCat&lt;Animal&gt;</code>.</p>
+
+<p>First, it applies <code>ExtractCat</code> recursively to all the members of <code>Animal</code>:</p>
+
+<!-- prettier-ignore -->
+
+
+<pre><code class="ts">type Cat =
+  | ExtractCat&lt;Lion&gt;
+  | ExtractCat&lt;Zebra&gt;
+  | ExtractCat&lt;Tiger&gt;
+  | ExtractCat&lt;Shark&gt;
+</code></pre>
+
+<p>Then it evaluates the conditional types:</p>
+
+<pre><code class="ts">type Cat = Lion | never | Tiger | never
+</code></pre>
+
+<p>And then something fun happens... Remember that no values can ever be of type <code>never</code>? That makes it totally
+meaningless to include <code>never</code> in a union type, so TypeScript just gets rid of it.</p>
+
+<pre><code class="ts">type Cat = Lion | Tiger
+</code></pre>
+
+<p>The TypeScript jargon for this kind of conditional type is <strong>distributive conditional type</strong>.</p>
+
+<p>That 'distribution', where the union is unrolled recursively, only happens when the thing on the left of the
+<code>extends</code> keyword is a plain type variable. We'll see what that means and how to work around it in the next
+section.</p>
+
+<a name="A.real.use-case.for.distributive.conditional.types."></a>
+<h2>A real use-case for distributive conditional types.</h2>
+
+<p>A while ago I was building a Chrome extension. It had a 'background' script and a 'view' script that ran in
+different execution contexts. They needed to communicate and share state, and the only way to do that is via
+serializable message passing. I took inspiration from Redux and defined a global union of interfaces called
+<code>Action</code> to model the messages that I wanted to be able to pass between the contexts.</p>
+
+<pre><code class="ts">type Action =
+  | {
+      type: "INIT"
+    }
+  | {
+      type: "SYNC"
+    }
+  | {
+      type: "LOG_IN"
+      emailAddress: string
+    }
+  | {
+      type: "LOG_IN_SUCCESS"
+      accessToken: string
+    }
+// ...
+</code></pre>
+
+<p>And then there was a global <code>dispatch</code> function that I could use directly to broadcast messages across contexts</p>
+
+<pre><code class="ts">declare function dispatch(action: Action): void
+
+// ...
+
+dispatch({
+  type: "INIT"
+})
+
+// ...
+
+dispatch({
+  type: "LOG_IN",
+  emailAddress: "david.sheldrick@artsy.net"
+})
+
+// ...
+
+dispatch({
+  type: "LOG_IN_SUCCESS",
+  accessToken: "038fh239h923908h"
+})
+</code></pre>
+
+<p><a
+  target="_blank"
+  style="font-size: 0.8em"
+  href="https://www.typescriptlang.org/play/#src=type%20Action%20%3D%0D%0A%20%20%7C%20%7B%0D%0A%20%20%20%20%20%20type%3A%20%22INIT%22%0D%0A%20%20%20%20%7D%0D%0A%20%20%7C%20%7B%0D%0A%20%20%20%20%20%20type%3A%20%22SYNC%22%0D%0A%20%20%20%20%7D%0D%0A%20%20%7C%20%7B%0D%0A%20%20%20%20%20%20type%3A%20%22LOG_IN%22%0D%0A%20%20%20%20%20%20emailAddress%3A%20string%0D%0A%20%20%20%20%7D%0D%0A%20%20%7C%20%7B%0D%0A%20%20%20%20%20%20type%3A%20%22LOG_IN_SUCCESS%22%0D%0A%20%20%20%20%20%20accessToken%3A%20string%0D%0A%20%20%20%20%7D%0D%0A%0D%0Adeclare%20function%20dispatch(action%3A%20Action)%3A%20void%0D%0A%0D%0Adispatch(%7B%0D%0A%20%20type%3A%20%22INIT%22%0D%0A%7D)%0D%0A%0D%0Adispatch(%7B%0D%0A%20%20type%3A%20%22LOG_IN%22%2C%0D%0A%20%20emailAddress%3A%20%22david.sheldrick%40artsy.net%22%0D%0A%7D)%0D%0A%0D%0Adispatch(%7B%0D%0A%20%20type%3A%20%22LOG_IN_SUCCESS%22%2C%0D%0A%20%20accessToken%3A%20%22038fh239h923908h%22%0D%0A%7D)">
+<em>Try it in the TypeScript playground</em> </a></p>
+
+<p>This API is typesafe and it plays well with my IDE's autocomplete and I could have left it there. I could have
+moved on to other things.</p>
+
+<p>But there's this little voice inside my head. I think most developers have this voice.</p>
+
+<pre style="background: transparent; color: #333; border: 0; box-shadow: none; padding: 0;">
+INT. HIPSTER CO-WORKING SPACE - DAY
+
+DAVID sits on an oddly-shaped orange chair.
+His MacBook rests askew on a lumpy reclaimed
+wood desk. He stares at colorful text on a
+dark screen.
+
+A tiny whisper.
+
+              VOICE (V.O.)
+    Psst!
+
+David looks around for a moment and then
+stares back at the laptop.
+
+              VOICE (V.O.)
+    Psst! Hey!
+
+Startled this time, David looks around
+again. He speaks to nobody in particular.
+
+              DAVID
+    Is someone there?
+
+              VOICE (V.O.)
+    It's me, the DRY devil.
+
+David heaves a painful sigh of recognition.
+
+              DAVID
+    Not you again! Leave me alone!
+
+              DRY DEVIL (V.O.)
+    DRY stands for "Don't Repeat Yourself"
+
+              DAVID
+    I know, you say that every time! Now
+    get lost!
+
+              DRY DEVIL (V.O.)
+    I've noticed an issue with your code.
+
+              DAVID
+    Seriously, go away! I'm busy solving
+    user problems to create business value.
+
+              DRY DEVIL (V.O.)
+    Every time you call `dispatch` you
+    are typing 6 redundant characters.
+
+              DAVID
+    Oh snap! You're right! I must fix this.
+
+MONTAGE
+
+David spends the next 2 hours wrestling
+with TypeScript, accumulating a pile of
+empty coffee cups and protein ball wrappers.
+</pre>
+
+
+<p>We've all been there.</p>
+
+<p>I wanted the dispatch function to work like this:</p>
+
+<pre><code class="ts">// first argument is the 'type'
+// second is any extra parameters
+dispatch("LOG_IN_SUCCESS", {
+  accessToken: "038fh239h923908h"
+})
+</code></pre>
+
+<p>Deriving the type for that first argument is easy enough.</p>
+
+<pre><code class="ts">type ActionType = Action["type"]
+// =&gt; "INIT" | "SYNC" | "LOG_IN" | "LOG_IN_SUCCESS"
+</code></pre>
+
+<p>But the type of the second argument <em>depends on</em> the first argument. We can use a type variable to model that
+dependency.</p>
+
+<!-- prettier-ignore -->
+
+
+<pre><code class="ts">declare function dispatch&lt;T extends ActionType&gt;(
+  type: T,
+  args: ExtractActionParameters&lt;Action, T&gt;
+): void
+</code></pre>
+
+<p><em>Woah woah woah, what's this</em> <code>ExtractActionParameters</code> <em>voodoo?</em></p>
+
+<p>It's a conditional type of course! Here's a first attempt at implementing it:</p>
+
+<pre><code class="ts">type ExtractActionParameters&lt;A, T&gt; = A extends { type: T } ? A : never
+</code></pre>
+
+<p>This is a lot like the <code>ExtractCat</code> example from before, where we were were refining the <code>Animals</code> union by
+searching for something that can <code>meow()</code>. Here, we're refining the <code>Action</code> union type by searching for an
+interface with a particular <code>type</code> property. Let's see if it works:</p>
+
+<pre><code class="ts">type Test = ExtractActionParameters&lt;Action, "LOG_IN"&gt;
+// =&gt; { type: "LOG_IN", emailAddress: string }
+</code></pre>
+
+<p>Almost there! We don't want to keep the <code>type</code> field after extraction because then we would still have to specify
+it when calling <code>dispatch</code>. And that would somewhat defeat the purpose of this entire exercise.</p>
+
+<p>We can omit the <code>type</code> field by combining a <strong>mapped type</strong> with a conditional type and the <code>keyof</code> operator.</p>
+
+<p>A <strong>mapped type</strong> lets you create a new interface by 'mapping' over a union of keys. You can get a union of keys
+from an existing interface by using the <code>keyof</code> operator. And finally, you can remove things from a union using a
+conditional type. Here's how they play together (with some inline test cases for illustration):</p>
+
+<pre><code class="ts">type ExcludeTypeKey&lt;K&gt; = K extends "type" ? never : K
+
+type Test = ExcludeTypeKey&lt;"emailAddress" | "type" | "foo"&gt;
+// =&gt; "emailAddress" | "foo"
+
+// here's the mapped type
+type ExcludeTypeField&lt;A&gt; = { [K in ExcludeTypeKey&lt;keyof A&gt;]: A[K] }
+
+type Test = ExcludeTypeField&lt;{ type: "LOG_IN"; emailAddress: string }&gt;
+// =&gt; { emailAddress: string }
+</code></pre>
+
+<p>Then we can use <code>ExcludeTypeField</code> to redefine <code>ExtractActionParameters</code>.</p>
+
+<!-- prettier-ignore -->
+
+
+<pre><code class="ts">type ExtractActionParameters&lt;A, T&gt; = A extends { type: T }
+  ? ExcludeTypeField&lt;A&gt;
+  : never
+</code></pre>
+
+<p>And now the new version of <code>dipsatch</code> is typesafe!</p>
+
+<pre><code class="ts">// All clear! :)
+dispatch("LOG_IN_SUCCESS", {
+  accessToken: "038fh239h923908h"
+})
+
+dispatch("LOG_IN_SUCCESS", {
+  // Type Error! :)
+  badKey: "038fh239h923908h"
+})
+
+// Type Error! :)
+dispatch("BAD_TYPE", {
+  accessToken: "038fh239h923908h"
+})
+</code></pre>
+
+<p><a
+  target="_blank"
+  style="font-size: 0.8em"
+  href="https://www.typescriptlang.org/play/#src=type%20Action%20%3D%0D%0A%20%20%7C%20%7B%0D%0A%20%20%20%20%20%20type%3A%20%22INIT%22%0D%0A%20%20%20%20%7D%0D%0A%20%20%7C%20%7B%0D%0A%20%20%20%20%20%20type%3A%20%22SYNC%22%0D%0A%20%20%20%20%7D%0D%0A%20%20%7C%20%7B%0D%0A%20%20%20%20%20%20type%3A%20%22LOG_IN%22%0D%0A%20%20%20%20%20%20emailAddress%3A%20string%0D%0A%20%20%20%20%7D%0D%0A%20%20%7C%20%7B%0D%0A%20%20%20%20%20%20type%3A%20%22LOG_IN_SUCCESS%22%0D%0A%20%20%20%20%20%20accessToken%3A%20string%0D%0A%20%20%20%20%7D%0D%0A%0D%0Atype%20ActionType%20%3D%20Action%5B%22type%22%5D%0D%0A%0D%0Adeclare%20function%20dispatch%3CT%20extends%20ActionType%3E(%0D%0A%20%20%20%20type%3A%20T%2C%0D%0A%20%20%20%20args%3A%20ExtractActionParameters%3CAction%2C%20T%3E%0D%0A)%3A%20void%0D%0A%0D%0Atype%20ExcludeTypeKey%3CK%3E%20%3D%20K%20extends%20%22type%22%20%3F%20never%20%3A%20K%0D%0A%0D%0Atype%20ExcludeTypeField%3CA%3E%20%3D%20%7B%20%5BK%20in%20ExcludeTypeKey%3Ckeyof%20A%3E%5D%3A%20A%5BK%5D%20%7D%0D%0A%0D%0Atype%20ExtractActionParameters%3CA%2C%20T%3E%20%3D%20A%20extends%20%7B%20type%3A%20T%20%7D%0D%0A%20%20%20%20%3F%20ExcludeTypeField%3CA%3E%0D%0A%20%20%20%20%3A%20never%0D%0A%20%20%0D%0A%2F%2F%20All%20clear!%20%3A)%0D%0Adispatch(%22LOG_IN_SUCCESS%22%2C%20%7B%0D%0A%20%20%20%20accessToken%3A%20%22038fh239h923908h%22%0D%0A%7D)%0D%0A%0D%0Adispatch(%22LOG_IN_SUCCESS%22%2C%20%7B%0D%0A%20%20%20%20%2F%2F%20Type%20Error!%20%3A)%0D%0A%20%20%20%20badKey%3A%20%22038fh239h923908h%22%0D%0A%7D)%0D%0A%0D%0A%2F%2F%20Type%20Error!%20%3A)%0D%0Adispatch(%22BAD_TYPE%22%2C%20%7B%0D%0A%20%20%20%20accessToken%3A%20%22038fh239h923908h%22%0D%0A%7D)">
+<em>Try it in the TypeScript playground</em> </a></p>
+
+<p>But there's one more very serious problem to address: If the action has no extra parameters, I still have to pass a
+second empty argument.</p>
+
+<pre><code class="ts">dispatch("INIT", {})
+</code></pre>
+
+<p>That's four whole wasted characters! Cancel my meetings and tell my partner not to wait up tonight! We need to
+<em>fix. this</em>.</p>
+
+<p>The naïve thing to do would be to make the second argument optional. That would be unsafe because, e.g. it would
+allow us to dispatch a <code>"LOG_IN"</code> action without specifying an <code>emailAddress</code>.</p>
+
+<p>Instead, let's overload the <code>dispatch</code> function.</p>
+
+<!-- prettier-ignore -->
+
+
+<pre><code class="ts">// And let's say that any actions that don't require
+// extra parameters are 'simple' actions.
+declare function dispatch(type: SimpleActionType): void
+// this signature is just like before
+declare function dispatch&lt;T extends ActionType&gt;(
+  type: T,
+  args: ExtractActionParameters&lt;Action, T&gt;
+): void
+
+type SimpleActionType = ExtractSimpleAction&lt;Action&gt;['type']
+</code></pre>
+
+<p>How can we define this <code>ExtractSimpleAction</code> conditional type? We know that if we remove the <code>type</code> field from an
+action and the result is an empty interface, then that is a simple action. So something like this might work</p>
+
+<pre><code class="ts">type ExtractSimpleAction&lt;A&gt; = ExcludeTypeField&lt;A&gt; extends {} ? A : never
+</code></pre>
+
+<p>Except that doesn't work. <code>ExcludeTypeField&lt;A&gt; extends {}</code> is always going to be true, because <code>{}</code> is like a top
+type for interfaces. <em>Pretty much everything</em> is more specific than <code>{}</code>.</p>
+
+<p>We need to swap the arguments around:</p>
+
+<pre><code class="ts">type ExtractSimpleAction&lt;A&gt; = {} extends ExcludeTypeField&lt;A&gt; ? A : never
+</code></pre>
+
+<p>Now if <code>ExcludeTypeField&lt;A&gt;</code> is empty, the condition will be true, otherwise it will be false.</p>
+
+<p>But this still doesn't work! On-the-ball readers might remember this:</p>
+
+<blockquote><p>That 'distribution', where the union is unrolled recursively, only happens when the thing on the left of the
+<code>extends</code> keyword is a plain type variable. We'll see what that means and how to work around it in the next
+section.</p></blockquote>
+
+<p>-- Me, in the previous section</p>
+
+<p>Type variables are always defined in a generic parameter list, delimited by <code>&lt;</code> and <code>&gt;</code>. e.g.</p>
+
+<pre><code class="ts">type Blah&lt;These, Are, Type, Variables&gt; = ...
+
+function blah&lt;And, So, Are, These&gt;() {
+  ...
+}
+</code></pre>
+
+<p>And if you want a conditional type to distribute over a union, the union a) needs to have been bound to a type
+variable, and b) that variable needs to appear alone to the left of the <code>extends</code> keyword.</p>
+
+<p>e.g. this is a distributive conditional type:</p>
+
+<pre><code class="ts">type Blah&lt;Var&gt; = Var extends Whatever ? A : B
+</code></pre>
+
+<p>and these are not:</p>
+
+<pre><code class="ts">type Blah&lt;Var&gt; = Foo&lt;Var&gt; extends Whatever ? A : B
+type Blah&lt;Var&gt; = Whatever extends Var ? A : B
+</code></pre>
+
+<p>When I discovered this limitation I thought that it exposed a fundamental shortcoming in the way distributive
+conditional types work under the hood. I thought it might be some kind of concession to algorithmic complexity. I
+thought that my use case was too advanced, and that TypeScript had just thrown its hands up in the air and said,
+"Sorry mate, you're on your own".</p>
+
+<p>But it turns out I was wrong. It is just a pragmatic language design decision to avoid extra syntax, and you can
+work around it easily:</p>
+
+<!-- prettier-ignore -->
+
+
+<pre><code class="ts">type ExtractSimpleAction&lt;A&gt; = A extends any
+  ? {} extends ExcludeTypeField&lt;A&gt;
+    ? A
+    : never
+  : never
+</code></pre>
+
+<p>All we did is wrap the meat of our logic in a flimsy tortilla of inevitability, since the outer condition
+<code>A extends any</code> will, of course, always be true.</p>
+
+<p>And finally we can delete those four characters 🎉🕺🏼💃🏽🎈</p>
+
+<pre><code class="ts">dispatch("INIT")
+</code></pre>
+
+<p>That's one yak successfully shaved ✔</p>
+
+<hr />
+
+<p>TypeScript provides a couple of built-in types that we could have used in this section:</p>
+
+<pre><code class="ts">// Exclude from U those types that are assignable to T
+type Exclude&lt;U, T&gt; = U extends T ? never : U
+
+// Extract from U those types that are assignable to T
+type Extract&lt;U, T&gt; = U extends T ? U : never
+</code></pre>
+
+<p>e.g. instead of defining <code>ExcludeTypeField</code> like this:</p>
+
+<pre><code class="ts">type ExcludeTypeField&lt;A&gt; = { [K in ExcludeTypeKey&lt;keyof A&gt;]: A[K] }
+</code></pre>
+
+<p>we could have done this:</p>
+
+<pre><code class="ts">type ExcludeTypeField&lt;A&gt; = { [K in Exclude&lt;keyof A, "type"&gt;]: A[K] }
+</code></pre>
+
+<p>And instead of defining <code>ExtractActionParameters</code> like this:</p>
+
+<!-- prettier-ignore -->
+
+
+<pre><code class="ts">type ExtractActionParameters&lt;A, T&gt; = A extends { type: T }
+  ? ExcludeTypeField&lt;A&gt;
+  : never
+</code></pre>
+
+<p>we could have done this:</p>
+
+<pre><code class="ts">type ExtractActionParameters&lt;A, T&gt; = ExcludeTypeField&lt;Extract&lt;A, { type: T }&gt;&gt;
+</code></pre>
+
+<a name="L.....Exercise.for.the.intrepid.reader"></a>
+<h2>💡 Exercise for the intrepid reader</h2>
+
+<p>Notice that this still works.</p>
+
+<pre><code class="ts">dispatch("INIT", {})
+</code></pre>
+
+<p>Use what you've learned so far to make it an error to supply a second argument for 'simple' actions.</p>
+
+<a name="Destructuring.types.with..code.infer..code."></a>
+<h2>Destructuring types with <code>infer</code></h2>
+
+<p>Conditional types have another trick up their sleeve: the <code>infer</code> keyword. It can be used anywhere in the type
+expression to the right of the <code>extends</code> keyword. It gives a name to whichever type would appear in that place.
+e.g.</p>
+
+<pre><code class="ts">type Unpack&lt;A&gt; = A extends Array&lt;infer E&gt; ? E : A
+
+type Test = Unpack&lt;Apple[]&gt;
+// =&gt; Apple
+type Test = Unpack&lt;Apple&gt;
+// =&gt; Apple
+</code></pre>
+
+<p>It handles ambiguity gracefully:</p>
+
+<pre><code class="ts">type Stairs = Unpack&lt;Apple[] | Pear[]&gt;
+// =&gt; Apple | Pear
+</code></pre>
+
+<p>You can even use <code>infer</code> multiple times.</p>
+
+<pre><code class="ts">type Flip&lt;T&gt; = T extends [infer A, infer B] ? [B, A] : never
+type Stairs = Flip&lt;[Pear, Apple]&gt;
+// =&gt; [Apple, Pear]
+
+type Union&lt;T&gt; = T extends [infer A, infer A] ? A : never
+type Stairs = Union&lt;[Apple, Pear]&gt;
+// =&gt; Apple | Pear
+</code></pre>
+
+<a name="Other.built-in.conditional.types"></a>
+<h2>Other built-in conditional types</h2>
+
+<p>We've already seen <code>Exclude</code> and <code>Extract</code>, and TypeScript provides a few other conditional types out of the box.</p>
+
+<!-- prettier-ignore -->
+
+
+<pre><code class="ts">// Exclude null and undefined from T
+type NonNullable&lt;T&gt; =
+  T extends null | undefined ? never : T
+
+// Obtain the parameters of a function type in a tuple
+type Parameters&lt;T&gt; =
+  T extends (...args: infer P) =&gt; any ? P : never
+
+// Obtain the parameters of a constructor function type in a tuple
+type ConstructorParameters&lt;T&gt; =
+  T extends new (...args: infer P) =&gt; any ? P : never
+
+// Obtain the return type of a function type
+type ReturnType&lt;T&gt; =
+  T extends (...args: any[]) =&gt; infer R ? R : any
+
+// Obtain the return type of a constructor function type
+type InstanceType&lt;T&gt; =
+  T extends new (...args: any[]) =&gt; infer R ? R : any
+</code></pre>
+
+<a name="Further.reading"></a>
+<h2>Further reading</h2>
+
+<ul>
+<li><a href="https://www.typescriptlang.org/docs/handbook/release-notes/typescript-2-8.html">TypeScript 2.8 release notes</a></li>
+<li><a href="https://github.com/Microsoft/TypeScript/pull/21316">Microsoft/Typescript#21316</a> Conditional types pull request</li>
+<li><a href="https://github.com/Microsoft/TypeScript/pull/21496">Microsoft/Typescript#21496</a> <code>infer</code> pull request</li>
+<li><a href="https://github.com/Microsoft/TypeScript/blob/a2205ad53d8f65a129a552b752d1e06fee3d41fc/lib/lib.es5.d.ts#L1446">lib.es5.d.ts#L1446</a>
+built-in conditional type definitions</li>
+</ul>
+
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Announcing: Artsy x React Native]]></title>
@@ -588,368 +1320,6 @@ Also does not support <code>export =</code> and <code>import =</code>, because t
 <li><a href="https://github.com/artsy/emission">emission</a></li>
 <li><a href="https://github.com/artsy/reaction">reaction</a></li>
 <li><a href="https://github.com/ds300/patch-package">patch-package</a></li>
-</ul>
-
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Modernizing Force]]></title>
-    <link href="http://artsy.github.io/blog/2017/09/05/Modernizing-Force/"/>
-    <updated>2017-09-05T00:00:00+00:00</updated>
-    <id>http://artsy.github.io/blog/2017/09/05/Modernizing-Force</id>
-    <content type="html"><![CDATA[<p><a href="https://github.com/artsy/force">Force</a> is Artsy's main website, <a href="https://www.artsy.net">artsy.net</a>. In the three years since it was <a href="http://artsy.github.io/blog/2014/09/05/we-open-sourced-our-isomorphic-javascript-website/">open-sourced</a>, it has provided a solid foundation to build features on top of without a lot of the costs associated with growth. It is an early example of Isomorphic ("universal") JavaScript, built on top of Express, Backbone, CoffeeScript, Stylus and Jade. It is also highly modular, adopting patterns laid down by its parent project,  <a href="https://github.com/artsy/ezel">Ezel</a>.</p>
-
-<p>When first developed these technologies made a lot of sense; CoffeeScript fixed many of the problems with JavaScript pre-ES6, and Jade / Stylus made working with HTML / CSS much more elegant. As time progressed and new technologies became a thing these solutions starting feeling more burdensome to continue building features with and many of our developers longed to start using next-generation tools like React.</p>
-
-<!-- more -->
-
-
-<p>Looking at output from <code>cloc</code>, the question is "But how?"</p>
-
-<pre><code class="js">[artsy/force] $ cloc desktop mobile
-
---------------------------------------------------------
-Language                     files                  code
---------------------------------------------------------
-CoffeeScript                  1828                 81569
-CSS                              9                 76632
-Stylus                         577                 32324
-JavaScript                     274                 18310
-JSON                            30                  6145
-Markdown                        41                  1097
-HTML                             3                    25
-XML                              3                    24
---------------------------------------------------------
-SUM:                          2765                216126
---------------------------------------------------------
-</code></pre>
-
-<p>216k+ LOC, spread across multiple languages and formats. Given finite resources and a small team rebuilds can be difficult to execute, and so we had to figure out a way to marry the old with the new while also maintaining backwards compatibility / interoperability. Out of this exercise came a few patterns, libraries and projects that I would like to describe in an effort to help those caught in similar situations.</p>
-
-<a name="Step.1:.Get.Your.House..aka.Compiler..in.Order"></a>
-<h2>Step 1: Get Your House (aka Compiler) in Order</h2>
-
-<p><a href="https://babeljs.io/">Babel</a> has been around for a while, but lately their team has been putting effort into making it as easy as possible to use. By dropping a <a href="https://github.com/artsy/force/blob/master/.babelrc">.babelrc</a> file into the root of your project, server and client-side JavaScript can share the same configuration, including <a href="https://github.com/tleunen/babel-plugin-module-resolver">module resolution</a> (aka, no more <code>../../../</code>).</p>
-
-<p>A simplified example:</p>
-
-<pre><code class="json">// .babelrc
-
-{
-  "presets": ["es2015", "react", "stage-3"],
-  "plugins": [
-    ["module-resolver", {
-      "root": ["./"]
-    }]
-  ]
-}
-</code></pre>
-
-<pre><code class="js">// index.js
-
-require('coffee-script/register')
-require('babel-core/register')
-
-// Start the app
-require('./boot')
-</code></pre>
-
-<p>On the client, we use <a href="http://browserify.org/">Browserify</a> with <a href="https://github.com/substack/coffeeify">Coffeeify</a> and <a href="https://github.com/babel/babelify">Babelify</a>:</p>
-
-<pre><code class="json">// package.json
-
-{
-  "scripts": {
-    "assets": "browserify -t babelify -t coffeeify -o bundle.js",
-    "start": "yarn assets &amp;&amp; node index.js"
-  }
-}
-</code></pre>
-
-<p>And then boot it up:
-<code>sh
-$ yarn start
-</code></p>
-
-<p>By adding just a few lines, our existing CoffeeScript pipeline was augmented to support modern JavaScript on both the server and the client, with code that can be shared between.</p>
-
-<a name="Step.2:.Tune-up.Iteration.Time"></a>
-<h2>Step 2: Tune-up Iteration Time</h2>
-
-<p><a name="iteration-time"></a></p>
-
-<p>A question that every developer should ask of their stack is:</p>
-
-<blockquote><p>"How long does it take for me to make a change and see that change reflected in a running process?"</p></blockquote>
-
-<p>Does your code take one second to compile, or ten? When writing a back-end service, does your server <a href="https://github.com/remy/nodemon">automatically restart</a> after you make a change, or do you need to <code>ctrl+c</code> (stop it) and then restart manually?</p>
-
-<p>For those of us working in Force, the bottleneck typically involved making changes to back-end code. Due to how we organize our sub-apps, client-side code compilation -- after the server heats up -- is pretty much instant, but that heat-up time can often take a while depending on which app we're working on. So even with a "restart on code change" setup that listens for updates it still felt terribly slow, and this iteration time would often discourage developers from touching certain areas of the codebase. We needed something better!</p>
-
-<p>Enter Webpack and React, which helped popularize the concept of HMR, or "Hot Module Replacement".</p>
-
-<p>From the Webpack docs:</p>
-
-<blockquote><p>"Hot Module Replacement (HMR) exchanges, adds, or removes modules while an application is running, without a full reload."</p></blockquote>
-
-<p>That's more like it! But is there anything similar for the server given we don't use Webpack? This was the question <a href="https://github.com/alloy">@alloy</a>, one of our Engineering Leads, asked himself while researching various setups that ultimately led to <a href="https://github.com/artsy/reaction">Reaction</a>, and for which he found an answer to in Glen Mailer's excellent <a href="https://github.com/glenjamin/ultimate-hot-reloading-example">ultimate-hot-reloading-example</a>. Digging into the code, <a href="https://github.com/glenjamin/ultimate-hot-reloading-example/blob/master/server.js#L38-L45">this little snippet</a> jumped out:</p>
-
-<pre><code class="js">watcher.on('ready', function() {
-  watcher.on('all', function() {
-    console.log("Clearing /server/ module cache from server");
-    Object.keys(require.cache).forEach(function(id) {
-      if (/[\/\\]server[\/\\]/.test(id)) delete require.cache[id];
-    });
-  });
-});
-</code></pre>
-
-<p>The code seemed simple enough -- on change, iterate through Node.js's internal require cache, look for the changed module, and clear it out. When the module is <code>require</code>'d at a later point it will be like it was required for the first time, effectively hot-swapping out the code.</p>
-
-<p>With this knowledge we wrapped a modified version of this snippet into <a href="https://github.com/artsy/express-reloadable">@artsy/express-reloadable</a>, a small utility package meant to be used with Express.</p>
-
-<p>Here's a full example:</p>
-
-<pre><code class="js">import express from 'express'
-import { createReloadable, isDevelopment } from '@artsy/express-reloadable'
-
-const app = express()
-
-if (isDevelopment) {
-
-  // Pass in app and current `require` context
-  const reloadAndMount = createReloadable(app, require)
-
-  // Note that if you need to mount an app at a particular root (`/api`), pass
-  // in `mountPoint` as an option.
-  app.use('/api', reloadAndMount(path.resolve(__dirname, 'api'), {
-    mountPoint: '/api'
-  }))
-
-  // Otherwise, just pass in the path to the express app and everything is taken care of
-  reloadAndMount(path.resolve(__dirname, 'client'))
-} else {
-  app.use('/api', require('./api')
-  app.use(require('./client')
-}
-
-app.listen(3000, () =&gt; {
-  console.log(`Listening on port 3000`)
-})
-</code></pre>
-
-<p>In Force, we mounted this library <a href="https://github.com/artsy/force/blob/master/lib/setup.js#L205">at the root</a>, allowing us to make changes anywhere within our numerous sub-apps and with a fresh page reload instantly see those changes reflected without a restart. This approach also works great with API servers, as this implementation from Artsy's <a href="https://github.com/artsy/positron/blob/master/boot.js#L34">editorial app Positron</a> shows. Like magic, it "just works". Why isn't this trick more widely used and known?</p>
-
-<a name="Step.3:.The.View.Layer..or:.How.I.Stopped.Worrying.and.Learned.to.Love.Legacy.UI"></a>
-<h2>Step 3: The View Layer, or: How I Stopped Worrying and Learned to Love Legacy UI</h2>
-
-<p>This one was a bit tricky to solve, but ultimately ended up being fairly straightforward and conceptually simple. In Force, we've got dozens of apps built on top of hundreds of components supported by thousands of tests stretched across desktop and mobile. From the perspective of sheer code volume these things aren't going anywhere any time soon. On top of that, our view templates are built using Jade (now known as <a href="https://pugjs.org">Pug</a>), which supports an interesting form of inheritance known as <a href="https://pugjs.org/language/inheritance.html">blocks</a>. What this means in practice is our UI has been extended in a variety of complex ways making alternative view engines difficult on the surface to interpolate.</p>
-
-<p>What to do? It's 2017 and the era of handlebars templates bound to Backbone MVC views is over. We want <a href="https://facebook.github.io/react/">React</a>! We want <a href="https://www.styled-components.com/">Styled Components</a>! And when those tools are surpassed by the Next Big Thing we want that too! But we also want our existing CoffeeScript and Jade and old-school <code>Backbone.View</code>s as well.</p>
-
-<p>Thinking through this problem, <a href="https://github.com/artsy/stitch">@artsy/stitch</a> was born.</p>
-
-<p>Stitch helps your Template and Component dependencies peacefully co-exist. You feed it a layout and some data and out pops a string of compiled html that can be passed down to the client. "Blocks" can be added that represent portions of UI, injected by key. It aims for maximum flexibility: templating engines supported by <a href="https://github.com/tj/consolidate.js">consolidate</a> can be installed and custom rendering engines <a href="https://github.com/artsy/stitch#custom-renderers">can be swapped out or extended</a>. With very little setup it unlocks UI configurations that have been lost to time.</p>
-
-<p>A basic example:</p>
-
-<p>
-```html</p>
-
-<div>
-  {{title}}
-</div>
-
-
-<pre><code>
-</code></pre>
-
-<p>const html = await renderLayout({
-  layout: 'templates/layout.handlebars',
-  data: {
-    title: 'Hello!'
-  }
-})</p>
-
-<p>console.log(html)</p>
-
-<p>// => Outputs:
-/*</p>
-
-<div>
-  Hello!
-</div>
-
-
-<p>*/
-```</p>
-
-<p>By adding "blocks" you can begin assembling (or adapting to) more complex layouts. Blocks represent either a path to a template or a component (with "component" meaning a React or <a href="https://preactjs.com">React-like</a> function / class component):</p>
-
-<p>
-```html
-// templates/layout.handlebars</p>
-
-<p><html>
-  <head>
-    <title>
-      {{title}}
-    </title>
-  </head>
-  <body
-    {{{body}}}
-  </body>
-</html>
-```
-</p>
-
-<pre><code class="js">// index.js
-
-const html = await renderLayout({
-  layout: 'templates/layout.handlebars',
-  data: {
-    title: 'Hello World!',
-  },
-  blocks: {
-    body: (props) =&gt; {
-      return (
-        &lt;h1&gt;
-          {props.title}
-        &lt;/h1&gt;
-      )
-    }
-  }
-})
-
-console.log(html)
-
-// =&gt; Outputs:
-/*
-&lt;html&gt;
-  &lt;head&gt;
-    &lt;title&gt;Hello World!&lt;/title&gt;
-  &lt;/head&gt;
-  &lt;body&gt;
-    &lt;h1&gt;
-      Hello World!
-    &lt;/h1&gt;
-  &lt;/body&gt;
-&lt;/html&gt;
-*/
-</code></pre>
-
-<p>In Force, we're using this pattern to incrementally migrate portions of our app over to React, by taking existing block-based Jade layouts and injecting <code>ReactDOM.renderToString</code> output into them, and then rendering the layout into an HTML string that is passed down from the server and rehydrated on the client, isomorphically.</p>
-
-<p>Our existing Backbone views take advantage of the <code>templates</code> key:</p>
-
-<pre><code class="js">// server.js
-
-import LoginApp from 'apps/login/LoginApp'
-import { Provider } from 'react-redux'
-import { StaticRouter } from 'react-router'
-
-const html = await renderLayout({
-  layout: 'templates/layout.handlebars',
-  data: {
-    title: 'Login / Sign-up',
-  },
-  templates: {
-    login: 'templates/login.jade'
-  },
-  blocks: {
-    app: (props) =&gt; (
-      &lt;Provider store={store}&gt;
-        &lt;StaticRouter&gt;
-          &lt;LoginApp {...props} /&gt;
-        &lt;/StaticRouter&gt;
-      &lt;/Provider&gt;
-    )
-  }
-})
-
-res.send(html)
-</code></pre>
-
-<p>Similar to blocks, templates located in this object are pre-compiled and available to your components as <code>props.templates</code>.</p>
-
-<p>Once the html has been sent over the wire, we mount it like so:</p>
-
-<pre><code class="js">// client.js
-
-import LoginApp from 'apps/login/LoginApp'
-
-React.render(
-  &lt;LoginApp {...window.__BOOTSTRAP__} /&gt; // Data passed down from `data` key
-)
-</code></pre>
-
-<pre><code class="js">// apps/login/LoginApp.js
-
-import React from 'react'
-import Login from 'apps/login/Login'
-
-export default function LoginApp (props) {
-  const {
-    templates: {
-      login
-    }
-  } = props
-
-  return (
-    &lt;Login
-      template={login}
-    /&gt;
-  )
-}
-</code></pre>
-
-<p>During the server-side render phase existing template code will be rendered with the component, and once the component is mounted on the client <code>componentDidMount</code> will fire and the Backbone view instantiated:</p>
-
-<p>
-```js
-// apps/login/Login.js</p>
-
-<p>import React, { Component } from 'react'
-import LoginBackboneView from 'apps/login/views/LoginView'</p>
-
-<p>export default class Login extends Component {
-  componentDidMount () {
-    this.loginView = new LoginBackboneView()
-    this.loginView.render()
-  }</p>
-
-<p>  componentWillUnmount () {
-    this.loginView.remove()
-  }</p>
-
-<p>  render () {
-    return (
-      <div>
-        <div dangerouslySetInnerHtml={{
-          __html: this.props.template
-        }}>
-      </div>
-    )
-  }
-}
-```
-</p>
-
-<p>All of the possibilities that Stitch provides are too numerous to go over here, but check out the <a href="https://github.com/artsy/stitch#usage">documentation</a> and <a href="https://github.com/artsy/stitch/tree/master/examples">example apps</a> for more complete usage. While new, this pattern has worked quite well for us and has allowed Force to evolve alongside existing code with very little friction.</p>
-
-<a name="Moving.Forward"></a>
-<h2>Moving Forward</h2>
-
-<p>A common thread that connects <a href="https://github.com/artsy/force">Force</a> to <a href="https://github.com/artsy/eigen">Eigen</a> (Artsy's mobile app) is an understanding that while grand re-writes will gladly remove technical debt, technical debt is not our issue. A lot of the patterns we've laid down within our apps still work for us, and many of our implementations remain sufficient to the task. What we needed was an environment where <em>incremental revolution</em> was possible, where old ideas could merge with new and evolve. In terms of Eigen, we felt the best way forward was the adoption of <a href="https://facebook.github.io/react-native/">React Native</a> -- and <a href="https://github.com/artsy/emission">Emission</a> was born. Likewise, for our web and web-based mobile apps, <a href="https://github.com/artsy/reaction">Reaction</a> is serving a similar role. Both of these projects are built with <a href="https://www.typescriptlang.org/">TypeScript</a>, and both rely heavily on functionality that our <a href="http://graphql.org/">GraphQL</a> interface <a href="https://github.com/artsy/metaphysics">Metaphysics</a> provides. But crucially, these projects <em>augment</em> our existing infrastructure; they don't replace it. They fit in with existing ideas, tools and processes that have facilitated Artsy's growth, including highly-specific domain knowledge that our engineers have built up over time.</p>
-
-<p>In conclusion, I hope this post has provided a bit of a window into some of our processes here at Artsy for those facing similar challenges. If you want to take a deeper dive, check out the links below:</p>
-
-<ul>
-<li><a href="https://github.com/artsy/express-reloadable">express-reloadable</a></li>
-<li><a href="https://github.com/artsy/stitch">stitch</a></li>
-<li><a href="https://github.com/artsy/reaction">reaction</a></li>
-<li><a href="https://github.com/artsy/emission">emission</a></li>
 </ul>
 
 ]]></content>
