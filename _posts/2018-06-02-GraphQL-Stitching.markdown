@@ -15,7 +15,7 @@ We've been [carefully pushing][monolith] for years to move away from our single 
 smaller, more focused projects. Our [highlights docs][high] showcase this well. The movement to smaller composable
 services works great from an isolated platform/systems perspective but can be a bit tricky to handle with front-end
 clients. Until 2018, the way that we've addressed the growing complexity in our service later has been to migrate
-the complexity inside our main GraphQL API, [metaphyics][mp]. Metaphysics is our GraphQL API gateway that
+the complexity inside our main GraphQL API, [metaphysics][mp]. Metaphysics is our GraphQL API gateway that
 consolidates many API sources into a single service, then extending and interleaving and their data to make clients
 easier to write.
 
@@ -96,8 +96,8 @@ local copy of the schemas, so we can use it for tests for the next few steps.
 
 #### Schema Manipulation
 
-Each API writes for their own domain. This can be problematic when you use a `LineItem` in one API, which isn't
-generic enough to be a `LineItem` in a global API of all services. When thinking about this problem, we created a
+Each API writes for their own domain. This can be problematic when you use a `User` in one API, which isn't generic
+enough to be a `User` in a global API of all services combined. When thinking about this problem, we created a
 [guide for ourselves][guides-schema] on how to think about schema design at local and global level.
 
 We use a few of [the transform APIs][transform] available in graphql-tools to make the merges work. The first
@@ -192,9 +192,9 @@ right now is a combination of many sources, and front-end-client specific code. 
 #### Merging Schemas
 
 There are two classes of schemas involved in our stitching. Local Schemas, which is our existing schema (e.g. the
-resolver live inside the current source code) and Remote Schemas (e.g. where you make an API request to run those
-resolvers). [Merging a schema][merging] has a pretty small API surface and doesn't mind about which type of schemas
-you merge together.
+resolver live inside the current source code), and Remote Schemas (e.g. where you make an API request to run those
+resolvers). [Merging a schema][merging] has a pretty small API surface and doesn't mind which type of schemas you
+merge together.
 
 ```js
 import { mergeSchemas as _mergeSchemas } from "graphql-tools"
@@ -347,7 +347,7 @@ are being used or use advanced features of GraphQL.
 We've been using GraphQL [since mid-2015][init] and we've also used it with Relay for the past two years, this has
 meant we have quite a few interesting edge cases in our use of the GraphQL. We got in touch with [Mikhail
 Novikov][mn] and he contracted to help us with most of these issues and I'd strongly recommend doing the same (with
-any OSS dependency, but that's, like, just my opinion man) we got really far.
+any OSS dependency, but that's, like, just my opinion man.)
 
 GraphQL Stitching solves the problem of API consolidation in a really well thought out abstraction, and I consider
 it one of the most interesting avenues of exploration into what GraphQL will be in the future (see [Is GraphQL The
@@ -363,7 +363,7 @@ Future?][igtf] for a more philosophical take also.)
 [apollo-http-link]: https://www.apollographql.com/docs/link/links/http.html
 [dl-schema]: https://github.com/artsy/metaphysics/blob/1423ee39f8e348805710080a4857e6575d3ddade/scripts/dump-remote-schema.js#L15-L25
 [c-gql]: https://github.com/artsy/metaphysics/blob/master/src/data/convection.graphql
-[guides-schema]: https://github.com/artsy/guides/blob/master/guides/GraphQL-Schema-Design.md
+[guides-schema]: https://github.com/artsy/README/blob/master/playbooks/graphql-schema-design.md#notes
 [transform]: https://www.apollographql.com/docs/graphql-tools/schema-transforms.html
 [type-q]: https://github.com/artsy/metaphysics/blob/1423ee39f8e348805710080a4857e6575d3ddade/src/lib/stitching/lib/getTypesFromSchema.ts
 [merging]: https://github.com/artsy/metaphysics/blob/1423ee39f8e348805710080a4857e6575d3ddade/src/lib/stitching/mergeSchemas.ts#L9-L39
