@@ -4,7 +4,7 @@
   <title><![CDATA[Category: javascript | Artsy Engineering]]></title>
   <link href="http://artsy.github.io/blog/categories/javascript/atom.xml" rel="self"/>
   <link href="http://artsy.github.io/"/>
-  <updated>2018-11-26T12:35:58+00:00</updated>
+  <updated>2018-11-26T19:28:22+00:00</updated>
   <id>http://artsy.github.io/</id>
   <author>
     <name><![CDATA[]]></name>
@@ -12,6 +12,140 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Keeping Arty's dependencies up to date]]></title>
+    <link href="http://artsy.github.io/blog/2018/11/26/keeping-dependencies-updated/"/>
+    <updated>2018-11-26T00:00:00+00:00</updated>
+    <id>http://artsy.github.io/blog/2018/11/26/keeping-dependencies-updated</id>
+    <content type="html"><![CDATA[<p>Hey everyone! I'm Justin, a senior engineer here at Artsy. I've been here for about 6 months and I'm a bit overdue
+on my first blog post. This will be one of a series of posts I'm dubbing <em>roads and bridges</em> (thanks Orta)
+describing infrastructure and tooling work here at Artsy.</p>
+
+<a name="Backstory"></a>
+<h3>Backstory</h3>
+
+<p>Here at Artsy we have a lot of internal dependencies. Keeping these dependencies up to date across all of our
+projects can be a bit of a headache. For example, there's <a href="https://github.com/artsy/palette">Palette</a> (our <a href="https://www.uxpin.com/studio/blog/design-systems-vs-pattern-libraries-vs-style-guides-whats-difference/">design system</a>)
+which is consumed by <a href="https://github.com/artsy/reaction">Reaction</a> (our react component/app library), [Emission][emission] (our React Native
+application), <a href="https://github.com/artsy/force">Force</a> (our main site), and <a href="https://github.com/artsy/positron">Positron</a> (our editorial creation tool). That's not
+even an exhaustive list. As you can imagine, after making an update to <a href="https://github.com/artsy/palette">Palette</a> we have to make a lot of
+Pull Requests to get everything synced up across our many projects. And that's just <em>one</em> dependency.</p>
+
+<a name="Evaluating.the.problem"></a>
+<h3>Evaluating the problem</h3>
+
+<p>There are a few services out there that connect to [GitHub][github] and helps you keep your dependencies up to
+date. I'd personally used <a href="https://greenkeeper.io/">Greenkeeper</a> in the past and it seemed to work fairly well for my uses. I'd
+also heard about <a href="https://renovatebot.com/">Renovate</a> which is another option that actually supports more package managers than
+just yarn/npm. Great! Plenty to evaluate here. Anytime I'm evaluating a new service there are a few questions I ask
+myself upfront to help a good decision:</p>
+
+<ol>
+<li>What are my exact needs</li>
+<li>Can this solution scale to meet future needs</li>
+</ol>
+
+
+<p>The first point is straight-forward, but there's a little twist. We have a <em>lot</em> of dependencies. If we got PRs for
+all of them we'd be pretty much unable to do anything. In this case we wanted to specifically limit it to packages
+that are published by Artsy (on the <code>@artsy</code> npm namespace).</p>
+
+<p>The second you have to be a bit careful with. Don't try to project too far or you'll end up choosing a solution far
+too complex for your current needs. In this case, I wanted something that we could selectively extend in the future
+to cover other dependencies. Things like <code>react</code> and <code>react-dom</code> or <code>typescript</code>. Incremental increases without a
+ton of noise.</p>
+
+<a name="Picking.a.solution"></a>
+<h3>Picking a solution</h3>
+
+<p>First things first... we have to have a solution that can update only Artsy's dependencies. I started digging
+through <a href="https://greenkeeper.io/">Greenkeeper</a>'s docs and found a reference to an <a href="https://greenkeeper.io/docs.html#ignoring-dependencies">ignore</a> option.
+Essentially any package that you don't want <a href="https://greenkeeper.io/">GreenKeeper</a> to automatically update you can put in this
+ignore list. That's not really doable in our usecase because we want to ignore everything but a small subset of
+packages.</p>
+
+<p>Checking out <a href="https://renovatebot.com/">Renovate</a>'s docs I found a more promising option:
+<a href="https://renovatebot.com/docs/configuration-options/#excludepackagepatterns">excludePackagePatterns</a>. All I really want to do is include Artsy packages, but this sounded
+like I could do the inverse by excluding all non-Artsy packages. Being as it had that option, supported more
+package managers, and had a more friendly pricing scheme than <a href="https://greenkeeper.io/">Greenkeeper</a> I decided to give
+<a href="https://renovatebot.com/">Renovate</a> a shot.</p>
+
+<a name="Making.it.happen"></a>
+<h3>Making it happen</h3>
+
+<p>I began by enabling <a href="https://renovatebot.com/">Renovate</a> on <a href="https://github.com/artsy/force">Force</a>. You can see the PR [here][renovate-pr].
+<a href="https://renovatebot.com/">Renovate</a> has a <em>really</em> excellent on-boarding experience. It first creates a PR that adds its own
+configuration. It shows you what packages will be updated based on that configuration. As you update the config,
+Renovate will update the PR body to show you the results of your changes. This gives you the opportunity to update
+the configuration before it officially activates. If you click the edited dropdown on the PR body you'll see all
+the changes Renovate made to the issue while I was trying to figure out the configuration.</p>
+
+<p><img src="/images/2018-11-26-keeping-dependencies-updated/issue-history.png" alt="GitHub PR edit history" /></p>
+
+<p>It took me a while to figure everything out, just take a look at the <a href="https://github.com/artsy/force/pull/3086/commits">commit history</a>. I'm going to
+work through the final setup just to give you an idea of our setup.</p>
+
+<p>First, I extended <a href="https://renovatebot.com/">Renovate</a>'s base config.</p>
+
+<pre><code>{
+  "extends": [
+    "config:base"
+  ],
+  ...
+}
+</code></pre>
+
+<p>If you've worked with [eslint][eslint], <a href="https://babeljs.io/docs/en/options#extends">babel</a>, or other tools in the js ecosystem, you've probably
+seen this type of configuration extension. It essentially allows us to use their best practices out of the box.
+Check out their <a href="https://github.com/renovatebot/presets/blob/ef6a6e2e6d3e6ba25239d57d808b0e4dc64f32a3/packages/renovate-config-config/package.json#L19-L34">presets repo</a> if you want to know what it adds specifically.</p>
+
+<p>Next, I set the <a href="https://help.github.com/articles/assigning-issues-and-pull-requests-to-other-github-users/">assignees</a>. When <a href="https://renovatebot.com/">Renovate</a> opens a new PR, it'll assign it to these people
+so that the PR doesn't get missed.</p>
+
+<p>The actual meat of the change is the <code>packageRules</code> setup.</p>
+
+<pre><code>{
+  ...
+  "packageRules": [{
+    "packagePatterns": ["*"],
+    "excludePackagePatterns": ["^@artsy"],
+    "enabled": false
+  }],
+  ...
+}
+</code></pre>
+
+<p><a href="https://renovatebot.com/">Renovate</a> allows you to set up multiple different <code>packageRules</code> and there's a lot of configuration for
+them. I'm not going to go through more than I did, but feel free to read more in their
+<a href="https://renovatebot.com/docs/configuration-options/#packagerules">docs</a>. In the <code>packageRule</code> that I setup, I specified <code>packagePatterns</code> with an
+asterisk to select all dependencies. Then using <code>excludePackagePatteners</code> I excluded anything that started with
+<code>@artsy</code>. Finally (and most importantly), I set <code>enabled</code> to <code>false</code> to disable the dependencies matching those
+combinations of rules. That last part took me a while to figure out. When you're building package rules in
+<a href="https://renovatebot.com/">Renovate</a>, think of it as building out a list of operations to perform.</p>
+
+<p>The last few pieces of config are a little more straight-forward and you can read about those in the docs. The one
+thing that I'll mention is that <a href="https://renovatebot.com/docs/configuration-options/#vulnerabilityalerts">vulnerabilityAlerts</a> <em>ignores</em> <code>packageRules</code> and
+triggers update PRs for anything that's reported to have a vulnerability. You'll have to explicitly disable it if
+you only want reports on certain packages. Though, having it on probably isn't a bad idea...</p>
+
+<a name="Wrapping.up"></a>
+<h3>Wrapping up</h3>
+
+<p>So, that's how we configured <a href="https://renovatebot.com/">Renovate</a> to automatically update npm dependencies in Artsy's namespace.
+It's been extremely useful already. I also went ahead and pulled our configuration out into a <a href="https://github.com/artsy/renovate-config">shared
+repo</a> so that we didn't have to copy these configurations across all of our projects. That's
+a blog post for another day.</p>
+
+<p>Be well friends.</p>
+
+<!-- prettier-ignore -->
+
+
+<!-- prettier-ignore -->
+
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[A History of Artsy's Web Frontend]]></title>
@@ -752,36 +886,6 @@ tooling up for success, and create solid animations.</p>
 
 <p>We want <a href="https://www.artsy.net/x-react-native">Artsy x React-Native</a> to be about getting you up to speed with the framework, so you can make your
 own decisions going forward.</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[JavaScriptures 3 - Styled Components]]></title>
-    <link href="http://artsy.github.io/blog/2018/05/04/JavaScriptures-3-Styled-Components/"/>
-    <updated>2018-05-04T00:00:00+00:00</updated>
-    <id>http://artsy.github.io/blog/2018/05/04/JavaScriptures-3-Styled-Components</id>
-    <content type="html"><![CDATA[<p>The third in our JavaScriptures series on the Artsy <a href="http://artsy.github.io/blog/2017/02/05/Front-end-JavaScript-at-Artsy-2017/">omakase</a>. This workshop is a deep dive into <a href="https://www.styled-components.com">Styled
-Components</a>, where we take our React app from the first workshop and convert it to use Styled Components. We
-have Anandaroop Roy and Jon Allured covering all the details.</p>
-
-<!-- more -->
-
-
-
-
-<center>
-<iframe width='100%' height='400' src='https://www.youtube.com/embed/K7xafqfcC-4' frameborder='0' allowfullscreen></iframe>
-</center>
-
-
-
-
-<p style='text-align:right;'><a href="https://speakerdeck.com/artsyopensource/javascriptures-3-styled-components">
-Slides on Speakerdeck
-</a></p>
-
-
-
 ]]></content>
   </entry>
   

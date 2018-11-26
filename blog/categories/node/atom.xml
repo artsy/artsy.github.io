@@ -4,7 +4,7 @@
   <title><![CDATA[Category: node | Artsy Engineering]]></title>
   <link href="http://artsy.github.io/blog/categories/node/atom.xml" rel="self"/>
   <link href="http://artsy.github.io/"/>
-  <updated>2018-11-26T12:35:58+00:00</updated>
+  <updated>2018-11-26T19:28:22+00:00</updated>
   <id>http://artsy.github.io/</id>
   <author>
     <name><![CDATA[]]></name>
@@ -12,6 +12,140 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Keeping Arty's dependencies up to date]]></title>
+    <link href="http://artsy.github.io/blog/2018/11/26/keeping-dependencies-updated/"/>
+    <updated>2018-11-26T00:00:00+00:00</updated>
+    <id>http://artsy.github.io/blog/2018/11/26/keeping-dependencies-updated</id>
+    <content type="html"><![CDATA[<p>Hey everyone! I'm Justin, a senior engineer here at Artsy. I've been here for about 6 months and I'm a bit overdue
+on my first blog post. This will be one of a series of posts I'm dubbing <em>roads and bridges</em> (thanks Orta)
+describing infrastructure and tooling work here at Artsy.</p>
+
+<a name="Backstory"></a>
+<h3>Backstory</h3>
+
+<p>Here at Artsy we have a lot of internal dependencies. Keeping these dependencies up to date across all of our
+projects can be a bit of a headache. For example, there's <a href="https://github.com/artsy/palette">Palette</a> (our <a href="https://www.uxpin.com/studio/blog/design-systems-vs-pattern-libraries-vs-style-guides-whats-difference/">design system</a>)
+which is consumed by <a href="https://github.com/artsy/reaction">Reaction</a> (our react component/app library), [Emission][emission] (our React Native
+application), <a href="https://github.com/artsy/force">Force</a> (our main site), and <a href="https://github.com/artsy/positron">Positron</a> (our editorial creation tool). That's not
+even an exhaustive list. As you can imagine, after making an update to <a href="https://github.com/artsy/palette">Palette</a> we have to make a lot of
+Pull Requests to get everything synced up across our many projects. And that's just <em>one</em> dependency.</p>
+
+<a name="Evaluating.the.problem"></a>
+<h3>Evaluating the problem</h3>
+
+<p>There are a few services out there that connect to [GitHub][github] and helps you keep your dependencies up to
+date. I'd personally used <a href="https://greenkeeper.io/">Greenkeeper</a> in the past and it seemed to work fairly well for my uses. I'd
+also heard about <a href="https://renovatebot.com/">Renovate</a> which is another option that actually supports more package managers than
+just yarn/npm. Great! Plenty to evaluate here. Anytime I'm evaluating a new service there are a few questions I ask
+myself upfront to help a good decision:</p>
+
+<ol>
+<li>What are my exact needs</li>
+<li>Can this solution scale to meet future needs</li>
+</ol>
+
+
+<p>The first point is straight-forward, but there's a little twist. We have a <em>lot</em> of dependencies. If we got PRs for
+all of them we'd be pretty much unable to do anything. In this case we wanted to specifically limit it to packages
+that are published by Artsy (on the <code>@artsy</code> npm namespace).</p>
+
+<p>The second you have to be a bit careful with. Don't try to project too far or you'll end up choosing a solution far
+too complex for your current needs. In this case, I wanted something that we could selectively extend in the future
+to cover other dependencies. Things like <code>react</code> and <code>react-dom</code> or <code>typescript</code>. Incremental increases without a
+ton of noise.</p>
+
+<a name="Picking.a.solution"></a>
+<h3>Picking a solution</h3>
+
+<p>First things first... we have to have a solution that can update only Artsy's dependencies. I started digging
+through <a href="https://greenkeeper.io/">Greenkeeper</a>'s docs and found a reference to an <a href="https://greenkeeper.io/docs.html#ignoring-dependencies">ignore</a> option.
+Essentially any package that you don't want <a href="https://greenkeeper.io/">GreenKeeper</a> to automatically update you can put in this
+ignore list. That's not really doable in our usecase because we want to ignore everything but a small subset of
+packages.</p>
+
+<p>Checking out <a href="https://renovatebot.com/">Renovate</a>'s docs I found a more promising option:
+<a href="https://renovatebot.com/docs/configuration-options/#excludepackagepatterns">excludePackagePatterns</a>. All I really want to do is include Artsy packages, but this sounded
+like I could do the inverse by excluding all non-Artsy packages. Being as it had that option, supported more
+package managers, and had a more friendly pricing scheme than <a href="https://greenkeeper.io/">Greenkeeper</a> I decided to give
+<a href="https://renovatebot.com/">Renovate</a> a shot.</p>
+
+<a name="Making.it.happen"></a>
+<h3>Making it happen</h3>
+
+<p>I began by enabling <a href="https://renovatebot.com/">Renovate</a> on <a href="https://github.com/artsy/force">Force</a>. You can see the PR [here][renovate-pr].
+<a href="https://renovatebot.com/">Renovate</a> has a <em>really</em> excellent on-boarding experience. It first creates a PR that adds its own
+configuration. It shows you what packages will be updated based on that configuration. As you update the config,
+Renovate will update the PR body to show you the results of your changes. This gives you the opportunity to update
+the configuration before it officially activates. If you click the edited dropdown on the PR body you'll see all
+the changes Renovate made to the issue while I was trying to figure out the configuration.</p>
+
+<p><img src="/images/2018-11-26-keeping-dependencies-updated/issue-history.png" alt="GitHub PR edit history" /></p>
+
+<p>It took me a while to figure everything out, just take a look at the <a href="https://github.com/artsy/force/pull/3086/commits">commit history</a>. I'm going to
+work through the final setup just to give you an idea of our setup.</p>
+
+<p>First, I extended <a href="https://renovatebot.com/">Renovate</a>'s base config.</p>
+
+<pre><code>{
+  "extends": [
+    "config:base"
+  ],
+  ...
+}
+</code></pre>
+
+<p>If you've worked with [eslint][eslint], <a href="https://babeljs.io/docs/en/options#extends">babel</a>, or other tools in the js ecosystem, you've probably
+seen this type of configuration extension. It essentially allows us to use their best practices out of the box.
+Check out their <a href="https://github.com/renovatebot/presets/blob/ef6a6e2e6d3e6ba25239d57d808b0e4dc64f32a3/packages/renovate-config-config/package.json#L19-L34">presets repo</a> if you want to know what it adds specifically.</p>
+
+<p>Next, I set the <a href="https://help.github.com/articles/assigning-issues-and-pull-requests-to-other-github-users/">assignees</a>. When <a href="https://renovatebot.com/">Renovate</a> opens a new PR, it'll assign it to these people
+so that the PR doesn't get missed.</p>
+
+<p>The actual meat of the change is the <code>packageRules</code> setup.</p>
+
+<pre><code>{
+  ...
+  "packageRules": [{
+    "packagePatterns": ["*"],
+    "excludePackagePatterns": ["^@artsy"],
+    "enabled": false
+  }],
+  ...
+}
+</code></pre>
+
+<p><a href="https://renovatebot.com/">Renovate</a> allows you to set up multiple different <code>packageRules</code> and there's a lot of configuration for
+them. I'm not going to go through more than I did, but feel free to read more in their
+<a href="https://renovatebot.com/docs/configuration-options/#packagerules">docs</a>. In the <code>packageRule</code> that I setup, I specified <code>packagePatterns</code> with an
+asterisk to select all dependencies. Then using <code>excludePackagePatteners</code> I excluded anything that started with
+<code>@artsy</code>. Finally (and most importantly), I set <code>enabled</code> to <code>false</code> to disable the dependencies matching those
+combinations of rules. That last part took me a while to figure out. When you're building package rules in
+<a href="https://renovatebot.com/">Renovate</a>, think of it as building out a list of operations to perform.</p>
+
+<p>The last few pieces of config are a little more straight-forward and you can read about those in the docs. The one
+thing that I'll mention is that <a href="https://renovatebot.com/docs/configuration-options/#vulnerabilityalerts">vulnerabilityAlerts</a> <em>ignores</em> <code>packageRules</code> and
+triggers update PRs for anything that's reported to have a vulnerability. You'll have to explicitly disable it if
+you only want reports on certain packages. Though, having it on probably isn't a bad idea...</p>
+
+<a name="Wrapping.up"></a>
+<h3>Wrapping up</h3>
+
+<p>So, that's how we configured <a href="https://renovatebot.com/">Renovate</a> to automatically update npm dependencies in Artsy's namespace.
+It's been extremely useful already. I also went ahead and pulled our configuration out into a <a href="https://github.com/artsy/renovate-config">shared
+repo</a> so that we didn't have to copy these configurations across all of our projects. That's
+a blog post for another day.</p>
+
+<p>Be well friends.</p>
+
+<!-- prettier-ignore -->
+
+
+<!-- prettier-ignore -->
+
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Express Reloadable: Optimizing Express.js Development Speed]]></title>
@@ -551,130 +685,6 @@ export default {
 <p>Whether this is a pattern other apps can follow is hard to say, we were in a great position to do this. Our app has view controllers that have very little communication with each other and the host app does not need to bridge large amounts of information.</p>
 
 <p>As ever, our work is open source, and we ensure that anyone can download and run Emission, so if you'd like to understand more, clone <a href="https://github.com/artsy/emission#reactions--emissions">artsy/emission</a> and study the implementation.</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Using VS Code for JavaScript]]></title>
-    <link href="http://artsy.github.io/blog/2016/08/15/vscode/"/>
-    <updated>2016-08-15T22:17:00+00:00</updated>
-    <id>http://artsy.github.io/blog/2016/08/15/vscode</id>
-    <content type="html"><![CDATA[<center>
- <img src="/images/vscode/vscode_logo_artsy.svg" style="width:300px;">
-</center>
-
-
-<p>I'm an old school TextMate user, who has also been using Xcode for the last decade. These two sit at a very opposite ends of an "editor" spectrum.</p>
-
-<p>TextMate is extremely bare bones at the core, but introduced the idea of bundles as plugins. Making it really easy for others to build their own plugins for their own contexts. Xcode on the other-hand includes a 3D scene editor, the best interface builder I've seen, super rich debugging tools and close to zero support for improving it yourself.</p>
-
-<p>As we agreed on moving to React Native, we needed to decide what the team should use for <a href="https://github.com/artsy/emission/blob/master/docs/vscode.md">working in that environment</a>. After experimentation with many editors, we decided on Microsoft's <a href="https://code.visualstudio.com/">Visual Studio Code</a>.</p>
-
-<p>We wanted to keep a lot of the best features from Xcode, while working in a completely JavaScript environment. For example: debuggers, inline errors, auto-complete, symbol mapping and to ideally have them all inside a single editor.</p>
-
-<p>Let's dig into the principals of how Visual Studio Code works, what makes it a better option for us, and what parts of it really shine.</p>
-
-<!-- more -->
-
-
-<hr />
-
-<a name="What.is.Visual.Studio.Code."></a>
-<h3>What is Visual Studio Code?</h3>
-
-<p>Visual Studio Code (VS Code) is <em>yet another</em>, JavaScript-based text editor. It's built atop of GitHub's <a href="http://electron.atom.io">Electron</a>. Electron is a framework for writing native apps as easy as building websites. It started as a web component for some Microsoft web-service, and eventually evolved into a fully-fledged text editor.</p>
-
-<a name="IDE.-.Editor.hybrid"></a>
-<h4>IDE - Editor hybrid</h4>
-
-<p>Visual Studio Code (VS Code) believes that the sweet-spot between and IDE and a plain Text Editor, is somewhere a little bit closer to the IDE side.</p>
-
-<p></article>
-<a href='/images/vscode/editors.png' style="">
-  <img src="/images/vscode/editors.png" alt="Editors" style="width:100%;">
-</a>
-<article class="post">
-</p>
-
-<p>This means instead of the Text-Editor style folder based approach, VS Code expects to set up a project structure per-project to start supporting from of the more useful IDE-like features.</p>
-
-<p>It supports TextMate style plugins (called Extensions) through a controlled, but expanding <a href="https://code.visualstudio.com/docs/extensions/overview">extension API</a>. The extension API work takes an <a href="https://developer.apple.com/library/mac/documentation/MacOSX/Conceptual/BPSystemStartup/Chapters/CreatingXPCServices.html">Apple-like</a> approach to ensuring stability by having all extensions run outside of the host process. <a href="https://code.visualstudio.com/docs/extensions/our-approach">This approach</a> ensures any extension crash does not take down the editor.</p>
-
-<p>It's also smart about deciding when to load an extension, for example, my <a href="https://marketplace.visualstudio.com/items?itemName=Orta.vscode-danger">Danger</a> extension will <a href="https://github.com/orta/vscode-danger/blob/a21ccc101b2b1c1be595b10565bca9c88242fb6f/package.json#L18-L20">only load</a> if there is a <code>Dangerfile</code> in the root of the workspace.</p>
-
-<p>These two approaches to extensions are specifically aimed at <a href="https://discuss.atom.io/t/why-is-atom-so-slow/11376">addressing issues</a> seen inside Atom, where any user actions can be / are blocked by extensions, and extensions have full-reign to make any change they want. Even on my Mac Pro, there is a noticable lag. I initially assumed this was the "JavaScript tax" for all Electron apps, but VS Code is fast.</p>
-
-<a name="Making.Intellisense"></a>
-<h3>Making Intellisense</h3>
-
-<p>By default a JavaScript project does not have a way to provide auto-completion, or in VS Code's terminology: Intellisense. Trying to make auto-complete based on a <a href="https://en.wikipedia.org/wiki/Read%E2%80%93eval%E2%80%93print_loop">REPL</a> can only get you so far, because it has to be wary against functions with side-effects. Other alternatives are to build an <a href="http://jointjs.com/demos/javascript-ast">AST</a> from the code, and then introspect that.</p>
-
-<p>In Xcode the auto-complete tools are powered by the type systems of Objective-C and Swift. This means that you can know the structure of an object, without having to dig inside it, potentially breaking it in the process. Vanilla JavaScript does not have a type system. There are a few root classes though: String, Object, Number etc.</p>
-
-<p>To work around this problem, VS Code uses <a href="http://www.typescriptlang.org">TypeScript</a> behind the scenes. TypeScript is a language that compiles down to JavaScript which provides a typing structure on top of JavaScript. This is a similar approach to how <a href="https://flowtype.org">Flow works</a> too, which is the language <a href="https://github.com/artsy/emission/pull/220">we write React Native</a> in.</p>
-
-<p>This can work out really well for your own classes if you are declaring your types, but the npm ecosystem is <em>full</em> of untyped JavaScript, and a lot of your work is about sitting atop those abstractions. The fix for this is offered via <a href="http://definitelytyped.org">DefinitelyTyped</a> which provides type definitions for popular npm modules. For example here is <a href="https://github.com/DefinitelyTyped/DefinitelyTyped/blob/master/redux/redux.d.ts">one for Redux</a> - these act like <a href="https://github.com/artsy/eigen/blob/master/Artsy/App/ARSwitchBoard.h">header files in Objective-C</a> - offering inline documentation, and the shape of the object.</p>
-
-<p>I use an extension to keep these up to date and to have them installed in every project I work in: <a href="https://marketplace.visualstudio.com/items?itemName=jvitor83.types-autoinstaller">Types auto installer</a>. Here's an example of auto-complete for <a href="http://redux.js.org/docs/api/Store.html">a Redux store</a>.</p>
-
-<p></article>
-<a href='/images/vscode/redux.png' style="">
-  <img src="/images/vscode/redux.png" alt="Redux" style="width:100%;">
-</a>
-<article class="post">
-</p>
-
-<p>It'll also provide information about the parameters, which is a life-saver for me. Having grown up with <a href="https://developer.apple.com/library/ios/documentation/Swift/Conceptual/Swift_Programming_Language/Functions.html">named</a> <a href="https://robots.thoughtbot.com/ruby-2-keyword-arguments">parameters</a>.</p>
-
-<p></article>
-<a href='/images/vscode/redux-params.png' style="">
-  <img src="/images/vscode/redux-params.png" alt="Redux Params" style="width:100%;">
-</a>
-<article class="post">
-</p>
-
-<a name="Runtime"></a>
-<h3>Runtime</h3>
-
-<p>Using console logs to debug isn't an acceptable answer when debugging for me anymore. <a href="http://blog.cleancoder.com/uncle-bob/2016/07/27/TheChurn.html">That's churn</a> that I'm not willing to lose time to. Luckily for me, VS Code supports debugging across many languages.</p>
-
-<p>It does this by having a generic VS Code <a href="https://code.visualstudio.com/docs/extensions/example-debuggers">Debug Protocol</a> which lets extensions use their own processes to run the debugger. So the ruby debugger runs on the <a href="https://github.com/rubyide/vscode-ruby#debugger"><code>ruby-debug-ide</code></a> gem, and for node-based projects it uses the debugger built into node.</p>
-
-<p>So, here is a common case. I want to start up my web-server, so I need to run <code>npm dev</code>. I can run this from VS Code:</p>
-
-<p></article>
-<a href='/images/vscode/start.png' style="">
-  <img src="/images/vscode/start.png" alt="Editors" style="width:100%;">
-</a>
-<article class="post">
-</p>
-
-<p>Once that's running - I can attach a debugger. This is listing all of the available node processes on my computer:</p>
-
-<p></article>
-<a href='/images/vscode/attatch.png' style="">
-  <img src="/images/vscode/attatch.png" alt="Editors" style="width:100%;">
-</a>
-<article class="post">
-</p>
-
-<p>Then I can add a breakpoint, and when it is triggered, I have a full stack trace and REPL. The REPL is very barebones, for example - there's no auto-complete. However, it's good for quick exploration. I keep <a href="https://www.objc.io/issues/19-debugging/lldb-debugging/#printing-objects">accidentally prefixing</a> my REPL code with <code>po</code>.</p>
-
-<p></article>
-<a href='/images/vscode/debug.png' style="">
-  <img src="/images/vscode/debug.png" alt="Editors" style="width:100%;">
-</a>
-<article class="post">
-</p>
-
-<p>The breakpoint works through a <a href="http://blog.teamtreehouse.com/introduction-source-maps">source map</a>, and so the line you expect is the one that you're working in. That stuff is all pretty magic to me. Good on Microsoft, and the node community for pulling that off.</p>
-
-<a name="Wrapup"></a>
-<h3>Wrapup</h3>
-
-<p>I still feel a little bit uncomfortable in JavaScript projects, as a long-time native developer. However feel like VS Code is a nice mix of the freeform "just do something" style of Text Editors, which work across a lot of systems and the tight-knit IDEs that are bound to a specific domain. It can be a bridge between worlds.</p>
-
-<p>VS Code has become my main editor in Ruby and JavaScript, due to having great support for the projects and being an OSS project which I feel like I can contribute to. No more being <a href="https://github.com/alcatraz/Alcatraz/issues/475">locked out</a> of improving my editor. Awesome!</p>
 ]]></content>
   </entry>
   
