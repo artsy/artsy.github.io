@@ -142,6 +142,7 @@ Be well friends.
 [renovate-vulnerabilityalerts]: https://renovatebot.com/docs/configuration-options/#vulnerabilityalerts
 [babel-extends]: https://babeljs.io/docs/en/options#extends
 [eslint-extends]: https://eslint.org/docs/user-guide/configuring#extending-configuration-files
+[eslint]: https://eslint.org
 
 <!-- prettier-ignore -->
 [rnb]: https://www.fordfoundation.org/about/library/reports-and-studies/roads-and-bridges-the-unseen-labor-behind-our-digital-infrastructure/
