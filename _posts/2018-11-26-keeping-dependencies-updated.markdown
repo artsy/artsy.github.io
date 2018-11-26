@@ -1,7 +1,7 @@
 ---
 layout: epic
 title: Keeping Arty's dependencies up to date
-date: 2018-11-20
+date: 2018-11-26
 author: justin
 categories: [best practices, dependencies, javascript, node, roads and bridges]
 ---
@@ -62,7 +62,7 @@ Renovate will update the PR body to show you the results of your changes. This g
 the configuration before it officially activates. If you click the edited dropdown on the PR body you'll see all
 the changes Renovate made to the issue while I was trying to figure out the configuration.
 
-![GitHub PR edit history](/images/2018-11-20-keeping-dependencies-updated/issue-history.png)
+![GitHub PR edit history](/images/2018-11-26-keeping-dependencies-updated/issue-history.png)
 
 It took me a while to figure everything out, just take a look at the [commit history][pr-commits]. I'm going to
 work through the final setup just to give you an idea of our setup.
