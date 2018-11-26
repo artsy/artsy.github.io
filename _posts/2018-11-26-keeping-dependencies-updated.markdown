@@ -7,7 +7,7 @@ categories: [best practices, dependencies, javascript, node, roads and bridges]
 ---
 
 Hey everyone! I'm Justin, a senior engineer here at Artsy. I've been here for about 6 months and I'm a bit overdue
-on my first blog post. This will be one of a series of posts I'm dubbing _roads and bridges_ (thanks Orta)
+on my first blog post. This will be one of a series of posts I'm dubbing _roads and bridges_ ([thanks Orta][rnb])
 describing infrastructure and tooling work here at Artsy.
 
 ### Backstory
@@ -142,6 +142,9 @@ Be well friends.
 [renovate-vulnerabilityalerts]: https://renovatebot.com/docs/configuration-options/#vulnerabilityalerts
 [babel-extends]: https://babeljs.io/docs/en/options#extends
 [eslint-extends]: https://eslint.org/docs/user-guide/configuring#extending-configuration-files
+
+<!-- prettier-ignore -->
+[rnb]: https://www.fordfoundation.org/about/library/reports-and-studies/roads-and-bridges-the-unseen-labor-behind-our-digital-infrastructure/
 
 <!-- prettier-ignore -->
 [renovate-presets]: https://github.com/renovatebot/presets/blob/ef6a6e2e6d3e6ba25239d57d808b0e4dc64f32a3/packages/renovate-config-config/package.json#L19-L34
