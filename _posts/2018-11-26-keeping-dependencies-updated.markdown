@@ -19,6 +19,8 @@ application), [Force][force] (our main site), and [Positron][positron] (our edit
 even an exhaustive list. As you can imagine, after making an update to [Palette][palette] we have to make a lot of
 Pull Requests to get everything synced up across our many projects. And that's just _one_ dependency.
 
+<!-- more -->
+
 ### Evaluating the problem
 
 There are a few services out there that connect to [GitHub][github] and helps you keep your dependencies up to
