@@ -190,7 +190,7 @@ class Circle {
   radius: number
 }
 
-// ✔ All good! Cirlces have a color
+// ✔ All good! Circles have a color
 const shape: Shape = new Circle()
 // ✘ Type error! Not all shapes have a radius!
 const circle: Circle = shape
