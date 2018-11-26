@@ -23,10 +23,10 @@ Pull Requests to get everything synced up across our many projects. And that's j
 
 ### Evaluating the problem
 
-There are a few services out there that connect to [GitHub][github] and helps you keep your dependencies up to
-date. I'd personally used [Greenkeeper][greenkeeper] in the past and it seemed to work fairly well for my uses. I'd
-also heard about [Renovate][renovate] which is another option that actually supports more package managers than
-just yarn/npm. Great! Plenty to evaluate here. Anytime I'm evaluating a new service there are a few questions I ask
+There are a few services out there that connect to GitHub and helps you keep your dependencies up to date. I'd
+personally used [Greenkeeper][greenkeeper] in the past and it seemed to work fairly well for my uses. I'd also
+heard about [Renovate][renovate] which is another option that actually supports more package managers than just
+yarn/npm. Great! Plenty to evaluate here. Anytime I'm evaluating a new service there are a few questions I ask
 myself upfront to help a good decision:
 
 1. What are my exact needs
@@ -128,8 +128,10 @@ Be well friends.
 [positron]: https://github.com/artsy/positron
 [palette]: https://github.com/artsy/palette
 [force]: https://github.com/artsy/force
+[emission]: https://github.com/artsy/emission
 [reaction]: https://github.com/artsy/reaction
 [renovate]: https://renovatebot.com/
+[renovate-pr]: https://github.com/artsy/force/pull/3086
 [renovate-exclude]: https://renovatebot.com/docs/configuration-options/#excludepackagepatterns
 [greenkeeper]: https://greenkeeper.io/
 [greenkeeper-ignore]: https://greenkeeper.io/docs.html#ignoring-dependencies
