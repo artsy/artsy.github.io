@@ -1,6 +1,6 @@
 ---
 layout: epic
-title: Keeping Arty's dependencies up to date
+title: Keeping Artsy's dependencies up to date
 date: 2018-11-26
 author: justin
 categories: [best practices, dependencies, javascript, node, roads and bridges]
