@@ -1,7 +1,7 @@
 ---
 layout: epic
 title: "Switch from Capybara Webkit to Chrome"
-date: 2018-10-16
+date: 2018-11-27
 author: chungyi
 categories: [testing, ci, rspec, rails]
 ---
