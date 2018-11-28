@@ -1,7 +1,7 @@
 ---
 layout: epic
 title: GraphQL Stitching 101
-date: 2018-11-21
+date: 2018-11-29
 author: [orta]
 categories: [graphql, stitching, metaphysics]
 css: graphql-stitch
@@ -32,17 +32,19 @@ a few months.
 
 The core idea behind schema stitching is that because GraphQL talks in type systems, you should be able to merge
 type systems from many GraphQL APIs into a single source of truth. Schema Stitching came out at the [end of
-2017][stitching_out] via the [`graphql-tools`][tools] and became very production-[ready in April
+2017][stitching_out] via the [`graphql-tools`][tools] and became production-[ready in April
 2018][stitching_announcement].
 
-We started experimenting last year and would occasionally run it on staging to discover edge case issues. This
-meant the state of the project would ebb & flow between a blocked, or no-one having the bandwidth to work on it.
-This was fine, because our aim was [incremental evolutions over bold revolution][rev].
+We started experimenting on staging last year and would occasionally run into edge-case issues.This meant the state
+of the project would ebb & flow between being blocked, or no-one having the bandwidth to work on it. This was fine,
+because our aim was [incremental evolutions over bold revolution][rev].
 
 Before we dive into implementation details, here's a quick glossary of terms before we start:
 
+- **GraphQL Type** - the shape of an object exposed from your GraphQL API
 - **GraphQL Schema** - a representation of your GraphQL's type system, containing all types and fields on them
-- **GraphQL Resolver** - every field accessed in a query has a corresponding resolver
+- **GraphQL Resolver** - every field accessed in a query resolves to a corresponding value, the function doing that
+  is a resolver
 - **Schema Merging** - taking two GraphQL schemas, and merging all the types and resolvers into one schema
 - **Schema Stitching** - extending a GraphQL Schema programmatically, with the ability to delegate to merged
   schemas
