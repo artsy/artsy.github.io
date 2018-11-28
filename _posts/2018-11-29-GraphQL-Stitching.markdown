@@ -31,17 +31,17 @@ a few months.
 ## What is Schema Stitching?
 
 The core idea behind schema stitching is that because GraphQL talks in type systems, you should be able to merge
-type systems from many GraphQL APIs into a single source of truth. Schema Stitching came out at the [end of
+type systems from many GraphQL APIs into a single source of truth. Schema stitching came out at the [end of
 2017][stitching_out] via the [`graphql-tools`][tools] and became production-[ready in April
 2018][stitching_announcement].
 
-We started experimenting on staging last year and would occasionally run into edge-case issues.This meant the state
-of the project would ebb & flow between being blocked, or no-one having the bandwidth to work on it. This was fine,
-because our aim was [incremental evolutions over bold revolution][rev].
+We started experimenting on staging last year and would occasionally run into edge-case issues. This meant the
+state of the project would ebb & flow between being blocked, or no-one having the bandwidth to work on it. This was
+fine, because our aim was [incremental evolutions over bold revolution][rev].
 
 Before we dive into implementation details, here's a quick glossary of terms before we start:
 
-- **GraphQL Type** - the shape of an object exposed from your GraphQL API
+- **GraphQL [Type][type]** - the shape of an object exposed from your GraphQL API
 - **GraphQL Schema** - a representation of your GraphQL's type system, containing all types and fields on them
 - **GraphQL Resolver** - every field accessed in a query resolves to a corresponding value, the function doing that
   is a resolver
@@ -90,7 +90,7 @@ The script uses an [apollo-http-link][] to grab our schema, and store it in our 
 [`src/data/convection.graphql`][c-gql]. This means that when someone wants to update to a new version of the
 schema, it will go through code review and a normal testing-flow. The trade-off being that it will always be out of
 date a little bit, but you can make guarantees about the current schema. This is a reasonable trade-off, as GraphQL
-schemas should always be forward compatible for queries, and when someone wants to use a new field from another
+schemas [should always] be forward compatible for queries, and when someone wants to use a new field from another
 service they can move the schema definition from [the git repo][rfc31].
 
 This file is the [GraphQL SDL][sdl] representations of the entire type system for that schema. This means we have a
@@ -188,8 +188,11 @@ it("Does not include blacklisted types", async () => {
 
 This one is interesting, we _don't_ want the version of `Artist` and `Artwork` from Gravity's GraphQL
 implementation - because the hand-rolled `Artwork` and `Artist` types which lives in the source code of Metaphysics
-right now is a combination of many sources, and front-end-client specific code. If we allowed the `Artist` or
-`Artwork` to overwrite the existing implementations it would be a massively breaking change.
+right now is a combination of many sources, and front-end-client specific code.
+
+If we allowed the `Artist` or `Artwork` to overwrite the existing implementations it would be a massively breaking
+change. Compare the Artwork from [Gravity's GraphQL][grav-artwork] (5 fields) vs [Metaphysics' GraphQL][mp-artwork]
+(~90 fields) switching the types would cripple our front-ends.
 
 #### Merging Schemas
 
@@ -382,5 +385,7 @@ Future?][igtf] for a more philosophical take also.)
 [kaws]: https://github.com/artsy/metaphysics/pull/1327
 [ps]: https://github.com/artsy/emission/pull/999
 [inc]: https://github.com/orta/incorporeal
-
+[type]: https://graphql.org/learn/schema/#type-system
+[grav-artwork]: https://github.com/artsy/metaphysics/blob/51939d1f8eb0d5a60e6e888bf701e082a9ee3731/src/data/gravity.graphql#L14-L29
+[mp-artwork]: https://github.com/artsy/metaphysics/blob/51939d1f8eb0d5a60e6e888bf701e082a9ee3731/_schema.graphql#L723-L889
 <!-- prettier-ignore-end -->
