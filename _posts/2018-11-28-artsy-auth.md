@@ -1,6 +1,6 @@
 ---
 title: Everything You Ever Wanted To Know About Authentication at Artsy (But Didn't Know How To Ask)
-date: 2018-10-23
+date: 2018-11-28
 categories: [tech, oauth, security, infosec, authentication]
 author: myk
 ---
