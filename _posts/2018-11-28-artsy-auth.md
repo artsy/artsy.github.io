@@ -4,6 +4,7 @@ date: 2018-11-28
 categories: [tech, oauth, security, infosec, authentication]
 author: myk
 layout: epic
+comment_id: 506
 ---
 
 Hi! Let's talk a little bit about user authentication. We'll discuss it through the context of authentication
