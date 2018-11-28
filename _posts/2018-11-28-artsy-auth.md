@@ -3,6 +3,7 @@ title: Everything You Ever Wanted To Know About Authentication at Artsy (But Did
 date: 2018-11-28
 categories: [tech, oauth, security, infosec, authentication]
 author: myk
+layout: epic
 ---
 
 Hi! Let's talk a little bit about user authentication. We'll discuss it through the context of authentication
