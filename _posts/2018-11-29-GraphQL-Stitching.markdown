@@ -90,7 +90,7 @@ The script uses an [apollo-http-link][] to grab our schema, and store it in our 
 [`src/data/convection.graphql`][c-gql]. This means that when someone wants to update to a new version of the
 schema, it will go through code review and a normal testing-flow. The trade-off being that it will always be out of
 date a little bit, but you can make guarantees about the current schema. This is a reasonable trade-off, as GraphQL
-schemas [should always] be forward compatible for queries, and when someone wants to use a new field from another
+schemas [should always][] be forward compatible for queries, and when someone wants to use a new field from another
 service they can move the schema definition from [the git repo][rfc31].
 
 This file is the [GraphQL SDL][sdl] representations of the entire type system for that schema. This means we have a
@@ -191,8 +191,8 @@ implementation - because the hand-rolled `Artwork` and `Artist` types which live
 right now is a combination of many sources, and front-end-client specific code.
 
 If we allowed the `Artist` or `Artwork` to overwrite the existing implementations it would be a massively breaking
-change. Compare the Artwork from [Gravity's GraphQL][grav-artwork] (5 fields) vs [Metaphysics' GraphQL][mp-artwork]
-(~90 fields) switching the types would cripple our front-ends.
+change. For example, compare the Artwork type from [Gravity's GraphQL][grav-artwork] (5 fields) vs [Metaphysics'
+GraphQL][mp-artwork] (~90 fields) accidentally switching the types would cripple our front-ends.
 
 #### Merging Schemas
 
@@ -388,4 +388,5 @@ Future?][igtf] for a more philosophical take also.)
 [type]: https://graphql.org/learn/schema/#type-system
 [grav-artwork]: https://github.com/artsy/metaphysics/blob/51939d1f8eb0d5a60e6e888bf701e082a9ee3731/src/data/gravity.graphql#L14-L29
 [mp-artwork]: https://github.com/artsy/metaphysics/blob/51939d1f8eb0d5a60e6e888bf701e082a9ee3731/_schema.graphql#L723-L889
+[should always]: https://graphql.org/learn/best-practices/#versioninghttps://graphql.org/learn/best-practices/#versioning
 <!-- prettier-ignore-end -->
