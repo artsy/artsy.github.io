@@ -1,7 +1,7 @@
 ---
 layout: epic
 title: GraphQL Stitching 101
-date: 2018-11-29
+date: 2018-12-11
 author: [orta]
 categories: [graphql, stitching, metaphysics]
 css: graphql-stitch
