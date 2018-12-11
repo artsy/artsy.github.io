@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>GraphQL Stitching 101 - Artsy Engineering</title>
+  <meta name="author" content="">
+
+  
+  <meta name="description" content="Micro-Services make sense. You can scope a domain of your business to particular small unit of abstraction like an
+API. Doing so makes it easy to w...">
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <meta property="og:image" content="http://artsy.github.io/images/artsy_oss_image.png" />
+  <meta property="og:image:type" content="image/png" />
+
+  
+  <link rel="canonical" href="http://artsy.github.io/blog/2018/12/11/GraphQL-Stitching/">
+  <link rel="alternate" type="application/rss+xml" title="Artsy Engineering Blog" href="/feed">
+
+  <link href="/favicon.ico" rel="icon">
+  <link href="/css/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+
+  <script src="/javascripts/jquery-1.11.3.min.js"> </script>
+  <script src="/javascripts/gradient-fade.js"></script>
+  <script src="/javascripts/noframework.waypoints.min.js"></script>
+  <script src="/javascripts/sticky.min.js"></script>
+  <script src="/javascripts/search.min.js"></script>
+
+  
+
+  <script type="text/javascript" src="https://fast.fonts.net/jsapi/f7f47a40-b25b-44ee-9f9c-cfdfc8bb2741.js"></script>
+
+
+  <link href="" rel="alternate" title="Artsy Engineering" type="application/atom+xml">
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-12450662-3']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+  <!--[if IE 8]><link href="/stylesheets/custom/ie_font.css" type="text/css"><![endif]-->
+
+</head>
+
+
+<link href="/css/epic.css" media="screen, projection" rel="stylesheet" type="text/css">
+
+
+<link href="/css/posts/graphql-stitch.css" media="screen, projection" rel="stylesheet" type="text/css">
+
+
+<body>
+  <div>
+    <div id="bodywrapper">
+      <header>
+        <ul>
+          <li><a href="/">Artsy Engineering Blog</a></li>
+          <li><a href="https://www.artsy.net/jobs">Careers</a></li>
+          <li><a href="https://developers.artsy.net">API</a></li>
+        </ul>
+
+        <ul>
+          <li><a href="http://artsy.github.io/open-source/">Our Open Source</a></li>
+          <li><a href="http://twitter.com/artsyopensource">@artsyopensource</a></li>
+          <li><a href="https://www.artsy.net">artsy.net</a></li>
+        </ul>
+      </header>
+
+      <section>
+        <header id="page">
+          <h1>GraphQL Stitching 101</h1>
+          <h3>
+          <!-- Yep, single line so the comma lines up right -->
+          By  Orta Therox
+          </h3>
+        </header>
+
+        <article class='post'>
+          <p>Micro-Services make sense. You can scope a domain of your business to particular small unit of abstraction like an
+API. Doing so makes it easy to work in isolation, experiment with new ideas and evolve in many directions.</p>
+
+<p>We've been <a href="http://artsy.github.io/blog/2017/04/14/artsy-technology-stack-2017/#Artsy.Technology.Infrastructure.2017.-.Splitting.the.Monolith">carefully pushing</a> for years to move away from our single monolithic API, to a collection of
+smaller, more focused projects. Our <a href="https://github.com/artsy/README/blob/master/culture/highlights.md#highlights">highlights docs</a> showcase this well. The movement to smaller composable
+services works great from an isolated platform/systems perspective but can be a bit tricky to handle with front-end
+clients. Until 2018, the way that we've addressed the growing complexity in our service later has been to migrate
+the complexity inside our main GraphQL API, <a href="https://github.com/artsy/metaphysics/">metaphysics</a>. Metaphysics is our GraphQL API gateway that
+consolidates many API sources into a single service, then extending and interleaving and their data to make clients
+easier to write.</p>
+
+<p>However, as more services have been created, and grown - so has metaphysics. This creates a worrying trend, as the
+growth of code in metaphysics isn't quite linear.</p>
+
+<p>Our main line-of-thought on how to address this is via GraphQL schema stitching. We've been <a href="https://github.com/artsy/metaphysics/pull/809">running
+experiments</a> in stitching for over a year, and have have been running with stitching enabled in production for
+a few months.</p>
+
+<!-- more -->
+
+
+<a name="What.is.Schema.Stitching."></a>
+<h2>What is Schema Stitching?</h2>
+
+<p>The core idea behind schema stitching is that because GraphQL talks in type systems, you should be able to merge
+type systems from many GraphQL APIs into a single source of truth. Schema stitching came out at the <a href="https://dev-blog.apollodata.com/graphql-tools-2-0-with-schema-stitching-8944064904a5">end of
+2017</a> via the <a href="https://github.com/apollographql/graphql-tools/"><code>graphql-tools</code></a> and became production-<a href="https://dev-blog.apollodata.com/the-next-generation-of-schema-stitching-2716b3b259c0">ready in April
+2018</a>.</p>
+
+<p>We started experimenting on staging last year and would occasionally run into edge-case issues. This meant the
+state of the project would ebb &amp; flow between being blocked, or no-one having the bandwidth to work on it. This was
+fine, because our aim was <a href="https://github.com/artsy/README/blob/master/culture/engineering-principles.md#incremental-revolution">incremental evolutions over bold revolution</a>.</p>
+
+<p>Before we dive into implementation details, here's a quick glossary of terms before we start:</p>
+
+<ul>
+<li><strong>GraphQL <a href="https://graphql.org/learn/schema/#type-system">Type</a></strong> - the shape of an object exposed from your GraphQL API</li>
+<li><strong>GraphQL Schema</strong> - a representation of your GraphQL's type system, containing all types and fields on them</li>
+<li><strong>GraphQL Resolver</strong> - every field accessed in a query resolves to a corresponding value, the function doing that
+is a resolver</li>
+<li><strong>Schema Merging</strong> - taking two GraphQL schemas, and merging all the types and resolvers into one schema</li>
+<li><strong>Schema Stitching</strong> - extending a GraphQL Schema programmatically, with the ability to delegate to merged
+schemas</li>
+</ul>
+
+
+<p>Stitching is one of the end-goals, but merging may be enough for a lot of cases. Both of the two launch posts above
+give a much more in-depth explanation of how everything comes together, but these should be enough for this post.</p>
+
+<a name="How.Do.We.Do.It."></a>
+<h2>How Do We Do It?</h2>
+
+<p>We have 5 GraphQL APIs inside the Artsy ecosystem, our aim is to cautiously include these APIs inside metaphysics.
+We don't need the entire contents of those APIs, and as you'll learn - we couldn't do that even if we wanted.</p>
+
+<p>The technique we settled on was:</p>
+
+<ol>
+<li>Download the schema of each external API into metaphysics' source code</li>
+<li>Have each schema trimmed to just the essentials that we need today</li>
+<li>Merge in each schema incrementally</li>
+<li>Stitch in any desired schema changes</li>
+</ol>
+
+
+<p>Let's dig, with some code into how we do each of these steps.</p>
+
+<a name="Downloading.Schemas"></a>
+<h4>Downloading Schemas</h4>
+
+<p>We created a <a href="https://github.com/artsy/metaphysics/blob/1423ee39f8e348805710080a4857e6575d3ddade/scripts/dump-remote-schema.js#L15-L25">pretty minimal script</a> which can be run periodically from a developer's computer.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+</pre></td><td class='code'><pre><code class='js'><span class='line'><span class="kr">const</span> <span class="nx">destination</span> <span class="o">=</span> <span class="s2">&quot;src/data&quot;</span>
+</span><span class='line'>
+</span><span class='line'><span class="kr">const</span> <span class="nx">httpConvectionLink</span> <span class="o">=</span> <span class="nx">createHttpLink</span><span class="p">({</span>
+</span><span class='line'>  <span class="nx">fetch</span><span class="p">,</span>
+</span><span class='line'>  <span class="nx">uri</span><span class="o">:</span> <span class="nx">urljoin</span><span class="p">(</span><span class="s2">&quot;https://convection-staging.artsy.net/api&quot;</span><span class="p">,</span> <span class="s2">&quot;graphql&quot;</span><span class="p">)</span>
+</span><span class='line'><span class="p">})</span>
+</span><span class='line'>
+</span><span class='line'><span class="nx">introspectSchema</span><span class="p">(</span><span class="nx">httpConvectionLink</span><span class="p">).</span><span class="nx">then</span><span class="p">(</span><span class="nx">schema</span> <span class="o">=&gt;</span> <span class="p">{</span>
+</span><span class='line'>  <span class="nx">fs</span><span class="p">.</span><span class="nx">writeFileSync</span><span class="p">(</span>
+</span><span class='line'>    <span class="nx">path</span><span class="p">.</span><span class="nx">join</span><span class="p">(</span><span class="nx">destination</span><span class="p">,</span> <span class="s2">&quot;convection.graphql&quot;</span><span class="p">),</span>
+</span><span class='line'>    <span class="nx">printSchema</span><span class="p">(</span><span class="nx">schema</span><span class="p">,</span> <span class="p">{</span> <span class="nx">commentDescriptions</span><span class="o">:</span> <span class="kc">true</span> <span class="p">})</span>
+</span><span class='line'>  <span class="p">)</span>
+</span><span class='line'><span class="p">})</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>The script uses an <a href="https://www.apollographql.com/docs/link/links/http.html">apollo-http-link</a> to grab our schema, and store it in our repo, see
+<a href="https://github.com/artsy/metaphysics/blob/master/src/data/convection.graphql"><code>src/data/convection.graphql</code></a>. This means that when someone wants to update to a new version of the
+schema, it will go through code review and a normal testing-flow. The trade-off being that it will always be out of
+date a little bit, but you can make guarantees about the current schema. This is a reasonable trade-off, as GraphQL
+schemas <a href="https://graphql.org/learn/best-practices/#versioninghttps://graphql.org/learn/best-practices/#versioning">should always</a> be forward compatible for queries, and when someone wants to use a new field from another
+service they can move the schema definition from <a href="https://github.com/artsy/README/issues/31">the git repo</a>.</p>
+
+<p>This file is the <a href="https://blog.graph.cool/graphql-sdl-schema-definition-language-6755bcb9ce51">GraphQL SDL</a> representations of the entire type system for that schema. This means we have a
+local copy of the schemas, so we can use it for tests for the next few steps.</p>
+
+<a name="Schema.Manipulation"></a>
+<h4>Schema Manipulation</h4>
+
+<p>Each API writes for their own domain. This can be problematic when you use a <code>User</code> in one API, which isn't generic
+enough to be a <code>User</code> in a global API of all services combined. When thinking about this problem, we created a
+<a href="https://github.com/artsy/README/blob/master/playbooks/graphql-schema-design.md#notes">guide for ourselves</a> on how to think about schema design at local and global level.</p>
+
+<p>We use a few of <a href="https://www.apollographql.com/docs/graphql-tools/schema-transforms.html">the transform APIs</a> available in graphql-tools to make the merges work. The first
+approach is to force a namespace by prefixing the merged Types with their domain.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+</pre></td><td class='code'><pre><code class='js'><span class='line'><span class="kr">export</span> <span class="kr">const</span> <span class="nx">executableConvectionSchema</span> <span class="o">=</span> <span class="nx">async</span> <span class="p">()</span> <span class="o">=&gt;</span> <span class="p">{</span>
+</span><span class='line'>  <span class="kr">const</span> <span class="nx">convectionLink</span> <span class="o">=</span> <span class="nx">createConvectionLink</span><span class="p">()</span>
+</span><span class='line'>  <span class="kr">const</span> <span class="nx">convectionTypeDefs</span> <span class="o">=</span> <span class="nx">readFileSync</span><span class="p">(</span><span class="s2">&quot;src/data/convection.graphql&quot;</span><span class="p">,</span> <span class="s2">&quot;utf8&quot;</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c1">// Setup the default Schema</span>
+</span><span class='line'>  <span class="kr">const</span> <span class="nx">schema</span> <span class="o">=</span> <span class="nx">await</span> <span class="nx">makeRemoteExecutableSchema</span><span class="p">({</span>
+</span><span class='line'>    <span class="nx">schema</span><span class="o">:</span> <span class="nx">convectionTypeDefs</span><span class="p">,</span>
+</span><span class='line'>    <span class="nx">link</span><span class="o">:</span> <span class="nx">convectionLink</span>
+</span><span class='line'>  <span class="p">})</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c1">// Remap the names of certain types from Convection to fit in the larger</span>
+</span><span class='line'>  <span class="c1">// metaphysics ecosystem.</span>
+</span><span class='line'>  <span class="kr">const</span> <span class="nx">remap</span> <span class="o">=</span> <span class="p">{</span>
+</span><span class='line'>    <span class="nx">Submission</span><span class="o">:</span> <span class="s2">&quot;ConsignmentSubmission&quot;</span><span class="p">,</span>
+</span><span class='line'>    <span class="nx">Category</span><span class="o">:</span> <span class="s2">&quot;ConsignmentSubmissionCategoryAggregation&quot;</span><span class="p">,</span>
+</span><span class='line'>    <span class="nx">Asset</span><span class="o">:</span> <span class="s2">&quot;ConsignmentSubmissionCategoryAsset&quot;</span><span class="p">,</span>
+</span><span class='line'>    <span class="nx">State</span><span class="o">:</span> <span class="s2">&quot;ConsignmentSubmissionStateAggregation&quot;</span><span class="p">,</span>
+</span><span class='line'>    <span class="nx">SubmissionConnection</span><span class="o">:</span> <span class="s2">&quot;ConsignmentSubmissionConnection&quot;</span>
+</span><span class='line'>  <span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c1">// Return the new modified schema</span>
+</span><span class='line'>  <span class="k">return</span> <span class="nx">transformSchema</span><span class="p">(</span><span class="nx">schema</span><span class="p">,</span> <span class="p">[</span>
+</span><span class='line'>    <span class="k">new</span> <span class="nx">RenameTypes</span><span class="p">(</span><span class="nx">name</span> <span class="o">=&gt;</span> <span class="p">{</span>
+</span><span class='line'>      <span class="kr">const</span> <span class="nx">newName</span> <span class="o">=</span> <span class="nx">remap</span><span class="p">[</span><span class="nx">name</span><span class="p">]</span> <span class="o">||</span> <span class="nx">name</span>
+</span><span class='line'>      <span class="k">return</span> <span class="nx">newName</span>
+</span><span class='line'>    <span class="p">})</span>
+</span><span class='line'>  <span class="p">])</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Another example is to outright remove almost everything in the schema, and to only allow Types and fields which we
+know to be useful.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+</pre></td><td class='code'><pre><code class='js'><span class='line'><span class="kr">export</span> <span class="kr">const</span> <span class="nx">executableGravitySchema</span> <span class="o">=</span> <span class="nx">async</span> <span class="p">()</span> <span class="o">=&gt;</span> <span class="p">{</span>
+</span><span class='line'>  <span class="kr">const</span> <span class="nx">gravityTypeDefs</span> <span class="o">=</span> <span class="nx">readFileSync</span><span class="p">(</span><span class="s2">&quot;src/data/gravity.graphql&quot;</span><span class="p">,</span> <span class="s2">&quot;utf8&quot;</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="kr">const</span> <span class="nx">gravityLink</span> <span class="o">=</span> <span class="nx">createGravityLink</span><span class="p">()</span>
+</span><span class='line'>  <span class="kr">const</span> <span class="nx">schema</span> <span class="o">=</span> <span class="nx">await</span> <span class="nx">makeRemoteExecutableSchema</span><span class="p">({</span>
+</span><span class='line'>    <span class="nx">schema</span><span class="o">:</span> <span class="nx">gravityTypeDefs</span><span class="p">,</span>
+</span><span class='line'>    <span class="nx">link</span><span class="o">:</span> <span class="nx">gravityLink</span><span class="p">,</span>
+</span><span class='line'>  <span class="p">})</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c1">// Types which come from Gravity which MP already has copies of.</span>
+</span><span class='line'>  <span class="c1">// In the future, these could get merged into the MP types.</span>
+</span><span class='line'>  <span class="kr">const</span> <span class="nx">blacklistedTypes</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;Artist&quot;</span><span class="p">,</span> <span class="s2">&quot;Artwork&quot;</span><span class="p">]</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c1">// Gravity&#39;s GraphQL contains a bunch of objects and root fields that will conflict</span>
+</span><span class='line'>  <span class="c1">// with what we have in MP already, this lets us bring them in one by one</span>
+</span><span class='line'>  <span class="kr">const</span> <span class="nx">whitelistedRootFields</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;Query&quot;</span><span class="p">,</span> <span class="s2">&quot;recordArtworkView&quot;</span><span class="p">]</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c1">// Return the new modified schema</span>
+</span><span class='line'>  <span class="k">return</span> <span class="nx">transformSchema</span><span class="p">(</span><span class="nx">schema</span><span class="p">,</span> <span class="p">[</span>
+</span><span class='line'>    <span class="k">new</span> <span class="nx">FilterRootFields</span><span class="p">((</span><span class="nx">_type</span><span class="p">,</span> <span class="nx">name</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span>
+</span><span class='line'>      <span class="k">return</span> <span class="o">!</span><span class="nx">whitelistedRootFields</span><span class="p">.</span><span class="nx">includes</span><span class="p">(</span><span class="nx">name</span><span class="p">)</span>
+</span><span class='line'>    <span class="p">}),</span>
+</span><span class='line'>    <span class="k">new</span> <span class="nx">FilterTypes</span><span class="p">(</span><span class="nx">type</span> <span class="o">=&gt;</span> <span class="p">{</span>
+</span><span class='line'>      <span class="k">return</span> <span class="o">!</span><span class="nx">blacklistedTypes</span><span class="p">.</span><span class="nx">includes</span><span class="p">(</span><span class="nx">type</span><span class="p">.</span><span class="nx">name</span><span class="p">)</span>
+</span><span class='line'>    <span class="p">}),</span>
+</span><span class='line'>    <span class="c1">// snip</span>
+</span><span class='line'>  <span class="p">])</span>
+</span><span class='line'><span class="p">})</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>We can write tests for this by running <a href="https://github.com/artsy/metaphysics/blob/1423ee39f8e348805710080a4857e6575d3ddade/src/lib/stitching/lib/getTypesFromSchema.ts">a query which returns all of the types</a> in a schema, and validating
+what exists:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+</pre></td><td class='code'><pre><code class='js'><span class='line'><span class="kr">import</span> <span class="p">{</span> <span class="nx">executableGravitySchema</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;../schema&quot;</span>
+</span><span class='line'><span class="kr">import</span> <span class="p">{</span> <span class="nx">getTypesFromSchema</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;lib/stitching/lib/getTypesFromSchema&quot;</span>
+</span><span class='line'>
+</span><span class='line'><span class="nx">it</span><span class="p">(</span><span class="s2">&quot;Does not include blacklisted types&quot;</span><span class="p">,</span> <span class="nx">async</span> <span class="p">()</span> <span class="o">=&gt;</span> <span class="p">{</span>
+</span><span class='line'>  <span class="kr">const</span> <span class="nx">gravitySchema</span> <span class="o">=</span> <span class="nx">await</span> <span class="nx">executableGravitySchema</span><span class="p">()</span>
+</span><span class='line'>  <span class="kr">const</span> <span class="nx">gravityTypes</span> <span class="o">=</span> <span class="nx">await</span> <span class="nx">getTypesFromSchema</span><span class="p">(</span><span class="nx">gravitySchema</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="nx">expect</span><span class="p">(</span><span class="nx">gravityTypes</span><span class="p">).</span><span class="nx">not</span><span class="p">.</span><span class="nx">toContain</span><span class="p">(</span><span class="s2">&quot;Artist&quot;</span><span class="p">)</span>
+</span><span class='line'>  <span class="nx">expect</span><span class="p">(</span><span class="nx">gravityTypes</span><span class="p">).</span><span class="nx">not</span><span class="p">.</span><span class="nx">toContain</span><span class="p">(</span><span class="s2">&quot;Artwork&quot;</span><span class="p">)</span>
+</span><span class='line'><span class="p">})</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>This one is interesting, we <em>don't</em> want the version of <code>Artist</code> and <code>Artwork</code> from Gravity's GraphQL
+implementation - because the hand-rolled <code>Artwork</code> and <code>Artist</code> types which lives in the source code of Metaphysics
+right now is a combination of many sources, and front-end-client specific code.</p>
+
+<p>If we allowed the <code>Artist</code> or <code>Artwork</code> to overwrite the existing implementations it would be a massively breaking
+change. For example, compare the Artwork type from <a href="https://github.com/artsy/metaphysics/blob/51939d1f8eb0d5a60e6e888bf701e082a9ee3731/src/data/gravity.graphql#L14-L29">Gravity's GraphQL</a> (5 fields) vs <a href="https://github.com/artsy/metaphysics/blob/51939d1f8eb0d5a60e6e888bf701e082a9ee3731/_schema.graphql#L723-L889">Metaphysics'
+GraphQL</a> (~90 fields) accidentally switching the types would cripple our front-ends.</p>
+
+<a name="Merging.Schemas"></a>
+<h4>Merging Schemas</h4>
+
+<p>There are two classes of schemas involved in our stitching. Local Schemas, which is our existing schema (e.g. the
+resolver live inside the current source code), and Remote Schemas (e.g. where you make an API request to run those
+resolvers). <a href="https://github.com/artsy/metaphysics/blob/1423ee39f8e348805710080a4857e6575d3ddade/src/lib/stitching/mergeSchemas.ts#L9-L39">Merging a schema</a> has a pretty small API surface and doesn't mind which type of schemas you
+merge together.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+</pre></td><td class='code'><pre><code class='js'><span class='line'><span class="kr">import</span> <span class="p">{</span> <span class="nx">mergeSchemas</span> <span class="nx">as</span> <span class="nx">_mergeSchemas</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;graphql-tools&quot;</span>
+</span><span class='line'><span class="kr">import</span> <span class="p">{</span> <span class="nx">executableGravitySchema</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;lib/stitching/gravity/schema&quot;</span>
+</span><span class='line'><span class="kr">import</span> <span class="p">{</span> <span class="nx">executableConvectionSchema</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;lib/stitching/convection/schema&quot;</span>
+</span><span class='line'><span class="kr">import</span> <span class="p">{</span> <span class="nx">executableLewittSchema</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;lib/stitching/lewitt/schema&quot;</span>
+</span><span class='line'>
+</span><span class='line'><span class="kr">import</span> <span class="nx">localSchema</span> <span class="nx">from</span> <span class="s2">&quot;../../schema&quot;</span>
+</span><span class='line'>
+</span><span class='line'><span class="kr">export</span> <span class="kr">const</span> <span class="nx">mergeSchemas</span> <span class="o">=</span> <span class="nx">async</span> <span class="p">()</span> <span class="o">=&gt;</span> <span class="p">{</span>
+</span><span class='line'>  <span class="kr">const</span> <span class="nx">convectionSchema</span> <span class="o">=</span> <span class="nx">await</span> <span class="nx">executableConvectionSchema</span><span class="p">()</span>
+</span><span class='line'>  <span class="kr">const</span> <span class="nx">gravitySchema</span> <span class="o">=</span> <span class="nx">await</span> <span class="nx">executableGravitySchema</span><span class="p">()</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="kr">const</span> <span class="nx">mergedSchema</span> <span class="o">=</span> <span class="nx">_mergeSchemas</span><span class="p">({</span>
+</span><span class='line'>    <span class="nx">schemas</span><span class="o">:</span> <span class="p">[</span><span class="nx">gravitySchema</span><span class="p">,</span> <span class="nx">localSchema</span><span class="p">,</span> <span class="nx">convectionSchema</span><span class="p">]</span>
+</span><span class='line'>  <span class="p">})</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">return</span> <span class="nx">mergedSchema</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>It's a pretty simple composition model, makes it real easy to do some verification tests using the same techniques
+as above.</p>
+
+<a name="Stitching.Schemas"></a>
+<h4>Stitching Schemas</h4>
+
+<p>The next step from merging is stitching. Stitching is about taking the merged schemas and taking data from one and
+re-applying it via another API. For example, we have a consignments API (for when you want to sell a work at
+auction) and a consignment references the artwork's artist. These live inside an API called convection.</p>
+
+<p>In this case, the consignment has an <code>artist_id</code> which represents an <code>Artist</code> type which lives in metaphysics. We
+would like to stitch an Artist in from the local schema, into a <code>ConsignmentSubmission</code> which has come in from a
+remote schema.</p>
+
+<p>The API works by using <a href="https://github.com/graphql/graphql-js/pull/1117">Type Extensions</a> which are a way of opening up an existing Type and adding new fields
+on it. We want to be working with the highest level abstraction, which in this case is directly writing <a href="https://blog.graph.cool/graphql-sdl-schema-definition-language-6755bcb9ce51">GraphQL
+SDL</a> (basically writing the interface) and then hooking that up to its resolvers.</p>
+
+<p>Here's what that looks like in our app:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+<span class='line-number'>38</span>
+<span class='line-number'>39</span>
+<span class='line-number'>40</span>
+</pre></td><td class='code'><pre><code class='js'><span class='line'><span class="kr">export</span> <span class="kr">const</span> <span class="nx">consignmentStitchingEnvironment</span> <span class="o">=</span> <span class="p">(</span>
+</span><span class='line'>  <span class="nx">localSchema</span><span class="o">:</span> <span class="nx">GraphQLSchema</span><span class="p">,</span>
+</span><span class='line'>  <span class="nx">convectionSchema</span><span class="o">:</span> <span class="nx">GraphQLSchema</span>
+</span><span class='line'><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">({</span>
+</span><span class='line'>  <span class="c1">// The SDL used to declare how to stitch an object</span>
+</span><span class='line'>  <span class="nx">extensionSchema</span><span class="o">:</span> <span class="err">`</span>
+</span><span class='line'>    <span class="nx">extend</span> <span class="nx">type</span> <span class="nx">ConsignmentSubmission</span> <span class="p">{</span>
+</span><span class='line'>      <span class="nx">artist</span><span class="o">:</span> <span class="nx">Artist</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'>  <span class="err">`</span><span class="p">,</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c1">// Resolvers which correspond to the above type extension</span>
+</span><span class='line'>  <span class="nx">resolvers</span><span class="o">:</span> <span class="p">{</span>
+</span><span class='line'>    <span class="nx">ConsignmentSubmission</span><span class="o">:</span> <span class="p">{</span>
+</span><span class='line'>      <span class="nx">artist</span><span class="o">:</span> <span class="p">{</span>
+</span><span class='line'>        <span class="c1">// The required query to get access to the object, e.g. we have to</span>
+</span><span class='line'>        <span class="c1">// request `artist_id` on a ConsignmentSubmission in order to access the artist</span>
+</span><span class='line'>        <span class="c1">// at all</span>
+</span><span class='line'>        <span class="nx">fragment</span><span class="o">:</span> <span class="err">`</span><span class="nx">fragment</span> <span class="nx">SubmissionArtist</span> <span class="nx">on</span> <span class="nx">ConsignmentSubmission</span> <span class="p">{</span> <span class="nx">artist_id</span> <span class="p">}</span><span class="err">`</span><span class="p">,</span>
+</span><span class='line'>        <span class="c1">// The function to handle getting the Artist data correctly, we</span>
+</span><span class='line'>        <span class="c1">// use the root query `artist(id: id)` to grab the data from the local</span>
+</span><span class='line'>        <span class="c1">// metaphysics schema</span>
+</span><span class='line'>        <span class="nx">resolve</span><span class="o">:</span> <span class="p">(</span><span class="nx">parent</span><span class="p">,</span> <span class="nx">_args</span><span class="p">,</span> <span class="nx">context</span><span class="p">,</span> <span class="nx">info</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span>
+</span><span class='line'>          <span class="kr">const</span> <span class="nx">id</span> <span class="o">=</span> <span class="nx">parent</span><span class="p">.</span><span class="nx">artist_id</span>
+</span><span class='line'>          <span class="k">return</span> <span class="nx">info</span><span class="p">.</span><span class="nx">mergeInfo</span><span class="p">.</span><span class="nx">delegateToSchema</span><span class="p">({</span>
+</span><span class='line'>            <span class="nx">schema</span><span class="o">:</span> <span class="nx">localSchema</span><span class="p">,</span>
+</span><span class='line'>            <span class="nx">operation</span><span class="o">:</span> <span class="s2">&quot;query&quot;</span><span class="p">,</span>
+</span><span class='line'>            <span class="nx">fieldName</span><span class="o">:</span> <span class="s2">&quot;artist&quot;</span><span class="p">,</span>
+</span><span class='line'>            <span class="nx">args</span><span class="o">:</span> <span class="p">{</span>
+</span><span class='line'>              <span class="nx">id</span><span class="p">,</span>
+</span><span class='line'>            <span class="p">},</span>
+</span><span class='line'>            <span class="nx">context</span><span class="p">,</span>
+</span><span class='line'>            <span class="nx">info</span><span class="p">,</span>
+</span><span class='line'>            <span class="nx">transforms</span><span class="o">:</span> <span class="p">(</span><span class="nx">convectionSchema</span> <span class="nx">as</span> <span class="nx">any</span><span class="p">).</span><span class="nx">transforms</span><span class="p">,</span>
+</span><span class='line'>          <span class="p">})</span>
+</span><span class='line'>        <span class="p">},</span>
+</span><span class='line'>      <span class="p">},</span>
+</span><span class='line'>    <span class="p">},</span>
+</span><span class='line'>  <span class="p">},</span>
+</span><span class='line'><span class="p">})</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>This file consolidates the two steps of merging and then stitching:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+</pre></td><td class='code'><pre><code class='diff'><span class='line'>export const mergeSchemas = async () =&gt; {
+</span><span class='line'>  const convectionSchema = await executableConvectionSchema()
+</span><span class='line'><span class="gi">+ const convectionStitching = consignmentStitchingEnvironment(localSchema, convectionSchema)</span>
+</span><span class='line'>
+</span><span class='line'>  const gravitySchema = await executableGravitySchema()
+</span><span class='line'>
+</span><span class='line'>  // The order should only matter in that extension schemas come after the
+</span><span class='line'>  // objects that they are expected to build upon
+</span><span class='line'>  const mergedSchema = _mergeSchemas({
+</span><span class='line'>    schemas: [
+</span><span class='line'>      gravitySchema,
+</span><span class='line'>      localSchema,
+</span><span class='line'>      convectionSchema,
+</span><span class='line'><span class="gi">+      convectionStitching.extensionSchema,</span>
+</span><span class='line'><span class="gi">+    ],</span>
+</span><span class='line'><span class="gi">+    resolvers: {</span>
+</span><span class='line'><span class="gi">+      ...convectionStitching.resolvers,</span>
+</span><span class='line'><span class="gi">+    },</span>
+</span><span class='line'>  })
+</span><span class='line'>
+</span><span class='line'>  return mergedSchema
+</span><span class='line'>}
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>We extend the merge schema function to also include the SDL for our stitching, and de-structure in the extension
+resolvers. We're still exploring how to write <em>useful</em> tests for this part.</p>
+
+<a name="Validating.your.changes"></a>
+<h2>Validating your changes</h2>
+
+<p>We had some useful tools which were used to make the switch to using schema-stitching in production.</p>
+
+<ol>
+<li><p><strong>Stored Queries</strong></p>
+
+<p>In order to validate that the runtime behavior of our queries wasn't changing, we used the <a href="https://github.com/artsy/emission/pull/999">persistent
+queries</a> generated by our iOS app Emission to create JSON dumps of the results of many API calls in both
+stitched and un-stitched environments in a script and compared the results.</p></li>
+<li><p><strong>SDL dump comparison</strong></p>
+
+<p>We can use the GraphQL type system to validate our changes don't break clients. We used a schema dump script to
+validate the type system was the same across stitched and un-stitched environments.</p></li>
+</ol>
+
+
+<a name="Alternatives"></a>
+<h2>Alternatives</h2>
+
+<p>Our stitching implementation used metaphysics as a local schema - e.g. the merging and the stitching occurred
+inside the same source code as our main GraphQL API. This wasn't the only way we cold achieve a single source of
+truth, I explored an alternative which is to treat all schemas as remote schemas. Basically having an API gateway
+in-front of our API gateway. I called it <a href="https://github.com/orta/incorporeal">incorporeal</a>, it's actually a tiny amount of code - a testament to
+modern GraphQL techniques in JavaScript.</p>
+
+<p>The advantage here is that we take reduce the acceleration of growing complexity in Metaphysics completely, because
+the merging and stitching occurs outside of it. Metaphysics is merged and stitched in, just as all our other APIs
+are.</p>
+
+<p>The downside is that it's another hop to get what you want, and changes could require being updated in more places.
+We'd be able to use the above ideas for validating that the API is working as expected.</p>
+
+<a name="In.Production"></a>
+<h2>In Production</h2>
+
+<p>Today we stitch all new APIs by default, see <a href="https://github.com/artsy/metaphysics/pull/1327">Kaws' integration</a> PR. We're <em>slowly</em> trying to retro-actively
+migrate existing APIs into stitching and then deleting the existing code, but that's real tricky when those APIs
+are being used or use advanced features of GraphQL.</p>
+
+<p>We've been using GraphQL <a href="https://github.com/artsy/metaphysics/commit/50b23f1738b9fa9757ff83c2d1e0d265c70e4e90">since mid-2015</a> and we've also used it with Relay for the past two years, this has
+meant we have quite a few interesting edge cases in our use of the GraphQL. We got in touch with <a href="https://www.freiksenet.com">Mikhail
+Novikov</a> and he contracted to help us with most of these issues and I'd strongly recommend doing the same (with
+any OSS dependency, but that's, like, just my opinion man.)</p>
+
+<p>GraphQL Stitching solves the problem of API consolidation in a really well thought out abstraction, and I consider
+it one of the most interesting avenues of exploration into what GraphQL will be in the future (see <a href="http://artsy.github.io/blog/2018/05/08/is-graphql-the-future/">Is GraphQL The
+Future?</a> for a more philosophical take also.)</p>
+
+<!-- prettier-ignore-start -->
+
+
+
+
+<!-- prettier-ignore-end -->
+
+
+        </article>
+
+        <article class='post'>
+          <p style="padding-bottom: 0; margin-bottom:0;">
+            <a href="https://www.artsy.net/" style="background-image: none;">
+              <svg viewBox="0 0 510 510" width="40" height="40" xmlns="http://www.w3.org/2000/svg">
+                <path transform="scale(1, -1) translate(0, -480)" d="M0 -32h512v512h-512v-512v0zM464 16h-80v80h-48v-80h-288v416h416v-416v0zM194 384h-40l-74 -186h38l20 52h72l19 -52h39l-74 186v0zM149 282l25 66l24 -66h-49v0z"></path>
+              </svg>
+            </a>
+          <p/>
+        </article>
+
+      
+        <article class='post'>
+          <section id="comments" />
+
+<script type="text/javascript">
+  // Comes from https://stackoverflow.com/questions/3177836/how-to-format-time-since-xxx-e-g-4-minutes-ago-similar-to-stack-exchange-site
+  function timeSince(date) {
+    var seconds = Math.floor((new Date() - date) / 1000)
+    var interval = Math.floor(seconds / 31536000)
+
+    if (interval > 1) {
+      return interval + " years"
+    }
+    interval = Math.floor(seconds / 2592000)
+    if (interval > 1) {
+      return interval + " months"
+    }
+    interval = Math.floor(seconds / 86400)
+    if (interval > 1) {
+      return interval + " days"
+    }
+    interval = Math.floor(seconds / 3600)
+    if (interval > 1) {
+      return interval + " hours"
+    }
+    interval = Math.floor(seconds / 60)
+    if (interval > 1) {
+      return interval + " minutes"
+    }
+    return Math.floor(seconds) + " seconds"
+  }
+
+  var writeToComment = function (element, html) {
+    var element = document.createElement(element)
+    element.innerHTML = html
+    document.getElementById("comments").appendChild(element)
+  }
+
+  var addReactions = function (reactions, link) {
+    var returnString = ""
+    var emojiCode = {
+      '+1': "<g-emoji alias='+1' fallback-src='https://assets-cdn.github.com/images/icons/emoji/unicode/1f44d.png' class='emoji'>👍</g-emoji>",
+      '-1': "<g-emoji alias='-1' fallback-src='https://assets-cdn.github.com/images/icons/emoji/unicode/1f44e.png' class='emoji'>👎</g-emoji>",
+      laugh: "<g-emoji alias='smile' fallback-src='https://assets-cdn.github.com/images/icons/emoji/unicode/1f604.png' class='emoji'>😄</g-emoji>",
+      hooray: "<g-emoji alias='tada' fallback-src='https://assets-cdn.github.com/images/icons/emoji/unicode/1f389.png' class='emoji'>🎉</g-emoji>",
+      confused: "<g-emoji alias='thinking_face' fallback-src='https://assets-cdn.github.com/images/icons/emoji/unicode/1f615.png' class='emoji'>😕</g-emoji>",
+      heart: "<g-emoji alias='framed_picture' fallback-src='https://assets-cdn.github.com/images/icons/emoji/unicode/1f5bc.png' class='emoji'>🖼</g-emoji>"
+    }
+
+    if (reactions.total_count > 0) {
+      returnString += "<div class='comment-reactions'>"
+      for (var key in reactions) {
+        if (reactions.hasOwnProperty(key)) {
+          if (reactions[key] > 0 && key !== "total_count") {
+            returnString += "<a href='" + link + "' class='emoji-wrapper'>" + emojiCode[key] + reactions[key] + "</a>"
+          }
+        }
+      }
+      returnString += "</div>"
+      return returnString
+    } else {
+      return "<div></div>"
+    }
+  }
+
+  // Based on http://ivanzuzak.info/2011/02/18/github-hosted-comments-for-github-hosted-blogs.html
+  // And http://donw.io/post/github-comments/
+
+  var loadComments = function (data) {
+    writeToComment("h2", "Comments")
+    for (var i = 0; i < data.length; i++) {
+      var cuser = data[i].user.login
+      var cuserlink = data[i].user.html_url
+      var clink = data[i].html_url
+      var cbody = data[i].body_html
+      var cavatarlink = data[i].user.avatar_url
+      var cdate = new Date(data[i].created_at)
+      var creactions = addReactions(data[i].reactions, clink)
+
+      var commentHTML =
+        "<div class='comment'>" +
+        "<div class='comment-header'>" +
+        "<a class='comment-username' href=\"" + cuserlink + '">' +
+        '<img src="' + cavatarlink + '" alt="" width="40" height="40">' +
+        cuser +
+        "</a>" + " commented " +
+        "<a class='comment-date' href=\"" + clink + '">' +
+        timeSince(cdate) + " ago" +
+        "</a>" +
+        "</div>" +
+        "<div class='comment-body'>"
+        + cbody +
+        "</div>" +
+        creactions +
+        "</div>"
+      writeToComment("div", commentHTML)
+    }
+
+    var callToAction =
+      "<hr/>" +
+      "<p>" +
+      "Our comments are using GitHub Issues on the Artsy Blog repo. You can post by replying to <a href='https://github.com/artsy/artsy.github.io/issues/450'>issue #450</a>." +
+      "</p>"
+    writeToComment("div", callToAction)
+  }
+
+  var writeFirstComment = function () {
+    var callToAction =
+      "<hr/>" +
+      "<p>" +
+      "This post has no comments, yet, you could be the first. Our comments are using GitHub Issues on the Artsy Blog repo. You can post by replying to <a href='https://github.com/artsy/artsy.github.io/issues/450'>issue #450</a>." +
+      "</p>"
+    writeToComment("div", callToAction)
+  }
+
+  if (window.fetch) {
+    var url =
+      "https://artsy-blog-gh-commentify.herokuapp.com/repos/artsy/artsy.github.io/issues/450/comments"
+    window
+      .fetch(url, { Accept: "application/vnd.github.v3.html+json" })
+      .then(function (response) {
+        return response.json()
+      })
+      .then(function (json) {
+        if (json.length) {
+          loadComments(json)
+        } else {
+          writeFirstComment()
+        }
+      })
+  }
+
+</script>
+        </article>
+      
+
+      </section>
+
+      <footer>
+        <article>
+
+          <section>
+            <h4>Author</h4>
+            <p> <a href="/author/orta"/>Orta Therox</a></p>
+            <p>Code Janitor at Artsy, thinking about JS tooling.</a></p>
+          </section>
+
+          <section>
+            <h4>Post Meta</h4>
+            <p>Dec 11, 2018</p>
+            <p>Tagged: <a class='category' href='/blog/categories/graphql/'>graphql</a>, <a class='category' href='/blog/categories/metaphysics/'>metaphysics</a>, <a class='category' href='/blog/categories/stitching/'>stitching</a></p>
+          </section>
+          <br/>
+          <section>
+            <h4>Artsy OSS</h4>
+            <ul>
+              <li><a href='https://www.artsy.net'>Artsy.net</a></li>
+              <li><a href='https://developers.artsy.net'>API</a></li>
+              <li><a href='http://artsy.github.io/open-source/'>Featured OSS</a></li>
+              <li><a href='https://www.artsy.net/jobs'>Careers</a></li>
+            </ul>
+          </section>
+
+          <section>
+            <h4>Blog</h4>
+            <ul>
+              <li><a href='http://artsy.github.io/blog/archives/'>Archives</a></li>
+              <li><a href='http://artsy.github.io/search/'>Search</a></li>
+              <li><a href='https://github.com/artsy/artsy.github.io'>Code on GitHub</a></li>
+              <li><a href='https://github.com/artsy/artsy.github.io/edit/source/_posts/2018-12-11-GraphQL-Stitching.markdown'>Fix typoes in this post</a></li>
+            </ul>
+          </section>
+
+        </article>
+
+        <article>
+          <section>
+            <h4>Post Series on the Blog</h4>
+            <ul>
+              
+              <li><a href='/series/react-native-at-artsy/'>React Native at Artsy</a></li>
+              
+              <li><a href='/series/javascriptures/'>JavaScriptures</a></li>
+              
+              <li><a href='/series/stages-of-professional-growth/'>Stages of Professional Growth</a></li>
+              
+              <li><a href='/series/artsy-tech-stack/'>Artsy Tech Stack</a></li>
+              
+              <li><a href='/series/open-source-by-default/'>Open Source by Default</a></li>
+              
+            </ul>
+          </section>
+
+          <section>
+          
+          </section>
+        </article>
+
+      </footer>
+    </div>
+  </div>
+</body>

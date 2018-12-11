@@ -5,9 +5,558 @@
     <description></description>
     <link>http://artsy.github.io/</link>
     <atom:link href="http://artsy.github.io/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Wed, 28 Nov 2018 20:23:52 +0000</pubDate>
-    <lastBuildDate>Wed, 28 Nov 2018 20:23:52 +0000</lastBuildDate>
+    <pubDate>Tue, 11 Dec 2018 20:27:38 +0000</pubDate>
+    <lastBuildDate>Tue, 11 Dec 2018 20:27:38 +0000</lastBuildDate>
     <generator>Jekyll v2.5.3</generator>
+    
+      <item>
+        <title>GraphQL Stitching 101</title>
+        <description>&lt;p&gt;Micro-Services make sense. You can scope a domain of your business to particular small unit of abstraction like an
+API. Doing so makes it easy to work in isolation, experiment with new ideas and evolve in many directions.&lt;/p&gt;
+
+&lt;p&gt;We&#39;ve been &lt;a href=&quot;http://artsy.github.io/blog/2017/04/14/artsy-technology-stack-2017/#Artsy.Technology.Infrastructure.2017.-.Splitting.the.Monolith&quot;&gt;carefully pushing&lt;/a&gt; for years to move away from our single monolithic API, to a collection of
+smaller, more focused projects. Our &lt;a href=&quot;https://github.com/artsy/README/blob/master/culture/highlights.md#highlights&quot;&gt;highlights docs&lt;/a&gt; showcase this well. The movement to smaller composable
+services works great from an isolated platform/systems perspective but can be a bit tricky to handle with front-end
+clients. Until 2018, the way that we&#39;ve addressed the growing complexity in our service later has been to migrate
+the complexity inside our main GraphQL API, &lt;a href=&quot;https://github.com/artsy/metaphysics/&quot;&gt;metaphysics&lt;/a&gt;. Metaphysics is our GraphQL API gateway that
+consolidates many API sources into a single service, then extending and interleaving and their data to make clients
+easier to write.&lt;/p&gt;
+
+&lt;p&gt;However, as more services have been created, and grown - so has metaphysics. This creates a worrying trend, as the
+growth of code in metaphysics isn&#39;t quite linear.&lt;/p&gt;
+
+&lt;p&gt;Our main line-of-thought on how to address this is via GraphQL schema stitching. We&#39;ve been &lt;a href=&quot;https://github.com/artsy/metaphysics/pull/809&quot;&gt;running
+experiments&lt;/a&gt; in stitching for over a year, and have have been running with stitching enabled in production for
+a few months.&lt;/p&gt;
+
+&lt;!-- more --&gt;
+
+
+&lt;a name=&quot;What.is.Schema.Stitching.&quot;&gt;&lt;/a&gt;
+&lt;h2&gt;What is Schema Stitching?&lt;/h2&gt;
+
+&lt;p&gt;The core idea behind schema stitching is that because GraphQL talks in type systems, you should be able to merge
+type systems from many GraphQL APIs into a single source of truth. Schema stitching came out at the &lt;a href=&quot;https://dev-blog.apollodata.com/graphql-tools-2-0-with-schema-stitching-8944064904a5&quot;&gt;end of
+2017&lt;/a&gt; via the &lt;a href=&quot;https://github.com/apollographql/graphql-tools/&quot;&gt;&lt;code&gt;graphql-tools&lt;/code&gt;&lt;/a&gt; and became production-&lt;a href=&quot;https://dev-blog.apollodata.com/the-next-generation-of-schema-stitching-2716b3b259c0&quot;&gt;ready in April
+2018&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;We started experimenting on staging last year and would occasionally run into edge-case issues. This meant the
+state of the project would ebb &amp;amp; flow between being blocked, or no-one having the bandwidth to work on it. This was
+fine, because our aim was &lt;a href=&quot;https://github.com/artsy/README/blob/master/culture/engineering-principles.md#incremental-revolution&quot;&gt;incremental evolutions over bold revolution&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;Before we dive into implementation details, here&#39;s a quick glossary of terms before we start:&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;GraphQL &lt;a href=&quot;https://graphql.org/learn/schema/#type-system&quot;&gt;Type&lt;/a&gt;&lt;/strong&gt; - the shape of an object exposed from your GraphQL API&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;GraphQL Schema&lt;/strong&gt; - a representation of your GraphQL&#39;s type system, containing all types and fields on them&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;GraphQL Resolver&lt;/strong&gt; - every field accessed in a query resolves to a corresponding value, the function doing that
+is a resolver&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Schema Merging&lt;/strong&gt; - taking two GraphQL schemas, and merging all the types and resolvers into one schema&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Schema Stitching&lt;/strong&gt; - extending a GraphQL Schema programmatically, with the ability to delegate to merged
+schemas&lt;/li&gt;
+&lt;/ul&gt;
+
+
+&lt;p&gt;Stitching is one of the end-goals, but merging may be enough for a lot of cases. Both of the two launch posts above
+give a much more in-depth explanation of how everything comes together, but these should be enough for this post.&lt;/p&gt;
+
+&lt;a name=&quot;How.Do.We.Do.It.&quot;&gt;&lt;/a&gt;
+&lt;h2&gt;How Do We Do It?&lt;/h2&gt;
+
+&lt;p&gt;We have 5 GraphQL APIs inside the Artsy ecosystem, our aim is to cautiously include these APIs inside metaphysics.
+We don&#39;t need the entire contents of those APIs, and as you&#39;ll learn - we couldn&#39;t do that even if we wanted.&lt;/p&gt;
+
+&lt;p&gt;The technique we settled on was:&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;Download the schema of each external API into metaphysics&#39; source code&lt;/li&gt;
+&lt;li&gt;Have each schema trimmed to just the essentials that we need today&lt;/li&gt;
+&lt;li&gt;Merge in each schema incrementally&lt;/li&gt;
+&lt;li&gt;Stitch in any desired schema changes&lt;/li&gt;
+&lt;/ol&gt;
+
+
+&lt;p&gt;Let&#39;s dig, with some code into how we do each of these steps.&lt;/p&gt;
+
+&lt;a name=&quot;Downloading.Schemas&quot;&gt;&lt;/a&gt;
+&lt;h4&gt;Downloading Schemas&lt;/h4&gt;
+
+&lt;p&gt;We created a &lt;a href=&quot;https://github.com/artsy/metaphysics/blob/1423ee39f8e348805710080a4857e6575d3ddade/scripts/dump-remote-schema.js#L15-L25&quot;&gt;pretty minimal script&lt;/a&gt; which can be run periodically from a developer&#39;s computer.&lt;/p&gt;
+
+&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;6&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;7&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;8&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;9&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;10&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;11&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;12&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;13&lt;/span&gt;
+&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;js&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;kr&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;destination&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;src/data&amp;quot;&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;kr&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;httpConvectionLink&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;createHttpLink&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;({&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nx&quot;&gt;fetch&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nx&quot;&gt;uri&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;urljoin&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;https://convection-staging.artsy.net/api&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;graphql&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;})&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;nx&quot;&gt;introspectSchema&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;httpConvectionLink&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;).&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;then&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;schema&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nx&quot;&gt;fs&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;writeFileSync&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nx&quot;&gt;path&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;join&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;destination&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;convection.graphql&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nx&quot;&gt;printSchema&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;schema&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;commentDescriptions&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;kc&quot;&gt;true&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;})&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;})&lt;/span&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
+
+
+&lt;p&gt;The script uses an &lt;a href=&quot;https://www.apollographql.com/docs/link/links/http.html&quot;&gt;apollo-http-link&lt;/a&gt; to grab our schema, and store it in our repo, see
+&lt;a href=&quot;https://github.com/artsy/metaphysics/blob/master/src/data/convection.graphql&quot;&gt;&lt;code&gt;src/data/convection.graphql&lt;/code&gt;&lt;/a&gt;. This means that when someone wants to update to a new version of the
+schema, it will go through code review and a normal testing-flow. The trade-off being that it will always be out of
+date a little bit, but you can make guarantees about the current schema. This is a reasonable trade-off, as GraphQL
+schemas &lt;a href=&quot;https://graphql.org/learn/best-practices/#versioninghttps://graphql.org/learn/best-practices/#versioning&quot;&gt;should always&lt;/a&gt; be forward compatible for queries, and when someone wants to use a new field from another
+service they can move the schema definition from &lt;a href=&quot;https://github.com/artsy/README/issues/31&quot;&gt;the git repo&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;This file is the &lt;a href=&quot;https://blog.graph.cool/graphql-sdl-schema-definition-language-6755bcb9ce51&quot;&gt;GraphQL SDL&lt;/a&gt; representations of the entire type system for that schema. This means we have a
+local copy of the schemas, so we can use it for tests for the next few steps.&lt;/p&gt;
+
+&lt;a name=&quot;Schema.Manipulation&quot;&gt;&lt;/a&gt;
+&lt;h4&gt;Schema Manipulation&lt;/h4&gt;
+
+&lt;p&gt;Each API writes for their own domain. This can be problematic when you use a &lt;code&gt;User&lt;/code&gt; in one API, which isn&#39;t generic
+enough to be a &lt;code&gt;User&lt;/code&gt; in a global API of all services combined. When thinking about this problem, we created a
+&lt;a href=&quot;https://github.com/artsy/README/blob/master/playbooks/graphql-schema-design.md#notes&quot;&gt;guide for ourselves&lt;/a&gt; on how to think about schema design at local and global level.&lt;/p&gt;
+
+&lt;p&gt;We use a few of &lt;a href=&quot;https://www.apollographql.com/docs/graphql-tools/schema-transforms.html&quot;&gt;the transform APIs&lt;/a&gt; available in graphql-tools to make the merges work. The first
+approach is to force a namespace by prefixing the merged Types with their domain.&lt;/p&gt;
+
+&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;6&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;7&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;8&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;9&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;10&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;11&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;12&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;13&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;14&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;15&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;16&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;17&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;18&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;19&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;20&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;21&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;22&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;23&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;24&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;25&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;26&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;27&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;28&lt;/span&gt;
+&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;js&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;kr&quot;&gt;export&lt;/span&gt; &lt;span class=&quot;kr&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;executableConvectionSchema&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;async&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;kr&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;convectionLink&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;createConvectionLink&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;kr&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;convectionTypeDefs&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;readFileSync&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;src/data/convection.graphql&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;utf8&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;c1&quot;&gt;// Setup the default Schema&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;kr&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;schema&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;await&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;makeRemoteExecutableSchema&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;({&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nx&quot;&gt;schema&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;convectionTypeDefs&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nx&quot;&gt;link&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;convectionLink&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;p&quot;&gt;})&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;c1&quot;&gt;// Remap the names of certain types from Convection to fit in the larger&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;c1&quot;&gt;// metaphysics ecosystem.&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;kr&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;remap&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nx&quot;&gt;Submission&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;ConsignmentSubmission&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nx&quot;&gt;Category&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;ConsignmentSubmissionCategoryAggregation&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nx&quot;&gt;Asset&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;ConsignmentSubmissionCategoryAsset&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nx&quot;&gt;State&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;ConsignmentSubmissionStateAggregation&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nx&quot;&gt;SubmissionConnection&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;ConsignmentSubmissionConnection&amp;quot;&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;c1&quot;&gt;// Return the new modified schema&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;transformSchema&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;schema&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;RenameTypes&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;name&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;kr&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;newName&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;remap&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;||&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;name&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;newName&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;p&quot;&gt;})&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;p&quot;&gt;])&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
+
+
+&lt;p&gt;Another example is to outright remove almost everything in the schema, and to only allow Types and fields which we
+know to be useful.&lt;/p&gt;
+
+&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;6&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;7&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;8&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;9&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;10&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;11&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;12&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;13&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;14&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;15&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;16&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;17&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;18&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;19&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;20&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;21&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;22&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;23&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;24&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;25&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;26&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;27&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;28&lt;/span&gt;
+&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;js&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;kr&quot;&gt;export&lt;/span&gt; &lt;span class=&quot;kr&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;executableGravitySchema&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;async&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;kr&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;gravityTypeDefs&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;readFileSync&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;src/data/gravity.graphql&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;utf8&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;kr&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;gravityLink&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;createGravityLink&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;kr&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;schema&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;await&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;makeRemoteExecutableSchema&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;({&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nx&quot;&gt;schema&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;gravityTypeDefs&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nx&quot;&gt;link&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;gravityLink&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;p&quot;&gt;})&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;c1&quot;&gt;// Types which come from Gravity which MP already has copies of.&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;c1&quot;&gt;// In the future, these could get merged into the MP types.&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;kr&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;blacklistedTypes&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;Artist&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;Artwork&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;c1&quot;&gt;// Gravity&amp;#39;s GraphQL contains a bunch of objects and root fields that will conflict&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;c1&quot;&gt;// with what we have in MP already, this lets us bring them in one by one&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;kr&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;whitelistedRootFields&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;Query&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;recordArtworkView&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;c1&quot;&gt;// Return the new modified schema&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;transformSchema&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;schema&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;FilterRootFields&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;((&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;_type&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;!&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;whitelistedRootFields&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;includes&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;p&quot;&gt;}),&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;FilterTypes&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;type&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;!&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;blacklistedTypes&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;includes&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;type&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;p&quot;&gt;}),&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;c1&quot;&gt;// snip&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;p&quot;&gt;])&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;})&lt;/span&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
+
+
+&lt;p&gt;We can write tests for this by running &lt;a href=&quot;https://github.com/artsy/metaphysics/blob/1423ee39f8e348805710080a4857e6575d3ddade/src/lib/stitching/lib/getTypesFromSchema.ts&quot;&gt;a query which returns all of the types&lt;/a&gt; in a schema, and validating
+what exists:&lt;/p&gt;
+
+&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;6&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;7&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;8&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;9&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;10&lt;/span&gt;
+&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;js&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;kr&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;executableGravitySchema&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;../schema&amp;quot;&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;kr&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;getTypesFromSchema&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;lib/stitching/lib/getTypesFromSchema&amp;quot;&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;nx&quot;&gt;it&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;Does not include blacklisted types&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;async&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;kr&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;gravitySchema&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;await&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;executableGravitySchema&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;kr&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;gravityTypes&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;await&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;getTypesFromSchema&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;gravitySchema&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nx&quot;&gt;expect&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;gravityTypes&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;).&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;not&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;toContain&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;Artist&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nx&quot;&gt;expect&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;gravityTypes&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;).&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;not&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;toContain&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;Artwork&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;})&lt;/span&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
+
+
+&lt;p&gt;This one is interesting, we &lt;em&gt;don&#39;t&lt;/em&gt; want the version of &lt;code&gt;Artist&lt;/code&gt; and &lt;code&gt;Artwork&lt;/code&gt; from Gravity&#39;s GraphQL
+implementation - because the hand-rolled &lt;code&gt;Artwork&lt;/code&gt; and &lt;code&gt;Artist&lt;/code&gt; types which lives in the source code of Metaphysics
+right now is a combination of many sources, and front-end-client specific code.&lt;/p&gt;
+
+&lt;p&gt;If we allowed the &lt;code&gt;Artist&lt;/code&gt; or &lt;code&gt;Artwork&lt;/code&gt; to overwrite the existing implementations it would be a massively breaking
+change. For example, compare the Artwork type from &lt;a href=&quot;https://github.com/artsy/metaphysics/blob/51939d1f8eb0d5a60e6e888bf701e082a9ee3731/src/data/gravity.graphql#L14-L29&quot;&gt;Gravity&#39;s GraphQL&lt;/a&gt; (5 fields) vs &lt;a href=&quot;https://github.com/artsy/metaphysics/blob/51939d1f8eb0d5a60e6e888bf701e082a9ee3731/_schema.graphql#L723-L889&quot;&gt;Metaphysics&#39;
+GraphQL&lt;/a&gt; (~90 fields) accidentally switching the types would cripple our front-ends.&lt;/p&gt;
+
+&lt;a name=&quot;Merging.Schemas&quot;&gt;&lt;/a&gt;
+&lt;h4&gt;Merging Schemas&lt;/h4&gt;
+
+&lt;p&gt;There are two classes of schemas involved in our stitching. Local Schemas, which is our existing schema (e.g. the
+resolver live inside the current source code), and Remote Schemas (e.g. where you make an API request to run those
+resolvers). &lt;a href=&quot;https://github.com/artsy/metaphysics/blob/1423ee39f8e348805710080a4857e6575d3ddade/src/lib/stitching/mergeSchemas.ts#L9-L39&quot;&gt;Merging a schema&lt;/a&gt; has a pretty small API surface and doesn&#39;t mind which type of schemas you
+merge together.&lt;/p&gt;
+
+&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;6&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;7&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;8&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;9&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;10&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;11&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;12&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;13&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;14&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;15&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;16&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;17&lt;/span&gt;
+&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;js&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;kr&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;mergeSchemas&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;as&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;_mergeSchemas&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;graphql-tools&amp;quot;&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;kr&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;executableGravitySchema&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;lib/stitching/gravity/schema&amp;quot;&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;kr&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;executableConvectionSchema&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;lib/stitching/convection/schema&amp;quot;&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;kr&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;executableLewittSchema&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;lib/stitching/lewitt/schema&amp;quot;&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;kr&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;localSchema&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;../../schema&amp;quot;&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;kr&quot;&gt;export&lt;/span&gt; &lt;span class=&quot;kr&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;mergeSchemas&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;async&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;kr&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;convectionSchema&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;await&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;executableConvectionSchema&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;kr&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;gravitySchema&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;await&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;executableGravitySchema&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;kr&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;mergedSchema&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;_mergeSchemas&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;({&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nx&quot;&gt;schemas&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;gravitySchema&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;localSchema&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;convectionSchema&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;p&quot;&gt;})&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;mergedSchema&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
+
+
+&lt;p&gt;It&#39;s a pretty simple composition model, makes it real easy to do some verification tests using the same techniques
+as above.&lt;/p&gt;
+
+&lt;a name=&quot;Stitching.Schemas&quot;&gt;&lt;/a&gt;
+&lt;h4&gt;Stitching Schemas&lt;/h4&gt;
+
+&lt;p&gt;The next step from merging is stitching. Stitching is about taking the merged schemas and taking data from one and
+re-applying it via another API. For example, we have a consignments API (for when you want to sell a work at
+auction) and a consignment references the artwork&#39;s artist. These live inside an API called convection.&lt;/p&gt;
+
+&lt;p&gt;In this case, the consignment has an &lt;code&gt;artist_id&lt;/code&gt; which represents an &lt;code&gt;Artist&lt;/code&gt; type which lives in metaphysics. We
+would like to stitch an Artist in from the local schema, into a &lt;code&gt;ConsignmentSubmission&lt;/code&gt; which has come in from a
+remote schema.&lt;/p&gt;
+
+&lt;p&gt;The API works by using &lt;a href=&quot;https://github.com/graphql/graphql-js/pull/1117&quot;&gt;Type Extensions&lt;/a&gt; which are a way of opening up an existing Type and adding new fields
+on it. We want to be working with the highest level abstraction, which in this case is directly writing &lt;a href=&quot;https://blog.graph.cool/graphql-sdl-schema-definition-language-6755bcb9ce51&quot;&gt;GraphQL
+SDL&lt;/a&gt; (basically writing the interface) and then hooking that up to its resolvers.&lt;/p&gt;
+
+&lt;p&gt;Here&#39;s what that looks like in our app:&lt;/p&gt;
+
+&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;6&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;7&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;8&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;9&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;10&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;11&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;12&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;13&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;14&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;15&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;16&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;17&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;18&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;19&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;20&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;21&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;22&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;23&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;24&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;25&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;26&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;27&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;28&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;29&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;30&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;31&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;32&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;33&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;34&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;35&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;36&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;37&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;38&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;39&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;40&lt;/span&gt;
+&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;js&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;kr&quot;&gt;export&lt;/span&gt; &lt;span class=&quot;kr&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;consignmentStitchingEnvironment&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nx&quot;&gt;localSchema&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;GraphQLSchema&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nx&quot;&gt;convectionSchema&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;GraphQLSchema&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;({&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;c1&quot;&gt;// The SDL used to declare how to stitch an object&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nx&quot;&gt;extensionSchema&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;`&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nx&quot;&gt;extend&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;type&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;ConsignmentSubmission&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;nx&quot;&gt;artist&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;Artist&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;err&quot;&gt;`&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;c1&quot;&gt;// Resolvers which correspond to the above type extension&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nx&quot;&gt;resolvers&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nx&quot;&gt;ConsignmentSubmission&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;nx&quot;&gt;artist&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;        &lt;span class=&quot;c1&quot;&gt;// The required query to get access to the object, e.g. we have to&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;        &lt;span class=&quot;c1&quot;&gt;// request `artist_id` on a ConsignmentSubmission in order to access the artist&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;        &lt;span class=&quot;c1&quot;&gt;// at all&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;        &lt;span class=&quot;nx&quot;&gt;fragment&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;`&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;fragment&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;SubmissionArtist&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;on&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;ConsignmentSubmission&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;artist_id&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;err&quot;&gt;`&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;        &lt;span class=&quot;c1&quot;&gt;// The function to handle getting the Artist data correctly, we&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;        &lt;span class=&quot;c1&quot;&gt;// use the root query `artist(id: id)` to grab the data from the local&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;        &lt;span class=&quot;c1&quot;&gt;// metaphysics schema&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;        &lt;span class=&quot;nx&quot;&gt;resolve&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;parent&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;_args&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;context&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;info&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;          &lt;span class=&quot;kr&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;id&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;parent&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;artist_id&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;          &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;info&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;mergeInfo&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;delegateToSchema&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;({&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;            &lt;span class=&quot;nx&quot;&gt;schema&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;localSchema&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;            &lt;span class=&quot;nx&quot;&gt;operation&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;query&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;            &lt;span class=&quot;nx&quot;&gt;fieldName&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;artist&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;            &lt;span class=&quot;nx&quot;&gt;args&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;              &lt;span class=&quot;nx&quot;&gt;id&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;            &lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;            &lt;span class=&quot;nx&quot;&gt;context&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;            &lt;span class=&quot;nx&quot;&gt;info&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;            &lt;span class=&quot;nx&quot;&gt;transforms&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;convectionSchema&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;as&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;any&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;).&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;transforms&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;          &lt;span class=&quot;p&quot;&gt;})&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;        &lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;})&lt;/span&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
+
+
+&lt;p&gt;This file consolidates the two steps of merging and then stitching:&lt;/p&gt;
+
+&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;6&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;7&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;8&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;9&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;10&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;11&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;12&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;13&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;14&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;15&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;16&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;17&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;18&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;19&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;20&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;21&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;22&lt;/span&gt;
+&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;diff&#39;&gt;&lt;span class=&#39;line&#39;&gt;export const mergeSchemas = async () =&amp;gt; {
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  const convectionSchema = await executableConvectionSchema()
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;gi&quot;&gt;+ const convectionStitching = consignmentStitchingEnvironment(localSchema, convectionSchema)&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  const gravitySchema = await executableGravitySchema()
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  // The order should only matter in that extension schemas come after the
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  // objects that they are expected to build upon
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  const mergedSchema = _mergeSchemas({
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    schemas: [
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      gravitySchema,
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      localSchema,
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      convectionSchema,
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;gi&quot;&gt;+      convectionStitching.extensionSchema,&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;gi&quot;&gt;+    ],&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;gi&quot;&gt;+    resolvers: {&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;gi&quot;&gt;+      ...convectionStitching.resolvers,&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;gi&quot;&gt;+    },&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  })
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  return mergedSchema
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;}
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
+
+
+&lt;p&gt;We extend the merge schema function to also include the SDL for our stitching, and de-structure in the extension
+resolvers. We&#39;re still exploring how to write &lt;em&gt;useful&lt;/em&gt; tests for this part.&lt;/p&gt;
+
+&lt;a name=&quot;Validating.your.changes&quot;&gt;&lt;/a&gt;
+&lt;h2&gt;Validating your changes&lt;/h2&gt;
+
+&lt;p&gt;We had some useful tools which were used to make the switch to using schema-stitching in production.&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;&lt;p&gt;&lt;strong&gt;Stored Queries&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;In order to validate that the runtime behavior of our queries wasn&#39;t changing, we used the &lt;a href=&quot;https://github.com/artsy/emission/pull/999&quot;&gt;persistent
+queries&lt;/a&gt; generated by our iOS app Emission to create JSON dumps of the results of many API calls in both
+stitched and un-stitched environments in a script and compared the results.&lt;/p&gt;&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;&lt;strong&gt;SDL dump comparison&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;We can use the GraphQL type system to validate our changes don&#39;t break clients. We used a schema dump script to
+validate the type system was the same across stitched and un-stitched environments.&lt;/p&gt;&lt;/li&gt;
+&lt;/ol&gt;
+
+
+&lt;a name=&quot;Alternatives&quot;&gt;&lt;/a&gt;
+&lt;h2&gt;Alternatives&lt;/h2&gt;
+
+&lt;p&gt;Our stitching implementation used metaphysics as a local schema - e.g. the merging and the stitching occurred
+inside the same source code as our main GraphQL API. This wasn&#39;t the only way we cold achieve a single source of
+truth, I explored an alternative which is to treat all schemas as remote schemas. Basically having an API gateway
+in-front of our API gateway. I called it &lt;a href=&quot;https://github.com/orta/incorporeal&quot;&gt;incorporeal&lt;/a&gt;, it&#39;s actually a tiny amount of code - a testament to
+modern GraphQL techniques in JavaScript.&lt;/p&gt;
+
+&lt;p&gt;The advantage here is that we take reduce the acceleration of growing complexity in Metaphysics completely, because
+the merging and stitching occurs outside of it. Metaphysics is merged and stitched in, just as all our other APIs
+are.&lt;/p&gt;
+
+&lt;p&gt;The downside is that it&#39;s another hop to get what you want, and changes could require being updated in more places.
+We&#39;d be able to use the above ideas for validating that the API is working as expected.&lt;/p&gt;
+
+&lt;a name=&quot;In.Production&quot;&gt;&lt;/a&gt;
+&lt;h2&gt;In Production&lt;/h2&gt;
+
+&lt;p&gt;Today we stitch all new APIs by default, see &lt;a href=&quot;https://github.com/artsy/metaphysics/pull/1327&quot;&gt;Kaws&#39; integration&lt;/a&gt; PR. We&#39;re &lt;em&gt;slowly&lt;/em&gt; trying to retro-actively
+migrate existing APIs into stitching and then deleting the existing code, but that&#39;s real tricky when those APIs
+are being used or use advanced features of GraphQL.&lt;/p&gt;
+
+&lt;p&gt;We&#39;ve been using GraphQL &lt;a href=&quot;https://github.com/artsy/metaphysics/commit/50b23f1738b9fa9757ff83c2d1e0d265c70e4e90&quot;&gt;since mid-2015&lt;/a&gt; and we&#39;ve also used it with Relay for the past two years, this has
+meant we have quite a few interesting edge cases in our use of the GraphQL. We got in touch with &lt;a href=&quot;https://www.freiksenet.com&quot;&gt;Mikhail
+Novikov&lt;/a&gt; and he contracted to help us with most of these issues and I&#39;d strongly recommend doing the same (with
+any OSS dependency, but that&#39;s, like, just my opinion man.)&lt;/p&gt;
+
+&lt;p&gt;GraphQL Stitching solves the problem of API consolidation in a really well thought out abstraction, and I consider
+it one of the most interesting avenues of exploration into what GraphQL will be in the future (see &lt;a href=&quot;http://artsy.github.io/blog/2018/05/08/is-graphql-the-future/&quot;&gt;Is GraphQL The
+Future?&lt;/a&gt; for a more philosophical take also.)&lt;/p&gt;
+
+&lt;!-- prettier-ignore-start --&gt;
+
+
+
+
+&lt;!-- prettier-ignore-end --&gt;
+
+</description>
+        <pubDate>Tue, 11 Dec 2018 00:00:00 +0000</pubDate>
+        <link>http://artsy.github.io/blog/2018/12/11/GraphQL-Stitching/</link>
+        <guid isPermaLink="true">http://artsy.github.io/blog/2018/12/11/GraphQL-Stitching/</guid>
+        
+        
+        <category>graphql</category>
+        
+        <category>metaphysics</category>
+        
+        <category>stitching</category>
+        
+      </item>
     
       <item>
         <title>Everything You Ever Wanted To Know About Authentication at Artsy (But Didn&#39;t Know How To Ask)</title>
@@ -3198,190 +3747,6 @@ the Artsy iOS app now. Maybe I&#39;m going to need to do that now. Ergh, this is
         <category>meta</category>
         
         <category>teams</category>
-        
-      </item>
-    
-      <item>
-        <title>A History of Artsy&#39;s Web Frontend</title>
-        <description>&lt;p&gt;As Artsy Engineering grows in 2018, we have so many newcomers looking for context: they want to understand the
-systems they&#39;ll be working in day-to-day. Awesome! But it&#39;s not enough to understand the systems themselves, it&#39;s
-often helpful to understand the &lt;em&gt;history&lt;/em&gt; of how we ended up where we are.&lt;/p&gt;
-
-&lt;p&gt;Frontend web development has changed a &lt;em&gt;lot&lt;/em&gt; during Artsy&#39;s existence, and it continues to advance at a blistering
-pace. It&#39;s easy to get caught up in the churn of frameworks and languages and tools, so I want to use this post as
-an opportunity to contextualize each transition that Artsy&#39;s web presence has made over the past seven years. We&#39;ve
-changed technologies, but we&#39;ve tried to do so with care and attention. Documenting these decisions is important
-(and is ideally done &lt;a href=&quot;https://ashfurrow.com/blog/contemporaneous-blogging/&quot;&gt;contemporaneously&lt;/a&gt;), but even with the best documentation, &lt;a href=&quot;https://github.com/artsy/artsy.github.io/pull/489#discussion_r221301472&quot;&gt;sometimes our own documentation
-is unclear to us&lt;/a&gt;.&lt;/p&gt;
-
-&lt;p&gt;In an effort to help contextualize our web frontend (which is &lt;a href=&quot;https://github.com/artsy/force&quot;&gt;open source&lt;/a&gt;), this blog post will document
-the major transitions that Artsy&#39;s web presence has made over the past seven years. Let&#39;s begin!&lt;/p&gt;
-
-&lt;!-- more --&gt;
-
-
-&lt;a name=&quot;Backbone...CoffeeScript&quot;&gt;&lt;/a&gt;
-&lt;h2&gt;Backbone + CoffeeScript&lt;/h2&gt;
-
-&lt;p&gt;Artsy as you know it today began as a standard Rails application. We ran &lt;code&gt;git init&lt;/code&gt; in January 2011, which coupled
-our backend API to our web frontend, but since our frontend was just a fancy user interface for our API, this
-worked for over two years. The web app itself was a kind of simplified MVC – controller logic lived inside the
-views and models dealt with backend communication and notifying the view of state changes. For CSS, we used the
-SASS CSS preprocessor. The Rails backend served initial pages that were then populated with follow-up API calls
-made on the client-side. At a &lt;em&gt;very&lt;/em&gt; high level, this isn&#39;t &lt;em&gt;that&lt;/em&gt; different from what we do today with React.&lt;/p&gt;
-
-&lt;p&gt;Our site was built with a framework called &lt;a href=&quot;http://backbonejs.org&quot;&gt;Backbone&lt;/a&gt;, which was really well-suited for our needs at the time.
-From their documentation:&lt;/p&gt;
-
-&lt;blockquote&gt;&lt;p&gt;Philosophically, Backbone is an attempt to discover the minimal set of data-structuring (models and collections)
-and user interface (views and URLs) primitives that are generally useful when building web applications with
-JavaScript. In an ecosystem where overarching, decides-everything-for-you frameworks are commonplace, and many
-libraries require your site to be reorganized to suit their look, feel, and default behavior — Backbone should
-continue to be a tool that gives you the &lt;em&gt;freedom&lt;/em&gt; to design the full experience of your web application.&lt;/p&gt;&lt;/blockquote&gt;
-
-&lt;p&gt;As an outsider to the web at that time, I can&#39;t comment too heavily on Backbone. It seems like the freedom
-(emphasis theirs) that they describe is a freedom from tangled jQuery code everywhere. I think our definition of
-freedom on the web frontend has evolved since then, but that&#39;s just my feeling.&lt;/p&gt;
-
-&lt;p&gt;The other key component to our web frontend was &lt;a href=&quot;https://coffeescript.org&quot;&gt;CoffeeScript&lt;/a&gt;. According to its documentation, &quot;CoffeeScript is
-a little language that compiles into JavaScript&quot;, which was pretty important at the time. JavaScript in 2011 was
-very different from JavaScript today. The CoffeeScript docs also state that &quot;JavaScript has always had a gorgeous
-heart&quot;, which I&#39;m not sure I&#39;d agree with to be honest, but the CoffeeScript project really shows how a handful of
-engineers working to improve something they care about can change an entire industry. While I don&#39;t think
-contemporary JavaScript would have gotten as good as it has without CoffeeScript, it&#39;s a bit anachronistic to see
-it used today.&lt;/p&gt;
-
-&lt;p&gt;Our goal as a (very small!) engineering team at the time was to keep our moving parts to a minimum.
-Rails+SASS+CoffeeScript+Backbone helped us achieve that goal, and we couldn&#39;t have gotten this far without the help
-of those projects.&lt;/p&gt;
-
-&lt;a name=&quot;Ezel..amp..Friends&quot;&gt;&lt;/a&gt;
-&lt;h2&gt;Ezel &amp;amp; Friends&lt;/h2&gt;
-
-&lt;p&gt;In November 2013, we split our web frontend from the API backend. You can read
-&lt;a href=&quot;2013_review&quot;&gt;all the details in this blog post&lt;/a&gt;, but the story is summarized nicely as &quot;moving from a single
-monolithic application to modular Backbone apps that run in Node and the browser and consume our external API.&quot;
-This move from monolith to modular systems continues to influence day-to-day work on the Artsy Engineering team.&lt;/p&gt;
-
-&lt;p&gt;We had already started moving away from a typical Rails app by moving our API to &lt;a href=&quot;https://github.com/ruby-grape/grape&quot;&gt;Grape&lt;/a&gt; in order to support an
-iOS application. The monolith also had some clear drawbacks including severe page load times, maintaining
-duplicated backend and frontend UI templates, slow test suites, and poor developer productivity. We took the
-project of building our mobile web frontend, m.artsy.net (still known as &quot;martsy&quot; internally) as an opportunity to
-address these problems.&lt;/p&gt;
-
-&lt;p&gt;We built our new site with &lt;a href=&quot;https://github.com/ruby-grape/grape&quot;&gt;Node.js&lt;/a&gt; since it allowed us to share and consolidate our server/client rendering
-code. We split out areas of concern into separate &quot;apps&quot;, with their own bundled CSS/JS to help page load times. We
-server-side rendered above-the-fold content and used client-side JS to load the rest, which helped SEO and user
-experience. We took a &lt;a href=&quot;http://getbem.com/introduction/&quot;&gt;BEM&lt;/a&gt;-like approach to our CSS, which helped developer productivity. Our technical
-decisions were driven primarily by our desire to create great user experiences.&lt;/p&gt;
-
-&lt;p&gt;And because we are an open source by default organization, we collected these approaches into an open source
-project called &lt;a href=&quot;https://github.com/artsy/ezel&quot;&gt;Ezel&lt;/a&gt;. While our main app used this Ezel approach, other new web apps – CMS systems for our
-partners, auction-management systems for our admins, etc – were built on new internal tools to share assets and
-code across the apps. We experimented a lot; we got pretty good at sharing resources across codebases. Most of our
-web projects started on Heroku before moving to heavier-duty deployments as needed. Our frontend mindset at the
-time (2015) was focused on getting to a stable, predictable stack. However... we started experimenting with React
-around the same time.&lt;/p&gt;
-
-&lt;p&gt;CoffeeScript and Backbone were still working for us, and we still use them in production in many systems. However,
-the state of the art in web development moved on. When I joined the auctions team and helped maintain one of our
-CoffeeScript+Backbone apps, I was &lt;em&gt;very&lt;/em&gt; confused about how data flowed from one part of the app to another, across
-languages, with a lot of magic happening. I think that&#39;s typical in these kinds of apps – &quot;convention over
-configuration&quot; is a good mantra &lt;em&gt;if&lt;/em&gt; you can expect that incoming engineers are familiar with the conventions.
-That&#39;s just not the case anymore.&lt;/p&gt;
-
-&lt;p&gt;By 2016, we had &lt;a href=&quot;http://artsy.github.io/blog/2015/04/08/creating-a-dynamic-single-page-app-for-our-genome-team-using-react/&quot;&gt;experimented with React&lt;/a&gt; and followed up with &lt;a href=&quot;http://artsy.github.io/blog/2016/08/09/the-tech-behind-live-auction-integration/&quot;&gt;another app built with the
-technology&lt;/a&gt;. React (and Redux) were very well-suited for our realtime auction bidding UI, and would later
-prove helpful in our &lt;a href=&quot;https://github.com/artsy/positron&quot;&gt;editorial CMS&lt;/a&gt;. These experiences helped prove the technology was ready for
-production use &lt;em&gt;and&lt;/em&gt; convinced us that React was great at reducing the complexities of building user interfaces
-(the realtime nature of our auctions product was particularly well-suited for Redux&#39;s state management; it was our
-first from-scratch React app).&lt;/p&gt;
-
-&lt;p&gt;When the Artsy business require us to make changes to how we build software, like splitting up our monolith, we try
-to take full advantage of those changes to improve how we work, which means evaluating new tools. Adopting Node.js
-and Ezel wouldn&#39;t make sense today, but at the time, they helped us scale up Artsy&#39;s business without the same
-scaling up of our engineering resources. Ezel helped us do more with less, which is still an important criteria we
-use for evaluating new tools.&lt;/p&gt;
-
-&lt;a name=&quot;React&quot;&gt;&lt;/a&gt;
-&lt;h2&gt;React&lt;/h2&gt;
-
-&lt;p&gt;By 2017, the divisions between our mobile frontend and web frontend teams had been totally dissolved (as they
-should – the division between mobile and web developers is a false dichotomy). Our &lt;a href=&quot;http://artsy.github.io/blog/2017/04/14/artsy-technology-stack-2017/&quot;&gt;2017 tech stack
-post&lt;/a&gt; discusses this in depth, but our goal was really to unify the paradigm that frontend engineers
-at Artsy use to build user interfaces, whether that&#39;s on mobile or web. React and React Native were our answer to
-that challenge.&lt;/p&gt;
-
-&lt;p&gt;On the web side of things, however, Artsy had another challenge. Sure, React is great, and sure, it&#39;s how we want
-to build user interfaces, but how do we get there? We&#39;re not fans of large rewriting projects, so we opted for what
-we call an &quot;incremental revolution&quot; approach. We built a library called &lt;a href=&quot;https://github.com/artsy/stitch&quot;&gt;Stitch&lt;/a&gt; that would let us mount React
-components inside our existing app. Using this approach, we could migrate to React component-by-component. We&#39;ve
-been using Stitch in production for over a year and have been very happy with its approach; you can read more
-details of integrating it into our main frontend app &lt;a href=&quot;http://artsy.github.io/blog/2017/09/05/Modernizing-Force/&quot;&gt;in this blog post&lt;/a&gt;.&lt;/p&gt;
-
-&lt;p&gt;Today, principal React work takes place in &lt;a href=&quot;https://github.com/artsy/reaction&quot;&gt;a shared components repo&lt;/a&gt;. We share these components across
-several of our web apps using Stitch. We have been pretty pleased with the results! But our dive into React is only
-just beginning. The community is moving quickly to figure out what best practices make sense in the React paradigm,
-and we&#39;re a part of that. We are evaluating technologies like &lt;a href=&quot;https://www.styled-components.com&quot;&gt;styled-components&lt;/a&gt; and &lt;a href=&quot;https://jxnblk.com/styled-system/&quot;&gt;styled-system&lt;/a&gt; to create
-a universal design system within Artsy. The area is under very active development, so I&#39;ll save details for a
-future blog post.&lt;/p&gt;
-
-&lt;p&gt;I can&#39;t go too much further without talking about GraphQL. v1 of our API (REST) is still in use around much of
-Artsy and, despite the best efforts of some of our engineers, v2 of our API (&lt;a href=&quot;http://stateless.co/hal_specification.html&quot;&gt;HAL&lt;/a&gt;) hasn&#39;t gained significant
-internal use yet. Instead, we found ourselves building a &lt;a href=&quot;https://graphql.org&quot;&gt;GraphQL&lt;/a&gt; server to orchestrate API calls to our
-existing APIs. This confers many benefits, which I describe from a mobile perspective in some detail &lt;a href=&quot;https://ashfurrow.com/blog/the-spirit-of-moya/&quot;&gt;here&lt;/a&gt;.
-The key thing to understand about our GraphQL server, &lt;a href=&quot;https://github.com/artsy/metaphysics/&quot;&gt;which is open source&lt;/a&gt;, is that it is under the
-stewardship of our frontend engineers, not our platform engineers. That&#39;s not to say that our platform team isn&#39;t
-involved with its development – in fact, they&#39;ve been key to scaling it up – but Artsy frontend engineers created
-the server to help us build better UIs, and while the technology is still very new, we continue to see it pay
-dividends.&lt;/p&gt;
-
-&lt;p&gt;Okay so remember earlier when I said that we dissolved our mobile team? Well, I was on that team and it wasn&#39;t like
-our mobile engineers all learned how Artsy does web – we brought our culture and tools with us and, together with
-our web colleagues, have built an integrated engineering team that&#39;s greater than the sum of its parts. One thing
-that was important to mobile engineers was type safety, so we had to have a conversation about JavaScript.&lt;/p&gt;
-
-&lt;p&gt;On its own, JavaScript can&#39;t guarantee type safety. We investigated two options: &lt;a href=&quot;http://www.typescriptlang.org&quot;&gt;TypeScript&lt;/a&gt; and &lt;a href=&quot;https://flow.org&quot;&gt;Flow&lt;/a&gt;. &lt;a href=&quot;http://artsy.github.io/blog/2017/02/05/Front-end-JavaScript-at-Artsy-2017/&quot;&gt;This
-blog post&lt;/a&gt; goes into detail about our decision, but tl;dr we chose TypeScript. We have been building (and
-helping to build) tools &lt;a href=&quot;https://github.com/relay-tools/relay-compiler-language-typescript&quot;&gt;relay-compiler-language-typescript&lt;/a&gt; to take full advantage of interoperability
-between TypeScript types and GraphQL types through &lt;a href=&quot;https://facebook.github.io/relay/&quot;&gt;Relay&lt;/a&gt;, as well as using Babel 7 to migrate existing projects
-to TypeScript incrementally, which you can read about in more detail &lt;a href=&quot;https://artsy.github.io/blog/2017/11/27/Babel-7-and-TypeScript/&quot;&gt;here&lt;/a&gt;. It&#39;s all very exciting – you
-can read more on how Relay and GraphQL interoperate &lt;a href=&quot;http://artsy.github.io/blog/2018/07/25/Relay-Networking-Deep-Dive/&quot;&gt;in this blog post&lt;/a&gt;.&lt;/p&gt;
-
-&lt;p&gt;We started building software in React not because it was trendy, but because it helped our engineering team deliver
-more value to the business. It&#39;s been a huge success, but not without its costs. We&#39;ve tried to mitigate those
-costs by using tools like Stitch to migrate apps to React incrementally, and through spreading knowledge of how our
-stack through internal knowledge-sharing like &lt;a href=&quot;http://artsy.github.io/series/javascriptures/&quot;&gt;JavaScriptures&lt;/a&gt;. While the transition to React has had its costs,
-&lt;em&gt;not&lt;/em&gt; moving would also be costly, too.&lt;/p&gt;
-
-&lt;hr /&gt;
-
-&lt;p&gt;Since I joined Artsy, I&#39;ve seen us continually investing in tooling that helps us build better software. The
-results of this culture-of-continuous-improvement speak for themselves: with fewer than 30 engineers total, we
-support a growing company with a suite of software built for many canvasses &lt;em&gt;and&lt;/em&gt; we have an outsized impact on the
-software industry relative to our size. Our frontend web stack is just one facet of our evolving technology –
-there&#39;s lots of exciting stuff on the backend, too (&lt;a href=&quot;https://github.com/artsy/hokusai&quot;&gt;for example...&lt;/a&gt;). Through my research for this blog
-post, I learned a lot about what drives technological decisions on our team. From humble beginnings as a Rails app,
-to CoffeeScript and Bootstrap, to React and GraphQL, Artsy Engineering has evolved our frontend software to achieve
-a quality worthy of art – both from the user&#39;s perspective and from the developer&#39;s. I&#39;m very excited about what&#39;s
-coming next, and I can&#39;t wait to share it with you. Have a great day!&lt;/p&gt;
-</description>
-        <pubDate>Thu, 04 Oct 2018 00:00:00 +0000</pubDate>
-        <link>http://artsy.github.io/blog/2018/10/04/artsy-frontend-history/</link>
-        <guid isPermaLink="true">http://artsy.github.io/blog/2018/10/04/artsy-frontend-history/</guid>
-        
-        
-        <category>architecture</category>
-        
-        <category>best practices</category>
-        
-        <category>ezel</category>
-        
-        <category>force</category>
-        
-        <category>javascript</category>
-        
-        <category>react</category>
         
       </item>
     
