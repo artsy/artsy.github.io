@@ -228,7 +228,7 @@ as above.
 
 The next step from merging is stitching. Stitching is about taking the merged schemas and taking data from one and
 re-applying it via another API. For example, we have a consignments API (for when you want to sell a work at
-auction) and a consignment references the artwork's artist.
+auction) and a consignment references the artwork's artist. These live inside an API called convection.
 
 In this case, the consignment has an `artist_id` which represents an `Artist` type which lives in metaphysics. We
 would like to stitch an Artist in from the local schema, into a `ConsignmentSubmission` which has come in from a
