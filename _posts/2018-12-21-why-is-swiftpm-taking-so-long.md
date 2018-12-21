@@ -86,7 +86,7 @@ Which is impressive, because the existing system is [complex][bs].
 
 CocoaPods was "useful" for Cocoa development very quickly in comparison (roughly a month from initial commit to
 supporting a few existing libraries in an app back in 2011), this was because CocoaPods completely skipped the
-build tool stage. There was no need, Xcode has a working build system and you can control it via `.xcproject`
+build tool stage. There was no need, Xcode has a working build system and you can control it via `.xcodeproj`
 files. This meant that the key output for CocoaPods is to reliably support generating xcode projects and the
 underlying abstractions making it actually compile is left to the Xcode team.
 
@@ -122,7 +122,7 @@ These choices came with a cost though, right now there's only 1 or 2 contexts wh
 prominent is Swift on a Server. It's likely that Swift on a server probably isn't as widely adopted as Apple hoped
 it would be by the programming community on whole. Unless you are an iOS developer with existing skills, Swift
 probably doesn't even register as being a language you would consider building your web API/apps in. Yes, I know
-there are a [few][few] [good][objcio] exceptions etc.
+there are a [few][few] [good][objcio] exceptions, but they come from the iOS community.
 
 Which probably hasn't helped with resourcing Swift PM at Apple, where the user-facing team has
 [basically][swift-pm-contrib] been a one-man operation for about a year and a half. From my external perspective,
@@ -145,8 +145,8 @@ way to make Swift PM useful to the iOS community. That, however, is another blog
 [danger]: https://danger.systems/
 [vscode]: https://code.visualstudio.com
 [buck]: https://ninja-build.org
-[ninja]: https://www.github.com/facebook/buck
-[llbuild]: https://www.github.com/apple/swift-llbuild
+[ninja]: https://www.github.com/apple/swift-llbuild
+[llbuild]: https://www.github.com/facebook/buck
 [jd-build-system]: https://jamesdempsey.net/2017/06/13/new-xcode-build-system-and-buildsettingextractor/
 [bs]: https://pewpewthespells.com/blog/xcode_build_system.html
 [winders]: https://github.com/CocoaPods/CocoaPods/pull/8189
