@@ -15,6 +15,8 @@ employee about something which sounds even remotely like a future product questi
 Well, _person whose name I don't remember_, let me try to re-frame that question into something I can take a
 reasonable stab at: **"Why are we all still using CocoaPods now instead of Swift PM for iOS apps?"**
 
+<!-- more -->
+
 Three years ago in December 2015, Swift became open source. Inside the source code was a [pleasant
 surprise][tw_spm] that Apple were going to start making their own package manager. Great, CocoaPods was
 [sherlocked][], but Apple had control of Xcode and the entire toolchain so they could integrate it natively. I
