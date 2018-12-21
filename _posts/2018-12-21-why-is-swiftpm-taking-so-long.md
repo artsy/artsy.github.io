@@ -86,20 +86,28 @@ build tool stage. There was no need, Xcode has a working build system and you ca
 files. This meant that the key output for CocoaPods is to reliably support generating xcode projects and the
 underlying abstractions making it actually compile is left to the Xcode team.
 
-The Swift PM team couldn't do this without making it deeply dependent on Xcode. CocoaPods can be indifferent to
+The Swift PM team couldn't do this without making it deeply dependent on Xcode. CocoaPods can be in-different to
 something like Linux support (fun fact: last month [Windows support][winders] was added) because no-one is writing
-apps on Linux, and it's only concern is shipping those Xcode project files.
+Cocoa apps on Linux, and it's only concern is shipping those Xcode project files to your project's file system.
 
-This let CocoaPods to work on comprehensive support of the existing library ecosystem, rather than the more mundane
-task of actually figuring out how to make a project compile. Meaning CocoaPods can focus on more user-facing issues
-that a dependency manager has:
+This difference in abstraction level allowed CocoaPods to work on comprehensive support of the existing library
+ecosystem considerably sooner. The config options were already set, the types of projects were known they had to
+map to whatever Xcode supported rather than the more mundane task of actually figuring out how to make a project
+build, compile and scale.
+
+CocoaPods got focus on more user-facing issues that a dependency manager has considerably quicker, and could focus
+on building the most used features first then moving to more niche features (which could be the abstractions those
+popular feature relied on) when someone needed it. This meant that the user-facing, and interesting to me, work was
+feasible considerably earlier:
 
 - Discovery of packages
+- A lot of documentation
 - Access rights for owners
 - Creating plugin systems giving hooks for all sorts of projects to be built
 - Support for esoteric compiler features
 - Support for esoteric Xcode features
 - Providing useful metrics on quality/usage
+- Cool stickers
 
 Which generally speaking are problems that Swift PM will eventually have to hit, but instead of jumping straight to
 it, the team has to first build the foundations before making the decorations.
