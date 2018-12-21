@@ -4,13 +4,14 @@ title: Why is the Swift Package Manager taking so long?
 date: 2018-12-21
 author: [orta]
 categories: [swift, package-management, build tools]
-comment_id: 450
+comment_id: 512
 ---
 
-I was chatting at a bar with an engineer working on the Swift team, and someone joined our conversation with the
-classic opener _"When can I stop using CocoaPods and switch to Swift PM?"_ - I chuckled, because I get this a lot
-(I have been helping to maintain CocoaPods for about 6 years now) but they had made mistake of asking an Apple
-employee about something which sounds even remotely like a future product question. So, it didn't go anywhere.
+Last month I was chatting at a bar with an engineer working on the Swift team, and we welcomed someone to our
+conversation where they opened with the question: _"When can I stop using CocoaPods and switch to Swift PM?"_ I
+chuckled, because I get this a lot (I have been helping to maintain CocoaPods for about 6 years now) but they had
+made mistake of asking an Apple employee about something which sounds even remotely like a future product question.
+So, it didn't go anywhere.
 
 Well, _person whose name I don't remember_, let me try to re-frame that question into something I can take a
 reasonable stab at: **"Why are we all still using CocoaPods now instead of Swift PM for iOS apps three years after
