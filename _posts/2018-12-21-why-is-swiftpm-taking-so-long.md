@@ -13,7 +13,8 @@ classic opener _"When can I stop using CocoaPods and switch to Swift PM?"_ - I c
 employee about something which sounds even remotely like a future product question. So, it didn't go anywhere.
 
 Well, _person whose name I don't remember_, let me try to re-frame that question into something I can take a
-reasonable stab at: **"Why are we all still using CocoaPods now instead of Swift PM for iOS apps?"**
+reasonable stab at: **"Why are we all still using CocoaPods now instead of Swift PM for iOS apps three years after
+its release?"**
 
 <!-- more -->
 
