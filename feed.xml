@@ -5,9 +5,163 @@
     <description></description>
     <link>http://artsy.github.io/</link>
     <atom:link href="http://artsy.github.io/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Wed, 19 Dec 2018 20:38:00 +0000</pubDate>
-    <lastBuildDate>Wed, 19 Dec 2018 20:38:00 +0000</lastBuildDate>
+    <pubDate>Fri, 21 Dec 2018 13:56:08 +0000</pubDate>
+    <lastBuildDate>Fri, 21 Dec 2018 13:56:08 +0000</lastBuildDate>
     <generator>Jekyll v2.5.3</generator>
+    
+      <item>
+        <title>Why is the Swift Package Manager taking so long?</title>
+        <description>&lt;p&gt;I was chatting at a bar with an engineer working on the Swift team, and someone joined our conversation with the
+classic opener &lt;em&gt;&quot;When can I stop using CocoaPods and switch to Swift PM?&quot;&lt;/em&gt; - I chuckled, because I get this a lot
+(I have been helping to maintain CocoaPods for about 6 years now) but they had made mistake of asking an Apple
+employee about something which sounds even remotely like a future product question. So, it didn&#39;t go anywhere.&lt;/p&gt;
+
+&lt;p&gt;Well, &lt;em&gt;person whose name I don&#39;t remember&lt;/em&gt;, let me try to re-frame that question into something I can take a
+reasonable stab at: &lt;strong&gt;&quot;Why are we all still using CocoaPods now instead of Swift PM for iOS apps?&quot;&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;Three years ago in December 2015, Swift became open source. Inside the source code was a &lt;a href=&quot;https://twitter.com/orta/status/672436829250052102&quot;&gt;pleasant
+surprise&lt;/a&gt; that Apple were going to start making their own package manager. Great, CocoaPods was
+&lt;a href=&quot;https://www.urbandictionary.com/define.php?term=sherlocked&quot;&gt;sherlocked&lt;/a&gt;, but Apple had control of Xcode and the entire toolchain so they could integrate it natively. I
+thought this was pretty cool, and wrote the following about Swift PM in my annual write-up that year:&lt;/p&gt;
+
+&lt;blockquote&gt;&lt;p&gt;[On the Swift PM team] They’re actively talking with the community and us, finding ways to share work and to
+promote collaboration. It’s eased a lot of the friction I had been feeling. Apple has a fresh start in a way we
+could not, and will be able to do things much better than the CocoaPods team could.&lt;/p&gt;
+
+&lt;p&gt;All in all, when people have been asking what I want to do in the next year, I’m feeling pretty done on the
+&quot;lowering the barrier to entry&quot; space, this year it became less fun.&lt;/p&gt;&lt;/blockquote&gt;
+
+&lt;p&gt;&lt;em&gt;Fun fact: This is what gave me the space to start working on &lt;a href=&quot;https://danger.systems/&quot;&gt;Danger&lt;/a&gt;.&lt;/em&gt;&lt;/p&gt;
+
+&lt;p&gt;The announcement of Swift PM came out to some fan-fare as the &quot;end of CocoaPods&quot; from the iOS community, and I was
+also pretty happy to get some time back to work on other problems. However, a few years down the line it&#39;s not
+really turned out that way. What gives?&lt;/p&gt;
+
+&lt;a name=&quot;Why.Swift.PM.exists&quot;&gt;&lt;/a&gt;
+&lt;h1&gt;Why Swift PM exists&lt;/h1&gt;
+
+&lt;p&gt;Before Swift PM, you couldn&#39;t reasonably manage Swift projects in Linux. Apple have exclusively been building dev
+tools for macOS because that&#39;s what they own, and so, all their dev-tools customers (internal and external) have to
+use Macs to make their software. It&#39;s not particularly unreasonable.&lt;/p&gt;
+
+&lt;p&gt;However, to make Swift a language with a larger scope than &quot;making iOS and macOS apps&quot; and it&#39;s usage being limited
+to just the Cocoa community: they would need to support running and compiling Swift apps on Linux.&lt;/p&gt;
+
+&lt;p&gt;It&#39;s safe to say Apple probably has no plans to port Xcode to Linux, (though look at what Microsoft achieved when
+they decided that they needed to support Visual Studio on macOS &lt;a href=&quot;https://code.visualstudio.com&quot;&gt;somehow&lt;/a&gt;) but what&#39;s more important here
+is the underlying tooling &lt;strong&gt;above&lt;/strong&gt; the compiler but &lt;strong&gt;below&lt;/strong&gt; Xcode: &lt;code&gt;xcodebuild&lt;/code&gt;, wouldn&#39;t make any sense in that
+context. It&#39;s deeply macOS and Cocoa specific.&lt;/p&gt;
+
+&lt;p&gt;So, Apple needed something to handle the following problems if you were working in a Xcode-less Swift project:&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;Handling build dependencies&lt;/li&gt;
+&lt;li&gt;Linking to existing code&lt;/li&gt;
+&lt;li&gt;Creating library abstractions&lt;/li&gt;
+&lt;li&gt;Creating executable for the language&lt;/li&gt;
+&lt;li&gt;Handling sharing code between projects&lt;/li&gt;
+&lt;/ul&gt;
+
+
+&lt;p&gt;Roughly in that order of precedence too. In short, they needed a build system first, and then a dependency manager
+to support remote packages.&lt;/p&gt;
+
+&lt;p&gt;There are a few big existing build systems: &lt;a href=&quot;https://ninja-build.org&quot;&gt;Buck&lt;/a&gt; and &lt;a href=&quot;https://www.github.com/facebook/buck&quot;&gt;Ninja&lt;/a&gt; are the biggest players in the game,
+but they aim to be language agnostic build tools. This makes them a bit too abstract to be useful as the main way
+to build a modular system for building projects in a language. So, each language from Swift&#39;s generation of &lt;em&gt;&quot;As
+fast as C, but safe&quot;&lt;/em&gt; like Rust, Go and D all implement a build system unique to their language.&lt;/p&gt;
+
+&lt;a name=&quot;llbuild&quot;&gt;&lt;/a&gt;
+&lt;h1&gt;llbuild&lt;/h1&gt;
+
+&lt;p&gt;Apple&#39;s approach to building a build system is smart. Instead of from scratch creating a build tool for Swift, they
+created an abstraction which makes it feasible to build complex builds systems quicker. That&#39;s &lt;a href=&quot;https://www.github.com/apple/swift-llbuild&quot;&gt;llbuild&lt;/a&gt;, a
+low-level build system. This was used to create the Swift build system. Then, llbuild was re-used to create
+&lt;a href=&quot;https://lists.swift.org/pipermail/swift-build-dev/Week-of-Mon-20170605/001019.html&quot;&gt;Xcode&#39;s build system&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;The new build system for Xcode came out in 2017 with Xcode 9, and became the default in 2018 with Xcode 10. What&#39;s
+impressive about the new build system is how much it was just like the last, but better, to quote &lt;a href=&quot;https://jamesdempsey.net/2017/06/13/new-xcode-build-system-and-buildsettingextractor/&quot;&gt;James
+Dempsey&lt;/a&gt;:&lt;/p&gt;
+
+&lt;blockquote&gt;&lt;p&gt;New build system. Same build settings&lt;/p&gt;&lt;/blockquote&gt;
+
+&lt;p&gt;Which is impressive, because the existing system is &lt;a href=&quot;https://pewpewthespells.com/blog/xcode_build_system.html&quot;&gt;complex&lt;/a&gt;.&lt;/p&gt;
+
+&lt;a name=&quot;Build.System....Package.Manager&quot;&gt;&lt;/a&gt;
+&lt;h1&gt;Build System != Package Manager&lt;/h1&gt;
+
+&lt;p&gt;CocoaPods was &quot;useful&quot; for Cocoa development very quickly in comparison (roughly a month from initial commit to
+supporting a few existing libraries in an app back in 2011), this was because CocoaPods completely skipped the
+build tool stage. There was no need, Xcode has a working build system and you can control it via &lt;code&gt;.xcproject&lt;/code&gt;
+files. This meant that the key output for CocoaPods is to reliably support generating xcode projects and the
+underlying abstractions making it actually compile is left to the Xcode team.&lt;/p&gt;
+
+&lt;p&gt;The Swift PM team couldn&#39;t do this without making it deeply dependent on Xcode. CocoaPods can be in-different to
+something like Linux support (fun fact: last month &lt;a href=&quot;https://github.com/CocoaPods/CocoaPods/pull/8189&quot;&gt;Windows support&lt;/a&gt; was added) because no-one is writing
+Cocoa apps on Linux, and it&#39;s only concern is shipping those Xcode project files to your project&#39;s file system.&lt;/p&gt;
+
+&lt;p&gt;This difference in abstraction level allowed CocoaPods to work on comprehensive support of the existing library
+ecosystem considerably sooner. The config options were already set, the types of projects were known they had to
+map to whatever Xcode supported rather than the more mundane task of actually figuring out how to make a project
+build, compile and scale.&lt;/p&gt;
+
+&lt;p&gt;CocoaPods got focus on more user-facing issues that a dependency manager has considerably quicker, and could focus
+on building the most used features first then moving to more niche features (which could be the abstractions those
+popular feature relied on) when someone needed it. This meant that the user-facing, and interesting to me, work was
+feasible considerably earlier:&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;Discovery of packages&lt;/li&gt;
+&lt;li&gt;A lot of documentation&lt;/li&gt;
+&lt;li&gt;Access rights for owners&lt;/li&gt;
+&lt;li&gt;Creating plugin systems giving hooks for all sorts of projects to be built&lt;/li&gt;
+&lt;li&gt;Support for esoteric compiler features&lt;/li&gt;
+&lt;li&gt;Support for esoteric Xcode features&lt;/li&gt;
+&lt;li&gt;Providing useful metrics on quality/usage&lt;/li&gt;
+&lt;li&gt;Cool stickers&lt;/li&gt;
+&lt;/ul&gt;
+
+
+&lt;p&gt;Which generally speaking are problems that Swift PM will eventually have to hit, but instead of jumping straight to
+it, the team has to first build the foundations before making the decorations.&lt;/p&gt;
+
+&lt;a name=&quot;The.cost&quot;&gt;&lt;/a&gt;
+&lt;h1&gt;The cost&lt;/h1&gt;
+
+&lt;p&gt;These choices came with a cost though, right now there&#39;s only 1 or 2 contexts where Swift PM is useful, the most
+prominent is Swift on a Server. It&#39;s likely that Swift on a server probably isn&#39;t as widely adopted as Apple hoped
+it would be by the programming community on whole. Unless you are an iOS developer with existing skills, Swift
+probably doesn&#39;t even register as being a language you would consider building your web API/apps in. Yes, I know
+there are a &lt;a href=&quot;https://www.pointfree.co&quot;&gt;few&lt;/a&gt; &lt;a href=&quot;https://talk.objc.io/collections/server-side-swift&quot;&gt;good&lt;/a&gt; exceptions etc.&lt;/p&gt;
+
+&lt;p&gt;Which probably hasn&#39;t helped with resourcing Swift PM at Apple, where the user-facing team has
+&lt;a href=&quot;https://github.com/apple/swift-package-manager/graphs/contributors&quot;&gt;basically&lt;/a&gt; been a one-man operation for about a year and a half. From my external perspective,
+this is lower than I&#39;d like. It&#39;s a problem close to my heart though.&lt;/p&gt;
+
+&lt;p&gt;Given that we&#39;re talking about Apple, you shouldn&#39;t judge activity entirely from their open source contributions,
+but given the project isn&#39;t useful for most people who could contribute, they don&#39;t. I started working on CocoaPods
+because it was fixing a really hard problem that I had, and I knew that working on this would fix it for everyone
+else in the industry too, making it worth my time. So, external contributions outside Apple are pretty low.&lt;/p&gt;
+
+&lt;p&gt;Build systems are a hard problem, and the Swift PM team very reasonably needs to work on that first, but is
+basically doing it pretty much solo. I think this is one of those &quot;&lt;a href=&quot;https://ryanparman.com/posts/2011/skating-to-where-the-puck-will-be/&quot;&gt;skate where the puck will be&lt;/a&gt;&quot;
+situations, instead of where it is, which CocoaPods&#39; aimed for. This means it&#39;s going to take a much longer time to
+be useful and widely adopted. While I don&#39;t really know where Swift PM aims to be in the long-term, I think Xcode
+integration will probably be the major adoption turning point but in the meantime I&#39;ve got an idea for a smaller
+way to make Swift PM useful to the iOS community. That, however, is another blog post.&lt;/p&gt;
+</description>
+        <pubDate>Fri, 21 Dec 2018 00:00:00 +0000</pubDate>
+        <link>http://artsy.github.io/blog/2018/12/21/why-is-swiftpm-taking-so-long/</link>
+        <guid isPermaLink="true">http://artsy.github.io/blog/2018/12/21/why-is-swiftpm-taking-so-long/</guid>
+        
+        
+        <category>build tools</category>
+        
+        <category>package-management</category>
+        
+        <category>swift</category>
+        
+      </item>
     
       <item>
         <title>GraphQL Stitching 101</title>
@@ -3689,64 +3843,6 @@ Notes:
         <category>culture</category>
         
         <category>pairing</category>
-        
-      </item>
-    
-      <item>
-        <title>Engineering Highlights</title>
-        <description>&lt;p&gt;Engineering is an inherently long-term process. The Artsy engineering team has been around for 7 years, and that&#39;s
-quite a lot of time to get things done. We use software that keeps track of changes over time thanks to source
-control, but tools like git only help keep track of small passages of time. I want to keep track of events that
-could take months to ship.&lt;/p&gt;
-
-&lt;p&gt;We&#39;ve been doing a lot of long-term introspection as a team in 2018. Externally, this has been visible through
-things like opening our docs and creating our engineering principles. I&#39;m expanding on this with an idea that I
-took from my work in building large open source projects: &lt;a href=&quot;https://github.com/artsy/README/blob/master/culture/highlights.md#readme&quot;&gt;Highlight docs&lt;/a&gt;.&lt;/p&gt;
-
-&lt;!-- more --&gt;
-
-
-&lt;p&gt;I&#39;ve been the main contributor for &lt;a href=&quot;https://danger.systems/&quot;&gt;Danger&lt;/a&gt; and &lt;a href=&quot;https://github.com/danger/peril&quot;&gt;Peril&lt;/a&gt; for about three years, working mostly solo, and it can
-be hard to feel like you&#39;re actually getting things done. There&#39;s an infinite backlog of people&#39;s requests for
-improvements, and polite mentions of the flaws in your work. So, as a counter-balance it&#39;s nice to take stock of
-events you&#39;re proud of. I initially mocked this out as &lt;a href=&quot;https://github.com/danger/peril/issues/235&quot;&gt;an issue in the peril repo&lt;/a&gt; but when I
-re-applied the idea to the whole of Artsy I used our existing open documentation repo &lt;a href=&quot;https://github.com/artsy/README/&quot;&gt;&lt;code&gt;artsy/README&lt;/code&gt;&lt;/a&gt;
-instead.&lt;/p&gt;
-
-&lt;p&gt;The core idea isn&#39;t complicated, however it&#39;s somewhat time-consuming and requires collaborators. I used the best
-method I know for getting a lot of people&#39;s attention: spamming slack threads asking folks what were some of their
-highlights. I used these to fuel the main arcs of the doc.&lt;/p&gt;
-
-&lt;p&gt;A lot of the time, just starting something like this and putting some effort in up-front means others will start to
-participate. The trickiest part was finding the right definitive links for a particular event. Ideally we have open
-links (so people without private GitHub access (internally and externally) can enjoy them) but sometimes the right
-link is private and that&#39;s ok. It&#39;s not open source by diktat.&lt;/p&gt;
-
-&lt;p&gt;Trying to find the right balance between an &quot;Artsy&quot; event vs an &quot;Engineering&quot; event can sometimes be a bit vague,
-but I like to believe that more is more. It&#39;s about pointing out important events, so more is always a net
-positive. With that in mind, here&#39;s a few of ours, the rest is a click away:&lt;/p&gt;
-
-&lt;p&gt;&lt;a href=&quot;https://github.com/artsy/README/blob/master/culture/highlights.md#readme&quot;&gt;&lt;img src=&quot;/images/highlights/highlights.png&quot;&gt;&lt;/a&gt;&lt;/p&gt;
-
-&lt;p&gt;I think I&#39;m going to make one of these with every new large scale project I work on, I kinda wish we had one for
-the Artsy iOS app now. Maybe I&#39;m going to need to do that now. Ergh, this is what I get for writing blog posts.&lt;/p&gt;
-
-&lt;p&gt;I&#39;d love to see some other companies or OSS projects using this idea - let me know in the comments if you are!&lt;/p&gt;
-</description>
-        <pubDate>Thu, 18 Oct 2018 00:00:00 +0000</pubDate>
-        <link>http://artsy.github.io/blog/2018/10/18/long-term-highlights/</link>
-        <guid isPermaLink="true">http://artsy.github.io/blog/2018/10/18/long-term-highlights/</guid>
-        
-        
-        <category>concepts</category>
-        
-        <category>culture</category>
-        
-        <category>engineering</category>
-        
-        <category>meta</category>
-        
-        <category>teams</category>
         
       </item>
     

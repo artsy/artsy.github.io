@@ -4,7 +4,7 @@
   <title><![CDATA[Category: swift | Artsy Engineering]]></title>
   <link href="http://artsy.github.io/blog/categories/swift/atom.xml" rel="self"/>
   <link href="http://artsy.github.io/"/>
-  <updated>2018-12-19T20:38:00+00:00</updated>
+  <updated>2018-12-21T13:56:08+00:00</updated>
   <id>http://artsy.github.io/</id>
   <author>
     <name><![CDATA[]]></name>
@@ -12,6 +12,152 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Why is the Swift Package Manager taking so long?]]></title>
+    <link href="http://artsy.github.io/blog/2018/12/21/why-is-swiftpm-taking-so-long/"/>
+    <updated>2018-12-21T00:00:00+00:00</updated>
+    <id>http://artsy.github.io/blog/2018/12/21/why-is-swiftpm-taking-so-long</id>
+    <content type="html"><![CDATA[<p>I was chatting at a bar with an engineer working on the Swift team, and someone joined our conversation with the
+classic opener <em>"When can I stop using CocoaPods and switch to Swift PM?"</em> - I chuckled, because I get this a lot
+(I have been helping to maintain CocoaPods for about 6 years now) but they had made mistake of asking an Apple
+employee about something which sounds even remotely like a future product question. So, it didn't go anywhere.</p>
+
+<p>Well, <em>person whose name I don't remember</em>, let me try to re-frame that question into something I can take a
+reasonable stab at: <strong>"Why are we all still using CocoaPods now instead of Swift PM for iOS apps?"</strong></p>
+
+<p>Three years ago in December 2015, Swift became open source. Inside the source code was a <a href="https://twitter.com/orta/status/672436829250052102">pleasant
+surprise</a> that Apple were going to start making their own package manager. Great, CocoaPods was
+<a href="https://www.urbandictionary.com/define.php?term=sherlocked">sherlocked</a>, but Apple had control of Xcode and the entire toolchain so they could integrate it natively. I
+thought this was pretty cool, and wrote the following about Swift PM in my annual write-up that year:</p>
+
+<blockquote><p>[On the Swift PM team] They’re actively talking with the community and us, finding ways to share work and to
+promote collaboration. It’s eased a lot of the friction I had been feeling. Apple has a fresh start in a way we
+could not, and will be able to do things much better than the CocoaPods team could.</p>
+
+<p>All in all, when people have been asking what I want to do in the next year, I’m feeling pretty done on the
+"lowering the barrier to entry" space, this year it became less fun.</p></blockquote>
+
+<p><em>Fun fact: This is what gave me the space to start working on <a href="https://danger.systems/">Danger</a>.</em></p>
+
+<p>The announcement of Swift PM came out to some fan-fare as the "end of CocoaPods" from the iOS community, and I was
+also pretty happy to get some time back to work on other problems. However, a few years down the line it's not
+really turned out that way. What gives?</p>
+
+<a name="Why.Swift.PM.exists"></a>
+<h1>Why Swift PM exists</h1>
+
+<p>Before Swift PM, you couldn't reasonably manage Swift projects in Linux. Apple have exclusively been building dev
+tools for macOS because that's what they own, and so, all their dev-tools customers (internal and external) have to
+use Macs to make their software. It's not particularly unreasonable.</p>
+
+<p>However, to make Swift a language with a larger scope than "making iOS and macOS apps" and it's usage being limited
+to just the Cocoa community: they would need to support running and compiling Swift apps on Linux.</p>
+
+<p>It's safe to say Apple probably has no plans to port Xcode to Linux, (though look at what Microsoft achieved when
+they decided that they needed to support Visual Studio on macOS <a href="https://code.visualstudio.com">somehow</a>) but what's more important here
+is the underlying tooling <strong>above</strong> the compiler but <strong>below</strong> Xcode: <code>xcodebuild</code>, wouldn't make any sense in that
+context. It's deeply macOS and Cocoa specific.</p>
+
+<p>So, Apple needed something to handle the following problems if you were working in a Xcode-less Swift project:</p>
+
+<ul>
+<li>Handling build dependencies</li>
+<li>Linking to existing code</li>
+<li>Creating library abstractions</li>
+<li>Creating executable for the language</li>
+<li>Handling sharing code between projects</li>
+</ul>
+
+
+<p>Roughly in that order of precedence too. In short, they needed a build system first, and then a dependency manager
+to support remote packages.</p>
+
+<p>There are a few big existing build systems: <a href="https://ninja-build.org">Buck</a> and <a href="https://www.github.com/facebook/buck">Ninja</a> are the biggest players in the game,
+but they aim to be language agnostic build tools. This makes them a bit too abstract to be useful as the main way
+to build a modular system for building projects in a language. So, each language from Swift's generation of <em>"As
+fast as C, but safe"</em> like Rust, Go and D all implement a build system unique to their language.</p>
+
+<a name="llbuild"></a>
+<h1>llbuild</h1>
+
+<p>Apple's approach to building a build system is smart. Instead of from scratch creating a build tool for Swift, they
+created an abstraction which makes it feasible to build complex builds systems quicker. That's <a href="https://www.github.com/apple/swift-llbuild">llbuild</a>, a
+low-level build system. This was used to create the Swift build system. Then, llbuild was re-used to create
+<a href="https://lists.swift.org/pipermail/swift-build-dev/Week-of-Mon-20170605/001019.html">Xcode's build system</a>.</p>
+
+<p>The new build system for Xcode came out in 2017 with Xcode 9, and became the default in 2018 with Xcode 10. What's
+impressive about the new build system is how much it was just like the last, but better, to quote <a href="https://jamesdempsey.net/2017/06/13/new-xcode-build-system-and-buildsettingextractor/">James
+Dempsey</a>:</p>
+
+<blockquote><p>New build system. Same build settings</p></blockquote>
+
+<p>Which is impressive, because the existing system is <a href="https://pewpewthespells.com/blog/xcode_build_system.html">complex</a>.</p>
+
+<a name="Build.System....Package.Manager"></a>
+<h1>Build System != Package Manager</h1>
+
+<p>CocoaPods was "useful" for Cocoa development very quickly in comparison (roughly a month from initial commit to
+supporting a few existing libraries in an app back in 2011), this was because CocoaPods completely skipped the
+build tool stage. There was no need, Xcode has a working build system and you can control it via <code>.xcproject</code>
+files. This meant that the key output for CocoaPods is to reliably support generating xcode projects and the
+underlying abstractions making it actually compile is left to the Xcode team.</p>
+
+<p>The Swift PM team couldn't do this without making it deeply dependent on Xcode. CocoaPods can be in-different to
+something like Linux support (fun fact: last month <a href="https://github.com/CocoaPods/CocoaPods/pull/8189">Windows support</a> was added) because no-one is writing
+Cocoa apps on Linux, and it's only concern is shipping those Xcode project files to your project's file system.</p>
+
+<p>This difference in abstraction level allowed CocoaPods to work on comprehensive support of the existing library
+ecosystem considerably sooner. The config options were already set, the types of projects were known they had to
+map to whatever Xcode supported rather than the more mundane task of actually figuring out how to make a project
+build, compile and scale.</p>
+
+<p>CocoaPods got focus on more user-facing issues that a dependency manager has considerably quicker, and could focus
+on building the most used features first then moving to more niche features (which could be the abstractions those
+popular feature relied on) when someone needed it. This meant that the user-facing, and interesting to me, work was
+feasible considerably earlier:</p>
+
+<ul>
+<li>Discovery of packages</li>
+<li>A lot of documentation</li>
+<li>Access rights for owners</li>
+<li>Creating plugin systems giving hooks for all sorts of projects to be built</li>
+<li>Support for esoteric compiler features</li>
+<li>Support for esoteric Xcode features</li>
+<li>Providing useful metrics on quality/usage</li>
+<li>Cool stickers</li>
+</ul>
+
+
+<p>Which generally speaking are problems that Swift PM will eventually have to hit, but instead of jumping straight to
+it, the team has to first build the foundations before making the decorations.</p>
+
+<a name="The.cost"></a>
+<h1>The cost</h1>
+
+<p>These choices came with a cost though, right now there's only 1 or 2 contexts where Swift PM is useful, the most
+prominent is Swift on a Server. It's likely that Swift on a server probably isn't as widely adopted as Apple hoped
+it would be by the programming community on whole. Unless you are an iOS developer with existing skills, Swift
+probably doesn't even register as being a language you would consider building your web API/apps in. Yes, I know
+there are a <a href="https://www.pointfree.co">few</a> <a href="https://talk.objc.io/collections/server-side-swift">good</a> exceptions etc.</p>
+
+<p>Which probably hasn't helped with resourcing Swift PM at Apple, where the user-facing team has
+<a href="https://github.com/apple/swift-package-manager/graphs/contributors">basically</a> been a one-man operation for about a year and a half. From my external perspective,
+this is lower than I'd like. It's a problem close to my heart though.</p>
+
+<p>Given that we're talking about Apple, you shouldn't judge activity entirely from their open source contributions,
+but given the project isn't useful for most people who could contribute, they don't. I started working on CocoaPods
+because it was fixing a really hard problem that I had, and I knew that working on this would fix it for everyone
+else in the industry too, making it worth my time. So, external contributions outside Apple are pretty low.</p>
+
+<p>Build systems are a hard problem, and the Swift PM team very reasonably needs to work on that first, but is
+basically doing it pretty much solo. I think this is one of those "<a href="https://ryanparman.com/posts/2011/skating-to-where-the-puck-will-be/">skate where the puck will be</a>"
+situations, instead of where it is, which CocoaPods' aimed for. This means it's going to take a much longer time to
+be useful and widely adopted. While I don't really know where Swift PM aims to be in the long-term, I think Xcode
+integration will probably be the major adoption turning point but in the meantime I've got an idea for a smaller
+way to make Swift PM useful to the iOS community. That, however, is another blog post.</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Workshop: React Native]]></title>
@@ -644,24 +790,6 @@ curl -L https://github.com/artsy/Artsy-OSSUIFonts/raw/master/Pod/Assets/texgyrea
 
 
 <p></div></div><iframe width='100%' height='600' src='https://www.youtube.com/embed/EBtzqx1YRBg ' frameborder='0' allowfullscreen></iframe><div class='meta-container'><header>&nbsp;</header></div><div class='content-container'><div class='entry-content'></p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Learn Swift at Artsy, Beginners Lesson One]]></title>
-    <link href="http://artsy.github.io/blog/2016/08/15/swift-at-artsy-beginners-lesson-one/"/>
-    <updated>2016-08-15T21:18:00+00:00</updated>
-    <id>http://artsy.github.io/blog/2016/08/15/swift-at-artsy-beginners-lesson-one</id>
-    <content type="html"><![CDATA[<p>Last August, Orta and I <a href="http://artsy.github.io/blog/2016/01/26/swift-at-artsy/">led a course at Artsy</a> to teach our colleagues Swift. There were two parallel groups of learners: a "beginners" group who had never coded before, and an "informed" group who already knew how to code. This year, we're leading the course again with a slight twist: we're repeating the course for absolute beginners, and we're introduce a new course for anyone who completed last year's beginner course.</p>
-
-<p>We're really excited both to help new colleagues take their first steps into programming, and to help returning colleagues continue their journey.</p>
-
-<p>Today was lesson one of the beginner group, and I have a <a href="https://youtu.be/OLdSg0XpFqA">screen recording</a> of my walkthrough of <a href="https://github.com/artsy/Swift-at-Artsy/tree/master/Beginners/Lesson%20One">lesson one's material</a>.</p>
-
-<!-- more -->
-
-
-<p></div></div><iframe width='100%' height='600' src='https://www.youtube.com/embed/OLdSg0XpFqA ' frameborder='0' allowfullscreen></iframe><div class='meta-container'><header>&nbsp;</header></div><div class='content-container'><div class='entry-content'></p>
 ]]></content>
   </entry>
   
