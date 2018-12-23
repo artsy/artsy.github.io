@@ -144,9 +144,9 @@ way to make Swift PM useful to the iOS community. That, however, is another blog
 [sherlocked]: https://www.urbandictionary.com/define.php?term=sherlocked
 [danger]: https://danger.systems/
 [vscode]: https://code.visualstudio.com
-[buck]: https://ninja-build.org
-[ninja]: https://www.github.com/apple/swift-llbuild
-[llbuild]: https://www.github.com/facebook/buck
+[buck]: https://www.github.com/facebook/buck
+[ninja]: https://ninja-build.org
+[llbuild]: https://www.github.com/apple/swift-llbuild
 [jd-build-system]: https://jamesdempsey.net/2017/06/13/new-xcode-build-system-and-buildsettingextractor/
 [bs]: https://pewpewthespells.com/blog/xcode_build_system.html
 [winders]: https://github.com/CocoaPods/CocoaPods/pull/8189
