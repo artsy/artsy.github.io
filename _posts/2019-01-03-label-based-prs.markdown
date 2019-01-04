@@ -1,18 +1,17 @@
 ---
 layout: epic
-title: Migrating to PR Label based deployments
+title: Migrating to PR Label based Continuous Deployment
 date: 2019-01-03
 author: [orta]
 categories: [build tools, deployment, road and bridges]
+comment_id: 515
 ---
 
 In the JavaScript world, the idea of deploying your libraries on every PR is pretty common. As someone who runs a
 dependency manager but comes from a native background, it's easy for me to cringe and imagine the strain this puts
-on NPM's servers.
-
-However, that is where the ecosystem is and the [continuous deployment][cd] can be really useful. So, about a year
-ago [we started][add_sr] moving a lot of our libraries to do this at Artsy too. Starting with our most critical
-dependencies:
+on NPM's servers. However, that is where the ecosystem is and [continuous deployment][cd] can be really useful. So,
+about a year ago [we started][add_sr] moving a lot of our libraries to do this at Artsy too. Starting with our most
+critical dependencies:
 
 - [Reaction][ar] (our React components used in many of our web apps)
 - [Palette][pl] (our [design system][ds])
