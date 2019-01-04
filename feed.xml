@@ -5,9 +5,283 @@
     <description></description>
     <link>http://artsy.github.io/</link>
     <atom:link href="http://artsy.github.io/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Sun, 23 Dec 2018 17:09:35 +0000</pubDate>
-    <lastBuildDate>Sun, 23 Dec 2018 17:09:35 +0000</lastBuildDate>
+    <pubDate>Fri, 04 Jan 2019 16:04:31 +0000</pubDate>
+    <lastBuildDate>Fri, 04 Jan 2019 16:04:31 +0000</lastBuildDate>
     <generator>Jekyll v2.5.3</generator>
+    
+      <item>
+        <title>Migrating to PR Label based Continuous Deployment</title>
+        <description>&lt;p&gt;In the JavaScript world, the idea of deploying your libraries on every PR is pretty common. As someone who runs a
+dependency manager but comes from a native background, it&#39;s easy for me to cringe and imagine the strain this puts
+on NPM&#39;s servers. However, that is where the ecosystem is and &lt;a href=&quot;https://github.com/artsy/reaction/issues/388&quot;&gt;continuous deployment&lt;/a&gt; can be really useful. So,
+about a year ago &lt;a href=&quot;https://github.com/artsy/reaction/pull/521&quot;&gt;we started&lt;/a&gt; moving a lot of our libraries to do this at Artsy too. Starting with our most
+critical dependencies:&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&quot;https://github.com/artsy/reaction#readme&quot;&gt;Reaction&lt;/a&gt; (our React components used in many of our web apps)&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;https://github.com/artsy/palette#readme&quot;&gt;Palette&lt;/a&gt; (our &lt;a href=&quot;https://palette.artsy.net&quot;&gt;design system&lt;/a&gt;)&lt;/li&gt;
+&lt;/ul&gt;
+
+
+&lt;p&gt;We started off using a commit message based workflow, but have just finished the migrating to a GitHub Label based
+workflow that is less workload on individual contributors. This post will cover how, and why.&lt;/p&gt;
+
+&lt;!-- more --&gt;
+
+
+&lt;a name=&quot;Why.&quot;&gt;&lt;/a&gt;
+&lt;h2&gt;Why?&lt;/h2&gt;
+
+&lt;p&gt;We started using &lt;a href=&quot;https://semantic-release.gitbook.io/semantic-release/&quot;&gt;semantic-release&lt;/a&gt; to handle commit message based deploys. The way semantic-release works
+is you would add a specially formatted commit that included a version prefix indicating you wanted a deploy. For
+example, &lt;code&gt;[PATCH artwork] Fix safari mail issue&lt;/code&gt; would mean that by merging a PR with this commit into master
+should trigger a patch release.&lt;/p&gt;
+
+&lt;p&gt;This is their ideal flow, but the reality for us is that a lot of people would forget to do this, or write commits
+like: &lt;code&gt;[PATCH] bumpity bump&lt;/code&gt;. Even worse, these kind of commits were the perfect reason for pushing to master and
+skipping code review to speed things up.&lt;/p&gt;
+
+&lt;p&gt;We could have added a pre-commit hooks that enforced the messaging on commits, but that&#39;s not very &lt;a href=&quot;https://github.com/artsy/README/blob/master/culture/engineering-principles.md#minimal-viable-process&quot;&gt;Minimum Viable
+Process&lt;/a&gt; - where we try to map new tool/process improvements to existing behavior instead of regimenting new
+behavior when possible.&lt;/p&gt;
+
+&lt;p&gt;The problem felt like the idea of declaring your version changes at commit time felt like a disconnect from how
+people thought about deploys. The code unit for a review is a Pull Request, not per-commit. To try improve on our
+deployment, we re-grouped and discussed what could be a better mapping to our existing workflow. Our answer was: PR
+Label based deploys.&lt;/p&gt;
+
+&lt;p&gt;The idea is: You write a PR exactly as you used to, when you create a new PR then you apply a label saying whether
+it is a major, minor, patch or trivial PR and when it is merged then deploy could be made for you.&lt;/p&gt;
+
+&lt;p&gt;To match our existing behavior completely, we would automatically add the &quot;patch&quot; label to any PR which doesn&#39;t
+declare what type of deployment it is up-front.&lt;/p&gt;
+
+&lt;p&gt;I summarized our ideal state, and turned it into an RFC on our Reaction repo: &lt;a href=&quot;https://github.com/artsy/reaction/issues/1095&quot;&gt;&quot;Change rules around automatic
+deploys, and add a CHANGELOG&quot;&lt;/a&gt; .&lt;/p&gt;
+
+&lt;a name=&quot;How.&quot;&gt;&lt;/a&gt;
+&lt;h2&gt;How?&lt;/h2&gt;
+
+&lt;a name=&quot;Deployment&quot;&gt;&lt;/a&gt;
+&lt;h4&gt;Deployment&lt;/h4&gt;
+
+&lt;p&gt;We started building this infrastructure inside &lt;a href=&quot;https://github.com/artsy/reaction/pull/1407&quot;&gt;our app Reaction&lt;/a&gt;. Our implementation was a PR that lasted a
+few months. It was a hard project to prioritize, and didn&#39;t really seem to have an end in sight. This changed last
+week when we discovered the work going on over at &lt;a href=&quot;https://github.com/intuit/auto-release#readme&quot;&gt;auto-release&lt;/a&gt; by the team at &lt;a href=&quot;https://github.com/intuit/&quot;&gt;Intuit&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;The team at Intuit had taken the same problem and worked to apply it generically, making it a useful tool for
+everyone rather than just for one type of project. Perfect.&lt;/p&gt;
+
+&lt;p&gt;To try it out, I set it up on our upcoming CLI for the &lt;a href=&quot;https://github.com/omakase-js/omakase#readme&quot;&gt;Artsy Omakase&lt;/a&gt; JS stack - which is a &lt;a href=&quot;https://github.com/lerna/lerna#readme&quot;&gt;Lerna&lt;/a&gt;
+mono-repo. This means it&#39;s a single repo for many JS packages, which makes it a bit more complex than a normal repo
+for a node project.&lt;/p&gt;
+
+&lt;p&gt;Auto-release handled this setup out-of-the-box, &lt;code&gt;10/10&lt;/code&gt; - so it was likely to handle our simpler repos. In the
+process we made a bunch of PRs back and were quickly iterating on making it work well for Artsy also. Collaborating
+on projects like this is our &lt;a href=&quot;https://github.com/artsy/README/blob/master/culture/engineering-principles.md#own-your-dependencies&quot;&gt;bread and butter&lt;/a&gt;, it means we don&#39;t have to build tools from scratch and
+can improve upon great work by others.&lt;/p&gt;
+
+&lt;p&gt;To use it, we needed to set up two environment variables:&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;NPM_TOKEN&lt;/code&gt; - used to deploy your package to NPM&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;GH_TOKEN&lt;/code&gt; - used to create GitHub releases&lt;/li&gt;
+&lt;/ul&gt;
+
+
+&lt;p&gt;and you need to make sure your CI has write access to your repo, so it can push tags and the CHANGELOG entries back
+to your repo.&lt;/p&gt;
+
+&lt;a name=&quot;Downsides.to.Continuous.Deployment&quot;&gt;&lt;/a&gt;
+&lt;h4&gt;Downsides to Continuous Deployment&lt;/h4&gt;
+
+&lt;p&gt;Both the commit message and PR label based continuous deployment structure comes with one annoying flaw, if you&#39;re
+merging many PRs at once - then you can get into trouble with versioning. We&#39;ve been discussing ideas around this
+in the [auto-release issues][ar_iss]. We already had this flaw, so it just propagated to the new technique. We&#39;ve
+been wondering if deploying via &lt;a href=&quot;https://github.com/features/actions&quot;&gt;GitHub actions&lt;/a&gt; may fix this.&lt;/p&gt;
+
+&lt;a name=&quot;Peril&quot;&gt;&lt;/a&gt;
+&lt;h4&gt;Peril&lt;/h4&gt;
+
+&lt;p&gt;With auto-release you can have set an option to treat having no release label on your PR as a being a &quot;patch&quot;
+release. This is a great setting, but an ideal workflow for us is to showcase what is happening every time. This
+makes the understanding of our deployments explicit, and is a good reminder to highlight that you might want to
+change the type of deployment. You can see this happening to me &lt;a href=&quot;https://github.com/artsy/reaction/pull/1787&quot;&gt;in this PR&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;We&#39;re currently at &lt;code&gt;9.1.59&lt;/code&gt; - meaning 58 patches in a row, so it&#39;s pretty rare for a minor or major. By making it
+obvious how to change that during the PR (by highlighting that it&#39;s classed as a patch each time) we can maybe make
+the version number change a bit closer to &lt;em&gt;some form&lt;/em&gt; of &quot;semantic reality&quot;.&lt;/p&gt;
+
+&lt;p&gt;We wanted to first roll this out on one repo, so we scoped &lt;a href=&quot;https://github.com/artsy/peril-settings/pull/88&quot;&gt;our Artsy Peril changes&lt;/a&gt; to just the
+&lt;code&gt;artsy/reaction&lt;/code&gt; repo&lt;/p&gt;
+
+&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;6&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;7&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;8&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;9&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;10&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;11&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;12&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;13&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;14&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;15&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;16&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;17&lt;/span&gt;
+&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;diff&#39;&gt;&lt;span class=&#39;line&#39;&gt;{
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &amp;quot;rules&amp;quot;: {
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    // Keep a list of all deployments in slack
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &amp;quot;create (ref_type == tag)&amp;quot;: &amp;quot;org/newRelease.ts&amp;quot;,
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    ...
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  },
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &amp;quot;repos&amp;quot;: {
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &amp;quot;artsy/reaction&amp;quot;: {
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &amp;quot;pull_request&amp;quot;: &amp;quot;danger/pr.ts&amp;quot;,
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;gi&quot;&gt;+     &amp;quot;pull_request.opened&amp;quot;: &amp;quot;artsy/peril-settings@repos/reaction/addPatchLabel.ts&amp;quot;&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    },
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &amp;quot;artsy/force&amp;quot;: {
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &amp;quot;pull_request&amp;quot;: &amp;quot;dangerfile.ts&amp;quot;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    },
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    ...
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  },
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;}
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
+
+
+&lt;p&gt;The simplest implementation for adding the label is this:&lt;/p&gt;
+
+&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;6&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;7&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;8&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;9&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;10&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;11&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;12&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;13&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;14&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;15&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;16&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;17&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;18&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;19&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;20&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;21&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;22&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;23&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;24&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;25&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;26&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;27&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;28&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;29&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;30&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;31&lt;/span&gt;
+&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;js&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;c1&quot;&gt;// repos/reaction/addPatchLabel.ts&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;c1&quot;&gt;//&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;kr&quot;&gt;export&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;default&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;async&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;kr&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;pr&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;danger&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;github&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;pr&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;kr&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;patchLabelName&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;Version: Patch&amp;quot;&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;kr&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;requiredPrefix&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;Version: &amp;quot;&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;c1&quot;&gt;// Someone&amp;#39;s already made a decision on the version&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;kr&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;hasAlreadyGotLabel&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;danger&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;github&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;issue&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;labels&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;find&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;l&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;l&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;startsWith&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;requiredPrefix&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;hasAlreadyGotLabel&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nx&quot;&gt;console&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;log&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;err&quot;&gt;`&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;Skipping&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;setting&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;the&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;patch&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;label&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;because&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;the&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;PR&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;author&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;already&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;set&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;one&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;err&quot;&gt;`&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;c1&quot;&gt;// Create or add the label if it&amp;#39;s not being used&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;kr&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;label&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nx&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;patchLabelName&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nx&quot;&gt;color&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;247A38&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nx&quot;&gt;description&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;Indicates that you want this PR to trigger a patch release&amp;quot;&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;kr&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;repo&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nx&quot;&gt;owner&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;pr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;base&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;user&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;login&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nx&quot;&gt;repo&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;pr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;base&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;repo&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nx&quot;&gt;id&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;pr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;number&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nx&quot;&gt;console&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;log&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;Adding the label:&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;label&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nx&quot;&gt;await&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;danger&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;github&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;utils&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;createOrAddLabel&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;label&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;repo&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
+
+
+&lt;p&gt;This will dynamically add your label if it doesn&#39;t exist on the repo yet. Our &lt;a href=&quot;https://github.com/artsy/peril-settings/blob/db492b5f9213faee3e5d8659c55b84c635240f0c/repos/reaction/addPatchLabel.ts&quot;&gt;production
+implementation&lt;/a&gt; is a bit more complicated because it will create all of the different labels too. This
+means as we roll out the PR Label based workflow to other repos, the labels will be consistent.&lt;/p&gt;
+
+&lt;p&gt;Introducing auto-release meant introducing our first automatically generated changelog (something I&#39;m not sold on,
+I see changelogs as consumer-facing. Most PR title/descriptions aren&#39;t aimed at downstream consumers, but I&#39;m open
+to giving this a shot as today the consumers are also contributors to the repo) which broke one of our global Peril
+rules. This rule would detect a if a repo has a changelog, and ask you to update it if you&#39;ve made any app changes.
+We &lt;a href=&quot;https://github.com/artsy/peril-settings/pull/89&quot;&gt;amended that rule&lt;/a&gt; to detect auto-release on the repo first.&lt;/p&gt;
+
+&lt;a name=&quot;So..how.do.I.get.this.set.up.&quot;&gt;&lt;/a&gt;
+&lt;h2&gt;So, how do I get this set up?&lt;/h2&gt;
+
+&lt;p&gt;For the automatic deployment:&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;Install auto: &lt;code&gt;yarn add -D auto-release-cli&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Run &lt;code&gt;yarn auto init&lt;/code&gt; and go through the questions&lt;/li&gt;
+&lt;li&gt;Add a &lt;code&gt;release&lt;/code&gt; script to your &lt;code&gt;package.json&lt;/code&gt;: &lt;code&gt;&quot;release&quot;: &quot;auto shipit&quot;&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;In your CI, set both &lt;code&gt;NPM_TOKEN&lt;/code&gt; and &lt;code&gt;GH_TOKEN&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Add &lt;code&gt;echo &quot;//registry.npmjs.org/:_authToken=$NPM_TOKEN&quot; &amp;gt;&amp;gt; ~/.npmrc&lt;/code&gt; to &quot;log in&quot; to NPM in our deploy steps&lt;/li&gt;
+&lt;li&gt;In your deployment phase run: &lt;code&gt;yarn release&lt;/code&gt;&lt;/li&gt;
+&lt;/ol&gt;
+
+
+&lt;p&gt;For the Peril rule:&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;Add &lt;code&gt;&quot;pull_request.opened&quot;: &quot;artsy/peril-settings@repos/reaction/addPatchLabel.ts&quot;&lt;/code&gt; to your
+&lt;code&gt;peril.settings.json&lt;/code&gt;&lt;/li&gt;
+&lt;/ol&gt;
+
+
+&lt;p&gt;This is a little bit risky, because we can change our implementation anytime. If that&#39;s an issue, implement it
+yourself in your settings repo. You got this.&lt;/p&gt;
+
+&lt;p&gt;You can get the full details for &lt;a href=&quot;https://intuit.github.io/auto-release/&quot;&gt;auto-release in their docs&lt;/a&gt;, and you can use both &lt;a href=&quot;https://github.com/artsy/reaction#readme&quot;&gt;&lt;code&gt;artsy/reaction&lt;/code&gt;&lt;/a&gt;
+and &lt;a href=&quot;https://github.com/omakase-js/omakase#readme&quot;&gt;&lt;code&gt;omakase/omakase-js&lt;/code&gt;&lt;/a&gt; as references for how to set it up with Circle CI 2.0.&lt;/p&gt;
+
+&lt;p&gt;To wrap this up, I specifically want to call out &lt;a href=&quot;https://github.com/hipstersmoothie&quot;&gt;@hipstersmoothie&lt;/a&gt; for their great work on auto-release (and
+&lt;a href=&quot;https://github.com/oliver-moran/jimp&quot;&gt;jimp&lt;/a&gt;.) It&#39;s been really easy to get started and already covered nearly all the cases we needed. You did great
+work here.&lt;/p&gt;
+
+&lt;!-- prettier-ignore-start --&gt;
+
+
+&lt;!-- prettier-ignore-end --&gt;
+
+
+
+</description>
+        <pubDate>Thu, 03 Jan 2019 00:00:00 +0000</pubDate>
+        <link>http://artsy.github.io/blog/2019/01/03/label-based-prs/</link>
+        <guid isPermaLink="true">http://artsy.github.io/blog/2019/01/03/label-based-prs/</guid>
+        
+        
+        <category>build tools</category>
+        
+        <category>deployment</category>
+        
+        <category>road and bridges</category>
+        
+      </item>
     
       <item>
         <title>Why is the Swift Package Manager taking so long?</title>
@@ -170,8 +444,9 @@ way to make Swift PM useful to the iOS community. That, however, is another blog
     
       <item>
         <title>GraphQL Stitching 101</title>
-        <description>&lt;p&gt;Micro-Services make sense. You can scope a domain of your business to particular small unit of abstraction like an
-API. Doing so makes it easy to work in isolation, experiment with new ideas and evolve in many directions.&lt;/p&gt;
+        <description>&lt;p&gt;Micro-Services make sense for an engineering team of our size. You can scope a domain of your business to
+particular small unit of abstraction like an API. Doing so makes it easy to work in isolation, experiment with new
+ideas and evolve in many directions.&lt;/p&gt;
 
 &lt;p&gt;We&#39;ve been &lt;a href=&quot;http://artsy.github.io/blog/2017/04/14/artsy-technology-stack-2017/#Artsy.Technology.Infrastructure.2017.-.Splitting.the.Monolith&quot;&gt;carefully pushing&lt;/a&gt; for years to move away from our single monolithic API, to a collection of
 smaller, more focused projects. Our &lt;a href=&quot;https://github.com/artsy/README/blob/master/culture/highlights.md#highlights&quot;&gt;highlights docs&lt;/a&gt; showcase this well. The movement to smaller composable
@@ -3627,227 +3902,6 @@ rich information that&#39;s in your app&#39;s domain.&lt;/p&gt;&lt;/blockquote&g
         <category>graphql</category>
         
         <category>programming</category>
-        
-      </item>
-    
-      <item>
-        <title>The Hows and Whys of Pair Programming</title>
-        <description>&lt;p&gt;&lt;em&gt;Why pair program? As new engineers join Artsy, we&#39;ve been experimenting with different programming cultures - Yuki
-came from Pivotal Labs where they have a strong pair programming culture and introduced it at Artsy - it&#39;s been
-about a year and a half and we&#39;re all really loving the changes he&#39;s introduced.&lt;/em&gt;&lt;/p&gt;
-
-&lt;p&gt;&lt;em&gt;I asked Yuki if he&#39;d pair program with me on a blog, post on Pair Programming, and this is it. He&#39;s going to
-dive into what pair programming is, why you should do it, what are good mental models to think about, the techniques
-you can use to make it work, what hardware you might need and how Yuki persuaded so many of us to start doing it
-more often.&lt;/em&gt;&lt;/p&gt;
-
-&lt;p&gt;&amp;mdash; Orta&lt;/p&gt;
-
-&lt;!-- more --&gt;
-
-
-&lt;a name=&quot;Why.pair.program.&quot;&gt;&lt;/a&gt;
-&lt;h2&gt;Why pair program?&lt;/h2&gt;
-
-&lt;p&gt;The idea of pair programming came from a very popular book called &lt;a href=&quot;https://www.goodreads.com/book/show/67833.Extreme_Programming_Explained&quot;&gt;Extreme Programming Explained: Embrace
-Change&lt;/a&gt;. Code review has been a good practice in software development for decades. Many organizations have
-adopted it, but XP (Extreme Programming) literally takes this &lt;strong&gt;more extremely&lt;/strong&gt; - what if the engineer sitting next
-to you is reviewing your code as soon as you write it? This requires two engineers to simultaneously pay attention
-to the code that&#39;s being written, discuss implementation details, and sometimes socialize. That&#39;s how pair
-programming was born.&lt;/p&gt;
-
-&lt;p&gt;Pair programming seems as easy as it sounds, and to some extent that&#39;s true. However, with just a few key points
-you&#39;ll be able to make your pairing session much more valuable.&lt;/p&gt;
-
-&lt;p&gt;To think about when pairing is most valuable, let&#39;s think about code review first. Modern software organizations
-have implemented a process where engineers send pull requests to get reviews on GitHub (or whatever tool your
-organization uses for reviewing code). This is a very powerful process, but most of us have probably experienced a
-situation where a pull request with &lt;a href=&quot;https://github.com/artsy/reaction/pull/1114#discussion_r209354107&quot;&gt;a very simple change created a very long discussion&lt;/a&gt;. Sometimes
-that&#39;s because of your lack of context in the work you are doing. Sometimes it&#39;s because you are working on a
-system you are unfamiliar with. Your co-worker left a lot of comments on your pull request, and you had to push a lot
-of extra commits, or even re-wrote the entire pull request. That&#39;s when pairing becomes very valuable to your team.&lt;/p&gt;
-
-&lt;p&gt;Another good example is on-boarding new hires. Coming from an agile consultancy and a photo-product company, I was
-nowhere close to an Art expert when I joined Artsy. This was the time I wanted to question not just technical
-questions, but also very basic questions about art. How do people find and purchase artworks? Who actually sells
-artworks? What is an art fair? And auctions? &lt;a href=&quot;https://medium.com/artsy-blog/what-it-feels-like-to-work-in-a-supportive-environment-for-female-engineers-3c994a001007&quot;&gt;Christina Thompson&lt;/a&gt;, on the other hand, has been at
-Artsy for more than two years. She also has strong experience in agile software development and practices, including
-pair-programming. Naturally, we started pairing to familiarize myself both with the code base and basic knowledge
-about Art on my first week at Artsy.&lt;/p&gt;
-
-&lt;a name=&quot;When.not.to.pair.program.&quot;&gt;&lt;/a&gt;
-&lt;h3&gt;When not to pair program?&lt;/h3&gt;
-
-&lt;p&gt;This post is about pair-programming, so why even talk about when not to pair-program? Well, while it’s a powerful tool,
-it&#39;s not a silver bullet we can utilize to solve all software problems. As we all deal with complex, long-standing
-pull requests, there are also simple changes that don&#39;t require a lot of discussions. Occasionally, your pull request
-is very long because of a great number of deprecated method names. Sometimes, you and your pair both feel stuck because
-none of you have context or knowledge about what you are addressing. Whenever you are not feeling as productive as you
-think you should be, then you don’t have to pair. Sometimes it may make sense for two of you to do research
-individually and check in later to share findings and learnings. In an occasional case, even swapping a pair is also a
-good way to make the entire team more productive.&lt;/p&gt;
-
-&lt;p&gt;So what is the key point that makes a pair-programming session successful? I believe pair-programming works best when
-there is a fair amount of knowledge gap between two people. One is coding and teaching simultaneously, and the
-other is reviewing and learning simultaneously. Here the crucial part is &lt;em&gt;teaching&lt;/em&gt;. It is easy, especially for more
-seasoned developers, to ignore the opportunity to share thoughts and knowledge with new hires, losing productivity
-they could&#39;ve gained by pairing. Joining a new company is always scary, and pair-programming with a new hire will
-reduce a lot of &quot;I wasn&#39;t sure about X&quot; moments new hires might have encountered. At the same time, as mentioned above,
-pair-programming is not a silver bullet. It is important to be able to use pair-programming as a tool in your toolbox
-to solve a particular issue in your engineering team.&lt;/p&gt;
-
-&lt;a name=&quot;What.You.ll.Need.to.Pair.Program&quot;&gt;&lt;/a&gt;
-&lt;h2&gt;What You&#39;ll Need to Pair Program&lt;/h2&gt;
-
-&lt;p&gt;The minimum you need is a computer and the ability to communicate, but let&#39;s look at what an optimal pair
-programming setup looks like.&lt;/p&gt;
-
-&lt;a name=&quot;Offline&quot;&gt;&lt;/a&gt;
-&lt;h3&gt;Offline&lt;/h3&gt;
-
-&lt;p&gt;If you and the other engineer are in the same physical space, then you should aim to have:&lt;/p&gt;
-
-&lt;ul&gt;
-&lt;li&gt;One computer set up as a workstation.&lt;/li&gt;
-&lt;li&gt;Two sets of keyboards, mice and monitors attached.&lt;/li&gt;
-&lt;li&gt;A spare computer for researching on the side.&lt;/li&gt;
-&lt;/ul&gt;
-
-
-&lt;p&gt;This gives you the ability to iterate and switch responsibilities at the speed of thought. If you have the resources
-and space, then setting up a place where any 2 engineers can drop a laptop down and be productive instantly will
-reduce a lot of the setup friction.&lt;/p&gt;
-
-&lt;a name=&quot;Remote&quot;&gt;&lt;/a&gt;
-&lt;h3&gt;Remote&lt;/h3&gt;
-
-&lt;p&gt;The minimum you would need in this case is a video chat system like Skype, Google Hangouts or Slack Calls. Given
-that all of these support screen sharing too, then you can easily replicate two people sitting next to each other
-with one computer.&lt;/p&gt;
-
-&lt;p&gt;It&#39;s worth noting that remote pairing requires stable internet, and with high bandwidth. We&#39;ve both had situations
-in the past where we&#39;ve had to abort pairing sessions due to internet un-reliability.&lt;/p&gt;
-
-&lt;p&gt;In the past, we used to use ScreenHero a lot, because of it&#39;s great support for multiple mice and keyboards, but
-&lt;a href=&quot;https://slack.com/screenhero&quot;&gt;ScreenHero was bought by slack&lt;/a&gt; and those feature aren&#39;t available for everyone.&lt;/p&gt;
-
-&lt;p&gt;A lot of our pairing is done via the built-in Slack screen sharing. There&#39;s a newcomer to the scene though!&lt;/p&gt;
-
-&lt;p&gt;&lt;a href=&quot;https://visualstudio.microsoft.com/services/live-share&quot;&gt;VS Code&#39;s LiveShare&lt;/a&gt; gives you the ability to share an IDE: it can handle voice
-chat, sharing server ports and sharing terminal sessions with a very  minimal amount of setup.&lt;/p&gt;
-
-&lt;p&gt;We wrote the initial draft of this post in-person, in an Artsy meeting room writing and talking in real-time.
-If you&#39;ve not seen Live Share, we posted a video of a &lt;a href=&quot;https://twitter.com/ArtsyOpenSource/status/1034555778210910209&quot;&gt;workshop we ran&lt;/a&gt; at Artsy on YouTube.&lt;/p&gt;
-
-&lt;a name=&quot;Attribution&quot;&gt;&lt;/a&gt;
-&lt;h3&gt;Attribution&lt;/h3&gt;
-
-&lt;p&gt;One way to encourage pair programming is by providing insight to others about when you&#39;re working as a pair. A great
-technique for this is to use &lt;a href=&quot;https://github.com/git-duet/git-duet/&quot;&gt;&lt;code&gt;git-duet&lt;/code&gt;&lt;/a&gt;. Git Duet is a tool which extends git to make it easy to share
-attribution among contributors. It does this by having a central list of people&#39; emails, you set up a pairing
-session, then use &lt;code&gt;git duet-commit&lt;/code&gt; to replace &lt;code&gt;git commit&lt;/code&gt; and the attribution shared.&lt;/p&gt;
-
-&lt;p&gt;You can get started with:&lt;/p&gt;
-
-&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
-&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;sh&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;nv&quot;&gt;$ &lt;/span&gt;brew tap git-duet/tap
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;nv&quot;&gt;$ &lt;/span&gt;brew install git-duet
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
-
-
-&lt;p&gt;You&#39;ll then need to set up a &lt;code&gt;~/.git-authors&lt;/code&gt; file which is a map of people&#39;s names to emails:&lt;/p&gt;
-
-&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;6&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;7&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;8&lt;/span&gt;
-&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;yaml&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;l-Scalar-Plain&quot;&gt;pairs&lt;/span&gt;&lt;span class=&quot;p-Indicator&quot;&gt;:&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;l-Scalar-Plain&quot;&gt;ot&lt;/span&gt;&lt;span class=&quot;p-Indicator&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;l-Scalar-Plain&quot;&gt;Orta Therox; orta&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;l-Scalar-Plain&quot;&gt;af&lt;/span&gt;&lt;span class=&quot;p-Indicator&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;l-Scalar-Plain&quot;&gt;Ash Furrow; ash&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;l-Scalar-Plain&quot;&gt;md&lt;/span&gt;&lt;span class=&quot;p-Indicator&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;l-Scalar-Plain&quot;&gt;Matt Dole;&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;l-Scalar-Plain&quot;&gt;email&lt;/span&gt;&lt;span class=&quot;p-Indicator&quot;&gt;:&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;l-Scalar-Plain&quot;&gt;domain&lt;/span&gt;&lt;span class=&quot;p-Indicator&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;l-Scalar-Plain&quot;&gt;artsymail.com&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;l-Scalar-Plain&quot;&gt;email_addresses&lt;/span&gt;&lt;span class=&quot;p-Indicator&quot;&gt;:&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;l-Scalar-Plain&quot;&gt;md&lt;/span&gt;&lt;span class=&quot;p-Indicator&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;l-Scalar-Plain&quot;&gt;mdole7@gmail.com&lt;/span&gt;
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
-
-
-&lt;p&gt;The format for each pair is &lt;code&gt;[tag]: [Name]; [email-prefix]&lt;/code&gt;. This works in combination with the &lt;code&gt;email:domain&lt;/code&gt; as
-the default email address host for someone. So it would infer that Ash Furrow&#39;s email is &lt;code&gt;ash@artsymail.com&lt;/code&gt;.
-If they&#39;ve not set up that email yet, then you can use &lt;code&gt;email_addresses:&lt;/code&gt; to provide overrides.&lt;/p&gt;
-
-&lt;p&gt;Now your config is set up, you can start using it. In your terminal you can use &lt;code&gt;git duet ot af&lt;/code&gt; to start a session
-with Orta and Ash.&lt;/p&gt;
-
-&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;6&lt;/span&gt;
-&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;sh&#39;&gt;&lt;span class=&#39;line&#39;&gt;~/d/p/a/j/a/metaphysics  &lt;span class=&quot;nv&quot;&gt;$ &lt;/span&gt;git duet ot af
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;nv&quot;&gt;GIT_AUTHOR_NAME&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;Orta Therox&amp;#39;&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;nv&quot;&gt;GIT_AUTHOR_EMAIL&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;orta@artsymail.com&amp;#39;&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;nv&quot;&gt;GIT_COMMITTER_NAME&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;Ash Furrow&amp;#39;&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;nv&quot;&gt;GIT_COMMITTER_EMAIL&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;ash@artsymail.com&amp;#39;&lt;/span&gt;
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
-
-
-&lt;p&gt;Now you just have to remember to use &lt;code&gt;git duet-commit&lt;/code&gt; instead of &lt;code&gt;git commit&lt;/code&gt; for our work. If you forget, you can
-use &lt;code&gt;git duet-commit --amend&lt;/code&gt; to overwrite the last commit with a duet commit instead.&lt;/p&gt;
-
-&lt;a name=&quot;Where.to.go.from.here.&quot;&gt;&lt;/a&gt;
-&lt;h2&gt;Where to go from here?&lt;/h2&gt;
-
-&lt;p&gt;Pair-programming is a fantastic way to collaborate. If your organization hasn&#39;t incorporated it yet, I would highly recommend doing so. At Artsy, we&#39;ve been experimenting with pair-programming for quite a long time, but this is only the start. We haven&#39;t figured out the form of pair-programming that works best for us, and it&#39;ll probably never end (and it&#39;s a good thing). There are also a lot more to think about that didn&#39;t get into this blog post, such as mental model one should have while pairing and techniques that keep you focused. We will re-visit once we gain more feedback and iterate on our pairing process.&lt;/p&gt;
-
-&lt;p&gt;If you&#39;re looking to find more resources on pair programming&lt;/p&gt;
-
-&lt;ul&gt;
-&lt;li&gt;Joe Moore&#39;s &lt;a href=&quot;http://remotepairprogramming.com/&quot;&gt;Remote Pair Programming&lt;/a&gt; is a great place to start. He&#39;s been working at Pivotal Labs for over a decade.&lt;/li&gt;
-&lt;li&gt;Tuple’s &lt;a href=&quot;https://tuple.app/pair-programming-guide/&quot;&gt;Pair Programming Guide&lt;/a&gt; is a good work in progress at centralizing a lot of information.&lt;/li&gt;
-&lt;/ul&gt;
-
-
-&lt;!-- 
-Notes:
-
-- http://www.extremeprogramming.org/rules/pair.html --&gt;
-
-
-
-
-&lt;!-- Appendix
-  - Ways in which you can encourage more pairing?
-  - Techniques for introducing it into your team
-  - Good resources? Further reading
-  - Do we do it as much as we&#39;d want?
-  - Mental model
-    - Remind your pair of what to work on
-    - Speak up while pairing
-    - Take breaks often
-    - Show appreciation
-  - Techniques
-    - driver and navigator
-    - ping-pong pairing
-  - What companies provides a good best examples?
---&gt;
-
-</description>
-        <pubDate>Fri, 19 Oct 2018 00:00:00 +0000</pubDate>
-        <link>http://artsy.github.io/blog/2018/10/19/pair-programming/</link>
-        <guid isPermaLink="true">http://artsy.github.io/blog/2018/10/19/pair-programming/</guid>
-        
-        
-        <category>culture</category>
-        
-        <category>pairing</category>
         
       </item>
     
