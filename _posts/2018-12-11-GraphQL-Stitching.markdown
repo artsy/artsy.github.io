@@ -8,8 +8,9 @@ css: graphql-stitch
 comment_id: 450
 ---
 
-Micro-Services make sense. You can scope a domain of your business to particular small unit of abstraction like an
-API. Doing so makes it easy to work in isolation, experiment with new ideas and evolve in many directions.
+Micro-Services make sense for an engineering team of our size. You can scope a domain of your business to
+particular small unit of abstraction like an API. Doing so makes it easy to work in isolation, experiment with new
+ideas and evolve in many directions.
 
 We've been [carefully pushing][monolith] for years to move away from our single monolithic API, to a collection of
 smaller, more focused projects. Our [highlights docs][high] showcase this well. The movement to smaller composable
