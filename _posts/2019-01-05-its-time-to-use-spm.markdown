@@ -4,7 +4,7 @@ title: It's time to use Swift Package Manager
 date: 2089-01-05
 author: [orta]
 categories: [swift, package-management, build tools, roads and bridges]
-comment_id: 512
+comment_id: 517
 ---
 
 It's been three years, and [Swift Package Manager][spm] (SPM) is at a point where it can be useful for iOS
@@ -136,7 +136,8 @@ seconds, it's that iteration cycle has to be as tight as possible.
 1. SPM's dependency resolution step is very naive, and will clone all the dependencies in the tree - even if you
    don't need them. So, the dependencies of your dependencies (a.k.a transitive dependencies) will have full clones
    locally - e.g. the test runner for SwiftLint has to be fully cloned locally in `.build` if you use SPM for
-   SwiftLint.
+   SwiftLint. I'm hoping [this PR][https://github.com/apple/swift-package-manager/pull/1918] and subsequent
+   improvements will fix this.
 
 1. You need to reference a single Swift file in your project to make this work. SPM today does not support a
    dependencies only project (it won't build), so you'll need to reference one Swift file in your codebase.
