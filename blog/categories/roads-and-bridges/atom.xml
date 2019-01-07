@@ -4,7 +4,7 @@
   <title><![CDATA[Category: roads and bridges | Artsy Engineering]]></title>
   <link href="http://artsy.github.io/blog/categories/roads-and-bridges/atom.xml" rel="self"/>
   <link href="http://artsy.github.io/"/>
-  <updated>2019-01-04T16:04:31+00:00</updated>
+  <updated>2019-01-07T21:26:46+00:00</updated>
   <id>http://artsy.github.io/</id>
   <author>
     <name><![CDATA[]]></name>
@@ -12,6 +12,175 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[It's time to use Swift Package Manager]]></title>
+    <link href="http://artsy.github.io/blog/2089/01/05/its-time-to-use-spm/"/>
+    <updated>2089-01-05T00:00:00+00:00</updated>
+    <id>http://artsy.github.io/blog/2089/01/05/its-time-to-use-spm</id>
+    <content type="html"><![CDATA[<p>It's been three years, and <a href="https://swift.org/package-manager/">Swift Package Manager</a> (SPM) is at a point where it can be useful for iOS
+projects. It'll take a bit of sacrifice and a little bit of community spirit to fix some holes probably but <strong>in my
+opinion, it's time for teams to start adopting SPM for their 3rd party dev tools</strong>.</p>
+
+<p><strong>TDLR:</strong> You should be using SPM for 3rd party dev tools like: <a href="https://github.com/realm/SwiftLint">SwiftLint</a>, <a href="https://github.com/nicklockwood/SwiftFormat">SwiftFormat</a>, <a href="https://danger.systems/swift/">Danger</a>,
+<a href="https://github.com/krzysztofzablocki/Sourcery">Sourcery</a>, <a href="https://github.com/SwiftGen/SwiftGen/">SwiftGen</a> and <a href="https://github.com/orta/Komondor">Git Hook management</a>.</p>
+
+<p>This post covers: What made it feasible to use SPM now? What are the downsides of the status quo? Why use SPM at
+all? What are the downsides to using SPM?</p>
+
+<!-- more -->
+
+
+<a name="What.changed.to.make.SPM.usable."></a>
+<h3>What changed to make SPM usable?</h3>
+
+<p>From my perspective, David Hart's <a href="https://github.com/apple/swift-package-manager/pull/1187">addition of <code>swift run</code></a> to SPM which shipped with Swift 4.0 is what
+pushed the project over the finish line to being useful for iOS developers. <code>swift run</code> is contextually the same as
+<code>bundle exec</code> in that it will run a locally bundled version of your executable.</p>
+
+<p>This means you can run <code>run swift swiftlint</code> and reliably get the same results as your CI and fellow developers.</p>
+
+<p>Second, all of the big third party tools support SPM already. So, you probably don't need to send any upstream PRs.</p>
+
+<a name="What.are.the.downsides.of.the.status.quo"></a>
+<h3>What are the downsides of the status quo</h3>
+
+<p><strong>Using Homebrew</strong></p>
+
+<p>Right now, a lot of folks use <a href="https://brew.sh">homebrew</a> to manage these types of dependencies. Homebrew is useful for rarely
+updated tools (like unix-y CLI apps) but it does not handle having different versions of tool available. This is a
+totally reasonable call from Homebrew's perspective but it makes homebrew a bad choice for your <strong>project</strong>
+dependencies - because it only installs things globally.</p>
+
+<p>This means a developer (or your CI) would get the most recent version of that tool when they last installed the
+tool. This isn't a problem for many projects (for example, check out their <a href="https://formulae.brew.sh/analytics/install/90d/">most installed</a> formulas to
+see that it's lot of system libraries, languages and global tools like <code>node</code>, <code>git</code> and <code>python</code>)</p>
+
+<p><strong>Using CocoaPods</strong></p>
+
+<p>You can hijack CocoaPod's dependency resolver, and locking system mixed with consistent dependency paths to handle
+your tools. This is better than using Homebrew, because everyone has the same version - and so you could reliably
+run SwiftLint via <code>./Pods/SwiftLint/swiftlint</code>.</p>
+
+<p>This is a great hack, and CocoaPods is smart here - because these dependencies don't ship any code for your app for
+compiling it won't set up a library or framework for you. You can even use CocoaPods to set up <a href="https://guides.cocoapods.org/syntax/podfile.html#script_phase">a build
+phase</a> for you too (I have feelings on this but we'll get to those later.)</p>
+
+<p>I don't really have much of a "you shouldn't do this" for using hacking CocoaPods for your tools, outside of SPM
+it's probably the right way to do it.</p>
+
+<a name="Why.Use.SwiftPM."></a>
+<h3>Why Use SwiftPM?</h3>
+
+<ol>
+<li>SPM works</li>
+<li>SPM can lock your dependencies correctly. <code>:tada:</code></li>
+<li>The primary tools used in our ecosystem already support it, so you don't need to do any extra work</li>
+<li>Easy to cache (everything lives in <code>.build</code>) which means fast CI builds</li>
+<li>You're using Swift's tools to manage tools built in Swift, promoting and encouraging the ecosystem you want to
+thrive</li>
+<li>Your team can get used to how SPM works now, because it should be useful for code dependencies some day</li>
+<li>SPM is still in a pretty early phase for usage like this, maybe you can find features to add once you've got
+started and contribute back</li>
+</ol>
+
+
+<a name="What.are.the.downsides."></a>
+<h3>What are the downsides?</h3>
+
+<ol>
+<li><p>Running a tool will compile it the first time you use <code>swift run</code>. Running <code>swift run danger-swift</code> would first
+build <code>danger-swift</code> from source and then it would run the executable.</p></li>
+<li><p>SPM's dependency resolution step is very naive, and will clone all the dependencies in the tree - even if you
+don't need them. So, the dependencies of your dependencies (a.k.a transitive dependencies) will have full clones
+locally - e.g. the test runner for SwiftLint has to be fully cloned locally in <code>.build</code> if you use SPM for
+SwiftLint. I'm hoping [this PR][https://github.com/apple/swift-package-manager/pull/1918] and subsequent
+improvements will fix this.</p></li>
+<li><p>You need to reference a single Swift file in your project to make this work. SPM today does not support a
+dependencies only project (it won't build), so you'll need to reference one Swift file in your codebase.</p></li>
+</ol>
+
+
+<p>All of these are fixable, and the first two can be worked around on CI, by caching the <code>.build</code> directory. Locally
+these actions normally only happens once when you install, or update.</p>
+
+<a name="Show.me.it.in.action"></a>
+<h3>Show me it in action</h3>
+
+<p>What would this look like for a project? IMO, for a reasonably complex Swift app, I think you should have:</p>
+
+<ul>
+<li><a href="https://github.com/realm/SwiftLint">SwiftLint</a> for catching potential code issues</li>
+<li><a href="https://github.com/nicklockwood/SwiftFormat">SwiftFormat</a> so you don't argue about code style</li>
+<li><a href="https://github.com/orta/Komondor">Komondor</a> to automate the above tools, so people don't have to remember to run the tools</li>
+<li><a href="https://danger.systems/swift/">Danger Swift</a> to handle cultural rules for PRs like "Please add Changelogs entries"</li>
+</ul>
+
+
+<p>You would write a <code>Package.swift</code> file like this:</p>
+
+<pre><code class="swift">// swift-tools-version:4.2
+import PackageDescription
+
+let package = Package(
+    name: "Eigen",
+    dependencies: [
+      .package(url: "https://github.com/danger/swift.git", from: "1.0.0"),
+      .package(url: "https://github.com/nicklockwood/SwiftFormat", from: "0.35.8"),
+      .package(url: "https://github.com/Realm/SwiftLint", from: "0.28.1"),
+      .package(url: "https://github.com/orta/Komondor", from: "1.0.0"),
+    ],
+    targets: [
+        // This is just an arbitrary Swift file in the app, that has
+        // no dependencies outside of Foundation, the dependencies section
+        .target(name: "eigen", dependencies: ["Danger"], path: "Artsy", sources: ["Stringify.swift"]),
+    ]
+)
+
+// The settings for the git hooks for our repo
+#if canImport(PackageConfig)
+    import PackageConfig
+
+    let config = PackageConfig([
+        "komondor": [
+            // When someone has run `git commit`, first run
+            // run SwiftFormat and the auto-correcter for SwiftLint
+            "pre-commit": [
+                "swift run swiftformat .",
+                "swift run swiftlint autocorrect --path Artsy/",
+                "git add .",
+            ],
+        ]
+    ])
+#endif
+</code></pre>
+
+<p>Which gives you access to the following commands:</p>
+
+<ul>
+<li><code>swift run komondor install</code> - to set up your repo's git hooks</li>
+<li><code>swift run swiftformat .</code> - to run SwiftFormat over your project</li>
+<li><code>swift run swiftlint --autocorrect</code> - to highlight your linter issues</li>
+<li><code>swift run danger-swift ci</code> - to run Danger Swift on your CI</li>
+</ul>
+
+
+<p>Because you can reliably run both SwiftFormat and SwiftLint via Komondor on a git hook, you can remove build phase
+steps that run these tools.</p>
+
+<p>An iOS app's compile and run cycle already takes on the order of seconds, so you should avoid adding extra build
+steps in Xcode. I realise that people are only doing this due to the (unreasonably) limited extension support in
+Xcode, but the build steps are critical path code. When your build and run cycle is already on the order of many
+seconds, it's that iteration cycle has to be as tight as possible.</p>
+
+<p>This setup gives you version-locked access to common linting/formating tools (with the ability to use komondor to
+add extra checks if needed) in a self-contained <code>Package.swift</code>.</p>
+
+<p>We've started migrating our Artsy projects to use this setup when we work on our native codebases. With our main
+iOS app Eigen already using this pattern for Danger Swift, but we don't created/modify enough <code>*.swift</code> files to
+warrant linters/formatters yet.</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Keeping Artsy's dependencies up to date]]></title>
