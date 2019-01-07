@@ -75,7 +75,7 @@ it's probably the right way to do it.
 1. SPM's dependency resolution step is very naive, and will clone all the dependencies in the tree - even if you
    don't need them. So, the dependencies of your dependencies (a.k.a transitive dependencies) will have full clones
    locally - e.g. the test runner for SwiftLint has to be fully cloned locally in `.build` if you use SPM for
-   SwiftLint. I'm hoping [this PR][https://github.com/apple/swift-package-manager/pull/1918] and subsequent
+   SwiftLint. I'm hoping [this PR](https://github.com/apple/swift-package-manager/pull/1918) and subsequent
    improvements will fix this.
 
 1. You need to reference a single Swift file in your project to make this work. SPM today does not support a
