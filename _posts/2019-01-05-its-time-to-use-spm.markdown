@@ -25,7 +25,7 @@ From my perspective, David Hart's [addition of `swift run`][swift-run] to SPM wh
 pushed the project over the finish line to being useful for iOS developers. `swift run` is contextually the same as
 `bundle exec` in that it will run a locally bundled version of your executable.
 
-This means you can run `run swift swiftlint` and reliably get the same results as your CI and fellow developers.
+This means you can run `swift run swiftlint` and reliably get the same results as your CI and fellow developers.
 
 Second, all of the big third party tools support SPM already. So, you probably don't need to send any upstream PRs.
 
