@@ -67,6 +67,25 @@ it's probably the right way to do it.
 1. SPM is still in a pretty early phase for usage like this, maybe you can find features to add once you've got
    started and contribute back
 
+### What are the downsides?
+
+1. Running a tool will compile it the first time you use `swift run`. Running `swift run danger-swift` would first
+   build `danger-swift` from source and then it would run the executable.
+
+1. SPM's dependency resolution step is very naive, and will clone all the dependencies in the tree - even if you
+   don't need them. So, the dependencies of your dependencies (a.k.a transitive dependencies) will have full clones
+   locally - e.g. the test runner for SwiftLint has to be fully cloned locally in `.build` if you use SPM for
+   SwiftLint. I'm hoping [this PR][https://github.com/apple/swift-package-manager/pull/1918] and subsequent
+   improvements will fix this.
+
+1. You need to reference a single Swift file in your project to make this work. SPM today does not support a
+   dependencies only project (it won't build), so you'll need to reference one Swift file in your codebase.
+
+All of these are fixable, and the first two can be worked around on CI, by caching the `.build` directory. Locally
+these actions normally only happens once when you install, or update.
+
+### Show me it in action
+
 What would this look like for a project? IMO, for a reasonably complex Swift app, I think you should have:
 
 - [SwiftLint][sl] for catching potential code issues
@@ -113,37 +132,27 @@ let package = Package(
 #endif
 ```
 
-Which gives you access to:
+Which gives you access to the following commands:
 
 - `swift run komondor install` - to set up your repo's git hooks
 - `swift run swiftformat .` - to run SwiftFormat over your project
 - `swift run swiftlint --autocorrect` - to highlight your linter issues
 - `swift run danger-swift ci` - to run Danger Swift on your CI
 
-Because you can reliably run SwiftFormat and SwiftLint via Komondor on a git hook, you can remove build phase steps
-that run these tools.
+Because you can reliably run both SwiftFormat and SwiftLint via Komondor on a git hook, you can remove build phase
+steps that run these tools.
 
 An iOS app's compile and run cycle already takes on the order of seconds, so you should avoid adding extra build
 steps in Xcode. I realise that people are only doing this due to the (unreasonably) limited extension support in
 Xcode, but the build steps are critical path code. When your build and run cycle is already on the order of many
 seconds, it's that iteration cycle has to be as tight as possible.
 
-### What are the downsides?
+This setup gives you version-locked access to common linting/formating tools (with the ability to use komondor to
+add extra checks if needed) in a self-contained `Package.swift`.
 
-1. Running a tool will compile it the first time you use `swift run`. Running `swift run danger-swift` would first
-   build `danger-swift` from source and then it would run the executable.
-
-1. SPM's dependency resolution step is very naive, and will clone all the dependencies in the tree - even if you
-   don't need them. So, the dependencies of your dependencies (a.k.a transitive dependencies) will have full clones
-   locally - e.g. the test runner for SwiftLint has to be fully cloned locally in `.build` if you use SPM for
-   SwiftLint. I'm hoping [this PR][https://github.com/apple/swift-package-manager/pull/1918] and subsequent
-   improvements will fix this.
-
-1. You need to reference a single Swift file in your project to make this work. SPM today does not support a
-   dependencies only project (it won't build), so you'll need to reference one Swift file in your codebase.
-
-All of these are fixable, and the first two can be worked around on CI, by caching the `.build` directory. Locally
-these actions normally only happens once when you install, or update.
+We've started migrating our Artsy projects to use this setup when we work on our native codebases. With our main
+iOS app Eigen already using this pattern for Danger Swift, but we don't created/modify enough `*.swift` files to
+warrant linters/formatters yet.
 
 [swift-run]: https://github.com/apple/swift-package-manager/pull/1187
 [hb]: https://brew.sh
