@@ -33,7 +33,7 @@ Second, all of the big third party tools support SPM already. So, you probably d
 
 **Using Homebrew**
 
-Right now, a lot of folks use [homebrew][] to manage these types of dependencies. Homebrew is useful for rarely
+Right now, a lot of folks use [homebrew][hb] to manage these types of dependencies. Homebrew is useful for rarely
 updated tools (like unix-y CLI apps) but it does not handle having different versions of tool available. This is a
 totally reasonable call from Homebrew's perspective but it makes homebrew a bad choice for your **project**
 dependencies - because it only installs things globally.
@@ -45,7 +45,7 @@ see that it's lot of system libraries, languages and global tools like `node`, `
 **Using CocoaPods**
 
 You can hijack CocoaPod's dependency resolver, and locking system mixed with consistent dependency paths to handle
-your tools. This is better than using Homebrew, because everyone has the save version - and so you could reliably
+your tools. This is better than using Homebrew, because everyone has the same version - and so you could reliably
 run SwiftLint via `./Pods/SwiftLint/swiftlint`.
 
 This is a great hack, and CocoaPods is smart here - because these dependencies don't ship any code for your app for
@@ -58,8 +58,8 @@ it's probably the right way to do it.
 ### Why Use SwiftPM?
 
 1. SPM works
-1. SPM can lock your dependencies correctly. :tada:
-1. The major ecosystem tools already support it, so you don't need to do any extra work
+1. SPM can lock your dependencies correctly. `:tada:`
+1. The primary tools used in our ecosystem already support it, so you don't need to do any extra work
 1. Easy to cache (everything lives in `.build`) which means fast CI builds
 1. You're using Swift's tools to manage tools built in Swift, promoting and encouraging the ecosystem you want to
    thrive
