@@ -1,7 +1,7 @@
 ---
 layout: epic
 title: It's time to use Swift Package Manager
-date: 2089-01-05
+date: 2019-01-05
 author: [orta]
 categories: [swift, package-management, build tools, roads and bridges]
 comment_id: 517
