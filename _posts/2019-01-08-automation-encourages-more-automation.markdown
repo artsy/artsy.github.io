@@ -38,9 +38,10 @@ automation][xkcd]. Oh, you know the one.
 [<center><img src="https://imgs.xkcd.com/comics/automation.png" srcset="//imgs.xkcd.com/comics/automation_2x.png 2x" alt="xkcd comic about automation" title="I wonder if people would read the hover text of an xkcd comic linked to from a different site, just out of habit? I probably would." /></center>][xkcd]
 
 The comic observes that, often, the work necessary to automate a task often exceeds the amount of work necessary to
-just do the task manually. How drole! But you could easily make the logical leap to say that automating tasks isn't
-worth it, generally, based on this observation. That analysis would be incomplete because it would be based only in
-terms of saving _time_. In my experience, automating a task often yields far more value than it costs in time.
+just do the task manually. Pretty funny! You could be forgiven for taking the logical leap to say that automating
+tasks isn't worth it, generally, based on this observation. But that analysis would be incomplete because it
+focuses entirely on saving _time_. In my experience, automating a task often yields far more value than it costs in
+time.
 
 Let's take the task of sending the on-call engineers their Monday morning standup reminder. How would we even
 automate that?
