@@ -145,7 +145,7 @@ steps that run these tools.
 An iOS app's compile and run cycle already takes on the order of seconds, so you should avoid adding extra build
 steps in Xcode. I realise that people are only doing this due to the (unreasonably) limited extension support in
 Xcode, but the build steps are critical path code. When your build and run cycle is already on the order of many
-seconds, it's that iteration cycle has to be as tight as possible.
+seconds that iteration cycle has to be as tight as possible.
 
 This setup gives you version-locked access to common linting/formating tools (with the ability to use komondor to
 add extra checks if needed) in a self-contained `Package.swift`.
