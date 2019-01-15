@@ -6,16 +6,16 @@ author: ashkan
 categories: [graphql ruby]
 ---
 
-<!--
+<!-- OUTLINE -->
 
-At Artsy we’ve been moving towards GraphQL for all of our new services. Acknowledging GraphLQ is a relatively new technology, we faced some challenging questions as we were developing one our most recent services.
+At Artsy we’ve been moving towards GraphQL for all of our new services. Acknowledging GraphLQ is a relatively new
+technology, we faced some challenging questions as we were developing one our most recent services.
 
-Naively as my first attempt to define GraphQL types and schemas, I naturally tried to map our database models to GraphQL types. While this may work for lot of cases, we may not be utilizing some of the useful features that comes with GraphQL that can make the consuming our data lot easier.
+Naively as my first attempt to define GraphQL types and schemas, I naturally tried to map our database models to
+GraphQL types. While this may work for lot of cases, we may not be utilizing some of the useful features that comes
+with GraphQL that can make the consuming our data lot easier.
 
-
--->
-
-GraphQL: Interface or Union?
+## GraphQL: Interface or Union?
 
 At Artsy we’ve been moving towards GraphQL for all of our new services. Acknowledging that GraphLQ is a relatively
 new technology, we faced some challenging questions as we were developing one our most recent services.
@@ -85,7 +85,7 @@ There are two main solutions in the GraphQL toolkit for this problem:
 [Unions](https://graphql.org/learn/schema/#union-types) and
 [Interfaces](https://graphql.org/learn/schema/#interfaces).
 
-## Union
+### Union
 
 GraphQL interfaces are useful to solve problems like above where we want to have the returned type possibly from
 different types.
@@ -168,7 +168,7 @@ query {
 }
 ```
 
-## Interface
+### Interface
 
 Unions are useful when we are trying to group different types together in one field. Now let’s think of the case
 where we are trying to expose same Types of models that can have different fields populated.
@@ -313,7 +313,7 @@ module Types::InstrumentInterface
 end
 ```
 
-# Conclusion
+## Conclusion
 
 The biggest learning experience for us was to realize that with GraphQL we have the option to decouple our database
 modeling with how the data is exposed to consumers. This way when designing our persistent layer, we can focus on
