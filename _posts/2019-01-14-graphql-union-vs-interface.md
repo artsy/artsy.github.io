@@ -1,12 +1,10 @@
 ---
-layout: post
-title: GraphQL: Union vs. Interface
-date: 2019-01-14
-author: ashkan
-categories: [graphql ruby]
+layout: epic
+title: "GraphQL: Union vs. Interface"
+date: "2019-01-14"
+author: [ashkan]
+categories: [graphql, ruby]
 ---
-
-<!-- OUTLINE -->
 
 At Artsy we’ve been moving towards GraphQL for all of our new services. Acknowledging GraphLQ is a relatively new
 technology, we faced some challenging questions as we were developing one our most recent services.
