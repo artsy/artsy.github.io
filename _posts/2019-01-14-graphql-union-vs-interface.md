@@ -1,6 +1,6 @@
 ---
-layout: post
-title: GraphQL: Union vs. Interface
+layout: epic
+title: "GraphQL: Union vs. Interface"
 date: 2019-01-14
 author: ashkan
 categories: [graphql ruby]
