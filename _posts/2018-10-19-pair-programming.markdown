@@ -52,11 +52,11 @@ about Art on my first week at Artsy.
 This post is about pair-programming, so why even talk about when not to pair-program? Well, while it’s a powerful tool,
 it's not a silver bullet we can utilize to solve all software problems. As we all deal with complex, long-standing
 pull requests, there are also simple changes that don't require a lot of discussions. Occasionally, your pull request
-is very long with a full of deprecated method names. Sometimes, you and your pair both feel stuck because none of you
-have context or knowledge about what you are addressing. Whenever you are not feeling as productive as you think you
-should be, then you don’t have to pair. Sometimes it may make sense for two of you to do research individually and
-check in later to share findings and learnings. In an occasional case, even swapping a pair is also a good way to make
-the entire team more productive.
+is very long because of a great number of deprecated method names. Sometimes, you and your pair both feel stuck because
+none of you have context or knowledge about what you are addressing. Whenever you are not feeling as productive as you
+think you should be, then you don’t have to pair. Sometimes it may make sense for two of you to do research
+individually and check in later to share findings and learnings. In an occasional case, even swapping a pair is also a
+good way to make the entire team more productive.
 
 So what is the key point that makes a pair-programming session successful? I believe pair-programming works best when
 there is a fair amount of knowledge gap between two people. One is coding and teaching simultaneously, and the
