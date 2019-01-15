@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>GraphQL: Union vs. Interface - Artsy Engineering</title>
+  <meta name="author" content="">
+
+  
+  <meta name="description" content="At Artsy we’ve been moving towards GraphQL for all of our new services. Acknowledging GraphLQ is a relatively new
+technology, we faced some challen...">
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <meta property="og:image" content="http://artsy.github.io/images/artsy_oss_image.png" />
+  <meta property="og:image:type" content="image/png" />
+
+  
+  <link rel="canonical" href="http://artsy.github.io/blog/2019/01/14/graphql-union-vs-interface/">
+  <link rel="alternate" type="application/rss+xml" title="Artsy Engineering Blog" href="/feed">
+
+  <link href="/favicon.ico" rel="icon">
+  <link href="/css/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+
+  <script src="/javascripts/jquery-1.11.3.min.js"> </script>
+  <script src="/javascripts/gradient-fade.js"></script>
+  <script src="/javascripts/noframework.waypoints.min.js"></script>
+  <script src="/javascripts/sticky.min.js"></script>
+  <script src="/javascripts/search.min.js"></script>
+  <script src="/javascripts/custom-element.min.js"></script>
+  <script src="/javascripts/g-emoji-element.js"></script>
+
+  
+
+  <script type="text/javascript" src="https://fast.fonts.net/jsapi/f7f47a40-b25b-44ee-9f9c-cfdfc8bb2741.js"></script>
+
+
+  <link href="" rel="alternate" title="Artsy Engineering" type="application/atom+xml">
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-12450662-3']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+  <!--[if IE 8]><link href="/stylesheets/custom/ie_font.css" type="text/css"><![endif]-->
+
+</head>
+
+
+<link href="/css/epic.css" media="screen, projection" rel="stylesheet" type="text/css">
+
+
+
+<body>
+  <div>
+    <div id="bodywrapper">
+      <header>
+        <ul>
+          <li><a href="/">Artsy Engineering Blog</a></li>
+          <li><a href="https://www.artsy.net/jobs">Careers</a></li>
+          <li><a href="https://developers.artsy.net">API</a></li>
+        </ul>
+
+        <ul>
+          <li><a href="http://artsy.github.io/open-source/">Our Open Source</a></li>
+          <li><a href="http://twitter.com/artsyopensource">@artsyopensource</a></li>
+          <li><a href="https://www.artsy.net">artsy.net</a></li>
+        </ul>
+      </header>
+
+      <section>
+        <header id="page">
+          <h1>GraphQL: Union vs. Interface</h1>
+          <h3>
+          <!-- Yep, single line so the comma lines up right -->
+          By  Ashkan Nasseri
+          </h3>
+        </header>
+
+        <article class='post'>
+          <p>At Artsy we’ve been moving towards GraphQL for all of our new services. Acknowledging GraphLQ is a relatively new
+technology, we faced some challenging questions as we were developing one our most recent services.</p>
+
+<p>Naively as my first attempt to define GraphQL types and schemas, I naturally tried to map our database models to
+GraphQL types. While this may work for lot of cases, we may not be utilizing some of the useful features that comes
+with GraphQL that can make the consuming our data lot easier.</p>
+
+<a name="GraphQL:.Interface.or.Union."></a>
+<h2>GraphQL: Interface or Union?</h2>
+
+<p>At Artsy we’ve been moving towards GraphQL for all of our new services. Acknowledging that GraphLQ is a relatively
+new technology, we faced some challenging questions as we were developing one our most recent services.</p>
+
+<!-- more -->
+
+
+<p>Naively with my first attempt to define GraphQL types and schemas, I naturally tried to map our database models to
+GraphQL types. While this may work for lot of cases, we may not be utilizing some of the most useful features that
+comes with GraphQL.</p>
+
+<p>Think of the case that we are trying to expose a search functionality and the result of our search can be either a
+<code>Book</code> , <code>Movie</code> or <code>Album</code>. One way to think about this is to have our search query return something like:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+</pre></td><td class='code'><pre><code class='js'><span class='line'><span class="nx">search</span><span class="p">(</span><span class="nx">term</span><span class="o">:</span> <span class="s2">&quot;something&quot;</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>  <span class="nx">books</span> <span class="p">{</span>
+</span><span class='line'>    <span class="nx">id</span>
+</span><span class='line'>    <span class="nx">title</span>
+</span><span class='line'>    <span class="nx">author</span>
+</span><span class='line'>  <span class="p">}</span>
+</span><span class='line'>  <span class="nx">movies</span> <span class="p">{</span>
+</span><span class='line'>    <span class="nx">id</span>
+</span><span class='line'>    <span class="nx">title</span>
+</span><span class='line'>    <span class="nx">director</span>
+</span><span class='line'>  <span class="p">}</span>
+</span><span class='line'>  <span class="nx">albums</span> <span class="p">{</span>
+</span><span class='line'>    <span class="nx">id</span>
+</span><span class='line'>    <span class="nx">name</span>
+</span><span class='line'>  <span class="p">}</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>While ☝️ works, we can’t rank the result based on relevance in one result set. Ideally, we would return one result
+set that can have different types in it. A naive approach for this could be to only return one type in the results:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+</pre></td><td class='code'><pre><code class='js'><span class='line'><span class="nx">search</span><span class="p">(</span><span class="nx">term</span><span class="o">:</span> <span class="s2">&quot;something&quot;</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>  <span class="nx">results</span> <span class="p">{</span>
+</span><span class='line'>    <span class="nx">id</span>
+</span><span class='line'>    <span class="nx">name</span>
+</span><span class='line'>    <span class="nx">author</span>   <span class="c1">// when a book</span>
+</span><span class='line'>    <span class="nx">director</span> <span class="c1">// when a movie</span>
+</span><span class='line'>    <span class="nx">title</span>    <span class="c1">// when a movie/book</span>
+</span><span class='line'>  <span class="p">}</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>We could have a single object that has all these values as optional properties:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+</pre></td><td class='code'><pre><code class='js'><span class='line'><span class="nx">type</span> <span class="nx">Query</span> <span class="p">{</span>
+</span><span class='line'>  <span class="nx">id</span><span class="o">:</span> <span class="nx">ID</span><span class="o">!</span>
+</span><span class='line'>  <span class="nx">name</span><span class="o">:</span> <span class="nb">String</span><span class="o">!</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c1">// All of the optional data, available as nullable types</span>
+</span><span class='line'>  <span class="nx">author</span><span class="o">:</span> <span class="nb">String</span>
+</span><span class='line'>  <span class="nx">director</span><span class="o">:</span> <span class="nb">String</span>
+</span><span class='line'>  <span class="nx">title</span><span class="o">:</span> <span class="nb">String</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>But returning these Result objects would be very messy on the server and for clients, plus it would undermine using
+GraphQL's type system.</p>
+
+<p>There are two main solutions in the GraphQL toolkit for this problem:
+<a href="https://graphql.org/learn/schema/#union-types">Unions</a> and
+<a href="https://graphql.org/learn/schema/#interfaces">Interfaces</a>.</p>
+
+<a name="Union"></a>
+<h3>Union</h3>
+
+<p>GraphQL interfaces are useful to solve problems like above where we want to have the returned type possibly from
+different types.</p>
+
+<p>For this to work, we can define a <code>Union</code> type that can resolve to either one of <code>Book</code>, <code>Movie</code> or <code>Album</code> and
+then each type can have its own set of fields and etc.</p>
+
+<p>In <code>graphql-ruby</code> you can define Unions with:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">Types</span><span class="o">::</span><span class="no">Movie</span> <span class="o">&lt;</span> <span class="no">Types</span><span class="o">::</span><span class="no">BaseObject</span>
+</span><span class='line'>  <span class="n">field</span> <span class="ss">:id</span><span class="p">,</span> <span class="no">ID</span><span class="p">,</span> <span class="ss">null</span><span class="p">:</span> <span class="kp">false</span>
+</span><span class='line'>  <span class="n">field</span> <span class="ss">:title</span><span class="p">,</span> <span class="nb">String</span><span class="p">,</span> <span class="ss">null</span><span class="p">:</span> <span class="kp">false</span>
+</span><span class='line'>  <span class="n">field</span> <span class="ss">:director</span><span class="p">,</span> <span class="nb">String</span><span class="p">,</span> <span class="ss">null</span><span class="p">:</span> <span class="kp">false</span>
+</span><span class='line'><span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">class</span> <span class="nc">Types</span><span class="o">::</span><span class="no">Book</span> <span class="o">&lt;</span> <span class="no">Types</span><span class="o">::</span><span class="no">BaseObject</span>
+</span><span class='line'>  <span class="n">field</span> <span class="ss">:id</span><span class="p">,</span> <span class="no">ID</span><span class="p">,</span> <span class="ss">null</span><span class="p">:</span> <span class="kp">false</span>
+</span><span class='line'>  <span class="n">field</span> <span class="ss">:title</span><span class="p">,</span> <span class="nb">String</span><span class="p">,</span> <span class="ss">null</span><span class="p">:</span> <span class="kp">false</span>
+</span><span class='line'><span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">class</span> <span class="nc">Types</span><span class="o">::</span><span class="no">Album</span> <span class="o">&lt;</span> <span class="no">Types</span><span class="o">::</span><span class="no">BaseObject</span>
+</span><span class='line'>  <span class="n">field</span> <span class="ss">:id</span><span class="p">,</span> <span class="no">ID</span><span class="p">,</span> <span class="ss">null</span><span class="p">:</span> <span class="kp">false</span>
+</span><span class='line'>  <span class="n">field</span> <span class="ss">:name</span><span class="p">,</span> <span class="nb">String</span><span class="p">,</span> <span class="ss">null</span><span class="p">:</span> <span class="kp">false</span>
+</span><span class='line'><span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">class</span> <span class="nc">SearchResultUnionType</span> <span class="o">&lt;</span> <span class="no">Types</span><span class="o">::</span><span class="no">BaseUnion</span>
+</span><span class='line'>  <span class="n">description</span> <span class="s1">&#39;Represents either a Movie, Book or Album&#39;</span>
+</span><span class='line'>  <span class="n">possible_types</span> <span class="no">Book</span><span class="p">,</span> <span class="no">Movie</span><span class="p">,</span> <span class="no">Album</span>
+</span><span class='line'>  <span class="k">def</span> <span class="nc">self</span><span class="o">.</span><span class="nf">resolve_type</span><span class="p">(</span><span class="n">object</span><span class="p">,</span> <span class="n">_context</span><span class="p">)</span>
+</span><span class='line'>    <span class="k">case</span> <span class="n">object</span>
+</span><span class='line'>    <span class="k">when</span> <span class="no">Movie</span> <span class="k">then</span> <span class="no">Types</span><span class="o">::</span><span class="no">Movie</span>
+</span><span class='line'>    <span class="k">when</span> <span class="no">Book</span> <span class="k">then</span> <span class="no">Types</span><span class="o">::</span><span class="no">Book</span>
+</span><span class='line'>    <span class="k">when</span> <span class="no">Album</span> <span class="k">then</span> <span class="no">Types</span><span class="o">::</span><span class="no">Album</span>
+</span><span class='line'>    <span class="k">else</span>
+</span><span class='line'>      <span class="k">raise</span> <span class="s2">&quot;Unknown search result type&quot;</span>
+</span><span class='line'>    <span class="k">end</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>With above change you can now query for search results and use specific fragments for different result type:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+</pre></td><td class='code'><pre><code class='js'><span class='line'><span class="nx">query</span> <span class="p">{</span>
+</span><span class='line'>  <span class="nx">search</span><span class="p">(</span><span class="nx">term</span><span class="o">:</span> <span class="s2">&quot;something&quot;</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>    <span class="p">...</span> <span class="nx">on</span> <span class="nx">Movie</span> <span class="p">{</span>
+</span><span class='line'>      <span class="nx">__typename</span>
+</span><span class='line'>      <span class="nx">id</span>
+</span><span class='line'>      <span class="nx">title</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'>    <span class="p">...</span> <span class="nx">on</span> <span class="nx">Book</span> <span class="p">{</span>
+</span><span class='line'>      <span class="nx">__typename</span>
+</span><span class='line'>      <span class="nx">id</span>
+</span><span class='line'>      <span class="nx">title</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'>    <span class="p">...</span> <span class="nx">on</span> <span class="nx">Album</span> <span class="p">{</span>
+</span><span class='line'>      <span class="nx">__typename</span>
+</span><span class='line'>      <span class="nx">id</span>
+</span><span class='line'>      <span class="nx">name</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'>  <span class="p">}</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+</pre></td><td class='code'><pre><code class='json'><span class='line'><span class="p">{</span>
+</span><span class='line'>  <span class="nt">&quot;data&quot;</span><span class="p">:</span> <span class="p">[</span>
+</span><span class='line'>    <span class="p">{</span>
+</span><span class='line'>      <span class="nt">&quot;__typename&quot;</span><span class="p">:</span> <span class="s2">&quot;Movie&quot;</span><span class="p">,</span>
+</span><span class='line'>      <span class="nt">&quot;id&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+</span><span class='line'>      <span class="nt">&quot;title&quot;</span><span class="p">:</span> <span class="s2">&quot;Close-Up&quot;</span>
+</span><span class='line'>    <span class="p">},</span>
+</span><span class='line'>    <span class="p">{</span>
+</span><span class='line'>      <span class="nt">&quot;__typename&quot;</span><span class="p">:</span> <span class="s2">&quot;Album&quot;</span><span class="p">,</span>
+</span><span class='line'>      <span class="nt">&quot;id&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
+</span><span class='line'>      <span class="nt">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;Dark Side Of The Moon&quot;</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'>  <span class="p">]</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<a name="Interface"></a>
+<h3>Interface</h3>
+
+<p>Unions are useful when we are trying to group different types together in one field. Now let’s think of the case
+where we are trying to expose same Types of models that can have different fields populated.</p>
+
+<p>For example a music <code>Instrument</code> can have strings or not. If it has strings we want to mention how many strings it
+has in <code>numberOfStrings</code> field. For any non-string instrument this field would be <code>null</code> in the database.</p>
+
+<p>One way to do this is to have <code>Instrument</code> type always have <code>numberOfStrings</code> and in the case of non-string
+instruments return <code>nil</code>. Sample result for this would be</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+</pre></td><td class='code'><pre><code class='json'><span class='line'><span class="p">{</span>
+</span><span class='line'>  <span class="nt">&quot;data&quot;</span><span class="p">:</span> <span class="p">[</span>
+</span><span class='line'>    <span class="p">{</span>
+</span><span class='line'>      <span class="nt">&quot;id&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+</span><span class='line'>      <span class="nt">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;Guitar&quot;</span><span class="p">,</span>
+</span><span class='line'>      <span class="nt">&quot;numberOfStrings&quot;</span><span class="p">:</span> <span class="mi">6</span>
+</span><span class='line'>    <span class="p">},</span>
+</span><span class='line'>    <span class="p">{</span>
+</span><span class='line'>      <span class="nt">&quot;id&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
+</span><span class='line'>      <span class="nt">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;Drums&quot;</span><span class="p">,</span>
+</span><span class='line'>      <span class="nt">&quot;numberOfStrings&quot;</span><span class="p">:</span> <span class="kc">null</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'>  <span class="p">]</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>The above solution would work, but it will add extra work on the clients to decide if <code>numberOfStrings</code> is even
+applicable to this current instrument or not.</p>
+
+<p>The more GraphLQ approach for this would be to use <code>Interface</code>. We can define a generic <code>Instrument</code>interface and
+have all the common fields between all instruments defined there. Then we can have each specific category of
+instruments define its own special fields and then access those specific fields using fragments.</p>
+
+<p>In <code>graphql-ruby</code> you can define an Interface with:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">module</span> <span class="nn">Types::InstrumentInterface</span>
+</span><span class='line'>  <span class="kp">include</span> <span class="no">Types</span><span class="o">::</span><span class="no">BaseInterface</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="n">description</span> <span class="s1">&#39;A Musical Instrument&#39;</span>
+</span><span class='line'>  <span class="n">graphql_name</span> <span class="s1">&#39;Musical Instrument&#39;</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="n">field</span> <span class="ss">:id</span><span class="p">,</span> <span class="no">ID</span><span class="p">,</span> <span class="ss">null</span><span class="p">:</span> <span class="kp">false</span>
+</span><span class='line'>  <span class="n">field</span> <span class="ss">:name</span><span class="p">,</span> <span class="nb">String</span><span class="p">,</span> <span class="ss">null</span><span class="p">:</span> <span class="kp">false</span>
+</span><span class='line'>  <span class="n">field</span> <span class="ss">:category</span><span class="p">,</span> <span class="nb">String</span><span class="p">,</span> <span class="ss">null</span><span class="p">:</span> <span class="kp">false</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="n">definition_methods</span> <span class="k">do</span>
+</span><span class='line'>    <span class="k">def</span> <span class="nf">resolve_type</span><span class="p">(</span><span class="n">object</span><span class="p">,</span> <span class="n">_context</span><span class="p">)</span>
+</span><span class='line'>      <span class="k">case</span> <span class="n">object</span><span class="o">.</span><span class="n">category</span>
+</span><span class='line'>      <span class="k">when</span> <span class="s2">&quot;string&quot;</span> <span class="k">then</span> <span class="no">Types</span><span class="o">::</span><span class="no">StringInstrument</span>
+</span><span class='line'>      <span class="k">when</span> <span class="s2">&quot;drums&quot;</span> <span class="k">then</span> <span class="no">Types</span><span class="o">::</span><span class="no">DrumInstrument</span>
+</span><span class='line'>      <span class="k">else</span>
+</span><span class='line'>        <span class="k">raise</span> <span class="s1">&#39;Unknown instrument type&#39;</span>
+</span><span class='line'>      <span class="k">end</span>
+</span><span class='line'>    <span class="k">end</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Then we can have our specific types implementing this interface.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">Types</span><span class="o">::</span><span class="no">StringInstrument</span> <span class="o">&lt;</span> <span class="no">Types</span><span class="o">::</span><span class="no">BaseObject</span>
+</span><span class='line'>  <span class="n">implements</span> <span class="no">Types</span><span class="o">::</span> <span class="no">InstrumentInterface</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="n">field</span> <span class="ss">:number_of_strings</span><span class="p">,</span> <span class="nb">Integer</span><span class="p">,</span> <span class="ss">null</span><span class="p">:</span> <span class="kp">false</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>For types that don’t have any extra field, they can just reuse everything from interface.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">Types</span><span class="o">::</span><span class="no">DrumInstrument</span> <span class="o">&lt;</span> <span class="no">Types</span><span class="o">::</span><span class="no">BaseObject</span>
+</span><span class='line'>  <span class="n">implements</span> <span class="no">Types</span><span class="o">::</span> <span class="no">InstrumentInterface</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>This way the query for getting instruments can look like</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">query</span> <span class="p">{</span>
+</span><span class='line'>  <span class="n">instruments</span><span class="p">()</span> <span class="p">{</span>
+</span><span class='line'>    <span class="nb">id</span>
+</span><span class='line'>    <span class="nb">name</span>
+</span><span class='line'>    <span class="n">category</span>
+</span><span class='line'>    <span class="o">.</span><span class="n">.</span><span class="o">.</span> <span class="n">on</span> <span class="no">StringInstrument</span> <span class="p">{</span>
+</span><span class='line'>       <span class="n">numberOfStrings</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'>  <span class="p">}</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Sample response can look like</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+</pre></td><td class='code'><pre><code class='json'><span class='line'><span class="p">{</span>
+</span><span class='line'>  <span class="nt">&quot;data&quot;</span><span class="p">:</span> <span class="p">[</span>
+</span><span class='line'>    <span class="p">{</span>
+</span><span class='line'>      <span class="nt">&quot;id&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+</span><span class='line'>      <span class="nt">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;Guitar&quot;</span><span class="p">,</span>
+</span><span class='line'>      <span class="nt">&quot;category&quot;</span><span class="p">:</span> <span class="s2">&quot;StringInstrument&quot;</span><span class="p">,</span>
+</span><span class='line'>      <span class="nt">&quot;numberOfStrings&quot;</span><span class="p">:</span> <span class="mi">6</span>
+</span><span class='line'>    <span class="p">},</span>
+</span><span class='line'>    <span class="p">{</span>
+</span><span class='line'>      <span class="nt">&quot;id&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
+</span><span class='line'>      <span class="nt">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;Drums&quot;</span><span class="p">,</span>
+</span><span class='line'>      <span class="nt">&quot;category&quot;</span><span class="p">:</span> <span class="s2">&quot;StringInstrument&quot;</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'>  <span class="p">]</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>One issue we found after doing above was, since this way we don’t reference <code>StringInstrument</code> and <code>DrumInstrument</code>
+types anywhere in our schema, they actually don’t end up showing in the generated schema. For them to show up we
+have to add them as <code>orphan_types</code> in the interface. So the interface definition will look like</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">module</span> <span class="nn">Types::InstrumentInterface</span>
+</span><span class='line'>  <span class="kp">include</span> <span class="no">Types</span><span class="o">::</span><span class="no">BaseInterface</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="n">description</span> <span class="s1">&#39;A Music Album&#39;</span>
+</span><span class='line'>  <span class="n">graphql_name</span> <span class="s1">&#39;Album&#39;</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="n">field</span> <span class="ss">:id</span><span class="p">,</span> <span class="no">ID</span><span class="p">,</span> <span class="ss">null</span><span class="p">:</span> <span class="kp">false</span>
+</span><span class='line'>  <span class="n">field</span> <span class="ss">:name</span><span class="p">,</span> <span class="nb">String</span><span class="p">,</span> <span class="ss">null</span><span class="p">:</span> <span class="kp">false</span>
+</span><span class='line'>  <span class="n">field</span> <span class="ss">:category</span><span class="p">,</span> <span class="nb">String</span><span class="p">,</span> <span class="ss">null</span><span class="p">:</span> <span class="kp">false</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c1">## Changes</span>
+</span><span class='line'>  <span class="n">orphan_types</span> <span class="no">Types</span><span class="o">::</span><span class="no">StringInstrument</span><span class="p">,</span> <span class="no">Types</span><span class="o">::</span><span class="no">DrumInstrument</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="n">definition_methods</span> <span class="k">do</span>
+</span><span class='line'>    <span class="k">def</span> <span class="nf">resolve_type</span><span class="p">(</span><span class="n">object</span><span class="p">,</span> <span class="n">_context</span><span class="p">)</span>
+</span><span class='line'>      <span class="k">case</span> <span class="n">object</span><span class="o">.</span><span class="n">category</span>
+</span><span class='line'>      <span class="k">when</span> <span class="s2">&quot;string&quot;</span> <span class="k">then</span> <span class="no">Types</span><span class="o">::</span><span class="no">StringInstrument</span>
+</span><span class='line'>      <span class="k">when</span> <span class="s2">&quot;drums&quot;</span> <span class="k">then</span> <span class="no">Types</span><span class="o">::</span><span class="no">DrumInstrument</span>
+</span><span class='line'>      <span class="k">else</span>
+</span><span class='line'>        <span class="k">raise</span> <span class="s1">&#39;Unknown instrument type&#39;</span>
+</span><span class='line'>      <span class="k">end</span>
+</span><span class='line'>    <span class="k">end</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<a name="Conclusion"></a>
+<h2>Conclusion</h2>
+
+<p>The biggest learning experience for us was to realize that with GraphQL we have the option to decouple our database
+modeling with how the data is exposed to consumers. This way when designing our persistent layer, we can focus on
+the needs of that layer and then separately think about whats the best way to expose the data to outside world.</p>
+
+        </article>
+
+        <article class='post'>
+          <p style="padding-bottom: 0; margin-bottom:0;">
+            <a href="https://www.artsy.net/" style="background-image: none;">
+              <svg viewBox="0 0 510 510" width="40" height="40" xmlns="http://www.w3.org/2000/svg">
+                <path transform="scale(1, -1) translate(0, -480)" d="M0 -32h512v512h-512v-512v0zM464 16h-80v80h-48v-80h-288v416h416v-416v0zM194 384h-40l-74 -186h38l20 52h72l19 -52h39l-74 186v0zM149 282l25 66l24 -66h-49v0z"></path>
+              </svg>
+            </a>
+          <p/>
+        </article>
+
+      
+
+      </section>
+
+      <footer>
+        <article>
+
+          <section>
+            <h4>Author</h4>
+            <p> <a href="/author/ashkan"/>Ashkan Nasseri</a></p>
+            <p></a></p>
+          </section>
+
+          <section>
+            <h4>Post Meta</h4>
+            <p>Jan 14, 2019</p>
+            <p>Tagged: <a class='category' href='/blog/categories/graphql/'>graphql</a>, <a class='category' href='/blog/categories/ruby/'>ruby</a></p>
+          </section>
+          <br/>
+          <section>
+            <h4>Artsy OSS</h4>
+            <ul>
+              <li><a href='https://www.artsy.net'>Artsy.net</a></li>
+              <li><a href='https://developers.artsy.net'>API</a></li>
+              <li><a href='http://artsy.github.io/open-source/'>Featured OSS</a></li>
+              <li><a href='https://www.artsy.net/jobs'>Careers</a></li>
+            </ul>
+          </section>
+
+          <section>
+            <h4>Blog</h4>
+            <ul>
+              <li><a href='http://artsy.github.io/blog/archives/'>Archives</a></li>
+              <li><a href='http://artsy.github.io/search/'>Search</a></li>
+              <li><a href='https://github.com/artsy/artsy.github.io'>Code on GitHub</a></li>
+              <li><a href='https://github.com/artsy/artsy.github.io/edit/source/_posts/2019-01-14-graphql-union-vs-interface.md'>Fix typoes in this post</a></li>
+            </ul>
+          </section>
+
+        </article>
+
+        <article>
+          <section>
+            <h4>Post Series on the Blog</h4>
+            <ul>
+              
+              <li><a href='/series/react-native-at-artsy/'>React Native at Artsy</a></li>
+              
+              <li><a href='/series/javascriptures/'>JavaScriptures</a></li>
+              
+              <li><a href='/series/stages-of-professional-growth/'>Stages of Professional Growth</a></li>
+              
+              <li><a href='/series/artsy-tech-stack/'>Artsy Tech Stack</a></li>
+              
+              <li><a href='/series/open-source-by-default/'>Open Source by Default</a></li>
+              
+            </ul>
+          </section>
+
+          <section>
+          
+          </section>
+        </article>
+
+      </footer>
+    </div>
+  </div>
+</body>
