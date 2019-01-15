@@ -29,7 +29,7 @@ comes with GraphQL.
 Think of the case that we are trying to expose a search functionality and the result of our search can be either a
 `Book` , `Movie` or `Album`. One way to think about this is to have our search query return something like:
 
-```graphql
+```js
 search(term: "something") {
   books {
     id
@@ -51,7 +51,7 @@ search(term: "something") {
 While ☝️ works, we can’t rank the result based on relevance in one result set. Ideally, we would return one result
 set that can have different types in it. A naive approach for this could be to only return one type in the results:
 
-```graphql
+```js
 search(term: "something") {
   results {
     id
@@ -66,7 +66,7 @@ search(term: "something") {
 
 We could have a single object that has all these values as optional properties:
 
-```graphql
+```js
 type Query {
   id: ID!
   name: String!
@@ -129,7 +129,7 @@ end
 
 With above change you can now query for search results and use specific fragments for different result type:
 
-```graphql
+```js
 query {
   search(term: "something") {
     ... on Movie {
