@@ -1,7 +1,7 @@
 ---
 layout: post
 title: GraphQL: Union vs. Interface
-date: 2018-12-05
+date: 2019-01-14
 author: ashkan
 categories: [graphql ruby]
 ---
@@ -15,12 +15,12 @@ Naively as my first attempt to define GraphQL types and schemas, I naturally tri
 
 -->
 
-<!-- more -->
-
-# GraphQL: Interface or Union?
+GraphQL: Interface or Union?
 
 At Artsy we’ve been moving towards GraphQL for all of our new services. Acknowledging that GraphLQ is a relatively
 new technology, we faced some challenging questions as we were developing one our most recent services.
+
+<!-- more -->
 
 Naively with my first attempt to define GraphQL types and schemas, I naturally tried to map our database models to
 GraphQL types. While this may work for lot of cases, we may not be utilizing some of the most useful features that
@@ -85,8 +85,6 @@ There are two main solutions in the GraphQL toolkit for this problem:
 [Unions](https://graphql.org/learn/schema/#union-types) and
 [Interfaces](https://graphql.org/learn/schema/#interfaces).
 
-TODO: sample response
-
 ## Union
 
 GraphQL interfaces are useful to solve problems like above where we want to have the returned type possibly from
@@ -135,14 +133,17 @@ With above change you can now query for search results and use specific fragment
 query {
   search(term: "something") {
     ... on Movie {
+      __typename
       id
       title
     }
     ... on Book {
+      __typename
       id
       title
     }
     ... on Album {
+      __typename
       id
       name
     }
@@ -150,7 +151,22 @@ query {
 }
 ```
 
-TODO: sample response
+```json
+{
+  "data": [
+    {
+      "__typename": "Movie",
+      "id": 1,
+      "title": "Close-Up"
+    },
+    {
+      "__typename": "Album",
+      "id": 2,
+      "name": "Dark Side Of The Moon"
+    }
+  ]
+}
+```
 
 ## Interface
 
@@ -193,8 +209,8 @@ In `graphql-ruby` you can define an Interface with:
 module Types::InstrumentInterface
   include Types::BaseInterface
 
-  description 'A Music Album'
-  graphql_name 'Album'
+  description 'A Musical Instrument'
+  graphql_name 'Musical Instrument'
 
   field :id, ID, null: false
   field :name, String, null: false
@@ -246,7 +262,25 @@ query {
 }
 ```
 
-TODO: sample response
+Sample response can look like
+
+```json
+{
+  "data": [
+    {
+      "id": 1,
+      "name": "Guitar",
+      "category": "StringInstrument",
+      "numberOfStrings": 6
+    },
+    {
+      "id": 2,
+      "name": "Drums",
+      "category": "StringInstrument"
+    }
+  ]
+}
+```
 
 One issue we found after doing above was, since this way we don’t reference `StringInstrument` and `DrumInstrument`
 types anywhere in our schema, they actually don’t end up showing in the generated schema. For them to show up we
