@@ -16,15 +16,6 @@ with GraphQL that can make the consuming our data lot easier.
 
 ## GraphQL: Interface or Union?
 
-At Artsy we’ve been moving towards GraphQL for all of our new services. Acknowledging that GraphLQ is a relatively
-new technology, we faced some challenging questions as we were developing one our most recent services.
-
-<!-- more -->
-
-Naively with my first attempt to define GraphQL types and schemas, I naturally tried to map our database models to
-GraphQL types. While this may work for lot of cases, we may not be utilizing some of the most useful features that
-comes with GraphQL.
-
 Think of the case that we are trying to expose a search functionality and the result of our search can be either a
 `Book` , `Movie` or `Album`. One way to think about this is to have our search query return something like:
 
