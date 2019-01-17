@@ -19,6 +19,8 @@ with GraphQL that can make the consuming our data lot easier.
 Think of the case that we are trying to expose a search functionality and the result of our search can be either a
 `Book` , `Movie` or `Album`. One way to think about this is to have our search query return something like:
 
+<!-- more -->
+
 ```js
 search(term: "something") {
   books {
