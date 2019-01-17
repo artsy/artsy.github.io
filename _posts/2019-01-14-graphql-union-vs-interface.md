@@ -241,7 +241,7 @@ This way the query for getting instruments can look like
 
 ```ruby
 query {
-  instruments() {
+  instruments {
     id
     name
     category
