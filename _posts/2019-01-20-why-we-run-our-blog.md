@@ -1,6 +1,6 @@
 ---
 layout: epic
-title: "Why We Host Our Own Blog"
+title: "Why We Run Our Own Blog"
 date: "2019-01-20"
 author: [orta]
 categories: [tooling, dependencies]
@@ -17,13 +17,13 @@ one, or two systems, but I had pretty strong opinions on migrating the engineeri
 in the bud pretty quickly.
 
 With [Signal vs Noise][svn] being a high profile of a example of migrating to Medium and back again, I thought it's
-worth taking the time to re-examine our reasoning for doing it ourselves.
+worth taking the time to examine our reasoning for doing it ourselves.
 
 <!-- more -->
 
 ## Dependencies
 
-Almost all parts in the process of creation relies on you depending on something. For this blog, that we rely on
+Almost all parts in the process of creation rely on you depending on others. For this blog, that we rely on
 GitHub's static site hosting, RubyGems + Bundler and Jekyll. Luckily for us, there are powerful incentives for
 those projects to continue long into the future.
 
@@ -41,25 +41,24 @@ doesn't look good for the longevity of your companies blog.
 
 ## #branding
 
+{% include epic_img.html url="/images/hosting-our-own-blog/1.png" title="Screenshots" %}
+
 I consider our blog, and the rest of the site, to be the canonical representation of the Artsy Engineering team
-online. We've carefully grown an Artsy Engineering aesthetic around it.
+online. We've carefully grown an Artsy Engineering aesthetic around it s.
 
-[images - sketch doc - laptop stickers - artsy x react native]
+In contrast, had we choose to host on Medium, we'd get a few templates and a highlight color. For example, check
+out: [AirBnB](https://medium.com/airbnb-engineering), [Harrys](https://medium.com/harrys-engineering),
+[Pintrest](https://medium.com/@Pinterest_Engineering), [Vimeo](https://medium.com/vimeo-engineering-blog) or
+[Lyft](https://eng.lyft.com)'s pages.
 
-In contrast, had we choose to host on Medium, we'd get a few templates and a highlight color:
+Not memorable at all, because you can't really work with the design constraints to do anything creative other than
+a banner image.
 
-- [https://medium.com/airbnb-engineering](https://medium.com/airbnb-engineering)
-- [https://medium.com/harrys-engineering](https://medium.com/harrys-engineering)
-- [https://medium.com/@Pinterest_Engineering](https://medium.com/@Pinterest_Engineering)
-- [https://medium.com/vimeo-engineering-blog](https://medium.com/vimeo-engineering-blog)
-- [https://eng.lyft.com](https://eng.lyft.com)
+These constrains become worse on a post page, where you completely lose any sense of connection with the company,
+and the team the moment someone scrolls an inch until the footer. Your team's writing becomes just "a medium post"
+at that point. You've got limited options for attaching images, and no ability to use HTML/JS to showcase
+[problems][rn] [interactively][ar].
 
-Not memorable at all, and you can't really work with these design constraints to do anything creative other than a
-banner image.
-
-This becomes even worse on a post page, where you completely lose any sense of connection with the company, and the
-team the moment someone scrolls an inch. Your team's writing becomes just "a medium post" at that point. You've got
-limited options for attaching images, and no ability to use HTML/JS to showcase [problems][rn] [interactively][ar].
 These aren't blockers in any way, most of our posts don't do that - but the constraints mean you will never think
 to try and explain something outside of that sandbox.
 
@@ -69,8 +68,10 @@ posts: one was about missiles being fired in Syria, another was a beginners guid
 to set up Docker to work with a PHP framework. They're not that related, maybe they all have the keyword of PHP
 behind the scenes?
 
-Writing takes so much time, and provides so much value. It should be presented as [quality worthy of art][qwoa]. By
-switching to a generic platform for writing, you're trading that simplicity for building your team's online
+{% include epic_img.html url="/images/hosting-our-own-blog/3.jpg" title="Artsy as a slideshow" %}
+
+Writing takes a lot of time, and provides so much value. It should be presented as [quality worthy of art][qwoa].
+By using to a generic platform for your writing, you're trading that simplicity for building your team's online
 presence.
 
 ## Breaking the Sandbox
@@ -98,19 +99,56 @@ chance to not constrain ourselves in ideas. For example, we've explored [buildin
 treating it as a first class feature in ways that no-one would ever build if it was a platform. Or we're interested
 in making a way to highlight useful links for the
 
+## Reviews
+
+Because our [blog posts][_posts] are markdown in a GitHub repo, we don't treat a review for a blog post any
+different than a normal pull request for code.
+
 ## Migrating
 
 Using Medium is a very reasonable call if you are just trying to get some writing out and online as fast as
-possible.
+possible. It's not the only payer in eco-system, Wordpress's company Automattic has been profitable for years and
+hosts all sorts of really big blogs, so it's not going anywhere.
 
-However, its worth noting that nearly all programming languages offer a static site generator:
+However, it's really worth noting how low the barrier to entry it is now to create a blog using a static site
+generator:
 
-- [Jekyll][jekyll] - Ruby, the default for GitHub pages and lowest barrier to entry
-- [Gatsby][gatsby] - JS, the project we regularly consider moving to
-- [Hugo][hugo] - Go, looks pretty good
+- [Jekyll][jekyll] - Ruby, the default for GitHub pages and lowest barrier to entry.
+
+```sh
+gem install jekyll bundler
+jekyll new myblog
+cd myblog
+bundle exec jekyll serve
+```
+
+- [Gatsby][gatsby] - JS, the project we regularly consider moving to. JS folks have such a great focus on developer
+  experience.
+
+```sh
+npx gatsby new myblog https://github.com/gatsbyjs/gatsby-starter-blog
+cd myblog
+yarn dev
+```
+
+- [Hugo][hugo] - Go, looks pretty reasonable if you have strong opinions against the others
+
+```sh
+brew install hugo
+hugo new site myblog
+cd myblog
+
+git init
+git submodule add https://github.com/budparr/gohugo-theme-ananke.git themes/ananke
+echo 'theme = "ananke"' >> config.toml
+
+hugo new posts/my-first-post.md
+hugo server -D
+```
 
 They come with theme support so getting started could probably take about an hour to get a static site up and
-running using a host like [GitHub Pages][pages], [Netlify][netlify] or [Now][now].
+running using a host like [GitHub Pages][pages], [Netlify][netlify] or [Now][now]. All three of these you can set
+up automatic hosting from GitHub in about 10-15m.
 
 [hw]: /blog/2012/01/05/hello-world/
 [ar]: /blog/2018/03/18/ar/
@@ -138,3 +176,4 @@ running using a host like [GitHub Pages][pages], [Netlify][netlify] or [Now][now
 [netlify]: https://www.netlify.com
 [now]: https://zeit.co/now
 [podcast]: https://github.com/artsy/artsy.github.io/issues/355#issuecomment-315605280
+[_posts]: https://github.com/artsy/artsy.github.io/tree/9f65b5/_posts
