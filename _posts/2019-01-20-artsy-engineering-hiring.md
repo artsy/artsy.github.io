@@ -5,6 +5,7 @@ date: "2019-01-20"
 author: [ash, lily, steve_hicks]
 categories: [people, best practices, hiring, culture, process, team]
 css: artsy-engineering-hiring
+comment_id: 528
 ---
 
 Interviewing is hard. Interviewers want to make sure they're hiring the person who will add the most value to their
