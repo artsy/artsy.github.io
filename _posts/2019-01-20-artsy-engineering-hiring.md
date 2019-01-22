@@ -254,7 +254,7 @@ focuses more on human skills than most processes do. It's not perfect, but it ha
 
 <aside>
   <div class="question">
-    Where do you still think Artsy has to grow, in terms of how it hires engineers?
+    <h3>Where do you still think Artsy has to grow, in terms of how it hires engineers?</h3>
   </div>
   <div class="answer">
     <img src="/images/artsy-engineering-hiring/lily.jpg">
