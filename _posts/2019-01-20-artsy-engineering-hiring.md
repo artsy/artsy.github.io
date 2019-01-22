@@ -277,11 +277,11 @@ focuses more on human skills than most processes do. It's not perfect, but it ha
 Our hiring process will never be "finished" because we're always improving on it. Some recent improvements are
 inward-facing to help _us_ get better, like:
 
-- starting a #dev-ersity Slack channel for talking about how to diversify our team and the industry at large.
-- integrating hiring updates into our weekly standup.
-- a Slack bot for engineers to monitor our hiring pipeline.
-- periodically rotating hiring managers to spread institutional knowledge and get new perspectives.
-- many, many docs written on guiding the process.
+- Starting a #dev-ersity Slack channel for talking about how to diversify our team and the industry at large.
+- Integrating hiring updates into our weekly standup.
+- Creating a Slack bot for engineers to monitor our hiring pipeline.
+- Periodically rotating hiring managers to spread institutional knowledge and get new perspectives.
+- Many, many docs written on guiding the process.
 
 Artsy engineers, guided by our company values, created the hiring process for new engineers. Combined with an
 iterative process and a desire to constantly improve, we've created a hiring process that is fair, effective, and
