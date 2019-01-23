@@ -249,11 +249,13 @@ specifics about the candidate's behavior.
 
 An Artsy reference call might include the following structured questions:
 
-> - In your capacity as [relationship to the candidate], how many people have you worked with in the candidate's
->   role?
-> - Okay, in _just_ terms of job performance, how you rank the candidate out of that [X] many people?
-> - Okay, finally, what's the difference between [the candidate's rank] and number one? How would the candidate
->   need to grow to get to number one?
+> In your capacity as [relationship to the candidate], how many people have you worked with in the candidate's
+> role?
+
+> Okay, in _just_ terms of job performance, how you rank the candidate out of that [X] many people?
+
+> Okay, finally, what's the difference between [the candidate's rank] and number one? How would the candidate need
+> to grow to get to number one?
 
 The first question establishes the context for the reference. The second question primes the reference to use that
 context when answering the next question. The third question is what we're _actually_ interested in. These aren't
