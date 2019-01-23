@@ -48,7 +48,9 @@ look at how a person can fill a gap and help us grow.
 Artsy's process of hiring new engineers was created and is maintained _by_ our current engineers. It has evolved
 over time as we learn new lessons and new perspectives join our team. Our process has always been driven by a
 top-down culture of respect for candidates, which aligns with
-[our company values](https://github.com/artsy/README/blob/master/culture/what-is-artsy.md#artsy-values).
+[our company values](https://github.com/artsy/README/blob/master/culture/what-is-artsy.md#artsy-values). Our team
+currently has 36 engineers, and we refreshed our hiring practices last year to support our team's growth; we hired
+a dozen engineers in 2018. We don't use recruiters (though we did to hire our recent VP of Engineering).
 
 Our former Director of Web Engineering has a blog post where he
 [describes Artsy's hiring process](https://www.zamiang.com/post/learning-from-artsy-how-to-hire-awesome-engineers).
@@ -112,20 +114,23 @@ strategy puts excessive pressure on the candidate to perform in front of an audi
 reflection of what the candidate would be doing if they were hired. Sometimes it **is** a reflection of the
 stressful conditions on the team, and the act of applying pressure to the candidate is intentional, to measure
 their ability to handle it. In either case, we don't feel like this is how we want to measure engineers; it just
-don't reflect reality.
+doesn't reflect reality.
 
 ### Whiteboard interviews
 
 One intention of whiteboard interviews is to reduce the stress on the candidate, because they don't have to worry
-about code syntax while under a microscope. These types of interviews still lead to stressful conditions, though,
-and they don't provide a good measure of what makes a great teammate or even a great developer. Again, sometimes
-the pressure is intentional, to see how the candidate reacts.
+about code syntax while under a microscope. These types of interviews still lead to
+[stressful conditions](https://code.dblock.org/2012/12/08/five-ways-to-torture-candidates-in-a-technical-interview.html),
+though, and they don't provide a good measure of what makes a great teammate or even a great developer. Again,
+sometimes the pressure is intentional, to see how the candidate reacts.
 
 It can be very difficult to find a problem that is succinct enough for a whiteboard exercise but still reflective
 of the work the candidate will actually be doing on the job. The ability to write an algorithm to search a binary
-tree might be reflective of whether a candidate has a traditional Computer Science degree, but doesn't say much
-about their ability to build complex interfaces or streamline performance. Questions like this can eliminate
-excellent developers who took a non-traditional approach to their knowledge building but are still highly capable.
+tree might be reflective of whether a candidate has a traditional Computer Science degree, but doesn't necessarily
+speak to their ability to build complex interfaces or streamline performance. More importantly, whether or not they
+can write a binary search tree from scratch on a whiteboard doesn't even necessarily speak to their ability to
+_use_ search trees in day-to-day work. Questions like this can eliminate excellent developers who took a
+non-traditional approach to their knowledge building but are still highly capable.
 
 ### Sample code
 
@@ -145,7 +150,9 @@ apparent, men's contributions were
 
 The most recent trend in hiring is the take-home exercise. The goal is honorable - have the candidate produce code
 on their own time, so they aren't overwhelmed with the pressure of an audience. We've found that it's not fair to
-require this early in the hiring process, and it's not informative later in the process.
+require this early in the hiring process, and it's not informative later in the process; by the time an take-home
+challenge would be appropriate, we have already evaluated the candidate's technical skills to our satisfaction
+(more on that later).
 
 This strategy also assumes the candidate has time to work on homework. Many single parents do not for example, nor
 do engineers who care for family members. There can also be misalignment on the expected time to complete a
@@ -233,9 +240,28 @@ of white-boarding, we ask them to describe what they like about their favorite l
 could change. We ask them to describe some legacy code they’ve worked with, and ask them how they think it got that
 way. We’re looking for a mix of technical skills as well as empathy and an ability to communicate nuanced ideas.
 
+## References are important to us
+
 We also learn a lot through reference checks. Our reference checks aren't simply validation of your employment
 history - they are a 30 minute-long conversation with each of your three references that go into detail about your
-work history and career growth.
+work history and career growth. It's quite a in-depth conversation, with questions structured to dig into specifics
+about the candidate's behavior.
+
+An Artsy reference call might include the following structured questions:
+
+> - In your capacity as [relationship to the candidate], how many people have you worked with in the candidate's
+>   role?
+> - Okay, in _just_ terms of job performance, how you rank the candidate out of that [X] many people?
+> - Okay, finally, what's the difference between [the candidate's rank] and number one? How would the candidate
+>   need to grow to get to number one?
+
+The first question establishes the context for the reference. The second question primes the reference to use that
+context when answering the next question. The third question is what we're _actually_ interested in. These aren't
+easy or comfortable questions, but they give us an insight into the candidate's career, history, and areas to grow.
+
+Fully half of our decision to make an offer or not is based on our reference checks. Artsy Engineering candidates
+go through the same reference check process as anyone applying for a job at Artsy, with Engineers sitting in on the
+call with Artsy's hiring staff.
 
 ### But seriously, we really care about the personal side
 
