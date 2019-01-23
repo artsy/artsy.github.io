@@ -19,7 +19,7 @@ Artsy, we don't use any of these. We often get asked why not - and how we assess
 We think our interview process at Artsy is unique, but we also think our interview process is great. We'd love to
 see the tech community examine its hiring practices, and hopefully to adopt some of what's made our hiring process
 successful. Focusing on knowledge and facts that are already acquired is one way to approach hiring; we prefer to
-look at how a person can fill a gap and help us grow.
+look at how a person can fill a gap in our team and help us grow.
 
 <aside>
   <div class="question">
@@ -28,7 +28,7 @@ look at how a person can fill a gap and help us grow.
   <div class="answer">
     <img src="/images/artsy-engineering-hiring/ash.jpg">
     <p class="intro">Ash Furrow says...</p>
-    <p>What most surprised me at the time was <em>who</em> was interviewing me. I had a teleconference screening with Artsy's now-CTO before moving onto in-person interviews. Since I was living in Amsterdam at the time, Artsy flew me its nascent London office to meet two interviewers: a data engineer and a member of (what was then) the Arts team.</p>
+    <p>What most surprised me at the time was <em>who</em> was interviewing me. I had a teleconference screening with Artsy's now-CTO before moving on to in-person interviews. Since I was living in Amsterdam at the time, Artsy flew me its nascent London office to meet two interviewers: a data engineer and a member of (what was then) the Arts team.</p>
     <p>I was surprised, but encouraged, to be speaking with someone who wasn't an engineer. They asked me questions to find out what motivated me, to evaluate how well those motivations would help Artsy achieve its mission. It was a natural fit!</p>
   </div>
   <div class="answer">
@@ -61,8 +61,8 @@ Though some specifics have since changed, the foundations remain the same.
 
 Our hiring process starts with an informational, where candidates are met for a coffee or over a teleconference
 call. We have [public documentation](https://github.com/artsy/README/blob/master/playbooks/informationals.md) so
-candidates can know what to expect. We do a lot of these and move candidates who we think would succeed at Artsy
-onto in-person interviews. The interviews last 3 hours and are split across four 45-minute
+candidates can know what to expect. We do a lot of these and move candidates who we think would succeed at Artsy on
+to in-person interviews. The interviews last 3 hours and are split across four 45-minute
 [behavioral interviews](https://www.livecareer.com/career/advice/interview/behavioral-interviewing), conducted by
 engineers and other colleagues, ranging from gallery liaisons to product managers to editorial writers. Artsy
 generally, and Engineering specifically, have both significantly invested in helping interviewers be effective and
@@ -84,9 +84,9 @@ limited to:
 
 After the interview, feedback is written up as quickly as possible. To limit bias, interviewers can't see each
 other's feedback until after they write up their own. The write-up includes a recommendation: do you think we
-should move onto reference checks? Answers are either "strong yes", "yes", "no", or "strong no"; after everyone has
-completed their write-ups, the interviewers debrief and reflect on how to do a better job next time. Their feedback
-is used by the hiring manager to decide whether to move onto reference checks.
+should move on to reference checks? Answers are either "strong yes", "yes", "no", or "strong no"; after everyone
+has completed their write-ups, the interviewers debrief and reflect on how to do a better job next time. Their
+feedback is used by the hiring manager to decide whether to move on to reference checks.
 
 Quoting again from our former Director of Web's blog post:
 
@@ -149,8 +149,8 @@ apparent, men's contributions were
 ### Take-home challenges
 
 The most recent trend in hiring is the take-home exercise. The goal is honorable - have the candidate produce code
-on their own time, so they aren't overwhelmed with the pressure of an audience. We've found that it's not fair to
-require this early in the hiring process, and it's not informative later in the process; by the time an take-home
+on their own time, so they aren't overwhelmed with the pressure of an audience. We’ve found that requiring this
+early in the process is unfair, and including it later in the process is uninformative; by the time a take-home
 challenge would be appropriate, we have already evaluated the candidate's technical skills to our satisfaction
 (more on that later).
 
@@ -163,7 +163,7 @@ than you expect; and (3) the candidate might be interviewing for several compani
 competing assignments to work on.
 
 Many companies use take-home challenges early in the hiring process to shift the burden of evaluation from the
-company onto the candidates themselves. This unfairly excludes lots of potentially amazing colleagues.
+company on to the candidates themselves. This unfairly excludes lots of potentially amazing colleagues.
 
 <aside>
   <div class="question">
@@ -244,8 +244,8 @@ way. We’re looking for a mix of technical skills as well as empathy and an abi
 
 We also learn a lot through reference checks. Our reference checks aren't simply validation of your employment
 history - they are a 30 minute-long conversation with each of your three references that go into detail about your
-work history and career growth. It's quite an in-depth conversation, with questions structured to dig into specifics
-about the candidate's behavior.
+work history and career growth. It's quite an in-depth conversation, with questions structured to dig into
+specifics about the candidate's behavior.
 
 An Artsy reference call might include the following structured questions:
 
