@@ -244,7 +244,7 @@ way. We’re looking for a mix of technical skills as well as empathy and an abi
 
 We also learn a lot through reference checks. Our reference checks aren't simply validation of your employment
 history - they are a 30 minute-long conversation with each of your three references that go into detail about your
-work history and career growth. It's quite a in-depth conversation, with questions structured to dig into specifics
+work history and career growth. It's quite an in-depth conversation, with questions structured to dig into specifics
 about the candidate's behavior.
 
 An Artsy reference call might include the following structured questions:
