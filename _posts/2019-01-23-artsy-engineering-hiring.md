@@ -319,7 +319,7 @@ with this approach.
 
 We hope this catches on.
 
-So what can _you_ do? A great first step is send this post to your HR rep. Another great step is to open source
+So what can _you_ do? A great first step is to send this post to your HR rep. Another great step is to open source
 your hiring documentation; you'd be surprised how motivating this can be, and it's a great opportunity to get
 feedback from other companies. Leave a comment below, let's brainstorm on other ways to improve the state of hiring
 in software engineering!
