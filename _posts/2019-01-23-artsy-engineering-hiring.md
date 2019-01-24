@@ -28,7 +28,7 @@ look at how a person can fill a gap in our team and help us grow.
   <div class="answer">
     <img src="/images/artsy-engineering-hiring/ash.jpg">
     <p class="intro">Ash Furrow says...</p>
-    <p>What most surprised me at the time was <em>who</em> was interviewing me. I had a teleconference screening with Artsy's now-CTO before moving on to in-person interviews. Since I was living in Amsterdam at the time, Artsy flew me its nascent London office to meet two interviewers: a data engineer and a member of (what was then) the Arts team.</p>
+    <p>What most surprised me at the time was <em>who</em> was interviewing me. I had a teleconference screening with Artsy's now-CTO before moving on to in-person interviews. Since I was living in Amsterdam at the time, Artsy flew me to its nascent London office to meet two interviewers: a data engineer and a member of (what was then) the Arts team.</p>
     <p>I was surprised, but encouraged, to be speaking with someone who wasn't an engineer. They asked me questions to find out what motivated me, to evaluate how well those motivations would help Artsy achieve its mission. It was a natural fit!</p>
   </div>
   <div class="answer">
