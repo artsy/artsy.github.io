@@ -14,14 +14,14 @@ Capybara-webkit was introduced from the very beginning of Volt for testing JavaS
 
 ## The Problem
 
-- The [dependency of specific versions of Qt][qt-dependency] has been causing frustrations to set it up properly both on engineers' local machines and on CI.
+- The [dependency of a specific versions of Qt][qt-dependency] has been causing frustrations to set it up properly both on engineers' local machines and on CI.
 - The roadmap of capybara-webkit development is [unclear][unclear-capybara-webkit-roadmap].
 - It's been hard to truly identify the root cause of "flickering" feature specs (i.e. tests that fail intermittently and are hard to reliably reproduce), while retrying tended to resolve it on CI.
 - The entire RSpec tests took about 16 mins to complete on CI, with 6 parallelism. The slowness made it unrealistic to run the whole tests locally.
 
 ## The Goal
 
-Headless Chrome has gained a lot of attention in the past years and migrations done by companies such as [GitLab][headless-chrome-migration-gitlab] and [thoughtbot][headless-chrome-migration-thoughtbot] have proved it to be a promising alternative to capybara-webkit. In fact, it's been [officially included in Rails 5.1][rails-5.1-system-tests] for [system tests][rails-system-tests].
+Headless Chrome has gained a lot of attention in the past few years and migrations done by companies such as [GitLab][headless-chrome-migration-gitlab] and [thoughtbot][headless-chrome-migration-thoughtbot] have proven it to be a promising alternative to capybara-webkit. In fact, it's been [officially included in Rails 5.1][rails-5.1-system-tests] for [system tests][rails-system-tests].
 
 The goal of this project is to switch to Headless Chrome and maintain the same feature sets we have now. This includes:
 
@@ -70,7 +70,7 @@ We were on Rails v5.0.2 and Capybara v2.18.0 during the migration. We will be ab
 
 Naively switching to Headless Chrome caused about 60 spec failures on my local machine. We simply went through them one by one and fixed them. A big part of failures was due to [capybara-webkit's non-standard driver methods][capybara-webkit-non-standard-driver-methods], such as setting cookies, inspecting console logs, etc., and we just had to migrate to Selenium WebDriver's equivalents.
 
-However, we still observed flickering specs on CI, while the exact failures seemed to be different than previously observed with Capybara Webkit. We will have to investigate farther for possible causes. Regarding speed, we didn't see significant improvement after switching to Headless Chrome, as mentioned in GitLab's and others' blog post, too.
+However, we still observed flickering specs on CI, while the exact failures seemed to be different than previously observed with Capybara Webkit. We will have to investigate further for possible causes. Regarding speed, we didn't see significant improvement after switching to Headless Chrome, as mentioned in GitLab's and others' blog post, too.
 
 ## Next Steps
 
