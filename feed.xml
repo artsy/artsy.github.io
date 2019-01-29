@@ -5,9 +5,350 @@
     <description></description>
     <link>http://artsy.github.io/</link>
     <atom:link href="http://artsy.github.io/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Mon, 28 Jan 2019 03:25:13 +0000</pubDate>
-    <lastBuildDate>Mon, 28 Jan 2019 03:25:13 +0000</lastBuildDate>
+    <pubDate>Tue, 29 Jan 2019 17:30:30 +0000</pubDate>
+    <lastBuildDate>Tue, 29 Jan 2019 17:30:30 +0000</lastBuildDate>
     <generator>Jekyll v2.5.3</generator>
+    
+      <item>
+        <title>From TSLint to ESLint, or How I Learned to Lint GraphQL code</title>
+        <description>&lt;p&gt;At the beginning of January we discovered an interesting note in &lt;a href=&quot;https://github.com/Microsoft/TypeScript/issues/29288&quot;&gt;TypeScript&#39;s roadmap&lt;/a&gt; about linting:&lt;/p&gt;
+
+&lt;blockquote&gt;&lt;p&gt;In a survey we ran in VS Code a few months back, the most frequent theme we heard from users was that the linting
+experience left much to be desired. Since part of our team is dedicated to editing experiences in JavaScript, our
+editor team set out to add support for both TSLint and ESLint. However, we noticed that there were a few
+architectural issues with the way TSLint rules operate that impacted performance. Fixing TSLint to operate more
+efficiently would require a different API which would break existing rules (unless an interop API was built like
+what wotan provides).&lt;/p&gt;
+
+&lt;p&gt;Meanwhile, ESLint already has the more-performant architecture we&#39;re looking for from a linter. Additionally,
+different communities of users often have lint rules (e.g. rules for React Hooks or Vue) that are built for
+ESLint, but not TSLint.&lt;/p&gt;
+
+&lt;p&gt;Given this, our editor team will be focusing on leveraging ESLint rather than duplicating work. For scenarios
+that ESLint currently doesn&#39;t cover (e.g. semantic linting or program-wide linting), we&#39;ll be working on sending
+contributions to bring ESLint&#39;s TypeScript support to parity with TSLint. As an initial testbed of how this works
+in practice, we&#39;ll be switching the TypeScript repository over to using ESLint, and sending any new rules
+upstream.&lt;/p&gt;&lt;/blockquote&gt;
+
+&lt;p&gt;At Artsy we&#39;ve been using TSLint for a few years now; it&#39;s worked well for us, and we&#39;ve even written our own
+&lt;a href=&quot;https://github.com/relay-tools/tslint-plugin-relay&quot;&gt;custom rules&lt;/a&gt;. However, given the vastness of the JS ecosystem
+and how fast it moves, it&#39;s easy to recognize this announcement as an exciting moment for tooling simplicity.&lt;/p&gt;
+
+&lt;!-- more --&gt;
+
+
+&lt;p&gt;To give an example, anyone who has built a culture around Airbnb&#39;s
+&lt;a href=&quot;https://github.com/airbnb/javascript&quot;&gt;JavaScript style guide&lt;/a&gt; will instantly recognize the conundrum they&#39;re in
+when migrating to TypeScript:&lt;/p&gt;
+
+&lt;p&gt;&lt;img width=&quot;100%&quot; alt=&quot;a reddit user discovers their linting rules no longer work&quot; src=&quot;https://user-images.githubusercontent.com/236943/51884369-d845b380-233b-11e9-9d2f-102cc8a3a78b.png&quot;&gt;&lt;/p&gt;
+
+&lt;p&gt;This means that teams maintaining legacy JavaScript codebases will no longer have to &lt;em&gt;also&lt;/em&gt; maintain
+&lt;a href=&quot;https://github.com/palantir/tslint-react&quot;&gt;two&lt;/a&gt; &lt;a href=&quot;https://github.com/yannickcr/eslint-plugin-react&quot;&gt;versions&lt;/a&gt; of often nearly &lt;a href=&quot;https://github.com/prettier/tslint-plugin-prettier&quot;&gt;identical&lt;/a&gt;
+&lt;a href=&quot;https://github.com/prettier/prettier-eslint&quot;&gt;rule-sets&lt;/a&gt;. All of the aggregate culture that builds up around linting can now be shared in a
+forward and backward facing way, making the often-daunting process of migrating a codebase from JavaScript to
+TypeScript a much easier sell.&lt;/p&gt;
+
+&lt;p&gt;With this in mind we wanted to give the new officially-sanctioned &lt;a href=&quot;https://github.com/typescript-eslint/typescript-eslint&quot;&gt;typescript-eslint&lt;/a&gt; project a
+spin and document our findings.&lt;/p&gt;
+
+&lt;a name=&quot;Setup&quot;&gt;&lt;/a&gt;
+&lt;h3&gt;Setup&lt;/h3&gt;
+
+&lt;p&gt;To get started, install the necessary dependencies:&lt;/p&gt;
+
+&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
+&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;sh&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;nv&quot;&gt;$ &lt;/span&gt;yarn install -D eslint typescript @typescript-eslint/eslint-plugin
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
+
+
+&lt;p&gt;Then create a new &lt;code&gt;.eslintrc.js&lt;/code&gt; and add a bit of setup:&lt;/p&gt;
+
+&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;6&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;7&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;8&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;9&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;10&lt;/span&gt;
+&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;js&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;nx&quot;&gt;module&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;exports&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nx&quot;&gt;parser&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;@typescript-eslint/parser&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nx&quot;&gt;plugins&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;@typescript-eslint&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;],&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;kr&quot;&gt;extends&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;eslint:recommended&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;plugin:@typescript-eslint/recommended&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;],&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nx&quot;&gt;parserOptions&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nx&quot;&gt;ecmaVersion&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;6&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nx&quot;&gt;project&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;./tsconfig.json&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nx&quot;&gt;sourceType&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;module&amp;quot;&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
+
+
+&lt;p&gt;Note that &lt;code&gt;parserOptions.project&lt;/code&gt; points to your &lt;code&gt;tsconfig.json&lt;/code&gt; file:&lt;/p&gt;
+
+&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
+&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;json&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nt&quot;&gt;&amp;quot;compilerOptions&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{}&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
+
+
+&lt;p&gt;Next, add a bit of TypeScript to a file&lt;/p&gt;
+
+&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
+&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;sh&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;nv&quot;&gt;$ &lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;echo&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;export const foo: any = &amp;#39;bar&amp;#39;&amp;quot;&lt;/span&gt; &amp;gt; index.ts
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
+
+
+&lt;p&gt;and run the linter:&lt;/p&gt;
+
+&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;6&lt;/span&gt;
+&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;sh&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;nv&quot;&gt;$ &lt;/span&gt;yarn eslint . --ext .ts,.tsx
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;~/index.ts
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  1:12  warning  Unexpected any. Specify a different &lt;span class=&quot;nb&quot;&gt;type&lt;/span&gt;  @typescript-eslint/no-explicit-any
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;✖ &lt;span class=&quot;m&quot;&gt;1&lt;/span&gt; problem &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;m&quot;&gt;0&lt;/span&gt; errors, &lt;span class=&quot;m&quot;&gt;1&lt;/span&gt; warnings&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
+
+
+&lt;p&gt;Very nice!&lt;/p&gt;
+
+&lt;p&gt;Now lets expand the example a bit and add something more sophisticated, which in Artsy&#39;s use-case is commonly
+GraphQL:&lt;/p&gt;
+
+&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
+&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;sh&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;nv&quot;&gt;$ &lt;/span&gt;yarn add -D eslint-plugin-graphql graphql-tag apollo
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
+
+
+&lt;p&gt;Update &lt;code&gt;tslint.json&lt;/code&gt; and let it know we&#39;ll be using &lt;code&gt;node&lt;/code&gt; for imports:&lt;/p&gt;
+
+&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
+&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;json&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nt&quot;&gt;&amp;quot;compilerOptions&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nt&quot;&gt;&amp;quot;moduleResolution&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;node&amp;quot;&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
+
+
+&lt;p&gt;In &lt;code&gt;.eslintrc.js&lt;/code&gt; add these rules (while noting the addition of &lt;code&gt;graphql&lt;/code&gt; to &lt;code&gt;plugins&lt;/code&gt; and
+&lt;code&gt;graphql/template-strings&lt;/code&gt; under &lt;code&gt;rules&lt;/code&gt;):&lt;/p&gt;
+
+&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;6&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;7&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;8&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;9&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;10&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;11&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;12&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;13&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;14&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;15&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;16&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;17&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;18&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;19&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;20&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;21&lt;/span&gt;
+&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;js&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;kr&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;path&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;require&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;path&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;nx&quot;&gt;module&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;exports&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nx&quot;&gt;parser&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;@typescript-eslint/parser&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nx&quot;&gt;plugins&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;@typescript-eslint&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;graphql&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;],&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;kr&quot;&gt;extends&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;eslint:recommended&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;plugin:@typescript-eslint/recommended&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;],&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nx&quot;&gt;parserOptions&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nx&quot;&gt;ecmaVersion&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;6&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nx&quot;&gt;project&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;./tsconfig.json&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nx&quot;&gt;sourceType&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;module&amp;quot;&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nx&quot;&gt;rules&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;s2&quot;&gt;&amp;quot;graphql/template-strings&amp;quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;s2&quot;&gt;&amp;quot;error&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;        &lt;span class=&quot;nx&quot;&gt;schemaJsonFilepath&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;path&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;resolve&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;__dirname&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;./schema.json&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;        &lt;span class=&quot;nx&quot;&gt;tagName&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;graphql&amp;quot;&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
+
+
+&lt;p&gt;For GraphQL to know what to lint, we&#39;ll need a schema. Thankfully the
+&lt;a href=&quot;https://etmdb.com/graphql&quot;&gt;Ethiopian Movie Database&lt;/a&gt; has our back :)&lt;/p&gt;
+
+&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
+&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;sh&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;nv&quot;&gt;$ &lt;/span&gt;yarn apollo service:download --endpoint https://etmdb.com/graphql
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  ✔ Loading Apollo Project
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  ✔ Saving schema to schema.json
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;✨  Done in 2.18s.
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
+
+
+&lt;p&gt;Back in &lt;code&gt;index.ts&lt;/code&gt;, add this bit of code:&lt;/p&gt;
+
+&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;6&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;7&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;8&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;9&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;10&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;11&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;12&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;13&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;14&lt;/span&gt;
+&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;js&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;kr&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;graphql&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;graphql-tag&amp;quot;&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;kr&quot;&gt;export&lt;/span&gt; &lt;span class=&quot;kr&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;MovieQuery&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;graphql&lt;/span&gt;&lt;span class=&quot;err&quot;&gt;`&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nx&quot;&gt;query&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;MoveQuery&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nx&quot;&gt;allCinemaDetails&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;before&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;2017-10-04&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;after&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;2010-01-01&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;nx&quot;&gt;edges&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;        &lt;span class=&quot;nx&quot;&gt;nodez&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;          &lt;span class=&quot;nx&quot;&gt;slug&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;          &lt;span class=&quot;nx&quot;&gt;hallName&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;        &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;err&quot;&gt;`&lt;/span&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
+
+
+&lt;p&gt;And run the linter:&lt;/p&gt;
+
+&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;6&lt;/span&gt;
+&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;sh&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;nv&quot;&gt;$ &lt;/span&gt;yarn eslint . --ext .ts,.tsx
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;~/index.ts
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  7:9  error  Cannot query field &lt;span class=&quot;s2&quot;&gt;&amp;quot;nodez&amp;quot;&lt;/span&gt; on &lt;span class=&quot;nb&quot;&gt;type&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;CinemaDetailNodeEdge&amp;quot;&lt;/span&gt;. Did you mean &lt;span class=&quot;s2&quot;&gt;&amp;quot;node&amp;quot;&lt;/span&gt;?  graphql/template-strings
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;✖ &lt;span class=&quot;m&quot;&gt;1&lt;/span&gt; problem &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;m&quot;&gt;1&lt;/span&gt; error, &lt;span class=&quot;m&quot;&gt;0&lt;/span&gt; warnings&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
+
+
+&lt;p&gt;Ahh yes, I meant &lt;a href=&quot;https://i.redd.it/tfugj4n3l6ez.png&quot;&gt;&lt;code&gt;node&lt;/code&gt;&lt;/a&gt;.&lt;/p&gt;
+
+&lt;a name=&quot;Bonus:.VSCode.Integration&quot;&gt;&lt;/a&gt;
+&lt;h3&gt;Bonus: VSCode Integration&lt;/h3&gt;
+
+&lt;p&gt;As developers, we like our tools to work for us, and in 2019 the tool that &lt;em&gt;seems&lt;/em&gt; to do that best just happens to
+be a brilliant open source product from Microsoft. There were a couple unexpected configuration issues when we were
+setting this up, but thankfully they&#39;re easy fixes.&lt;/p&gt;
+
+&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
+&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;sh&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;nv&quot;&gt;$ &lt;/span&gt;mkdir .vscode &lt;span class=&quot;o&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt; touch .vscode/settings.json
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
+
+
+&lt;p&gt;Then add a couple settings:&lt;/p&gt;
+
+&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;6&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;7&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;8&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;9&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;10&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;11&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;12&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;13&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;14&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;15&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;16&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;17&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;18&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;19&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;20&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;21&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;22&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;23&lt;/span&gt;
+&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;json&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nt&quot;&gt;&amp;quot;editor.formatOnSave&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;kc&quot;&gt;true&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nt&quot;&gt;&amp;quot;eslint.autoFixOnSave&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;kc&quot;&gt;true&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nt&quot;&gt;&amp;quot;eslint.validate&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;nt&quot;&gt;&amp;quot;language&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;javascript&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;nt&quot;&gt;&amp;quot;autoFix&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;kc&quot;&gt;true&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;nt&quot;&gt;&amp;quot;language&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;javascriptreact&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;nt&quot;&gt;&amp;quot;autoFix&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;kc&quot;&gt;true&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;nt&quot;&gt;&amp;quot;language&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;typescript&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;nt&quot;&gt;&amp;quot;autoFix&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;kc&quot;&gt;true&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;nt&quot;&gt;&amp;quot;language&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;typescriptreact&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;nt&quot;&gt;&amp;quot;autoFix&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;kc&quot;&gt;true&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;p&quot;&gt;],&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nt&quot;&gt;&amp;quot;tslint.enable&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;kc&quot;&gt;false&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
+
+
+&lt;p&gt;Format on save, fix on save, &lt;em&gt;autofix&lt;/em&gt; on save, tell ESLint to recognize &lt;code&gt;.ts&lt;/code&gt; (and &lt;code&gt;.tsx&lt;/code&gt;, for the React folks)
+then disable &lt;code&gt;tslint&lt;/code&gt; so that &lt;code&gt;eslint&lt;/code&gt; can do its thing:&lt;/p&gt;
+
+&lt;p&gt;&lt;img width=&quot;698&quot; alt=&quot;eslint displaying graphql error in VSCode IDE&quot; src=&quot;https://user-images.githubusercontent.com/236943/51884366-d380ff80-233b-11e9-8128-6c39e210dd31.png&quot;&gt;&lt;/p&gt;
+
+&lt;p&gt;Now ESLint will be able to show you right where your GraphQL error is from within VSCode. Pretty sweet.&lt;/p&gt;
+
+&lt;p&gt;Be sure to read &lt;a href=&quot;https://eslint.org/blog/2019/01/future-typescript-eslint&quot;&gt;The future of TypeScript on ESLint&lt;/a&gt; for more details.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;&lt;/code&gt;&lt;/pre&gt;
+</description>
+        <pubDate>Tue, 29 Jan 2019 00:00:00 +0000</pubDate>
+        <link>http://artsy.github.io/blog/2019/01/29/from-tslint-to-eslint/</link>
+        <guid isPermaLink="true">http://artsy.github.io/blog/2019/01/29/from-tslint-to-eslint/</guid>
+        
+        
+        <category>eslint</category>
+        
+        <category>graphql</category>
+        
+        <category>tslint</category>
+        
+        <category>typescript</category>
+        
+      </item>
     
       <item>
         <title>How Artsy Hires Engineers</title>
@@ -2653,173 +2994,6 @@ controller to determine which parts of the JWT we want to treat as salient for t
         <category>rspec</category>
         
         <category>testing</category>
-        
-      </item>
-    
-      <item>
-        <title>Keeping Artsy&#39;s dependencies up to date</title>
-        <description>&lt;p&gt;Hey everyone! I&#39;m Justin, a senior engineer here at Artsy. I&#39;ve been here for about 6 months and I&#39;m a bit overdue
-on my first blog post. This will be one of a series of posts I&#39;m dubbing &lt;em&gt;roads and bridges&lt;/em&gt; (&lt;a href=&quot;https://www.fordfoundation.org/about/library/reports-and-studies/roads-and-bridges-the-unseen-labor-behind-our-digital-infrastructure/&quot;&gt;thanks Orta&lt;/a&gt;)
-describing infrastructure and tooling work here at Artsy.&lt;/p&gt;
-
-&lt;a name=&quot;Backstory&quot;&gt;&lt;/a&gt;
-&lt;h3&gt;Backstory&lt;/h3&gt;
-
-&lt;p&gt;Here at Artsy we have a lot of internal dependencies. Keeping these dependencies up to date across all of our
-projects can be a bit of a headache. For example, there&#39;s &lt;a href=&quot;https://github.com/artsy/palette&quot;&gt;Palette&lt;/a&gt; (our &lt;a href=&quot;https://www.uxpin.com/studio/blog/design-systems-vs-pattern-libraries-vs-style-guides-whats-difference/&quot;&gt;design system&lt;/a&gt;)
-which is consumed by &lt;a href=&quot;https://github.com/artsy/reaction&quot;&gt;Reaction&lt;/a&gt; (our react component/app library), &lt;a href=&quot;https://github.com/artsy/emission&quot;&gt;Emission&lt;/a&gt; (our React Native
-application), &lt;a href=&quot;https://github.com/artsy/force&quot;&gt;Force&lt;/a&gt; (our main site), and &lt;a href=&quot;https://github.com/artsy/positron&quot;&gt;Positron&lt;/a&gt; (our editorial creation tool). That&#39;s not
-even an exhaustive list. As you can imagine, after making an update to &lt;a href=&quot;https://github.com/artsy/palette&quot;&gt;Palette&lt;/a&gt; we have to make a lot of
-Pull Requests to get everything synced up across our many projects. And that&#39;s just &lt;em&gt;one&lt;/em&gt; dependency.&lt;/p&gt;
-
-&lt;!-- more --&gt;
-
-
-&lt;a name=&quot;Evaluating.the.problem&quot;&gt;&lt;/a&gt;
-&lt;h3&gt;Evaluating the problem&lt;/h3&gt;
-
-&lt;p&gt;There are a few services out there that connect to GitHub and helps you keep your dependencies up to date. I&#39;d
-personally used &lt;a href=&quot;https://greenkeeper.io/&quot;&gt;Greenkeeper&lt;/a&gt; in the past and it seemed to work fairly well for my uses. I&#39;d also
-heard about &lt;a href=&quot;https://renovatebot.com/&quot;&gt;Renovate&lt;/a&gt; which is another option that actually supports more package managers than just
-yarn/npm. Great! Plenty to evaluate here. Anytime I&#39;m evaluating a new service there are a few questions I ask
-myself upfront to help a good decision:&lt;/p&gt;
-
-&lt;ol&gt;
-&lt;li&gt;What are my exact needs&lt;/li&gt;
-&lt;li&gt;Can this solution scale to meet future needs&lt;/li&gt;
-&lt;/ol&gt;
-
-
-&lt;p&gt;The first point is straight-forward, but there&#39;s a little twist. We have a &lt;em&gt;lot&lt;/em&gt; of dependencies. If we got PRs for
-all of them we&#39;d be pretty much unable to do anything. In this case we wanted to specifically limit it to packages
-that are published by Artsy (on the &lt;code&gt;@artsy&lt;/code&gt; npm namespace).&lt;/p&gt;
-
-&lt;p&gt;The second you have to be a bit careful with. Don&#39;t try to project too far or you&#39;ll end up choosing a solution far
-too complex for your current needs. In this case, I wanted something that we could selectively extend in the future
-to cover other dependencies. Things like &lt;code&gt;react&lt;/code&gt; and &lt;code&gt;react-dom&lt;/code&gt; or &lt;code&gt;typescript&lt;/code&gt;. Incremental increases without a
-ton of noise.&lt;/p&gt;
-
-&lt;a name=&quot;Picking.a.solution&quot;&gt;&lt;/a&gt;
-&lt;h3&gt;Picking a solution&lt;/h3&gt;
-
-&lt;p&gt;First things first... we have to have a solution that can update only Artsy&#39;s dependencies. I started digging
-through &lt;a href=&quot;https://greenkeeper.io/&quot;&gt;Greenkeeper&lt;/a&gt;&#39;s docs and found a reference to an &lt;a href=&quot;https://greenkeeper.io/docs.html#ignoring-dependencies&quot;&gt;ignore&lt;/a&gt; option.
-Essentially any package that you don&#39;t want &lt;a href=&quot;https://greenkeeper.io/&quot;&gt;GreenKeeper&lt;/a&gt; to automatically update you can put in this
-ignore list. That&#39;s not really doable in our usecase because we want to ignore everything but a small subset of
-packages.&lt;/p&gt;
-
-&lt;p&gt;Checking out &lt;a href=&quot;https://renovatebot.com/&quot;&gt;Renovate&lt;/a&gt;&#39;s docs I found a more promising option:
-&lt;a href=&quot;https://renovatebot.com/docs/configuration-options/#excludepackagepatterns&quot;&gt;excludePackagePatterns&lt;/a&gt;. All I really want to do is include Artsy packages, but this sounded
-like I could do the inverse by excluding all non-Artsy packages. Being as it had that option, supported more
-package managers, and had a more friendly pricing scheme than &lt;a href=&quot;https://greenkeeper.io/&quot;&gt;Greenkeeper&lt;/a&gt; I decided to give
-&lt;a href=&quot;https://renovatebot.com/&quot;&gt;Renovate&lt;/a&gt; a shot.&lt;/p&gt;
-
-&lt;a name=&quot;Making.it.happen&quot;&gt;&lt;/a&gt;
-&lt;h3&gt;Making it happen&lt;/h3&gt;
-
-&lt;p&gt;I began by enabling &lt;a href=&quot;https://renovatebot.com/&quot;&gt;Renovate&lt;/a&gt; on &lt;a href=&quot;https://github.com/artsy/force&quot;&gt;Force&lt;/a&gt;. You can see the PR &lt;a href=&quot;https://github.com/artsy/force/pull/3086&quot;&gt;here&lt;/a&gt;.
-&lt;a href=&quot;https://renovatebot.com/&quot;&gt;Renovate&lt;/a&gt; has a &lt;em&gt;really&lt;/em&gt; excellent on-boarding experience. It first creates a PR that adds its own
-configuration. It shows you what packages will be updated based on that configuration. As you update the config,
-Renovate will update the PR body to show you the results of your changes. This gives you the opportunity to update
-the configuration before it officially activates. If you click the edited dropdown on the PR body you&#39;ll see all
-the changes Renovate made to the issue while I was trying to figure out the configuration.&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;/images/2018-11-26-keeping-dependencies-updated/issue-history.png&quot; alt=&quot;GitHub PR edit history&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;It took me a while to figure everything out, just take a look at the &lt;a href=&quot;https://github.com/artsy/force/pull/3086/commits&quot;&gt;commit history&lt;/a&gt;. I&#39;m going to
-work through the final setup just to give you an idea of our setup.&lt;/p&gt;
-
-&lt;p&gt;First, I extended &lt;a href=&quot;https://renovatebot.com/&quot;&gt;Renovate&lt;/a&gt;&#39;s base config.&lt;/p&gt;
-
-&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;6&lt;/span&gt;
-&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;&#39;&gt;&lt;span class=&#39;line&#39;&gt;{
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &quot;extends&quot;: [
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &quot;config:base&quot;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  ],
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  ...
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;}&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
-
-
-&lt;p&gt;If you&#39;ve worked with &lt;a href=&quot;https://eslint.org&quot;&gt;eslint&lt;/a&gt;, &lt;a href=&quot;https://babeljs.io/docs/en/options#extends&quot;&gt;babel&lt;/a&gt;, or other tools in the js ecosystem, you&#39;ve probably
-seen this type of configuration extension. It essentially allows us to use their best practices out of the box.
-Check out their &lt;a href=&quot;https://github.com/renovatebot/presets/blob/ef6a6e2e6d3e6ba25239d57d808b0e4dc64f32a3/packages/renovate-config-config/package.json#L19-L34&quot;&gt;presets repo&lt;/a&gt; if you want to know what it adds specifically.&lt;/p&gt;
-
-&lt;p&gt;Next, I set the &lt;a href=&quot;https://help.github.com/articles/assigning-issues-and-pull-requests-to-other-github-users/&quot;&gt;assignees&lt;/a&gt;. When &lt;a href=&quot;https://renovatebot.com/&quot;&gt;Renovate&lt;/a&gt; opens a new PR, it&#39;ll assign it to these people
-so that the PR doesn&#39;t get missed.&lt;/p&gt;
-
-&lt;p&gt;The actual meat of the change is the &lt;code&gt;packageRules&lt;/code&gt; setup.&lt;/p&gt;
-
-&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;6&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;7&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;8&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;9&lt;/span&gt;
-&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;&#39;&gt;&lt;span class=&#39;line&#39;&gt;{
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  ...
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &quot;packageRules&quot;: [{
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &quot;packagePatterns&quot;: [&quot;*&quot;],
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &quot;excludePackagePatterns&quot;: [&quot;^@artsy&quot;],
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &quot;enabled&quot;: false
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  }],
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  ...
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;}&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
-
-
-&lt;p&gt;&lt;a href=&quot;https://renovatebot.com/&quot;&gt;Renovate&lt;/a&gt; allows you to set up multiple different &lt;code&gt;packageRules&lt;/code&gt; and there&#39;s a lot of configuration for
-them. I&#39;m not going to go through more than I did, but feel free to read more in their
-&lt;a href=&quot;https://renovatebot.com/docs/configuration-options/#packagerules&quot;&gt;docs&lt;/a&gt;. In the &lt;code&gt;packageRule&lt;/code&gt; that I setup, I specified &lt;code&gt;packagePatterns&lt;/code&gt; with an
-asterisk to select all dependencies. Then using &lt;code&gt;excludePackagePatteners&lt;/code&gt; I excluded anything that started with
-&lt;code&gt;@artsy&lt;/code&gt;. Finally (and most importantly), I set &lt;code&gt;enabled&lt;/code&gt; to &lt;code&gt;false&lt;/code&gt; to disable the dependencies matching those
-combinations of rules. That last part took me a while to figure out. When you&#39;re building package rules in
-&lt;a href=&quot;https://renovatebot.com/&quot;&gt;Renovate&lt;/a&gt;, think of it as building out a list of operations to perform.&lt;/p&gt;
-
-&lt;p&gt;The last few pieces of config are a little more straight-forward and you can read about those in the docs. The one
-thing that I&#39;ll mention is that &lt;a href=&quot;https://renovatebot.com/docs/configuration-options/#vulnerabilityalerts&quot;&gt;vulnerabilityAlerts&lt;/a&gt; &lt;em&gt;ignores&lt;/em&gt; &lt;code&gt;packageRules&lt;/code&gt; and
-triggers update PRs for anything that&#39;s reported to have a vulnerability. You&#39;ll have to explicitly disable it if
-you only want reports on certain packages. Though, having it on probably isn&#39;t a bad idea...&lt;/p&gt;
-
-&lt;a name=&quot;Wrapping.up&quot;&gt;&lt;/a&gt;
-&lt;h3&gt;Wrapping up&lt;/h3&gt;
-
-&lt;p&gt;So, that&#39;s how we configured &lt;a href=&quot;https://renovatebot.com/&quot;&gt;Renovate&lt;/a&gt; to automatically update npm dependencies in Artsy&#39;s namespace.
-It&#39;s been extremely useful already. I also went ahead and pulled our configuration out into a &lt;a href=&quot;https://github.com/artsy/renovate-config&quot;&gt;shared
-repo&lt;/a&gt; so that we didn&#39;t have to copy these configurations across all of our projects. That&#39;s
-a blog post for another day.&lt;/p&gt;
-
-&lt;p&gt;Be well friends.&lt;/p&gt;
-
-&lt;!-- prettier-ignore --&gt;
-
-
-&lt;!-- prettier-ignore --&gt;
-
-
-&lt;!-- prettier-ignore --&gt;
-
-</description>
-        <pubDate>Mon, 26 Nov 2018 00:00:00 +0000</pubDate>
-        <link>http://artsy.github.io/blog/2018/11/26/keeping-dependencies-updated/</link>
-        <guid isPermaLink="true">http://artsy.github.io/blog/2018/11/26/keeping-dependencies-updated/</guid>
-        
-        
-        <category>best practices</category>
-        
-        <category>dependencies</category>
-        
-        <category>javascript</category>
-        
-        <category>node</category>
-        
-        <category>roads and bridges</category>
         
       </item>
     
