@@ -103,7 +103,7 @@ GraphQL:
 $ yarn add -D eslint-plugin-graphql graphql-tag apollo
 ```
 
-Update `tslint.json` and let it know we'll be using `node` for imports:
+Update `tsconfig.json` and let it know we'll be using `node` for imports:
 
 ```json
 {
