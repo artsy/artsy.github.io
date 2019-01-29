@@ -1,6 +1,6 @@
 ---
 layout: epic
-title: "From TSLint to ESLint, or How I Learned to Lint GraphQL code"
+title: "From TSLint to ESLint, or How I Learned to Lint GraphQL Code"
 date: "2019-01-29"
 author: [chris]
 categories: [typescript, tslint, eslint, graphql]
