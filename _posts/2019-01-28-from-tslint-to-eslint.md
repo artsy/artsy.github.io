@@ -1,6 +1,6 @@
 ---
 layout: epic
-title: "From TSLint to ESLint, or How I Learned to Lint GraphQL code"
+title: "From TSLint to ESLint, or How I Learned to Lint GraphQL Code"
 date: "2019-01-29"
 author: [chris]
 categories: [typescript, tslint, eslint, graphql]
@@ -225,7 +225,7 @@ then disable `tslint` so that `eslint` can do its thing:
 
 <img width="698" alt="eslint displaying graphql error in VSCode IDE" src="https://user-images.githubusercontent.com/236943/51884366-d380ff80-233b-11e9-8128-6c39e210dd31.png">
 
-Now ESLint will be able to show you right where your GraphQL error is from within VSCode. Pretty sweet.
+Now ESLint will show you right where your GraphQL error is from within VSCode. Pretty sweet.
 
 Be sure to read [The future of TypeScript on ESLint][ts-on-eslint] for more details.
 
@@ -237,7 +237,3 @@ Be sure to read [The future of TypeScript on ESLint][ts-on-eslint] for more deta
 [typescript-eslint]: https://github.com/typescript-eslint/typescript-eslint
 [blackhole]: https://i.redd.it/tfugj4n3l6ez.png
 [ts-on-eslint]: https://eslint.org/blog/2019/01/future-typescript-eslint
-
-```
-
-```
