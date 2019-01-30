@@ -23,7 +23,7 @@ worth taking the time to examine our reasoning for doing it ourselves.
 ## Dependencies
 
 In programming, the process of creation rely on you depending on others. That ranges from operating systems, to
-system dependencies like SQLite or VS Code to app level dependencies from CocoaPods/Node/Whatever. For this blog,
+system dependencies like SQLite or VSCode to app level dependencies from CocoaPods/Node/Whatever. For this blog,
 that we rely on GitHub's static site hosting, RubyGems + Bundler and Jekyll. Luckily for us, there are powerful
 incentives for those projects to continue long into the future.
 
