@@ -1,7 +1,7 @@
 ---
 layout: epic
 title: "Why We Run Our Own Blog"
-date: "2019-01-20"
+date: "2019-01-30"
 author: [orta]
 categories: [tooling, dependencies]
 comment_id: 524
