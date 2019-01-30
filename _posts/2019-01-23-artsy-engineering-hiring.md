@@ -2,7 +2,7 @@
 layout: epic
 title: "How Artsy Hires Engineers"
 date: "2019-01-23"
-author: [ash, lily, steve_hicks]
+author: [ash, lily, steve-hicks]
 categories: [people, best practices, hiring, culture, process, team]
 css: artsy-engineering-hiring
 comment_id: 528
