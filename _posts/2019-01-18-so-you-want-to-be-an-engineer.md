@@ -1,45 +1,71 @@
 ---
 layout: epic
-title: "Transitioning to Engineering"
+title: "So You Want to Be an Engineer"
 date: "2019-01-18"
 author: [matt_dole]
 categories: [artsy, beginners, culture, engineering, people, team]
 ---
 
-# From Email Marketing to Engineering
+First of all, that's very exciting! Software engineering is pretty darn cool—you get to learn lots of new things,
+understand the technology you use every day better, and contribute to the mysterious maw known as "the internet".
 
-Last February, I decided that I wanted to pursue Engineering.
-
-I'd been at Artsy for a bit less than two years at that point, first as a marketing intern working on SEO and then
-as a coordinator on the CRM (read: email) team. I'd consistently been working on technical projects; first doing
+Last February, I also decided that I wanted to pursue computer engineering. I'd been at Artsy for a bit less than
+two years at that point, first as a marketing intern working on SEO and then as a coordinator on the CRM (read:
+email) team. I'd consistently been working on small technical projects; first doing
 [some work](https://github.com/artsy/positron/commit/3176282a3ea94c626e9d851b7c0dd27a1bb0fcb4) on a tool for SEO
 optimization for our Editorial team, then building
 [emails with MJML](http://artsy.github.io/blog/2018/11/19/mjml/), and a few other bits and bobs. But I didn't think
 of it as a serious pursuit.
 
 Mostly, that was due to my experience programming in the past—I'd done a bit of coding before coming to Artsy. In
-undergrad at Grinnell College I did a bit over half of a CS degree, including a summer of research at Wash U St.
-Louis. At the time, I felt that programming wasn't right for me. Grinnell's CS program was very theory-oriented,
-and my summer research came with very little support of any kind (we weren't provided computers, we met once weekly
-as a group with the professors who were theoretically mentoring us, and we felt like the things we were working on
-were unimportant).
+undergrad at Grinnell College I did a bit over half of a CS degree, and I even did a summer of research at Wash U
+St. Louis. At the time, I felt that programming wasn't right for me, and I dropped the major during my third year.
 
 It was Artsy's Engineering team that convinced me that programming was something that I both could and should do.
 Our engineers have always welcomed learners and been happy to answer questions and empower other teams to do
 technical work. I eventually realized that the parts of my work where I was coding were the parts I enjoyed the
 most, and that I would likely feel more fulfilled if I made programming my full-time occupation.
 
-I'm lucky to work at an organization where that's possible. I didn't take it for granted that it would be possible
-to transition into Engineering at Artsy—really, I assumed it wouldn't be. But in October, I was invited to
-interview for a role as an Associate Engineer, and the rest is history.
+Here's what that journey looked like. Hopefully my experience proves helpful to you as you begin (or finish) yours!
 
-But what has that actually meant in practice?
+# Step One: Tell People What You Want
 
-# Graceful change
+This might've been the single biggest learning I took away from this experience: _if you tell people you want
+something, you might just get it._
 
-I'm in a unique position—I'm the first person to move into Engineering from another team at Artsy. As a result, my
-first couple weeks have been different from other junior engineers; I'm already semi-set up on our systems, I know
-some of my teammates, I have a sense of company goals and structure.
+That may sound super obvious. It wasn't for me. I've usually been very passive in my career decisions, taking the
+path of least resistance and considering myself lucky when I was able to keep progressing. In this case, I was
+making a substantial departure from that idea by being proactive about what it was I wanted.
+[This post](https://engineering.gusto.com/i-didnt-want-to-be-a-manager-anymore-and-the-world-didnt-end/) by
+[Noa Elad](https://twitter.com/NoaElad) does a great job with this topic as well and is certainly worth a read.
+
+The first person I told at Artsy was [Orta](https://github.com/orta). He'd often encouraged me to develop my
+technical skills, and since he knows Artsy's engineering team and stack better than just about anyone, I figured
+he'd be able to point me in the right direction when it came to learning resources and navigating company politics
+to get to my eventual goal.
+
+The second person I told was my manager on the CRM team. It was a little strange—I wasn't telling her that I was
+leaving, exactly, but just that I wanted to pursue a different career. There was no hard deadline; I had no idea
+when or if it would be possible to become an engineer. I did know that it's what I wanted, and so if I told her,
+she'd be able to advocate for me (I was lucky to have a manager who I trusted and who I was confident would do so).
+
+The third person I told was Artsy's CTO, [dB](https://www.dblock.org/). This was Orta's recommendation—he would be
+able to tell me if and when a move might be possible, and he could suggest things I should do to improve my chances
+of making the switch.
+
+I also didn't keep it a secret from the rest of my team or the company. I didn't show up wearing a shirt that said
+"ENGINEER" on it, but I told people, "I'm working on becoming an engineer. I'm really hoping to stay at Artsy, but
+if there's not a role open for me, that's fine—I'll search elsewhere."
+
+# Step Two: What Should You Learn?
+
+The answer to that question really depends on who you are, where you work, and where you _want_ to work.
+
+I had a decent grounding in CS fundamentals thanks to my experience in undergrad. As a result, I initially decided
+I wouldn't do a coding bootcamp—I felt I had enough experience to benefit from the multitude of online courses out
+there.
+
+----- OLD STUFF -----
 
 # Learning to Focus
 
@@ -111,6 +137,11 @@ In this case, even though I was feeling completely stumped, stating my problem a
 clarify my thoughts and figure out a solution. And in cases when I haven't been able to figure out the problem,
 having gone through the exercise of defining the problem and documenting my attempts to solve it has made it easier
 and faster to get help because I'm better able to articulate the issue at hand.
+
+# Conclusion
+
+I'm lucky to work at an organization where moving from email marketing to engineering is possible. I didn't take it
+for granted that I would be able to transition into Engineering at Artsy—really, I assumed it wouldn't be.
 
 ### To add
 
