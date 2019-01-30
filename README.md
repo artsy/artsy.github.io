@@ -67,6 +67,22 @@ More info can be found in the [Jekyll docs](http://jekyllrb.com/docs/posts/).
 
 When you have authored an article, `git add` and `git commit` it, then push to a named branch with `git push origin [branch]`, and create a pull request to the `source` branch, it will be deployed to the site by travis when merged.
 
+## Enabling Comments
+
+Comments for articles are managed with [Issues](https://github.com/artsy/artsy.github.io/issues) in this GitHub repository.
+
+#### [Create an issue](https://github.com/artsy/artsy.github.io/issues/new) for the article
+
+Quote the opening paragraph(s) of the post as the body of the issue, and name it something like "Comments: My Fantastic New Post". 
+
+#### Add the `Comment Thread` label to the issue
+
+#### Attach the issue to your article
+
+Copy the created issue ID; add it to the frontmatter YAML of your post, as the `comment_id` attribute:
+
+`comment_id: 1234`
+
 ## After Deploying an Article
 
 Every article on our blog needs one more thing: a snappy tweet! You can ask Ash or Orta to do this for you, but you're also welcome to log into the [@ArtsyOpenSource](https://twitter.com/ArtsyOpenSource) twitter account and tweet yourself (credentials are in the Engineering 1Password vault). Tweets usually follow the following format:

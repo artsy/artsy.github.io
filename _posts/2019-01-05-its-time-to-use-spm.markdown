@@ -11,7 +11,7 @@ It's been three years, and [Swift Package Manager][spm] (SPM) is at a point wher
 projects. It'll take a bit of sacrifice and a little bit of community spirit to fix some holes probably but **in my
 opinion, it's time for teams to start adopting SPM for their 3rd party dev tools**.
 
-**TDLR:** You should be using SPM for 3rd party dev tools like: [SwiftLint][sl], [SwiftFormat][sf], [Danger][ds],
+**TLDR:** You should be using SPM for 3rd party dev tools like: [SwiftLint][sl], [SwiftFormat][sf], [Danger][ds],
 [Sourcery][srcy], [SwiftGen][sg] and [Git Hook management][kom].
 
 This post covers: What made it feasible to use SPM now? What are the downsides of the status quo? Why use SPM at
