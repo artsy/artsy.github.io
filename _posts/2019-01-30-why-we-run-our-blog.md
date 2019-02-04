@@ -63,7 +63,7 @@ your writing which makes it a dependency which doesn't pay its weight.
 I consider our blog, and the rest of the site, to be the canonical representation of the Artsy Engineering team
 online. We've carefully grown an Artsy Engineering aesthetic around it.
 
-In contrast, had we choose to host on Medium, we'd get a few templates and a highlight color. For example, check
+In contrast, had we chosen to host on Medium, we'd get a few templates and a highlight color. For example, check
 out: [AirBnB](https://medium.com/airbnb-engineering), [Harrys](https://medium.com/harrys-engineering),
 [Pintrest](https://medium.com/@Pinterest_Engineering), [Vimeo](https://medium.com/vimeo-engineering-blog) or
 [Lyft](https://eng.lyft.com)'s pages.
