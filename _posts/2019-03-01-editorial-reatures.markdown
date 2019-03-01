@@ -17,13 +17,13 @@ For a light-weight customization, a developer might add props for unique text or
 Some examples of articles created with the `EditorialFeature` component include:
 
 - The Most Influential Artists of 2018 - [Components](https://github.com/artsy/reaction/tree/master/src/Components/Publishing/EditorialFeature/Components/Eoy2018Artists) | [Article](https://www.artsy.net/article/artsy-editorial-influential-artists-2018)
-- The Year in Culture 2018 - [Components](https://github.com/artsy/reaction/blob/master/src/Components/Publishing/EditorialFeature/Components/Eoy2018Culture.tsx) | [Article](https://github.com/artsy/reaction/tree/master/src/Components/Publishing/EditorialFeature)
+- The Year in Culture 2018 - [Components](https://github.com/artsy/reaction/blob/master/src/Components/Publishing/EditorialFeature/Components/Eoy2018Culture.tsx) | [Article](https://www.artsy.net/article/artsy-editorial-people-defined-visual-culture-2018)
 
 # Custom articles by domain:
 
 **1. [In Force (Artsy.net)](https://github.com/artsy/force)**
 
-- Whether an article requires a custom layout is determined in Force’s [article routing](TKTK). This is achieved by passing the prop `customEditorial`-- a string shorthand for a specific article-- to Reaction’s top-level `Article` component. The `customEditorial` prop is pulled from Force’s editorial feature "[master list](TKTK)", which ties an `article._id` to a communicative string that will be received by Reaction. All custom articles are excluded from infinite scroll, they do receive all data displayed in the footer including related articles and display ads though it may not always be rendered. 
+- Whether an article requires a custom layout is determined in Force’s [article routing](https://github.com/artsy/force/blob/master/src/desktop/apps/article/routes.ts#L140). This is achieved by passing the prop `customEditorial`-- a string shorthand for a specific article-- to Reaction’s top-level `Article` component. The `customEditorial` prop is pulled from Force’s editorial feature "[master list](TKTK)", which ties an `article._id` to a communicative string that will be received by Reaction. All custom articles are excluded from infinite scroll, they do receive all data displayed in the footer including related articles and display ads though it may not always be rendered. 
 
 **2. [In Reaction (Artsy’s component library)](https://github.com/artsy/reaction)**
 
