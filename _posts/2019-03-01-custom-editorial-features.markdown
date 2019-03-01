@@ -17,17 +17,17 @@ For a light-weight customization, a developer might add props for unique text or
 Some examples of articles created with the `EditorialFeature` component include:
 
 - The Most Influential Artists of 2018 - [Components](https://github.com/artsy/reaction/tree/master/src/Components/Publishing/EditorialFeature/Components/Eoy2018Artists) | [Article](https://www.artsy.net/article/artsy-editorial-influential-artists-2018)
-- The Year in Culture 2018 - [Components](https://github.com/artsy/reaction/blob/master/src/Components/Publishing/EditorialFeature/Components/Eoy2018Culture.tsx) | [Article](https://www.artsy.net/article/artsy-editorial-people-defined-visual-culture-2018)
+- The Year in Visual Culture 2018 - [Components](https://github.com/artsy/reaction/blob/master/src/Components/Publishing/EditorialFeature/Components/Eoy2018Culture.tsx) | [Article](https://www.artsy.net/article/artsy-editorial-people-defined-visual-culture-2018)
 
 # Custom articles by domain:
 
 **1. [In Force (Artsy.net)](https://github.com/artsy/force)**
 
-- Whether an article requires a custom layout is determined in Force’s [article routing](https://github.com/artsy/force/blob/master/src/desktop/apps/article/routes.ts#L140). This is achieved by passing the prop `customEditorial`-- a string shorthand for a specific article-- to Reaction’s top-level `Article` component. The `customEditorial` prop is pulled from Force’s editorial feature "[master list](TKTK)", which ties an `article._id` to a communicative string that will be received by Reaction. In addition to data saved to an article model, the component will also receive all data displayed in the footer including related articles and display ads. Custom articles are rendered as a standalone page, meaning they are excluded from infinite scroll and do not render the main site header.
+- Whether an article requires a custom layout is determined in Force’s [article routing](https://github.com/artsy/force/blob/master/src/desktop/apps/article/routes.ts#L140). This is achieved by passing the prop `customEditorial`-- a string shorthand for a specific article-- to Reaction’s top-level `Article` component. The `customEditorial` prop is pulled from Force’s editorial feature "[master list](https://github.com/artsy/force/blob/master/src/desktop/apps/article/editorial_features.ts#L13)", which ties an `article._id` to a communicative string that will be received by Reaction. In addition to data saved to an article model, the component will also receive all data displayed in the footer including related articles and display ads. Custom articles are rendered as a standalone page, meaning they are excluded from infinite scroll and do not render the main site header.
 
 **2. [In Reaction (Artsy’s component library)](https://github.com/artsy/reaction)**
 
-- In Reaction’s [`Article`](TKTK) component, the presence of a `customEditoral` prop indicates that `EditorialFeature` should render, rather than the component designated by the article’s specified layout. A FeatureLayout is displayed by default, but any article can be converted into a custom feature, regardless of the `article.layout` value. Inside the `EditorialFeature` component, a switch statement is used to associate the string variable for the feature with its affiliated top-level component.
+- In Reaction’s [`Article`](TKTK) component, the presence of a `customEditoral` prop indicates that `EditorialFeature` should render, rather than the component designated by the article’s specified layout. A `FeatureLayout` is displayed by default, but any article can be converted into a custom feature, regardless of the `article.layout` value. Inside the `EditorialFeature` component, a switch statement is used to associate the string variable for the feature with its affiliated top-level component.
 
 **3. [In Writer/Positron (CMS & API for articles)](https://github.com/artsy/positron)**
 
@@ -37,7 +37,7 @@ Some examples of articles created with the `EditorialFeature` component include:
 
 **A custom layout is enabled via three steps:**
 
-- Add a new object to the [CustomEditorialArticles array](TKTK), indicating the `article._id` and `name`. Names are usually a shorthand for the content, and used because they are descriptive (unlike an `_id`), and will not change over time like a title or slug has potential to do.
+- Add a new object to the `customEditorialArticles` [master list](https://github.com/artsy/force/blob/master/src/desktop/apps/article/editorial_features.ts#L13), indicating the `article._id` and `name`. Names are usually a shorthand for the content, and used because they are descriptive (unlike an `_id`), and will not change over time like a title or slug has potential to do.
 ```javascript
     {
       name: "MY_CUSTOM_FEATURE",
@@ -60,8 +60,9 @@ Previously we have used multiple strategies to implement these features, using t
 **Curations:**
 
 A [Curation](https://github.com/artsy/positron/tree/master/src/api/apps/curations) is a model in Positron’s API that has no schema-- meaning it accepts any data shape. This can be a handy solution for content that does not conform to the existing article model. However, this strategy comes with significant overhead and a few quirks:
+
 - A [custom edit UI must be created](https://github.com/artsy/positron/tree/master/src/client/apps/settings/client/curations) and maintained indefinitely
-- A custom express app is required by Force to render the content
+- A custom Express app is required by Force to render the content
 - Because data is in a unique shape, components often must be fully custom
 - It is difficult to track visual changes over time
 
