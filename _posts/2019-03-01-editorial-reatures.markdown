@@ -23,11 +23,11 @@ Some examples of articles created with the `EditorialFeature` component include:
 
 **1. [In Force (Artsy.net)](https://github.com/artsy/force)**
 
-- Whether an article requires a custom layout is determined in Force’s [article routing](https://github.com/artsy/force/blob/master/src/desktop/apps/article/routes.ts#L140). This is achieved by passing the prop `customEditorial`-- a string shorthand for a specific article-- to Reaction’s top-level `Article` component. The `customEditorial` prop is pulled from Force’s editorial feature "[master list](TKTK)", which ties an `article._id` to a communicative string that will be received by Reaction. All custom articles are excluded from infinite scroll, they do receive all data displayed in the footer including related articles and display ads though it may not always be rendered. 
+- Whether an article requires a custom layout is determined in Force’s [article routing](https://github.com/artsy/force/blob/master/src/desktop/apps/article/routes.ts#L140). This is achieved by passing the prop `customEditorial`-- a string shorthand for a specific article-- to Reaction’s top-level `Article` component. The `customEditorial` prop is pulled from Force’s editorial feature "[master list](TKTK)", which ties an `article._id` to a communicative string that will be received by Reaction. In addition to data saved to an article model, the component will also receive all data displayed in the footer including related articles and display ads. Custom articles are rendered as a standalone page, meaning they are excluded from infinite scroll and do not render the main site header.
 
 **2. [In Reaction (Artsy’s component library)](https://github.com/artsy/reaction)**
 
-- In Reaction’s [`Article`](TKTK) component, the presence of a `customEditoral` prop indicates that `EditorialFeature` should render, rather than the component designated by the article’s specified layout. A FeatureLayout is displayed by default, but any article can be converted a custom feature, regardless of the `article.layout` value. Inside the `EditorialFeature` component, a switch statement is used to associate the string variable for the feature with its affiliated top-level component.
+- In Reaction’s [`Article`](TKTK) component, the presence of a `customEditoral` prop indicates that `EditorialFeature` should render, rather than the component designated by the article’s specified layout. A FeatureLayout is displayed by default, but any article can be converted into a custom feature, regardless of the `article.layout` value. Inside the `EditorialFeature` component, a switch statement is used to associate the string variable for the feature with its affiliated top-level component.
 
 **3. [In Writer/Positron (CMS & API for articles)](https://github.com/artsy/positron)**
 
@@ -88,6 +88,6 @@ Existing SuperArticles include:
 - [The 100 Most Expensive Artists at Auction](https://www.artsy.net/article/artsy-editorial-the-100-most-expensive-artists)
 
 # Takeaways for developers
-- Work with the editorial and design team to ensure that expected content maps as closely to the existing article data-model and CMS features as possible
+- We try to work with our editorial and design teams to ensure new editorial content maps as closely to our existing article data-model and CMS features as possible. That way, we can have an upfront conversation about the constraints our systems might impose on designs.
 - Relying heavily on existing article and system components ensures that system-wide changes (for example, changes to breakpoints) will be inherited
 - Always create snapshot tests to monitor how an article changes over time
