@@ -1,7 +1,7 @@
 ---
 layout: post
 title: The Anatomy of an Editorial Feature
-date: 2019-03-01
+date: 2019-03-04
 author: eve
 categories: [reaction, javascript, publishing]
 ---
@@ -27,7 +27,7 @@ Some examples of articles created with the `EditorialFeature` component include:
 
 **2. [In Reaction (Artsy’s component library)](https://github.com/artsy/reaction)**
 
-- In Reaction’s [`Article`](TKTK) component, the presence of a `customEditoral` prop indicates that `EditorialFeature` should render, rather than the component designated by the article’s specified layout. A `FeatureLayout` is displayed by default, but any article can be converted into a custom feature, regardless of the `article.layout` value. Inside the `EditorialFeature` component, a switch statement is used to associate the string variable for the feature with its affiliated top-level component.
+- In Reaction’s top-level [`Article`](https://github.com/artsy/reaction/blob/master/src/Components/Publishing/Article.tsx#L64) component, the presence of a `customEditoral` prop routes an article to the [`ArticleWithFullScreen`](https://github.com/artsy/reaction/blob/master/src/Components/Publishing/Layouts/ArticleWithFullScreen.tsx) component. From here, the article is given context for image slideshows and tooltip helpers, and the  `EditorialFeature` component is rendered rather than the component designated by the article’s specified layout. A `FeatureLayout` is displayed by default, but any article can be converted into a custom feature, regardless of the `article.layout` value. Inside the `EditorialFeature` component, a switch statement is used to associate the string variable for the feature with its affiliated top-level component.
 
 **3. [In Writer/Positron (CMS & API for articles)](https://github.com/artsy/positron)**
 
