@@ -1,10 +1,12 @@
 ---
 layout: post
 title: The Anatomy of an Editorial Feature
-date: 2019-03-04
+date: 2019-03-05
 author: eve
 categories: [reaction, javascript, publishing]
 ---
+
+![The Year in Visual Culture 2018](http://files.artsy.net/images/2018-visual-culture-screengrab.gif "The Year in Visual Culture 2018")
 
 On select occasions since 2015, Artsy Editorial has created a number of custom, one-off articles featuring unique layouts, styles and experiences. After trying a number of implementations, the [`EditorialFeature`](https://github.com/artsy/reaction/tree/master/src/Components/Publishing/EditorialFeature) component was introduced to the process during Artsy’s 2018 year-in-review projects.  
 
@@ -18,6 +20,7 @@ Some examples of articles created with the `EditorialFeature` component include:
 
 - The Most Influential Artists of 2018 - [Components](https://github.com/artsy/reaction/tree/master/src/Components/Publishing/EditorialFeature/Components/Eoy2018Artists) | [Article](https://www.artsy.net/article/artsy-editorial-influential-artists-2018)
 - The Year in Visual Culture 2018 - [Components](https://github.com/artsy/reaction/blob/master/src/Components/Publishing/EditorialFeature/Components/Eoy2018Culture.tsx) | [Article](https://www.artsy.net/article/artsy-editorial-people-defined-visual-culture-2018)
+
 
 # Custom articles by domain:
 
@@ -34,6 +37,8 @@ Some examples of articles created with the `EditorialFeature` component include:
 - Because `EditorialFeature` accepts an article data-model, it can be edited using the Writer CMS. However it is important to note that a custom layout is rendered by Force only. While editing, what users see is dicated by the `article.layout` property. Writer's features are exposed based on this property, so a particular custom article’s layout should be determined by the features most suited to the content and design.  For example, if you need a header-image or video, a feature article would be a logical choice because that content can easily be created and edited in Writer. If the article relies heavily on content from related articles, you might choose to customize a series article instead.
 
 # Creating a custom feature
+
+![The Most Influential Artists of 2018](http://files.artsy.net/images/2018-influentual-artists-screengrab.gif "The Most Influential Artists of 2018")
 
 **A custom layout is enabled via three steps:**
 
@@ -56,6 +61,8 @@ Although these features historically receive high traffic via search and other c
 
 # History & Context
 Previously we have used multiple strategies to implement these features, using two sometimes overlapping concepts: Curations and SuperArticles.
+
+![Artists for Gender Equality](http://files.artsy.net/images/2017-gender-equality-screengrab.gif "Artists for Gender Equality")
 
 **Curations:**
 
