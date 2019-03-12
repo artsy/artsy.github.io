@@ -57,7 +57,7 @@ I also didn't keep it a secret from the rest of my team or the company. I didn't
 "ENGINEER" on it, but I told people, "I'm working on becoming an engineer. I'm really hoping to stay at Artsy, but
 if there's not a role open for me, that's fine—I'll search elsewhere."
 
-# Step Two: What Should You Learn?
+# Step Two: Figure Out What You Want to Learn
 
 The answer to that question really depends on who you are, where you work, and where you _want_ to work.
 
@@ -65,7 +65,7 @@ I wanted to work at Artsy, and I felt that I was most interested in front-end wo
 engineers to help me understand our stack and to recommend frameworks/languages I should learn.
 
 If you're interested in changing companies as well as careers, it's worth seeing if your target company or
-companies have open source code you can check out. See if you can find them on [Github](https://www.github.com) and
+companies have open source code you can check out. See if you can find them on [GitHub](https://www.github.com) and
 look at some of their recently updated apps. If you already have some coding experience, see if you can contribute
 a little bit—even fixing small bugs or typos is a good place to start, since you're both contributing to their
 codebase (which will help you if you land an interview) and learning more about their stack.
@@ -77,7 +77,7 @@ Typescript code in a React framework?"
 
 Fortunately, a lot of other people have the same question.
 
-# Step Three: How Should You Learn?
+# Step Three: Decide How You Want to Learn It
 
 Let me say this first: **there is no wrong way to go about learning to code**. Whether it takes you 6 months or 6
 years, whether you learn one language or a dozen, whether you ask for a lot of help or do it all yourself, **you
@@ -115,6 +115,26 @@ are many other similar services out there as well, like [Udacity](https://www.ud
 
 I also highly recommend attending IRL meetups, because that's where you can make connections and learn from others
 most easily. [Meetup.com](https://www.meetup.com/find/tech/) is a great place to start.
+
+# Step Four: Get Comfortable Not Knowing Things
+
+When learning engineering concepts (and practicalities), there's a lot you're not going to know.
+
+This piece of advice is important both when learning and once you actually land an engineering job (it's been one
+of the hardest parts of my first ~3 months on Artsy engineering).
+
+Part of what makes engineering so cool is that you are always challenged to learn new things and solve new
+problems. But especially at first, the mental toolbox you have is pretty limited. When you don't know a language or
+framework, it's very hard to solve problems using it—your first problems are likely to be syntax errors and
+misunderstandings.
+
+One of the best things you can do is learn how to ask good questions and then ask them. You might be asking them on
+a forum, in GitHub issues, in meetings, or in conversation with your
+[favorite rubber duck](https://en.wikipedia.org/wiki/Rubber_duck_debugging). Regardless, just asking them will
+help, and asking lots of questions is one of the best way to learn things fast—but it takes humility and
+self-awareness. [Julia Evans](https://twitter.com/b0rk) has a [great zine](https://jvns.ca/wizard-zine.pdf) that
+has good advice on asking questions, among many other things. For a few more fun and helpful resources, see
+[Artsy's README](https://github.com/artsy/README/blob/master/resources/tech-learning.md).
 
 ————
 
