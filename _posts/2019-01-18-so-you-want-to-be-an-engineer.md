@@ -1,7 +1,7 @@
 ---
 layout: epic
 title: "So You Want to Be an Engineer"
-date: "2019-01-18"
+date: "2019-03-12"
 author: [matt_dole]
 categories: [artsy, beginners, culture, engineering, people, team]
 ---
@@ -18,8 +18,8 @@ optimization for our Editorial team, then building
 of it as a serious pursuit.
 
 Mostly, that was due to my experience programming in the past—I'd done a bit of coding before coming to Artsy. In
-undergrad at Grinnell College I did a bit over half of a CS degree, and I even did a summer of research at Wash U
-St. Louis. At the time, I felt that programming wasn't right for me, and I dropped the major during my third year.
+undergrad at Grinnell College I did around half of a CS degree, and I even did a summer of research at Wash U St.
+Louis. At the time, I felt that programming wasn't right for me, and I dropped the major during my third year.
 
 It was Artsy's Engineering team that convinced me that programming was something that I both could and should do.
 Our engineers have always welcomed learners and been happy to answer questions and empower other teams to do
@@ -61,91 +61,64 @@ if there's not a role open for me, that's fine—I'll search elsewhere."
 
 The answer to that question really depends on who you are, where you work, and where you _want_ to work.
 
-I had a decent grounding in CS fundamentals thanks to my experience in undergrad. As a result, I initially decided
-I wouldn't do a coding bootcamp—I felt I had enough experience to benefit from the multitude of online courses out
-there.
+I wanted to work at Artsy, and I felt that I was most interested in front-end work. So I asked a few of our
+engineers to help me understand our stack and to recommend frameworks/languages I should learn.
 
------ OLD STUFF -----
+If you're interested in changing companies as well as careers, it's worth seeing if your target company or
+companies have open source code you can check out. See if you can find them on [Github](https://www.github.com) and
+look at some of their recently updated apps. If you already have some coding experience, see if you can contribute
+a little bit—even fixing small bugs or typos is a good place to start, since you're both contributing to their
+codebase (which will help you if you land an interview) and learning more about their stack.
 
-# Learning to Focus
+As with most companies that have been around for more than a year or two, Artsy is home to projects with many
+different stacks. However, most of our newer front-end stuff—things that are recently updated or currently in
+development—is built on React using Typescript. So my first question was "what do I need to know in order to write
+Typescript code in a React framework?"
 
-One of the biggest changes I've noticed in my first few weeks on engineering is how different the pace of work is.
-In my old role, my attention was usually divided between several different tasks—I was constantly jumping from
-email to slack, meeting to meeting, coding to strategy. I habitually mashed cmd + tab and was keeping a constant
-eye on multiple communication channels. I rarely had time—or a need—to focus on one task for long periods of time.
+Fortunately, a lot of other people have the same question.
 
-On engineering, the reverse is true. I have much larger blocks of time, and success is measured not in terms of
-repeated, everyday tasks punctuated by big initiatives, but in constant, measurable progress.
+# Step Three: How Should You Learn?
 
-An example: I keep daily checklists, carrying over uncompleted tasks from day to day. Here's my checklist from
-Tuesday, December 11:
+Let me say this first: **there is no wrong way to go about learning to code**. Whether it takes you 6 months or 6
+years, whether you learn one language or a dozen, whether you ask for a lot of help or do it all yourself, **you
+are learning and that is valuable**. Learning to code is not a magical skill. Like just about everything, it's a
+matter of putting in time. Just keep trying, even small things, and you _will_ make progress.
 
-```
-- [x] Promoted content documentation
-- [x] Promoted content for January w/ Lansing
-- [x] Review Carolyn's work exercise
-- [x] Make decisions on the two candidates in greenhouse
-- [x] Connect Molly, Owen, and Daniel about email asset for MIA
-- [x] Set up automated outreach handoff with nicholas + juliana
-- [x] Set up coffee/meeting for Jun + Lansing
-- [x] Development convo self assessment
-```
+With that out of the way, here are thoughts and recommendations from my experience.
 
-As you can see, that's quite a few disparate tasks both large and small. And this doesn't take into account a lot
-of the small occurrences that punctuated my day-to-day, such as QAing that day's Editorial email, answering
-questions from project stakeholders on Slack, and reviewing stats for recent email sends.
+Lots of people who want to become engineers go to coding bootcamps like [Flatiron](https://flatironschool.com/) or
+[General Assembly](https://generalassemb.ly/). That's a very reasonable thing to do! I had a decent grounding in CS
+fundamentals thanks to my experience in undergrad, and as a result, I initially decided I wouldn't do a coding
+bootcamp—I felt I had enough experience to benefit from the multitude of online courses and open source projects
+out there.
 
-By contrast, here's my checklist for January 22nd:
+However, I did reconsider that decision several times over the next few months. As I see it, the big benefits of a
+coding bootcamp are as follows:
 
-```
-- [x] PR force changes from Friday
-- [ ] 30m of work on blog post
-- [ ] Resolve Sailthru library issues
-- [ ] What role should I take in the filter ticket? Schedule a meeting with Devon?
-```
+1. Clear curriculum. At times, I was overwhelmed by the possible ways to proceed and stopped making progress as a
+   result. Bootcamps take the guesswork out.
+2. Timeline. Because I didn't have a hard date set for a transition or interview, it was up to me to determine how
+   fast/slow I worked on things, and I stagnated at times as a result.
+3. Community. While the open source community is very much a real thing, and you can find lovely people on the
+   internet who want to help learners like yourself, it's not the same as having multiple people learning the same
+   thing at the same time in the same physical space.
 
-I'm cherrypicking a little here, but you get the idea—my lists are consistently 3 - 4 items now, with 1 item
-usually taking the lion's share of time and effort.
+The downsides, of course, are that coding bootcamps are expensive and time-consuming. Most of us don't have the
+luxury to leave a job, pay $10K - $15K in fees, and spend a couple months at a full-time bootcamp with no income.
+There are other models, such as online-only bootcamps or after-hours classes, but those come with challenges of
+their own. If you can afford a bootcamp and have the time, it's a great way to jumpstart a coding career.
 
-As a result, I now have to figure out how to focus on something for a big chunk of the day instead of swapping
-between items quickly and often.
+If you decide to go the non-bootcamp route, you also have a lot of good options. I did courses through
+[Udemy](https://www.udemy.com), which has a lot of courses that are literally always on sale for $10 - $20. There
+are many other similar services out there as well, like [Udacity](https://www.udacity.com),
+[Codecademy](https://www.codecademy.com/), and [Treehouse](https://teamtreehouse.com/).
 
-# Be your own rubber duck
+I also highly recommend attending IRL meetups, because that's where you can make connections and learn from others
+most easily. [Meetup.com](https://www.meetup.com/find/tech/) is a great place to start.
 
-My first couple weeks were largely focused on setting up my development environment—downloading services,
-configuring environment variables, setting up logins, etc. etc. In the process, I ran into a few hiccups, and got
-some great help from the rest of Artsy's dev team.
+————
 
-I also was reminded of the importance of problem solving solo. Artsy's engineers are an incredibly kind and helpful
-bunch, and they're welcome to help as often as needed, but I also need to be able to do things myself sometimes.
-One of the strategies I've landed on is effectively "self rubber-ducking." Before asking someone else for help, I
-start by typing up (or, if I'm alone, talking out loud about) my questions and problems. Here's a snippet I typed
-up when I was troubleshooting an issue last week:
-
-```
-- What is my issue?
-    - My local version of Force is still showing the old version of the page
-    - I bet it has something to do with my environment variables
-- What have I tried so far?
-    - I added my user_id and access token to Reaction's .env file. I don't think that's it though. What are the other differences?
-    - Tried adding `NEW_ARTWORK_PAGE_THRESHOLD=10` (which equals 100%) to my .env file. It's also worth noting that even though it doesn't say as much in the readme, this is a hokusai application, so I might want to try copy_env instead of the cp .env.oss .env recommended in the force startup
-    - oh! yes! that worked! it's correctly broken!
-    - Nice job, self
-```
-
-In this case, even though I was feeling completely stumped, stating my problem and the steps I tried helped me
-clarify my thoughts and figure out a solution. And in cases when I haven't been able to figure out the problem,
-having gone through the exercise of defining the problem and documenting my attempts to solve it has made it easier
-and faster to get help because I'm better able to articulate the issue at hand.
-
-# Conclusion
-
-I'm lucky to work at an organization where moving from email marketing to engineering is possible. I didn't take it
-for granted that I would be able to transition into Engineering at Artsy—really, I assumed it wouldn't be.
-
-### To add
-
-I hadn't read this article, but I am a beneficiary of policy #1 (tell people about your interest in transitioning)
-https://engineering.gusto.com/i-didnt-want-to-be-a-manager-anymore-and-the-world-didnt-end/ Pairing is super
-important. I was working on a system where I was the main maintainer and knew most things. Now I'm working on
-systems where dozens of people have worked on the code and I don't know shit
+Moving to engineering has been a tricky process, but one I'm very grateful to have experienced. I'm lucky to work
+at an organization where moving from email marketing to engineering is possible, and I'm even luckier to have had
+the support of engineers, friends, and engineer-friends in making the move. If you end up pursuing this course as
+well, I wish you the best of luck!
