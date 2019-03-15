@@ -139,6 +139,29 @@ self-awareness. [Julia Evans](https://twitter.com/b0rk) has a [great zine](https
 has good advice on asking questions, among many other things. For a few more fun and helpful resources, see
 [Artsy's README](https://github.com/artsy/README/blob/master/resources/tech-learning.md).
 
+# Step Five: Recognize What You Bring to the Table
+
+Ok, so you're reconciled to the fact that you have a lot to learn—but what about all the things you already know?
+Those are important too!
+
+Even if your past work and/or life experience has nothing to do with computers or programming, it can still have
+value as you work towards engineering (and after you become an engineer). That value can take a lot of different
+forms, and since everyone's experiences are different, I can't say for sure what impact your prior knowledge will
+have.
+
+For me, there are a few experiences I brought to engineering that were particularly helpful. Because I was
+transitioning from one team at Artsy to another (Marketing → Engineering), I brought with me a broad understanding
+of Artsy's goals and needs, which helps with day-to-day prioritization. And when I'm in a sprint planning meeting
+or a product review and someone has a question about email or marketing, I can often answer—or at least I know who
+to talk to to get to the bottom of the issue quickly. Plus if at some point my team needs to code emails, my
+[past experience](http://artsy.github.io/blog/2018/11/19/mjml/) will come in very handy.
+
+There are also life experiences that serve me well on the Engineering team. My work as a server and bartender made
+me good at clear communication with stakeholders. Cooking for big groups of friends has made me better at
+estimating how long I'll need for tasks. Don't underestimate the power of "soft skills"—even companies like Google
+[have come to recognize](https://www.washingtonpost.com/news/answer-sheet/wp/2017/12/20/the-surprising-thing-google-learned-about-its-employees-and-what-it-means-for-todays-students)
+that it's often the non-technical skills that separate good engineers from great ones.
+
 ————
 
 Moving to engineering has been a tricky process, but one I'm very grateful to have experienced. I'm lucky to work
