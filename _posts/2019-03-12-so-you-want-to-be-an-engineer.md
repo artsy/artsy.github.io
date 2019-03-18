@@ -27,6 +27,8 @@ most, and that I would likely feel more fulfilled if I made programming my full-
 
 Here's what that journey looked like. Hopefully my experience proves helpful to you as you begin (or finish) yours!
 
+<!-- more -->
+
 # Step One: Tell People What You Want
 
 This might've been the single biggest learning I took away from this experience: _if you tell people you want
