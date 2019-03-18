@@ -38,7 +38,7 @@ making a substantial departure from that idea by being proactive about what it w
 [This post](https://engineering.gusto.com/i-didnt-want-to-be-a-manager-anymore-and-the-world-didnt-end/) by
 [Noa Elad](https://twitter.com/NoaElad) does a great job with this topic and is certainly worth a read.
 
-The first person I told at Artsy was [Orta](https://github.com/orta). He'd often encouraged me to develop my
+The first person I told at Artsy was [Orta](https://twitter.com/orta). He'd often encouraged me to develop my
 technical skills, and since he knows Artsy's engineering team and stack better than just about anyone, I figured
 he'd be able to point me in the right direction when it came to learning resources and navigating company politics
 to get to my eventual goal.
@@ -55,8 +55,9 @@ I also didn't keep it a secret from the rest of my team or the company. I didn't
 "ENGINEER" on it, but I told people, "I'm working on becoming an engineer. I'm really hoping to stay at Artsy, but
 if there's not a role open for me, that's fine—I'll search elsewhere."
 
-The net outcome of these conversations was that there wasn't a role open right then, but I also left with a better
-idea of what I should learn and what I could expect from the coming months.
+The net outcome of these conversations was that there wasn't a role open right then (and that I still had lot to
+learn before I'd be ready when one became available), but I also left with a better idea of what I should learn and
+what I could expect from the coming months.
 
 # Step Two: Figure Out What You Want to Learn
 
@@ -67,7 +68,7 @@ engineers to help me understand our stack and to recommend frameworks/languages 
 
 If you're interested in changing companies as well as careers, it's worth seeing if your target company or
 companies have open source code you can check out. See if you can find them on [GitHub](https://www.github.com) and
-look at some of their recently updated apps. If you already have some coding experience, see if you can contribute
+look at some of their recently updated repos. If you already have some coding experience, see if you can contribute
 a little bit—even fixing small bugs or typos is a good place to start, since you're both contributing to their
 codebase (which will help you if you land an interview) and learning more about their stack. dB recommended that I
 do this with Artsy's code.
@@ -117,7 +118,9 @@ are many other similar services out there as well, like [Udacity](https://www.ud
 [Codecademy](https://www.codecademy.com/), and [Treehouse](https://teamtreehouse.com/).
 
 I also highly recommend attending IRL meetups, because that's where you can make connections and learn from others
-most easily. [Meetup.com](https://www.meetup.com/find/tech/) is a great place to start.
+most easily. I'm a semi-regular attendee at the [CocoaPods meetup](https://www.meetup.com/CocoaPods-NYC/) hosted by
+[Ash](https://twitter.com/ashfurrow) and Orta at Artsy HQ, and [meetup.com](https://www.meetup.com/find/tech/) and
+[peerlab.community](https://peerlab.community/) are great places to find other events.
 
 # Step Four: Get Comfortable Not Knowing Things
 
