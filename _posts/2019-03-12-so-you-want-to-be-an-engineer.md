@@ -2,7 +2,7 @@
 layout: epic
 title: "So You Want to Be an Engineer"
 date: "2019-03-12"
-author: [matt_dole]
+author: [matt-dole]
 categories: [artsy, beginners, culture, engineering, people, team]
 ---
 
