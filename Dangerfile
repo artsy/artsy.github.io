@@ -13,16 +13,18 @@ avoid_exact_words = [
   { word: 'react native', reason: 'Please use React Native with capitals' }
 ]
 
-active_files = (git.modified_files + git.added_files)
+active_files = (git.modified_files + git.added_files).uniq
 markdowns = active_files.select { |file| file.start_with? '_posts/' }
 
 # This could do with some code golfing sometime
-markdowns.each do |file|
-  lines = File.read(file).lines
+markdowns.each do |filename|
+  file = File.read(filename)
+  lines = file.lines
+  fail("Please add a <!-- more --> tag where you'd like this post to break for post preview", file: filename) unless file.include?("<!-- more -->")
   lines.each do |l|
     avoid_exact_words.each do |avoid|
       line = lines.index line
-      warn(avoid[:reason], file: file, line: line) if l.include? avoid[:word]
+      warn(avoid[:reason], file: filename, line: line) if l.include? avoid[:word]
     end
   end
 end
