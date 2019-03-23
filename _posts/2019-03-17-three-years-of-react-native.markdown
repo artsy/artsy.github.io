@@ -148,9 +148,11 @@ codebase.There are a few levers we can use to fix some of these issues:
 - Have a lower mix of iOS infrastructure engineers to product engineers
 
 How and if we'll tweak these levers will make for an interesting retrospective. Till then, I'd like to finish with
-a showcase of some of the React Native work we did this year:
+a showcase of some of the React Native work we shipped over the course of the last 4 months:
 
-[screenshots of eigen]
+{% include epic_img.html url="/images/react-native-3/rn_3_1.jpg" title="" style="width:100%;" %}
+
+{% include epic_img.html url="/images/react-native-3/rn_3_2.jpg" title="" style="width:100%;" %}
 
 A lot of this probably wouldn't have happened had we not switched to React Native.
 
