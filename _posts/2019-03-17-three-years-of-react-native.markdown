@@ -3,7 +3,8 @@ layout: epic
 title: "React Native, 3 years later"
 date: "2019-03-17"
 author: [orta]
-categories: [react-native, ios, community, roads and bridges]
+categories: [reactnative, ios, community, roads and bridges]
+series: React Native at Artsy
 comment_id: 521
 ---
 
@@ -43,7 +44,7 @@ a conduit for ensuring that we keep quality high and providing guidance to the r
 feel right. A simple way to think of it, is that the native engineer's job was to make sure we still conformed to
 the Apple Human Interface Guideline.
 
-We're reasonably lucky here tpp, the mobile team at Artsy has pre-dominantly hired folks interested in improving
+We're reasonably lucky here too, the mobile team at Artsy has pre-dominantly hired folks interested in improving
 [Roads and Bridges][rnb] style infrastructure. With the move we effectively took all of our native product/feature
 developers and moved them into infrastructure roles for JavaScript developers.
 
@@ -77,8 +78,8 @@ and keeping the infrastructure up-to-date on the web side is much bigger task an
 time.
 
 The web-aspect of Omakase has more client consumers (1 iOS app vs 3 large websites), and it's corresponding repo
-have more than double the of commits per month. The web team has it's own people running and improving
-infrastructure, which affects the iOS side too.
+have more than double the number of commits per day on average. The web team has it's own people running and
+improving infrastructure, which affects the iOS side too.
 
 We kinda set ourselves up for this stress, we explicitly worked towards shared common infrastructure across all
 front-end at Artsy. It wasn't surprising when the aspect with the most company focus became much larger. What
@@ -154,7 +155,7 @@ a showcase of some of the React Native work we shipped over the course of the la
 
 {% include epic_img.html url="/images/react-native-3/rn_3_2.jpg" title="" style="width:100%;" %}
 
-A lot of this probably wouldn't have happened had we not switched to React Native.
+We wouldn't have been able to ship this without React Native.
 
 [6 months]: /blog/2016/08/15/React-Native-at-Artsy/
 [1 year]: /blog/2017/02/05/Retrospective-Swift-at-Artsy/
