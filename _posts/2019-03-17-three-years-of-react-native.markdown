@@ -31,7 +31,7 @@ From an engineering team's perspective, we think of it as skill [de-siloing][des
 were on the mobile team you only worked on the iOS apps. This meant you had a limited scope to make change at
 Artsy. This comes from two factors:
 
-- Skills in Obj-C and Swift are only useful in the context of a single platform.
+- Skills in Obj-C and Swift are only useful in the context of Apple's platforms.
 - Internally and externally, Artsy is considered a website first.
 
 Within 2 years we had de-siloed mobile engineering completely. We started with a team of 5 experienced native iOS developers
