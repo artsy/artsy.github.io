@@ -113,7 +113,7 @@ anymore.
 Without a focused iOS team, it's not easy to pitch for iOS specific projects. This means that features like moving
 to Apple's new app store review API or using iOS features which don't exist on web get spoken about in meetings,
 but never started. This lack of a focused team makes it really hard to implement fixes to e.g. bad App Store
-reviews
+reviews.
 
 That said, in the last year we did manage to ship a pretty hefty [ARKit feature][arkit] - which is a positive
 example of an iOS-specific feature which is both forward-thinking tech and a super great fit for Artsy's product.
@@ -143,7 +143,7 @@ Are these the kind of problems most teams would have? It depends, with React Nat
 - Ensuring we are able to meaningfully own our dependencies across the stacks.
 
 Means that we took on some technical and cultural debt, specifically around the platform aspect of our native
-codebase.There are a few levers we can use to fix some of these issues:
+codebase. There are a few levers we can use to fix some of these issues:
 
 - Let iOS be a bit more webby, by using more JavaScript instead of enforcing stricter platform standards.
 - Use more of the React Native community’s infra-structure, we generally don't use React Native JavaScript
