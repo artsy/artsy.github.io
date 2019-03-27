@@ -9,7 +9,7 @@ comment_id: 521
 ---
 
 On Valentine's day in 2014, @alloy made our first commit moving the Artsy Mobile team to JavaScript, and paving the
-way to the shared Omakase JS stack across web + iOS. We've done a write-up at [6 months], [1 year], [2 years] and
+way to the [shared Omakase JS stack across web + iOS][oma]. We've done a write-up at [6 months], [1 year], [2 years] and
 at 2.5 years we collaborated on a React Native conference with Facebook which features a [very long Q&A][q_a]
 session with the people who worked on, and with our React Native stack.
 
