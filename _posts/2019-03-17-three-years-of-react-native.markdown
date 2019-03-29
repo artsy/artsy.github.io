@@ -1,6 +1,6 @@
 ---
 layout: epic
-title: "React Native, 3 years later"
+title: "React Native at Artsy, 3 years later"
 date: "2019-03-17"
 author: [orta]
 categories: [reactnative, ios, community, roads and bridges]
@@ -103,7 +103,9 @@ work across the two front-ends teams is consistent - the platform concerns just 
 ## Keeping up with the Jobs'
 
 As individual developers, it's much less important for us to keep up to date with the latest Apple developer news.
-WWDCs and iOS releases just kinda happen, and we keep moving independently.
+WWDCs and iOS releases just kinda happen, and we keep moving independently. We still write native code to make use
+of any iOS API available when we need to, but right now we don’t go out of our way to try to make use of all the
+shiny new things when they are released.
 
 This is a side-effect to the openness of the JavaScript toolchain, and our ability to contribute and fix a lot of
 our own problems at JavaScript level instead of needing to dive deeper into the native side to work on problems. We
