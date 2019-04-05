@@ -168,7 +168,7 @@ TypeScript isn't the only programming language to tackle the problem of making J
 one with the biggest community, allows people to re-use their JavaScript knowledge and has really good tools to
 help developers work faster.
 
-These qualities made it worth adding an extra tool to our developer's toolbelt, and we're not the only ones because
+These qualities made it worth adding an extra tool to our developers' toolbelt, and we're not the only ones because
 TypeScript is growing to be [one of the most popular programming languages in the world][wired] with almost 6
 million downloads a week.
 
