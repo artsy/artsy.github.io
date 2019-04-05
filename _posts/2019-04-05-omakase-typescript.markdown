@@ -6,8 +6,8 @@ author: [orta]
 categories: [community, javascript, roads and bridges, typescript]
 ---
 
-TypeScript is a language which builds on JavaScript. This post is a non-technical overview of what JavaScript is,
-how TypeScript extends it and why we choose to adopt it at Artsy.
+TypeScript is a language from Microsoft which builds on JavaScript. This post is a non-technical overview of what
+JavaScript is, how TypeScript extends it and why we choose to adopt it at Artsy.
 
 <!-- more -->
 
@@ -112,7 +112,7 @@ people to build were more complex.
 ### What is TypeScript?
 
 TypeScript is a programming language - it contains all of JavaScript, and then a bit more. Using our example above,
-lets compare the scripts for "Hello, Danger" in JavaScript vs TypeScript:
+let's compare the scripts for "Hello, Danger" in JavaScript vs TypeScript:
 
 ```js
 // JavaScript
