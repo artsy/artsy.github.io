@@ -165,7 +165,7 @@ Using TypeScript gives our team the ability to feel good that the changes we hav
 want.
 
 TypeScript isn't the only programming language to tackle the problem of making JavaScript code safer, but it's the
-one with the biggest community, allows people to re-use their JavaScript knowledge and has a really good tools to
+one with the biggest community, allows people to re-use their JavaScript knowledge and has really good tools to
 help developers work faster.
 
 These qualities made it worth adding an extra tool to our developer's toolbelt, and we're not the only ones because
