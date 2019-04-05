@@ -14,7 +14,7 @@ how TypeScript extends it and why we choose to adopt it at Artsy.
 ## What is JavaScript?
 
 First up, you can't describe TypeScript without talking about JavaScript. To create a website (and a bunch of other
-types of things) you work in three languages: HTML, CSS and JavaScript (JS). The first two languages about
+types of things) you work in three languages: HTML, CSS and JavaScript (JS). The first two languages are about
 presenting the look and feel of the website, and JavaScript allows you to edit what it shows and make it
 interactive.
 
@@ -29,7 +29,7 @@ your work. We mostly build our back-ends in Ruby or JavaScript at Artsy.
 
 ### What do Programming Languages do?
 
-Programming languages are an interesting problem to solve. People read code many, many multiples of times more than
+Designing programming languages is an interesting challenge. People read code much more than
 they write it - so developers create languages which are good at solving particular problems in a terse amount of
 code. Here's an example using JavaScript:
 
@@ -38,7 +38,7 @@ var name = "Danger"
 console.log("Hello, " + danger)
 ```
 
-The first line makes a variable (something you can store something in) and then the seconds outputs text out to the
+The first line makes a variable (a kind of box you can keep things in) and then the second line outputs text to the
 console (think DOS, or the terminal) `"Hello, Danger"`. JavaScript is designed to work as a scripting language,
 which means the code starts at the top of the file and then goes through line by line. To provide some contrast,
 here is the [same behavior](https://repl.it/repls/VioletredGlisteningInfo) in Java, which is built with different
@@ -53,14 +53,14 @@ class Main {
 }
 ```
 
-> Note: if you find the naming of Java and JavaScript confusing (it is) - that's because when JavaScript as being
+> Note: if you find the naming of Java and JavaScript confusing (it is) - that's because when JavaScript was being
 > created, Java was looking to be really the next hot language to work with (it did turn out that way for a few
 > decades, but now JavaScript is usually the first language people have heard of.)
 
 Aside from having a lot more lines, the Java version comes with a lot of words that aren't necessarily about
 telling the computer exactly what to do, e.g. `class Main {`, `public static void main(String[] args) {`, `}` and
-`}` again. It also has semi-colons at the end of some line. Java is aimed at building different things, and these
-extras to the code sense within the constraints of building a Java app.
+`}` again. It also has semi-colons at the end of some lines. Java is aimed at building different things, and these
+extra bits of code make sense within the constraints of building a Java app.
 
 To get to my main point though, there is one standout line I'd like us to compare:
 
@@ -106,7 +106,7 @@ writing/reading chores. It's an implicit vs explicit thing.
 
 ### What is TypeScript?
 
-TypeScript is a programming language - it contains all of JavaScript, and then a bit more. So in our case above,
+TypeScript is a programming language - it contains all of JavaScript, and then a bit more. Using our example above,
 lets compare the scripts for "Hello, Danger" in JavaScript vs TypeScript:
 
 ```js
@@ -131,10 +131,10 @@ more explicit in your code.
 console.log("Hello, " + danger)
 ```
 
-This allows the reader to be certain that `name` will only be a string. Annotating your variables also allows
+This allows people reading this code to be certain that `name` will only be a string. Annotating your variables also allows
 TypeScript to check this for you.
 
-Simply speaking, we call these annotation "Types" and this is the "Type" in TypeScript. The tag-line for TypeScript
+Simply speaking, we call these annotations "Types". Hence the name _Type_Script. The tag-line for TypeScript
 is "JavaScript which scales" which is a statement that these extra type annotations allows you to work on bigger
 projects. This is because you can verify how correct your code is, and as many people read and write it then you
 don't need to fit it all in your head.
@@ -144,8 +144,8 @@ TypeScript extends JavaScript more, but this is the core concept - and that's en
 ### Why does Artsy use TypeScript?
 
 Artsy definitely isn't the size of Microsoft! Artsy is about 30 engineers, and Microsoft are about 60,000. However,
-some of our problems are the same. The "front end" developers at Artsy build apps which are thousands of files big.
-Any single change to one file, could affect any other file. A good way to think about this is how in a story,
+some of our problems are the same. Developers at Artsy build apps which are made up of thousands of files.
+Any single change to one file could affect any other file. A good way to think about this is how in a story,
 changing a conversation earlier can trigger a butterfly effect of changes later down the line.
 
 Typically, the need to ensure all your changes do what you want is less of a problem for people building websites.
