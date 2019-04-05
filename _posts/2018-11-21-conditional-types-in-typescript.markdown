@@ -5,6 +5,7 @@ date: 2018-11-21
 author: [david]
 categories: [programming, typescript]
 comment_id: 500
+series: Omakase
 ---
 
 This year TypeScript gained a new feature that punches far above its weight.
@@ -209,8 +210,8 @@ let fruit: "banana" = "banana"
 fruit = "apple"
 ```
 
-The string `"banana"` doesn't have more properties than any other `string`. But the type `"banana"` is
-still more _specific_ than the type `string`.
+The string `"banana"` doesn't have more properties than any other `string`. But the type `"banana"` is still more
+_specific_ than the type `string`.
 
 So another way to think of `A extends B` is like '`A` is a possibly-more-specific version of `B`'.
 

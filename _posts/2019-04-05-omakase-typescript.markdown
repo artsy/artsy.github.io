@@ -4,6 +4,7 @@ title: "What is TypeScript?"
 date: "2019-05-05"
 author: [orta]
 categories: [community, javascript, roads and bridges, typescript]
+series: Omakase
 ---
 
 TypeScript is a language from Microsoft which builds on JavaScript. This post is a non-technical overview of what
@@ -53,9 +54,10 @@ class Main {
 }
 ```
 
-> Note: if you find the naming of Java and JavaScript confusing (it is) - that's because when JavaScript was being
-> created, Java was looking to be really the next hot language to work with (it did turn out that way for a few
-> decades, but now JavaScript is usually the first language people have heard of.)
+> Note: if you find the naming of Java and JavaScript confusing (it is, they are two completely separate
+> programming languages, no link at all.) JavaScript was named that way because Java was looking to be really the
+> next hot language (it did turn out that way for a decade or two, but now JavaScript is usually the first language
+> people have heard of.)
 
 Aside from having a lot more lines, the Java version comes with a lot of words that aren't necessarily about
 telling the computer exactly what to do, e.g. `class Main {`, `public static void main(String[] args) {`, `}` and

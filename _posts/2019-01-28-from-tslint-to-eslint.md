@@ -4,6 +4,7 @@ title: "From TSLint to ESLint, or How I Learned to Lint GraphQL Code"
 date: "2019-01-29"
 author: [chris]
 categories: [typescript, tslint, eslint, graphql]
+series: Omakase
 ---
 
 At the beginning of January we discovered an interesting note in [TypeScript's roadmap][roadmap] about linting:
