@@ -4,13 +4,15 @@ title: "Why does Artsy use Relay?"
 date: "2019-04-06"
 author: [orta]
 categories: [community, omakase, relay]
+css: relay
 ---
 
-When the mobile team at Artsy considered moving to React Native back in 2014, one of the most compelling cases for
+When the mobile team at Artsy considered moving to React Native back in 2016, one of the most compelling cases for
 making that jump was Relay. This, it seems, is a dependency that is rarely used in the JS community and we often
-find ourselves defending this decision to new engineers during onboarding. It's great to [..]
+find ourselves defending this decision to new engineers during onboarding and to the public at large.
 
-Let's have a deep dive into what makes Relay compelling for Artsy Engineering.
+Which makes this a perfect blog post topic, so let's have a deep dive into what makes Relay compelling for Artsy's
+engineering team.
 
 <!-- more -->
 
@@ -23,7 +25,6 @@ apps, Relay removes a whole suite of non-business logic from your application.
 Relay handles:
 
 - Data binding (API -> props)
-- Data transformations (response shaping)
 - Cache management (invalidation, updates etc)
 - Consistent bi-directional pagination abstractions
 - Multiple query consolidation (e.g. consolidate all API requests to one request)
@@ -36,11 +37,13 @@ Facebook-scale best-practices and can build on top of that.
 
 # How does it work?
 
-You write a set of Relay components, you always start with a `QueryRenderer` then use a tree of either
-`FragmentContainer`, `RefetchContainer` or `PaginationController`s. You mostly use `FragmentContainer`s.
+You write a set of Relay components, you always start with a [`QueryRenderer`][query] then use a tree of either
+[`FragmentContainer`][frag], [`RefetchContainer`][re] or [`PaginationController`][pag]s. You mostly use
+`FragmentContainer`s so I'll focus on that here.
 
-The `FragmentContainer` is based on a GraphQL fragment. If you've never used a fragment, they are an abstraction
-that lets you declare shared fields on a specific GraphQL type to reduce duplication up your queries. For example:
+A `FragmentContainer` is based on a [GraphQL fragment][gql-frag]. If you've never used a fragment, they are an
+abstraction that lets you declare shared fields on a specific GraphQL type to reduce duplication up your queries.
+For example:
 
 ```
 query GetPopularArtistsAndMyFavs {
@@ -81,15 +84,13 @@ fragment ArtistMetadata on Artist {
 ```
 
 It's tiny a bit longer, but you have a guarantee that the data is consistent across both sets of artists. Now that
-you have a rough glimpse at what a GraphQL fragment is, let's look at what a `FragmentContainer` looks like. Here's
-a simplified [profile page][] from the Artsy iOS app:
+you have a rough idea of what a GraphQL fragment is, let's look at what a `FragmentContainer` looks like. Here's a
+simplified [profile page] from the Artsy iOS app:
 
 ```ts
 import React from "react"
 import { createFragmentContainer, graphql } from "react-relay"
 import { MyProfile_me } from "__generated__/MyProfile_me.graphql"
-
-// [...]
 
 interface Props extends ViewProperties {
   me: MyProfile_me
@@ -134,10 +135,10 @@ export default createFragmentContainer(
 
 There are three moving parts:
 
+- The TypeScript interface `MyProfile_me` which ensures we have a correct interface to our props
 - The `MyProfile` component, which is a vanilla React component
 - The exported `createFragmentContainer` which wraps the `MyProfile` and ties it to a fragment on a `Me` type in
   GraphQL.
-- The TypeScript interface `MyProfile_me` which ensures we have a correct interface to our props
 
 ## Isolation
 
@@ -162,7 +163,7 @@ through your component hierarchy. This means Relay powered component can be safe
 the chance for unintended consequences elsewhere.
 
 This isolation gives Artsy engineers the safety to work on projects with tens of contributors over long time
-periods without too much technical debt. The components we create are nearly all focused only on the data-driven
+periods without accruing technical debt. The components we create are nearly all focused only on the data-driven
 aspects of rendering a GraphQL response into views.
 
 ## Co-location
@@ -173,7 +174,11 @@ the styles, the actual view content hierarchy and the exact parts of the API it 
 <img src="/images/omakase-relay/co-location.png">
 
 In roughly that proportion too, though our most modern code uses the Artsy design system [Palette][palette] which
-drastically reduces the need for styling.
+drastically reduces the need for style in a Relay component.
+
+Co-location's biggest selling point is simplicity, having everything you need in one place makes it easier to
+understand how a component works. This makes code review simpler, and lowers the barrier to understanding the
+entire systems at scale.
 
 ## Community
 
@@ -186,15 +191,49 @@ the (much more popular) Apollo GraphQL eco-system and saw it was feasible but wo
 of work across many different plugins and tools. With Relay that's all packaged into one tool, works consistently
 and obviously doesn't have a scaling problem as Facebook have tens of thousands of Relay components.
 
+It's worth highlighting the core difference in community management for Apollo vs Relay. Engineers working on
+Apollo have great incentives to do user support, and improve the tools for the community - that's their businesses
+value. Relay on the other hand is used in many places at Facebook, and the engineers on the team support internal
+issues first. IMO, this is reasonable, Relay is an opinionated batteries-included framework for building user
+interfaces, and ensuring it works with the baffling amount of JavaScript at Facebook is more or less all the team
+has time for.
+
+That leaves space for the OSS community to own their own problems.
+
 ## Scale Safety
 
 Relay puts a lot of emphasis on ahead of time safety. The Relay compiler validates your queries against your
 GraphQL schema, we extended the compiler to create TypeScript types for the composed API fragments and there are
 strict naming systems enforced by the compiler. All of these guides engineers to build scalable codebases.
 
+How this works in practice is that whenever you need to change the data a component requires, you edit the
+fragment, the Relay compiler verifies your query, if successful then your TypeScript types are updated and you can
+use the new property in your React component above. See below for a [quick video][vid] showing the Relay compiler
+in action:
+
+{% include epic_video.html url="/images/omakase-relay/relay-process-720.mov" title="Relay isolation tree" style="width:100%; display:block;" %}
+
+## Cultural Fit
+
+Relay fit well into our team because:
+
+- We had engineers who were interested in contributing back and making it work for our cases, this is much less of
+  an issue now that Relay has matured and is better documented.
+- We had engineers used to using ahead-of-time error validation tools like compilers
+- We saw a lot of value in a tightly coupling our view structure to our user interface
+
+It's not without its flaws, but Relay has definitely paid for it's initial and occasional complexity for the
+tightness of our codebases many years down the line.
+
 <!-- prettier-ignore-start -->
-[profile_page]: https://github.com/artsy/emission/blob/892af2621eef455388e074701cca747330de3b3f/src/lib/Scenes/Settings/MyProfile.tsx#L95
+[profile page]: https://github.com/artsy/emission/blob/892af2621eef455388e074701cca747330de3b3f/src/lib/Scenes/Settings/MyProfile.tsx#L95
 <!-- prettier-ignore-end -->
 
 [grok]: https://en.wikipedia.org/wiki/Grok
 [palette]: https://github.com/artsy/palette
+[vid]: /images/omakase-relay/relay-process-720.mov
+[gql-frag]: https://graphql.org/learn/queries/#fragments
+[frag]: https://facebook.github.io/relay/docs/en/fragment-container.html
+[re]: https://facebook.github.io/relay/docs/en/refetch-container.html
+[pag]: https://facebook.github.io/relay/docs/en/pagination-container.html
+[query]: https://facebook.github.io/relay/docs/en/query-renderer.html
