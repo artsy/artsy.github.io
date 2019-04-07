@@ -5,6 +5,7 @@ date: "2019-04-06"
 author: [orta]
 categories: [community, omakase, relay]
 css: relay
+comment_id: 557
 ---
 
 When the mobile team at Artsy considered moving to React Native back in 2016, one of the most compelling cases for
