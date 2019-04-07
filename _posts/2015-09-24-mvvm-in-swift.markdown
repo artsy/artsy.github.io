@@ -10,7 +10,7 @@ series: Swift Patterns
 
 Model View ViewModel has become the default way I write apps on iOS – it makes writing iOS apps a joy. I've written [about it](https://www.objc.io/issues/13-architecture/mvvm/) [again](http://www.teehanlax.com/blog/model-view-viewmodel-for-ios/) and [again](https://speakerdeck.com/ashfurrow/reactivecocoa-at-mdevcon-2014) and [oh my](https://leanpub.com/iosfrp).
 
-But last Autumn, as our team was all-hands-on-deck to wrap up the [auctions kiosk app](http://artsy.github.io/blog/2014/11/13/eidolon-retrospective/), we chose not to use MVVM. Why not?
+But last Autumn, as our team was all-hands-on-deck to wrap up the [auctions kiosk app](https://artsy.github.io/blog/2014/11/13/eidolon-retrospective/), we chose not to use MVVM. Why not?
 
 We were building a _new app_ in a _new language_ using a _non-Swift framework_ for functional reactive programming. I was also teaching colleagues what they needed to know about ReactiveCocoa to help write the app. We used the MVC pattern because the relative cost of MVVM was too high.
 

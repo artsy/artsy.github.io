@@ -647,7 +647,7 @@ If you're considering a new app, or a grand re-write, React Native should be con
 
 [sword of damocles]: https://en.wikipedia.org/wiki/Damocles
 
-[retro-swift-sherlock]: http://artsy.github.io/blog/2017/02/05/Retrospective-Swift-at-Artsy/#Developer.Experience
+[retro-swift-sherlock]: https://artsy.github.io/blog/2017/02/05/Retrospective-Swift-at-Artsy/#Developer.Experience
 
 [Airbnb]: https://medium.com/airbnb-engineering/tagged/mobile
 
@@ -737,7 +737,7 @@ If you're considering a new app, or a grand re-write, React Native should be con
 [rails-fade]: https://github.com/artsy/emission/blob/e4bbde386d54bc8ca73565d667e2701ab0fad0f0/src/lib/Components/Home/ArtistRails/ArtistRail.tsx#L63-L73
 [rails-expand]: https://github.com/artsy/emission/blob/e4bbde386d54bc8ca73565d667e2701ab0fad0f0/src/lib/Components/Home/ArtworkRails/ArtworkRail.tsx#L77-L80
 [fb-brown]: https://www.youtube.com/watch?v=cSUxHv-kH7w&list=PLb0IAmt7-GS0kj3saZuh4vzfldxEdH5RH&index=2
-[eidolon]: http://artsy.github.io/blog/2014/11/13/eidolon-retrospective/
+[eidolon]: https://artsy.github.io/blog/2014/11/13/eidolon-retrospective/
 [ash-feels]: https://ashfurrow.com/blog/swift-vs-react-native-feels/
 [Relay]: https://facebook.github.io/relay/
 [on-emission]: /blog/2016/08/24/On-Emission/

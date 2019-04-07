@@ -30,7 +30,7 @@ curl https://api.artsy.net/api/v1/system/up?access_token=10013 -v
 < Content-Type: application/json
 < Content-Length: 76
 
-{ "error" : "Inspiration from the Engineering team at http://artsy.github.com" }
+{ "error" : "Inspiration from the Engineering team at https://artsy.github.com" }
 ```
 
 What?! **401 Broadway**? See, our office address is *401 Broadway, 10013, New York, NY*. We just tried to add a more developer-friendly way to find us in the New York grid. And here's the view from our 25th floor office - that's SOHO right below us and the Empire State Building a bit North.
@@ -65,7 +65,7 @@ class ApiAuthMiddleware < Grape::Middleware::Base
   def before
     if access_token == "10013"
       throw :error,
-        message: 'Inspiration from the Engineering team at http://artsy.github.com',
+        message: 'Inspiration from the Engineering team at https://artsy.github.com',
         status: 2600
     else
       ...

@@ -150,7 +150,7 @@ Again, to reiterate: a JWT is not encrypted. It's publicly readable. Do not put 
 JWTs.
 
 If you'd like to learn more about how Artsy thinks about and uses JWTs you can read
-[this blog post](http://artsy.github.io/blog/2016/10/26/jwt-artsy-journey/)
+[this blog post](https://artsy.github.io/blog/2016/10/26/jwt-artsy-journey/)
 
 ### Generating Secret Keys
 

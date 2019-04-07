@@ -86,4 +86,4 @@ class Person
 end
 ```
 
-With the [mongoid-cached-json](http://github.com/dblock/mongoid-cached-json) gem you also get caching that respects JSON versioning, for free. Read about it [here](http://artsy.github.com/blog/2012/02/20/caching-model-json-with-mongoid-cached-json/).
+With the [mongoid-cached-json](http://github.com/dblock/mongoid-cached-json) gem you also get caching that respects JSON versioning, for free. Read about it [here](https://artsy.github.com/blog/2012/02/20/caching-model-json-with-mongoid-cached-json/).

@@ -18,6 +18,6 @@ Today was lesson one of the beginner group, and I have a [screen recording][yout
 {% youtube OLdSg0XpFqA %}
 
 
-[course]: http://artsy.github.io/blog/2016/01/26/swift-at-artsy/
+[course]: https://artsy.github.io/blog/2016/01/26/swift-at-artsy/
 [youtube]: https://youtu.be/OLdSg0XpFqA
 [github]: https://github.com/artsy/Swift-at-Artsy/tree/master/Beginners/Lesson%20One

@@ -222,7 +222,7 @@ All three of these you can set up automatic hosting from GitHub in about 10-15m.
 [dev]: https://write.as/blog/ending-our-medium-integration
 [search]: https://github.com/artsy/artsy.github.io/pull/332
 [peril]: https://github.com/artsy/README/blob/master/culture/peril.md
-[int]: http://artsy.github.io/blog/2019/01/23/artsy-engineering-hiring/
+[int]: https://artsy.github.io/blog/2019/01/23/artsy-engineering-hiring/
 
 <!-- prettier-ignore-start -->
 [publishers]:  http://www.niemanlab.org/2018/05/medium-abruptly-cancels-the-membership-programs-of-its-21-remaining-publisher-partners/

@@ -15,4 +15,4 @@ This series covers the reasons why we made that choice, our interactions with Re
 and shows how we've been handling some of the issues that come up as an early adopter.
 
 Sidenote: we ran a conference with Facebook in 2018 called
-[Artsy x React Native](http://artsy.github.io/artsy-x-react-native.html).
+[Artsy x React Native](https://artsy.github.io/artsy-x-react-native.html).

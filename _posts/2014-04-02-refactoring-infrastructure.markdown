@@ -41,7 +41,7 @@ Once the new app was feature-complete, we removed the proxying layer and updated
 New hosting environment
 ---
 
-When we [switched hosting providers](http://artsy.github.io/blog/2013/08/27/introduction-to-aws-opsworks/) for our main application, it required changes to _many_ related tools and services (for logs, deploys, background queues, etc.). To mitigate risk, we set up a "double-deploy" to the legacy and new environments as soon as the basic elements were in place. The environments ran the same code and shared a data store. First, we targeted the new environment from only a few internal apps. As we surfaced and fixed bugs, we directed more client applications away from the old, eventually winding it down altogether. The process was spread over months, but since each individual change was small and low-risk, we were confident and could adjust course as necessary.
+When we [switched hosting providers](https://artsy.github.io/blog/2013/08/27/introduction-to-aws-opsworks/) for our main application, it required changes to _many_ related tools and services (for logs, deploys, background queues, etc.). To mitigate risk, we set up a "double-deploy" to the legacy and new environments as soon as the basic elements were in place. The environments ran the same code and shared a data store. First, we targeted the new environment from only a few internal apps. As we surfaced and fixed bugs, we directed more client applications away from the old, eventually winding it down altogether. The process was spread over months, but since each individual change was small and low-risk, we were confident and could adjust course as necessary.
 
 Full application rewrite
 ---

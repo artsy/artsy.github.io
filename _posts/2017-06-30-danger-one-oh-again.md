@@ -202,7 +202,7 @@ This post uses the CC license image from [this tweet](https://twitter.com/Cloudy
 [junit]: https://github.com/orta/danger-junit
 [usechange]: http://keepachangelog.com/en/0.3.0/
 [danger-changelog]: https://github.com/dblock/danger-changelog
-[defense]: http://artsy.github.io/blog/2016/07/03/handling-big-projects/
+[defense]: https://artsy.github.io/blog/2016/07/03/handling-big-projects/
 [peril-vision]: https://github.com/danger/peril/blob/master/VISION.md
 [peril]: https://github.com/danger/peril#peril
 [peril-reaction]: https://github.com/artsy/reaction-force/pull/184

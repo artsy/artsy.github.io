@@ -363,7 +363,7 @@ Future?][igtf] for a more philosophical take also.)
 
 [stitching_announcement]: https://dev-blog.apollodata.com/the-next-generation-of-schema-stitching-2716b3b259c0
 [stitching_out]: https://dev-blog.apollodata.com/graphql-tools-2-0-with-schema-stitching-8944064904a5
-[monolith]: http://artsy.github.io/blog/2017/04/14/artsy-technology-stack-2017/#Artsy.Technology.Infrastructure.2017.-.Splitting.the.Monolith
+[monolith]: https://artsy.github.io/blog/2017/04/14/artsy-technology-stack-2017/#Artsy.Technology.Infrastructure.2017.-.Splitting.the.Monolith
 [mp]: https://github.com/artsy/metaphysics/
 [stitch_mp]: https://github.com/artsy/metaphysics/tree/1423ee39f8e348805710080a4857e6575d3ddade/src/lib/stitching
 [apollo-http-link]: https://www.apollographql.com/docs/link/links/http.html
@@ -377,7 +377,7 @@ Future?][igtf] for a more philosophical take also.)
 [sdl]: https://blog.graph.cool/graphql-sdl-schema-definition-language-6755bcb9ce51
 [init]: https://github.com/artsy/metaphysics/commit/50b23f1738b9fa9757ff83c2d1e0d265c70e4e90
 [mn]: https://www.freiksenet.com
-[igtf]: http://artsy.github.io/blog/2018/05/08/is-graphql-the-future/
+[igtf]: https://artsy.github.io/blog/2018/05/08/is-graphql-the-future/
 [high]: https://github.com/artsy/README/blob/master/culture/highlights.md#highlights
 [ex]: https://github.com/artsy/metaphysics/pull/809
 [rev]: https://github.com/artsy/README/blob/master/culture/engineering-principles.md#incremental-revolution

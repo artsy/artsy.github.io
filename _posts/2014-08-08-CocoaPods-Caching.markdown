@@ -7,7 +7,7 @@ categories: [iOS, Continuous Integration, Travis, Testing]
 author: orta
 ---
 
-As [Ash said earlier](http://artsy.github.io/blog/2014/08/07/taking-a-snapshot-with-second-curtain/) we like using Continuous Integration. Today I spent a large amount of time migrating us to use the new CocoaPods caching system in Travis CI. To make up for my lost time I'm passing on what I've learned and also showing how we do CI at Artsy with Objective-C apps. If you're interested in how we do it in Swift, you can just check [Eidolon](https://github.com/artsy/eidolon).
+As [Ash said earlier](https://artsy.github.io/blog/2014/08/07/taking-a-snapshot-with-second-curtain/) we like using Continuous Integration. Today I spent a large amount of time migrating us to use the new CocoaPods caching system in Travis CI. To make up for my lost time I'm passing on what I've learned and also showing how we do CI at Artsy with Objective-C apps. If you're interested in how we do it in Swift, you can just check [Eidolon](https://github.com/artsy/eidolon).
 
 <!-- more -->
 
@@ -179,6 +179,6 @@ This is nice and simple. It was built to use multiple travis build steps. This m
 <img src="/images/2014-08-08-CocoaPods-Caching/failing_travis_screenshot.png" alt='Travis CI Failure'>
 </center>
 
-We use a gem with a binary in [second_curtain](https://github.com/AshFurrow/second_curtain/), and this came with bundler caching issues in Travis. The solution was to ignore bundler and run `gem install second_curtain` each time. To increase the speed we also ensured that documentation is not being generated. If you are interested in what's going on with the `.netrc`, read my blog post on [Artsy's first Closed Source Pod](http://artsy.github.io/blog/2014/06/20/artsys-first-closed-source-pod/).
+We use a gem with a binary in [second_curtain](https://github.com/AshFurrow/second_curtain/), and this came with bundler caching issues in Travis. The solution was to ignore bundler and run `gem install second_curtain` each time. To increase the speed we also ensured that documentation is not being generated. If you are interested in what's going on with the `.netrc`, read my blog post on [Artsy's first Closed Source Pod](https://artsy.github.io/blog/2014/06/20/artsys-first-closed-source-pod/).
 
 We will continue pushing the state of the art in iOS deployment, in building our own tools and using everything available to increase developer happiness. If you're into this we're always looking to hire people with a good open source track record or street smarts. Here's [the jobs page](https://artsy.net/job/mobile-engineer).

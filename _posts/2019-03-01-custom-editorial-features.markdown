@@ -81,7 +81,7 @@ Published examples of custom articles that use curations are:
 - [Inside the Biennale](https://www.artsy.net/venice-biennale)
 - [The Year in Art 2016](https://www.artsy.net/2016-year-in-art)
 
-_See [previous blog post](http://artsy.github.io/blog/2017/02/01/year-in-art/) on creating The Year in Art 2016._
+_See [previous blog post](https://artsy.github.io/blog/2017/02/01/year-in-art/) on creating The Year in Art 2016._
 
 **SuperArticles:**
 

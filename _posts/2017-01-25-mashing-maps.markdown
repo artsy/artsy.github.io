@@ -275,4 +275,4 @@ However, I think it's always worth throwing in an extra 2-3 hours at the end of 
 [d3]: https://d3js.org
 [datamaps]: http://datamaps.github.io
 [eachoflimit]: http://caolan.github.io/async/docs.html#eachOfLimit
-[emergence]: http://artsy.github.io/blog/2015/11/05/Emergence-Code-Review/
+[emergence]: https://artsy.github.io/blog/2015/11/05/Emergence-Code-Review/

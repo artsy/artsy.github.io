@@ -7,7 +7,7 @@ categories: [ios, mobile, devops, ci]
 author: orta
 ---
 
-I've been a really [strong supporter](http://artsy.github.io/blog/2015/09/18/Cocoa-Architecture-Dependencies/) of the [fastlane](https://fastlane.tools) toolset. I think it fixes a lot of common developer problems, in a space that Apple doesn't really touch. The command line.
+I've been a really [strong supporter](https://artsy.github.io/blog/2015/09/18/Cocoa-Architecture-Dependencies/) of the [fastlane](https://fastlane.tools) toolset. I think it fixes a lot of common developer problems, in a space that Apple doesn't really touch. The command line.
 
 We've added hints of fastlane to our apps at different rates, [Eidolon](https://github.com/artsy/eidolon/) uses fastlane for everything but [Eigen](https://github.com/artsy/eigen/)/[Energy](https://github.com/artsy/energy)/[Emergence](https://github.com/artsy/emergence) have been pretty slow on the uptake, though they have more complicated setups, being App Store apps.
 

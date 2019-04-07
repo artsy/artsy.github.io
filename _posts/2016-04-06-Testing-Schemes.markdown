@@ -10,7 +10,7 @@ categories: [mobile, xcode]
 
 On my fastest computer, we're just under a minute - `Executed 1105 tests, with 1 failure (0 unexpected) in 43.221 (48.201) seconds`  for the whole suite. I think I could probably live with 20 seconds max. So I studied how [AppCode](https://www.jetbrains.com/objc/) handles running tests, and this will be an illustrated guide as to how you can easily run the subset of tests in Xcode based on their techniques.
 
- I [have ideas](https://github.com/orta/life/issues/71) on how to improve time for testing in general, based on [Code Injection](http://artsy.github.io/blog/2016/03/05/iOS-Code-Injection/), but they aren't fully fleshed out and I expect it to be time-intensive to pull off. Time I haven't made yet.
+ I [have ideas](https://github.com/orta/life/issues/71) on how to improve time for testing in general, based on [Code Injection](https://artsy.github.io/blog/2016/03/05/iOS-Code-Injection/), but they aren't fully fleshed out and I expect it to be time-intensive to pull off. Time I haven't made yet.
 
 <!-- more -->
 

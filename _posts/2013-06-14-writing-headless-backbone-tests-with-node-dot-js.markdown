@@ -13,7 +13,7 @@ Write fast, headless, tests for Backbone using Node.js. See this project as an e
 
 ## A Brief History
 
-Artsy is mostly a thick client [Backbone](http://backbonejs.org/) app that sits on [Rails](http://rubyonrails.org/) and largely depends on [Capybara](http://jnicklas.github.io/capybara/) ([Selenium](http://docs.seleniumhq.org/) backed bot that clicks around Firefox) for testing it's javascript. This leads to some seriously brittle and slow integration tests. [Despite being able to wrangle Capybara](http://artsy.github.io/blog/2012/02/03/reliably-testing-asynchronous-ui-w-slash-rspec-and-capybara/) to do most of our client-side testing, we knew there must be a better way.
+Artsy is mostly a thick client [Backbone](http://backbonejs.org/) app that sits on [Rails](http://rubyonrails.org/) and largely depends on [Capybara](http://jnicklas.github.io/capybara/) ([Selenium](http://docs.seleniumhq.org/) backed bot that clicks around Firefox) for testing it's javascript. This leads to some seriously brittle and slow integration tests. [Despite being able to wrangle Capybara](https://artsy.github.io/blog/2012/02/03/reliably-testing-asynchronous-ui-w-slash-rspec-and-capybara/) to do most of our client-side testing, we knew there must be a better way.
 
 When building a CMS app for our gallery partners to manage their Artsy inventory, we built a new Backbone app on top of [node.js](http://nodejs.org/). The result was a headless test suite that runs around 60 times faster.
 

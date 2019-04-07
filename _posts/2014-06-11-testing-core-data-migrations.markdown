@@ -8,7 +8,7 @@ categories: [Testing, Objc, Cocoa, iOS]
 author: orta
 ---
 
-The first time I released a patch release for [Artsy Folio](http://orta.github.io/#folio-header-unit) it crashed instantly, on every install. Turns out I didn't understand Core Data migrations, now a few years on I grok it better but I've still lived with the memories of that dark dark day. Because of this I've had an informal rule of testing migrations with all the old build of Folio [using chairs](http://artsy.github.io/blog/2013/03/29/musical-chairs/) the day before submitting to the app store.
+The first time I released a patch release for [Artsy Folio](http://orta.github.io/#folio-header-unit) it crashed instantly, on every install. Turns out I didn't understand Core Data migrations, now a few years on I grok it better but I've still lived with the memories of that dark dark day. Because of this I've had an informal rule of testing migrations with all the old build of Folio [using chairs](https://artsy.github.io/blog/2013/03/29/musical-chairs/) the day before submitting to the app store.
 
 This time round, I've made vast changes to the Core Data models but skipped the manual work. Here's how:
 
@@ -123,7 +123,7 @@ This meant it was very easy to quickly make tests that look like:
 
 ```
 
-This made it very cheap conceptually to make a new in-memory context and to be sure that the changes wouldn't affect the development data store. However, once I had this framework in place it became a pretty simple jump to taking the existing sqlite files that I already had around in my [chairs folder](http://artsy.github.io/blog/2013/03/29/musical-chairs/) and make to force a migration from that build to the latest managed object model. Here's the test suite in full:
+This made it very cheap conceptually to make a new in-memory context and to be sure that the changes wouldn't affect the development data store. However, once I had this framework in place it became a pretty simple jump to taking the existing sqlite files that I already had around in my [chairs folder](https://artsy.github.io/blog/2013/03/29/musical-chairs/) and make to force a migration from that build to the latest managed object model. Here's the test suite in full:
 
 ```objc
 //

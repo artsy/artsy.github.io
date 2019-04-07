@@ -92,7 +92,7 @@ We would instead build something [like this](https://github.com/artsy/eigen/blob
 				[...]
 ```
 
-This gives us the ability to not sprinkle analytics code around the app in every file. It keeps the responsibilities of objects simpler and we've been happy with it in Eigen. We've not migrated it into Energy, its dependency on ReactiveCocoa brings too much additional weight. So far we've been applying analytics inline, Energy has much less need for individual analytics throughout the application. If you want to learn more about this pattern check out [Aspect-Oriented Programming and ARAnalytics](http://artsy.github.io/blog/2014/08/04/aspect-oriented-programming-and-aranalytics/).
+This gives us the ability to not sprinkle analytics code around the app in every file. It keeps the responsibilities of objects simpler and we've been happy with it in Eigen. We've not migrated it into Energy, its dependency on ReactiveCocoa brings too much additional weight. So far we've been applying analytics inline, Energy has much less need for individual analytics throughout the application. If you want to learn more about this pattern check out [Aspect-Oriented Programming and ARAnalytics](https://artsy.github.io/blog/2014/08/04/aspect-oriented-programming-and-aranalytics/).
 
 ## Class Methods as the whole API
 

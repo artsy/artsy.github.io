@@ -24,7 +24,7 @@ interacting with local state in our different applications.
 Slides on Speakerdeck
 </a></p>
 
-[omakase]: http://artsy.github.io/blog/2017/02/05/Front-end-JavaScript-at-Artsy-2017/
+[omakase]: https://artsy.github.io/blog/2017/02/05/Front-end-JavaScript-at-Artsy-2017/
 [chris]: https://github.com/damassi
 [recording]: https://youtu.be/uLeZnpvVpxA
 [slides]: https://speakerdeck.com/artsyopensource/javascriptures-4-dot-2-local-state?slide=1

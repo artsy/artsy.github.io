@@ -275,9 +275,9 @@ If you'd like to look into GraphQL + Relay, but don't want to start building a s
 [code]: /blog/2017/02/05/Front-end-JavaScript-at-Artsy-2017/#Visual.Studio.Code
 [extend-ts]:/blog/2017/02/05/Front-end-JavaScript-at-Artsy-2017/#TypeScript-Extension
 
-[eidolon-postmortem]: http://artsy.github.io/blog/2014/11/13/eidolon-retrospective/
+[eidolon-postmortem]: https://artsy.github.io/blog/2014/11/13/eidolon-retrospective/
 [emergence]: https://github.com/artsy/emergence
-[live-a]: http://artsy.github.io/blog/2016/08/09/the-tech-behind-live-auction-integration/
+[live-a]: https://artsy.github.io/blog/2016/08/09/the-tech-behind-live-auction-integration/
 [artsy-rn]: /blog/2016/08/15/React-Native-at-Artsy/
 [what-is-artsy-app]: /blog/2016/08/24/On-Emission/#Why.we.were.in.a.good.position.to.do.this
 [eigen]:  https://github.com/artsy/eigen
@@ -305,7 +305,7 @@ If you'd like to look into GraphQL + Relay, but don't want to start building a s
 [reactotron]: https://github.com/infinitered/reactotron
 [hrm]: https://github.com/gaearon/react-hot-loader
 [storybook]: https://github.com/storybooks/react-storybook
-[mobile-graphql]: http://artsy.github.io/blog/2016/06/19/graphql-for-mobile/
+[mobile-graphql]: https://artsy.github.io/blog/2016/06/19/graphql-for-mobile/
 [ssswift]: https://ashfurrow.com/blog/swift-on-linux/
 [gql2ts]: https://github.com/alloy/relational-theory/pull/18
 [vscode-relay]: https://github.com/alloy/vscode-relay

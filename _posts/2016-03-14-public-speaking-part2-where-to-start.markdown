@@ -59,7 +59,7 @@ They require a bit of planning as you [want to be concise][atc_shorter], but wil
 
 [Choosing to publicly speak][part1] and where is only half the battle. Deciding the content, formulating an abstract, talk title, and slides are not trivial. But fear not, Part 3 in this series will have you covered. Stay tuned!
 
-[part1]: http://artsy.github.io/blog/2016/03/09/public-speaking-part1-is-it-for-me/
+[part1]: https://artsy.github.io/blog/2016/03/09/public-speaking-part1-is-it-for-me/
 [atc_meditation]: https://www.artsy.net/article/natalia-maldonado-introduction-to-office-meditation-5-steps-to-peace-of-mind-at-work
 [atc_busfactor]: https://en.wikipedia.org/wiki/Bus_factor
 [pst_colourtheory]: https://speakerdeck.com/mennenia/colour-theory

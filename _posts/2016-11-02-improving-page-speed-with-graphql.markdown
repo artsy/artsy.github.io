@@ -6,7 +6,7 @@ author: kana
 categories: [graphql, javascript, positron, joi]
 ---
 
-This past year, our team started using a GraphQL orchestration layer that connects various APIs with multiple front-end apps including [iOS](http://artsy.github.io/blog/2016/06/19/graphql-for-mobile). It also handles caching and extracts some business logic out of our client apps. This helped us not only to be more consistent with the way we fetch data across apps, but also improved developer happiness and even bridged teams by having our web and iOS developers work with the same API layer. This got me thinking what other problems GraphQL could solve at Artsy.
+This past year, our team started using a GraphQL orchestration layer that connects various APIs with multiple front-end apps including [iOS](https://artsy.github.io/blog/2016/06/19/graphql-for-mobile). It also handles caching and extracts some business logic out of our client apps. This helped us not only to be more consistent with the way we fetch data across apps, but also improved developer happiness and even bridged teams by having our web and iOS developers work with the same API layer. This got me thinking what other problems GraphQL could solve at Artsy.
 
 I work on the Publishing Team at Artsy, and we've recently been focused on page speed as a KPI. With so many ways of measuring speed, it's a daunting task but for this post, I'll focus on the way we handled things on the server-side and how integrating GraphQL on our API improved page speed.
 
@@ -91,7 +91,7 @@ The two features of GraphQL that have been helpful for reducing page speed are:
 1. Reduced payload because you only request the data you need
 2. Multiple fetches can be coalesced into a single request
 
-Not surprisingly, decreased payload and coalesced requests are the same two features [Orta](http://twitter.com/orta) describes in part of his post on the killer features of [GraphQL for Mobile](http://artsy.github.io/blog/2016/06/19/graphql-for-mobile).
+Not surprisingly, decreased payload and coalesced requests are the same two features [Orta](http://twitter.com/orta) describes in part of his post on the killer features of [GraphQL for Mobile](https://artsy.github.io/blog/2016/06/19/graphql-for-mobile).
 
 ### Reduced Payload
 

@@ -6,7 +6,7 @@ author: orta
 categories: [mobile, swift, xcode, tooling]
 ---
 
-It was only three months ago that I came to the conclusion of just how much time I had wasted [on code compilation cycles](http://artsy.github.io/blog/2016/03/05/iOS-Code-Injection/), once I started to play with [Injection for Xcode](https://github.com/johnno1962/injectionforxcode). I still feel guilt about the time I wasted. However, I'm trying to turn that into something constructive. In order to do that, I need to have a solid understanding of the fundamentals on how Injection For Xcode works.
+It was only three months ago that I came to the conclusion of just how much time I had wasted [on code compilation cycles](https://artsy.github.io/blog/2016/03/05/iOS-Code-Injection/), once I started to play with [Injection for Xcode](https://github.com/johnno1962/injectionforxcode). I still feel guilt about the time I wasted. However, I'm trying to turn that into something constructive. In order to do that, I need to have a solid understanding of the fundamentals on how Injection For Xcode works.
 
 [Ash](https://ashfurrow.com/) says one of the best ways to [learn is to teach](https://ashfurrow.com/blog/teaching-learning/). So I'm going to try take you through a guided tour of the code-base. You need some pretty reasonable Objective-C chops to get this, but anyone with an app or two under their belt should be able to [grok](https://en.wikipedia.org/wiki/Grok) it. 
 
@@ -300,7 +300,7 @@ So we'll see in a few months.
 
 If you're interested in this kind of stuff, follow [@Johno1962][johnno1962] on Twitter, he's [@Injection4Xcode][Injection4Xcode] - Chris Lattner follows him, so you know it's good stuff. He's always got some project that is pushing a boundry or two.
 
-[di]: http://artsy.github.io/blog/2016/06/27/dependency-injection-in-swift/
+[di]: https://artsy.github.io/blog/2016/06/27/dependency-injection-in-swift/
 [bonjour]: https://en.wikipedia.org/wiki/Bonjour_%28software%29
 [bbrowser]: http://tildesoft.com
 [bbrowser_running]: /images/2016-06-29-injection-overview/selected_bonjour.png

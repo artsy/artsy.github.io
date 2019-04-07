@@ -10,7 +10,7 @@ series: Open Source by Default
 
 As a part of our internal Lunch and Learn series, I  gave a talk to our developers with an overview of the different types of source code licenses available.
 
-We always recommend MIT within Artsy, but understanding what the other ones are and [why we made](http://artsy.github.io/blog/2012/01/29/how-art-dot-sy-uses-github-to-build-art-dot-sy/) the choices we have done is valuable.
+We always recommend MIT within Artsy, but understanding what the other ones are and [why we made](https://artsy.github.io/blog/2012/01/29/how-art-dot-sy-uses-github-to-build-art-dot-sy/) the choices we have done is valuable.
 
 Jump [to YouTube](https://www.youtube.com/watch?v=0r7JcN3Q_LY) for the video, or click more for a smaller inline preview, as well as all of the speakers notes.
 

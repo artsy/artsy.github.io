@@ -27,7 +27,7 @@ myself.
 Slides on Speakerdeck
 </a></p>
 
-[omakase]: http://artsy.github.io/blog/2017/02/05/Front-end-JavaScript-at-Artsy-2017/
+[omakase]: https://artsy.github.io/blog/2017/02/05/Front-end-JavaScript-at-Artsy-2017/
 [luc]: https://twitter.com/lucsucces
 [recording]: https://youtu.be/k_f7Ff7bREc
 [slides]: https://speakerdeck.com/artsyopensource/javascriptures-1-react

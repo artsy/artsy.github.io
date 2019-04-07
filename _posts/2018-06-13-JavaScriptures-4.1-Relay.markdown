@@ -24,7 +24,7 @@ with all of the Artsy tooling.
 Slides on Speakerdeck
 </a></p>
 
-[omakase]: http://artsy.github.io/blog/2017/02/05/Front-end-JavaScript-at-Artsy-2017/
+[omakase]: https://artsy.github.io/blog/2017/02/05/Front-end-JavaScript-at-Artsy-2017/
 [alloy]: https://twitter.com/alloy
 [recording]: https://youtu.be/-Ax46yDG7oc
 [slides]: https://speakerdeck.com/artsyopensource/javascriptures-4-dot-1-relay?

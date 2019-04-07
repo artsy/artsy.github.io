@@ -213,12 +213,12 @@ Do you have any useful ideas for speeding up context switching? I'm open to impr
 
 [active]: https://gist.github.com/paulmillr/2657075
 [flow]: https://en.wikipedia.org/wiki/Flow_(psychology)
-[ossd]: http://artsy.github.io/series/open-source-by-default/
+[ossd]: https://artsy.github.io/series/open-source-by-default/
 [hiring]: https://www.artsy.net/jobs#engineering
 [exp]: https://github.com/orta/cocoapods-fix-react-native#contributing-back
 [vision]: https://github.com/danger/danger-js/blob/master/VISION.md#danger-for-js
 [rdd]: https://tom.preston-werner.com/2010/08/23/readme-driven-development.html
-[chris]: http://artsy.github.io/author/chris/
+[chris]: https://artsy.github.io/author/chris/
 [consign]: https://github.com/artsy/emission/tree/master/src/lib/Components/Consignments
 [prettier]: https://prettier.io
 [danger]: https://danger.systems
@@ -226,7 +226,7 @@ Do you have any useful ideas for speeding up context switching? I'm open to impr
 [lint-staged]: https://github.com/okonet/lint-staged
 [danger-local]: http://danger.systems/js/tutorials/fast-feedback.html
 [oma]: https://www.youtube.com/watch?v=1Z3loALSVQM
-[sherlock]: http://artsy.github.io/blog/2017/02/05/Retrospective-Swift-at-Artsy/#Developer.Experience
+[sherlock]: https://artsy.github.io/blog/2017/02/05/Retrospective-Swift-at-Artsy/#Developer.Experience
 [hig]: https://developer.apple.com/design/human-interface-guidelines/macos/overview/themes/
 [gs]: https://github.com/kamranahmedse/git-standup
 [tweet]: https://twitter.com/orta/status/1028764128310185984

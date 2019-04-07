@@ -10,7 +10,7 @@ New year, new deploy process! Late last year our mobile team completed the updat
 
 ![Automatic code signing settings](/images/2017-01-13-xcode-8-fastlane-codesigning/xcode-screenshot.png)
 
-However, when I went to make our first [automated deploy](http://artsy.github.io/blog/2015/12/15/Automating-Testflight-Deploys/) today, things didn't work; I got a somewhat cryptic error about code signing.
+However, when I went to make our first [automated deploy](https://artsy.github.io/blog/2015/12/15/Automating-Testflight-Deploys/) today, things didn't work; I got a somewhat cryptic error about code signing.
 
 <!-- more -->
 

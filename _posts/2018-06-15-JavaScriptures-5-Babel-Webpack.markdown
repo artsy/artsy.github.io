@@ -21,7 +21,7 @@ and Babel in a fresh application.
 Slides on Speakerdeck
 </a></p>
 
-[omakase]: http://artsy.github.io/blog/2017/02/05/Front-end-JavaScript-at-Artsy-2017/
+[omakase]: https://artsy.github.io/blog/2017/02/05/Front-end-JavaScript-at-Artsy-2017/
 [chris]: https://github.com/damassi
 [recording]: https://youtu.be/NhYot0NC6q8
 [slides]: https://speakerdeck.com/artsyopensource/javascriptures-5-babel-and-webpack?slide=1

@@ -105,8 +105,8 @@ We came up with a pattern to make it easier for people to migrate issues, we cre
 
 I love that I got to help make these changes, the web team started the process of opening our apps at Artsy, then the mobile team took the next big step. Now the teams are both in lock-step, and if you work on the front-end at Artsy - OSS by Default is the way we all work now.
 
-[brennan]: http://artsy.github.io/author/brennan
-[craig]: http://artsy.github.io/author/craig
+[brennan]: https://artsy.github.io/author/brennan
+[craig]: https://artsy.github.io/author/craig
 [cab]: http://charlesbroskoski.com/_/
 [force_oss]: /blog/2014/09/05/we-open-sourced-our-isomorphic-javascript-website/
 [eidolon_oss]: /blog/2014/11/13/eidolon-retrospective/
@@ -117,7 +117,7 @@ I love that I got to help make these changes, the web team started the process o
 [mg_gh]: https://github.com/artsy/microgravity
 [semaphore]: https://semaphoreci.com/
 [eidolon_pr]: https://github.com/artsy/eidolon/pull/607
-[oss_expectations]: http://artsy.github.io/blog/2016/01/13/OSS-Expectations/
+[oss_expectations]: https://artsy.github.io/blog/2016/01/13/OSS-Expectations/
 [force_deploy]: https://github.com/artsy/force/blob/40741bfbff48f6851749eb9c3e5014b0702c8402/Makefile#L79
 [forks]: /blog/2012/01/29/how-art-dot-sy-uses-github-to-build-art-dot-sy/
 [roop]: http://www.anandarooproy.com/portfolio
