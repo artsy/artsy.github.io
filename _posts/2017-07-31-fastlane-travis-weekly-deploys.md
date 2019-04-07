@@ -166,7 +166,7 @@ By the end of the process, our `Fastfile` looked like:
 
 ```ruby
 # This is documented in the Artsy Blog: 
-# http://artsy.github.io/blog/2017/07/31/fastlane-travis-weekly-deploys/
+# https://artsy.github.io/blog/2017/07/31/fastlane-travis-weekly-deploys/
 lane :setup do
   Dir.chdir('..') do
     sh 'rm -rf emission' if Dir.exist? 'Emission'

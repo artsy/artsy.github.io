@@ -53,7 +53,7 @@ Second Curtain relies on environment variables to get access to the S3 bucket
 where it stores the images. I planned on using Travis' system to [encrypt](http://docs.travis-ci.com/user/encryption-keys/)
 those credentials. It turns out, for very good reasons, encrypted environment
 variables are not available on pull requests created on forks of repositories.
-This is a problem because of the way that [Artsy uses GitHub](http://artsy.github.io/blog/2012/01/29/how-art-dot-sy-uses-github-to-build-art-dot-sy/).
+This is a problem because of the way that [Artsy uses GitHub](https://artsy.github.io/blog/2012/01/29/how-art-dot-sy-uses-github-to-build-art-dot-sy/).
 While it's not a problem for a closed-source repository to have (restrictive)
 access to an S3 bucket, it would be irresponsible to expose S3 credentials for
 an open-source project. I'm [working](https://github.com/AshFurrow/second_curtain/issues/5)

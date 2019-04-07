@@ -44,7 +44,7 @@ bundle install
 bundle exec rake
 ```
 
-Our default Ruby project Rake task is `test:ci`. We run Jasmine and Capybara tests using a real browser, so we need to redirect all visible output to an X-Windows Virtual Frame Buffer ([XVFB](http://www.xfree86.org/4.0.1/Xvfb.1.html)). This can be done by setting an `ENV` variable inside a Rake task. Our test target also [organizes our tests in suites](http://artsy.github.com/blog/2012/05/15/how-to-organize-over-3000-rspec-specs-and-retry-test-failures/).
+Our default Ruby project Rake task is `test:ci`. We run Jasmine and Capybara tests using a real browser, so we need to redirect all visible output to an X-Windows Virtual Frame Buffer ([XVFB](http://www.xfree86.org/4.0.1/Xvfb.1.html)). This can be done by setting an `ENV` variable inside a Rake task. Our test target also [organizes our tests in suites](https://artsy.github.com/blog/2012/05/15/how-to-organize-over-3000-rspec-specs-and-retry-test-failures/).
 
 ``` ruby
 namespace :test do

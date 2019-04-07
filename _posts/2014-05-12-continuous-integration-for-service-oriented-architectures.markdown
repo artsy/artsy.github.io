@@ -276,8 +276,8 @@ This basic structure has accommodated dozens of test scenarios. We've extended i
 
 A caveat: with so many layers and dependencies involved, there are often spurious failures. We've picked up a few practices that help:
 
-* [Automatic retries](http://artsy.github.io/blog/2012/05/15/how-to-organize-over-3000-rspec-specs-and-retry-test-failures/)
-* [Quarantine for problematic tests](http://artsy.github.io/blog/2014/01/30/isolating-spurious-and-nondeterministic-tests/)
+* [Automatic retries](https://artsy.github.io/blog/2012/05/15/how-to-organize-over-3000-rspec-specs-and-retry-test-failures/)
+* [Quarantine for problematic tests](https://artsy.github.io/blog/2014/01/30/isolating-spurious-and-nondeterministic-tests/)
 * [Failure screenshots](https://github.com/mattheworiordan/capybara-screenshot)
 
 You can [grab the example code](https://github.com/joeyAghion/multiapp_example-tests). And make sure to let us know in the comments how _you_ approach testing across applications.

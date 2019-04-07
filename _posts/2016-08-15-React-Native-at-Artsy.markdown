@@ -25,7 +25,7 @@ Ideally, we wanted to find a solution to our architectural issues that would als
 experience. Notably we wanted more efficient networking, due to mobile device constraints.
 
 It would have been an easy leap to start using Swift and, as a matter of fact, we do use Swift in parts of
-our flagship application and entirely in [2 other apps](http://artsy.github.io/blog/2014/11/13/eidolon-retrospective/).
+our flagship application and entirely in [2 other apps](https://artsy.github.io/blog/2014/11/13/eidolon-retrospective/).
 
 However, while Swift is a great language, it’s also just that: _another_ language. It does not do much in terms of new
 paradigms that solved our architectural needs, it does not help in terms of cross-platform - as most of our code is
@@ -110,7 +110,7 @@ these out of the way first, it will only get better afterwards.
   [the data it needs](https://github.com/artsy/emission/blob/a2e4dbdb/lib/components/artist/header.js#L143-L144). Neat.
 
   We do still have ‘view models’, however, those now pretty much all live in
-  [our GraphQL service](http://artsy.github.io/blog/2016/06/19/graphql-for-mobile/). The added benefit here is that we
+  [our GraphQL service](https://artsy.github.io/blog/2016/06/19/graphql-for-mobile/). The added benefit here is that we
   share that model logic with Artsy’s other (web) clients.
 
 * “Learn once, write anywhere.” is the neo-cross-platform slogan deployed by React, which is a play on the tried
@@ -159,7 +159,7 @@ these out of the way first, it will only get better afterwards.
 * When we started out with React Native, I didn't want to have to re-write our application in order to take advantage of
   the technology. To address this I worked within our existing application structure. We consider the App to 
   [be a browser](https://artsy.github.io/blog/2015/08/24/Cocoa-Architecture-Hybrid-Apps/) of native and web view controllers. So, 
-  we added routes [to our SwitchBoard](http://artsy.github.io/blog/2015/08/19/Cocoa-Architecture-Switchboard-Pattern/) for 
+  we added routes [to our SwitchBoard](https://artsy.github.io/blog/2015/08/19/Cocoa-Architecture-Switchboard-Pattern/) for 
   view controllers which are created in React Native. To the rest of the app, there is no difference between a Swift view controller, 
   or one with React Native inside.
 

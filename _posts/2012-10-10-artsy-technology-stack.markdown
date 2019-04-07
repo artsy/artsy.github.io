@@ -62,7 +62,7 @@ The Artsy CMS and the Admin system are two newer projects and serve the needs of
 Folio Partner App
 -----------------
 
-Artsy makes a free iOS application, called [Folio](http://artsy.github.com/blog/categories/ios/), which lets our partners display their inventory at art fairs.
+Artsy makes a free iOS application, called [Folio](https://artsy.github.com/blog/categories/ios/), which lets our partners display their inventory at art fairs.
 
 Folio is a native iOS implementation. The interface is heavily skinned UIKit with CoreData for storage. Our network code was originally a thin layer on top of NSURLConnection, but for our forthcoming update, we’ve rewritten it to use [AFNetworking](https://github.com/AFNetworking/AFNetworking/). We manage external dependencies with [CocoaPods](https://github.com/CocoaPods/CocoaPods).
 

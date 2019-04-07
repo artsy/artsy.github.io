@@ -7,7 +7,7 @@ categories: [Jenkins, Testing, Continuous Integration, EC2]
 author: [joey, frank]
 ---
 
-The [Artsy](http://artsy.net) team faithfully uses [Jenkins](http://jenkins-ci.org) for continuous integration. [As we've described before](http://artsy.github.com/blog/2012/05/27/using-jenkins-for-ruby-and-ruby-on-rails-teams/), our Jenkins master and 8 slaves run on Linode. This arrangement has at least a few drawbacks:
+The [Artsy](http://artsy.net) team faithfully uses [Jenkins](http://jenkins-ci.org) for continuous integration. [As we've described before](https://artsy.github.com/blog/2012/05/27/using-jenkins-for-ruby-and-ruby-on-rails-teams/), our Jenkins master and 8 slaves run on Linode. This arrangement has at least a few drawbacks:
 
 * Our Linode servers are manually configured. They require frequent maintenance, and inconsistencies lead to surprising build failures.
 * The fixed set of slaves don't match the pattern of our build jobs: jobs get backed up during the day, but servers are mostly unused overnight and on weekends.

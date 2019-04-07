@@ -24,7 +24,7 @@ inference, generics and how they all come together in your tools.
 Slides on Speakerdeck
 </a></p>
 
-[omakase]: http://artsy.github.io/blog/2017/02/05/Front-end-JavaScript-at-Artsy-2017/
+[omakase]: https://artsy.github.io/blog/2017/02/05/Front-end-JavaScript-at-Artsy-2017/
 [luc]: https://twitter.com/lucsucces
 [recording]: https://youtu.be/KXPZvjCUlAA
 [slides]: https://speakerdeck.com/artsyopensource/javascriptures-2-typescript

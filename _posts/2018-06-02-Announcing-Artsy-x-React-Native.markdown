@@ -23,8 +23,8 @@ tooling up for success, and create solid animations.
 We want [Artsy x React-Native][axrn] to be about getting you up to speed with the framework, so you can make your
 own decisions going forward.
 
-[documented]: http://artsy.github.io/search/?q=react+native
-[our]: http://artsy.github.io/series/react-native-at-artsy/
-[journey]: http://artsy.github.io/blog/2016/08/15/React-Native-at-Artsy/
-[reasoning]: http://artsy.github.io/blog/2018/03/17/two-years-of-react-native/
+[documented]: https://artsy.github.io/search/?q=react+native
+[our]: https://artsy.github.io/series/react-native-at-artsy/
+[journey]: https://artsy.github.io/blog/2016/08/15/React-Native-at-Artsy/
+[reasoning]: https://artsy.github.io/blog/2018/03/17/two-years-of-react-native/
 [axrn]: https://www.artsy.net/x-react-native

@@ -6,7 +6,7 @@ author: ash
 categories: [mobile, eidolon]
 ---
 
-Since we [originally built](http://artsy.github.io/blog/2014/11/13/eidolon-retrospective/) Eidolon – an auction bidding kiosk app – the project has largely remained in maintenance mode. Eidolon was one of the first projects that we used automated deploys for, and the deploy process has remained largely unchanged. I believe this stability of the deploy process is a testament to how well the automated deploys have gone. 
+Since we [originally built](https://artsy.github.io/blog/2014/11/13/eidolon-retrospective/) Eidolon – an auction bidding kiosk app – the project has largely remained in maintenance mode. Eidolon was one of the first projects that we used automated deploys for, and the deploy process has remained largely unchanged. I believe this stability of the deploy process is a testament to how well the automated deploys have gone. 
 
 This post is going to detail the mechanics of automated deploys for an enterprise-distributed iOS application, discuss lessons we learned and applied to other projects' deploy processes, and describe some of the changes we'd like to make. Our project is entirely open source, so you can check out any part of the code on your own or [open an issue](https://github.com/artsy/eidolon/issues/new) with questions.
 

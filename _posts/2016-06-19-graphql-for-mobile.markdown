@@ -65,7 +65,7 @@ GraphQL comes with a playground for the API! It's amazing! Clay called it the ["
 
 #### View Models
 
-Our GraphQL server is owned by the [web-practice](http://artsy.github.io/blog/2016/03/28/artsy-engineering-organization-stack/) and the mobile practice also help out occasionally. This ownership distinction is important, an API like this would normally be handled by our platform team.
+Our GraphQL server is owned by the [web-practice](https://artsy.github.io/blog/2016/03/28/artsy-engineering-organization-stack/) and the mobile practice also help out occasionally. This ownership distinction is important, an API like this would normally be handled by our platform team.
 
 Because of Metaphysics' ownership as a "front-end" product, it can contain additional information that is specific to front-end needs. For example, in our first example of a request to our GraphQL server we requested `id`, `additional_information`, `is_price_hidden` and `is_inquireable` - only two of these items come from the database. Both is `is_price_hidden` and `is_inquireable` are derived from the API results on the server.
 

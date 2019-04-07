@@ -14,7 +14,7 @@ two years at that point, first as a marketing intern working on SEO and then as 
 email) team. I'd consistently been working on small technical projects; first doing
 [some work](https://github.com/artsy/positron/commit/3176282a3ea94c626e9d851b7c0dd27a1bb0fcb4) on a tool for SEO
 optimization for our Editorial team, then building
-[emails with MJML](http://artsy.github.io/blog/2018/11/19/mjml/), and a few other bits and bobs. But I didn't think
+[emails with MJML](https://artsy.github.io/blog/2018/11/19/mjml/), and a few other bits and bobs. But I didn't think
 of it as a serious pursuit.
 
 Mostly, that was due to my experience programming in the past—I did about half a CS major in undergrad. At the
@@ -159,7 +159,7 @@ transitioning from one team at Artsy to another (Marketing → Engineering), I b
 of Artsy's goals and needs, which helps with day-to-day prioritization. And when I'm in a sprint planning meeting
 or a product review and someone has a question about email or marketing, I can often answer—or at least I know who
 to talk to to get to the bottom of the issue quickly. Plus if at some point my team needs to code emails, my
-[past experience](http://artsy.github.io/blog/2018/11/19/mjml/) will come in very handy.
+[past experience](https://artsy.github.io/blog/2018/11/19/mjml/) will come in very handy.
 
 There are also life experiences that serve me well on the Engineering team. My work as a server and bartender made
 me good at clear communication with stakeholders. Cooking for big groups of friends has made me better at

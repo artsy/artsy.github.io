@@ -162,11 +162,11 @@ At the end of the day you’ve got your foundations now, and its time to start t
 [9]:	https://www.amazon.com/Pragmatic-Programmer-Journeyman-Master/dp/020161622X/ref=pd_bxgy_14_img_3?ie=UTF8&psc=1&refRID=BX7MTECP16Z2VR3N3T25
 [10]:	https://www.amazon.com/Design-Patterns-Elements-Reusable-Object-Oriented/dp/0201633612
 [11]:	https://www.amazon.co.uk/gp/product/B005OYHF0A/
-[12]:	http://artsy.github.io/blog/2016/01/26/swift-at-artsy/
-[13]:	http://artsy.github.io/blog/2016/08/31/Keyboard-Shortcuts-workshop/
-[14]:	http://artsy.github.io/blog/2015/07/06/how-to-write-unit-tests-like-a-brood-parasite/
-[15]:	http://artsy.github.io/blog/2015/06/04/an-eigenstate-of-mind/
-[16]:	http://artsy.github.io/blog/2016/03/09/public-speaking-part1-is-it-for-me/
+[12]:	https://artsy.github.io/blog/2016/01/26/swift-at-artsy/
+[13]:	https://artsy.github.io/blog/2016/08/31/Keyboard-Shortcuts-workshop/
+[14]:	https://artsy.github.io/blog/2015/07/06/how-to-write-unit-tests-like-a-brood-parasite/
+[15]:	https://artsy.github.io/blog/2015/06/04/an-eigenstate-of-mind/
+[16]:	https://artsy.github.io/blog/2016/03/09/public-speaking-part1-is-it-for-me/
 [17]:	/blog/2015/12/10/License-and-You/
 [18]:	https://en.wikipedia.org/wiki/Rubber_duck_debugging
 [19]:	https://github.com/orta/you-can-do-it

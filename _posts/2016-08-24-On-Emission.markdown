@@ -111,7 +111,7 @@ As ever, our work is open source, and we ensure that anyone can download and run
 [interstellar]: https://cocoapods.org/pods/Interstellar
 [eigen]: https://github.com/artsy/eigen/
 [router_pattern]: https://artsy.github.io/blog/2015/08/15/Cocoa-Architecture-Router-Pattern/
-[hybrid_app]: http://artsy.github.io/blog/2015/08/24/Cocoa-Architecture-Hybrid-Apps/
+[hybrid_app]: https://artsy.github.io/blog/2015/08/24/Cocoa-Architecture-Hybrid-Apps/
 [ar_emission]: https://github.com/artsy/emission/blob/master/Pod/Classes/Core/AREmission.m
 [example_emission]: https://github.com/artsy/emission/blob/eb9d0f6ca0edd3eb9f07dd9ff3b8499f095bc45b/Example/Emission/AppDelegate.m#L56
 [eigen_emission]: https://github.com/artsy/eigen/blob/41b00f6fe497de9e902315104089370dea417017/Artsy/App/ARAppDelegate%2BEmission.m

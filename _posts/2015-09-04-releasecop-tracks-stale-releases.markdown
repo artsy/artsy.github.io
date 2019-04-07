@@ -7,7 +7,7 @@ author: joey
 categories: [Ruby, open source, OSS, testing, Continuous Integration, Continuous Deployment, devops, tools]
 ---
 
-Artsy practices a sort of [continuous delivery](http://en.wikipedia.org/wiki/Continuous_delivery). We keep release cycles short and the process of reviewing, testing, and deploying our software as reliable, fast, and automated as possible. (This blog has touched on these practices [multiple](http://artsy.github.io/blog/categories/testing/) [times](http://artsy.github.io/blog/categories/continuous-integration).)
+Artsy practices a sort of [continuous delivery](http://en.wikipedia.org/wiki/Continuous_delivery). We keep release cycles short and the process of reviewing, testing, and deploying our software as reliable, fast, and automated as possible. (This blog has touched on these practices [multiple](https://artsy.github.io/blog/categories/testing/) [times](https://artsy.github.io/blog/categories/continuous-integration).)
 
 Usually, commits that have been reviewed and merged are immediately built and tested. Successfully built versions of the codebase are often automatically deployed to a staging environment. On an automated or frequent-but-manual basis, that version is deployed to a production environment. Thus, commits form a pipeline:
 

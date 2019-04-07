@@ -16,6 +16,6 @@ Yesterday was lesson three and I have a [screen recording][youtube] of my walkth
 {% youtube e2ErzD8ibG8 %}
 
 
-[course]: http://artsy.github.io/blog/2016/01/26/swift-at-artsy/
+[course]: https://artsy.github.io/blog/2016/01/26/swift-at-artsy/
 [youtube]: https://youtu.be/e2ErzD8ibG8
 [github]: https://github.com/artsy/Swift-at-Artsy/tree/master/Beginners/Lesson%20Three

@@ -125,7 +125,7 @@ I'm very encouraged by Kubernetes. It offers really slick, enterprise-level scal
 
 [Heroku]: https://www.heroku.com
 [Dynos]: https://www.heroku.com/dynos
-[stack]: http://artsy.github.io/blog/2017/04/14/artsy-technology-stack-2017/
+[stack]: https://artsy.github.io/blog/2017/04/14/artsy-technology-stack-2017/
 [Kubernetes]: https://kubernetes.io
 [Hokusai]: https://github.com/artsy/hokusai
 [commands]: https://github.com/artsy/hokusai/blob/master/docs/Command_Reference.md

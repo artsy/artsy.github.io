@@ -82,7 +82,7 @@ Remember that earlier example of openness-vs-quality? That is answered explicitl
 [pr]: https://github.com/artsy/meta/pull/41
 [company_values]: https://www.artsy.net/article/carter-cleveland-why-define-company-values
 [values]: https://github.com/artsy/README/blob/master/culture/what-is-artsy.md#artsy-values
-[obd]: http://artsy.github.io/series/open-source-by-default/
+[obd]: https://artsy.github.io/series/open-source-by-default/
 [objcio]: https://www.objc.io/issues/22-scale/artsy/
 [principles]: https://github.com/artsy/README/blob/master/culture/engineering-principles.md
 [gh]: https://github.com/artsy

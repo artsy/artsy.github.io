@@ -13,7 +13,7 @@ These failures might be due to slight timing differences or lack of proper isola
 
 ## The Quarantine
 
-We've been [automatically retrying failed tests](http://artsy.github.io/blog/2012/05/15/how-to-organize-over-3000-rspec-specs-and-retry-test-failures/), with some success. However, these problems tend to get worse. (If you have 10 tests that each have a 1% chance of failing, roughly 1 in 10 builds will fail. If you have 50, 4 in 10 builds will fail.)
+We've been [automatically retrying failed tests](https://artsy.github.io/blog/2012/05/15/how-to-organize-over-3000-rspec-specs-and-retry-test-failures/), with some success. However, these problems tend to get worse. (If you have 10 tests that each have a 1% chance of failing, roughly 1 in 10 builds will fail. If you have 50, 4 in 10 builds will fail.)
 
 Martin Fowler offers the most compelling thoughts on this topic in [Eradicating Non-Determinism in Tests](http://martinfowler.com/articles/nonDeterminism.html). (Read it, really.) He suggests quarantining problematic tests in a separate suite, so they don't block the build pipeline.
 

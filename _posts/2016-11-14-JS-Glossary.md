@@ -589,7 +589,7 @@ $("a[name]").each(function(i, el){
 </script>
 
 [search-bar]: https://github.com/artsy/emission/blob/c558323e4276699925b4edb3d448812005ae6b5d/lib/components/home/search_bar.js
-[our-implmentation]: http://artsy.github.io/blog/2016/08/24/On-Emission/
+[our-implmentation]: https://artsy.github.io/blog/2016/08/24/On-Emission/
 [jsx-example]: https://github.com/artsy/emission/blob/c558323e4276699925b4edb3d448812005ae6b5d/lib/components/artist/header.js
 [react-guide]: https://github.com/uberVU/react-guide/blob/master/props-vs-state.md#props-vs-state
 [typings]: https://github.com/typings/typings

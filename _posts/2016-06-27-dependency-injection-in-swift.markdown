@@ -88,7 +88,7 @@ Now you get the benefits of initializer injection, but the flexibility to only u
 
 Note: we should still test the `defaultNetworkCreator()` function to make sure it works, too. Having code behave differently specifically while being tested is not generally a good idea.
 
-Applying the advice on using `typealias` from [my last post](http://artsy.github.io/blog/2016/06/24/typealias-for-great-good/), we can tidy our code up a little bit.
+Applying the advice on using `typealias` from [my last post](https://artsy.github.io/blog/2016/06/24/typealias-for-great-good/), we can tidy our code up a little bit.
 
 ```swift
 class StateManager {

@@ -20,7 +20,7 @@ In this post, we are going to explore how Relay mutations work by looking at a R
 
 ![](http://i.imgur.com/S21GfEo.png)
 
-> Note: We're going to assume a basic familiarity with GraphQL in this article. If you haven't heard of GraphQL before, the [documentation](www.graphql.org) and the [GraphQL for iOS Developers](http://artsy.github.io/blog/2016/06/19/graphql-for-mobile/) post are great places to start. If you're interested in learning more about Relay in general, head over to [Learn Relay](www.learnrelay.org) for a comprehensive tutorial.
+> Note: We're going to assume a basic familiarity with GraphQL in this article. If you haven't heard of GraphQL before, the [documentation](www.graphql.org) and the [GraphQL for iOS Developers](https://artsy.github.io/blog/2016/06/19/graphql-for-mobile/) post are great places to start. If you're interested in learning more about Relay in general, head over to [Learn Relay](www.learnrelay.org) for a comprehensive tutorial.
 
 <!-- more -->
 

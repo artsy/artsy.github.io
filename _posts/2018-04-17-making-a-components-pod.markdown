@@ -31,7 +31,7 @@ specifically to slow you down and make you think about each command. This isn't 
 minutes, running though it properly should take about an hour.
 
 _You can also watch along with [this YouTube video](https://www.youtube.com/watch?v=ucQXL4vkP78) of me going through
-the tutorial at [Artsy x React Native_](http://artsy.github.io/artsy-x-react-native.html).
+the tutorial at [Artsy x React Native_](https://artsy.github.io/artsy-x-react-native.html).
 
 <div class="mobile-only">
 <p>

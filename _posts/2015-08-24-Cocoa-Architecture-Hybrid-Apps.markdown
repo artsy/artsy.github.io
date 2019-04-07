@@ -55,6 +55,6 @@ When you choose developer ease over user experience it's important to take into 
 # Evolution
 One of the most interesting developments this year in the Cocoa world is Facebook's [react-native](https://cocoapods.org/pods/React), a bridge between web technology and native code that doesn't rely on using the [traditional DOM](http://www.quirksmode.org/dom/intro.html) - freeing it from a lot of the common problems found in highly web-based apps.
 
-We're pretty optimistic about it on the mobile team. We're not quite willing to jump head-first into a [pre-1.0 technology](http://artsy.github.io/blog/2014/11/13/eidolon-retrospective/) again, but it shows a lot of promise.
+We're pretty optimistic about it on the mobile team. We're not quite willing to jump head-first into a [pre-1.0 technology](https://artsy.github.io/blog/2014/11/13/eidolon-retrospective/) again, but it shows a lot of promise.
 
 The fact that we were able to ship an app at all was because we could build the parts that meant the most to us native, then rely on web technologies to cover the rest of the ground. By being pragmatic in our approach to using web tech, we have the chance to stand on the shoulders of giants.

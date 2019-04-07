@@ -91,13 +91,13 @@ it was very satisfying.
 
 I would say that's _definitely_ worth it.
 
-[automate]: http://artsy.github.io/blog/2018/05/07/fully-automated-standups/
+[automate]: https://artsy.github.io/blog/2018/05/07/fully-automated-standups/
 [spof]: https://en.wikipedia.org/wiki/Single_point_of_failure
-[support]: http://artsy.github.io/blog/2018/05/25/support-process/
+[support]: https://artsy.github.io/blog/2018/05/25/support-process/
 [docs]: https://github.com/artsy/README/blob/eb2f23c835983223877a6031475153db93e98e8c/events/open-standup.md
 [xkcd]: https://xkcd.com/1319/
 [pr]: https://github.com/artsy/peril-settings/pull/87
-[peril]: http://artsy.github.io/blog/2017/09/04/Introducing-Peril/
+[peril]: https://artsy.github.io/blog/2017/09/04/Introducing-Peril/
 [gsa]: https://cloud.google.com/iam/docs/understanding-service-accounts
 [slack]: https://github.com/slackapi/node-slack-sdk#features
 [peril_installation]: https://github.com/artsy/peril-settings

@@ -8,7 +8,7 @@ categories: [force, reaction, emission, javascript, typescript, react, babel, st
 author: chris
 ---
 
-[Force](https://github.com/artsy/force) is Artsy's main website, [artsy.net](https://www.artsy.net). In the three years since it was [open-sourced](http://artsy.github.io/blog/2014/09/05/we-open-sourced-our-isomorphic-javascript-website/), it has provided a solid foundation to build features on top of without a lot of the costs associated with growth. It is an early example of Isomorphic ("universal") JavaScript, built on top of Express, Backbone, CoffeeScript, Stylus and Jade. It is also highly modular, adopting patterns laid down by its parent project,  [Ezel](https://github.com/artsy/ezel).
+[Force](https://github.com/artsy/force) is Artsy's main website, [artsy.net](https://www.artsy.net). In the three years since it was [open-sourced](https://artsy.github.io/blog/2014/09/05/we-open-sourced-our-isomorphic-javascript-website/), it has provided a solid foundation to build features on top of without a lot of the costs associated with growth. It is an early example of Isomorphic ("universal") JavaScript, built on top of Express, Backbone, CoffeeScript, Stylus and Jade. It is also highly modular, adopting patterns laid down by its parent project,  [Ezel](https://github.com/artsy/ezel).
 
 When first developed these technologies made a lot of sense; CoffeeScript fixed many of the problems with JavaScript pre-ES6, and Jade / Stylus made working with HTML / CSS much more elegant. As time progressed and new technologies became a thing these solutions starting feeling more burdensome to continue building features with and many of our developers longed to start using next-generation tools like React.
 
