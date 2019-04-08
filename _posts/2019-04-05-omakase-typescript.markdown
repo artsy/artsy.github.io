@@ -80,12 +80,11 @@ of data_ the variable contains. In this case the variable contains a `String`. (
 a collection of characters. They `"look like this"`. This [5m video](https://www.youtube.com/watch?v=czTWbdwbt7E)
 is a good primer if you want to learn more.)
 
-Both of these variables contain a string, but the difference is that in Java the variable can _only ever contain a
-\_string_, because that's what we said when we created the variable. In JS the variable can change to be
-_anything_, like a number, or a list of dates.
+Both of these variables contain a string, but the difference is that in Java the variable can _only_ ever contain a
+_string_, because that's what we said when we created the variable. In JS the variable can change to be _anything_,
+like a number, or a list of dates.
 
-There are many values which can go into a variable, and `var` accepts all of them in JS. In Java though, we have to
-say upfront what can be inside that variable, which is only strings, so:
+To illustrate:
 
 ```js
 // Before in JS
@@ -100,16 +99,17 @@ String name = "Danger";
 // Not OK, the code wouldn't be accepted by Java
 String name = 1;
 String name = false
-String name = {"2018-02-03", "2019-01-12"};
+String name = new String[]{"2018-02-03", "2019-01-12"};
 ```
 
 These trade-offs make sense in the context for which these languages were built back in 1995. JavaScript was
 originally designed to be a small programming language which handled simple interactions on websites. Java on the
 other hand was built specifically to make big apps which could run on any computer. Their needs had different
-scales, so the language required different types of code.
+scales, so the language required programmers write different types of code.
 
 Java required programmers to be more explicit with the values of their variables because the programs they expected
-people to build were more complex.
+people to build were more complex. While JavaScript opted for ease of reading, and flexibility because you would be
+able to see most of the code in one go.
 
 ### What is TypeScript?
 
@@ -128,7 +128,7 @@ console.log("Hello, " + danger)
 // Yep, you're not missing something, there's no difference
 ```
 
-Due to TypeScript aiming to only _extend_ JavaScript, your normal JavaScript code should work fine with TypeScript.
+Due to TypeScript's aim to only _extend_ JavaScript, your normal JavaScript code should work fine with TypeScript.
 The things TypeScript adds to JavaScript are intended to help you be more explicit about what kinds of data are
 used in your code, a bit like Java.
 
