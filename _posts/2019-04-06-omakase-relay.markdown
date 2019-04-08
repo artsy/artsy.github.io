@@ -29,8 +29,7 @@ Relay handles:
 - Cache management (invalidation, updates etc)
 - Consistent bi-directional pagination abstractions
 - Multiple query consolidation (e.g. consolidate all API requests to one request)
-- Declarative data mutation (describe how data should change, instead of doing it)
-- UI best practices baked in (optimistic response rendering, cheap rollbacks)
+- UI best practices baked in (e.g. optimistic response rendering)
 - AOT query generation (allowing you to persist queries)
 
 By taking the responsibilities of the grunt work for most complex apps and moving it into Relay you get
@@ -47,15 +46,13 @@ abstraction that lets you declare shared fields on a specific GraphQL type to re
 For example:
 
 ```
-query GetPopularArtistsAndMyFavs {
-  me {
-    artists {
-      id
-      name
-      bio
-    }
+query GetPopularArtistAndFeaturedArtist {
+  featuredArtist {
+    id
+    name
+    bio
   }
-  popularArtists {
+  popularArtist {
     id
     name
     bio
@@ -67,12 +64,10 @@ To move this query to use fragments:
 
 ```
 query GetPopularArtistsAndMyFavs {
-  me {
-    artists {
-      ...ArtistMetadata
-    }
+  featuredArtist {
+    ...ArtistMetadata
   }
-  popularArtists {
+  popularArtist {
     ...ArtistMetadata
   }
 }
@@ -102,7 +97,7 @@ export class MyProfile extends React.Component<Props> {
     return (
       <View>
         <Header>
-          <ProfilePhoto initials={props.me.initials} image={props.me.image} />
+          <ProfilePhoto initials={this.props.me.initials} image={this.props.me.image} />
           <Subheading>{props.me.name}</Subheading>
         </Header>
         <ButtonSection>
@@ -151,8 +146,8 @@ the React tree. E.g.
 {% include epic_img.html url="/images/omakase-relay/tree.png" title="REST inspired props" style="width:100%;" %}
 
 This means most components know more about the request than it probably needs, as it may be needed to pass on to
-the component's children. This can lead to data-duplication, or even worse, not knowing if you can delete or
-refactor a component.
+the component's children. This can lead to over-fetching, or even worse, not knowing if you can delete or refactor
+a component.
 
 Data masking solves this by hiding data that the component didn't request. I've still yet to find the right visual
 abstraction, but I feel this just about pays for itself.
@@ -163,9 +158,9 @@ You let Relay be responsible for consolidating all your fragments into a query, 
 through your component hierarchy. This means Relay powered component can be safely changed and drastically reduces
 the chance for unintended consequences elsewhere.
 
-This isolation gives Artsy engineers the safety to work on projects with tens of contributors over long time
-periods without accruing technical debt. The components we create are nearly all focused only on the data-driven
-aspects of rendering a GraphQL response into views.
+This isolation gives Artsy engineers the safety to work on projects with tens of contributors, which change over
+long time periods without accruing technical debt. The components we create are nearly all focused only on the
+data-driven aspects of rendering a GraphQL response into views.
 
 ## Co-location
 
@@ -175,7 +170,7 @@ the styles, the actual view content hierarchy and the exact parts of the API it 
 <img src="/images/omakase-relay/co-location.png">
 
 In roughly that proportion too, though our most modern code uses the Artsy design system [Palette][palette] which
-drastically reduces the need for style in a Relay component.
+drastically reduces the need for style in our components.
 
 Co-location's biggest selling point is simplicity, having everything you need in one place makes it easier to
 understand how a component works. This makes code review simpler, and lowers the barrier to understanding the
@@ -183,14 +178,15 @@ entire systems at scale.
 
 ## Community
 
-When we adopted Relay, there was no competition - we'd have just used the fetch API. Over time, Apollo came up and
-really put a considerable amount of effort into lowering the barriers to entry, and making it feasible to build
-complex apps easily.
+When we adopted Relay, there was no competition - we'd have just used the fetch API. Over time, [the Apollo
+team][apollo] came up and really put a considerable amount of effort into lowering the barriers to entry, and
+making it feasible to build complex apps easily.
 
-We did an audit last year of what it would take to re-create a lot of the infrastructure we use in Relay atop of
-the (much more popular) Apollo GraphQL eco-system and saw it was feasible but would require a considerable amount
-of work across many different plugins and tools. With Relay that's all packaged into one tool, works consistently
-and obviously doesn't have a scaling problem as Facebook have tens of thousands of Relay components.
+As we hired a set of new engineers, the "Apollo vs Relay" debate came up. Interested in whether we would still
+start with Relay today, we ran an audit last year of what it would take to re-create a lot of the infrastructure we
+love in Relay atop of the (much more popular) Apollo GraphQL eco-system and saw it was feasible but would require a
+considerable amount of work across many different plugins and tools. With Relay that's all packaged into one tool,
+works consistently and has been proven in production with Facebook have tens of thousands of Relay components.
 
 It's worth highlighting the core difference in community management for Apollo vs Relay. Engineers working on
 Apollo have great incentives to do user support, and improve the tools for the community - that's their businesses
@@ -199,7 +195,8 @@ issues first. IMO, this is reasonable, Relay is an opinionated batteries-include
 interfaces, and ensuring it works with the baffling amount of JavaScript at Facebook is more or less all the team
 has time for.
 
-That leaves space for the OSS community to own their own problems.
+That leaves space for the OSS community to own their own problems. Notably there's been quite a lot of work going
+on in the [relay-tools][relay-tools] org.
 
 ## Scale Safety
 
@@ -214,12 +211,15 @@ in action:
 
 {% include epic_video.html url="/images/omakase-relay/relay-process-720.mov" title="Relay isolation tree" style="width:100%; display:block;" %}
 
+Moving all of these checks to be during dev-time means we can feel more confident in our deploys. This is
+especially an issue in an iOS native codebase, when any deploy requires a review from Apple and roll-backs are
+non-trivial.
+
 ## Cultural Fit
 
 Relay fit well into our team because:
 
-- We had engineers who were interested in contributing back and making it work for our cases, this is much less of
-  an issue now that Relay has matured and is better documented.
+- We had engineers who were interested in contributing back and extending Relay to work for our cases
 - We had engineers used to using ahead-of-time error validation tools like compilers
 - We saw a lot of value in a tightly coupling our view structure to our user interface
 
@@ -238,3 +238,5 @@ tightness of our codebases many years down the line.
 [re]: https://facebook.github.io/relay/docs/en/refetch-container.html
 [pag]: https://facebook.github.io/relay/docs/en/pagination-container.html
 [query]: https://facebook.github.io/relay/docs/en/query-renderer.html
+[apollo]: https://www.apollographql.com
+[relay-tools]: https://github.com/relay-tools
