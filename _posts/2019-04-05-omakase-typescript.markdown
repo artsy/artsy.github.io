@@ -54,14 +54,14 @@ class Main {
 }
 ```
 
-> Note: if you find the naming of Java and JavaScript confusing (it is, they are two completely separate
+> Note: if you find the naming of Java and JavaScript confusing, it is (they are two completely separate
 > programming languages, no link at all.) JavaScript was named that way because Java was looking to be really the
 > next hot language (it did turn out that way for a decade or two, but now JavaScript is usually the first language
 > people have heard of.)
 
 Aside from having a lot more lines, the Java version comes with a lot of words that aren't necessarily about
 telling the computer exactly what to do, e.g. `class Main {`, `public static void main(String[] args) {`, `}` and
-`}` again. It also has semi-colons at the end of some lines. Java is aimed at building different things, and these
+`}` again. It also has semi-colons at the end of some lines. Java is aimed at building different things from JavaScript, and these
 extra bits of code make sense within the constraints of building a Java app.
 
 To get to my main point though, there is one standout line I'd like us to compare:
@@ -139,9 +139,9 @@ console.log("Hello, " + danger)
 ```
 
 This extra `: string` allows the reader to be certain that `name` will only be a string. Annotating your variables
-also allows TypeScript to check this for you. This is very useful because keeping track of changes like the type of
+also allows TypeScript to check this for you. This is _very_ useful because keeping track of changes like the type of
 value in a variable seems easy when it's one or two, but once it starts hitting the hundreds, that's a lot to keep
-track of.
+track of. Types help programmers be more confident about their code because types catch mistakes.
 
 Simply speaking, we call these annotations "Types". Hence the name <i>Type</i>Script. The tag-line for TypeScript
 is "JavaScript which scales" which is a statement that these extra type annotations allows you to work on bigger
@@ -157,7 +157,7 @@ any number of other files, like throwing a pebble into a pond and causing ripple
 
 Typically, the need to ensure there are no bugs is less of a problem for people building websites. Websites are
 easy to make changes to, because if you change the site - everyone gets the update instantly. However, we also
-build our iOS app with JavaScript, and a change to the app requires Apple to review the changes and for someone to
+build our iOS app with JavaScript, and a change to the app requires Apple to review the changes and for users to
 download the new version from the App Store.
 
 This means that the iOS team needs to have more checks that everything is OK before shipping the app to the world.
