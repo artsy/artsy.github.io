@@ -39,7 +39,7 @@ Facebook-scale best-practices and can build on top of that.
 # How does it work?
 
 You write a set of Relay components, you always start with a [`QueryRenderer`][query] and a tree of either
-[`FragmentContainer`][frag], [`RefetchContainer`][re] or [`PaginationController`][pag]s. You mostly use
+[`FragmentContainer`][frag], [`RefetchContainer`][re] or [`PaginationContainer`][pag]s. You mostly use
 `FragmentContainer`s, so I'll focus on that here.
 
 A `FragmentContainer` is based on a [GraphQL fragment][gql-frag]. If you've never used a fragment, they are an
@@ -118,16 +118,15 @@ export class MyProfile extends React.Component<Props> {
   }
 }
 
-export default createFragmentContainer(
-  MyProfile,
-  graphql`
+export default createFragmentContainer(MyProfile, {
+  me: graphql`
     fragment MyProfile_me on Me {
       name
       image
       initials
     }
   `
-)
+})
 ```
 
 There are three moving parts:
