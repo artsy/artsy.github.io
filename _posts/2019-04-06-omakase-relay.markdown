@@ -99,7 +99,7 @@ export class MyProfile extends React.Component<Props> {
       <View>
         <Header>
           <ProfilePhoto initials={this.props.me.initials} image={this.props.me.image} />
-          <Subheading>{props.me.name}</Subheading>
+          <Subheading>{this.props.me.name}</Subheading>
         </Header>
         <ButtonSection>
           <ProfileButton
@@ -135,7 +135,7 @@ There are three moving parts:
 - The TypeScript interface `MyProfile_me` which ensures we can only use fields that were selected in the fragment
 - The `MyProfile` component, which is a vanilla React component
 - The exported `createFragmentContainer` which returns a higher-order component that wraps `MyProfile` and ties it
-  to a fragment on a `Me` type in GraphQL.
+  to a fragment on a `Me` type in GraphQL
 
 ## Isolation
 
@@ -185,9 +185,9 @@ making it feasible to build complex apps easily.
 
 As we hired a set of new engineers, the "Apollo vs Relay" debate came up. Interested in whether we would still
 start with Relay today, we ran an audit last year of what it would take to re-create a lot of the infrastructure we
-love in Relay atop of the (much more popular) Apollo GraphQL eco-system and saw it was feasible but would require a
+love in Relay atop of the (much more popular) Apollo GraphQL eco-system and saw it was reasonably feasible but would require a
 considerable amount of work across many different plugins and tools. With Relay that's all packaged into one tool,
-works consistently and has been proven in production with Facebook have tens of thousands of Relay components.
+works consistently and has been proven with Facebook having tens of thousands of Relay components in production.
 
 It's worth highlighting the core difference in community engagement for Apollo vs Relay. Engineers working on
 Apollo have great incentives to do user support, and improve the tools for the community - that's their businesses
