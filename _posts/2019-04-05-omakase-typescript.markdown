@@ -137,10 +137,11 @@ used in your code, a bit like Java.
 console.log("Hello, " + danger)
 ```
 
-This extra `: string` allows the reader to be certain that `name` will only be a string. Annotating your variables
-also allows TypeScript to check this for you. This is _very_ useful because keeping track of changes like the type
-of value in a variable seems easy when it's one or two, but once it starts hitting the hundreds, that's a lot to
-keep track of. Types help programmers be more confident about their code because types catch mistakes.
+This extra `: string` allow the reader to be certain that `name` will only be a string. Annotating your variables
+also gives TypeScript the chance to verify this for you. This is _very_ useful because keeping track of changes
+like the type of value in a variable seems easy when it's one or two, but once it starts hitting the hundreds,
+that's a lot to keep track of. Types help programmers be more confident about their code because types catch
+mistakes.
 
 Simply speaking, we call these annotations "Types". Hence the name <i>Type</i>Script. The tag-line for TypeScript
 is "JavaScript which scales" which is a statement that these extra type annotations allows you to work on bigger
