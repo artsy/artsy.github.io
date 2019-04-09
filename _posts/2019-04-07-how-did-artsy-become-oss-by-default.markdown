@@ -29,17 +29,70 @@ bureaucracy if you wanted to create a new project which is closed source.
 
 ## 2012 - Open Communications
 
-For the first year Artsy Engineering, we really didn't ship much Open Source. We were likely just trying to get the
-baseline of artsy.net shipped. One important step we took during this first year is in creating this blog, and
-publishing 33 ([!][33_posts]) blog posts.
+One important step we took during this first year is in creating this blog, and publishing 33 ([!][33_posts]) blog
+posts.
 
-This helped established a foundation of openness, it might not yet be code, but posts are an awesome start.
+This really helped established a baseline that external communications could be a foundation of openness, it might
+not yet be code, but blog posts are an awesome start. I know my first blog durign this time was specifically built
+because I had solved a hard problem which I expected others would have done.My answer wasn't generic enough to
+warrant making a library but it was big enough to write a [blog post sharing the code][search] and providing
+context.
 
-2012 - blog, no idea
+Shipping this many blog posts in our first year of creating a blog is a pretty solid achievement in my opinion, and
+the blog has always represented Artsy's Engineering team in one way or another:
+
+> I consider our blog, and the rest of the site, to be the canonical representation of the Artsy Engineering team
+> online. We've carefully grown an Artsy Engineering aesthetic around it.
+
+- [Why We Run Our Own Blog][why-run]
+
+Getting people into a space where they feel like contributions to this blog are not _big deals_ but are _iterative
+improvements_ was step one towards OSS by Default. That said, we weren't sitting on our hands, in the process of
+shipping Artsy to the public we still shipped a bunch of libraries:
+[ARAnalytics](https://github.com/orta/ARAnalytics),
+[resque-heroku-scaling-canary](https://github.com/aaw/resque-heroku-scaling-canary),
+[heroku-forward](https://github.com/dblock/heroku-forward), [Garner](http://github.com/artsy/garner),
+[spidey](https://github.com/joeyAghion/spidey), [guard-rack](https://github.com/dblock/guard-rack),
+[rspec-rerun](https://github.com/dblock/rspec-rerun),
+[hyperloglog-redis](https://github.com/aaw/hyperloglog-redis),
+[cartesian-product](https://github.com/aaw/cartesian-product),
+[space-saver-redis](https://github.com/aaw/space-saver-redis) &
+[mongoid-cached-json](https://github.com/dblock/mongoid-cached-json)
+
+Some of which we still use today.
 
 ## 2013 - Tools & Libraries
 
-We started getting the time to ship
+<!-- a["oss_projects"].select { |o| o["created"].include? "2012" }.map { |o| '[' + o["title"] + '](' + o["repository"] + ')'  }.join(", ") -->
+
+In 2013 we really started to get into the flow of abstracting our problems into libraries
+
+[Musical Chairs](https://github.com/orta/chairs), [Ezel.js](https://github.com/artsy/ezel),
+[browserify-dev-middleware](https://github.com/artsy/browserify-dev-middleware),
+[backbone-cache-sync](https://github.com/artsy/backbone-cache-sync),
+[backbone-super-sync](https://github.com/artsy/backbone-super-sync), [benv](https://github.com/artsy/benv),
+[bucket-assets](https://github.com/artsy/bucket-assets), [sharify](https://github.com/artsy/sharify),
+[jquery-poplockit](https://github.com/zamiang/jquery.poplockit),
+[ORStackView](https://github.com/orta/ORStackView),
+[ORSimulatorKeyboardAccessor](https://github.com/orta/ORSimulatorKeyboardAccessor),
+[DRBOperationTree](https://github.com/dstnbrkr/DRBOperationTree),
+[heroku-commander](https://github.com/dblock/heroku-commander),
+[artsy-ruby-client](https://github.com/artsy/artsy-ruby-client),
+[gem-licenses](https://github.com/dblock/gem-licenses),
+[canonical-emails](https://github.com/dblock/canonical-emails),
+[mongoid-tag-collectible](https://github.com/dblock/mongoid-tag-collectible),
+[mongoid-shell](https://github.com/dblock/mongoid-shell),
+[mongoid-scroll](https://github.com/dblock/mongoid-scroll), [forgetsy](https://github.com/cavvia/forgetsy)
+
+It also represented the first time we explored working entirely in the open. We built small, one-off websites like
+[iphone.artsy.net][iphone] ([flare](https://github.com/artsy/flare)) and [2013.artsy.net][2013]
+([artsy-2013](https://github.com/artsy/artsy-2013)) -
+
+Explored giving back at scale with CocoaDocs
+
+[CocoaDocs](https://github.com/CocoaPods/cocoadocs.org),
+
+Shipping [flare]() and [artsy-2013](https://github.com/artsy/artsy-2013) as fully-open sourced applications.
 
 ## 2014 - New Apps
 
@@ -79,3 +132,12 @@ https://code.dblock.org/2015/02/09/becoming-open-source-by-default.html
 [osscom]: https://opensource.com/life/10/12/corporate-change-contributing-open-source
 [rfc_priv]: https://github.com/artsy/README/issues/131
 [33_posts]: /blog/archives/
+[search]: /blog/2012/05/11/on-making-it-personal--in-iOS-with-searchbars/
+[why-run]: /blog/2019/01/30/why-we-run-our-blog/
+[hk_cmd]: /blog/2013/02/01/master-heroku-command-line-with-heroku-commander/
+[chairs]: /blog/2013/03/29/musical-chairs/
+[ms]: https://github.com/mongoid/mongoid-shell
+[garner]: /blog/2013/01/20/improving-performance-of-mongoid-cached-json/
+[analytics]: /blog/2013/04/10/aranalytics/
+[iphone]: https://iphone.artsy.net
+[2013]: https://2013.artsy.net
