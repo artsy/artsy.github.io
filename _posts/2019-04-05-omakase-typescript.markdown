@@ -152,7 +152,7 @@ fine because the size and complexities of the programs being built were constrai
 websites. Today though, JavaScript is being used everywhere:
 
 - Apps like Slack, or Spotify for your computer are built in mostly JavaScript
-- iOS apps like Artsy's is mostly JavaScript
+- Some iOS apps, including Artsy's are mostly JavaScript
 - The back-end and front-end of Artsy.net are JavaScript
 
 These are all considerably more complicated to build and understand, adding types drastically reduces the
