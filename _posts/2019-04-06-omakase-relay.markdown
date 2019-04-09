@@ -10,7 +10,7 @@ comment_id: 557
 
 When the mobile team at Artsy considered moving to React Native back in 2016, one of the most compelling cases for
 making that jump was Relay. This, it seems, is a dependency that is rarely used in the JS community and we often
-find ourselves defending this decision to new engineers during onboarding and to the public at large.
+find ourselves re-explaining this decision to new engineers during onboarding, and to the public at large.
 
 Which makes this a perfect blog post topic, so let's have a deep dive into what makes Relay compelling for Artsy's
 engineering team.
@@ -26,7 +26,7 @@ apps, Relay removes a whole suite of non-business logic from your application.
 Relay handles:
 
 - Data binding (API → props)
-- Cache management (invalidation, updates etc)
+- Cache management (invalidation, re-render live components with data updates, etc)
 - Consistent bi-directional pagination abstractions
 - Multiple query consolidation (e.g. consolidate all API requests to one request)
 - UI best practices baked in (e.g. optimistic response rendering)
@@ -38,7 +38,7 @@ Facebook-scale best-practices and can build on top of that.
 
 # How does it work?
 
-You write a set of Relay components, you always start with a [`QueryRenderer`][query] then use a tree of either
+You write a set of Relay components, you always start with a [`QueryRenderer`][query] and a tree of either
 [`FragmentContainer`][frag], [`RefetchContainer`][re] or [`PaginationController`][pag]s. You mostly use
 `FragmentContainer`s, so I'll focus on that here.
 
@@ -161,7 +161,7 @@ the chance for unintended consequences elsewhere.
 
 This isolation gives Artsy engineers the safety to work on projects with tens of contributors, which change over
 long time periods without accruing technical debt. The components we create are nearly all focused only on the
-data-driven aspects of rendering a GraphQL response into views.
+data-driven aspects of rendering a GraphQL response into views. We simply don't have to write networking code anymore.
 
 ## Co-location
 
@@ -192,16 +192,16 @@ works consistently and has been proven with Facebook having tens of thousands of
 It's worth highlighting the core difference in community engagement for Apollo vs Relay. Engineers working on
 Apollo have great incentives to do user support, and improve the tools for the community - that's their businesses
 value. Relay on the other hand is used in many places at Facebook, and the engineers on the team support internal
-issues first. IMO, this is reasonable, Relay is an opinionated batteries-included framework for building user
+issues first. IMO, this is reasonable: Relay is an opinionated batteries-included framework for building user
 interfaces, and ensuring it works with the baffling amount of JavaScript at Facebook is more or less all the team
 has time for.
 
 That leaves space for the OSS community to own their own problems. Notably there's been quite a lot of work going
-on in the [relay-tools][relay-tools] org.
+on in the community-managed [relay-tools][relay-tools] GitHub organization.
 
 ## Scale Safety
 
-Relay puts a lot of emphasis on ahead of time safety. The Relay compiler validates your queries against your
+Relay puts a lot of emphasis on ahead-of-time safety. The Relay compiler validates your queries against your
 GraphQL schema, it emits Flow types for your fragment’s field selections–which we’ve extended to emit TypeScript
 types instead, and there are strict naming systems enforced by the compiler. All of these help guide engineers to
 build scalable codebases.
@@ -215,7 +215,7 @@ in action:
 
 Moving all of these checks to be during dev-time means we can feel more confident in our deploys. This is
 especially an issue in an iOS native codebase, when any deploy requires a review from Apple and roll-backs are
-non-trivial.
+impossible.
 
 ## Cultural Fit
 
