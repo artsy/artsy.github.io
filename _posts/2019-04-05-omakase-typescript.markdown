@@ -161,9 +161,9 @@ complexity of making improvements to those programs.
 ### Why does Artsy use TypeScript?
 
 Artsy definitely isn't the size of Microsoft! Artsy is about 30 engineers, and Microsoft are about 60,000. However,
-some of our problems are the same. Developers at Artsy build apps which are made up of thousands of files. Any
-single change to one file, could affect any other file. A change to one individual file can affect the behaviour of
-any number of other files, like throwing a pebble into a pond and causing ripples to spread out to the bank.
+some of our problems are the same. Developers at Artsy build apps which are made up of thousands of files. A change
+to one individual file can affect the behaviour of any number of other files, like throwing a pebble into a pond
+and causing ripples to spread out to the bank.
 
 Typically, the need to ensure there are no bugs is less of a problem for people building websites. Websites are
 easy to make changes to, because if you change the site - everyone gets the update instantly. We also build our iOS
