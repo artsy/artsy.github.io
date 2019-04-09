@@ -1,7 +1,7 @@
 ---
 layout: epic
 title: "What is TypeScript?"
-date: "2019-05-05"
+date: "2019-04-05"
 author: [orta]
 categories: [community, javascript, roads and bridges, typescript]
 series: Omakase
@@ -36,7 +36,7 @@ code. Here's an example using JavaScript:
 
 ```js
 var name = "Danger"
-console.log("Hello, " + danger)
+console.log("Hello, " + name)
 ```
 
 The first line makes a variable (a kind of box you can keep things in) and then the second line outputs text to the
@@ -118,11 +118,11 @@ let's compare the scripts for "Hello, Danger" in JavaScript vs TypeScript:
 ```js
 // JavaScript
 var name = "Danger"
-console.log("Hello, " + danger)
+console.log("Hello, " + name)
 
 // TypeScript
 var name = "Danger"
-console.log("Hello, " + danger)
+console.log("Hello, " + name)
 
 // Yep, you're not missing something, there's no difference
 ```
