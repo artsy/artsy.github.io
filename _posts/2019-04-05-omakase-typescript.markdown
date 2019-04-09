@@ -1,7 +1,7 @@
 ---
 layout: epic
 title: "What is TypeScript?"
-date: "2019-05-05"
+date: "2019-04-05"
 author: [orta]
 categories: [community, javascript, roads and bridges, typescript]
 series: Omakase
@@ -36,7 +36,7 @@ code. Here's an example using JavaScript:
 
 ```js
 var name = "Danger"
-console.log("Hello, " + danger)
+console.log("Hello, " + name)
 ```
 
 The first line makes a variable (a kind of box you can keep things in) and then the second line outputs text to the
@@ -118,11 +118,11 @@ let's compare the scripts for "Hello, Danger" in JavaScript vs TypeScript:
 ```js
 // JavaScript
 var name = "Danger"
-console.log("Hello, " + danger)
+console.log("Hello, " + name)
 
 // TypeScript
 var name = "Danger"
-console.log("Hello, " + danger)
+console.log("Hello, " + name)
 
 // Yep, you're not missing something, there's no difference
 ```
@@ -137,10 +137,11 @@ used in your code, a bit like Java.
 console.log("Hello, " + danger)
 ```
 
-This extra `: string` allows the reader to be certain that `name` will only be a string. Annotating your variables
-also allows TypeScript to check this for you. This is _very_ useful because keeping track of changes like the type
-of value in a variable seems easy when it's one or two, but once it starts hitting the hundreds, that's a lot to
-keep track of. Types help programmers be more confident about their code because types catch mistakes.
+This extra `: string` allow the reader to be certain that `name` will only be a string. Annotating your variables
+also gives TypeScript the chance to verify this for you. This is _very_ useful because keeping track of changes
+like the type of value in a variable seems easy when it's one or two, but once it starts hitting the hundreds,
+that's a lot to keep track of. Types help programmers be more confident about their code because types catch
+mistakes.
 
 Simply speaking, we call these annotations "Types". Hence the name <i>Type</i>Script. The tag-line for TypeScript
 is "JavaScript which scales" which is a statement that these extra type annotations allows you to work on bigger
@@ -152,7 +153,7 @@ fine because the size and complexities of the programs being built were constrai
 websites. Today though, JavaScript is being used everywhere:
 
 - Apps like Slack, or Spotify for your computer are built in mostly JavaScript
-- iOS apps like Artsy's is mostly JavaScript
+- Some iOS apps, including Artsy's are mostly JavaScript
 - The back-end and front-end of Artsy.net are JavaScript
 
 These are all considerably more complicated to build and understand, adding types drastically reduces the
@@ -161,9 +162,9 @@ complexity of making improvements to those programs.
 ### Why does Artsy use TypeScript?
 
 Artsy definitely isn't the size of Microsoft! Artsy is about 30 engineers, and Microsoft are about 60,000. However,
-some of our problems are the same. Developers at Artsy build apps which are made up of thousands of files. Any
-single change to one file, could affect any other file. A change to one individual file can affect the behaviour of
-any number of other files, like throwing a pebble into a pond and causing ripples to spread out to the bank.
+some of our problems are the same. Developers at Artsy build apps which are made up of thousands of files. A change
+to one individual file can affect the behaviour of any number of other files, like throwing a pebble into a pond
+and causing ripples to spread out to the bank.
 
 Typically, the need to ensure there are no bugs is less of a problem for people building websites. Websites are
 easy to make changes to, because if you change the site - everyone gets the update instantly. We also build our iOS
