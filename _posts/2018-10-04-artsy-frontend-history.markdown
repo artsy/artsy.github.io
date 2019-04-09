@@ -5,6 +5,7 @@ date: 2018-10-04
 author: ash
 css: frontend-tech
 categories: [react, ezel, javascript, force, architecture, best practices]
+series: Omakase
 ---
 
 As Artsy Engineering grows in 2018, we have so many newcomers looking for context: they want to understand the
