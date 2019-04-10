@@ -159,10 +159,12 @@ You let Relay be responsible for consolidating all your fragments into a query v
 network request, and your response data to be passed your through your component hierarchy. This means Relay
 powered components can be safely changed and drastically reduces the chance for unintended consequences elsewhere.
 
-This isolation gives Artsy engineers the safety to work on projects with tens of contributors, which change over
-time, need to onboard onto a project easily, and only work on isolated parts of the codebase without accruing
-technical debt. The components we create are nearly all focused only on the data-driven aspects of rendering a
-GraphQL response into views. We simply don't have to write networking code anymore.
+This isolation gives Artsy engineers the safety to work on projects with tens of contributors which regularly
+change over time. Providing a guarantee that you can safely work in isolated parts of the codebase without accruing
+technical debt.
+
+Relay's container components mean that the components we create are nearly all focused only on the data-driven
+aspects of rendering a subset of that GraphQL response into views. It's very powerful.
 
 ## Co-location
 
