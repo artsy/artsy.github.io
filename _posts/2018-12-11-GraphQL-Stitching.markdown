@@ -6,6 +6,7 @@ author: [orta]
 categories: [graphql, stitching, metaphysics]
 css: graphql-stitch
 comment_id: 450
+series: Omakase
 ---
 
 Micro-Services make sense for an engineering team of our size. You can scope a domain of your business to
