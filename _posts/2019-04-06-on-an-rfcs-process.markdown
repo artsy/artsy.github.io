@@ -117,7 +117,7 @@ We've evolved the closing an RFC process since then:
 
 This RFC process is not without it's trade-offs.
 
-An RFC is built with an action in mind, and it explicitly defaults towards this. As a consensus device, an RFC
+An RFC is built with an action in mind, and it explicitly defaults towards this. As a tool for building consensus, an RFC
 process really isn't that great. It's an asynchronous, flat conversation, which makes it hard to discuss all
 avenues with many simultaneous voices and can sometimes feel like whoever posts the most often kinda wins.
 
@@ -130,7 +130,7 @@ This RFC process is good for "I would like to improve this, does that make sense
 of [Minimum Viable Process][mvp] where one issue can spark a great team discussion. Here's some of my favourite
 ones from Artsy:
 
-- [Provide explicit recommendations when PDDE should take time off ][time-off]
+- [Provide explicit recommendations when PDDE should take time off][time-off]
 - [Document the rationale for why Artsy's various closed source repositories aren't open][doc-oss]
 - [Relaunch the Platform practice][plat]
 - [New Hire Buddies][hires]
