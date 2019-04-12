@@ -1,7 +1,7 @@
 ---
 layout: epic
 title: "Why we added an RFC process to Artsy"
-date: "2019-04-07"
+date: "2019-04-11"
 author: [orta]
 categories: [culture, process, mvp]
 comment_id: 554
