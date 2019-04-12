@@ -149,7 +149,7 @@ projects. This is because you can verify up-front how correct your code is. This
 understand how every change affects the rest of the program.
 
 In the 90s, and maybe until a 5-10 years ago the trade-off for not having types in your JavaScript application was
-fine because the size and complexities of the programs being built were constrained to just the front-end pff
+fine because the size and complexities of the programs being built were constrained to just the front-end of
 websites. Today though, JavaScript is being used everywhere:
 
 - Apps like Slack, or Spotify for your computer are built in mostly JavaScript
