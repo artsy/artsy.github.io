@@ -38,8 +38,8 @@ had, you'll need some context.
 2018 was a complex year for Artsy, where we both gained and lost more engineers than usual. The increase in
 engineering turnover was generally attributable to what I'll call "cultural churn." Scaling a team comes with new
 challenges, and our team leadership tried to meet those challenges with changes to the team's structure. Some of
-these changes turned out to be more costly than we'd hoped. Our team is in a great spot _now_, but we didn't get
-from there to here via a straight line.
+these changes turned out to be tougher than we'd hoped. Our team is in a great spot _now_, but we didn't get from
+there to here via a straight line.
 
 In the midst of this cultural churn, I was trying to have a one-on-one with every other engineer. I was asking
 people "hey, how are you doing? Want to grab a coffee?" And that actually had a pretty big impact: if I met someone
