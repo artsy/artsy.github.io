@@ -15,8 +15,8 @@ intentions and ideas. Yes, this is a re-cap episode. Let's go.
 
 <!-- more -->
 
-In 2011 Artsy hired [dB][db] to be our first Head of Engineering, You can get a sense of his frustration in trying
-to do Open Source work in his previous companies in a post from 2010 on opensource.com.
+In 2011 Artsy hired [dB.][db] to be our Head of Engineering, You can get a sense of his frustration in trying to do
+Open Source work in prior companies via a post from 2010 on opensource.com.
 
 > Armed with a healthy dose of idealism, I went to executive management and proposed we open source the tool. I was
 > hoping for a no-brainer and a quick decision at the division level. To my surprise, it took two years, a vast
@@ -27,12 +27,39 @@ to do Open Source work in his previous companies in a post from 2010 on opensour
 In contrast today, in the culture he set up for Artsy Engineering - you have a ([tiny!][rfc_priv]) bit more
 bureaucracy if you wanted to create a new project which is closed source.
 
-# How did we get there?
+**How did we get there?**
+
+## 2011 - First steps
+
+Towards the end of 2011, Artsy's first step into contributing to open source was via a project called [Heroku
+Bartender][hb] (dB. has a [write up on it][hb-db]).
+
+Artsy is lucky because both of our co-founders have a technical background ([computer science at
+Princeton][carter], and [AT&T Labs][seb]) because our CEO then sent a team email which really hammered the internal
+value of writing OSS and letting people know it exists:
+
+> "Team, The Engineering team just open sourced an awesome tool called Heroku-Bartender. It was mentioned on Hacker
+> News with a link to its GitHub repository. It made it into the top posts. I want everyone to check it out and
+> read through the comments. Open source is a great way for us to establish engineering credibility while
+> contributing to the community-at-large. -Thank you and congratulations to Engineering."
+
+dB. reflects on how different the mentality for open source is different in a modern startup in contrast to
+existing large corporations.
+
+> My CEO has made giving back to the community and building karma part of our company culture. Investors look for
+> this because it attracts those top engineers who will ultimately execute the company’s vision. Open source is no
+> longer the way of the future—it is the way the new CEOs are wired.
+
+> The companies that don’t embrace these open movements will simply fail, because the culture of secrecy and fear
+> is a thing of the past.
+
+→ [Thinking open source: How startups destroy a culture of fear][destroy]
 
 ## 2012 - Open Communications
 
-One important step we took during this first year is in creating this blog, and publishing 33 ([!][33_posts]) blog
-posts by 8 authors.
+While Artsy started to ship a lot more libraries in 2012, probably the most important step we took during this
+first year was creating this blog, and publishing 33 ([!][33_posts]) blog posts by 8 authors (close to the entire
+team!).
 
 This really helped established a baseline that external communications could be a foundation of openness, it might
 not yet be code, but blog posts are an awesome start. I know my first blog during this time was specifically built
@@ -58,6 +85,12 @@ improvements_ was step one towards OSS by Default.
 
 → [OSS Expectations][oss-expectations]
 
+<!--
+require 'yaml'
+a = YAML.load_file("config.yml")
+a["oss_projects"].select { |o| o["created"].include? "2012" }.map { |o| '[' + o["title"] + '](' + o["repository"] + ')'  }.join(", ")
+-->
+
 That said, the team wasn't sitting on our hands in terms of making shared infrastructure, we built libraries within
 the Ruby and iOS communities: [ARAnalytics](https://github.com/orta/ARAnalytics),
 [resque-heroku-scaling-canary](https://github.com/aaw/resque-heroku-scaling-canary),
@@ -72,12 +105,6 @@ the Ruby and iOS communities: [ARAnalytics](https://github.com/orta/ARAnalytics)
 Some of which we still use today.
 
 ## 2013 - Tools & Libraries
-
-<!--
-require 'yaml'
-a = YAML.load_file("config.yml")
-a["oss_projects"].select { |o| o["created"].include? "2012" }.map { |o| '[' + o["title"] + '](' + o["repository"] + ')'  }.join(", ")
--->
 
 In 2013 Artsy took it's first steps towards separating our front-ends from our back-ends. From a perspective of OSS
 by Default this lowers the barriers a lot. We have been conservative with opening the source code for back-end
@@ -236,9 +263,33 @@ internally:
 
 > "Open Source will create more value, and it will positively impact our culture"
 
-## 2016 - Web OSS by Default,
+## 2016 - Web OSS by Default
 
-Once all iOS apps were working entirely in the
+In 2016 we had really started to understand the differences in how we interact with the Open Source community:
+
+> ...and in over a year these expectations have been met. Some of our libraries have become big, and our apps have
+> received small feature PRs. We're pleasantly surprised when it happens, but we don't expect it.
+
+> I didn't expect to be told face to face how many people have read, and learned from our codebases. We get around
+> 120 unique clones of our iOS apps every week. People tell us that it's where they found a certain technique, or
+> that they could see how the trade-offs were made for certain decisions.
+
+> I also under-estimated how useful open code is in encouraging a culture of writing.
+
+→ [Open Source Expectations][oss-expect]
+
+Once we had proved that we could safely port our large, private iOS codebases to be public. That we could safely
+work in the open on mobile project, we [brought that back to web][oss-force]. We went back to take artsy.net from
+being an open fork to working in the open:
+
+> Though Force wasn't quite Open Source by Default, it represented a really important step for Artsy's OSS
+> perspective but was not the end goal. We were opening our source, but not opening our process.
+
+> ... the web team started the process of opening our apps at Artsy, then the mobile team took the next big step.
+> Now the teams are both in lock-step, and if you work on the front-end at Artsy - OSS by Default is the way we all
+> work now.
+
+→ [Helping the Web Towards OSS by Default][web-oss-default]
 
 ## 2017 Backend services?
 
@@ -296,3 +347,11 @@ https://code.dblock.org/2015/02/09/becoming-open-source-by-default.html
 [oss-eigen]: https://artsy.github.io/blog/2015/04/28/how-we-open-sourced-eigen/
 [oss-energy]: https://artsy.github.io/blog/2015/08/06/open-sourcing-energy/
 [db-vimeo]: https://vimeo.com/136554627
+[seb]: https://www.technyc.org/leadership-council/sebastian-cwilich
+[carter]: https://www.forbes.com/special-report/2014/30-under-30/art-and-style.html
+[hb]: https://github.com/sarcilav/heroku-bartender
+[hb-db]: https://code.dblock.org/2011/03/20/continuous-deployment-with-heroku-bartender.html
+[destroy]: https://opensource.com/business/11/5/thinking-open-source-how-startups-destroy-culture-fear
+[oss-force]: https://artsy.github.io/blog/2016/09/06/Milestone-on-OSS-by-Default/
+[web-oss-default]: https://artsy.github.io/blog/2016/09/06/Milestone-on-OSS-by-Default/
+[oss-expect]: https://artsy.github.io/blog/2016/01/13/OSS-Expectations/
