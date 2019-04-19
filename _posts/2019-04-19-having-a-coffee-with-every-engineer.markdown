@@ -18,10 +18,10 @@ these reports – they're super-valuable, but they feel impersonal to me.
 
 If I wanted to leverage my impact, I needed to play to my strengths and interests. I'm keenly interested in people
 – as individuals – so I decided that the best way for me to contribute to the team was to get to know everyone as
-individuals. To become someone they could talk to. Someone outside the typical manager/employee structure, who
+individuals. To become someone the team could talk to. Someone outside the typical manager/employee structure, who
 could use their history at Artsy to answer questions (or at least point them in the right direction).
 
-So, I set off on a project to meet with every member of Artsy's Engineering team for one-on-one. With no explicit
+So, I set off on a project to meet with every member of Artsy's Engineering team for a one-on-one. With no explicit
 goals or expectations, but in line with Artsy's [People are Paramount][pap] value, I got to know my colleagues
 better.
 
@@ -41,7 +41,7 @@ challenges, and our team leadership tried to meet those challenges with changes 
 these changes turned out to be tougher than we'd hoped. Our team is in a great spot _now_, but we didn't get from
 there to here via a straight line.
 
-In the midst of this cultural churn, I was trying to have a one-on-one with every other engineer. I was asking
+In the midst of this cultural churn, I was trying to have a one-on-one with every engineer. I was asking
 people "hey, how are you doing? Want to grab a coffee?" And that actually had a pretty big impact: if I met someone
 and they told me "this situation is stressing me out" or "this feels bad", it was really validating for them to
 hear me respond "yeah, I'm feeling this too. It's not just you." This dovetailed with my contemporaneous research
