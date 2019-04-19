@@ -1,7 +1,7 @@
 ---
 layout: epic
 title: "What I Learned Having a Coffee with Every Engineer"
-date: "2019-04-17"
+date: "2019-04-19"
 author: ash
 categories: [culture, process, people]
 ---
