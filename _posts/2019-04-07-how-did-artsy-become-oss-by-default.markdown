@@ -15,6 +15,33 @@ intentions and ideas. Yes, this is a re-cap episode. Let's go.
 
 <!-- more -->
 
+# What is "Open Source by Default"?
+
+In short, it's the idea that working in the open should be your starting position for a new project and when
+creating a new project you need to argue the value of closing the project instead. This turns into an axiom which
+powers quite a lot of the [Engineering Principles][principles] which Artsy holds dear.
+
+In 2015, as we were nearing working entirely in the open - our CTO at the time, [dB.][db] wrote what became our
+Open Source by Default north-star:
+
+> When starting a new service, library or application I am going to default to open. I am going to weigh whether
+> there’s any advantage of keeping a project closed-source, knowing and presuming that there’re numerous
+> disadvantages.
+
+> Team heads, including myself, are making open-source their foundation. This means building non-core intellectual
+> property components as open source. That’s easily 2/3 of the code you write and we all want to focus on our core
+> competencies. Hence open-source is a better way to develop software, it’s like working for a company of the size
+> of Microsoft, without the centralized bureaucracy and true competition.
+
+> By default, I contribute to other people’s generic open-source solutions to save time and money by not
+> reinventing the wheel. Taking this further, I spend significant amount of time extracting non-domain-specific
+> code into new or existing open-source libraries, reducing the footprint of the proprietary applications I work
+> on.
+
+→ [Becoming Open Source by Default][oss-default]
+
+# How Did We Get There?
+
 In 2011 Artsy hired [dB.][db] to be our Head of Engineering, You can get a sense of his frustration in trying to do
 Open Source work in prior companies via a post from 2010 on opensource.com.
 
@@ -26,8 +53,6 @@ Open Source work in prior companies via a post from 2010 on opensource.com.
 
 In contrast today, in the culture he set up for Artsy Engineering - you have a ([tiny!][rfc_priv]) bit more
 bureaucracy if you wanted to create a new project which is closed source.
-
-**How did we get there?**
 
 ## 2011 - First steps
 
@@ -66,7 +91,7 @@ not yet be code, but blog posts are an awesome start. I know my first blog durin
 because I had solved a hard problem which I expected others would have. My answer wasn't generic enough to warrant
 making a library but it was big enough to write a [blog post sharing the code][search] and providing context.
 
-We structured write-ups as being an important part of our work, and dB as Head of Engineering started leading by
+We structured write-ups as being an important part of our work, and dB. as Head of Engineering started leading by
 example by shipping about 2/3rds of our posts. Writing this many blog posts in our first year of creating a blog is
 a pretty solid achievement in my opinion, and the blog has always represented Artsy's Engineering team in one way
 or another:
@@ -142,7 +167,7 @@ we had two large private iOS apps, but had the need for a new iOS app for coveri
 
 > Orta and I met some friends over a weekend in Austria and, during our drive across the country, discussed the
 > possibility of developing this new iOS app as a completely open source project. We were both excited about the
-> prospect and had the support from dB to make it open.
+> prospect and had the support from dB. to make it open.
 
 → [Developing a Bidding Kiosk for iOS in Swift][eid-retro]
 
@@ -200,7 +225,7 @@ team's writing:
 started with the app the team worked on daily: Artsy for iOS (Eigen). We opened the repo in january, and had a
 write-up on the process and changes needed to make it work a few months later once the dust has settled.
 
-> Credit where credit is due, when we were working on Eidolon [the Bidding Kiosk], our CTO dB just casually tossed
+> Credit where credit is due, when we were working on Eidolon [the Bidding Kiosk], our CTO dB. just casually tossed
 > the idea that, really, Eigen should be open source too.
 
 > We devoted time at the end of 2014 to understand what the constraints were for getting the app opened. [...] We
@@ -250,7 +275,7 @@ confidence to take the time to open source their oldest iOS project - a gallery 
 This one is a good read, but extra worth the click because it includes an email I wrote to the entire of Artsy with
 the intent of priming the company about opening the source code.
 
-dB and myself spent quite a lot of time talking to the rest of the company about the OSS ideals, our company's
+dB. and myself spent quite a lot of time talking to the rest of the company about the OSS ideals, our company's
 values and open source fit. Here's [a 5m video][db-vimeo] which is a great example of how we presented Open Source
 internally:
 
@@ -291,32 +316,40 @@ being an open fork to working in the open:
 
 → [Helping the Web Towards OSS by Default][web-oss-default]
 
-## 2017 Backend services?
+## 2017-2019 Moving the Platform forwards
 
-https://github.com/artsy/bearden/
+As a gross simplification, Artsy is split between back-end and front-end engineers. With close to all of the
+front-end as open (well, maybe 90%, which is *good enough*™️) then the only space for improvement towards Open
+Source by Default was within the back-end. We call the collection of engineers with the skill-sets for building
+APIs and shared infrastructure the Platform team.
 
-https://github.com/artsy/rsvp
+Our platform teams have always had a weaker stance towards opening their codebases. Most of our APIs are almost
+100% business logic, and there's a good reason for a lot of our APIs to be closed source. Though in the the last
+two years though there's been movement towards writing new services in the open:
 
-## 2018 - platform
+**2017** - [artsy/bearden](https://github.com/artsy/bearden) & [artsy/rsvp](https://github.com/artsy/rsvp)
 
-https://github.com/artsy/exchange/
+**2018** - [artsy/APR](https://github.com/artsy/APR), [artsy/exchange](https://github.com/artsy/exchange/) &
+[artsy/kaws](https://github.com/artsy/kaws/)
 
-https://github.com/artsy/kaws/
+**2019** - [artsy/volley](https://github.com/artsy/volley)
 
-## Shared tools
+Which over the course of the last two years seems to be about half of the new systems we've built. This is great!
+Examples of private tools are analytics parsers, GDPR infrastructure and machine learning services. These had good
+reasons to be closed and [have documented rationales for being closed][rfc-closed].
 
-## "Open Source by Default"
+## 2019+
 
-### Becoming OSS by Default
+In 2018 we switched to Jira, which means we had much less chance of leaking information via our GitHub issues, this
+removed another barrier of entry to opening our code. However, asking where do we go from here is a pretty tricky
+question. Most of the code that would be opened is now open, and the projects which could be are very reasonably
+contentious.
 
-https://code.dblock.org/2015/02/09/becoming-open-source-by-default.html
+Does that mean we **are** Open Source by Default?
 
-> Team heads, including myself, are making open-source their foundation. This means building non-core intellectual
-> property components as open source. That’s easily 2/3 of the code you write and we all want to focus on our core
-> competencies. Hence open-source is a better way to develop software, it’s like working for a company of the size
-> of Microsoft, without the centralized bureaucracy and true competition.
-
-[ref][leave_ms]
+Maybe, but only in the axiomic sense. We operate by the rule of open by default, but it takes time and effort to do
+the extra work which is derived from that idea: e.g. improving our community engagement. That's Artsy's biggest
+space for cultural growth now.
 
 [intro_peril]: /blog/2017/09/04/Introducing-Peril/
 [peril_readme]: https://github.com/artsy/README/blob/master/culture/peril.md
@@ -355,3 +388,6 @@ https://code.dblock.org/2015/02/09/becoming-open-source-by-default.html
 [oss-force]: https://artsy.github.io/blog/2016/09/06/Milestone-on-OSS-by-Default/
 [web-oss-default]: https://artsy.github.io/blog/2016/09/06/Milestone-on-OSS-by-Default/
 [oss-expect]: https://artsy.github.io/blog/2016/01/13/OSS-Expectations/
+[oss-default]: https://code.dblock.org/2015/02/09/becoming-open-source-by-default.html
+[principles]: https://github.com/artsy/README/blob/master/culture/engineering-principles.md#engineering-principles
+[rfc-closed]: https://github.com/artsy/README/issues/131
