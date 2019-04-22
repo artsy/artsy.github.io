@@ -133,7 +133,7 @@ There are maybe four communities at play if you're doing React Native:
 It's hard to keep on-top of any one community, and it's very hard to keep on track of four. Realistically, if you
 want to be writing apps at the level of quality we want to - you need to, though.
 
-Artsy's principal of [owning our dependencies][owning] means involved in all of these communities, however it's
+Artsy's principle of [owning our dependencies][owning] means involved in all of these communities, however it's
 hard to engage in the native community with too much excitement anymore. Most of their problems aren't the same as
 ours anymore, and the dependencies we want to improve live in the JavaScript realms.
 
