@@ -348,9 +348,9 @@ open, and the projects which could move into the public be are very reasonably c
 For people that joined post-2016, it certainly feels like it. People who apply to Artsy cite Open Source by Default
 as being a strong factor in their decisions.
 
-I'm not too sure personally though, maybe only in the axiomic sense. Artsy operate by the rule of open by default,
-but it takes time and effort to do the extra work which is derived from that idea: e.g. improving our community
-engagement.
+I'm not too sure personally though, maybe only in the axiomatic sense. Artsy operate by the rule of open by
+default, but it takes time and effort to do the extra work which is derived from that idea: e.g. improving our
+community engagement.
 
 That's Artsy's biggest space for cultural growth now.
 
