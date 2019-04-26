@@ -25,10 +25,10 @@ Let's go over the process we went through to get to that point.
 <!-- more -->
 
 Credit where credit is due, when we were [working on Eidolon](/blog/2014/11/13/eidolon-retrospective/), our CTO
-[dB](http://code.dblock.org/) just casually tossed the idea that, really, Eigen should be open source too. Eigen is
-the code name for the [Artsy iOS app](http://iphone.artsy.net/). This totally threw me for a loop, we were only
+[dB.](http://code.dblock.org/) just casually tossed the idea that, really, Eigen should be open source, too. Eigen
+is the code name for the [Artsy iOS app](http://iphone.artsy.net/). This totally threw me for a loop, we were only
 just getting to a point where we could build an app from scratch in the open. Trying to get a project that had
-existed for years and had its own momentum converted would take a lot of thinking about.
+existed for years and had its own momentum converted would need a lot of thinking about.
 
 We devoted time at the end of 2014 to understand what the constraints were for getting the app opened. From a
 purely functional perspective we would have to start with a
@@ -44,7 +44,7 @@ fresh `git init`. People who have joined Artsy Mobile post-OSS have never even c
 I feel good about this call.
 
 We used the last few moments of the private repo to remove all of the default Apple copyright notices. We didn't
-feel they added anything on top of the git history, and made it feel like the founders of a project were more
+feel they added anything on top of the git history, and made it felt like the founders of a project were more
 important than anyone working on improvements.
 
 It wasn't all smooth sailing with respect to the repo switch however. As the switch happened the WatchKit came out,

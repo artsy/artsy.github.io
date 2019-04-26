@@ -125,15 +125,15 @@ the Ruby and iOS communities: [ARAnalytics](https://github.com/orta/ARAnalytics)
 [hyperloglog-redis](https://github.com/aaw/hyperloglog-redis),
 [cartesian-product](https://github.com/aaw/cartesian-product),
 [space-saver-redis](https://github.com/aaw/space-saver-redis) &
-[mongoid-cached-json](https://github.com/dblock/mongoid-cached-json)
+[mongoid-cached-json](https://github.com/dblock/mongoid-cached-json).
 
 Some of which we still use today.
 
 ## 2013 - Tools & Libraries
 
-In 2013 Artsy took it's first steps towards separating our front-ends from our back-ends. From a perspective of OSS
+In 2013 Artsy took its first steps towards separating our front-ends from our back-ends. From a perspective of OSS
 by Default this lowers the barriers a lot. We have been conservative with opening the source code for back-end
-services, as they tend to contain more valuable business infrastructure.
+services, as they tended to contain more valuable business infrastructure.
 
 As the web team explored building websites in Node, we took opportunities to use marketing websites like
 [iphone.artsy.net][iphone] ([flare](https://github.com/artsy/flare)) and [2013.artsy.net][2013]
@@ -160,7 +160,7 @@ best practices we had baked into the website from its inception 10 months prior.
 
 ### Editorial CMS & Bidding Kiosk
 
-We scoped out building a [new CMS][pos] for our editorial team, this new app started as Open Source from day one.
+We scoped out building a [new CMS][pos] for our editorial team, this new app started as open source from day one.
 
 This step inspired the iOS team who were also exploring trying to move to be more open in their work. By this point
 we had two large private iOS apps, but had the need for a new iOS app for covering bidding at auctions on-site.
@@ -246,12 +246,12 @@ write-up on the process and changes needed to make it work a few months later on
 Going through the process, and being certain in the trade-offs meant for the project gave the mobile team the
 confidence to take the time to open source their oldest iOS project - a gallery portfolio tool, Folio.
 
-> It's worth mentioning that we don't just talk externally about Open Source. Internally, the Mobile team runs
-> talks about Open Source for the rest of the Artsy staff. As well, we discuss the tooling and business
+> It's worth mentioning that we don't just talk externally about open source. Internally, the Mobile team runs
+> talks about open source for the rest of the Artsy staff. As well, we discuss the tooling and business
 > implications of having our work in public repos. Artsy strives for an open culture, in this case the development
 > team, on the whole, is just further along in the process.
 
-> The Open Source app idea started with an experiment in the Summer of 2014, asking, "What does a truly Open Source
+> The open Source app idea started with an experiment in the Summer of 2014, asking, "What does a truly open source
 > App look like?" The outcome of that was our Swift Kiosk app, Eidolon. Open from day one. We took the knowledge
 > from that and applied it to our public facing app, Eigen. Open from day 806. That made 2/3rds of our apps Open
 > Source. I'm going to talk about our final app, Energy. Open from day 1433 and ~3500 commits.
@@ -265,18 +265,18 @@ confidence to take the time to open source their oldest iOS project - a gallery 
 > account based on my paintings and photography. So now when you set up the app to be ran as an OSS app, it will
 > pre-load a known database of artworks and metadata from my test gallery.
 
-> Its easy to imagine that Open Sourcing something is an end-point, but from our perspective it is a journey. We
+> Its easy to imagine that open sourcing something is an end-point, but from our perspective it is a journey. We
 > want to make sure that anyone can download this app, learn how and why it's structured and then run through the
 > app with a debugger to get a deeper sense of how everything connects. Just releasing the code would have been
 > underwhelming. Instead we're aiming high.
 
-→ [Open Sourcing Energy[oss-energy]
+→ [Open Sourcing Energy][oss-energy]
 
 This one is a good read, but extra worth the click because it includes an email I wrote to the entire of Artsy with
 the intent of priming the company about opening the source code.
 
 dB. and myself spent quite a lot of time talking to the rest of the company about the OSS ideals, our company's
-values and open source fit. Here's [a 5m video][db-vimeo] which is a great example of how we presented Open Source
+values and open source fit. Here's [a 5m video][db-vimeo] which is a great example of how we presented open source
 internally:
 
 > "Are there any advantages in keeping something closed? If there are no advantages, default to open."
@@ -286,11 +286,11 @@ internally:
 
 > "Artsy will stand behind your open source contributions as a team."
 
-> "Open Source will create more value, and it will positively impact our culture"
+> "Open Source will create more value, and it will positively impact our culture."
 
 ## 2016 - Web OSS by Default
 
-In 2016 we had really started to understand the differences in how we interact with the Open Source community:
+In 2016 we had really started to understand the differences in how we interact with the open source community:
 
 > ...and in over a year these expectations have been met. Some of our libraries have become big, and our apps have
 > received small feature PRs. We're pleasantly surprised when it happens, but we don't expect it.
@@ -316,7 +316,7 @@ being an open fork to working in the open:
 
 → [Helping the Web Towards OSS by Default][web-oss-default]
 
-## 2017-2019 Moving the Platform forwards
+## 2017-2019 Moving the Platform forward
 
 As a gross simplification, Artsy is split between back-end and front-end engineers. With close to all of the
 front-end as open (well, maybe 90%, which is *good enough*™️) then the only space for improvement towards Open
@@ -340,16 +340,19 @@ reasons to be closed and [have documented rationales for being closed][rfc-close
 
 ## 2019+
 
-In 2018 we switched to Jira, which means we had much less chance of leaking information via our GitHub issues, this
-removed another barrier of entry to opening our code. However, asking where do we go from here is a pretty tricky
-question. Most of the code that would be opened is now open, and the projects which could be are very reasonably
-contentious.
+However, asking where do we go from here is a pretty tricky question. Most of the code that would be opened is now
+open, and the projects which could move into the public be are very reasonably contentious.
 
-Does that mean we **are** Open Source by Default?
+## Does that mean we **are** Open Source by Default?
 
-Maybe, but only in the axiomic sense. We operate by the rule of open by default, but it takes time and effort to do
-the extra work which is derived from that idea: e.g. improving our community engagement. That's Artsy's biggest
-space for cultural growth now.
+For people that joined post-2016, it certainly feels like it. People who apply to Artsy cite Open Source by Default
+as being a strong factor in their decisions.
+
+I'm not too sure personally though, maybe only in the axiomic sense. Artsy operate by the rule of open by default,
+but it takes time and effort to do the extra work which is derived from that idea: e.g. improving our community
+engagement.
+
+That's Artsy's biggest space for cultural growth now.
 
 [intro_peril]: /blog/2017/09/04/Introducing-Peril/
 [peril_readme]: https://github.com/artsy/README/blob/master/culture/peril.md

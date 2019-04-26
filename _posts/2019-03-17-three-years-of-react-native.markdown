@@ -136,7 +136,7 @@ want to be writing apps at the level of quality we want to - you need to, though
 Artsy's principle of [owning our dependencies][owning] means involved in all of these communities, however it's
 hard to engage in the native community with too much excitement anymore. Most of their problems aren't the same as
 ours anymore, and the dependencies we want to improve live in the JavaScript realms.
-
+4
 ## Universal Issues?
 
 Are these the kind of problems most teams would have? It depends, with React Native at Artsy our focus on:
