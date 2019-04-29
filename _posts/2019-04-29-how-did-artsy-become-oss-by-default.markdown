@@ -51,8 +51,8 @@ Open Source work in prior companies via a post from 2010 on opensource.com.
 
 → [Corporate change: Contributing to open source][osscom]
 
-In contrast today, in the culture he set up for Artsy Engineering - you have a ([tiny!][rfc_priv]) bit more
-bureaucracy if you wanted to create a new project which is closed source.
+In contrast today, in the culture he set up for Artsy Engineering - you actually have a ([tiny!][rfc_priv]) bit more
+bureaucracy if you wanted to create a new _closed_ source project than an open source one.
 
 ## 2011 - First steps
 
@@ -318,7 +318,7 @@ being an open fork to working in the open:
 
 ## 2017-2019 Moving the Platform forward
 
-As a gross simplification, Artsy is split between back-end and front-end engineers. With close to all of the
+As a gross simplification, Artsy is split between back-end and front-end engineers. With most all of the
 front-end as open (well, maybe 90%, which is *good enough*™️) then the only space for improvement towards Open
 Source by Default was within the back-end. We call the collection of engineers with the skill-sets for building
 APIs and shared infrastructure the Platform team.
