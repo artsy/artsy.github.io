@@ -1,7 +1,7 @@
 ---
 layout: epic
 title: "How did Artsy become OSS by Default?"
-date: "2019-04-06"
+date: "2019-04-29"
 author: [orta]
 categories: [community, oss, culture]
 ---
