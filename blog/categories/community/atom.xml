@@ -4,7 +4,7 @@
   <title><![CDATA[Category: community | Artsy Engineering]]></title>
   <link href="http://artsy.github.io/blog/categories/community/atom.xml" rel="self"/>
   <link href="http://artsy.github.io/"/>
-  <updated>2019-04-29T14:38:48+00:00</updated>
+  <updated>2019-04-29T14:40:04+00:00</updated>
   <id>http://artsy.github.io/</id>
   <author>
     <name><![CDATA[]]></name>
@@ -14,281 +14,10 @@
 
   
   <entry>
-    <title type="html"><![CDATA[Why does Artsy use Relay?]]></title>
-    <link href="http://artsy.github.io/blog/2019/04/10/omakase-relay/"/>
-    <updated>2019-04-10T00:00:00+00:00</updated>
-    <id>http://artsy.github.io/blog/2019/04/10/omakase-relay</id>
-    <content type="html"><![CDATA[<p>When the mobile team at Artsy considered <a href="/blog/2016/08/15/React-Native-at-Artsy/">moving to React Native</a> back in 2016, one of the most compelling
-cases for making that jump was Relay. This, it seems, is a dependency that is rarely used in the JS community and
-we often find ourselves re-explaining this decision to new engineers during onboarding, and to the public at large.</p>
-
-<p>Which makes this a perfect blog post topic, so let's have a deep dive into what makes Relay compelling for Artsy's
-engineering team.</p>
-
-<!-- more -->
-
-
-<a name="What.problem.does.Relay.solve."></a>
-<h1>What problem does Relay solve?</h1>
-
-<p>Relay is an API client for GraphQL, it comes in two parts: a compiler and a set of front-end components. Relay aims
-to provide a really tight binding between your GraphQL API and your view hierarchy. When you build data-driven
-apps, Relay removes a whole suite of non-business logic from your application.</p>
-
-<p>Relay handles:</p>
-
-<ul>
-<li>Data binding (API → props)</li>
-<li>Cache management (invalidation, re-render live components with data updates, etc)</li>
-<li>Consistent abstractions for bi-directional pagination</li>
-<li>Multiple query consolidation (e.g. consolidate all API requests to one request)</li>
-<li>UI best practices baked in (e.g. optimistic response rendering)</li>
-<li>Declarative data mutation (describe how data should change, instead of doing it)</li>
-<li>Compile-time query generation (removing runtime overhead and allowing you to persist queries)</li>
-</ul>
-
-
-<p>By taking the responsibilities of the grunt work for most complex apps and moving it into Relay you get
-Facebook-scale best-practices and can build on top of that.</p>
-
-<a name="How.does.it.work."></a>
-<h1>How does it work?</h1>
-
-<p>You write a set of Relay components, you always start with a <a href="https://facebook.github.io/relay/docs/en/query-renderer.html"><code>QueryRenderer</code></a> and a tree of either
-<a href="https://facebook.github.io/relay/docs/en/fragment-container.html"><code>FragmentContainer</code></a>, <a href="https://facebook.github.io/relay/docs/en/refetch-container.html"><code>RefetchContainer</code></a> or <a href="https://facebook.github.io/relay/docs/en/pagination-container.html"><code>PaginationContainer</code></a>s. You mostly use
-<code>FragmentContainer</code>s, so I'll focus on that here.</p>
-
-<p>A <code>FragmentContainer</code> is based on a <a href="https://graphql.org/learn/queries/#fragments">GraphQL fragment</a>. If you've never used a fragment, they are an
-abstraction that lets you declare shared field-selections on a specific GraphQL type to reduce duplication in your
-queries. For example:</p>
-
-<pre><code>query GetPopularArtistAndFeaturedArtist {
-  featuredArtist {
-    id
-    name
-    bio
-  }
-  popularArtist {
-    id
-    name
-    bio
-  }
-}
-</code></pre>
-
-<p>To move this query to use fragments:</p>
-
-<pre><code>query GetPopularArtistAndFeaturedArtist {
-  featuredArtist {
-    ...ArtistMetadata
-  }
-  popularArtist {
-    ...ArtistMetadata
-  }
-}
-
-fragment ArtistMetadata on Artist {
-  id
-  name
-  bio
-}
-</code></pre>
-
-<p>It's a tiny bit longer, but you have a guarantee that the data is consistent across both artists. Now that you have
-a rough idea of what a GraphQL fragment is, let's look at what a <code>FragmentContainer</code> looks like. Here's a
-simplified <a href="https://github.com/artsy/emission/blob/892af2621eef455388e074701cca747330de3b3f/src/lib/Scenes/Settings/MyProfile.tsx#L95">profile page</a> from the Artsy iOS app:</p>
-
-<pre><code class="ts">import React from "react"
-import { createFragmentContainer, graphql } from "react-relay"
-import { MyProfile_me } from "__generated__/MyProfile_me.graphql"
-
-interface Props extends ViewProperties {
-  me: MyProfile_me
-}
-
-export class MyProfile extends React.Component&lt;Props&gt; {
-  render() {
-    return (
-      &lt;View&gt;
-        &lt;Header&gt;
-          &lt;ProfilePhoto initials={this.props.me.initials} image={this.props.me.image} /&gt;
-          &lt;Subheading&gt;{this.props.me.name}&lt;/Subheading&gt;
-        &lt;/Header&gt;
-        &lt;ButtonSection&gt;
-          &lt;ProfileButton
-            section="Selling"
-            description="Sell works from your collection"
-            onPress={startSubmission}
-          /&gt;
-          &lt;ProfileButton
-            section="Account Details"
-            description="Email, password reset, profile"
-            onPress={goToUserSettings}
-          /&gt;
-        &lt;/ButtonSection&gt;
-      &lt;/View&gt;
-    )
-  }
-}
-
-export default createFragmentContainer(MyProfile, {
-  me: graphql`
-    fragment MyProfile_me on Me {
-      name
-      image
-      initials
-    }
-  `
-})
-</code></pre>
-
-<p>There are three moving parts:</p>
-
-<ul>
-<li>The TypeScript interface <code>MyProfile_me</code>, generated by the compiler, which ensures we can only use fields that
-were selected in the fragment</li>
-<li>The <code>MyProfile</code> component, which is a vanilla React component</li>
-<li>The exported <code>createFragmentContainer</code> which returns a higher-order component that wraps <code>MyProfile</code> and ties it
-to a fragment on a <code>Me</code> type in GraphQL</li>
-</ul>
-
-
-<a name="Isolation"></a>
-<h2>Isolation</h2>
-
-<p>The React component <code>MyProfile</code> will be passed in props that directly tie to the fragment that was requested. In
-Relay terms, this is called <a href="https://facebook.github.io/relay/docs/en/thinking-in-relay.html#data-masking">data masking</a> and it is one of the first hurdles for someone new to Relay to
-<a href="https://en.wikipedia.org/wiki/Grok">grok</a>. In REST clients, and GraphQL API clients like Apollo Client, you make a request and that request is
-passed through the React tree. E.g.</p>
-
-<p></article>
-<a href='/images/omakase-relay/tree.png' style="">
-  <img src="/images/omakase-relay/tree.png" alt="REST inspired props" style="width:100%;">
-</a>
-<article class="post">
-</p>
-
-<p>This means most components know more about the request than it probably needs, as it may be needed to pass on to
-the component's children. This can lead to over-fetching, or even worse, not knowing if you can delete or refactor
-a component.</p>
-
-<p>Data masking solves this by hiding data that the component didn't request. I've still yet to find the right visual
-abstraction, but I feel this just about pays for itself.</p>
-
-<p></article>
-<a href='/images/omakase-relay/isolation.png' style="">
-  <img src="/images/omakase-relay/isolation.png" alt="Relay isolation tree" style="width:100%;">
-</a>
-<article class="post">
-</p>
-
-<p>You let Relay be responsible for consolidating all your fragments into a query via the <code>QueryRenderer</code>, causing the
-network request, and your response data to be passed your through your component hierarchy. This means Relay
-powered components can be safely changed and drastically reduces the chance for unintended consequences elsewhere.</p>
-
-<p>This isolation gives Artsy engineers the safety to work on projects with tens of contributors which regularly
-change over time. Providing a guarantee that you can safely work in isolated parts of the codebase without accruing
-technical debt.</p>
-
-<p>Relay's container components mean that the components we create are nearly all focused only on the data-driven
-aspects of rendering a subset of that GraphQL response into views. It's very powerful.</p>
-
-<a name="Co-location"></a>
-<h2>Co-location</h2>
-
-<p>Relay helped us move to one file representing everything a component needed. Effectively a single file now handles
-the styles, the actual view content hierarchy, and the exact parts of the API it needs to render itself.</p>
-
-<p><img src="/images/omakase-relay/co-location.png"></p>
-
-<p>In roughly that proportion too, though our most modern code uses the Artsy design system <a href="https://github.com/artsy/palette">Palette</a> which
-drastically reduces the need for style in our components.</p>
-
-<p>Co-location's biggest selling point is reducing <a href="https://en.wikipedia.org/wiki/Cognitive_load">cognitive load</a>,
-having everything you need in one place makes it easier to understand how a component works. This makes code review
-simpler, and lowers the barrier to understanding the entire systems at scale.</p>
-
-<a name="Community"></a>
-<h2>Community</h2>
-
-<p>When we adopted Relay, there was no competition - we'd have just used the <code>fetch</code> API. Over time, <a href="https://www.apollographql.com">the Apollo
-team</a> came up and really put a considerable amount of effort into lowering the barriers to entry, and
-making it feasible to build complex apps easily.</p>
-
-<p>As we hired a set of new engineers, the "Apollo vs Relay" debate came up. Interested in whether we would still
-start with Relay today, we ran an audit last year of what it would take to re-create a lot of the infrastructure we
-love in Relay atop of the (much more popular) Apollo GraphQL eco-system and saw it was reasonably feasible but
-would require a considerable amount of work across many different plugins and tools. With Relay that's all packaged
-into one tool, works consistently and has been proven with Facebook having tens of thousands of Relay components in
-production.</p>
-
-<p>It's worth highlighting the core difference in community engagement for Apollo vs Relay. Engineers working on
-Apollo have great incentives to do user support, and improve the tools for the community - that's their businesses
-value. Relay on the other hand is used in many places at Facebook, and the engineers on the team support internal
-issues first. IMO, this is reasonable: Relay is an opinionated batteries-included framework for building user
-interfaces, and ensuring it works with the baffling amount of JavaScript at Facebook is more or less all the team
-has time for.</p>
-
-<p>That leaves space for the OSS community to own their own problems. Notably there's been quite a lot of work going
-on in the community-managed <a href="https://github.com/relay-tools">relay-tools</a> GitHub organization.</p>
-
-<a name="Scale.Safety"></a>
-<h2>Scale Safety</h2>
-
-<p>Relay puts a lot of emphasis on ahead-of-time safety. The Relay compiler validates your queries against your
-GraphQL schema, it emits Flow types for your fragment’s field selections–which we’ve extended to emit TypeScript
-types instead, and there are strict naming systems enforced by the compiler. All of these help guide engineers to
-build scalable codebases.</p>
-
-<p>How this works in practice is that whenever you need to change the data a component requires, you edit the
-fragment, the Relay compiler verifies your query, if successful then your TypeScript types are updated and you can
-use the new property in your React component above. See below for a <a href="/images/omakase-relay/relay-process-720.mov">quick video</a> showing the Relay compiler
-in action:</p>
-
-<p></article>
-<div>
-<video controls style="margin: auto 20px; width:100%;">
-  <source src="/images/omakase-relay/relay-process-720.mov" type="video/mp4">
-  Your browser does not support the video tag.
-</video>
-</div>
-<article class="post">
-</p>
-
-<p>Moving all of these checks to be during dev-time means we can feel more confident in our deploys. This is
-especially an issue in an iOS native codebase, when any deploy requires a review from Apple and roll-backs are
-impossible.</p>
-
-<a name="Cultural.Fit"></a>
-<h2>Cultural Fit</h2>
-
-<p>Relay fit well into our team because:</p>
-
-<ul>
-<li>We had engineers who were interested in contributing back and extending Relay to work for our cases</li>
-<li>We had engineers that were used to the benefits of ahead-of-time error validation tools that compilers offer</li>
-<li>We saw a lot of value in a tightly coupling our view structure to our user interface</li>
-</ul>
-
-
-<p>Relay is not without its shortcomings to users outside of Facebook, but Relay has definitely paid for its initial
-and occasional complexity for the tightness of our codebases many years down the line.</p>
-
-<!-- prettier-ignore-start -->
-
-
-<!-- prettier-ignore-end -->
-
-
-
-]]></content>
-  </entry>
-  
-  <entry>
     <title type="html"><![CDATA[How did Artsy become OSS by Default?]]></title>
-    <link href="http://artsy.github.io/blog/2019/04/06/how-did-artsy-become-oss-by-default/"/>
-    <updated>2019-04-06T00:00:00+00:00</updated>
-    <id>http://artsy.github.io/blog/2019/04/06/how-did-artsy-become-oss-by-default</id>
+    <link href="http://artsy.github.io/blog/2019/04/29/how-did-artsy-become-oss-by-default/"/>
+    <updated>2019-04-29T00:00:00+00:00</updated>
+    <id>http://artsy.github.io/blog/2019/04/29/how-did-artsy-become-oss-by-default</id>
     <content type="html"><![CDATA[<p>One of the defining cultural features of the Artsy Engineering team is that we strive to be Open Source by Default.
 This didn't happen over-night and was a multi-year effort from many people to push Artsy's engineering culture to
 the point where it was acceptable and living up to the ideals still requires on-going effort today.</p>
@@ -651,6 +380,277 @@ default, but it takes time and effort to do the extra work which is derived from
 community engagement.</p>
 
 <p>That's Artsy's biggest space for cultural growth now.</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Why does Artsy use Relay?]]></title>
+    <link href="http://artsy.github.io/blog/2019/04/10/omakase-relay/"/>
+    <updated>2019-04-10T00:00:00+00:00</updated>
+    <id>http://artsy.github.io/blog/2019/04/10/omakase-relay</id>
+    <content type="html"><![CDATA[<p>When the mobile team at Artsy considered <a href="/blog/2016/08/15/React-Native-at-Artsy/">moving to React Native</a> back in 2016, one of the most compelling
+cases for making that jump was Relay. This, it seems, is a dependency that is rarely used in the JS community and
+we often find ourselves re-explaining this decision to new engineers during onboarding, and to the public at large.</p>
+
+<p>Which makes this a perfect blog post topic, so let's have a deep dive into what makes Relay compelling for Artsy's
+engineering team.</p>
+
+<!-- more -->
+
+
+<a name="What.problem.does.Relay.solve."></a>
+<h1>What problem does Relay solve?</h1>
+
+<p>Relay is an API client for GraphQL, it comes in two parts: a compiler and a set of front-end components. Relay aims
+to provide a really tight binding between your GraphQL API and your view hierarchy. When you build data-driven
+apps, Relay removes a whole suite of non-business logic from your application.</p>
+
+<p>Relay handles:</p>
+
+<ul>
+<li>Data binding (API → props)</li>
+<li>Cache management (invalidation, re-render live components with data updates, etc)</li>
+<li>Consistent abstractions for bi-directional pagination</li>
+<li>Multiple query consolidation (e.g. consolidate all API requests to one request)</li>
+<li>UI best practices baked in (e.g. optimistic response rendering)</li>
+<li>Declarative data mutation (describe how data should change, instead of doing it)</li>
+<li>Compile-time query generation (removing runtime overhead and allowing you to persist queries)</li>
+</ul>
+
+
+<p>By taking the responsibilities of the grunt work for most complex apps and moving it into Relay you get
+Facebook-scale best-practices and can build on top of that.</p>
+
+<a name="How.does.it.work."></a>
+<h1>How does it work?</h1>
+
+<p>You write a set of Relay components, you always start with a <a href="https://facebook.github.io/relay/docs/en/query-renderer.html"><code>QueryRenderer</code></a> and a tree of either
+<a href="https://facebook.github.io/relay/docs/en/fragment-container.html"><code>FragmentContainer</code></a>, <a href="https://facebook.github.io/relay/docs/en/refetch-container.html"><code>RefetchContainer</code></a> or <a href="https://facebook.github.io/relay/docs/en/pagination-container.html"><code>PaginationContainer</code></a>s. You mostly use
+<code>FragmentContainer</code>s, so I'll focus on that here.</p>
+
+<p>A <code>FragmentContainer</code> is based on a <a href="https://graphql.org/learn/queries/#fragments">GraphQL fragment</a>. If you've never used a fragment, they are an
+abstraction that lets you declare shared field-selections on a specific GraphQL type to reduce duplication in your
+queries. For example:</p>
+
+<pre><code>query GetPopularArtistAndFeaturedArtist {
+  featuredArtist {
+    id
+    name
+    bio
+  }
+  popularArtist {
+    id
+    name
+    bio
+  }
+}
+</code></pre>
+
+<p>To move this query to use fragments:</p>
+
+<pre><code>query GetPopularArtistAndFeaturedArtist {
+  featuredArtist {
+    ...ArtistMetadata
+  }
+  popularArtist {
+    ...ArtistMetadata
+  }
+}
+
+fragment ArtistMetadata on Artist {
+  id
+  name
+  bio
+}
+</code></pre>
+
+<p>It's a tiny bit longer, but you have a guarantee that the data is consistent across both artists. Now that you have
+a rough idea of what a GraphQL fragment is, let's look at what a <code>FragmentContainer</code> looks like. Here's a
+simplified <a href="https://github.com/artsy/emission/blob/892af2621eef455388e074701cca747330de3b3f/src/lib/Scenes/Settings/MyProfile.tsx#L95">profile page</a> from the Artsy iOS app:</p>
+
+<pre><code class="ts">import React from "react"
+import { createFragmentContainer, graphql } from "react-relay"
+import { MyProfile_me } from "__generated__/MyProfile_me.graphql"
+
+interface Props extends ViewProperties {
+  me: MyProfile_me
+}
+
+export class MyProfile extends React.Component&lt;Props&gt; {
+  render() {
+    return (
+      &lt;View&gt;
+        &lt;Header&gt;
+          &lt;ProfilePhoto initials={this.props.me.initials} image={this.props.me.image} /&gt;
+          &lt;Subheading&gt;{this.props.me.name}&lt;/Subheading&gt;
+        &lt;/Header&gt;
+        &lt;ButtonSection&gt;
+          &lt;ProfileButton
+            section="Selling"
+            description="Sell works from your collection"
+            onPress={startSubmission}
+          /&gt;
+          &lt;ProfileButton
+            section="Account Details"
+            description="Email, password reset, profile"
+            onPress={goToUserSettings}
+          /&gt;
+        &lt;/ButtonSection&gt;
+      &lt;/View&gt;
+    )
+  }
+}
+
+export default createFragmentContainer(MyProfile, {
+  me: graphql`
+    fragment MyProfile_me on Me {
+      name
+      image
+      initials
+    }
+  `
+})
+</code></pre>
+
+<p>There are three moving parts:</p>
+
+<ul>
+<li>The TypeScript interface <code>MyProfile_me</code>, generated by the compiler, which ensures we can only use fields that
+were selected in the fragment</li>
+<li>The <code>MyProfile</code> component, which is a vanilla React component</li>
+<li>The exported <code>createFragmentContainer</code> which returns a higher-order component that wraps <code>MyProfile</code> and ties it
+to a fragment on a <code>Me</code> type in GraphQL</li>
+</ul>
+
+
+<a name="Isolation"></a>
+<h2>Isolation</h2>
+
+<p>The React component <code>MyProfile</code> will be passed in props that directly tie to the fragment that was requested. In
+Relay terms, this is called <a href="https://facebook.github.io/relay/docs/en/thinking-in-relay.html#data-masking">data masking</a> and it is one of the first hurdles for someone new to Relay to
+<a href="https://en.wikipedia.org/wiki/Grok">grok</a>. In REST clients, and GraphQL API clients like Apollo Client, you make a request and that request is
+passed through the React tree. E.g.</p>
+
+<p></article>
+<a href='/images/omakase-relay/tree.png' style="">
+  <img src="/images/omakase-relay/tree.png" alt="REST inspired props" style="width:100%;">
+</a>
+<article class="post">
+</p>
+
+<p>This means most components know more about the request than it probably needs, as it may be needed to pass on to
+the component's children. This can lead to over-fetching, or even worse, not knowing if you can delete or refactor
+a component.</p>
+
+<p>Data masking solves this by hiding data that the component didn't request. I've still yet to find the right visual
+abstraction, but I feel this just about pays for itself.</p>
+
+<p></article>
+<a href='/images/omakase-relay/isolation.png' style="">
+  <img src="/images/omakase-relay/isolation.png" alt="Relay isolation tree" style="width:100%;">
+</a>
+<article class="post">
+</p>
+
+<p>You let Relay be responsible for consolidating all your fragments into a query via the <code>QueryRenderer</code>, causing the
+network request, and your response data to be passed your through your component hierarchy. This means Relay
+powered components can be safely changed and drastically reduces the chance for unintended consequences elsewhere.</p>
+
+<p>This isolation gives Artsy engineers the safety to work on projects with tens of contributors which regularly
+change over time. Providing a guarantee that you can safely work in isolated parts of the codebase without accruing
+technical debt.</p>
+
+<p>Relay's container components mean that the components we create are nearly all focused only on the data-driven
+aspects of rendering a subset of that GraphQL response into views. It's very powerful.</p>
+
+<a name="Co-location"></a>
+<h2>Co-location</h2>
+
+<p>Relay helped us move to one file representing everything a component needed. Effectively a single file now handles
+the styles, the actual view content hierarchy, and the exact parts of the API it needs to render itself.</p>
+
+<p><img src="/images/omakase-relay/co-location.png"></p>
+
+<p>In roughly that proportion too, though our most modern code uses the Artsy design system <a href="https://github.com/artsy/palette">Palette</a> which
+drastically reduces the need for style in our components.</p>
+
+<p>Co-location's biggest selling point is reducing <a href="https://en.wikipedia.org/wiki/Cognitive_load">cognitive load</a>,
+having everything you need in one place makes it easier to understand how a component works. This makes code review
+simpler, and lowers the barrier to understanding the entire systems at scale.</p>
+
+<a name="Community"></a>
+<h2>Community</h2>
+
+<p>When we adopted Relay, there was no competition - we'd have just used the <code>fetch</code> API. Over time, <a href="https://www.apollographql.com">the Apollo
+team</a> came up and really put a considerable amount of effort into lowering the barriers to entry, and
+making it feasible to build complex apps easily.</p>
+
+<p>As we hired a set of new engineers, the "Apollo vs Relay" debate came up. Interested in whether we would still
+start with Relay today, we ran an audit last year of what it would take to re-create a lot of the infrastructure we
+love in Relay atop of the (much more popular) Apollo GraphQL eco-system and saw it was reasonably feasible but
+would require a considerable amount of work across many different plugins and tools. With Relay that's all packaged
+into one tool, works consistently and has been proven with Facebook having tens of thousands of Relay components in
+production.</p>
+
+<p>It's worth highlighting the core difference in community engagement for Apollo vs Relay. Engineers working on
+Apollo have great incentives to do user support, and improve the tools for the community - that's their businesses
+value. Relay on the other hand is used in many places at Facebook, and the engineers on the team support internal
+issues first. IMO, this is reasonable: Relay is an opinionated batteries-included framework for building user
+interfaces, and ensuring it works with the baffling amount of JavaScript at Facebook is more or less all the team
+has time for.</p>
+
+<p>That leaves space for the OSS community to own their own problems. Notably there's been quite a lot of work going
+on in the community-managed <a href="https://github.com/relay-tools">relay-tools</a> GitHub organization.</p>
+
+<a name="Scale.Safety"></a>
+<h2>Scale Safety</h2>
+
+<p>Relay puts a lot of emphasis on ahead-of-time safety. The Relay compiler validates your queries against your
+GraphQL schema, it emits Flow types for your fragment’s field selections–which we’ve extended to emit TypeScript
+types instead, and there are strict naming systems enforced by the compiler. All of these help guide engineers to
+build scalable codebases.</p>
+
+<p>How this works in practice is that whenever you need to change the data a component requires, you edit the
+fragment, the Relay compiler verifies your query, if successful then your TypeScript types are updated and you can
+use the new property in your React component above. See below for a <a href="/images/omakase-relay/relay-process-720.mov">quick video</a> showing the Relay compiler
+in action:</p>
+
+<p></article>
+<div>
+<video controls style="margin: auto 20px; width:100%;">
+  <source src="/images/omakase-relay/relay-process-720.mov" type="video/mp4">
+  Your browser does not support the video tag.
+</video>
+</div>
+<article class="post">
+</p>
+
+<p>Moving all of these checks to be during dev-time means we can feel more confident in our deploys. This is
+especially an issue in an iOS native codebase, when any deploy requires a review from Apple and roll-backs are
+impossible.</p>
+
+<a name="Cultural.Fit"></a>
+<h2>Cultural Fit</h2>
+
+<p>Relay fit well into our team because:</p>
+
+<ul>
+<li>We had engineers who were interested in contributing back and extending Relay to work for our cases</li>
+<li>We had engineers that were used to the benefits of ahead-of-time error validation tools that compilers offer</li>
+<li>We saw a lot of value in a tightly coupling our view structure to our user interface</li>
+</ul>
+
+
+<p>Relay is not without its shortcomings to users outside of Facebook, but Relay has definitely paid for its initial
+and occasional complexity for the tightness of our codebases many years down the line.</p>
+
+<!-- prettier-ignore-start -->
+
+
+<!-- prettier-ignore-end -->
+
+
+
 ]]></content>
   </entry>
   
