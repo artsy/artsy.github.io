@@ -8,7 +8,7 @@ series: Design Systems at Artsy
 ---
 
 On May 3rd, 2018 [Luc]() made the first commit to [Palette](). The intent at the time was create a way to easily
-share styles between [Reaction](), our react web components, and [Emission](), our react native components. As
+share styles between [Reaction](), our React web components, and [Emission](), our React Native components. As
 understanding of our needs evolved, Palette began it's transition into a full blown design system. In this post I'm
 going to tell you the story of Palette and how we use it to ship products faster with tighter collaboration between
 design and engineering.
@@ -40,6 +40,8 @@ At its heart, Palette is a set of brand specific but product agnostic components
 build products that _feel_ like Artsy. I think it's important to re-emphasis the fact that none of these components
 are product specific. There's a button, but not a purchase button. Palette tries to make as few assumptions about
 the systems that consume it so it can have the maximum utility across all of our digital products.
+
+## Freedom through constraints
 
 ## Other topics...
 
