@@ -8,7 +8,7 @@ series: Design Systems at Artsy
 ---
 
 On May 3rd, 2018 [Luc]() made the first commit to [Palette](). The intent at the time was create a way to easily
-share styles between [Reaction]() our react web components and [Emission]() our react native components. As
+share styles between [Reaction](), our react web components, and [Emission](), our react native components. As
 understanding of our needs evolved, Palette began it's transition into a full blown design system. In this post I'm
 going to tell you the story of Palette and how we use it to ship products faster with tighter collaboration between
 design and engineering.
