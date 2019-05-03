@@ -1,7 +1,7 @@
 ---
 layout: epic
 title: "Artsy Writing Office Hours"
-date: "2019-05-01"
+date: "2019-05-06"
 author: [ash]
 categories: [writing, culture]
 ---
