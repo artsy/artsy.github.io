@@ -89,7 +89,7 @@ engineers.
 > Native for an iOS Developer][rn-ios], [React Native, 2 years later][rn2], [Making a React Native Components
 > Pod][rn-pod] & [React Native at Artsy, 3 years later][rn3]
 
-Re-defining ourselves as native engineers who support JavaScript by via our iOS silos was tricky, I think both
+Re-defining ourselves as native engineers who support JavaScript via our iOS silos was tricky, I think both
 [Ash][ash-on-js] & [Maxim][maxim-talk-culture] have great write-ups on the topic. For me, the move to the
 JavaScript came at a perfect time: the iOS community was fragmenting because of competing dependency managers and
 the introduction of Swift which made infrastructure work less valuable.
@@ -138,7 +138,7 @@ To quote myself:
 
 → [5 Questions with Orta Therox][nytimes-oss] _(open.nytimes.com)_
 
-I use Open Source, and Artsy's leverage to help make sure that the next generation of programmers feel like they
+I use Open Source, and Artsy's leverage, to help make sure that the next generation of programmers feel like they
 have so much more insight into how we build hard things. I know it's not easy getting started, so I've tried to
 take common questions and wrap them up into larger sets of documentation on how I went through those phases.
 
