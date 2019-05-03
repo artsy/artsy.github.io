@@ -8,8 +8,9 @@ categories: [everything]
 ---
 
 Today is my last day at Artsy, it's been 7.5 years and I figured a nice way to book-end my time here is to make a
-post that tries to talk over [the last ~90 blog posts I've shipped](https://artsy.github.io/author/orta/). My posts tell the story of a junior-ish
-engineering solving problems on successive larger scales, until their decisions impact whole industries.
+post that tries to talk over [the last ~90 blog posts I've shipped](https://artsy.github.io/author/orta/). My posts
+tell the story of a junior-ish engineering solving problems on successive larger scales, until their decisions
+impact whole industries.
 
 These posts cover so many topics that the right way to give them justice is to try group them in terms of general
 themes and provide a larger context about why they were written.
@@ -65,9 +66,9 @@ native experience and I knew the project lead ([Ben Jackson][benj].)
 
 Over time, I grew to own the iOS team at Artsy. In doing so I became a manager with 3-4 reports and tried to really
 make a name for Artsy's iOS team in the industry. We built more apps, and started to need to think through our
-larger I found our [old job posting][job-mob] from just before we consolidated with web. It echoes a lot of the idea
-on how I framed our team's responsibilities being in that we should build Artsy in a way that improves the industry
-for everyone too.
+larger I found our [old job posting][job-mob] from just before we consolidated with web. It echoes a lot of the
+idea on how I framed our team's responsibilities being in that we should build Artsy in a way that improves the
+industry for everyone too.
 
 > [Dependencies][d1], [Dropped Design Patterns][d2], [Hybrid Apps][d3], [ARSwitchboard][d4] & [ARRouter][d5]
 
@@ -119,9 +120,9 @@ reasoning was important when making foundations which could last 5-10 years.
 # Open Source
 
 Artsy had a rich relationship with Open Source before I arrived, and I devoted a lot of time and effort to making
-this world-class. There is an entire blog post on how Artsy became [Open Source by Default][tttoooodddoooo], but I
-made sure to make it easy for people interested in following Artsy's footsteps. I believe the world will be a lot
-richer as more people work in the open.
+this world-class. There is an entire blog post on how Artsy became [Open Source by Default][ossd], but I made sure
+to make it easy for people interested in following Artsy's footsteps. I believe the world will be a lot richer as
+more people work in the open.
 
 > [Open Expectations][oss-exp], [Open Source FAQ for Engineers][oss-faq], [Licenses for OSS Code][oss-lic], [Open
 > Sourcing Energy][oss-energy], [How we Open Source'd Eigen][oss-eigen], [Helping the Web Towards OSS by
@@ -139,7 +140,7 @@ To quote myself:
 
 I use Open Source, and Artsy's leverage to help make sure that the next generation of programmers feel like they
 have so much more insight into how we build hard things. I know it's not easy getting started, so I've tried to
-take common questions and wrap them up into larger sets of documentation on what engineer
+take common questions and wrap them up into larger sets of documentation on how I went through those phases.
 
 > [Interviewing, applying and getting your first job in iOS][starting-ios], [Help! I'm becoming
 > Post-Junior][post-junior], [JavaScript Glossary for 2017][js-gloss], [C4Q&A][c4qa1] & [C4Q&A 2][c4qa2]
@@ -151,6 +152,8 @@ write "we" when talking about Artsy. In the mean time there's a lot of engineers
 things!
 
 <!-- link to the new rebase? -->
+
+Finally, if you want
 
 <p align="right"><code>./orta</code></br><code>x</code></p>
 
@@ -234,3 +237,4 @@ things!
 [inject]: https://artsy.github.io/blog/2016/03/05/iOS-Code-Injection/
 [closed-pod]: https://artsy.github.io/blog/2014/06/20/artsys-first-closed-source-pod/
 [cpkeys]: https://artsy.github.io/blog/2015/01/21/cocoapods-keys-and-CI/
+[ossd]: https://artsy.github.io/blog/2019/04/29/how-did-artsy-become-oss-by-default/
