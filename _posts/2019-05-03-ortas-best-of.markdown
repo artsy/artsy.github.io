@@ -147,13 +147,12 @@ take common questions and wrap them up into larger sets of documentation on how 
 
 # So, What Next?
 
+If you want to keep on top of what I'm up-to, I'm starting [a personal mailing list][mail]. You should join, it'll
+be roughly monthly - so pretty low key.
+
 Well, I built a system for doing guest posts in this blog, so maybe I'll appear again on this blog now that I can't
 write "we" when talking about Artsy. In the mean time there's a lot of engineers at Artsy writing really cool
 things!
-
-<!-- link to the new rebase? -->
-
-Finally, if you want
 
 <p align="right"><code>./orta</code></br><code>x</code></p>
 
@@ -238,3 +237,4 @@ Finally, if you want
 [closed-pod]: https://artsy.github.io/blog/2014/06/20/artsys-first-closed-source-pod/
 [cpkeys]: https://artsy.github.io/blog/2015/01/21/cocoapods-keys-and-CI/
 [ossd]: https://artsy.github.io/blog/2019/04/29/how-did-artsy-become-oss-by-default/
+[mail]: https://buttondown.email/orta
