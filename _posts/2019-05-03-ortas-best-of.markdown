@@ -8,7 +8,7 @@ categories: [everything]
 ---
 
 Today is my last day at Artsy, it's been 7.5 years and I figured a nice way to book-end my time here is to make a
-post that tries to talk over the last ~90 blog posts I've shipped. My posts tell the story of a junior-ish
+post that tries to talk over [the last ~90 blog posts I've shipped](https://artsy.github.io/author/orta/). My posts tell the story of a junior-ish
 engineering solving problems on successive larger scales, until their decisions impact whole industries.
 
 These posts cover so many topics that the right way to give them justice is to try group them in terms of general
@@ -65,7 +65,7 @@ native experience and I knew the project lead ([Ben Jackson][benj].)
 
 Over time, I grew to own the iOS team at Artsy. In doing so I became a manager with 3-4 reports and tried to really
 make a name for Artsy's iOS team in the industry. We built more apps, and started to need to think through our
-larger I found our [old job posting][job-mob] from just before we consolidated with web. It echos a lot of the idea
+larger I found our [old job posting][job-mob] from just before we consolidated with web. It echoes a lot of the idea
 on how I framed our team's responsibilities being in that we should build Artsy in a way that improves the industry
 for everyone too.
 
@@ -88,13 +88,13 @@ engineers.
 > Native for an iOS Developer][rn-ios], [React Native, 2 years later][rn2], [Making a React Native Components
 > Pod][rn-pod] & [React Native at Artsy, 3 years later][rn3]
 
-Re-defining ourselves as native engineers who support JavaScript by via our iOS sills was tricky, I think both
+Re-defining ourselves as native engineers who support JavaScript by via our iOS silos was tricky, I think both
 [Ash][ash-on-js] & [Maxim][maxim-talk-culture] have great write-ups on the topic. For me, the move to the
 JavaScript came at a perfect time: the iOS community was fragmenting because of competing dependency managers and
 the introduction of Swift which made infrastructure work less valuable.
 
 We still needed to be up-to-date with the latest tools and ideas from the native world, but mainly from "iOS as
-Platform" instead of features development (though my non-technical [ARKit post][arkit] is a great read)
+Platform" instead of features development (though my non-technical [ARKit post][arkit] is a great read).
 
 > [Deploying your app on a weekly basis via fastlane + Travis CI][emis-travis], [What is fastlane match?][match],
 > [It's time to use Swift Package Manager][spm], [Accessing the app's Source Code from your Simulator][src], [Why
