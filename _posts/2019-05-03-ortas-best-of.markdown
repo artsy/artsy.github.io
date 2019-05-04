@@ -7,7 +7,7 @@ categories: [everything]
 # comment_id: 554
 ---
 
-Today is my last day at Artsy, it's been 7.5 years and I figured a nice way to book-end my time here is to make a
+Today is my last day at Artsy, it's been 8 years and I figured a nice way to book-end my time here is to make a
 post that tries to talk over [the last ~90 blog posts I've shipped](https://artsy.github.io/author/orta/). My posts
 tell the story of a junior-ish engineering solving problems on successive larger scales, until their decisions
 impact whole industries.
