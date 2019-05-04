@@ -35,6 +35,20 @@ experts.
 
 This is how writing works, too.
 
+Engineering teams really benefit from having a culture of writing (and of sharing knowledge in general). To
+summarize the benefits of teams which write:
+
+- Generally speaking, documentation is important – but writing and maintaining it is difficult. A team culture of
+  writing can help make it easier.
+- Public blog posts increase a team's reputation, which makes it easier for the team to hire (and onboard) new
+  members.
+- Teaching and learning from colleagues helps [cultivate a sense of psychological safety][p_s].
+
+I don't want to go into detail about the benefits here, but if you'd like to learn more, you can check out [this
+talk][talk].
+
+<iframe width="100%" height="400" src="https://www.youtube.com/embed/SjjvnrqDjpM" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
 Okay let's dive in.
 
 ## Just Show Up
@@ -99,14 +113,10 @@ my views on teaching and learning – as long as I'm there to support them, we c
 inevitably learn. We'll touch more on this in the next section.
 
 A really common response I get to "hey have you thought about writing a blog post about this?" is that "this isn't
-really worth writing a post about." This is incorrect. I go into this in more detail in [this talk][talk], but
-_most_ engineering work could be written about.
-
-<iframe width="100%" height="400" src="https://www.youtube.com/embed/SjjvnrqDjpM" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-
-Even if a subject has been written about before, it's never been written about from _your perspective_. And short
-posts are valuable, too – just think about how often you'll be searching for an answer to a question and find a
-short, simple blog post that's unblocked you. Here is a selection of short, focused posts from the Artsy blog:
+really worth writing a post about." I disagree. Even if a subject has been written about before, it has never been
+written about from _your perspective_. And short posts are valuable, too – just think about how often you'll be
+searching for an answer to a question and find a short, simple blog post that's unblocked you. Here is a selection
+of short, focused posts from the Artsy blog:
 
 - [Using OCR To Fix a Hilarious Bug][ocr] (bug fix becomes a blog post)
 - [Being a Good OSS Citizen][oss_citizen] (an open source pull request becomes a blog post)
@@ -117,7 +127,7 @@ As you can see, each of these are small posts that represent significant enginee
 and only through sharing what we learn ([as we learn it][contemporaneous]) can we really honour the title of
 _engineer_.
 
-## Sharing is Caring
+## Caring is Sharing
 
 > Sometimes the best practice is to have someone who cares encouraging you.
 
@@ -185,3 +195,4 @@ you. Take care.
 [volt_upgrade]: https://artsy.github.io/blog/2018/01/19/upgrading-volt-to-circleci-two/
 [debug]: https://artsy.github.io/blog/2018/08/24/How-to-debug-jest-tests/
 [contemporaneous]: https://ashfurrow.com/blog/contemporaneous-blogging/
+[p_s]: https://ashfurrow.com/blog/building-better-software-by-building-better-teams/
