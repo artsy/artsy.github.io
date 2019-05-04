@@ -178,9 +178,9 @@ Like I said earlier, writing office hours became about more than _just_ writing.
 
 ---
 
-We saw in the last post how to become a proficient technical writer. We saw in this post how to nurture a culture
-of writing on a team. It's an ongoing process – as I learn more, I'll be sure to share what I learn with all of
-you. Take care.
+We saw in the [last post][ash_post] how to become a proficient technical writer. We saw in this post how to nurture
+a culture of writing on a team. It's an ongoing process – as I learn more, I'll be sure to share what I learn with
+all of you. Take care.
 
 [ash_post]: https://ashfurrow.com/blog/technical-writing-on-the-web/
 [orta]: https://twitter.com/orta
