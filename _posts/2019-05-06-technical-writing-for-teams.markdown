@@ -28,9 +28,9 @@ the only qualification for _actually helping_. You might think that in order to 
 become a proficient writer yourself. This is backwards. I became the writing powerhouse that Orta mentions _by
 helping others write_.
 
-Let's think about this in terms of coding. When you help teach someone, _you also_ end up learning a lot. Assisting
-others solidifies concepts _for you_ and helps _you_ hone your own skills. We recognize that engineers are ready to
-mentor other engineers long before they become _experts_; indeed, it's usually _through mentoring_ that they become
+Let's think about this in terms of coding. When you help teach someone, _you also_ learn a lot. Assisting others
+solidifies concepts _for you_ and helps _you_ hone your own skills. We recognize that engineers are ready to mentor
+other engineers long before they become _experts_; indeed, it's usually _through mentoring_ that they become
 experts.
 
 This is how writing works, too.
@@ -165,9 +165,9 @@ filling it out, I'd offer to read what they had so far and give feedback. It rea
 their goals. At two reminders, I'd offer to stop reminding them if it wasn't helpful. After five or so reminders,
 with no progress, I'd quietly drop them from my OmniFocus list. No shame.
 
-It might sound like a lot of work, but it's actually just a few very small things recurring tasks. With a little
-care and the right system for managing my own time, I might spend 10 minutes a week following up with people. The
-important part is just caring about the person and their knowledge-sharing goals (whatever they are).
+It might sound like a lot of work, but it's actually just a few small recurring tasks. With a little care and the
+right system for managing my own time, I might spend 10 minutes a week following up with people. The important part
+is just caring about the person and their knowledge-sharing goals (whatever they are).
 
 I would estimate that my success rate was about 50%. That's pretty great, actually! Some blog posts just didn't go
 anywhere, and that's okay. Everyone is busy. Some were months-long journeys that _did_ eventually get posted. But
