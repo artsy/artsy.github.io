@@ -9,7 +9,7 @@ series: JavaScriptures
 
 The third in our JavaScriptures series on the Artsy [omakase][omakase]. This workshop is a deep dive into [Styled
 Components][sc], where we take our React app from the first workshop and convert it to use Styled Components. We
-have Anandaroop Roy and Jon Allured covering all the details.
+have Roop and Jon Allured covering all the details.
 
 <!-- more -->
 
