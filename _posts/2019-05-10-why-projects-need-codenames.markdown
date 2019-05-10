@@ -14,7 +14,7 @@ At Artsy, our systems have peculiar code names like _Gravity_, _Pulse_, and _Vor
 
 ![](/images/2019-05-10-why-projects-need-codenames/github_projects.png)
 
-To be clear, _any_ project naming scheme works in small quantities. Personal projects or libraries for public release should probably just be named for clarity. Code names start to offer benefits as a team grows and a product evolves over the longer term:
+To be clear, _any_ project naming scheme works in small quantities. Personal projects or libraries for public release should probably just be named for clarity and find-ability. Code names start to offer benefits as a team grows and a product evolves over the longer term:
 
 Code names embrace that **we don't necessarily know the fit or scope of a system when it's first conceived**. To _not_ employ code names would require accurately predicting a system's eventual function. A project named `artsy-admin` starts to grate when we make the architectural decision to split apart management utilities or introduce more fine-grained administrative roles. An `artwork-taxonomy` label loses meaning when that system expands to include less structured tags
 
@@ -33,14 +33,13 @@ With this in mind, how should you choose a naming scheme?
 * Everyone should be able to participate, so avoid industry lingo or obscure terminology. Funny story: I work at an art start-up but don't know enough artists to name my projects that way. I struggle even more to pronounce the few projects that are.
 * There should be lots of choices. You'll regret choosing to name your projects after "decathlon sports" or "days of the week" when your team inevitably transitions to microservices.
 * Names should be unique within a company and--ideally--beyond the company's scope. You wouldn't want your `marketing-site` repository to conflict with a contributor's `marketing-site` repository from another organization. Github projects, S3 buckets, Heroku application names, and published libraries all benefit from being globally unique.
-* Bonus points for choosing a rich enough scheme that names can subtly relate to each system's function. At Artsy, we use physics terms for code names, so our e-commerce back-end is called [Exchange](https://github.com/artsy/exchange). A shipping service might be called _Weight_.
+* Bonus points for choosing a rich enough scheme that names can subtly relate to each system's function. At Artsy, we use physics terms for code names, so our e-commerce back-end is called [Exchange](https://github.com/artsy/exchange) and a command line utility for developers is called [Momentum](https://github.com/artsy/momentum). A shipping service might be called _Weight_.
 
 Example code name schemes: animals, movies, sea creatures, cartoon/TV characters, woodworking tools, celebrities (but get legal advice before borrowing living individuals' names). [Ubuntu](https://wiki.ubuntu.com/DevelopmentCodeNames) gets extra mileage by combining adjectives with animal names. [Apple](https://en.wikipedia.org/wiki/List_of_Apple_codenames) has used wine, cats, and California geography. [Google](https://en.wikipedia.org/wiki/Android_%28operating_system%29) likes dessert.
 
 ## Finally
 
 These days, I've embraced Artsy's use of physics terms for project names. There continues to be some head-scratching as new engineers navigate codebases and encounter these terms or just struggle to identify the system responsible for a given site or feature. (This isn't shocking, since code names were probably adapted from more secretive environments like the military.) As your code names multiply and projects come and go, a glossary becomes essential. I suggest creating a simple document that maps projects' code names to descriptions, URL destinations, hosting environments, and teams.
-
 
 See also:
 
