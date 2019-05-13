@@ -14,7 +14,7 @@ We've also built our site using responsive design, so you get a browsing experie
 
 Combining SSR and responsive design is a non-trivial problem. There are many concerns to manage, and they are
 sometimes in conflict with each other. We server render for performance reasons, but we also want to be sure our
-app is performant when your browser takes over, all while optimizing accessibility and SEO.
+app is performant when your browser takes over, all while optimizing for accessibility and SEO.
 
 This article describes the tools we use on [artsy.net](https://artsy.net) to combine SSR and responsive design.
 
@@ -120,10 +120,10 @@ detection libraries surfaced all the information we needed. We needed to know th
 given device, and if it was resizable, and to what dimensions it was resizable. If any existing libraries _did_
 have this data, they didn't provide it to us easily.
 
-So we did some experimentation, given the browsers & devices we knew we needed to support. And yeah...we
+So we did some experimentation, given the browsers and devices we knew we needed to support. And yeah...we
 (reluctantly) created our own user-agent detection library,
 [@artsy/detect-responsive-traits](https://github.com/artsy/detect-responsive-traits). This data is very specific to
-the browsers & devices we support on [artsy.net](artsy.net), but it's the data we need to optimize our responsive
+the browsers and devices we support on [artsy.net](artsy.net), but it's the data we need to optimize our responsive
 rendering. We're using it to determine if your browser is likely going to use only the mobile breakpoint of our
 app, in which case we don't have to also render the desktop version.
 
@@ -153,7 +153,7 @@ SSR.
 ### CSS
 
 We explored the idea of rendering all breakpoints from the server, and hiding the non-matching branches with CSS.
-The issue with this approach is that you have many components that are mounted & rendered unnecessarily. Aside from
+The issue with this approach is that you have many components that are mounted and rendered unnecessarily. Aside from
 the performance hit you take for rendering components your user isn't seeing, even worse is the potential for
 duplicate side-effects.
 
@@ -163,7 +163,7 @@ enough to count both calls, but it's still a bad idea to duplicate components th
 
 ## What's left to solve?
 
-Our SSR & responsive design toolbox does a lot of things well. We get great performance from both the server and
+Our SSR and responsive design toolbox does a lot of things well. We get great performance from both the server and
 client. Our site looks great on any device.
 
 We do have some SEO concerns, though. Since we're server-rendering multiple breakpoints, it's likely that search
@@ -180,7 +180,7 @@ into words, I couldn't determine any reason to be concerned with specific regard
 ## Our advice
 
 Responsive design is hard, especially when layouts change significantly between desktop and mobile. Server side
-rendering in react is hard to get right, period. Hydration errors are easy to introduce and can break your app in
+rendering in React is hard to get right, period. Hydration errors are easy to introduce and can break your app in
 weird and unexpected ways. Adding responsiveness on top of that just makes it that much more complicated.
 
 At the end of the day, do everything you can to limit layout differences between mobile and desktop. Use
