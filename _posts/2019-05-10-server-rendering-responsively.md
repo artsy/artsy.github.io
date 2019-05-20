@@ -1,7 +1,7 @@
 ---
 layout: epic
 title: "Server-Rendering Responsively"
-date: "2019-04-22"
+date: "2019-05-20"
 author: [steve-hicks]
 categories: [react, html, web]
 ---
@@ -33,14 +33,27 @@ our tablet breakpoint, and 100% for anything larger:
 </Box>
 ```
 
-As developers, we love this experience. We can make subtle differences to components across breakpoints with very
-little code and effort.
+Here's a real example
+[from our codebase](https://github.com/artsy/reaction/blob/f3dabb884d616c5c42bbd47b1432dc2a9456b8ca/src/Apps/Search/Components/SearchResultsSkeleton/Header.tsx#L6).
 
-We're working on another blog post that digs deeper into how we use `styled-system` within
-[our design system](https://palette.artsy.net/). You can also
+```xml
+<Box height={100} mb={30} mt={120} pr={[0, 20]} pl={[0, 20]}>
+  <Box pl={[20, 0]}>
+    <Box mb={40} background={color("black10")} width={260} height={20} />
+    ...
+  </Box>
+</Box>
+```
+
+There are a lot of abbreviations in there - `mb` sets the bottom margin, `mt` sets the top margin, `pl` sets the
+left padding, and `pr` sets the right padding. And while only a few of the properties in this example _are_
+specifying an array of sizes to be used at different breakpoints, all of those properties _can_ take an array for
+different breakpoints. As developers, we love this experience. We can make subtle differences to components across
+breakpoints with very little code and effort.
+
+We use `styled-system` extensively within [our design system](https://palette.artsy.net/). You can
 [poke around our source](https://github.com/artsy/reaction/blob/f3dabb884d616c5c42bbd47b1432dc2a9456b8ca/src/Apps/Search/Components/SearchResultsSkeleton/Header.tsx#L6)
-to see how much we've embraced `styled-system`'s responsive styles. (In that example, `pr` means `padding-right`
-and `pl` means `padding-left`.)
+to see how much we've embraced `styled-system`'s responsive styles.
 
 There's one type of challenge with building a responsive app that `styled-system` can't solve: when we need to emit
 different layouts across different breakpoints. In this case, we need something that can render very different
@@ -67,7 +80,7 @@ sub-trees when those breakpoints are met. It looks something like this:
 
 In this example, we're emitting the `MobileLayout` component for devices at or below our `xs` breakpoint, and the
 `NonMobileLayout` for devices greater than our `xs` breakpoint. You can imagine that the `MobileLayout` and
-`NonMobileLayout` components are complicated sub-trees, with more significant differences than `styled-system`
+`NonMobileLayout` components contain complicated sub-trees, with more significant differences than `styled-system`
 could handle.
 
 ### How it works
@@ -91,19 +104,20 @@ tree, a couple things will happen.
 
 1. You'll get a friendly error in your console telling you there were differences (in development mode), but
    also...
-2. weird, unpredictable things will happen to your app.
+2. weird, unpredictable things can happen to your app.
 
 Here's what our app looked like in one case where our client render didn't match our server render:
 
-(TODO: image of spinning body)
+![A site whose client render does not match its server render, resulting in spinning body copy](/images/2019-05-20-server-rendering-responsively/wacky-spinner.gif)
 
 Yuck! The docs explain that `ReactDOM.hydrate` doesn't put a lot of effort into patching up differences between the
-server and client renders, and that's how you end up with weird things like above.
+server and client renders, and that's how you end up with weird things like above. Weird things don't _always_
+happen, but they _can_ happen. Your best bet is to match server and client renders, to avoid strange results that
+are difficult to explain or debug.
 
-Because hydration is so picky about the component trees matching between server and client, we render _all_
-breakpoints from the server with `react-responsive-media`. This way, we know you're going to get a branch that
-matches between the client and server. Then, upon hydration, we prune the branches that don't match the current
-breakpoint.
+Because hydration requires the component trees to match between server and client, we render _all_ breakpoints from
+the server with `react-responsive-media`. This way, we know you're going to get a branch that matches between the
+client and server. Then, upon hydration, we prune the branches that don't match the current breakpoint.
 
 ## Tool 3: [`@artsy/detect-responsive-traits`](https://github.com/artsy/detect-responsive-traits)
 
@@ -122,10 +136,10 @@ have this data, they didn't provide it to us easily.
 
 So we did some experimentation, given the browsers and devices we knew we needed to support. And yeah...we
 (reluctantly) created our own user-agent detection library,
-[@artsy/detect-responsive-traits](https://github.com/artsy/detect-responsive-traits). This data is very specific to
-the browsers and devices we support on [artsy.net](artsy.net), but it's the data we need to optimize our responsive
-rendering. We're using it to determine if your browser is likely going to use only the mobile breakpoint of our
-app, in which case we don't have to also render the desktop version.
+[@artsy/detect-responsive-traits](https://github.com/artsy/detect-responsive-traits). We're using this to determine
+if your browser is likely going to use only the mobile breakpoint of our app, in which case we don't have to also
+render the desktop version. The library is currently targeting only the browsers and devices we support on
+[artsy.net](artsy.net), but we're always open to contributions.
 
 We aren't doing any detection of desktop browsers. Maybe this is something we do in the future, but for now we are
 more concerned with mobile users getting less content sent over their 3G connection.
@@ -148,13 +162,11 @@ hydrate.
 With `react-responsive`, we didn't like that it relied on user agent detection as its primary method of handling
 SSR.
 
-(TODO: are those statements correct?)
-
 ### CSS
 
 We explored the idea of rendering all breakpoints from the server, and hiding the non-matching branches with CSS.
-The issue with this approach is that you have many components that are mounted and rendered unnecessarily. Aside from
-the performance hit you take for rendering components your user isn't seeing, even worse is the potential for
+The issue with this approach is that you have many components that are mounted and rendered unnecessarily. Aside
+from the performance hit you take for rendering components your user isn't seeing, even worse is the potential for
 duplicate side-effects.
 
 Imagine a component that, when rendered, emits a call to an analytics service. If this component exists in both a
