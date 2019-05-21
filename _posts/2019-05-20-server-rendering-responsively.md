@@ -24,8 +24,8 @@ This article describes the tools we use on [artsy.net](https://artsy.net) to com
 
 We handle the majority of responsive styling differences with
 [`styled-system`](https://styled-system.com/responsive-styles). This has been a really great addition to our
-toolbox. Here's a component that would render a `div` (`Box`) with a width of 50% at our mobile breakpoint, 75% at
-our tablet breakpoint, and 100% for anything larger:
+toolbox. Here's a component that would render a `div` (`Box`) with a width of 50% for small screens, 75% for
+medium-sized screens, and 100% for anything larger:
 
 ```xml
 <Box width={["50%", "75%", "100%"]}>
@@ -33,23 +33,21 @@ our tablet breakpoint, and 100% for anything larger:
 </Box>
 ```
 
-Here's a real example
+The next example is based on actual code
 [from our codebase](https://github.com/artsy/reaction/blob/f3dabb884d616c5c42bbd47b1432dc2a9456b8ca/src/Apps/Search/Components/SearchResultsSkeleton/Header.tsx#L6).
 
 ```xml
-<Box height={100} mb={30} mt={120} pr={[0, 20]} pl={[0, 20]}>
-  <Box pl={[20, 0]}>
-    <Box mb={40} background={color("black10")} width={260} height={20} />
+<Box height={100} marginBottom={30} marginTop={120} paddingRight={[0, 20]} paddingLeft={[0, 20]}>
+  <Box paddingLeft={[20, 0]}>
+    <Box marginBottom={40} background={color("black10")} width={260} height={20} />
     ...
   </Box>
 </Box>
 ```
 
-There are a lot of abbreviations in there - `mb` sets the bottom margin, `mt` sets the top margin, `pl` sets the
-left padding, and `pr` sets the right padding. And while only a few of the properties in this example _are_
-specifying an array of sizes to be used at different breakpoints, all of those properties _can_ take an array for
-different breakpoints. As developers, we love this experience. We can make subtle differences to components across
-breakpoints with very little code and effort.
+While only a few of the properties in this example _are_ specifying an array of sizes to be used at different
+breakpoints, all of those properties _can_ take an array for different breakpoints. As developers, we love this
+experience. We can apply subtle differences to components across breakpoints with very little code and effort.
 
 We use `styled-system` extensively within [our design system](https://palette.artsy.net/). You can
 [poke around our source](https://github.com/artsy/reaction/blob/f3dabb884d616c5c42bbd47b1432dc2a9456b8ca/src/Apps/Search/Components/SearchResultsSkeleton/Header.tsx#L6)
@@ -86,7 +84,10 @@ could handle.
 ### How it works
 
 The first important thing to note is that when server-rendering with `react-responsive-media`, **all** breakpoints
-get rendered by the server. Each `Media` component is wrapped by plain CSS that will only show that breakpoint if it matches the user's current browser size. This means that the client can accurately start rendering the HTML/CSS _while_ it receives it, which is long before the React application has booted. This improves perceived performance for end-users.
+get rendered by the server. Each `Media` component is wrapped by plain CSS that will only show that breakpoint if
+it matches the user's current browser size. This means that the client can accurately start rendering the HTML/CSS
+_while_ it receives it, which is long before the React application has booted. This improves perceived performance
+for end-users.
 
 Why not just the one that the current device needs? A couple reasons. First, we can't _accurately_ identify which
 breakpoint your device needs on the server. We could use a library to sniff the browser `user-agent`, but those
@@ -130,14 +131,15 @@ I mentioned above that it's difficult to accurately detect devices by user agent
 render. We didn't want this to be our primary strategy for combining SSR with responsive design.
 
 But with `react-responsive-media` as our primary approach, we felt that we could make some further optimizations
-with user agent detection. In the event that we don't know your device by its user agent, we'll still give you both
-the desktop and mobile breakpoints from SSR. But if we are certain you are on a mobile device, we can omit the
-desktop breakpoint from the server render.
+with user agent detection. In the event that we don't know your device by its user agent, we'll still render all
+breakpoints on the server. But if we are certain you are on a device that only ever needs a subset of the
+breakpoints, we only render those on the server. This saves a bit of rendering time; more importantly it reduces
+the number of bytes sent over the wire.
 
 We really wanted to not maintain our own list of user agents. Alas, we found that none of the existing user agent
-detection libraries surfaced all the information we needed in a single resource. We needed to know the minimum width for a browser on a
-given device, and if it was resizable, and to what dimensions it was resizable. If any existing libraries _did_
-have this data, they didn't provide it to us easily.
+detection libraries surfaced all the information we needed in a single resource. We needed to know the minimum
+width for a browser on a given device, and if it was resizable, and to what dimensions it was resizable. If any
+existing libraries _did_ have this data, they didn't provide it to us easily.
 
 So we did some experimentation, given the browsers and devices we knew we needed to support. And yeah...we
 (reluctantly) created our own user-agent detection library,
@@ -147,15 +149,15 @@ render the desktop version. The library is currently targeting only the browsers
 [artsy.net](artsy.net), but
 [we're always open to contributions](https://github.com/artsy/detect-responsive-traits)!
 
-We aren't doing any detection of desktop browsers. Maybe this is something we do in the future, but for now we are
-more concerned with mobile users getting less content sent over their 3G connection.
+We aren't doing any detection of desktop browsers. They are more resizable than mobile browsers, and we are more
+concerned with mobile users getting less content sent over their 3G connection.
 
-## Why didn't you use \_\_\_?
+## Why didn't you \_\_\_?
 
 Those are our primary tools for combining SSR with responsive design! They work well for us. We considered many
 many other options along the way. Here are a couple:
 
-### [`react-media`](https://github.com/ReactTraining/react-media) or [`react-responsive`]()
+### Use [`react-media`](https://github.com/ReactTraining/react-media) or [`react-responsive`](https://github.com/contra/react-responsive)
 
 We investigated both `react-media` and `react-responsive`, but found that they didn't approach the SSR side of the
 problem as deeply as we needed.
@@ -168,12 +170,12 @@ hydrate.
 With `react-responsive`, we didn't like that it relied on user agent detection as its primary method of handling
 SSR.
 
-### CSS
+### Rely solely on CSS
 
-As mentioned before, we render all breakpoints from the server and hide the non-matching branches with CSS.
-The issue with this approach, when combined with React, is that after hydration you have many components that are mounted and rendered unnecessarily. Aside
-from the performance hit you take for rendering components your user isn't seeing, even worse is the potential for
-duplicate side-effects.
+As mentioned before, we render all breakpoints from the server and hide the non-matching branches with CSS. The
+issue with this approach, when combined with React, is that after hydration you have many components that are
+mounted and rendered unnecessarily. There's a performance hit you take for rendering components your user isn't
+seeing, but even worse is the potential for duplicate side-effects.
 
 Imagine a component that, when rendered, emits a call to an analytics service. If this component exists in both a
 mobile and desktop branch, you're now double-stuffing your analytics. Hopefully your analytics service is smart
