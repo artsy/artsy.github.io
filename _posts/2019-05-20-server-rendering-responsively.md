@@ -7,8 +7,8 @@ categories: [react, html, web]
 ---
 
 We use server-side rendering (SSR) to deliver every page you hit on [artsy.net](https://artsy.net). We decided on
-using SSR for many reasons, amongst them performance. (TODO: Maybe more about why we chose SSR, but I don't know
-much about that history.)
+using SSR for many reasons, amongst them performance.
+[We wrote about this all the way back in 2013](https://artsy.github.io/blog/2013/11/30/rendering-on-the-server-and-client-in-node-dot-js/)!
 
 We've also built our site using responsive design, so you get a browsing experience optimized for your device.
 
@@ -119,6 +119,11 @@ Because hydration requires the component trees to match between server and clien
 the server with `react-responsive-media`. This way, we know you're going to get a branch that matches between the
 client and server. Then, upon hydration, we prune the branches that don't match the current breakpoint.
 
+If you're interested, you can
+[read the issue that originally inspired us to build `@artsy/react-responsive-media`](https://github.com/artsy/reaction/issues/1367).
+One of the neat things about Artsy being [open-source by default](/series/open-source-by-default/) is that you can
+see decisions being made and libraries being built _as they happen_; not just after they're complete.
+
 ## Tool 3: [`@artsy/detect-responsive-traits`](https://github.com/artsy/detect-responsive-traits)
 
 I mentioned above that it's difficult to accurately detect devices by user agent to identify which breakpoint to
@@ -139,7 +144,8 @@ So we did some experimentation, given the browsers and devices we knew we needed
 [@artsy/detect-responsive-traits](https://github.com/artsy/detect-responsive-traits). We're using this to determine
 if your browser is likely going to use only the mobile breakpoint of our app, in which case we don't have to also
 render the desktop version. The library is currently targeting only the browsers and devices we support on
-[artsy.net](artsy.net), but we're always open to contributions.
+[artsy.net](artsy.net), but
+[we're always open to contributions](https://github.com/artsy/detect-responsive-traits)!
 
 We aren't doing any detection of desktop browsers. Maybe this is something we do in the future, but for now we are
 more concerned with mobile users getting less content sent over their 3G connection.
@@ -183,19 +189,13 @@ engine bots are seeing double the content on our pages. We _think_ this is okay.
 [Google WebMasters](https://youtu.be/WsgrSxCmMbM) says it's okay. We haven't noticed any awful side-effects from
 this yet, but SEO is a bit of a dark art, yeah?
 
-We _have_ had some issues where Google is showing limited data for some of our pages. We don't know yet if it is
-related to truncation we're doing at the mobile breakpoint, but we're investigating!
-
-(Note: I originally had in the outline accessibility as a potential concern, but from my notes and trying to put it
-into words, I couldn't determine any reason to be concerned with specific regard to SSR/responsive.)
-
 ## Our advice
 
 Responsive design is hard, especially when layouts change significantly between desktop and mobile. Server side
 rendering in React is hard to get right, period. Hydration errors are easy to introduce and can break your app in
 weird and unexpected ways. Adding responsiveness on top of that just makes it that much more complicated.
 
-At the end of the day, do everything you can to limit layout differences between mobile and desktop. Use
-`styled-system`'s responsive props. Play around with `flexbox`'s `flexDirection` and start learning about CSS
-`grid`. If you absolutely must render different views on different breakpoints, render all the UI and hide what's
-not needed for that breakpoint. That's the best we can do given the current state of SSR hydration.
+At the end of the day, do everything you can to limit layout differences between mobile and desktop. Use responsive
+props from `styled-system`. Play around with `flexbox` and `flex-direction` and start learning about CSS `grid`. If
+you absolutely must render different views on different breakpoints, render all the UI and hide what's not needed
+for that breakpoint. That's the best we can do given the current state of SSR hydration.
