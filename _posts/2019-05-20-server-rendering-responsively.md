@@ -86,10 +86,10 @@ could handle.
 ### How it works
 
 The first important thing to note is that when server-rendering with `react-responsive-media`, **all** breakpoints
-get rendered by the server.
+get rendered by the server. Each `Media` component is wrapped by plain CSS that will only show that breakpoint if it matches the user's current browser size. This means that the client can accurately start rendering the HTML/CSS _while_ it receives it, which is long before the React application has booted. This improves perceived performance for end-users.
 
 Why not just the one that the current device needs? A couple reasons. First, we can't _accurately_ identify which
-breakpoint your device needs from the server. We could use a library to sniff the browser `user-agent`, but those
+breakpoint your device needs on the server. We could use a library to sniff the browser `user-agent`, but those
 aren't always accurate, and they wouldn't give us all the information we need to know when we are server-rendering.
 
 The other reason `react-responsive-media` renders _all_ breakpoints has to do with the hydration of a
@@ -135,7 +135,7 @@ the desktop and mobile breakpoints from SSR. But if we are certain you are on a 
 desktop breakpoint from the server render.
 
 We really wanted to not maintain our own list of user agents. Alas, we found that none of the existing user agent
-detection libraries surfaced all the information we needed. We needed to know the minimum width for a browser on a
+detection libraries surfaced all the information we needed in a single resource. We needed to know the minimum width for a browser on a
 given device, and if it was resizable, and to what dimensions it was resizable. If any existing libraries _did_
 have this data, they didn't provide it to us easily.
 
@@ -170,8 +170,8 @@ SSR.
 
 ### CSS
 
-We explored the idea of rendering all breakpoints from the server, and hiding the non-matching branches with CSS.
-The issue with this approach is that you have many components that are mounted and rendered unnecessarily. Aside
+As mentioned before, we render all breakpoints from the server and hide the non-matching branches with CSS.
+The issue with this approach, when combined with React, is that after hydration you have many components that are mounted and rendered unnecessarily. Aside
 from the performance hit you take for rendering components your user isn't seeing, even worse is the potential for
 duplicate side-effects.
 
