@@ -2,7 +2,7 @@
 layout: epic
 title: "Server-Rendering Responsively"
 date: "2019-05-20"
-author: [steve-hicks]
+author: [steve-hicks, eloy, chris, justin]
 categories: [react, html, web]
 ---
 
