@@ -151,7 +151,10 @@ seeing, but even worse is the potential for duplicate side-effects.
 
 Imagine a component that, when rendered, emits a call to an analytics service. If this component exists in both a
 mobile and desktop branch, you're now double-stuffing your analytics. Hopefully your analytics service is smart
-enough to count both calls, but it's still a bad idea to duplicate components that have side-effects.
+enough to count only one call, but it's still a bad idea to duplicate components that have side-effects.
+
+`@artsy/fresnel` will only client-render the breakpoint that matches your browser dimensions, so you don't have to
+worry about duplicate side-effects.
 
 ## What's left to solve?
 
