@@ -57,13 +57,12 @@ There's one type of challenge with building a responsive app that `styled-system
 different layouts across different breakpoints. In this case, we need something that can render very different
 component sub-trees. We couldn't find an approach that satisfied our needs, so we wrote our own.
 
-## Tool 2: [`@artsy/react-responsive-media`](https://github.com/artsy/react-responsive-media)
+## Tool 2: [`@artsy/fresnel`](https://github.com/artsy/fresnel)
 
-First off, an announcement: we've just released `react-responsive-media` version 1.0! (TODO: release v1.0 😬 or
-change this announcement)
+First off, an announcement: we've just released `@artsy/fresnel` version 1.0!
 
-`react-responsive-media` allows you to define a set of breakpoint widths, then declaratively render component
-sub-trees when those breakpoints are met. It looks something like this:
+`@artsy/fresnel` allows you to define a set of breakpoint widths, then declaratively render component sub-trees
+when those breakpoints are met. It looks something like this:
 
 ```xml
 <>
@@ -83,9 +82,9 @@ could handle.
 
 ### How it works
 
-The first important thing to note is that when server-rendering with `react-responsive-media`, **all** breakpoints
-get rendered by the server. Each `Media` component is wrapped by plain CSS that will only show that breakpoint if
-it matches the user's current browser size. This means that the client can accurately start rendering the HTML/CSS
+The first important thing to note is that when server-rendering with `@artsy/fresnel`, **all** breakpoints get
+rendered by the server. Each `Media` component is wrapped by plain CSS that will only show that breakpoint if it
+matches the user's current browser size. This means that the client can accurately start rendering the HTML/CSS
 _while_ it receives it, which is long before the React application has booted. This improves perceived performance
 for end-users.
 
@@ -121,7 +120,7 @@ the server with `react-responsive-media`. This way, we know you're going to get 
 client and server. Then, upon hydration, we prune the branches that don't match the current breakpoint.
 
 If you're interested, you can
-[read the issue that originally inspired us to build `@artsy/react-responsive-media`](https://github.com/artsy/reaction/issues/1367).
+[read the issue that originally inspired us to build `@artsy/fresnel`](https://github.com/artsy/reaction/issues/1367).
 One of the neat things about Artsy being [open-source by default](/series/open-source-by-default/) is that you can
 see decisions being made and libraries being built _as they happen_; not just after they're complete.
 
@@ -130,11 +129,11 @@ see decisions being made and libraries being built _as they happen_; not just af
 I mentioned above that it's difficult to accurately detect devices by user agent to identify which breakpoint to
 render. We didn't want this to be our primary strategy for combining SSR with responsive design.
 
-But with `react-responsive-media` as our primary approach, we felt that we could make some further optimizations
-with user agent detection. In the event that we don't know your device by its user agent, we'll still render all
-breakpoints on the server. But if we are certain you are on a device that only ever needs a subset of the
-breakpoints, we only render those on the server. This saves a bit of rendering time; more importantly it reduces
-the number of bytes sent over the wire.
+But with `@artsy/fresnel` as our primary approach, we felt that we could make some further optimizations with user
+agent detection. In the event that we don't know your device by its user agent, we'll still render all breakpoints
+on the server. But if we are certain you are on a device that only ever needs a subset of the breakpoints, we only
+render those on the server. This saves a bit of rendering time; more importantly it reduces the number of bytes
+sent over the wire.
 
 We really wanted to not maintain our own list of user agents. Alas, we found that none of the existing user agent
 detection libraries surfaced all the information we needed in a single resource. We needed to know the minimum
@@ -163,9 +162,8 @@ We investigated both `react-media` and `react-responsive`, but found that they d
 problem as deeply as we needed.
 
 We also weren't fans of the imperative API in `react-media`. We started with a similar API when building
-`react-responsive-media`, but learned that it limited our ability to render all breakpoints from the server. The
-API requires only one branch to be rendered, and this caused the aforementioned mismatches when the app would
-hydrate.
+`@artsy/fresnel`, but learned that it limited our ability to render all breakpoints from the server. The API
+requires only one branch to be rendered, and this caused the aforementioned mismatches when the app would hydrate.
 
 With `react-responsive`, we didn't like that it relied on user agent detection as its primary method of handling
 SSR.
