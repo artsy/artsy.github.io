@@ -88,36 +88,10 @@ matches the user's current browser size. This means that the client can accurate
 _while_ it receives it, which is long before the React application has booted. This improves perceived performance
 for end-users.
 
-Why not just the one that the current device needs? A couple reasons. First, we can't _accurately_ identify which
-breakpoint your device needs on the server. We could use a library to sniff the browser `user-agent`, but those
-aren't always accurate, and they wouldn't give us all the information we need to know when we are server-rendering.
-
-The other reason `react-responsive-media` renders _all_ breakpoints has to do with the hydration of a
-server-rendered React app. When using SSR in a React app, you need to call
-[`ReactDOM.hydrate()`](https://reactjs.org/docs/react-dom.html#hydrate) to connect your server-rendered app to the
-client's browser. As the docs describe,
-
-> React expects that the rendered content is identical between the server and the client.
-
-If there are differences between your server-rendered component tree and the initial client-rendered component
-tree, a couple things will happen.
-
-1. You'll get a friendly error in your console telling you there were differences (in development mode), but
-   also...
-2. weird, unpredictable things can happen to your app.
-
-Here's what our app looked like in one case where our client render didn't match our server render:
-
-![A site whose client render does not match its server render, resulting in spinning body copy](/images/2019-05-20-server-rendering-responsively/wacky-spinner.gif)
-
-Yuck! The docs explain that `ReactDOM.hydrate` doesn't put a lot of effort into patching up differences between the
-server and client renders, and that's how you end up with weird things like above. Weird things don't _always_
-happen, but they _can_ happen. Your best bet is to match server and client renders, to avoid strange results that
-are difficult to explain or debug.
-
-Because hydration requires the component trees to match between server and client, we render _all_ breakpoints from
-the server with `react-responsive-media`. This way, we know you're going to get a branch that matches between the
-client and server. Then, upon hydration, we prune the branches that don't match the current breakpoint.
+Why not just the breakpoint that the current device needs? A couple reasons. First, we can't _accurately_ identify
+which breakpoint your device needs on the server. We could use a library to sniff the browser `user-agent`, but
+those aren't always accurate, and they wouldn't give us all the information we need to know when we are
+server-rendering.
 
 If you're interested, you can
 [read the issue that originally inspired us to build `@artsy/fresnel`](https://github.com/artsy/reaction/issues/1367).
