@@ -34,25 +34,23 @@ medium-sized screens, and 100% for anything larger:
 </Box>
 ```
 
-The next example is based on actual code
-[from our codebase](https://github.com/artsy/reaction/blob/f3dabb884d616c5c42bbd47b1432dc2a9456b8ca/src/Apps/Search/Components/SearchResultsSkeleton/Header.tsx#L6).
+Another example:
 
 ```xml
-<Box height={100} marginBottom={30} marginTop={120} paddingRight={[0, 20]} paddingLeft={[0, 20]}>
-  <Box paddingLeft={[20, 0]}>
-    <Box marginBottom={40} background={color("black10")} width={260} height={20} />
+<Flex flexDirection={["column", "row"]}>
+  <Box px={40} background="black10">
     ...
   </Box>
 </Box>
 ```
 
-While only a few of the properties in this example _are_ specifying an array of sizes to be used at different
-breakpoints, all of those properties _can_ take an array for different breakpoints. As developers, we love this
-experience. We can apply subtle differences to components across breakpoints with very little code and effort.
+While only one property in this example is specifying an array of values to be used at different breakpoints, all
+of those properties _can_ take an array for different breakpoints. As developers, we love this experience. We can
+apply subtle differences to components across breakpoints with very little code and effort.
 
 We use [`styled-system`](https://styled-system.com) extensively within
 [our design system](https://palette.artsy.net/). You can
-[poke around our source](https://github.com/artsy/reaction/blob/f3dabb884d616c5c42bbd47b1432dc2a9456b8ca/src/Apps/Search/Components/SearchResultsSkeleton/Header.tsx#L6)
+[poke around our source](https://github.com/artsy/reaction/blob/master/src/Components/NavBar/Menus/MoreNavMenu.tsx#L23-L26)
 to see how much we've embraced [`styled-system`](https://styled-system.com)'s responsive styles.
 
 There's one type of challenge with building a responsive app that [`styled-system`](https://styled-system.com)
