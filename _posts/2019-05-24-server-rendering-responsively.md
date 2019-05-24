@@ -49,13 +49,15 @@ While only a few of the properties in this example _are_ specifying an array of 
 breakpoints, all of those properties _can_ take an array for different breakpoints. As developers, we love this
 experience. We can apply subtle differences to components across breakpoints with very little code and effort.
 
-We use `styled-system` extensively within [our design system](https://palette.artsy.net/). You can
+We use [`styled-system`](https://styled-system.com) extensively within
+[our design system](https://palette.artsy.net/). You can
 [poke around our source](https://github.com/artsy/reaction/blob/f3dabb884d616c5c42bbd47b1432dc2a9456b8ca/src/Apps/Search/Components/SearchResultsSkeleton/Header.tsx#L6)
-to see how much we've embraced `styled-system`'s responsive styles.
+to see how much we've embraced [`styled-system`](https://styled-system.com)'s responsive styles.
 
-There's one type of challenge with building a responsive app that `styled-system` can't solve: when we need to emit
-different layouts across different breakpoints. In this case, we need something that can render very different
-component sub-trees. We couldn't find an approach that satisfied our needs, so we wrote our own.
+There's one type of challenge with building a responsive app that [`styled-system`](https://styled-system.com)
+can't solve: when we need to emit different layouts across different breakpoints. In this case, we need something
+that can render very different component sub-trees. We couldn't find an approach that satisfied our needs, so we
+wrote our own.
 
 ## Tool 2: [`@artsy/fresnel`](https://github.com/artsy/fresnel)
 
@@ -77,8 +79,8 @@ declaratively render component sub-trees when those breakpoints are met. It look
 
 In this example, we're emitting the `MobileLayout` component for devices at or below our `xs` breakpoint, and the
 `NonMobileLayout` for devices greater than our `xs` breakpoint. You can imagine that the `MobileLayout` and
-`NonMobileLayout` components contain complicated sub-trees, with more significant differences than `styled-system`
-could handle.
+`NonMobileLayout` components contain complicated sub-trees, with more significant differences than
+[`styled-system`](https://styled-system.com) could handle.
 
 ### How it works
 
@@ -146,9 +148,10 @@ detection as its primary method of handling SSR.
 ### Rely solely on CSS
 
 As mentioned before, we render all breakpoints from the server and hide the non-matching branches with CSS. The
-issue with this approach, when combined with React, is that after hydration you have many components that are
-mounted and rendered unnecessarily. There's a performance hit you take for rendering components your user isn't
-seeing, but even worse is the potential for duplicate side-effects.
+issue with this approach, when combined with React, is that after
+[hydration](https://reactjs.org/docs/react-dom.html#hydrate) you have many components that are mounted and rendered
+unnecessarily. There's a performance hit you take for rendering components your user isn't seeing, but even worse
+is the potential for duplicate side-effects.
 
 Imagine a component that, when rendered, emits a call to an analytics service. If this component exists in both a
 mobile and desktop branch, you're now double-stuffing your analytics. Hopefully your analytics service is smart
@@ -173,7 +176,8 @@ Responsive design is hard, especially when layouts change significantly between 
 rendering in React is hard to get right, period. Combining SSR with responsive design compounds the challenges.
 
 At the end of the day, you should do everything you can to limit layout differences between mobile and desktop. Use
-responsive props from `styled-system`. Play around with `flexbox` and `flex-direction` and start learning about CSS
-`grid`, and use CSS `@media` queries when you can. If you absolutely must render different views on different
-breakpoints, render all the UI and hide what's not needed for that breakpoint. You want your users to see the right
-content as quickly as possible. Send them HTML and CSS from your server that their client can use.
+responsive props from [`styled-system`](https://styled-system.com). Play around with `flexbox` and
+`flex-direction`, start learning about CSS `grid`, and use CSS `@media` queries when you can. If you absolutely
+must render different views on different breakpoints, render all the UI and hide what's not needed for that
+breakpoint. You want your users to see the right content as quickly as possible. Send them HTML and CSS from your
+server that their client can use.
