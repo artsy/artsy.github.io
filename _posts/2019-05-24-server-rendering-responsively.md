@@ -130,7 +130,7 @@ concerned with mobile users getting less content sent over their 3G connection.
 Those are our primary tools for combining SSR with responsive design! They work well for us. We considered many
 many other options along the way. Here are a couple:
 
-### Use [`react-media`](https://github.com/ReactTraining/react-media) or [`react-responsive`](https://github.com/contra/react-responsive)
+### [`react-media`](https://github.com/ReactTraining/react-media) or [`react-responsive`](https://github.com/contra/react-responsive)
 
 We investigated both [`react-media`](https://github.com/ReactTraining/react-media) and
 [`react-responsive`](https://github.com/contra/react-responsive), but found that they didn't approach the SSR side
