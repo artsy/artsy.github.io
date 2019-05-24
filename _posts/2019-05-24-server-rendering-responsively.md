@@ -59,10 +59,10 @@ component sub-trees. We couldn't find an approach that satisfied our needs, so w
 
 ## Tool 2: [`@artsy/fresnel`](https://github.com/artsy/fresnel)
 
-First off, an announcement: we've just released `@artsy/fresnel` version 1.0!
+First off, an announcement: we've just released [`@artsy/fresnel`](https://github.com/artsy/fresnel) version 1.0!
 
-`@artsy/fresnel` allows you to define a set of breakpoint widths, then declaratively render component sub-trees
-when those breakpoints are met. It looks something like this:
+[`@artsy/fresnel`](https://github.com/artsy/fresnel) allows you to define a set of breakpoint widths, then
+declaratively render component sub-trees when those breakpoints are met. It looks something like this:
 
 ```xml
 <>
@@ -82,16 +82,15 @@ could handle.
 
 ### How it works
 
-The first important thing to note is that when server-rendering with `@artsy/fresnel`, **all** breakpoints get
-rendered by the server. Each `Media` component is wrapped by plain CSS that will only show that breakpoint if it
-matches the user's current browser size. This means that the client can accurately start rendering the HTML/CSS
-_while_ it receives it, which is long before the React application has booted. This improves perceived performance
-for end-users.
+The first important thing to note is that when server-rendering with
+[`@artsy/fresnel`](https://github.com/artsy/fresnel), **all** breakpoints get rendered by the server. Each `Media`
+component is wrapped by plain CSS that will only show that breakpoint if it matches the user's current browser
+size. This means that the client can accurately start rendering the HTML/CSS _while_ it receives it, which is long
+before the React application has booted. This improves perceived performance for end-users.
 
-Why not just the breakpoint that the current device needs? A couple reasons. First, we can't _accurately_ identify
-which breakpoint your device needs on the server. We could use a library to sniff the browser `user-agent`, but
-those aren't always accurate, and they wouldn't give us all the information we need to know when we are
-server-rendering.
+Why not just the breakpoint that the current device needs? Because we can't _accurately_ identify which breakpoint
+your device needs on the server. We could use a library to sniff the browser `user-agent`, but those aren't always
+accurate, and they wouldn't give us all the information we need to know when we are server-rendering.
 
 If you're interested, you can
 [read the issue that originally inspired us to build `@artsy/fresnel`](https://github.com/artsy/reaction/issues/1367).
@@ -103,11 +102,11 @@ see decisions being made and libraries being built _as they happen_; not just af
 I mentioned above that it's difficult to accurately detect devices by user agent to identify which breakpoint to
 render. We didn't want this to be our primary strategy for combining SSR with responsive design.
 
-But with `@artsy/fresnel` as our primary approach, we felt that we could make some further optimizations with user
-agent detection. In the event that we don't know your device by its user agent, we'll still render all breakpoints
-on the server. But if we are certain you are on a device that only ever needs a subset of the breakpoints, we only
-render those on the server. This saves a bit of rendering time; more importantly it reduces the number of bytes
-sent over the wire.
+But with [`@artsy/fresnel`](https://github.com/artsy/fresnel) as our primary approach, we felt that we could make
+some further optimizations with user agent detection. In the event that we don't know your device by its user
+agent, we'll still render all breakpoints on the server. But if we are certain you are on a device that only ever
+needs a subset of the breakpoints, we only render those on the server. This saves a bit of rendering time; more
+importantly it reduces the number of bytes sent over the wire.
 
 We really wanted to not maintain our own list of user agents. Alas, we found that none of the existing user agent
 detection libraries surfaced all the information we needed in a single resource. We needed to know the minimum
@@ -132,15 +131,17 @@ many other options along the way. Here are a couple:
 
 ### Use [`react-media`](https://github.com/ReactTraining/react-media) or [`react-responsive`](https://github.com/contra/react-responsive)
 
-We investigated both `react-media` and `react-responsive`, but found that they didn't approach the SSR side of the
-problem as deeply as we needed.
+We investigated both [`react-media`](https://github.com/ReactTraining/react-media) and
+[`react-responsive`](https://github.com/contra/react-responsive), but found that they didn't approach the SSR side
+of the problem as deeply as we needed.
 
-We also weren't fans of the imperative API in `react-media`. We started with a similar API when building
-`@artsy/fresnel`, but learned that it limited our ability to render all breakpoints from the server. The API
-requires only one branch to be rendered, and this caused the aforementioned mismatches when the app would hydrate.
+We also weren't fans of the imperative API in [`react-media`](https://github.com/ReactTraining/react-media). We
+started with a similar API when building [`@artsy/fresnel`](https://github.com/artsy/fresnel), but found ourselves
+inhibited by the restriction that only one branch can be rendered. This contradicted our strategy of emitting all
+breakpoints from the server.
 
-With `react-responsive`, we didn't like that it relied on user agent detection as its primary method of handling
-SSR.
+With [`react-responsive`](https://github.com/contra/react-responsive), we didn't like that it relied on user agent
+detection as its primary method of handling SSR.
 
 ### Rely solely on CSS
 
@@ -153,8 +154,8 @@ Imagine a component that, when rendered, emits a call to an analytics service. I
 mobile and desktop branch, you're now double-stuffing your analytics. Hopefully your analytics service is smart
 enough to count only one call, but it's still a bad idea to duplicate components that have side-effects.
 
-`@artsy/fresnel` will only client-render the breakpoint that matches your browser dimensions, so you don't have to
-worry about duplicate side-effects.
+[`@artsy/fresnel`](https://github.com/artsy/fresnel) will only client-render the breakpoint that matches your
+browser dimensions, so you don't have to worry about duplicate side-effects.
 
 ## What's left to solve?
 
@@ -168,7 +169,7 @@ this yet, but SEO is a bit of a dark art, yeah?
 
 ## Our advice
 
-Responsive design is hard, especially when layouts change significantly between desktop and mobile. Server side
+Responsive design is hard, especially when layouts change significantly between desktop and mobile. Server-side
 rendering in React is hard to get right, period. Hydration errors are easy to introduce and can break your app in
 weird and unexpected ways. Adding responsiveness on top of that just makes it that much more complicated.
 
