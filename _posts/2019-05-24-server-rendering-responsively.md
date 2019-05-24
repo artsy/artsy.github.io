@@ -4,6 +4,7 @@ title: "Server-Rendering Responsively"
 date: "2019-05-24"
 author: [steve-hicks, eloy, chris, justin]
 categories: [react, html, web]
+comment_id: 577
 ---
 
 We use server-side rendering (SSR) to deliver every page you hit on [artsy.net](https://artsy.net). We decided on
