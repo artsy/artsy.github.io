@@ -170,10 +170,10 @@ this yet, but SEO is a bit of a dark art, yeah?
 ## Our advice
 
 Responsive design is hard, especially when layouts change significantly between desktop and mobile. Server-side
-rendering in React is hard to get right, period. Hydration errors are easy to introduce and can break your app in
-weird and unexpected ways. Adding responsiveness on top of that just makes it that much more complicated.
+rendering in React is hard to get right, period. Combining SSR with responsive design compounds the challenges.
 
-At the end of the day, do everything you can to limit layout differences between mobile and desktop. Use responsive
-props from `styled-system`. Play around with `flexbox` and `flex-direction` and start learning about CSS `grid`. If
-you absolutely must render different views on different breakpoints, render all the UI and hide what's not needed
-for that breakpoint. That's the best we can do given the current state of SSR hydration.
+At the end of the day, you should do everything you can to limit layout differences between mobile and desktop. Use
+responsive props from `styled-system`. Play around with `flexbox` and `flex-direction` and start learning about CSS
+`grid`, and use CSS `@media` queries when you can. If you absolutely must render different views on different
+breakpoints, render all the UI and hide what's not needed for that breakpoint. You want your users to see the right
+content as quickly as possible. Send them HTML and CSS from your server that their client can use.
