@@ -50,7 +50,7 @@ apply subtle differences to components across breakpoints with very little code 
 
 We use [`styled-system`](https://styled-system.com) extensively within
 [our design system](https://palette.artsy.net/). You can
-[poke around our source](https://github.com/artsy/reaction/blob/master/src/Components/NavBar/Menus/MoreNavMenu.tsx#L23-L26)
+[poke around our source](https://github.com/artsy/reaction/blob/32de03fe526355258655ded510d23335a456b9ce/src/Components/NavBar/Menus/MoreNavMenu.tsx#L23-L28)
 to see how much we've embraced [`styled-system`](https://styled-system.com)'s responsive styles.
 
 There's one type of challenge with building a responsive app that [`styled-system`](https://styled-system.com)
