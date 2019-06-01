@@ -121,7 +121,7 @@ let package = Package(
     let config = PackageConfig([
         "komondor": [
             // When someone has run `git commit`, first run
-            // run SwiftFormat and the auto-correcter for SwiftLint
+            // SwiftFormat and the auto-correcter for SwiftLint
             "pre-commit": [
                 "swift run swiftformat .",
                 "swift run swiftlint autocorrect --path Artsy/",
