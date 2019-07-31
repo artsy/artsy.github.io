@@ -14,7 +14,9 @@ avoid_exact_words = [
 ]
 
 active_files = (git.modified_files + git.added_files).uniq
-markdowns = active_files.select { |file| file.start_with? '_posts/' }
+markdowns = active_files
+  .select { |file| file.start_with? '_posts/' }
+  .select { |file| file.end_with?('.md', '.markdown') }
 
 # This could do with some code golfing sometime
 markdowns.each do |filename|
