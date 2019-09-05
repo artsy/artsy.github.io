@@ -87,8 +87,25 @@ Or migrating an existing Artsy app to k8s? Joey just mentioned Gemini
 
 # What's next for Hokusai?
 
+As Hokusai has grown and changed over the years (the GH repo was created in November 2016!), a few things have
+changed.
+
+For one, it's been increasingly used in coordination with CircleCI. Hokusai has made it really easy to standardize
+a lot of application configuration across Artsy's applications.
+
 # Appendix A: Useful Hokusai commands
 
-List out a bunch of commands that we use on a regular basis and break down what's happening in them
+These are the commands I find myself using on a regular basis. If you're playing around with Hokusai, you can also
+run most commands with `--help` to get more information on their usage.
 
-`hokusai production env get` `hokusai production env set`
+- `hokusai [production|staging] env get`: Print all of the environment variables from your application's pod
+- `hokusai [production|staging] env set "ENV=value"`: Set an environment variable on your application's pod
+- `hokusai [production|staging] run 'bundle exec rails c' --tty`: Open a Rails console for your app (I have this
+  one aliased to `hokusai-[production|staging]-console`)
+- `hokusai [production|staging] refresh`: Refresh the application's deployment by recreating its containers
+- `hokusai build`: Build your application's Docker image as defined in a `hokusai/build.yml` file
+- `hokusai test`: Boot a test environment and run a test suite as defined in `hokusai/test.yml`
+- `hokusai pipeline gitcompare --org-name [org]`: Spits out a URL for a git comparison between production and
+  staging images
+- `hokusai pipeline gitlog`: Print a git log for commits between the image deployed on production and the image on
+  staging. Handy if you need to get the SHA of a staged commit quickly, e.g. for rollback purposes (?)
