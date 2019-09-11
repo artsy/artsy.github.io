@@ -110,6 +110,6 @@ This plan worked for us, for the most part. We ended up having to rollback the d
 ## Our learnings
 - Don't be afraid of refactors. They are natural and a healthy engineering tool / practice.
 - Ensure that refactor PR's only include refactor-related changes. It's often tempting to fix other things along the way, but those fixes can take place in follow-up PRs.
-- Don't only rely on existing tests. Refactoring is great opportunity to review and verify your tests. Verify them and make sure they cover all scenarios.
+- Don't only rely only on existing tests. Refactoring is great opportunity to review and verify your tests. Verify them and make sure they cover all scenarios.
 
 Curious about the PR? At Artsy we believe in Open Source By Default, so check out the code [here](https://github.com/artsy/exchange/pull/475/files).
