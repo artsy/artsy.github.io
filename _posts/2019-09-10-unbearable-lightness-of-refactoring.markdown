@@ -10,15 +10,15 @@ comment_id: 522
 As engineers we are constantly in the process of building new features and improving our existing ones. Nowadays, with the help of tools and processes like code reviews one could argue the quality of the code being written has risen. At Artsy a pull request normally has one Assignee and possibly one or more Reviewers, so why we still do lot of refactoring?
 
 > There is no means of testing which decision is better, because there is no basis for comparison. We live everything as it comes, without warning, like an actor going on cold. And what can life be worth if the first rehearsal for life is life itself?
-
-― Milan Kundera, [The Unbearable Lightness of Being](https://en.wikipedia.org/wiki/The_Unbearable_Lightness_of_Being)
+>
+>― Milan Kundera, [The Unbearable Lightness of Being](https://en.wikipedia.org/wiki/The_Unbearable_Lightness_of_Being)
 
 Part of me wants to end this blogpost by Kundra’s quote, but for now lets get deeper.
 
 <!-- more -->
 
 ## "The Refactor"
-Recently we've started adding [SCA (Strong Customer Authentication)](https://stripe.com/docs/strong-customer-authentication) support to one of our services. This service is relatively young in our stack and very well reviewed. While the original code and approach looked nice and simple, as this service naturally grew and we started adding more logic to it, things got more and more complicated. During SCA support efforts, we realized its time to refactor. The code I was trying to refactor was less than a year old and originally written, well... by me!
+Recently we've started adding [SCA (Strong Customer Authentication)](https://stripe.com/docs/strong-customer-authentication) support to one of our services. This service is relatively young in our stack and very well reviewed. While the original code and approach looked nice and simple, as this service naturally grew and we started adding more logic to it, things got more and more complicated. During SCA support efforts, we realized its time to refactor. The code I was trying to refactor was less than a year old and [originally written, well... by me](https://twitter.com/davidwalshblog/status/953663412013293569)!
 
 Should I be worried? Embarrassed? Well, not really. As engineers, when we build things we tend to look at current state of affairs, and we attempt to predict the future as much as possible. But the future is always changing, moving. SCA feature we were about to add to our existing logic weren't a requirement a year ago (a year ago I didn't know what SCA was). So first thing, **never be embarrassed about refactoring**, because the thing you're working on is often entirely unknown and you can't expect to get something unknown totally right the first time around. Looked at it in this light, refactoring is healthy.
 
@@ -112,4 +112,4 @@ This plan worked for us, for the most part. We ended up having to rollback the d
 - Ensure that refactor PR's only include refactor-related changes. It's often tempting to fix other things along the way, but those fixes can take place in follow-up PRs.
 - Don't only rely only on existing tests. Refactoring is great opportunity to review and verify your tests. Verify them and make sure they cover all scenarios.
 
-Curious about the PR? At Artsy we believe in Open Source By Default, so check out the code [here](https://github.com/artsy/exchange/pull/475/files).
+Curious about the PR? At Artsy we believe in [Open Source By Default](https://github.com/artsy/README/blob/master/culture/engineering-principles.md#open-source-by-default), so check out the code [here](https://github.com/artsy/exchange/pull/475/files).
