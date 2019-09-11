@@ -22,9 +22,12 @@ Recently we've started adding SCA (Strong Customer Authentication) support to on
 
 Should I be worried? embarrassed? Well, not really. As engineers when we build things we tend to look at current state of affairs, we attempt to predict the future as much as possible but the future is always changing, moving. SCA feature we were about to add to our existing logic wasn't a requirement a year ago (a year ago I didn't know what SCA was). So first thing, never be embarrassed about refactoring, because the thing you're working on is often entirely unknown and you can't expect to get something unknown totally right the first time around. Looked at in this light refactoring is healthy.
 
-Back to our SCA change, we ended up having some discussions about how to improve our already complicated logic in a way that easily supports future updates. We started by trying to separate the different steps that an order has to go through to fully get submitted and try to simplify it, weighing the pros and cons of each approach. While pretty much all of our solutions would have some cons, we managed to find our best option and started refactoring. We basically went from:
+### Lets Get More Specific
+
+Back to our SCA change, we ended up having some discussions about how to improve our already complicated logic in a way that easily supports future updates. We started by trying to separate the different steps that an order has to go through to fully get submitted and try to simplify it, weighing the pros and cons of each approach. While pretty much all of our solutions would have some cons, we managed to find our best option and started refactoring. Without getting too technical, lets look at the actual change.
 
 ```ruby
+## before refactor
 order.submit! do
   order.line_items.each { |li| li.update!(commission_fee_cents: li.current_commission_fee_cents) }
   totals = BuyOrderTotals.new(order)
@@ -53,7 +56,15 @@ order.submit! do
 end
 ```
 
-to
+In original solution we wrapped all of our changes in a database transaction within `order.submit!` which would have done a lock on that record. This was all good since we would ensure data integrity provided by transaction where we want to make sure updates to `order` and `line_items` happen only in case of success. A failure in this block would rollback all changes which is good 👍
+
+But things got complicated once we started have situation that some of the changes during the block should have been preserved even in case of rollback. Specifically we want to make sure a `transaction` is stored on the `order` if it failed payment or requires action.
+We found out that we can use `raise ActiveRecord::Rollback` which is a specific exception in Rails that only bubbles up in the surrounding transaction and does not get thrown outside of the block. This already makes things super complicated.
+
+In order to make our code less complicated, we did few things:
+
+* We delegated more responsibility to `OrderProcessor`
+* Instead of wrapping all code in one transaction, we now optimistically `submit` the order at the beginning and in case anything went wrong, we revert the changes.
 
 ```ruby
 order_processor = OrderProcessor.new(order, user_id)
@@ -80,6 +91,9 @@ end
 order_processor.on_success
 ```
 Well, this at least is lot more readable.
+
+
+### Get The Change to Production
 
 Next question is how to get this to production. We tried to isolate this specific refactoring by:
 
