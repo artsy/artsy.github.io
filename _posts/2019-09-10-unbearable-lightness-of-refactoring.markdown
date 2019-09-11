@@ -58,7 +58,7 @@ end
 
 In the original solution, we wrapped all of our changes in a database transaction within `order.submit!` to have done a lock on that record. This was all good since we would ensure data integrity provided by, transaction where we want to make sure updates to `order` and `line_items` happen only in case of success. A failure in this block would rollback all changes which is good 👍
 
-But things got complicated once we started have situation that some of the changes during the block should have been preserved even in case of rollback. Specifically we want to make sure a `transaction` is stored on the `order` if it failed payment or requires action.
+But things got complicated once some of the changes in the block _should_ have been preserved, even in case of rollback. Specifically we want to make sure a `transaction` is stored on the `order` if it payment fails or requires action.
 We found out that we can use `raise ActiveRecord::Rollback` which is a specific exception in Rails that only bubbles up in the surrounding transaction and does not get thrown outside of the block. This already makes things super complicated.
 
 In order to make our code less complicated, we did few things:
