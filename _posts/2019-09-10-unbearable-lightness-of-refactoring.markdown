@@ -24,7 +24,7 @@ Should I be worried? Embarrassed? Well, not really. As engineers, when we build 
 
 ### Lets Get More Specific
 
-Back to our SCA change, we ended up having some discussions about how to improve our already complicated logic in a way that easily supports future updates. We started by trying to separate the different steps that an order has to go through to fully get submitted and try to simplify it, weighing the pros and cons of each approach. While pretty much all of our solutions would have some cons, we managed to find our best option and started refactoring. Without getting too technical, lets look at the actual change.
+Back to our SCA change, we ended up having some discussions about how to improve our already complicated logic in a way that easily supports future updates. We started by trying to separate the different steps that an order has to go through to fully get submitted and try to simplify it, weighing the pros and cons of each approach. While pretty much all of our solutions would have some disadvantages, we managed to find our best option and started refactoring. Without getting too technical, lets look at the actual change.
 
 ```ruby
 ## before refactor
