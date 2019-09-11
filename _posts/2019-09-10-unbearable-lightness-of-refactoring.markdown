@@ -7,7 +7,7 @@ categories: [refactoring, community, culture]
 comment_id: 522
 ---
 
-As engineers we are constantly in the process of building new features and improve our existing ones. Nowadays, with the help of tools and processes like code reviews one could argue the quality of the codes being written has risen. At Artsy a pull request normally has one Assignee and possibly one or more Reviewers, so why we still do lot of refactoring?
+As engineers we are constantly in the process of building new features and improving our existing ones. Nowadays, with the help of tools and processes like code reviews one could argue the quality of the code being written has risen. At Artsy a pull request normally has one Assignee and possibly one or more Reviewers, so why we still do lot of refactoring?
 
 > There is no means of testing which decision is better, because there is no basis for comparison. We live everything as it comes, without warning, like an actor going on cold. And what can life be worth if the first rehearsal for life is life itself?
 
