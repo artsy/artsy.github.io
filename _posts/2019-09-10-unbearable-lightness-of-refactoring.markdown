@@ -7,18 +7,18 @@ categories: [refactoring, community, culture]
 comment_id: 588
 ---
 
-As engineers we are constantly in the process of building new features and improving our existing ones. Nowadays, with the help of tools and processes like code reviews one could argue the quality of the code being written has risen. At Artsy a pull request normally has one Assignee and possibly one or more Reviewers, so why we still do lot of refactoring?
+As engineers we are constantly in the process of building new features and improving our existing ones. Nowadays, with the help of tools and processes like code reviews one could argue the quality of the code being written has risen. At Artsy a pull request normally has one Assignee and possibly one or more Reviewers, so why do we still do a lot of refactoring?
 
 > There is no means of testing which decision is better, because there is no basis for comparison. We live everything as it comes, without warning, like an actor going on cold. And what can life be worth if the first rehearsal for life is life itself?
 >
 >― Milan Kundera, [The Unbearable Lightness of Being](https://en.wikipedia.org/wiki/The_Unbearable_Lightness_of_Being)
 
-Part of me wants to end this blogpost by Kundra’s quote, but for now lets get deeper.
+Part of me wants to end this blogpost by Kundra’s quote, but for now let's get deeper.
 
 <!-- more -->
 
 ## "The Refactor"
-Recently we've started adding [SCA (Strong Customer Authentication)](https://stripe.com/docs/strong-customer-authentication) support to one of our services. This service is relatively young in our stack and very well reviewed. While the original code and approach looked nice and simple, as this service naturally grew and we started adding more logic to it, things got more and more complicated. During SCA support efforts, we realized its time to refactor. The code I was trying to refactor was less than a year old and [originally written, well... by me](https://twitter.com/davidwalshblog/status/953663412013293569)!
+Recently we've started adding [Strong Customer Authentication (SCA)](https://stripe.com/docs/strong-customer-authentication) support to one of our services. This service is relatively young in our stack and very well-reviewed. While the original code and approach looked nice and simple, as this service naturally grew and we started adding more logic to it, things got more and more complicated. During SCA support efforts, we realized it's time to refactor. The code I was trying to refactor was less than a year old and [originally written, well... by me](https://twitter.com/davidwalshblog/status/953663412013293569)!
 
 Should I be worried? Embarrassed? Well, not really. As engineers, when we build things we tend to look at current state of affairs, and we attempt to predict the future as much as possible. But the future is always changing, moving. SCA feature we were about to add to our existing logic weren't a requirement a year ago (a year ago I didn't know what SCA was). So first thing, **never be embarrassed about refactoring**, because the thing you're working on is often entirely unknown and you can't expect to get something unknown totally right the first time around. Looked at it in this light, refactoring is healthy.
 
@@ -56,14 +56,14 @@ order.submit! do
 end
 ```
 
-In the original solution, we wrapped all of our changes in a database transaction within `order.submit!` to have done a lock on that record. This was all good since we would ensure data integrity provided by, transaction where we want to make sure updates to `order` and `line_items` happen only in case of success. A failure in this block would rollback all changes which is good 👍
+In the original solution, we wrapped all of our changes in a database transaction within `order.submit!` to have a lock on that record. This was all good since we would ensure data integrity provided by database transaction. This way we ensure updates to `order` and `line_items` happen only in case of success. A failure in this block would rollback all changes which is good 👍
 
 But things got complicated once some of the changes in the block _should_ have been preserved, even in case of rollback. Specifically we want to make sure a `transaction` is stored on the `order` if it payment fails or requires action.
 We found out that we can use `raise ActiveRecord::Rollback` which is a specific exception in Rails that only bubbles up in the surrounding transaction and does not get thrown outside of the block. This already makes things super complicated.
 
-In order to make our code less complicated, we did few things:
+In order to make our code less complicated, we did a few things:
 
-* We delegated more responsibility to `OrderProcessor`
+* We delegated more responsibility to a service class,`OrderProcessor`.
 * Instead of wrapping all code in one transaction, we now optimistically `submit` the order at the beginning and in case anything went wrong, we revert the changes.
 
 ```ruby
@@ -90,12 +90,12 @@ elsif order_processor.requires_action?
 end
 order_processor.on_success
 ```
-Well, this at least is lot more readable.
+Well, this at least is a lot more readable.
 
 
 ### Get The Change to Production
 
-Next question is how to get this to production. We tried to isolate this specific refactoring by:
+The next question is how to get this to production. We tried to isolate this specific refactoring by:
 
 * Open a PR that only focuses on our refactoring
 * Make sure in the PR above we don't touch any API level tests and make sure all these tests still pass. This would give us more confidence that we are not impacting our existing clients.
@@ -110,6 +110,6 @@ This plan worked for us, for the most part. We ended up having to rollback the d
 ## Our learnings
 - Don't be afraid of refactors. They are natural and a healthy engineering tool / practice.
 - Ensure that refactor PR's only include refactor-related changes. It's often tempting to fix other things along the way, but those fixes can take place in follow-up PRs.
-- Don't only rely only on existing tests. Refactoring is great opportunity to review and verify your tests. Verify them and make sure they cover all scenarios.
+- Don't rely only on existing tests. Refactoring is a great opportunity to review and verify your tests. Verify them and make sure they cover all scenarios.
 
 Curious about the PR? At Artsy we believe in [Open Source By Default](https://github.com/artsy/README/blob/master/culture/engineering-principles.md#open-source-by-default), so check out the code [here](https://github.com/artsy/exchange/pull/475/files).
