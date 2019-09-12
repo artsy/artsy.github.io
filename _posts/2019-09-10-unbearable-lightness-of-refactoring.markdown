@@ -4,7 +4,7 @@ title: "Unbearable Lightness of Refactoring"
 date: "2019-09-10"
 author: [ashkan]
 categories: [refactoring, community, culture]
-comment_id: 522
+comment_id: 588
 ---
 
 As engineers we are constantly in the process of building new features and improving our existing ones. Nowadays, with the help of tools and processes like code reviews one could argue the quality of the code being written has risen. At Artsy a pull request normally has one Assignee and possibly one or more Reviewers, so why we still do lot of refactoring?
