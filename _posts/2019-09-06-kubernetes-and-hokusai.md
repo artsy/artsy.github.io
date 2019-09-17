@@ -107,6 +107,10 @@ There's more robust directions
 version is that `hokusai setup` to handle most of the basics (creation of a Dockerfile, a config folder, and a few
 other bits and bobs). From there, you can customize according to the needs of your project.
 
+You should also check out Ash's [great post](https://artsy.github.io/blog/2018/01/24/kubernetes-and-hokusai/) on
+setting up a new Hokusai project - he runs through the process of setting up a new Rails application with Hokusai
+in an easy-to-follow way that also details small hitches he ran into along the way.
+
 # What's next for Hokusai?
 
 As Hokusai has grown and changed over the years (the GH repo was created in November 2016!), a few things have
