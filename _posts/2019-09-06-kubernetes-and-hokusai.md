@@ -55,17 +55,21 @@ patters, maintain a zero-downtime deployment, and more. Very cool.
 
 # What is Hokusai?
 
-When Artsy's Engineering team was contemplating a move to Kubernetes from Heroku, they had beef with a few things
-(I'll refer to the team as "they" when discussing the past since I wasn't actually part of the team yet).
+When Artsy's Engineering team was contemplating a move to Kubernetes from Heroku, we had beef with a few things.
 
-For one, they wanted to be able to do a few core things simply and easily using the command line. While Kubernetes
+For one, we wanted to be able to do a few core things simply and easily using the command line. While Kubernetes
 has robust CLI tooling using [kubectl](https://kubernetes.io/docs/reference/kubectl/overview/), it's also very
-complex. They wanted to be able to quickly and easily do the things they were used to doing with Heroku; they
-preferred `heroku logs` to `kubectl logs [POD]` (where they would have to either look up or know the specific pod
-name they wanted, even though pods are being spun up and taken down all the time).
+complex. We wanted to be able to quickly and easily do the things we were used to doing with Heroku; we preferred
+`heroku logs` to `kubectl logs [POD]` (where we would have to either look up or know the specific pod name we
+wanted, even though pods are being spun up and taken down all the time).
 
-Basically, they wanted their commands to be application-level instead of pod- or node-level. They wanted a little
-more abstraction.
+[Helm](https://helm.sh), the de-facto package manager for Kubernetes, also didn't quite fit our needs. Helm is
+great for big, complex implementations with Kubernetes, and it's very useful for managing releases. Artsy
+Engineering wanted something that didn't involve quite as many complex charts, and we're not as concerned as some
+orgs with versioned releases since our focus is mostly on web apps.
+
+Basically, we wanted our commands to be application-level instead of pod- or node-level. We wanted a little more
+abstraction than was offered by `kubectl`, and a little less than Helm.
 
 And there was the issue of review apps. Review apps are basically standalone versions of an application that fall
 completely outside a normal production pipeline. They allow you to test big or scary changes in functionality
@@ -76,14 +80,32 @@ Kubernetes doesn't support review apps out of the box. There are some add-ons th
 Artsy was looking to switch, I don't think they existed or were widespread.
 
 Thus was born Hokusai: a tool that makes interacting with applications deployed on Kubernetes from the command line
-simple.
+simple. Need logs? `hokusai production logs`. Or a review app? There are a
+[few steps involved](https://github.com/artsy/hokusai/blob/master/docs/Review_Apps.md), but you can have a
+fully-featured copy of your app up and running in a few minutes.
+
+The end of this post has a larger cheatsheet for handy Hokusai commands, but for now, let's talk about how you can
+use it yourself.
 
 # How can I set up Hokusai with my project?
 
-Could I set up a whole new k8s cluster and Hokusai with it? Would be super cool, but I feel like it might cost
-money
+I should begin by noting that Hokusai is currently only meant to work with AWS - if your application is running on
+a different provider, you might have to hold off on Hokusai for now :( (or
+[open a PR in Hokusai](https://github.com/artsy/hokusai) yourself!)
 
-Or migrating an existing Artsy app to k8s? Joey just mentioned Gemini
+Installing hokusai is super easy! You can see full instructions in the README on
+[GitHub](https://github.com/artsy/hokusai), but if you're already set up with Python, pip, Docker, Docker Compose,
+and Git, you can do a quick install with Homebrew:
+
+```
+$ brew tap artsy/formulas
+$ brew install hokusai
+```
+
+There's more robust directions
+[in the Hokusai repo](https://github.com/artsy/hokusai/blob/master/docs/Getting_Started.md), but the very short
+version is that `hokusai setup` to handle most of the basics (creation of a Dockerfile, a config folder, and a few
+other bits and bobs). From there, you can customize according to the needs of your project.
 
 # What's next for Hokusai?
 
@@ -91,7 +113,18 @@ As Hokusai has grown and changed over the years (the GH repo was created in Nove
 changed.
 
 For one, it's been increasingly used in coordination with CircleCI. Hokusai has made it really easy to standardize
-a lot of application configuration across Artsy's applications.
+a lot of application configuration across Artsy's applications. We have
+[CircleCI orbs](https://github.com/artsy/orbs/blob/master/src/hokusai) set up for Hokusai specifically, which allow
+us to maintain one copy of our Hokusai config across multiple applications utilizing CircleCI. Given how helpful
+it's been to have a single source of CircleCI config for many of our apps, we're pondering the idea of a central
+source for Kubernetes Hokusai config. In other words, we'd like to have a "baseline" for things like deployments -
+something that could be overriden as necessary in specific projects but would make spinning up new projects easy.
+And it would hopefully make it easy to update deployment strategies for many apps at the same time...we'll see
+where we land.
+
+Interested in contributing? Hokusai is
+[open source](https://artsy.github.io/blog/2019/04/29/how-did-artsy-become-oss-by-default/) and we'd love to hear
+from you!
 
 # Appendix A: Useful Hokusai commands
 
