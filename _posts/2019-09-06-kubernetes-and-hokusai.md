@@ -19,10 +19,7 @@ functionality, and some pointers for how to get started using it.
 
 # What is Kubernetes?
 
-If you already have a good idea of what Kubernetes is and how it works, feel free to skip this section. Since I
-still find Kubernetes pretty confusing, I thought I'd start by breaking down the basics.
-
-Kubernetes is a tool designed to _orchestrate containers at scale._
+On a high level, Kubernetes is a tool designed to _orchestrate containers at scale._
 
 Let's break that down a bit. First, some helpful vocab:
 
@@ -36,7 +33,8 @@ per pod is the most common use case.
 
 **Node**: A physical or virtual machine that runs a pod or pods.
 
-**Cluster**: A node or nodes managed by a "master" machine.
+**Cluster**: A node or nodes managed by a "master" machine (which could be a physical computer or a virtual
+machine - it's one node within the cluster).
 
 **Container orchestration**: A systemized approach to managing containers. Allows for things like auto-scaling,
 easy rollouts and rollbacks, and automation of container downtime (i.e. something goes wrong with a machine and
@@ -49,9 +47,9 @@ Sources: [Kubernetes docs](https://kubernetes.io/docs/concepts/overview/what-is-
 To sum up the general structure: a Kubernetes cluster contains nodes which contain pods which contain containers.
 Not at all confusing, right?
 
-Kubernetes, in a general sense, allows you to configure the containers in which your application will run. If
-everything goes as expected, this makes it easy to scale applications up or down as needed to deal with traffic
-patters, maintain a zero-downtime deployment, and more. Very cool.
+Kubernetes, in a general sense, allows you to configure the containers in which your application will run. With a
+properly configured Kubernetes cluster, this makes it easy to scale applications up or down as needed to deal with
+traffic patters, maintain a zero-downtime deployment, and more. Very cool.
 
 # What is Hokusai?
 
