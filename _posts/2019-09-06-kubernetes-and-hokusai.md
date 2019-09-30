@@ -9,11 +9,11 @@ categories: [artsy, beginners, engineering, hokusai, kubernetes, k8s]
 When I joined Artsy Engineering a few months ago, I had roughly 0 knowledge of Kubernetes. I'd heard the term
 thrown around a few times, but had no idea how it worked or what it was good for.
 
-Artsy also has a super cool wrapper that we use to emulate a lot of Heroku CLI functionality for Kubernetes (and to
-do some other awesome stuff, read on for deets). It's fully open-source, and you should think about adopting it if
-you or your company uses Kubernetes.
+Kubernetes is still a bit of a mystery to me, but I'm able to do a lot of Kubernetes operations quickly and easily
+thanks to an open-source tool developed at Artsy: [Hokusai](https://github.com/artsy/hokusai).
 
-Read on for the full scoop.
+In this post, I'll give some background on Kubernetes, a brief history of Hokusai and a description of its
+functionality, and some pointers for how to get started using it.
 
 <!-- more -->
 
