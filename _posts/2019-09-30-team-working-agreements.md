@@ -41,9 +41,13 @@ Is there a way to tie this to our engineering core values?
 
 ### Steps
 
-Link to github docs
+Describe it in a few sentences:
 
-Describe it in a few sentences
+1. Teach team about team working agreements
+2. Conduct a brainstorming meeting
+  - https://github.com/artsy/README/blob/master/playbooks/agile/team-working-agreement.md#procedure
+3. Distill and translate brainstorming ideas into slogan-like habits
+4. Vote on the top 5 habits
 
 ## Benefits
 
