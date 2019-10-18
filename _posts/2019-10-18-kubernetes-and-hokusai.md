@@ -1,7 +1,7 @@
 ---
 layout: epic
 title: "Kubernetes and Hokusai"
-date: "2019-09-06"
+date: "2019-10-18"
 author: [matt-dole]
 categories: [artsy, beginners, engineering, hokusai, kubernetes, k8s]
 ---
@@ -12,8 +12,8 @@ thrown around a few times, but had no idea how it worked or what it was used for
 Kubernetes is still a bit of a mystery to me, but I'm able to do a lot of Kubernetes operations quickly and easily
 thanks to an open-source tool developed at Artsy: [Hokusai](https://github.com/artsy/hokusai).
 
-In this post, I'll give some background on Kubernetes, a brief history of Hokusai, a description of its
-functionality, and some pointers for how to get started using it.
+In this post, I'll give some background on [Kubernetes](https://kubernetes.io), a brief history of Hokusai, a
+description of its functionality, and some pointers for how to get started using it.
 
 <!-- more -->
 
@@ -28,8 +28,9 @@ Let's break that down a bit. First, some helpful vocab:
 
 **Pods**: A group of one or more containers. One container per pod is the most common use case.
 
-**Deployment**: A Kubernetes component that provides declarative updates to pods and manages their lifecycles (i.e.
-creating new pods when new code is rolled out, rolling back to an earlier state, scaling up to more pods, etc.).
+**Deployment**: A Kubernetes component (read: program) that provides declarative updates to pods and manages their
+lifecycles (i.e. creating new pods when new code is rolled out, rolling back to an earlier state, scaling up to
+more pods, etc.).
 
 **Node**: A physical or virtual machine that runs a pod or pods.
 
@@ -41,15 +42,16 @@ causes your app to crash; a new container gets spun up immediately so that your 
 
 Sources: [Kubernetes docs](https://kubernetes.io/docs/concepts/overview/what-is-kubernetes/),
 [Infoworld](https://www.infoworld.com/article/3268073/what-is-kubernetes-your-next-application-platform.html),
-[Docker](https://www.docker.com/resources/what-container)
+[Docker docs](https://www.docker.com/resources/what-container)
 
 Kubernetes, in a general sense, allows you to configure the containers in which your application will run. With a
 properly configured Kubernetes cluster, this makes it easy to scale applications up or down as needed to deal with
 traffic patters, maintain a zero-downtime deployment, and more. Very cool.
 
-To sum up the structure of applications running on Kubernetes: clusters contain nodes which contain pods which
-contain containers. This can be tricky to wrap your head around without experimentation and personal experience -
-Hokusai aims to simplify the ways in which a developer can interact with applications running on Kubernetes.
+To sum up the structure of applications running on Kubernetes: clusters contain nodes which contain pods (which are
+managed by deployments) which contain containers. This can be tricky to wrap your head around without
+experimentation and personal experience—Hokusai aims to simplify the ways in which a developer can interact with
+applications running on Kubernetes.
 
 # What is Hokusai?
 
@@ -88,7 +90,7 @@ use it yourself.
 
 # How can I set up Hokusai with my project?
 
-I should begin by noting that Hokusai is developed to work with AWS - if your application is running on a different
+I should begin by noting that Hokusai is developed to work with AWS—if your application is running on a different
 provider, you might have to hold off on Hokusai for now :( (or
 [open a PR in Hokusai](https://github.com/artsy/hokusai) yourself!) We do aim to support more clouds in the future,
 and Hokusai mostly interacts directly with Kubernetes or Docker APIs.
@@ -106,12 +108,12 @@ There's more robust directions
 [in the Hokusai repo](https://github.com/artsy/hokusai/blob/master/docs/Getting_Started.md), but the very short
 version is that `hokusai setup` handles most of the basics (creation of a Dockerfile, a config folder, and a few
 other bits and bobs). From there, you can customize according to the needs of your project. It's also possible to
-write boilerplate templates to share with developers in your organization - you can see Artsy's
+write boilerplate templates to share with developers in your organization—you can see Artsy's
 [here](https://github.com/artsy/artsy-hokusai-templates).
 
 You should also check out Ash's [great post](https://artsy.github.io/blog/2018/01/24/kubernetes-and-hokusai/) on
-setting up a new Hokusai project - he runs through the process of setting up a new Rails application with Hokusai
-in an easy-to-follow way that also details small hitches he ran into along the way.
+setting up a new Hokusai project—he runs through the process of setting up a new Rails application with Hokusai in
+an easy-to-follow way that also details small hitches he ran into along the way.
 
 # What's next for Hokusai?
 
@@ -123,17 +125,26 @@ a lot of application configuration across Artsy's applications. We have
 [CircleCI orbs](https://github.com/artsy/orbs/blob/master/src/hokusai) set up for Hokusai specifically, which
 standardize the way Hokusai is invoked in our CI, among other things. Given how helpful it's been to have a single
 source of CircleCI config for many of our apps, we're pondering the idea of a central source for Kubernetes Hokusai
-config. In other words, we'd like to have a "baseline" for things like deployments - something that could be
+config. In other words, we'd like to have a "baseline" for things like deployments—something that could be
 overriden as necessary in specific projects but would make spinning up new projects easy. This would effectively
 allow Hokusai to support functionality similar to Helm's [templates](https://helm.sh/docs/chart_template_guide/),
 but in a way that can be consumed across project repos.
 
-We've found Hokusai useful in transitioning our engineering team to working with Kubernetes, while easing the
-learning curve of working with it directly. If you or your organization are going through similar growing pains, we
-suggest giving it a try! Our issues are open for bug reports and feature requests, and we certainly welcome PRs
-with improvements.
+# Hokusai and beyond
 
-# Appendix A: Useful Hokusai commands
+Personally, Hokusai has been very useful to me as a kind of "training wheels" for Kubernetes. To be able to quickly
+and easily start interacting with Kubernetes, even as a complete Kubernetes noob, was very empowering and helped me
+be less intimidated by it. As I've spent more time interacting with Hokusai, I've started to understand what's
+going on behind the scenes, and I've found myself poking around in the Kubernetes docs more than once. I'm excited
+to keep learning more about Kubernetes and to start contributing to Hokusai!
+
+Hokusai significantly lowers the barriers to interacting with Kubernetes apps and centralizes the complexity
+inherent in doing so. It's been invaluable in transitioning our engineering team to working with Kubernetes. If you
+or your organization are in the midst of a similar transition—or if you have a sharp divide in Kubernetes knowledge
+and comfort within your team—we suggest giving it a try! Our issues are open for bug reports and feature requests,
+and we certainly welcome PRs with improvements.
+
+## Appendix A: Useful Hokusai commands
 
 These are the commands I find myself using on a regular basis. If you're playing around with Hokusai, you can also
 run most commands with `--help` to get more information on their usage.
