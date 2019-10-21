@@ -5,9 +5,197 @@
     <description></description>
     <link>http://artsy.github.io/</link>
     <atom:link href="http://artsy.github.io/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Thu, 12 Sep 2019 19:27:48 +0000</pubDate>
-    <lastBuildDate>Thu, 12 Sep 2019 19:27:48 +0000</lastBuildDate>
+    <pubDate>Mon, 21 Oct 2019 14:45:55 +0000</pubDate>
+    <lastBuildDate>Mon, 21 Oct 2019 14:45:55 +0000</lastBuildDate>
     <generator>Jekyll v2.5.3</generator>
+    
+      <item>
+        <title>Kubernetes and Hokusai</title>
+        <description>&lt;p&gt;When I joined Artsy Engineering a few months ago, I had roughly zero knowledge of Kubernetes. I&#39;d heard the term
+thrown around a few times, but had no idea how it worked or what it was used for.&lt;/p&gt;
+
+&lt;p&gt;Kubernetes is still a bit of a mystery to me, but I&#39;m able to do a lot of Kubernetes operations quickly and easily
+thanks to an open-source tool developed at Artsy: &lt;a href=&quot;https://github.com/artsy/hokusai&quot;&gt;Hokusai&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;In this post, I&#39;ll give some background on &lt;a href=&quot;https://kubernetes.io&quot;&gt;Kubernetes&lt;/a&gt;, a brief history of Hokusai, a
+description of its functionality, and some pointers for how to get started using it.&lt;/p&gt;
+
+&lt;!-- more --&gt;
+
+
+&lt;a name=&quot;What.is.Kubernetes.&quot;&gt;&lt;/a&gt;
+&lt;h1&gt;What is Kubernetes?&lt;/h1&gt;
+
+&lt;p&gt;On a high level, Kubernetes is a tool designed to &lt;em&gt;orchestrate containers at scale.&lt;/em&gt;&lt;/p&gt;
+
+&lt;p&gt;Let&#39;s break that down a bit. First, some helpful vocab:&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Container&lt;/strong&gt;: Effectively code + all necessary dependencies for an application. A
+&lt;a href=&quot;https://www.docker.com/resources/what-container&quot;&gt;&quot;standardized unit of software&quot;&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Pods&lt;/strong&gt;: A group of one or more containers. One container per pod is the most common use case.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Deployment&lt;/strong&gt;: A Kubernetes component (read: program) that provides declarative updates to pods and manages their
+lifecycles (i.e. creating new pods when new code is rolled out, rolling back to an earlier state, scaling up to
+more pods, etc.).&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Node&lt;/strong&gt;: A physical or virtual machine that runs a pod or pods.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Cluster&lt;/strong&gt;: A node or group of nodes.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Container orchestration&lt;/strong&gt;: A systemized approach to managing containers. Allows for things like auto-scaling,
+easy rollouts and rollbacks, and automation of container downtime (i.e. something goes wrong in your process and
+causes your app to crash; a new container gets spun up immediately so that your app doesn&#39;t go down).&lt;/p&gt;
+
+&lt;p&gt;Sources: &lt;a href=&quot;https://kubernetes.io/docs/concepts/overview/what-is-kubernetes/&quot;&gt;Kubernetes docs&lt;/a&gt;,
+&lt;a href=&quot;https://www.infoworld.com/article/3268073/what-is-kubernetes-your-next-application-platform.html&quot;&gt;Infoworld&lt;/a&gt;,
+&lt;a href=&quot;https://www.docker.com/resources/what-container&quot;&gt;Docker docs&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;Kubernetes, in a general sense, allows you to configure the containers in which your application will run. With a
+properly configured Kubernetes cluster, this makes it easy to scale applications up or down as needed to deal with
+traffic patters, maintain a zero-downtime deployment, and more. Very cool.&lt;/p&gt;
+
+&lt;p&gt;To sum up the structure of applications running on Kubernetes: clusters contain nodes which contain pods (which are
+managed by deployments) which contain containers. This can be tricky to wrap your head around without
+experimentation and personal experience—Hokusai aims to simplify the ways in which a developer can interact with
+applications running on Kubernetes.&lt;/p&gt;
+
+&lt;a name=&quot;What.is.Hokusai.&quot;&gt;&lt;/a&gt;
+&lt;h1&gt;What is Hokusai?&lt;/h1&gt;
+
+&lt;p&gt;When Artsy&#39;s Engineering team was contemplating a move to Kubernetes from Heroku, we had beef with a few things.&lt;/p&gt;
+
+&lt;p&gt;For one, we wanted to be able to do a few core things simply and easily using the command line. While Kubernetes
+has a robust API and CLI tooling using &lt;a href=&quot;https://kubernetes.io/docs/reference/kubectl/overview/&quot;&gt;kubectl&lt;/a&gt;, it&#39;s also
+very complex. We wanted to be able to quickly and easily do the things we were used to doing with Heroku; we
+preferred &lt;code&gt;heroku logs&lt;/code&gt; to &lt;code&gt;kubectl logs [POD]&lt;/code&gt; (where we would have to either look up or know the specific pod
+name we wanted, even though pods are being spun up and taken down all the time).&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://helm.sh&quot;&gt;Helm&lt;/a&gt;, the de-facto package manager for Kubernetes, also didn&#39;t quite fit our needs. Helm is
+great for big, complex implementations with Kubernetes, and it&#39;s very useful for managing releases. Artsy
+Engineering wanted something that didn&#39;t involve quite as many complex charts, and we&#39;re not as concerned as some
+orgs with versioned releases since our focus is mostly on web apps.&lt;/p&gt;
+
+&lt;p&gt;Basically, we wanted our commands to be application-level instead of pod- or node-level. We wanted a little more
+abstraction than was offered by &lt;code&gt;kubectl&lt;/code&gt;, and a little less than Helm.&lt;/p&gt;
+
+&lt;p&gt;And there was the issue of review apps. Review apps are basically standalone versions of an application that fall
+completely outside a normal production pipeline. They allow you to test big or scary changes in functionality
+without even putting them on a staging instance (which could affect other developers&#39; work or be deployed
+accidentally).&lt;/p&gt;
+
+&lt;p&gt;Kubernetes doesn&#39;t support review apps out of the box. There are some add-ons that offer them, but at the time
+Artsy was looking to switch, I don&#39;t think they existed or were widespread.&lt;/p&gt;
+
+&lt;p&gt;Thus was born Hokusai: a tool that makes interacting with applications deployed on Kubernetes from the command line
+simple. Need logs? &lt;code&gt;hokusai production logs&lt;/code&gt;. Need to run a rake task? &lt;code&gt;hokusai staging run &#39;rake db:migrate&#39;&lt;/code&gt;. Or
+want to set up a review app? There are a
+&lt;a href=&quot;https://github.com/artsy/hokusai/blob/master/docs/Review_Apps.md&quot;&gt;few steps involved&lt;/a&gt;, but you can have a
+fully-featured copy of your app up and running in a few minutes.&lt;/p&gt;
+
+&lt;p&gt;The end of this post has a larger cheatsheet for handy Hokusai commands, but for now, let&#39;s talk about how you can
+use it yourself.&lt;/p&gt;
+
+&lt;a name=&quot;How.can.I.set.up.Hokusai.with.my.project.&quot;&gt;&lt;/a&gt;
+&lt;h1&gt;How can I set up Hokusai with my project?&lt;/h1&gt;
+
+&lt;p&gt;I should begin by noting that Hokusai is developed to work with AWS—if your application is running on a different
+provider, you might have to hold off on Hokusai for now :( (or
+&lt;a href=&quot;https://github.com/artsy/hokusai&quot;&gt;open a PR in Hokusai&lt;/a&gt; yourself!) We do aim to support more clouds in the future,
+and Hokusai mostly interacts directly with Kubernetes or Docker APIs.&lt;/p&gt;
+
+&lt;p&gt;Installing hokusai is super easy! You can see full instructions in the README on
+&lt;a href=&quot;https://github.com/artsy/hokusai&quot;&gt;GitHub&lt;/a&gt;, but if you&#39;re already set up with Python, pip, Docker, Docker Compose,
+and Git, you can do a quick install of Hokusai packed by &lt;a href=&quot;https://www.pyinstaller.org/&quot;&gt;PyInstaller&lt;/a&gt; with Homebrew:&lt;/p&gt;
+
+&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
+&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;&#39;&gt;&lt;span class=&#39;line&#39;&gt;$ brew tap artsy/formulas
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;$ brew install hokusai&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
+
+
+&lt;p&gt;There&#39;s more robust directions
+&lt;a href=&quot;https://github.com/artsy/hokusai/blob/master/docs/Getting_Started.md&quot;&gt;in the Hokusai repo&lt;/a&gt;, but the very short
+version is that &lt;code&gt;hokusai setup&lt;/code&gt; handles most of the basics (creation of a Dockerfile, a config folder, and a few
+other bits and bobs). From there, you can customize according to the needs of your project. It&#39;s also possible to
+write boilerplate templates to share with developers in your organization—you can see Artsy&#39;s
+&lt;a href=&quot;https://github.com/artsy/artsy-hokusai-templates&quot;&gt;here&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;You should also check out Ash&#39;s &lt;a href=&quot;https://artsy.github.io/blog/2018/01/24/kubernetes-and-hokusai/&quot;&gt;great post&lt;/a&gt; on
+setting up a new Hokusai project—he runs through the process of setting up a new Rails application with Hokusai in
+an easy-to-follow way that also details small hitches he ran into along the way.&lt;/p&gt;
+
+&lt;a name=&quot;What.s.next.for.Hokusai.&quot;&gt;&lt;/a&gt;
+&lt;h1&gt;What&#39;s next for Hokusai?&lt;/h1&gt;
+
+&lt;p&gt;As Hokusai has grown and changed over the years (the GH repo was created in November 2016!), a few things have
+changed.&lt;/p&gt;
+
+&lt;p&gt;For one, it&#39;s been increasingly used in coordination with CircleCI. Hokusai has made it really easy to standardize
+a lot of application configuration across Artsy&#39;s applications. We have
+&lt;a href=&quot;https://github.com/artsy/orbs/blob/master/src/hokusai&quot;&gt;CircleCI orbs&lt;/a&gt; set up for Hokusai specifically, which
+standardize the way Hokusai is invoked in our CI, among other things. Given how helpful it&#39;s been to have a single
+source of CircleCI config for many of our apps, we&#39;re pondering the idea of a central source for Kubernetes Hokusai
+config. In other words, we&#39;d like to have a &quot;baseline&quot; for things like deployments—something that could be
+overriden as necessary in specific projects but would make spinning up new projects easy. This would effectively
+allow Hokusai to support functionality similar to Helm&#39;s &lt;a href=&quot;https://helm.sh/docs/chart_template_guide/&quot;&gt;templates&lt;/a&gt;,
+but in a way that can be consumed across project repos.&lt;/p&gt;
+
+&lt;a name=&quot;Hokusai.and.beyond&quot;&gt;&lt;/a&gt;
+&lt;h1&gt;Hokusai and beyond&lt;/h1&gt;
+
+&lt;p&gt;Personally, Hokusai has been very useful to me as a kind of &quot;training wheels&quot; for Kubernetes. To be able to quickly
+and easily start interacting with Kubernetes, even as a complete Kubernetes noob, was very empowering and helped me
+be less intimidated by it. As I&#39;ve spent more time interacting with Hokusai, I&#39;ve started to understand what&#39;s
+going on behind the scenes, and I&#39;ve found myself poking around in the Kubernetes docs more than once. I&#39;m excited
+to keep learning more about Kubernetes and to start contributing to Hokusai!&lt;/p&gt;
+
+&lt;p&gt;Hokusai significantly lowers the barriers to interacting with Kubernetes apps and centralizes the complexity
+inherent in doing so. It&#39;s been invaluable in transitioning our engineering team to working with Kubernetes. If you
+or your organization are in the midst of a similar transition—or if you have a sharp divide in Kubernetes knowledge
+and comfort within your team—we suggest giving it a try! Our issues are open for bug reports and feature requests,
+and we certainly welcome PRs with improvements.&lt;/p&gt;
+
+&lt;a name=&quot;Appendix.A:.Useful.Hokusai.commands&quot;&gt;&lt;/a&gt;
+&lt;h2&gt;Appendix A: Useful Hokusai commands&lt;/h2&gt;
+
+&lt;p&gt;These are the commands I find myself using on a regular basis. If you&#39;re playing around with Hokusai, you can also
+run most commands with &lt;code&gt;--help&lt;/code&gt; to get more information on their usage.&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;hokusai [production|staging] env get&lt;/code&gt;: Print all of the environment variables from your application&#39;s pod&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;hokusai [production|staging] env set &quot;ENV=value&quot;&lt;/code&gt;: Set an environment variable on your application&#39;s pod&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;hokusai [production|staging] run &#39;rake db:migrate&#39;&lt;/code&gt;: run a Rails migration&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;hokusai [production|staging] run &#39;bundle exec rails c&#39; --tty&lt;/code&gt;: Open a Rails console for your app (I have this
+one aliased to &lt;code&gt;hokusai-[production|staging]-console&lt;/code&gt;)&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;hokusai [production|staging] refresh&lt;/code&gt;: Refresh the application&#39;s deployment by recreating its containers&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;hokusai build&lt;/code&gt;: Build your application&#39;s Docker image as defined in a &lt;code&gt;hokusai/build.yml&lt;/code&gt; file&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;hokusai test&lt;/code&gt;: Boot a test environment and run a test suite as defined in &lt;code&gt;hokusai/test.yml&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;hokusai pipeline gitcompare --org-name [org]&lt;/code&gt;: Spits out a URL for a git comparison between production and
+staging images&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;hokusai pipeline gitlog&lt;/code&gt;: Print a git log for commits between the image deployed on production and the image on
+staging. Handy if you need to get the SHA of a staged commit quickly, e.g. for rollback purposes (?)&lt;/li&gt;
+&lt;/ul&gt;
+
+</description>
+        <pubDate>Fri, 18 Oct 2019 00:00:00 +0000</pubDate>
+        <link>http://artsy.github.io/blog/2019/10/18/kubernetes-and-hokusai/</link>
+        <guid isPermaLink="true">http://artsy.github.io/blog/2019/10/18/kubernetes-and-hokusai/</guid>
+        
+        
+        <category>artsy</category>
+        
+        <category>beginners</category>
+        
+        <category>engineering</category>
+        
+        <category>hokusai</category>
+        
+        <category>k8s</category>
+        
+        <category>kubernetes</category>
+        
+      </item>
     
       <item>
         <title>Unbearable Lightness of Refactoring</title>
@@ -1699,354 +1887,6 @@ to talk below about whether they&#39;ve enacted something similar - would love t
         <category>mvp</category>
         
         <category>process</category>
-        
-      </item>
-    
-      <item>
-        <title>Why does Artsy use Relay?</title>
-        <description>&lt;p&gt;When the mobile team at Artsy considered &lt;a href=&quot;/blog/2016/08/15/React-Native-at-Artsy/&quot;&gt;moving to React Native&lt;/a&gt; back in 2016, one of the most compelling
-cases for making that jump was Relay. This, it seems, is a dependency that is rarely used in the JS community and
-we often find ourselves re-explaining this decision to new engineers during onboarding, and to the public at large.&lt;/p&gt;
-
-&lt;p&gt;Which makes this a perfect blog post topic, so let&#39;s have a deep dive into what makes Relay compelling for Artsy&#39;s
-engineering team.&lt;/p&gt;
-
-&lt;!-- more --&gt;
-
-
-&lt;a name=&quot;What.problem.does.Relay.solve.&quot;&gt;&lt;/a&gt;
-&lt;h1&gt;What problem does Relay solve?&lt;/h1&gt;
-
-&lt;p&gt;Relay is an API client for GraphQL, it comes in two parts: a compiler and a set of front-end components. Relay aims
-to provide a really tight binding between your GraphQL API and your view hierarchy. When you build data-driven
-apps, Relay removes a whole suite of non-business logic from your application.&lt;/p&gt;
-
-&lt;p&gt;Relay handles:&lt;/p&gt;
-
-&lt;ul&gt;
-&lt;li&gt;Data binding (API → props)&lt;/li&gt;
-&lt;li&gt;Cache management (invalidation, re-render live components with data updates, etc)&lt;/li&gt;
-&lt;li&gt;Consistent abstractions for bi-directional pagination&lt;/li&gt;
-&lt;li&gt;Multiple query consolidation (e.g. consolidate all API requests to one request)&lt;/li&gt;
-&lt;li&gt;UI best practices baked in (e.g. optimistic response rendering)&lt;/li&gt;
-&lt;li&gt;Declarative data mutation (describe how data should change, instead of doing it)&lt;/li&gt;
-&lt;li&gt;Compile-time query generation (removing runtime overhead and allowing you to persist queries)&lt;/li&gt;
-&lt;/ul&gt;
-
-
-&lt;p&gt;By taking the responsibilities of the grunt work for most complex apps and moving it into Relay you get
-Facebook-scale best-practices and can build on top of that.&lt;/p&gt;
-
-&lt;a name=&quot;How.does.it.work.&quot;&gt;&lt;/a&gt;
-&lt;h1&gt;How does it work?&lt;/h1&gt;
-
-&lt;p&gt;You write a set of Relay components, you always start with a &lt;a href=&quot;https://facebook.github.io/relay/docs/en/query-renderer.html&quot;&gt;&lt;code&gt;QueryRenderer&lt;/code&gt;&lt;/a&gt; and a tree of either
-&lt;a href=&quot;https://facebook.github.io/relay/docs/en/fragment-container.html&quot;&gt;&lt;code&gt;FragmentContainer&lt;/code&gt;&lt;/a&gt;, &lt;a href=&quot;https://facebook.github.io/relay/docs/en/refetch-container.html&quot;&gt;&lt;code&gt;RefetchContainer&lt;/code&gt;&lt;/a&gt; or &lt;a href=&quot;https://facebook.github.io/relay/docs/en/pagination-container.html&quot;&gt;&lt;code&gt;PaginationContainer&lt;/code&gt;&lt;/a&gt;s. You mostly use
-&lt;code&gt;FragmentContainer&lt;/code&gt;s, so I&#39;ll focus on that here.&lt;/p&gt;
-
-&lt;p&gt;A &lt;code&gt;FragmentContainer&lt;/code&gt; is based on a &lt;a href=&quot;https://graphql.org/learn/queries/#fragments&quot;&gt;GraphQL fragment&lt;/a&gt;. If you&#39;ve never used a fragment, they are an
-abstraction that lets you declare shared field-selections on a specific GraphQL type to reduce duplication in your
-queries. For example:&lt;/p&gt;
-
-&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;6&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;7&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;8&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;9&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;10&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;11&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;12&lt;/span&gt;
-&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;&#39;&gt;&lt;span class=&#39;line&#39;&gt;query GetPopularArtistAndFeaturedArtist {
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  featuredArtist {
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    id
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    name
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    bio
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  }
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  popularArtist {
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    id
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    name
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    bio
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  }
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;}&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
-
-
-&lt;p&gt;To move this query to use fragments:&lt;/p&gt;
-
-&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;6&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;7&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;8&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;9&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;10&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;11&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;12&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;13&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;14&lt;/span&gt;
-&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;&#39;&gt;&lt;span class=&#39;line&#39;&gt;query GetPopularArtistAndFeaturedArtist {
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  featuredArtist {
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    ...ArtistMetadata
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  }
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  popularArtist {
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    ...ArtistMetadata
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  }
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;}
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;fragment ArtistMetadata on Artist {
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  id
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  name
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  bio
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;}&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
-
-
-&lt;p&gt;It&#39;s a tiny bit longer, but you have a guarantee that the data is consistent across both artists. Now that you have
-a rough idea of what a GraphQL fragment is, let&#39;s look at what a &lt;code&gt;FragmentContainer&lt;/code&gt; looks like. Here&#39;s a
-simplified &lt;a href=&quot;https://github.com/artsy/emission/blob/892af2621eef455388e074701cca747330de3b3f/src/lib/Scenes/Settings/MyProfile.tsx#L95&quot;&gt;profile page&lt;/a&gt; from the Artsy iOS app:&lt;/p&gt;
-
-&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;6&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;7&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;8&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;9&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;10&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;11&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;12&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;13&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;14&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;15&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;16&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;17&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;18&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;19&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;20&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;21&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;22&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;23&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;24&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;25&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;26&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;27&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;28&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;29&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;30&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;31&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;32&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;33&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;34&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;35&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;36&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;37&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;38&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;39&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;40&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;41&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;42&lt;/span&gt;
-&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;ts&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;kr&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;React&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;react&amp;quot;&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;kr&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;createFragmentContainer&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;graphql&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;react-relay&amp;quot;&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;kr&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;MyProfile_me&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;__generated__/MyProfile_me.graphql&amp;quot;&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;kr&quot;&gt;interface&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;Props&lt;/span&gt; &lt;span class=&quot;kr&quot;&gt;extends&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;ViewProperties&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nx&quot;&gt;me&lt;/span&gt;: &lt;span class=&quot;kt&quot;&gt;MyProfile_me&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;kr&quot;&gt;export&lt;/span&gt; &lt;span class=&quot;kr&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;MyProfile&lt;/span&gt; &lt;span class=&quot;kr&quot;&gt;extends&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;React&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;Component&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;Props&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nx&quot;&gt;render() {&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;View&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;        &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;Header&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;          &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;ProfilePhoto&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;initials&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;this&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;props&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;me&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;initials&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;image&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;this&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;props&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;me&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;image&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;/&amp;gt;&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;          &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;Subheading&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;this&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;props&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;me&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;err&quot;&gt;/Subheading&amp;gt;&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;        &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;err&quot;&gt;/Header&amp;gt;&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;        &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;ButtonSection&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;          &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;ProfileButton&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;            &lt;span class=&quot;nx&quot;&gt;section&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;Selling&amp;quot;&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;            &lt;span class=&quot;nx&quot;&gt;description&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;Sell works from your collection&amp;quot;&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;            &lt;span class=&quot;nx&quot;&gt;onPress&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;startSubmission&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;          &lt;span class=&quot;o&quot;&gt;/&amp;gt;&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;          &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;ProfileButton&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;            &lt;span class=&quot;nx&quot;&gt;section&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;Account Details&amp;quot;&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;            &lt;span class=&quot;nx&quot;&gt;description&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;Email, password reset, profile&amp;quot;&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;            &lt;span class=&quot;nx&quot;&gt;onPress&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;goToUserSettings&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;          &lt;span class=&quot;o&quot;&gt;/&amp;gt;&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;        &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;err&quot;&gt;/ButtonSection&amp;gt;&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;err&quot;&gt;/View&amp;gt;&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;kr&quot;&gt;export&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;default&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;createFragmentContainer&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;MyProfile&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nx&quot;&gt;me&lt;/span&gt;: &lt;span class=&quot;kt&quot;&gt;graphql&lt;/span&gt;&lt;span class=&quot;err&quot;&gt;`&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nx&quot;&gt;fragment&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;MyProfile_me&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;on&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;Me&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;nx&quot;&gt;name&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;nx&quot;&gt;image&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;nx&quot;&gt;initials&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;err&quot;&gt;`&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;})&lt;/span&gt;
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
-
-
-&lt;p&gt;There are three moving parts:&lt;/p&gt;
-
-&lt;ul&gt;
-&lt;li&gt;The TypeScript interface &lt;code&gt;MyProfile_me&lt;/code&gt;, generated by the compiler, which ensures we can only use fields that
-were selected in the fragment&lt;/li&gt;
-&lt;li&gt;The &lt;code&gt;MyProfile&lt;/code&gt; component, which is a vanilla React component&lt;/li&gt;
-&lt;li&gt;The exported &lt;code&gt;createFragmentContainer&lt;/code&gt; which returns a higher-order component that wraps &lt;code&gt;MyProfile&lt;/code&gt; and ties it
-to a fragment on a &lt;code&gt;Me&lt;/code&gt; type in GraphQL&lt;/li&gt;
-&lt;/ul&gt;
-
-
-&lt;a name=&quot;Isolation&quot;&gt;&lt;/a&gt;
-&lt;h2&gt;Isolation&lt;/h2&gt;
-
-&lt;p&gt;The React component &lt;code&gt;MyProfile&lt;/code&gt; will be passed in props that directly tie to the fragment that was requested. In
-Relay terms, this is called &lt;a href=&quot;https://facebook.github.io/relay/docs/en/thinking-in-relay.html#data-masking&quot;&gt;data masking&lt;/a&gt; and it is one of the first hurdles for someone new to Relay to
-&lt;a href=&quot;https://en.wikipedia.org/wiki/Grok&quot;&gt;grok&lt;/a&gt;. In REST clients, and GraphQL API clients like Apollo Client, you make a request and that request is
-passed through the React tree. E.g.&lt;/p&gt;
-
-&lt;p&gt;&lt;/article&gt;
-&lt;a href=&#39;/images/omakase-relay/tree.png&#39; style=&quot;&quot;&gt;
-  &lt;img src=&quot;/images/omakase-relay/tree.png&quot; alt=&quot;REST inspired props&quot; style=&quot;width:100%;&quot;&gt;
-&lt;/a&gt;
-&lt;article class=&quot;post&quot;&gt;&lt;/p&gt;
-
-&lt;p&gt;This means most components know more about the request than it probably needs, as it may be needed to pass on to
-the component&#39;s children. This can lead to over-fetching, or even worse, not knowing if you can delete or refactor
-a component.&lt;/p&gt;
-
-&lt;p&gt;Data masking solves this by hiding data that the component didn&#39;t request. I&#39;ve still yet to find the right visual
-abstraction, but I feel this just about pays for itself.&lt;/p&gt;
-
-&lt;p&gt;&lt;/article&gt;
-&lt;a href=&#39;/images/omakase-relay/isolation.png&#39; style=&quot;&quot;&gt;
-  &lt;img src=&quot;/images/omakase-relay/isolation.png&quot; alt=&quot;Relay isolation tree&quot; style=&quot;width:100%;&quot;&gt;
-&lt;/a&gt;
-&lt;article class=&quot;post&quot;&gt;&lt;/p&gt;
-
-&lt;p&gt;You let Relay be responsible for consolidating all your fragments into a query via the &lt;code&gt;QueryRenderer&lt;/code&gt;, causing the
-network request, and your response data to be passed your through your component hierarchy. This means Relay
-powered components can be safely changed and drastically reduces the chance for unintended consequences elsewhere.&lt;/p&gt;
-
-&lt;p&gt;This isolation gives Artsy engineers the safety to work on projects with tens of contributors which regularly
-change over time. Providing a guarantee that you can safely work in isolated parts of the codebase without accruing
-technical debt.&lt;/p&gt;
-
-&lt;p&gt;Relay&#39;s container components mean that the components we create are nearly all focused only on the data-driven
-aspects of rendering a subset of that GraphQL response into views. It&#39;s very powerful.&lt;/p&gt;
-
-&lt;a name=&quot;Co-location&quot;&gt;&lt;/a&gt;
-&lt;h2&gt;Co-location&lt;/h2&gt;
-
-&lt;p&gt;Relay helped us move to one file representing everything a component needed. Effectively a single file now handles
-the styles, the actual view content hierarchy, and the exact parts of the API it needs to render itself.&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;/images/omakase-relay/co-location.png&quot;&gt;&lt;/p&gt;
-
-&lt;p&gt;In roughly that proportion too, though our most modern code uses the Artsy design system &lt;a href=&quot;https://github.com/artsy/palette&quot;&gt;Palette&lt;/a&gt; which
-drastically reduces the need for style in our components.&lt;/p&gt;
-
-&lt;p&gt;Co-location&#39;s biggest selling point is reducing &lt;a href=&quot;https://en.wikipedia.org/wiki/Cognitive_load&quot;&gt;cognitive load&lt;/a&gt;,
-having everything you need in one place makes it easier to understand how a component works. This makes code review
-simpler, and lowers the barrier to understanding the entire systems at scale.&lt;/p&gt;
-
-&lt;a name=&quot;Community&quot;&gt;&lt;/a&gt;
-&lt;h2&gt;Community&lt;/h2&gt;
-
-&lt;p&gt;When we adopted Relay, there was no competition - we&#39;d have just used the &lt;code&gt;fetch&lt;/code&gt; API. Over time, &lt;a href=&quot;https://www.apollographql.com&quot;&gt;the Apollo
-team&lt;/a&gt; came up and really put a considerable amount of effort into lowering the barriers to entry, and
-making it feasible to build complex apps easily.&lt;/p&gt;
-
-&lt;p&gt;As we hired a set of new engineers, the &quot;Apollo vs Relay&quot; debate came up. Interested in whether we would still
-start with Relay today, we ran an audit last year of what it would take to re-create a lot of the infrastructure we
-love in Relay atop of the (much more popular) Apollo GraphQL eco-system and saw it was reasonably feasible but
-would require a considerable amount of work across many different plugins and tools. With Relay that&#39;s all packaged
-into one tool, works consistently and has been proven with Facebook having tens of thousands of Relay components in
-production.&lt;/p&gt;
-
-&lt;p&gt;It&#39;s worth highlighting the core difference in community engagement for Apollo vs Relay. Engineers working on
-Apollo have great incentives to do user support, and improve the tools for the community - that&#39;s their businesses
-value. Relay on the other hand is used in many places at Facebook, and the engineers on the team support internal
-issues first. IMO, this is reasonable: Relay is an opinionated batteries-included framework for building user
-interfaces, and ensuring it works with the baffling amount of JavaScript at Facebook is more or less all the team
-has time for.&lt;/p&gt;
-
-&lt;p&gt;That leaves space for the OSS community to own their own problems. Notably there&#39;s been quite a lot of work going
-on in the community-managed &lt;a href=&quot;https://github.com/relay-tools&quot;&gt;relay-tools&lt;/a&gt; GitHub organization.&lt;/p&gt;
-
-&lt;a name=&quot;Scale.Safety&quot;&gt;&lt;/a&gt;
-&lt;h2&gt;Scale Safety&lt;/h2&gt;
-
-&lt;p&gt;Relay puts a lot of emphasis on ahead-of-time safety. The Relay compiler validates your queries against your
-GraphQL schema, it emits Flow types for your fragment’s field selections–which we’ve extended to emit TypeScript
-types instead, and there are strict naming systems enforced by the compiler. All of these help guide engineers to
-build scalable codebases.&lt;/p&gt;
-
-&lt;p&gt;How this works in practice is that whenever you need to change the data a component requires, you edit the
-fragment, the Relay compiler verifies your query, if successful then your TypeScript types are updated and you can
-use the new property in your React component above. See below for a &lt;a href=&quot;/images/omakase-relay/relay-process-720.mov&quot;&gt;quick video&lt;/a&gt; showing the Relay compiler
-in action:&lt;/p&gt;
-
-&lt;p&gt;&lt;/article&gt;&lt;/p&gt;
-
-&lt;div&gt;
-&lt;video controls style=&quot;margin: auto 20px; width:100%;&quot;&gt;
-  &lt;source src=&quot;/images/omakase-relay/relay-process-720.mov&quot; type=&quot;video/mp4&quot;&gt;
-  Your browser does not support the video tag.
-&lt;/video&gt;
-&lt;/div&gt;
-
-
-&lt;p&gt;&lt;article class=&quot;post&quot;&gt;&lt;/p&gt;
-
-&lt;p&gt;Moving all of these checks to be during dev-time means we can feel more confident in our deploys. This is
-especially an issue in an iOS native codebase, when any deploy requires a review from Apple and roll-backs are
-impossible.&lt;/p&gt;
-
-&lt;a name=&quot;Cultural.Fit&quot;&gt;&lt;/a&gt;
-&lt;h2&gt;Cultural Fit&lt;/h2&gt;
-
-&lt;p&gt;Relay fit well into our team because:&lt;/p&gt;
-
-&lt;ul&gt;
-&lt;li&gt;We had engineers who were interested in contributing back and extending Relay to work for our cases&lt;/li&gt;
-&lt;li&gt;We had engineers that were used to the benefits of ahead-of-time error validation tools that compilers offer&lt;/li&gt;
-&lt;li&gt;We saw a lot of value in a tightly coupling our view structure to our user interface&lt;/li&gt;
-&lt;/ul&gt;
-
-
-&lt;p&gt;Relay is not without its shortcomings to users outside of Facebook, but Relay has definitely paid for its initial
-and occasional complexity for the tightness of our codebases many years down the line.&lt;/p&gt;
-
-&lt;!-- prettier-ignore-start --&gt;
-
-
-&lt;!-- prettier-ignore-end --&gt;
-
-
-
-</description>
-        <pubDate>Wed, 10 Apr 2019 00:00:00 +0000</pubDate>
-        <link>http://artsy.github.io/blog/2019/04/10/omakase-relay/</link>
-        <guid isPermaLink="true">http://artsy.github.io/blog/2019/04/10/omakase-relay/</guid>
-        
-        
-        <category>community</category>
-        
-        <category>omakase</category>
-        
-        <category>relay</category>
         
       </item>
     
