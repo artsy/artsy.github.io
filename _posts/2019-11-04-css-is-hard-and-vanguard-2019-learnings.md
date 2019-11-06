@@ -154,7 +154,7 @@ would have needed to apply the `difference` mix-blend-mode property when the tex
 background, and color-dodge when it overlapped with a video-in-SVG background. However, given it is not possible to
 assign multiple blending modes to a fixed element we had to deviate from the original design specifications.
 
-![](images/2019-11-04-css-is-hard-and-vanguard-2019-learnings/mbb.png)
+![](/images/2019-11-04-css-is-hard-and-vanguard-2019-learnings/mbb.png)
 
 ```ts
 const FrameText = styled(Sans)`
