@@ -122,7 +122,7 @@ critical, and working with team members that value candor, flexibility, communic
 ## **3. CSS is Hard**
 
 I get excited about implementing visually delightful designs, and Artsy Vanguard’s 2019 designs did not
-disappoint.There were two key components that involved interesting CSS approaches:
+disappoint. There were two key components that involved interesting CSS approaches:
 
 ** 1. Mixed Blending Mode to handle the inversion of the side frame text when it appeared over different
 backgrounds**
