@@ -169,7 +169,8 @@ const FrameText = styled(Sans)`
 const InvertedText = styled(Serif)` 
 mix-blend-mode: \${p => (p.isMobile ? "normal" : "difference")}; 
 color: rgb(255,255,255); 
-will-change: color;`
+will-change: color;
+`
 ```
 
 ## Video-in-SVG
