@@ -58,7 +58,7 @@ Artsy has been moving to [DataDog](https://www.datadoghq.com) for server perform
 still using [New Relic](https://newrelic.com). My background is in iOS app development and I had never really dug
 into New Relic before, but I _am_ very experienced at profiling iOS applications, and the Ruby and Objective-C
 runtimes have more in common than they have have differences. I used New Relic to profile a production Radiation
-Dyno for fives minutes and, to our collective surprise, we found that more than 90% of CPU time was being spent in
+Dyno for five minutes and, to our collective surprise, we found that more than 90% of CPU time was being spent in
 [an innocuous function of a dependency](https://github.com/thoughtbot/griddler/blob/ff2ad16949bf5190f93df1a3e83eb0192f136c6d/app/controllers/griddler/emails_controller.rb#L4-L10),
 the open source library [Griddler](https://github.com/thoughtbot/griddler).
 
