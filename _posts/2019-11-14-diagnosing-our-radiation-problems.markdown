@@ -22,22 +22,28 @@ after starting a recent on-call shift, "breaking" is exactly what things did.
 ![Screenshot of Slack alert](/images/2019-11-07-diagnosing-our-radiation-problems/alert.png)
 
 We got an automated alert on Slack that one of our email services, code-named "Radiation", had really high response
-times. More specifically, it was timing out. Yikes. The next twenty two hours was a deep dive into Heroku, New
-Relic, Rails, and Postgres, all to isolate the problem and produce a solution.
+times. We _then_ received an alert that too many requests to Radiation were failing completely. Yikes. The next
+twenty two hours was a deep dive into Heroku, New Relic, Rails, and PostgreSQL, all to isolate the problem and
+produce a solution.
 
 The nice thing about email, as a protocol, is that it's based on a store-and-forward concept. That means that if a
-message delivery fails, email servers will try again later (typically with an exponential backoff). While the
-server was unresponsive, email deliveries would be delayed, but the emails themselves were not dropped. We wasted
-no time addressing the problem, but we were also confident that once we fixed the issue, the data would be okay.
+message delivery fails, email servers will try again later (typically with an exponential backoff). SendGrid, our
+email processor, has built their REST API around this same store-and-forward concept. While the Radiation server
+was unresponsive, SendGrid wouldn't receive successful HTTP responses from the webhook deliveries, so it would
+attempt to re-deliver the failing emails later. Email deliveries would be delayed, but the emails themselves would
+not be dropped. We wasted no time addressing the problem, but we were also confident that once we fixed the issue,
+the data would be okay.
 
 After the alert, Ashkan (Radiation's point-person) and I communicated with our colleagues (engineers and affected
 non-engineers) about the problem. With the help of Chung-Yi, we began investigating the immediate problem (with a
 focus on _mitigating_ it, rather than necessarily _fixing_ it). Oh, we tried it all: spinning up more Heroku Dynos
-to handle requests, increasing concurrency on the individual Dynos, restarting Redis and Postgres stores. Each
-time, things would work briefly before the Radiation API would begin timing out again. Hmm. We started examining
-the Radiation code and database (keeping our _ion the prize_: mitigation).
+to handle requests, increasing concurrency on the individual Dynos, restarting Redis and PostgreSQL stores. Each
+time, things would work briefly before the Radiation API would begin timing out again. More accurately, the
+requests sent to Radiation were taking longer than the Heroku router was giving them (30 seconds) before the router
+gave up and timed out the request. We started examining the Radiation code and database (keeping our _ion the
+prize_: mitigation).
 
-Ashkan investigated slow database queries. We added new Postgres indexes to speed up queries, and restructured
+Ashkan investigated slow database queries. We added new PostgreSQL indexes to speed up queries, and restructured
 others to avoid expensive joins. Unfortunately, all this accomplished was extending the time after a Dyno reboot
 that things would work (before beginning to timeout again). Because
 [Artsy stores emails as encrypted-at-rest](https://artsy.github.io/blog/2017/05/30/database-encryption/), it was
@@ -62,9 +68,9 @@ Dyno for five minutes and, to our collective surprise, we found that more than 9
 [an innocuous function of a dependency](https://github.com/thoughtbot/griddler/blob/ff2ad16949bf5190f93df1a3e83eb0192f136c6d/app/controllers/griddler/emails_controller.rb#L4-L10),
 the open source library [Griddler](https://github.com/thoughtbot/griddler).
 
-Artsy uses Griddler to parse emails that we receive from [SendGrid](https://sendgrid.com). Griddler contained the
-problematic code, which was responsible for parsing email responses from threaded replies. So if an email body
-received by Radiation looks like this:
+Artsy uses Griddler to parse and sanitize emails that we receive from [SendGrid](https://sendgrid.com). Griddler
+contained the problematic code, which was responsible for parsing email responses from threaded replies. So if an
+email body received by Radiation looks like this:
 
 ```
 This is the most recent reply in this email conversation.
