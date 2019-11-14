@@ -50,7 +50,7 @@ that things would work (before beginning to timeout again). Because
 difficult to pinpoint which exact message could be causing the timeouts. And Radiation itself didn't have much in
 the way of logging, which would normally help us debug the problem.
 
-It was frustrating, to try to fix something, but only manage to improve how long it took to break again. We had
+It was frustrating to try to fix something but only manage to improve how long it took to break again. We had
 enhanced Radiation's performance to the point where it was taking 10 minutes after a Dyno reboot to begin timing
 out again, up from 30 seconds at the beginning of the incident. Despite an afternoon and evening spent trying to
 fix the problem, we were stuck. We decided that the best course of action was a good night's sleep; we would ask
