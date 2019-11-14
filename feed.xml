@@ -5,9 +5,154 @@
     <description></description>
     <link>http://artsy.github.io/</link>
     <atom:link href="http://artsy.github.io/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Wed, 06 Nov 2019 17:25:13 +0000</pubDate>
-    <lastBuildDate>Wed, 06 Nov 2019 17:25:13 +0000</lastBuildDate>
+    <pubDate>Thu, 14 Nov 2019 17:06:08 +0000</pubDate>
+    <lastBuildDate>Thu, 14 Nov 2019 17:06:08 +0000</lastBuildDate>
     <generator>Jekyll v2.5.3</generator>
+    
+      <item>
+        <title>Diagnosing our Radiation Problems</title>
+        <description>&lt;p&gt;Email! Electronic mail! What a concept! Like many companies, Artsy has built products on top of email, but this is
+a decision that (like many companies) Artsy periodically regrets. But overall, our email systems work well!&lt;/p&gt;
+
+&lt;p&gt;But what about when it doesn&#39;t? Well that&#39;s what today&#39;s blog post is about: what happens when things break and you
+don&#39;t know why?&lt;/p&gt;
+
+&lt;!-- more --&gt;
+
+
+&lt;p&gt;I have learned a lot
+&lt;a href=&quot;https://artsy.github.io/blog/2018/05/30/my-first-week-on-call/&quot;&gt;since my first on-call shift&lt;/a&gt;, but going on call
+still gives me a little stage fright. As I start a shift, I&#39;m on the look-out for things that might break, and soon
+after starting a recent on-call shift, &quot;breaking&quot; is exactly what things did.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/images/2019-11-07-diagnosing-our-radiation-problems/alert.png&quot; alt=&quot;Screenshot of Slack alert&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;We got an automated alert on Slack that one of our email services, code-named &quot;Radiation&quot;, had really high response
+times. We &lt;em&gt;then&lt;/em&gt; received an alert that too many requests to Radiation were failing completely. Yikes. The next
+twenty two hours was a deep dive into Heroku, New Relic, Rails, and PostgreSQL, all to isolate the problem and
+produce a solution.&lt;/p&gt;
+
+&lt;p&gt;The nice thing about email, as a protocol, is that it&#39;s based on a store-and-forward concept. That means that if a
+message delivery fails, email servers will try again later (typically with an exponential backoff). SendGrid, our
+email processor, has built their REST API around this same store-and-forward concept. While the Radiation server
+was unresponsive, SendGrid wouldn&#39;t receive successful HTTP responses from the webhook deliveries, so it would
+attempt to re-deliver the failing emails later. Email deliveries would be delayed, but the emails themselves would
+not be dropped. We wasted no time addressing the problem, but we were also confident that once we fixed the issue,
+the data would be okay.&lt;/p&gt;
+
+&lt;p&gt;After the alert, Ashkan (Radiation&#39;s point-person) and I communicated with our colleagues (engineers and affected
+non-engineers) about the problem. With the help of Chung-Yi, we began investigating the immediate problem (with a
+focus on &lt;em&gt;mitigating&lt;/em&gt; it, rather than necessarily &lt;em&gt;fixing&lt;/em&gt; it). Oh, we tried it all: spinning up more Heroku Dynos
+to handle requests, increasing concurrency on the individual Dynos, restarting Redis and PostgreSQL stores. Each
+time, things would work briefly before the Radiation API would begin timing out again. More accurately, the
+requests sent to Radiation were taking longer than the Heroku router was giving them (30 seconds) before the router
+gave up and timed out the request. We started examining the Radiation code and database (keeping our &lt;em&gt;ion the
+prize&lt;/em&gt;: mitigation).&lt;/p&gt;
+
+&lt;p&gt;Ashkan investigated slow database queries. We added new PostgreSQL indexes to speed up queries, and restructured
+others to avoid expensive joins. Unfortunately, all this accomplished was extending the time after a Dyno reboot
+that things would work (before beginning to timeout again). Because
+&lt;a href=&quot;https://artsy.github.io/blog/2017/05/30/database-encryption/&quot;&gt;Artsy stores emails as encrypted-at-rest&lt;/a&gt;, it was
+difficult to pinpoint which exact message could be causing the timeouts. And Radiation itself didn&#39;t have much in
+the way of logging, which would normally help us debug the problem.&lt;/p&gt;
+
+&lt;p&gt;It was frustrating to try to fix something but only manage to improve how long it took to break again. We had
+enhanced Radiation&#39;s performance to the point where it was taking 10 minutes after a Dyno reboot to begin timing
+out again, up from 30 seconds at the beginning of the incident. Despite an afternoon and evening spent trying to
+fix the problem, we were stuck. We decided that the best course of action was a good night&#39;s sleep; we would ask
+for help in the morning.&lt;/p&gt;
+
+&lt;p&gt;The next day, Ashkan and I got &lt;em&gt;up and atom&lt;/em&gt; to address the problem. We brought my on-call partner Devon up to
+speed, detailing the incident symptoms and what we had tried so far. While Devon and Ashkan worked on additional
+logging and new timeout strategies, I took another approach.&lt;/p&gt;
+
+&lt;p&gt;Artsy has been moving to &lt;a href=&quot;https://www.datadoghq.com&quot;&gt;DataDog&lt;/a&gt; for server performance monitoring, but Radiation was
+still using &lt;a href=&quot;https://newrelic.com&quot;&gt;New Relic&lt;/a&gt;. My background is in iOS app development and I had never really dug
+into New Relic before, but I &lt;em&gt;am&lt;/em&gt; very experienced at profiling iOS applications, and the Ruby and Objective-C
+runtimes have more in common than they have have differences. I used New Relic to profile a production Radiation
+Dyno for five minutes and, to our collective surprise, we found that more than 90% of CPU time was being spent in
+&lt;a href=&quot;https://github.com/thoughtbot/griddler/blob/ff2ad16949bf5190f93df1a3e83eb0192f136c6d/app/controllers/griddler/emails_controller.rb#L4-L10&quot;&gt;an innocuous function of a dependency&lt;/a&gt;,
+the open source library &lt;a href=&quot;https://github.com/thoughtbot/griddler&quot;&gt;Griddler&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;Artsy uses Griddler to parse and sanitize emails that we receive from &lt;a href=&quot;https://sendgrid.com&quot;&gt;SendGrid&lt;/a&gt;. Griddler
+contained the problematic code, which was responsible for parsing email responses from threaded replies. So if an
+email body received by Radiation looks like this:&lt;/p&gt;
+
+&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
+&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;&#39;&gt;&lt;span class=&#39;line&#39;&gt;This is the most recent reply in this email conversation.
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;On September 28th, 2019, Someone Else Wrote:
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;[The rest of the email thread]&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
+
+
+&lt;p&gt;Then Griddler parses out the string &quot;This is the most recent reply in this email conversation.&quot; for Radiation to
+process. This is really important because some of the threads in Radiation are &lt;em&gt;thousands&lt;/em&gt; of emails long. In fact,
+I learned that Radiation has Artsy&#39;s largest production database.&lt;/p&gt;
+
+&lt;p&gt;Griddler does this processing via regular expressions. Ashkan had the insight to look for existing issues from
+other Griddler users who ran into similar problems, and to our delight,
+&lt;a href=&quot;https://github.com/thoughtbot/griddler/pull/310&quot;&gt;we found a pull request&lt;/a&gt; that appeared to address the &lt;em&gt;exact&lt;/em&gt;
+issue that we were having.&lt;/p&gt;
+
+&lt;p&gt;It turns out that emails with large amounts of repeated newline characters would totally stall Griddler&#39;s regex.
+Heroku&#39;s router would timeout any request after 30 seconds, but would leave the Ruby code churning on that regex.
+That would leave the Rails server unable to respond to subsequent HTTP requests, causing more timeouts. And because
+of email&#39;s store-and-forward nature, SendGrid would begin sending more problematic emails pretty quickly after any
+Radiation reboot. A small change to add a regex group was all that was necessary to fix the issue.&lt;/p&gt;
+
+&lt;p&gt;Phew! We forked Griddler to Artsy&#39;s GitHub organization and applied the change from the pull request. We were
+concerned about security implications of using a different regex, but my
+&lt;a href=&quot;https://artsy.github.io/blog/2018/02/06/apogee-technical-retrospective/&quot;&gt;previous work in regular expressions&lt;/a&gt;
+helped me vet the change. We pointed Radiation&#39;s Gemfile to Artsy&#39;s fork and deployed the change.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/images/2019-11-07-diagnosing-our-radiation-problems/heroku.png&quot; alt=&quot;Screenshot of Heroku Dashboard, indicating a drop in load&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Then, we waited. Would the system start timing out again? It took a half hour for any of us to breathe a sigh of
+relief. But things appeared to be stable: response times were normal and Dyno load dropped precipitously. Our
+&lt;em&gt;Curie&lt;/em&gt; worked. (Okay, enough radiation puns.)&lt;/p&gt;
+
+&lt;p&gt;During our weekly incident review, Devon guided the rest of our team through our incident response and what we
+learned. Radiation is now in a much better state, so that future problems will be easier to track down. We
+responded to the Griddler pull request, encouraging the maintainers to merge the commit so other teams would avoid
+this problem. The incident review meeting explored a number of options to mitigate future issues, including
+migrating Radiation to our Kubernetes cluster, and Sam (our VP of Engineering) suggested writing this post. So here
+we are.&lt;/p&gt;
+
+&lt;p&gt;Ashkan also followed up with peer feedback for Devon, Chung-Yi, and myself. In part, it read:&lt;/p&gt;
+
+&lt;blockquote&gt;&lt;p&gt;It&#39;s rare and odd to say dealing with incident was fun, but with your help it actually was productive and fun.&lt;/p&gt;&lt;/blockquote&gt;
+
+&lt;p&gt;Which, honestly? One of my proudest accomplishments at Artsy.&lt;/p&gt;
+
+&lt;p&gt;In the end, we solved the problem and restored access to our email systems in under 24 hours. We kept our cool, we
+communicated effectively with our non-engineering colleagues, and we learned a lot. What more could you want from a
+Radiation incident?&lt;/p&gt;
+</description>
+        <pubDate>Thu, 14 Nov 2019 00:00:00 +0000</pubDate>
+        <link>http://artsy.github.io/blog/2019/11/14/diagnosing-our-radiation-problems/</link>
+        <guid isPermaLink="true">http://artsy.github.io/blog/2019/11/14/diagnosing-our-radiation-problems/</guid>
+        
+        
+        <category>best practices</category>
+        
+        <category>culture</category>
+        
+        <category>databases</category>
+        
+        <category>email</category>
+        
+        <category>encryption</category>
+        
+        <category>people</category>
+        
+        <category>team</category>
+        
+      </item>
     
       <item>
         <title>CSS is Hard and Other Things I Learned Working on the 2019 Artsy Vanguard</title>
@@ -1865,96 +2010,6 @@ community engagement.&lt;/p&gt;
         <category>culture</category>
         
         <category>oss</category>
-        
-      </item>
-    
-      <item>
-        <title>What I Learned Having a Coffee with Every Engineer</title>
-        <description>&lt;p&gt;In early 2018, I was set to begin my fifth year working at Artsy. Something about my imminent Artsyversary had me
-thinking about my role within the Engineering team. Not my role as an engineer &lt;em&gt;per se&lt;/em&gt;, but my role as a
-&lt;em&gt;colleague&lt;/em&gt;. This is the longest I&#39;ve ever worked for one company, and as Artsy started growing the team last year,
-I wanted to &lt;a href=&quot;https://github.com/artsy/README/blob/master/culture/engineering-principles.md#leverage-your-impact&quot;&gt;leverage my impact&lt;/a&gt; as a longtime colleague to help scale its culture.&lt;/p&gt;
-
-&lt;p&gt;Artsy collects quarterly, anonymous, company-wide surveys through &lt;a href=&quot;https://www.cultureamp.com&quot;&gt;Culture Amp&lt;/a&gt; to determine how everyone is
-doing. These are great for answering quantitative questions about the team, like &quot;how engaged are we on average?&quot;,
-and I always check out the breakdown of answers in the Engineering team. But there&#39;s something unsatisfying about
-these reports – they&#39;re super-valuable, but they feel impersonal to me.&lt;/p&gt;
-
-&lt;p&gt;If I wanted to leverage my impact, I needed to play to my strengths and interests. I&#39;m keenly interested in people
-– as individuals – so I decided that the best way for me to contribute to the team was to get to know everyone as
-individuals. To become someone the team could talk to. Someone outside the typical manager/employee structure, who
-could use their history at Artsy to answer questions (or at least point them in the right direction).&lt;/p&gt;
-
-&lt;p&gt;So, I set off on a project to meet with every member of Artsy&#39;s Engineering team for a one-on-one. With no explicit
-goals or expectations, but in line with Artsy&#39;s &lt;a href=&quot;https://github.com/artsy/README/blob/master/culture/what-is-artsy.md#people-are-paramount&quot;&gt;People are Paramount&lt;/a&gt; value, I got to know my colleagues
-better.&lt;/p&gt;
-
-&lt;!-- more --&gt;
-
-
-&lt;p&gt;I didn&#39;t want this project to interfere with my product work, so I decided to take things slow. I started with a
-list of every Artsy engineer and then removed anyone I already had a close working relationship with. Next, I
-prioritized the team leads and randomized the rest of the list. I set up a recurring task (yay OmniFocus) to
-schedule a coffee with an engineer every week. When we met, I&#39;d cross them off my list.&lt;/p&gt;
-
-&lt;p&gt;That was over a year ago, so what did I learn? Well, a lot, actually! But to get a sense of the impact my project
-had, you&#39;ll need some context.&lt;/p&gt;
-
-&lt;p&gt;2018 was a complex year for Artsy, where we both gained and lost more engineers than usual. The increase in
-engineering turnover was generally attributable to what I&#39;ll call &quot;cultural churn.&quot; Scaling a team comes with new
-challenges, and our team leadership tried to meet those challenges with changes to the team&#39;s structure. Some of
-these changes turned out to be tougher than we&#39;d hoped. Our team is in a great spot &lt;em&gt;now&lt;/em&gt;, but we didn&#39;t get from
-there to here via a straight line.&lt;/p&gt;
-
-&lt;p&gt;In the midst of this cultural churn, I was trying to have a one-on-one with every engineer. I was asking
-people &quot;hey, how are you doing? Want to grab a coffee?&quot; And that actually had a pretty big impact: if I met someone
-and they told me &quot;this situation is stressing me out&quot; or &quot;this feels bad&quot;, it was really validating for them to
-hear me respond &quot;yeah, I&#39;m feeling this too. It&#39;s not just you.&quot; This dovetailed with my contemporaneous research
-into &lt;a href=&quot;https://ashfurrow.com/blog/building-better-software-by-building-better-teams/&quot;&gt;building compassionate teams&lt;/a&gt;, which I leveraged throughout this project.&lt;/p&gt;
-
-&lt;p&gt;Turns out: people feel better when they know the problems they have are shared by others. &lt;em&gt;Sharing&lt;/em&gt; suffering is
-actually one way to &lt;em&gt;minimize&lt;/em&gt; suffering, and minimizing suffering is at the core of my beliefs on compassionate
-teams.&lt;/p&gt;
-
-&lt;p&gt;Once I knew something was wrong with our team culture, I went to my manager to discuss the broad-strokes themes of
-what I was hearing from my peers. I would never betray the confidence of a colleague, but being able to say &quot;lots
-of people are all feeling X&quot; provided an important data point. While leadership already knew that &lt;em&gt;something&lt;/em&gt; was
-not quite right, this data point was a strong indicator that leadership had to intervene quickly. I&#39;ll skip the
-details of how we ultimately addressed our cultural churn (tl;dr it involved our leaders asking IC&#39;s questions, and
-then listening to what they had say). I&#39;m quite happy to say that things are a lot better now!&lt;/p&gt;
-
-&lt;p&gt;While my &quot;have a one-on-one with everyone&quot; project obviously didn&#39;t &quot;fix&quot; the situation, it put me in a position to
-&lt;em&gt;help&lt;/em&gt; fix it. In addition to getting to know everyone as individuals, I got to help identify and help address our
-cultural churn.&lt;/p&gt;
-
-&lt;p&gt;So what next? Well, a lot, actually! Even more engineers have since joined Artsy, and I admittedly haven&#39;t had a
-one-on-one with all of them. But through this project, I realized that I&#39;m very keen to do more of this kind of
-people-work. When my manager recently brought up the possibility of becoming a tech lead, &lt;a href=&quot;https://ashfurrow.com/blog/reflecting-on-5-years-at-artsy/&quot;&gt;I jumped on the
-opportunity&lt;/a&gt;. I started last week.&lt;/p&gt;
-
-&lt;p&gt;My initial goal, to have a coffee with everyone, remains unfulfilled. It probably won&#39;t ever be, considering that I
-now have even less free time in my new role. I&#39;m not an IC anymore – my one-on-ones have to now be focused on &lt;em&gt;my&lt;/em&gt;
-team. While the goal of meeting everyone for a one-on-one will never be accomplished, the journey turned out to be
-more important.&lt;/p&gt;
-
-&lt;p&gt;Important both to me – getting to know my colleagues (and myself!) better – but also important for the team. I got
-to help our team&#39;s culture scale up, and through that experience, I found and expanded the perimeter of my sphere
-of influence as an IC.&lt;/p&gt;
-
-&lt;p&gt;I can&#39;t thank Artsy enough for giving me the freedom, as an IC, to research team dynamics, to pursue this project,
-and for taking all my feedback seriously. If you&#39;re a senior engineer wondering what&#39;s next, try turning your
-attention to your team. I would bet that you&#39;ll learning something worthwhile.&lt;/p&gt;
-</description>
-        <pubDate>Fri, 19 Apr 2019 00:00:00 +0000</pubDate>
-        <link>http://artsy.github.io/blog/2019/04/19/having-a-coffee-with-every-engineer/</link>
-        <guid isPermaLink="true">http://artsy.github.io/blog/2019/04/19/having-a-coffee-with-every-engineer/</guid>
-        
-        
-        <category>culture</category>
-        
-        <category>people</category>
-        
-        <category>process</category>
         
       </item>
     
