@@ -104,40 +104,44 @@ It will introduce existing team members to the new team members' preferred metho
 
 We are excited to see individual growth as these values and practices become habit/second-nature.
 
-## What Challenges Has Artsy Run Into?
+## What are some challenges with Team Working Agreements?
 
-### Not really knowing what qualifies for the team working agreement.
+### Uncertainty about what the agreement should include.
 
-We use the word habit instead of discipline to try to guide the statements to be more appropriate for a team
-agreement
+Some teams have struggled to identify what belongs on a team agreement. Should it describe our team values? Habits?
+Procedures? Rules?
 
-Suggest categories, sample habits, & questions to ask heading into the brainstorm
+It likely varies from team to team what you want here. It's definitely important that you identify what you're
+looking for up front, and make it clear heading into the brainstorm. Suggest categories, sample habits, & questions
+to ask heading into the brainstorm, and keep them visible during the meeting.
 
-- Helps avoid spending time about things that are not habits or values (i.e. "we should try X next sprint")
+That might not be enough, though. On one team, we went into the brainstorm in search of values and habits. We ended
+up with almost exclusively values, which seemed like a win at the time. Several months later, we're still
+regretting that we didn't do more with habits and procedures. We've been supplementing things like "JIRA ticket
+hygiene and workflow" to our agreement as we go, but getting aligned on this earlier would have saved us a lot of
+time.
 
-### Works great when you've got a team that has a well-established identity,
+### They are hard to define for teams that lack a well-established identity.
 
-but what about a team that is newer, or not necessarily in agreement?
+For a team that has been together for a while, and which has established an identity, the agreement is likely to
+affirm many things the team is already believing and doing. For a newer team, or a team that is not very aligned on
+their identity, the agreement is harder to pin down. Many opinions will surface, and they may be in conflict with
+each other.
 
-It is hard to extract an "agreement" when the team isn't very much alignment. It becomes a lot of opinions held
-strongly by a very small portion of the team, which is a hard thing to "agree" on.
+### Facilitating the brainstorm on a distributed team.
 
-### Distributed team?
+Some of our teams were able to brainstorm with everyone on-site. They were able to rely on post-it notes and
+in-person conversations, and read each other's non-verbal communication. Other teams needed to accommodate remote
+members, and used tools like Miro (TODO: link) to facilitate. This _can_ present a challenge...but if you're
+already a distributed team, they are likely the same types of challenges you've worked to overcome for _all_
+meetings.
 
-Using real post-its & in-person conversations vs a tool like Miro
+The differences are worth noting, though. The importance of reading each other's non-verbal communication is
+magnified when you're having conversations about identity. It's quicker to organize and re-organize real-life
+post-its than virtual post-its in an online tool. These are all opportunities to get better at being a distributed
+team.
 
-- Is there a difference in the ease of trying out different groupings?
-
-This is only one aspect of the challenges of working with a distributed team
-
-- It's also an opportunity to get better at being a distributed team
-
-- A lot of the challenges you'd face here for a distributed team aren't much different than the challenges you'd
-  face for other activities with a distributed team
-
-  - That doesn't mean they're easy
-
-### It takes effort to make sure one person isn't introducing their bias into the agreement
+### It takes effort to make sure one person isn't introducing their bias into the agreement.
 
 From early on - need to make sure samples presented aren't biased by the person presenting the exercise
 
