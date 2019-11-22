@@ -1,41 +1,42 @@
 ---
 layout: epic
 title: "Team Working Agreements"
-date: "2019-09-30"
+date: "2019-12-31"
 author: [steve-hicks, adam]
 categories: [people, culture, process, team]
 ---
 
-Intro paragraph
+The culture at Artsy is driven by every team member, not mandated or handed down from above. TODO: Something about
+how that culture birthed a wave of team working agreements.
 
 <!-- more -->
 
-## Context
+Artsy Engineering is part of a larger organization we call PDDE (Product, Design, Data, and Engineering). PDDE is
+divided into several product teams, and each team contains at least one representative from product, design, data,
+and engineering. Each PDDE team delivers product solutions targeted to a specific product need.
 
-### Artsy is pretty new to product teams
+Until recently, those teams could expect a significant change in team members every quarter, as we encouraged
+engineers to explore other teams. The purpose of this practice was to spread knowledge throughout the organization,
+and give folks the opportunity to keep themselves aligned with projects they found most interesting.
 
-so we're still feeling out how these product teams will/should work together
+The downside of this practice was that it made teams feel short-lived, impermanent, and unstable. Some teams were
+hit harder than others, and they'd see their team completely turn over.
 
-We're seeing a lot of sharing of previous experiences in this process
+We still encourage team members to explore other teams, but we no longer schedule it quarterly. This has made our
+teams feel more stable and long-living. It also has allowed us to start building deeper team identity. Team Working
+Agreements are a tool we've introduced to help establish identity.
 
-In our Q1 retrospective, our PDDE organization decided to keep our teams more constant than they had previously
-been.
+## How did Team Working Agreements come about at Artsy?
 
-- We were previously allowing team changes quarterly, which resulted in significant quarterly ramp-up time.
+The current breakdown of our PDDE organization is relatively new; it's also an on-going process. We are still
+feeling out how these teams will/should work together. One of the core beliefs at Artsy is that when you are a part
+of something - a process, a team, a culture - you are empowered to make impactful changes to it.
 
-### This was driven by an engineering team, not mandated/handed down from management
+So when Adam saw that his team was missing ???TODO: Adam, why did galleries first introduce an agreement???, he
+suggested a Team Working Agreement. It went really well, and working agreements have since spread to multiple
+teams. We've done a lot of learning and sharing of experiences with each other.
 
-It's a good reflection of our engineering culture & how we create our own engineering culture
-
-Benefit: team agreements can be a good way to put your culture into practice (and/or further shape your culture)
-
-Is there a way to tie this to our engineering core values?
-
-- Is the whole process related to core values? Are the individual habits a team agrees to related to core values?
-
-- Ash's blog post -
-  [https://artsy.github.io/blog/2018/08/22/engineering-guiding-principles/](https://artsy.github.io/blog/2018/08/22/engineering-guiding-principles/) -
-  why do this at all?
+## What's a Team Working Agreement? (suggested heading for "Overview of process")
 
 ## Overview of process
 
@@ -49,9 +50,9 @@ Describe it in a few sentences:
 3. Distill and translate brainstorming ideas into slogan-like habits
 4. Vote on the top 5 habits
 
-## Benefits
+## Why establish a Team Working Agreement?
 
-### The brainstorm itself is incredibly valuable
+### The brainstorm itself is incredibly valuable.
 
 You look at _how_ the team works instead of what the team is working on
 
@@ -103,7 +104,7 @@ It will introduce existing team members to the new team members' preferred metho
 
 We are excited to see individual growth as these values and practices become habit/second-nature.
 
-## Challenges
+## What Challenges Has Artsy Run Into?
 
 ### Not really knowing what qualifies for the team working agreement.
 
@@ -114,7 +115,7 @@ Suggest categories, sample habits, & questions to ask heading into the brainstor
 
 - Helps avoid spending time about things that are not habits or values (i.e. "we should try X next sprint")
 
-### Works great when you've got a team that is well-established and probably already in alignment on a lot of things,
+### Works great when you've got a team that has a well-established identity,
 
 but what about a team that is newer, or not necessarily in agreement?
 
