@@ -44,19 +44,20 @@ experience developing learning curricula, we decided to make our own. With the h
 Group, we set learning objectives for the five sessions. Here was the original plan:
 
 - **Week 1**: This week, we will cover how iOS software is developed, QA'd, and deployed. By the end of this
-  session, all participants should be able to pull the latest code from [Eigen](https://github.com/artsy/eigen) and
-  [Emission](https://github.com/artsy/emission), see their work in an iOS simulator, and link the two projects
-  together.
+  session, all participants should be able to pull the latest code from [Eigen](https://github.com/artsy/eigen)
+  (our native iOS repo) and [Emission](https://github.com/artsy/emission) (our React Native repo), see their work
+  in an iOS simulator, and link the two projects together.
 - **Week 2**: This week, we will cover what makes React Native distinct from React on the web, as well as how Artsy
-  leverages shared infrastructure (such as [Palette](https://github.com/artsy/palette)) to make it easier for
-  engineers to work in either one.
+  leverages shared infrastructure (such as our design-system, [Palette](https://github.com/artsy/palette)) to make
+  it easier for engineers to work in either one.
 - **Week 3**: This week, we will cover how to create a new view controller. View controllers are the main unit of
   composition for native iOS apps, and we integrate our "Scene" React components _as_ view controllers. This
   includes routing between view controller, from both native Objective-C and React Native code.
 - **Week 4**: This week, we will create our own React component to fit within the new view controller from Week 3.
-  This will be a Relay container, fetching data from [Metaphysics](https://github.com/artsy/metaphysics) v2. We
-  will cover how to fetch data, how to _re_-fetch data, as well as how Eigen and Emission integrate together to
-  provide client-side API response caches (both Relay and others).
+  This will be a Relay container, fetching data from our GraphQL API,
+  [Metaphysics](https://github.com/artsy/metaphysics). We will cover how to fetch data, how to _re_-fetch data, as
+  well as how Eigen and Emission integrate together to provide client-side API response caches (both Relay and
+  others).
 - **Week 5**: This is the final week. Participants are asked to bring an iOS bug from their product team's backlog
   that they would like to fix. Pairing is encouraged.
 
@@ -110,8 +111,15 @@ We learned quite a lot from delivering this curriculum – lessons we can apply 
 - Learners are varied in how they want to learn. Some liked going through things together. Some thought we went too
   slow. Still others thought we should expect learners to do more work ahead of class.
 
+This last point is worth expanding upon. While everyone learns differently, there is a distinction between what
+_feels_ effective and what _is_ effective. I tried to structure the course so that it was accessible to as many
+types of learners as possible: some like to review materials ahead of time, some like to have them in front of them
+during the session, etc. Some are in-person, others are remote, still others are reviewing the recording. I could
+write another blog post about learning styles, but for now it suffices to say that I aimed for _inclusion_ of as
+many different learners as possible while also recognizing that I can't make everyone happy.
+
 As I enter a new chapter of my own career, leading Artsy's new Mobile Experience team, it was helpful to return to
 some fundamentals; to get familiar with technology choices that we made years ago
-([choices which I originall resisted](https://ashfurrow.com/blog/swift-vs-react-native-feels/)); and to learn from
+([choices which I originally resisted](https://ashfurrow.com/blog/swift-vs-react-native-feels/)); and to learn from
 learners' perspectives as beginners. The future of iOS software at Artsy is very bright, and now every product team
 is more prepared than ever to deliver user experiences that are of a quality worthy of art.
