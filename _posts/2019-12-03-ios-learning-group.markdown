@@ -23,7 +23,7 @@ to the following questions:
 
 1. What is our team's opinion on our current technology choices?
 2. What is our team's familiarity with or preparedness for our current technology?
-3. Where are the areas of strength/opportunities for learning and teaching?
+3. Where are the areas of strength and opportunities for both learning and teaching?
 
 There are a lot of things we learned from this survey, and among them was a desire for engineers to better
 understand how to build iOS software at Artsy. With a nudge (and support!) from our _Peer Learning Working Group_,
