@@ -22,7 +22,9 @@ while minimizing disruptions.
 
 <!-- more -->
 
-## Understand the problem
+## Evaluate the problem
+
+## Consider the cost
 
 ## Understand the user
 
@@ -66,4 +68,4 @@ And with that friends, I bid you adieu.
 
 Go out and build great things.
 
-As my friends at Artsy always say, you've got this.
+You've got this.
