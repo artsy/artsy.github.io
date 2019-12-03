@@ -3,7 +3,7 @@ layout: epic
 title: Building tools with empathy
 date: 2019-12-03
 categories: [tools, road and bridges, people, culture]
-author: # see _config.yml
+author: justin
 ---
 
 As engineers, we're surrounded by problems. There are the problems to be solved that differentiate our business,
