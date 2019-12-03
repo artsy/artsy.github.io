@@ -13,7 +13,7 @@ company-wide level, Culture Amp has helped guide everything from Artsy's evolvin
 spaces, to our support for remote work. At an engineering-team level, we've also been using Culture Amp to guide
 our choices in technology, documentation, and training.
 
-In this blog, post, I'll be detailing a recent learning course we ran to share knowledge about how Artsy builds iOS
+In this blog post I'll be detailing a recent learning course we ran to share knowledge about how Artsy builds iOS
 software for our entire engineering team.
 
 <!-- more -->
@@ -27,14 +27,14 @@ to the following questions:
 
 There are a lot of things we learned from this survey, and among them was a desire for engineers to better
 understand how to build iOS software at Artsy. With a nudge (and support!) from our _Peer Learning Working Group_,
-I set out to create a learning plan. I wasn't starting out from scratch – we have already run a few learning
-groups, on topics ranging from Scala fundamentals to React Hooks. We used the lessons learned from _those_
+I set out to create a learning plan. I wasn't starting from scratch – we already ran a few learning
+groups on topics ranging from Scala fundamentals to React Hooks. We used the lessons learned from _those_
 experiences to define and deliver a learning plan.
 
 I started by booking five sessions, spread out by a week. I picked a time that was a good fit for as many engineers
 as possible, and I scheduled them a month ahead to give people a chance to move their schedules around. Scheduling
 them up front was important, to give learners a sense of what to expect; previous learning groups had suffered from
-inconsistent schedules, which led to intermittent attendance. I also made sure to go to each Tech Lead and ask them
+inconsistent schedules, which led to intermittent attendance. I also asked each Tech Lead
 to make sure at least one engineer from their team attended.
 
 Next was the actual curriculum. In the spirit of "proudly discovered elsewhere", we actually looked at using
