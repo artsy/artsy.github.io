@@ -27,21 +27,21 @@ to the following questions:
 
 There are a lot of things we learned from this survey, and among them was a desire for engineers to better
 understand how to build iOS software at Artsy. With a nudge (and support!) from our _Peer Learning Working Group_,
-I set out to create a learning plan. I wasn't starting from scratch – we already ran a few learning
-groups on topics ranging from Scala fundamentals to React Hooks. We used the lessons learned from _those_
-experiences to define and deliver a learning plan.
+I set out to create a learning plan. I wasn't starting from scratch – we already ran a few learning groups on
+topics ranging from Scala fundamentals to React Hooks. We used the lessons learned from _those_ experiences to
+define and deliver a learning plan.
 
 I started by booking five sessions, spread out by a week. I picked a time that was a good fit for as many engineers
 as possible, and I scheduled them a month ahead to give people a chance to move their schedules around. Scheduling
 them up front was important, to give learners a sense of what to expect; previous learning groups had suffered from
-inconsistent schedules, which led to intermittent attendance. I also asked each Tech Lead
-to make sure at least one engineer from their team attended.
+inconsistent schedules, which led to intermittent attendance. I also asked each Tech Lead to make sure at least one
+engineer from their team attended.
 
 Next was the actual curriculum. In the spirit of "proudly discovered elsewhere", we actually looked at using
 existing learning resources that someone else had already developed. However, since
-[our iOS stack is a bit unique](https://artsy.github.io/series/react-native-at-artsy/) and I already have
-experience developing learning curricula, we decided to make our own. With the help of our Peer Learning Working
-Group, we set learning objectives for the five sessions. Here was the original plan:
+[our iOS stack is a bit unique](https://artsy.github.io/series/react-native-at-artsy/) and I was keen to keep
+honing my own skills as a technical educator, we decided to make our own. With the help of our Peer Learning
+Working Group, we set learning objectives for the five sessions. Here was the original plan:
 
 - **Week 1**: This week, we will cover how iOS software is developed, QA'd, and deployed. By the end of this
   session, all participants should be able to pull the latest code from [Eigen](https://github.com/artsy/eigen)
@@ -84,9 +84,10 @@ helpful while teaching engineers at Artsy about how we build iOS software:
   iOS codebases. As an example of putting this into practice, I interleaved a discussion of
   [Relay](https://relay.dev) into our curriculum; I hoped to show learners both a new perspective of Relay, as well
   as show them how familiar writing React Native code was to writing React web code.
-- Allowing for some forgetting to take place before reviewing concepts will help strengthen learner's
-  understanding. To put this into practice, I would return to topics from a few weeks ago to cement their
-  understanding with learners.
+- Allowing for some forgetting to take place before reviewing concepts will
+  [help strengthen learner's understanding](https://njcideas.wordpress.com/2017/09/22/the-cognitive-science-of-studying-massed-practice-vs-spaced-practice/).
+  To put this into practice, I would return to topics from a few weeks ago to cement their understanding with
+  learners.
 
 I had to push through some discomfort as an educator, too. Each session ended with homework questions, which we
 reviewed at the top of the next session. I would ask each question and then just sit there, in awkward silence,
@@ -113,10 +114,10 @@ We learned quite a lot from delivering this curriculum – lessons we can apply 
 
 This last point is worth expanding upon. While everyone learns differently, there is a distinction between what
 _feels_ effective and what _is_ effective. I tried to structure the course so that it was accessible to as many
-types of learners as possible: some like to review materials ahead of time, some like to have them in front of them
-during the session, etc. Some are in-person, others are remote, still others are reviewing the recording. I could
-write another blog post about learning styles, but for now it suffices to say that I aimed for _inclusion_ of as
-many different learners as possible while also recognizing that I can't make everyone happy.
+types of learners as possible: some like to review materials ahead of time, some like to have them on hand during
+the session, etc. Some are in-person, others are remote, still others are reviewing the recording. I could write
+another blog post about learning styles, but for now it suffices to say that I aimed for _inclusion_ of as many
+different learners as possible while also recognizing that I can't make everyone happy.
 
 As I enter a new chapter of my own career, leading Artsy's new Mobile Experience team, it was helpful to return to
 some fundamentals; to get familiar with technology choices that we made years ago
