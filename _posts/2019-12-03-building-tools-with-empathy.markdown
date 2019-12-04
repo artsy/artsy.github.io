@@ -26,11 +26,28 @@ while minimizing disruptions.
 
 ## Consider the cost
 
+No change is free. Now that you understand your problem and have an idea of what you want to build to solve it take
+some time to consider the cost.
+
+Will adding this tool be interruptive to the user's workflow? Will it be hard to discover and thus unlikely to be
+used? If it breaks does it block critical work? Is it hard to set up?
+
 ## Understand the user
 
 ## Know the risks
 
 ## Set it up for success
+
+The moment you share your tool and it becomes depended on by someone else you move from being a creator to a
+steward. You can move on from the project, but it still exists. With this in mind, you owe it to yourself and those
+who follow after you to add good documentation about how to do whatever work needs to be done to keep it going. Is
+there a special deployment strategy? Document it. Is there a weird dependency? Document it. Make sure the intent,
+common usage, and failure modes are all clearly documented too. This helps ensure the tool _can_ survive your
+tenure.
+
+One of the most critical interactions your tool will have with it's users is when it errors. Good error messages
+educate your users and empower them to work past the error without having to rely on you to figure out what went
+wrong.
 
 ## Over-communicate
 
