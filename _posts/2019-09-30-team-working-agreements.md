@@ -198,8 +198,7 @@ until they could reach consensus.
 ### Team health is easy to postpone when you have important product work to do.
 
 One of our teams put the act of distilling the brainstorm notes into an agreement on one person. That person became
-busier than expected, didn't get a chance to write the agreement, and the team's agreement did not progress. (TODO:
-fact-check. I have notes that this happened to Purchase, but I don't know if they progressed or not.)
+busier than expected, didn't get a chance to write the agreement, and the team's agreement stalled.
 
 Just as personal self-care gets put on the back burner during stressful times, creating a working agreement is easy
 to bump down the backlog during intense periods of sprint work. The longer a team drags out the working agreement
