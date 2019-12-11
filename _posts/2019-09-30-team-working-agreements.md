@@ -99,9 +99,6 @@ contributors, and with your closest collaborators.
       values.
     </p>
   </div>
-</aside>
-
-<aside>
   <div class="answer">
     <img src="/images/artsy-engineering-hiring/adam.jpg">
     <p class="intro">Adam Iskounen says...</p>
