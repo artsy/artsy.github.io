@@ -24,10 +24,9 @@ engineers to explore other teams. The purpose of this practice was to spread kno
 and give folks the opportunity to keep themselves aligned with projects they found most interesting.
 
 The downside of this practice was that it made teams feel short-lived, impermanent, and unstable. Some teams were
-hit harder than others - they'd see their team completely turn over every quarter.
+hit harder than others - they'd see their team completely turn over every quarter. This was felt most strongly by our product managers who would take the time to learn the skills and strengths of each engineer on their team over the course of a quarter, just to have to start the process all over again, making it difficult to plan projects set goals for the following quarter.
 
-We've abandoned the practice of shuffling teams every quarter. It was too much change, too often. We still
-encourage team members to explore other teams; we just don't schedule everyone to pursue a change at the same time.
+To address these challenges, PDDE decided to set the expectation that engineers would stay on the same team each quarter, with the option to request a team change, when necessary, to fill a skill, capacity, or growth need elsewhere. This effectively ended the practice of shuffling teams every quarter. It was too much change, too often.
 
 As a result, our teams feel more stable and long-living. We're able to build deeper team identity. We've found one
 tool particularly helpful in finding and building team identity: Team Working Agreements.
@@ -43,7 +42,7 @@ of something - a process, a team, a culture - you are empowered to make impactfu
     <img src="/images/artsy-engineering-hiring/adam.jpg">
     <p class="intro">Adam Iskounen says...</p>
     <p>
-      TODO Adam: talk about how the agreement came about for galleries (which is I think the first team to establish one)
+      Team cohesion and unity was a common theme that kept surfacing during the retrospective meeting that led to PDDE ending the quarterly shuffling of teams. I remembered that team working agreements were a tool used by a scrum master at my previous job to help a particular team that were struggling to gel, and brought it up without really knowing what was involved in the process. Fortunately my product manager - who was eager to form a team where each member felt empowered and excited to take ownership of our work - encouraged me to research and share the process for coming up with a team working agreement. At first I was nervous that some team members, especially those who I perceived to be more interested in technical challenges than on team-building, would not be interested in this and find that it was a waste of time. I was pleasantly surprised that not only did everyone on the team participate, but that those team members ended up being some of the more enthusiastic proponets for following-up on the team working agreement after our initial brainstorm.
     </p>
   </div>
 </aside>
@@ -63,12 +62,17 @@ Describe it in a few sentences:
 
 - https://github.com/artsy/README/blob/master/playbooks/agile/team-working-agreement.md#procedure
 
-3. Distill and translate brainstorming ideas into slogan-like habits
-4. Vote on the top 5 habits
+3. Distill and translate brainstorming ideas into slogan-like habits (ADAM: find themes, combine similar ones, condense ideas >>> habits. habits are an amalgamation of ideas from brainstorming that fit together)
+4. Vote on the top 5 habits (ADAM: don't limit to 5. mention the output is a set of the most important habits that the team can agree on)
+
+(ADAM: what should come out of each step, and what is the way you get there?)
+(ADAM: add a step to revisit often)
 
 ## Why establish a Team Working Agreement?
 
 ### The brainstorm itself is incredibly valuable.
+
+(ADAM: call out that all team members - P, D, D, and E - should attend.)
 
 Dedicated time to talk about values, habits, and processes is incredibly helpful to a team, yet rarely scheduled.
 The brainstorm for a Team Working Agreement can fill this void.
@@ -76,7 +80,7 @@ The brainstorm for a Team Working Agreement can fill this void.
 During the agreement brainstorm the team looks at _how_ they work, instead of looking at _what_ work they're doing.
 It's similar to what you might get out of a retro but at a higher level. It offers time to discuss "soft" skills
 that you don't often discuss, in a context that you don't usually discuss them - with other individual
-contributors, and with your closest collaborators.
+contributors, and with your closest collaborators. (ADAM: can this paragraph be reorganized to contrast the proactive nature of TWAs to the retroactive nature of retros?)
 
 <aside>
   <div class="answer">
@@ -109,6 +113,7 @@ contributors, and with your closest collaborators.
     </p>
   </div>
 </aside>
+(ADAM: discuss the value/impact of the brainstorm here. perhaps this is where I can discuss how I didn't think our retros were effective during onboarding rotations)
 
 ### It can lead to better engagement in sprint activities.
 
@@ -134,7 +139,7 @@ it's important to update it...but having it in writing helps new members acclima
 Some teams have struggled to identify what belongs on a team agreement. Should it describe our team values? Habits?
 Procedures? Rules?
 
-It likely varies from team to team what you want here. It's definitely important that you identify what you're
+It likely varies from team to team what you want here. (ADAM: provide some examples of how it may vary for some type of teams.) It's definitely important that you identify what you're
 looking for up front, and make it clear heading into the brainstorm. Suggest categories, sample habits, & questions
 to ask heading into the brainstorm, and keep them visible during the meeting.
 
@@ -145,23 +150,25 @@ Be cautious about introducing individual bias, though.
     <img src="/images/artsy-engineering-hiring/steve.jpg">
     <p class="intro">Steve Hicks says...</p>
     <p>
-      Having been through a brainstorm on another team where I felt like we spent too much time talking about things I deemed "too specific," I made a strong effort on another team to constrain the suggestions. To me, team values were really important for this new team - and I did such a good job of encouraging those types of suggestions that it's pretty much all we ended up with.
+      (HICKS: passive voice?) Having been through a brainstorm on another team where I felt like we spent too much time talking about things I deemed "too specific," I made a strong effort on another team to constrain the suggestions. To me, team values were really important for this new team - and I did such a good job of encouraging those types of suggestions that it's pretty much all we ended up with.
     </p>
     <p>
-      While this made me feel like I understood the values of my team better, we're months later _still_ paying for this bias. Our agreement lacked important procedural and tactical definition. We've been adding things like JIRA hygiene and responsibilities of project leaders as they come up, but I would not push a working agreement brainstorm so strongly in one direction again.
+      While this made me feel like I understood the values of my team better, we're months later _still_ paying for this bias. Our agreement lacked important procedural and tactical definition. We've been adding things like JIRA hygiene and responsibilities of project leaders as they come up, but I would not push a working agreement brainstorm so strongly in one direction again. (HICKS: discussed how to mitigate this)
     </p>
   </div>
 </aside>
 
-### Agreements are hard to define for teams without a well-established identity.
+(ADAM: Add an Adam says... section to share the habits that the Galleries team agreed upon)
 
+### Agreements are hard to define for teams without a well-established identity.
+(HICKS: time =/= identity?)
 For a team that has been together for a while, and which has established an identity, the agreement is likely to
 affirm many things the team is already believing and doing. For a newer team, or a team that is not very aligned on
 their identity, the agreement is harder to pin down. Many opinions will surface, and they may be in conflict with
 each other.
 
 While this is indeed challenging, it is also important to note that teams that lack identity value _greatly_ from
-the team agreement brainstorm. Provided there is psychological safety, this is a really great time for the team to
+the team agreement brainstorm. Provided there is (HICKS: URL) psychological safety, this is a really great time for the team to
 learn about what matters to each other, and move toward establishing an identity.
 
 ### Facilitating the brainstorm can be difficult on a distributed team.
@@ -193,7 +200,7 @@ The problem of introducing bias to the distillation process is most challenging 
 across the team. One of our teams spent a lot of time talking about meetings in their brainstorm, but struggled to
 come to consensus on them. No single person, or even a pair, could add a disputed topic like this to the agreement
 without introducing their personal bias. In this specific case, the team chose to leave meetings off the agreement
-until they could reach consensus.
+until they could reach consensus. (HICKS: follow up with advice on not getting bogged down and scheduling this later)
 
 ### Team health is easy to postpone when you have important product work to do.
 
