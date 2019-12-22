@@ -7,45 +7,56 @@ categories: [mental-health, culture, diversity, autism, neurodiversity]
 comment_id: 598
 ---
 
-You are a software engineer. You consider yourself an introvert, and you subscribe to the idea of "engineering
-time" where you like to work for extended uninterrupted periods because interruptions wreck you. You are used to
-being misunderstood. Ever since you can remember the people around you have been kind of baffling: they constantly
-fail to notice stuff that's really obvious and important to you, and then they have the audacity to get frustrated
-with you for not understanding them.
+You are a software engineer.
 
-But whatever, you can deal with this. This is just how life goes, right?
+You consider yourself an introvert, and you subscribe to the idea of "engineering time" where you like to work for
+extended uninterrupted periods because interruptions wreck you. You are used to being misunderstood. Ever since you
+can remember the people around you have been kind of baffling: they constantly fail to notice stuff that's really
+obvious and important to you, and then they have the audacity to get frustrated with you for not understanding
+them.
+
+But whatever, you can deal with this, right? This is just how life goes, right? Everyone's like this, right?
+
+Right?
 
 <!-- more -->
 
 It's really been like this as long as you can remember. Maybe even as early as kindergarten, when you distinctly
 remember feeling "Wow, I guess all these kids must already know each other?" because how else would they know how
-to just start playing together? You might have gotten really, really good at languages, or you might have eschewed
-it entirely and focused on things like Math and Science. Socially things were always a little weird for you -
-people were never _quite_ behaving in ways that made sense, and especially when younger you probably socialized by
-getting 'adopted' by some other kid who seemed to know what was going on. Whatever you studied you poured yourself
-into deeply as long as it held your interest -- your mind expanded into the space your lessons created and eagerly
-walked hidden pathways that your classmates didn't see. You asked the questions in class that surprised the teacher
-and annoyed your peers, and you probably got damn good grades.
+to just start playing together? You might have gotten really, really good at languages -- or you might have
+eschewed the humanities entirely entirely and focused on things like Math and Science. Regardless, you were in it
+for the _systems_ -- grammar just _makes sense_ to you, in the same way software engineer eventually would. Math,
+you finally understood, was just a specialized language for referring to the relations between things -- sure,
+okay!
+
+Socially things were always a little weird for you - people were never _quite_ behaving in ways that made sense,
+and especially when younger you probably socialized by getting 'adopted' by some other kid who seemed to know what
+was going on. Whatever you studied you poured yourself into deeply as long as it held your interest -- your mind
+expanded into the space your lessons created and eagerly walked hidden pathways that your classmates didn't see.
+You asked the questions in class that surprised the teacher and annoyed your peers, and you probably got damn good
+grades.
+
+You may have been bullied.
 
 You likely went to college and focused on something that interested you -- perhaps you doubled down on language, or
-maybe you went into engineering or music or math. College was a revelation, because maybe for the first time in
-your life you had a few people around you who actually understood you when you shared your thoughts. You didn't
-have to go to great lengths to establish a shared context, for instance. You could speak words that were meaningful
-to you and someone else could understand and offer a meaningful response, and this made you feel uncomfortable at
-first but you really loved it. Your experience of college was maybe a bit different than you expected - certainly
-nothing like the movies you watched as a kid. You got really into a weird hobby, maybe, and didn't end up going to
-many frat parties.
+maybe you went into engineering or music or math. It was a revelation, because maybe for the first time in your
+life you were surrounded by a self-selecting group of peers, some of whom shared your passion for analysis and deep
+thinking. You didn't have to go to great lengths to establish a shared context, for instance. You could speak words
+that were meaningful to you and someone else could understand and offer a meaningful response, and this made you
+feel uncomfortable at first but you really loved it. Your experience of college was maybe a bit different than you
+expected - certainly nothing like the movies you watched as a kid. You got really into a weird hobby, maybe, and
+didn't end up going to too many parties.
 
-Relationships and intimacy have always been a bit fraught to you. You frequently find yourself trying to figure out
-what you're supposed to be feeling, and you work hard to show your partner the person you want to be. Maybe when
-you first moved in with someone you had a bit of a freakout that has made you nervous to think about ever since.
-Maybe you have a string of failed relationships behind you, each of them starting out so promisingly and then
-imploding catastrophically and confusingly once the initial honeymoon phase is over and it's time to really get to
-know and grow with another person. You don't know how to do that, and every time you try you seem to make someone
-upset.
+Relationships and intimacy have always been a bit fraught for you. You frequently find yourself trying to figure
+out what you're supposed to be feeling, and you work hard to show your partner the person you want to be. Maybe
+when you first moved in with someone you had a bit of a freakout that has made you nervous to think about ever
+since, or maybe meeting a significant other's family has been so anxiety-inducing as to prove impossible. Maybe you
+have a string of failed relationships behind you, each of them starting out so promisingly and then imploding
+catastrophically and confusingly once the initial honeymoon phase is over and it's time to really get to know and
+grow with another person. You don't know how to do that, and every time you try you seem to make someone upset.
 
-You discovered computers at some point and realized that they are way, way easier to communicate with than people.
-When a computer doesn't understand you it's because you've done something wrong. When a computer says something
+You're a software engineer at least partly because computers are much easier to communicate with than people. When
+a computer doesn't understand you it's because you've done something wrong. When a computer says something
 incorrect it's also because you've done something wrong. You can step through and rigorously debug the problem,
 identifying and isolating the mistake. The more you played around with tech the more you liked it - and when you
 discovered programming it blew your mind, because you _intuitively_ understood the relational nature of computation
@@ -54,34 +65,35 @@ and found yourself suddenly gifted with superpowers.
 When you entered the working world you were REALLY confused, though. You were able to complete a week's worth of
 assignments in an afternoon. It was really obvious to you who was working intelligently and who was not, and you
 had to learn, perhaps painfully, that sharing that kind of feedback isn't always constructive. Maybe one day you
-got some criticism about something you did and it really hurt in ways you didn't expect -- you found yourself
-reacting defensively, but people smiled and made you feel safe and the whole thing was kinda weird. You found
-yourself resenting the arbitrary and unwritten rules of the professional world: you have to be at your desk and
-looking busy even when you're just thinking; let people say things that are not true if correcting them publicly
-will embarrass someone; people will ignore your advice and then something will break because of it and it's very
-important not to yell at them about it.
+got some criticism about something you did and it really hurt in ways you didn't expect -- maybe you found yourself
+reacting defensively, and the next thing you know you're in a meeting with HR over what to you was clearly all a
+big misunderstanding, but nobody is smiling. Or maybe instead someone recognized that you were having a tough time,
+and stepped in to defuse the situation.
+
+Regardless, your agency was compromised. You found yourself resenting the arbitrary and unwritten rules of the
+professional world: you have to be at your desk and looking busy even when you're just thinking; let people say
+things that are not true if correcting them publicly will embarrass someone; people will ignore your advice and
+then something will break because of it and it's very important not to yell at them about it.
 
 You're used to modeling the world in a specific way, but school doesn't actually prepare you in any way for the
 complex web of social dynamics that, just like in kindergarten, everyone else seems to grok. It's really
 frustrating, maybe you've been fired once or twice, maybe you've left a few jobs out of embarrassment. You
-eventually figured it out -- or maybe you didn't!
+eventually figured it out -- or maybe you didn't! The thing is, programming has never been the hard part of work,
+for you. The people have been the much more interesting and challenging domain to master.
 
-Today, you're a software engineer who really deeply understands and enjoys your stack. You have workflows that you
-can do in your sleep, you know intuitively what the current state of your system is and you have a powerful
-intuition that lets you know things -- seemingly in advance -- about potential problems. Maybe you've figured out
-how to play the social game, in which case you're gregarious and supportive and kind to your coworkers. Maybe you
-haven't, in which case you're super productive but don't get invited to a lot of office events. Either way, you're
-more or less happy and living your life.
+Today, you're an engineer who really deeply understands and enjoys your stack. You have workflows that you can do
+in your sleep, you know intuitively what the current state of your system is and you have a powerful intuition for
+downstream problems. Maybe you've figured out how to play the social game, in which case you're probably gregarious
+and supportive and kind to your coworkers. Maybe you haven't, in which case you're super productive but don't
+attend a lot of office functions. Either way is fine as long as you've found a place where you feel comfortable!
 
-You have one or two hobbies that consume you completely, and you'd be glad to spend hours or days pursuing them
-without interruption. At the same time, you've had a sense for years that something isn't quite... right. You've
-probably learned to ignore it. Sure things get super stressful sometimes. Sure you find yourself really
-unreasonably tired, especially after meeting-heavy days. Sure when you get downtime sometimes all you can do is
-just sit there doing nothing -- maybe you feel bad about that? Maybe you use an abnormally high number of sick days
-purely for mental health reasons. Maybe you've got a substance abuse issue. You're probably struggling with
-codependency, anxiety and/or depression. You think of yourself as just "a depressed person", but try not to let it
-define you. You feel constantly on the edge of burnout, but no matter how many vacations you take it doesn't seem
-to get any better.
+At the same time, you've had a sense for years that something isn't quite... right. You've probably learned to
+ignore it. Sure things get super stressful sometimes. Sure you find yourself really unreasonably tired, especially
+after meeting-heavy days. Sure when you get downtime sometimes all you can do is just sit there doing nothing --
+maybe you feel bad about that? Maybe you use an abnormally high number of sick days purely for mental health
+reasons. Maybe you've got a substance abuse issue. You're probably struggling with codependency, anxiety and/or
+depression. You think of yourself as just "a depressed person", but try not to let it define you. You feel
+constantly on the edge of burnout, but no matter how many vacations you take it doesn't seem to get any better.
 
 Maybe you are sensitive to certain kinds of sensory stimuli - like, you can't wear synthetic fabric because it just
 feels gross. Maybe you can't eat peaches because the peach fuzz on the roof of your mouth is unbearable. Maybe you
@@ -109,10 +121,20 @@ observable behavior but don't actually understand what they're seeing. I tried t
 [reframe those criteria](https://theaspergian.com/2019/04/17/humanizing-the-dsm-diagnosis-for-autism/) in a way
 that makes them feel human and relatable rather than inhuman and other.
 
+I'm writing this blog post because my own self-diagnosis at age 34 and formal diagnosis this past fall at age 36
+changed my life, and I _know for a fact_ that there going to be some autistic people reading this who don't know
+that they're autistic.
+
 If you're interested in learning more, I highly recommend perusing
-[AutismTranslated](https://reddit.com/r/autismTranslated), a subreddit I set up to make autistic traits more
-recognizable and relatable to those of us who subjectively experience them. You can also follow me
-[on twitter](https://twitter.com/mykola) where I do a lot of outreach work in this space.
+[AutismTranslated](https://reddit.com/r/autismTranslated), a subreddit to make autistic traits more recognizable
+and relatable to those of us who subjectively experience them. I'm personally most active
+[on twitter](https://twitter.com/mykola) these days and you can always find me there, along with hundreds of other
+folks using the [#actuallyAutistic](https://twitter.com/search?q=%23actuallyAutistic)
+[#allAutistics](https://twitter.com/search?q=%23allAutistics) and
+[#askingAutistics](https://twitter.com/search?q=%23askingAutistics) hashtags. Autism is a condition particularly
+vulnerable to intersectional dynamics, which means that resources like
+[#autisticWhileBlack](https://twitter.com/search?q=%23autisticWhileBlack) and
+[/r/aspergirls](https://reddit.com/r/aspergirls) are crucial to folks in those demographics.
 
 Finally, as preparation for this blog post I asked diagnosed neurodivergent tech workers on twitter
 [to volunteer if they're willing to answer questions](https://twitter.com/mykola/status/1205927773644214273), and
@@ -126,4 +148,4 @@ are, learning what your authentic needs are and learning how to heal from years 
 can and will change your life in a million ways and let you move from barely getting by to thriving as your most
 authentic self.
 
-I see you and I believe in you, and I'm here to help. <3
+I see you and I believe in you, and there are a lot of us out here ready to help. <3
