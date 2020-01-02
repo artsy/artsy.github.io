@@ -24,7 +24,7 @@ Right?
 It's really been like this as long as you can remember. Maybe even as early as kindergarten, when you distinctly
 remember feeling "Wow, I guess all these kids must already know each other?" because how else would they know how
 to just start playing together? You might have gotten really, really good at languages -- or you might have
-eschewed the humanities entirely entirely and focused on things like Math and Science. Regardless, you were in it
+eschewed the humanities entirely and focused on things like Math and Science. Regardless, you were in it
 for the _systems_ -- grammar just _makes sense_ to you, in the same way software engineering eventually would. Math,
 you finally understood, was just a specialized language for referring to the relations between things -- sure,
 okay!
