@@ -110,7 +110,7 @@ neurodivergent.
 Autism is one form of neurodiversity, and what I'm describing above is a very autistic experience - but there's a
 ton of overlap with ADHD, Dyslexia and other neurodivergent conditions. We've learned so much about neurodiversity
 in the past ten years, and even if you consider yourself fairly well-informed about autism it's worth updating your
-understanding if you haven't read the latest findings.
+understanding.
 
 Your first step, quite reasonably, might be to go take a look at the
 [official diagnostic criteria](https://www.cdc.gov/ncbddd/autism/hcp-dsm.html) for autism. But autistic or not, if
