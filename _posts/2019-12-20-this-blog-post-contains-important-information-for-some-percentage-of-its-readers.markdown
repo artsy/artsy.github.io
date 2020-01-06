@@ -1,6 +1,6 @@
 ---
 layout: epic
-title: Hi! Is this you?
+title: This Blog Post Contains Important Information For Some Percentage of its Readers
 date: 2019-12-20
 author: myk
 categories: [mental-health, culture, diversity, autism, neurodiversity]
@@ -24,10 +24,9 @@ Right?
 It's really been like this as long as you can remember. Maybe even as early as kindergarten, when you distinctly
 remember feeling "Wow, I guess all these kids must already know each other?" because how else would they know how
 to just start playing together? You might have gotten really, really good at languages -- or you might have
-eschewed the humanities entirely and focused on things like Math and Science. Regardless, you were in it
-for the _systems_ -- grammar just _makes sense_ to you, in the same way software engineering eventually would. Math,
-you finally understood, was just a specialized language for referring to the relations between things -- sure,
-okay!
+eschewed the humanities entirely and focused on things like Math and Science. Regardless, you were in it for the
+_systems_ -- grammar just _makes sense_ to you, in the same way software engineering eventually would. Math, you
+finally understood, was just a specialized language for referring to the relations between things -- sure, okay!
 
 Socially things were always a little weird for you - people were never _quite_ behaving in ways that made sense,
 and especially when younger you probably socialized by getting 'adopted' by some other kid who seemed to know what
