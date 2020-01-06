@@ -25,15 +25,16 @@ It's really been like this as long as you can remember. Maybe even as early as k
 remember feeling "Wow, I guess all these kids must already know each other?" because how else would they know how
 to just start playing together? You might have gotten really, really good at languages -- or you might have
 eschewed the humanities entirely and focused on things like Math and Science. Regardless, you were in it for the
-_systems_ -- grammar just _makes sense_ to you, in the same way software engineering just _makes sense_ to you now. Math, you
-finally understood, was just a specialized language for referring to the relations between things -- sure, okay!
+_systems_ -- grammar just _makes sense_ to you, in the same way software engineering just _makes sense_ to you now.
+Math, you finally understood, was just a specialized language for referring to the relations between things --
+sure, okay!
 
-Socially, things were always a little weird for you. Other people never _quite_ behaved in ways that made sense to you,
-and especially when younger you probably socialized by getting 'adopted' by some other kid who seemed to know what
-was going on. Whatever you studied you poured yourself into deeply as long as it held your interest -- your mind
-expanded into the space your lessons created and eagerly walked hidden pathways that your classmates didn't see.
-You asked the questions in class that surprised the teacher and annoyed your peers, and you probably got damn good
-grades.
+Socially, things were always a little weird for you. Other people never _quite_ behaved in ways that made sense to
+you, and especially when younger you probably socialized by getting 'adopted' by some other kid who seemed to know
+what was going on. Whatever you studied you poured yourself into deeply as long as it held your interest -- your
+mind expanded into the space your lessons created and eagerly walked hidden pathways that your classmates didn't
+see. You asked the questions in class that surprised the teacher and annoyed your peers, and you probably got damn
+good grades.
 
 You may have been bullied.
 
@@ -51,8 +52,9 @@ out what you're supposed to be feeling, and you work hard to show your partner t
 when you first moved in with someone you had a bit of a freakout that has made you nervous to think about ever
 since, or maybe meeting a significant other's family has been so anxiety-inducing as to prove impossible. Maybe you
 have a string of failed relationships behind you, each of them starting out so promisingly and then imploding
-catastrophically and confusingly once the initial honeymoon phase was over and it was time to really get to know, get to
-grow with another person. You don't know how to do that, and every time you try you seem to make someone upset.
+catastrophically and confusingly once the initial honeymoon phase was over and it was time to really get to know,
+get to grow with another person. You don't know how to do that, and every time you try you seem to make someone
+upset.
 
 You're a software engineer at least partly because computers are much easier to communicate with than people. When
 a computer doesn't understand you it's because you've done something wrong. When a computer says something
@@ -105,7 +107,7 @@ But maybe -- and this may be the best news you've ever received -- you're autist
 Many (if not most) autistic people would tell you similar stories about their personal histories, especially those
 who have gone undiagnosed into adulthood. If these descriptions resonate with you -- maybe not exactly, but maybe
 you can see the shape I'm trying to paint -- then it's worth considering the possibility that you may be
-neurodivergent.
+**neurodivergent**.
 
 Autism is one form of neurodiversity, and what I'm describing above is a very autistic experience - but there's a
 ton of overlap with ADHD, Dyslexia and other neurodivergent conditions. We've learned so much about neurodiversity
@@ -128,7 +130,7 @@ If you're interested in learning more, I highly recommend perusing
 [AutismTranslated](https://reddit.com/r/autismTranslated), a subreddit to make autistic traits more recognizable
 and relatable to those of us who subjectively experience them. I'm personally most active
 [on twitter](https://twitter.com/mykola) these days and you can always find me there, along with hundreds of other
-folks using the [#actuallyAutistic](https://twitter.com/search?q=%23actuallyAutistic), 
+folks using the [#actuallyAutistic](https://twitter.com/search?q=%23actuallyAutistic),
 [#allAutistics](https://twitter.com/search?q=%23allAutistics) and
 [#askingAutistics](https://twitter.com/search?q=%23askingAutistics) hashtags. Autism is a condition particularly
 vulnerable to intersectional dynamics, which means that resources like
