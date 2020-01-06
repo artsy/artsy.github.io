@@ -72,7 +72,7 @@ and stepped in to defuse the situation.
 Regardless, your agency was compromised. You found yourself resenting the arbitrary and unwritten rules of the
 professional world: you have to be at your desk and looking busy even when you're just thinking; let people say
 things that are not true if correcting them publicly will embarrass someone; people will ignore your advice and
-then something will break because of it and it's very important not to yell at them about it.
+then something will break because of it and it's very important not to get too upset.
 
 You're used to modeling the world in a specific way, but school doesn't actually prepare you in any way for the
 complex web of social dynamics that, just like in kindergarten, everyone else seems to grok. It's really
