@@ -128,7 +128,7 @@ If you're interested in learning more, I highly recommend perusing
 [AutismTranslated](https://reddit.com/r/autismTranslated), a subreddit to make autistic traits more recognizable
 and relatable to those of us who subjectively experience them. I'm personally most active
 [on twitter](https://twitter.com/mykola) these days and you can always find me there, along with hundreds of other
-folks using the [#actuallyAutistic](https://twitter.com/search?q=%23actuallyAutistic)
+folks using the [#actuallyAutistic](https://twitter.com/search?q=%23actuallyAutistic), 
 [#allAutistics](https://twitter.com/search?q=%23allAutistics) and
 [#askingAutistics](https://twitter.com/search?q=%23askingAutistics) hashtags. Autism is a condition particularly
 vulnerable to intersectional dynamics, which means that resources like
