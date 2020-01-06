@@ -51,7 +51,7 @@ out what you're supposed to be feeling, and you work hard to show your partner t
 when you first moved in with someone you had a bit of a freakout that has made you nervous to think about ever
 since, or maybe meeting a significant other's family has been so anxiety-inducing as to prove impossible. Maybe you
 have a string of failed relationships behind you, each of them starting out so promisingly and then imploding
-catastrophically and confusingly once the initial honeymoon phase is over and it's time to really get to know and
+catastrophically and confusingly once the initial honeymoon phase was over and it was time to really get to know, get to
 grow with another person. You don't know how to do that, and every time you try you seem to make someone upset.
 
 You're a software engineer at least partly because computers are much easier to communicate with than people. When
