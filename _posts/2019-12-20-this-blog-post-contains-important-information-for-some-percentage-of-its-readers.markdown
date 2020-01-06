@@ -64,7 +64,7 @@ and found yourself suddenly gifted with superpowers.
 When you entered the working world you were REALLY confused, though. You were able to complete a week's worth of
 assignments in an afternoon. It was really obvious to you who was working intelligently and who was not, and you
 had to learn, perhaps painfully, that sharing that kind of feedback isn't always constructive. Maybe one day you
-got some criticism about something you did and it really hurt in ways you didn't expect -- maybe you found yourself
+got some criticism about something you did and it really hurt in ways you didn't expect. Maybe you found yourself
 reacting defensively, and the next thing you know you're in a meeting with HR over what to you was clearly all a
 big misunderstanding, but nobody is smiling. Or maybe instead someone recognized that you were having a tough time,
 and stepped in to defuse the situation.
