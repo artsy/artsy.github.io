@@ -13,7 +13,7 @@ You consider yourself an introvert, and you subscribe to the idea of "engineerin
 extended uninterrupted periods because interruptions wreck you. You are used to being misunderstood. Ever since you
 can remember the people around you have been kind of baffling: they constantly fail to notice stuff that's really
 obvious and important to you, and then they have the audacity to get frustrated with you for not understanding
-them.
+_them_.
 
 But whatever, you can deal with this, right? This is just how life goes, right? Everyone's like this, right?
 
