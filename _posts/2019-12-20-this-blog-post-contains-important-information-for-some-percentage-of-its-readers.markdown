@@ -103,7 +103,7 @@ them your whole life. Maybe you've accepted that you're just kind of weird and d
 But maybe -- and this may be the best news you've ever received -- you're autistic.
 
 Many (if not most) autistic people would tell you similar stories about their personal histories, especially those
-who have been undiagnosed into adulthood. If these descriptions resonate with you -- maybe not exactly, but maybe
+who have gone undiagnosed into adulthood. If these descriptions resonate with you -- maybe not exactly, but maybe
 you can see the shape I'm trying to paint -- then it's worth considering the possibility that you may be
 neurodivergent.
 
