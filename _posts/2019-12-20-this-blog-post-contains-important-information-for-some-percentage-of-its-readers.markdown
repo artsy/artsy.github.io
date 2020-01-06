@@ -144,7 +144,7 @@ to people!
 
 If you're autistic and undiagnosed you're living life on hard mode and you don't even know it. Learning who you
 are, learning what your authentic needs are and learning how to heal from years of maladaptive coping mechanisms
-can and will change your life in a million ways and let you move from barely getting by to thriving as your most
+can and will change your life in a million ways. You can move from barely getting by to thriving as your most
 authentic self.
 
 I see you and I believe in you, and there are a lot of us out here ready to help. <3
