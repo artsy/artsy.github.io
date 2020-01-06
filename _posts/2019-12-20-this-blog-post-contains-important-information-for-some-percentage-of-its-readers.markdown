@@ -1,6 +1,6 @@
 ---
 layout: epic
-title: This Blog Post Contains Important Information For Some Percentage of its Readers
+title: "Is this you? No, really, is this you?"
 date: 2019-12-20
 author: myk
 categories: [mental-health, culture, diversity, autism, neurodiversity]
