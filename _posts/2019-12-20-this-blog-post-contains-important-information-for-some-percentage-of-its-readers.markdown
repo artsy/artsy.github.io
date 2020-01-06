@@ -28,7 +28,7 @@ eschewed the humanities entirely and focused on things like Math and Science. Re
 _systems_ -- grammar just _makes sense_ to you, in the same way software engineering just _makes sense_ to you now. Math, you
 finally understood, was just a specialized language for referring to the relations between things -- sure, okay!
 
-Socially things were always a little weird for you - people were never _quite_ behaving in ways that made sense,
+Socially, things were always a little weird for you. Other people never _quite_ behaved in ways that made sense to you,
 and especially when younger you probably socialized by getting 'adopted' by some other kid who seemed to know what
 was going on. Whatever you studied you poured yourself into deeply as long as it held your interest -- your mind
 expanded into the space your lessons created and eagerly walked hidden pathways that your classmates didn't see.
