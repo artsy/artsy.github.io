@@ -74,7 +74,7 @@ professional world: you have to be at your desk and looking busy even when you'r
 things that are not true if correcting them publicly will embarrass someone; people will ignore your advice and
 then something will break because of it and it's very important not to get too upset.
 
-You're used to modeling the world in a specific way, but school doesn't actually prepare you in any way for the
+You're used to modeling the world in a specific way, but school didn't actually prepare you in any way for the
 complex web of social dynamics that, just like in kindergarten, everyone else seems to grok. It's really
 frustrating, maybe you've been fired once or twice, maybe you've left a few jobs out of embarrassment. You
 eventually figured it out -- or maybe you didn't! The thing is, programming has never been the hard part of work,
