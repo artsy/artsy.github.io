@@ -26,7 +26,7 @@ layer speaking GraphQL, which is what our front-end clients talk to. The GraphQL
 access to several backend services, which are made accessible via a combination of data loaders and
 [schema stitching](https://www.apollographql.com/docs/apollo-server/features/schema-stitching/).
 [Apollo Federation](https://www.apollographql.com/docs/apollo-server/federation/introduction/) is another tool
-people are using to bring together disaparte backends when using GraphQL in an orchestration layer.
+people are using to bring together disparate backends when using GraphQL in an orchestration layer.
 
 Now, consider the following query, which is a realistic one you might see when accessing a 'product' page.
 
