@@ -23,7 +23,7 @@ You know the one. Like the following, from [Amazon](https://www.amazon.com):
 
 You start to realize that the cursor-based setup of a connection, along with a Relay pagination container, does not
 lend itself to this more traditional UI. For one thing, a user can arbitrarily 'jump' to any page by including a
-`?page=X` query param (typically). For another, the user can only actually see the current page of content, vs a
+`?page=X` query param (typically). For another, the user can only actually see the current page of content, versus a
 feed. As you go to sleep and dream of REST, Rails controllers, [kaminari](https://github.com/kaminari/kaminari),
 [will_paginate](https://github.com/mislav/will_paginate), and a simpler time, you start to have a vision...
 
