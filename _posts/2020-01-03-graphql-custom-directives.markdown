@@ -6,7 +6,7 @@ categories: [GraphQL, Error Handling]
 author: matt
 ---
 
-This will be the first in a series of posts about how we used some more advanced GraphQL tooling and functionality
+This will be the first in a series of posts about how we used advanced GraphQL tooling and functionality
 to better handle errors occurring during query resolution, and better equip clients to reason about such errors.
 
 The goal is to describe our current approach, but also do a deep dive into specific ways we've extended our
