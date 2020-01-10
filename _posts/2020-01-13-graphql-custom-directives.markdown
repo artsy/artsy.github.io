@@ -65,7 +65,7 @@ We decided to allow our UI components to declare, using a GraphQL directive, one
 optionally be the 'principal field'. That is, this is the field that, if there are any errors resolving it, should
 result in an entire view rendering an appropriate error state. For web, this means a non-2XX status code and
 resulting error page. Any errors occurring in field resolution of non-principal fields should still result in a 2XX
-to the user, and the UI should be able to gracefully handle when it's missing. Since we use React/Relay/GraphQL,
+to the user, and the UI should be able to gracefully recover from the missing data. Since we use React/Relay/GraphQL,
 and GraphQL queries are colocated with UI components, a GraphQL directive is particularly useful.
 
 Rewriting the above query, we might do something like:
