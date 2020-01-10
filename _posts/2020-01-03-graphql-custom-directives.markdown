@@ -90,7 +90,7 @@ UI would render. This means that our UI components should generally be defensive
 `null` (which is likely what you'd see when the corresponding field errors during query resolution). Using
 TypeScript and strict null checking can help make your UI bulletproof to these sorts of issues.
 
-So, now that some of the context is here, let's look at how we implement a custom `@principalField` GraphQL
+With this context, let's look at how we implement a custom `@principalField` GraphQL
 directive. Future posts in this series talking about custom GraphQL functionality will likely skip this intro
 section.
 
