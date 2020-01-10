@@ -50,7 +50,7 @@ placed in the `errors` key of the response. This is all
 [advised by the spec](https://graphql.github.io/graphql-spec/draft/#sec-Errors), and so is found in most GraphQL
 implementations.
 
-Given that you likely have a query like this backing up a product page, here are some questions about possible
+Given that this query likely backs a product page, some questions about possible
 error handling behavior that immediately arise:
 
 - If there are multiple fields erroring, which error (if any) is reported to the user?
