@@ -10,7 +10,7 @@ This will be the first in a series of posts about how we used advanced GraphQL t
 to better handle errors occurring during query resolution, and better equip clients to reason about such errors.
 
 The goal is to describe our current approach, but also do a deep dive into specific ways we've extended our
-[GraphQL server](https://github.com/artsy/metaphysics) to help us accomplish that. Therefore, if you are an
+[GraphQL server](https://github.com/artsy/metaphysics) to help us accomplish that. If you are an
 interested GraphQL user, you may find this useful, even if some of the larger context specifically around how we
 are using it to help standardize error handling doesn't apply.
 
