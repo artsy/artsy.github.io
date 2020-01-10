@@ -271,6 +271,6 @@ UI's are resilient to errors occurring in a leaf.
 In the next post, we'll look at how we can write a GraphQL validation rule to ensure that a client specifies at
 most one field with the `@principalField` directive. After that, we'll take a look at how you can successfully
 parse and support GraphQL query resolution errors occurring in a variety of contexts such as during stitching.
-Putting this altogether, we hope you will come away with a better understanding for how to extend your GraphQL
+Putting this altogether, we hope you will come away with a better understanding of how to extend your GraphQL
 server with your own custom behaviors, and in particular how we've used these to better log/propagate/present the
 potential errors occurring during a query.
