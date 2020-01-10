@@ -1,18 +1,18 @@
 ---
 layout: epic
 title: Better GraphQL Error Handling I - Using Custom Directives
-date: 2020-01-03
+date: 2020-01-13
 categories: [GraphQL, Error Handling]
 author: matt
 ---
 
-This will be the first in a series of posts about how we used advanced GraphQL tooling and functionality
-to better handle errors occurring during query resolution, and better equip clients to reason about such errors.
+This will be the first in a series of posts about how we used advanced GraphQL tooling and functionality to better
+handle errors occurring during query resolution, and better equip clients to reason about such errors.
 
 The goal is to describe our current approach, but also do a deep dive into specific ways we've extended our
-[GraphQL server](https://github.com/artsy/metaphysics) to help us accomplish that. If you are an
-interested GraphQL user, you may find this useful, even if some of the larger context specifically around how we
-are using it to help standardize error handling doesn't apply.
+[GraphQL server](https://github.com/artsy/metaphysics) to help us accomplish that. If you are an interested GraphQL
+user, you may find this useful, even if some of the larger context specifically around how we are using it to help
+standardize error handling doesn't apply.
 
 <!-- more -->
 
@@ -32,7 +32,7 @@ Now, consider the following query, which is a realistic one you might see when a
 
 ```javascript
 {
-  artwork(id: "artwork") {
+  artwork(id: "andy-warhol-skull") {
     mainContentStuff
     biographicalData
     userReviews {
@@ -50,8 +50,8 @@ placed in the `errors` key of the response. This is all
 [advised by the spec](https://graphql.github.io/graphql-spec/draft/#sec-Errors), and so is found in most GraphQL
 implementations.
 
-Given that this query likely backs a product page, some questions about possible
-error handling behavior that immediately arise:
+Given that this query likely backs a product page, some questions about possible error handling behavior that
+immediately arise:
 
 - If there are multiple fields erroring, which error (if any) is reported to the user?
 - How does the UI decide whether an error is recoverable? That is, if the `mainContentStuff` field for a view has
@@ -72,7 +72,7 @@ Rewriting the above query, we might do something like:
 
 ```javascript
 {
-  artwork(id: "artwork") {
+  artwork(id: "andy-warhol-skull") {
     mainContentStuff @principalField
     biographicalData
     userReviews {
@@ -88,11 +88,12 @@ and error page to the user, or possibly a more specific error and status code. H
 resolving user reviews or other fields, would not cause a 500 and error page. Instead, there would be a 200 and the
 UI would render. This means that our UI components should generally be defensive about their incoming props being
 `null` (which is likely what you'd see when the corresponding field errors during query resolution). Using
-TypeScript and strict null checking can help make your UI bulletproof to these sorts of issues.
+TypeScript and
+[strict null checking](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-2-0.html) can help
+make your UI bulletproof to these sorts of issues.
 
-With this context, let's look at how we implement a custom `@principalField` GraphQL
-directive. Future posts in this series talking about custom GraphQL functionality will likely skip this intro
-section.
+With this context, let's look at how we implement a custom `@principalField` GraphQL directive. Future posts in
+this series talking about custom GraphQL functionality will likely skip this intro section.
 
 ## Implementing a Custom GraphQL Directive
 
@@ -113,8 +114,8 @@ const PrincipalFieldDirective = new GraphQLDirective({
 })
 ```
 
-and then when we create our schema, we pass this in as `directives`. Since this will overwrite the [standard
-directives](link to spec), we need to append ours.
+and then when we create our schema, we pass this in as `directives`. Since this will overwrite the
+[default directives](https://www.apollographql.com/docs/apollo-server/schema/directives/), we need to append ours.
 
 Something like:
 
@@ -147,12 +148,12 @@ want the response to look something like:
 
 ```json
 {
-  data: {
+  "data": {
     ...
-  }
-  extensions: {
-    principalField: {
-      error: ...
+  },
+  "extensions": {
+    "principalField": {
+      "error": ...
     }
   }
 }
@@ -233,12 +234,12 @@ results in:
 
 ```json
 {
-  data: {
-    artwork: null
-  }
-  extensions: {
-    principalFieldError: {
-      httpStatusCode: 404
+  "data": {
+    "artwork": null
+  },
+  "extensions": {
+    "principalFieldError": {
+      "httpStatusCode": 404
     }
   }
 }
@@ -249,10 +250,10 @@ artwork is successful, but there's an issue with the reviews, the response will 
 
 ```json
 {
-  data: {
-    artwork: {
-      userReviews: null
-      contents: ...
+  "data": {
+    "artwork": {
+      "userReviews": null,
+      "contents": ...
     }
   }
 }
