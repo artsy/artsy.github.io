@@ -272,7 +272,7 @@ query SomeConnectionQuery($first: Int, $after: String) {
 }
 ```
 
-but we're pretty much done, this is all just Relay boilerplate at this point.
+But we're pretty much done, this is all just Relay boilerplate at this point.
 
 Putting it all together, our refetch container winds up rendering a fully functional pagination component in one
 line:
