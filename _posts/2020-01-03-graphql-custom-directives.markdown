@@ -258,7 +258,7 @@ artwork is successful, but there's an issue with the reviews, the response will 
 }
 ```
 
-We can make sure that our UI component (likely Relay containers) that corresponds to `userReviews` is defensive
+We can make sure that our UI components (likely Relay containers) corresponding to `userReviews` are defensive
 about that incoming prop being `null`. Most likely a zero state ("No Reviews Found"), or just skipping the section
 entirely, is appropriate.
 
