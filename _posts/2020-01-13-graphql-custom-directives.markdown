@@ -4,6 +4,7 @@ title: Better GraphQL Error Handling I - Using Custom Directives
 date: 2020-01-13
 categories: [GraphQL, Error Handling]
 author: matt
+comment_id: 603
 ---
 
 This will be the first in a series of posts about how we used advanced GraphQL tooling and functionality to better
