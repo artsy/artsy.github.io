@@ -5,9 +5,401 @@
     <description></description>
     <link>http://artsy.github.io/</link>
     <atom:link href="http://artsy.github.io/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Mon, 06 Jan 2020 20:47:58 +0000</pubDate>
-    <lastBuildDate>Mon, 06 Jan 2020 20:47:58 +0000</lastBuildDate>
+    <pubDate>Mon, 13 Jan 2020 15:38:49 +0000</pubDate>
+    <lastBuildDate>Mon, 13 Jan 2020 15:38:49 +0000</lastBuildDate>
     <generator>Jekyll v2.5.3</generator>
+    
+      <item>
+        <title>Better GraphQL Error Handling I - Using Custom Directives</title>
+        <description>&lt;p&gt;This will be the first in a series of posts about how we used advanced GraphQL tooling and functionality to better
+handle errors occurring during query resolution, and better equip clients to reason about such errors.&lt;/p&gt;
+
+&lt;p&gt;The goal is to describe our current approach, but also do a deep dive into specific ways we&#39;ve extended our
+&lt;a href=&quot;https://github.com/artsy/metaphysics&quot;&gt;GraphQL server&lt;/a&gt; to help us accomplish that. If you are an interested GraphQL
+user, you may find this useful, even if some of the larger context specifically around how we are using it to help
+standardize error handling doesn&#39;t apply.&lt;/p&gt;
+
+&lt;!-- more --&gt;
+
+
+&lt;a name=&quot;Introduction.and.Initial.Context&quot;&gt;&lt;/a&gt;
+&lt;h2&gt;Introduction and Initial Context&lt;/h2&gt;
+
+&lt;p&gt;At Artsy, we use GraphQL as our API language of choice. In particular,
+&lt;a href=&quot;https://artsy.github.io/blog/2018/05/08/is-graphql-the-future/&quot;&gt;as&lt;/a&gt;
+&lt;a href=&quot;https://artsy.github.io/blog/2016/06/19/graphql-for-mobile/&quot;&gt;we&#39;ve described&lt;/a&gt;
+&lt;a href=&quot;https://artsy.github.io/blog/2016/11/02/improving-page-speed-with-graphql/&quot;&gt;before&lt;/a&gt;, we have an orchestration
+layer speaking GraphQL, which is what our front-end clients talk to. The GraphQL orchestration layer wraps up
+access to several backend services, which are made accessible via a combination of data loaders and
+&lt;a href=&quot;https://www.apollographql.com/docs/apollo-server/features/schema-stitching/&quot;&gt;schema stitching&lt;/a&gt;.
+&lt;a href=&quot;https://www.apollographql.com/docs/apollo-server/federation/introduction/&quot;&gt;Apollo Federation&lt;/a&gt; is another tool
+people are using to bring together disparate backends when using GraphQL in an orchestration layer.&lt;/p&gt;
+
+&lt;p&gt;Now, consider the following query, which is a realistic one you might see when accessing a &#39;product&#39; page.&lt;/p&gt;
+
+&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;6&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;7&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;8&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;9&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;10&lt;/span&gt;
+&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;javascript&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nx&quot;&gt;artwork&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;id&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;andy-warhol-skull&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nx&quot;&gt;mainContentStuff&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nx&quot;&gt;biographicalData&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nx&quot;&gt;userReviews&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;        &lt;span class=&quot;p&quot;&gt;...&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;  &lt;span class=&quot;err&quot;&gt;#&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;Accesses&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;a&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;back&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;end&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;reviews&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;service&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;p&quot;&gt;...&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
+
+
+&lt;p&gt;Part of the &lt;a href=&quot;https://graphql.github.io/graphql-spec/&quot;&gt;GraphQL spec&lt;/a&gt; advises that one should return a 2XX status
+code, even if there are exceptions raised when resolving your query. A non-2XX status code from a GraphQL server
+would indicate an error with the server itself. Errors that occur during query resolution can be consolidated and
+placed in the &lt;code&gt;errors&lt;/code&gt; key of the response. This is all
+&lt;a href=&quot;https://graphql.github.io/graphql-spec/draft/#sec-Errors&quot;&gt;advised by the spec&lt;/a&gt;, and so is found in most GraphQL
+implementations.&lt;/p&gt;
+
+&lt;p&gt;Given that this query likely backs a product page, some questions about possible error handling behavior that
+immediately arise:&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;If there are multiple fields erroring, which error (if any) is reported to the user?&lt;/li&gt;
+&lt;li&gt;How does the UI decide whether an error is recoverable? That is, if the &lt;code&gt;mainContentStuff&lt;/code&gt; field for a view has
+errored, that&#39;s probably not recoverable, and appropriate feedback should be displayed. But, if user reviews are
+unavailable at this time, it&#39;s likely you might still want to render the main view, but with that section
+appropriately handled. Is there a generic way to handle this?&lt;/li&gt;
+&lt;/ul&gt;
+
+
+&lt;a name=&quot;Using.a.Directive.to.Eliminate.Ambiguity&quot;&gt;&lt;/a&gt;
+&lt;h2&gt;Using a Directive to Eliminate Ambiguity&lt;/h2&gt;
+
+&lt;p&gt;We decided to allow our UI components to declare, using a GraphQL directive, one and only one field in a query to
+optionally be the &#39;principal field&#39;. That is, this is the field that, if there are any errors resolving it, should
+result in an entire view rendering an appropriate error state. For web, this means a non-2XX status code and
+resulting error page. Any errors occurring in field resolution of non-principal fields should still result in a 2XX
+to the user, and the UI should be able to gracefully recover from the missing data. Since we use
+React/Relay/GraphQL, and GraphQL queries are colocated with UI components, a GraphQL directive is particularly
+useful.&lt;/p&gt;
+
+&lt;p&gt;Rewriting the above query, we might do something like:&lt;/p&gt;
+
+&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;6&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;7&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;8&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;9&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;10&lt;/span&gt;
+&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;javascript&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nx&quot;&gt;artwork&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;id&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;andy-warhol-skull&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nx&quot;&gt;mainContentStuff&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;@&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;principalField&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nx&quot;&gt;biographicalData&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nx&quot;&gt;userReviews&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;        &lt;span class=&quot;p&quot;&gt;...&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;  &lt;span class=&quot;err&quot;&gt;#&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;Accesses&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;a&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;back&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;end&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;reviews&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;service&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;p&quot;&gt;...&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
+
+
+&lt;p&gt;This would mean that any errors occuring in resolving &lt;code&gt;mainContentStuff&lt;/code&gt; would result in either a 500 status code
+and error page to the user, or possibly a more specific error and status code. However, any errors occurring in
+resolving user reviews or other fields, would not cause a 500 and error page. Instead, there would be a 200 and the
+UI would render. This means that our UI components should generally be defensive about their incoming props being
+&lt;code&gt;null&lt;/code&gt; (which is likely what you&#39;d see when the corresponding field errors during query resolution). Using
+TypeScript and
+&lt;a href=&quot;https://www.typescriptlang.org/docs/handbook/release-notes/typescript-2-0.html&quot;&gt;strict null checking&lt;/a&gt; can help
+make your UI bulletproof to these sorts of issues.&lt;/p&gt;
+
+&lt;p&gt;With this context, let&#39;s look at how we implement a custom &lt;code&gt;@principalField&lt;/code&gt; GraphQL directive. Future posts in
+this series talking about custom GraphQL functionality will likely skip this intro section.&lt;/p&gt;
+
+&lt;a name=&quot;Implementing.a.Custom.GraphQL.Directive&quot;&gt;&lt;/a&gt;
+&lt;h2&gt;Implementing a Custom GraphQL Directive&lt;/h2&gt;
+
+&lt;p&gt;First, we have a new directive that we&#39;d like to add to our schema. That is, we&#39;d like a client to be able to
+specify &lt;code&gt;@principalField&lt;/code&gt; alongside any field, and have that query be validated correctly by the server. You can
+&lt;a href=&quot;https://metaphysics-staging.artsy.net/?query=%7B%0Aartwork(id%3A%22andy-warhol-skull%22)%20%40nonExistentDirective%7B%0A%20%20id%0A%7D%7D&quot;&gt;see for yourself&lt;/a&gt;
+how &lt;a href=&quot;https://github.com/graphql/graphql-js&quot;&gt;graphql-js&lt;/a&gt; and
+&lt;a href=&quot;https://github.com/graphql/express-graphql&quot;&gt;express-graphql&lt;/a&gt; respond when an unknown directive is specified. Your
+GraphQL server implementation may look slightly different.&lt;/p&gt;
+
+&lt;p&gt;Turns out, that&#39;s pretty easy to do in &lt;code&gt;graphql-js&lt;/code&gt;. We declare a variable of type &lt;code&gt;GraphQLDirective&lt;/code&gt;, which
+operates on a &lt;code&gt;DirectiveLocation.FIELD&lt;/code&gt; location:&lt;/p&gt;
+
+&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
+&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;javascript&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;kr&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;PrincipalFieldDirective&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;GraphQLDirective&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;({&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nx&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;principalField&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nx&quot;&gt;locations&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;DirectiveLocation&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;FIELD&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;})&lt;/span&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
+
+
+&lt;p&gt;and then when we create our schema, we pass this in as &lt;code&gt;directives&lt;/code&gt;. Since this will overwrite the
+&lt;a href=&quot;https://www.apollographql.com/docs/apollo-server/schema/directives/&quot;&gt;default directives&lt;/a&gt;, we need to append ours.&lt;/p&gt;
+
+&lt;p&gt;Something like:&lt;/p&gt;
+
+&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;6&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;7&lt;/span&gt;
+&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;javascript&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;kr&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;specifiedDirectives&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;graphql&amp;quot;&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;GraphQLSchema&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;({&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nx&quot;&gt;directives&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[...&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;specifiedDirectives&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;PrincipalFieldDirective&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;],&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nx&quot;&gt;query&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;...&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;p&quot;&gt;...&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;})&lt;/span&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
+
+
+&lt;p&gt;In terms of the SDL for your schema, this is equivalent to the following line:&lt;/p&gt;
+
+&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
+&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;javascript&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;nx&quot;&gt;directive&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;@&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;principalField&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;on&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;FIELD&lt;/span&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
+
+
+&lt;p&gt;That&#39;s it! You&#39;ve successfully added a new directive to your schema. At this point, your GraphQL server will
+properly validate and allow a &lt;code&gt;@principalField&lt;/code&gt; directive specified by a client alongside any field. Now, we do
+want to ensure that if this directive is used, it only appears once in your query. We can accomplish this with a
+custom GraphQL validation, which we&#39;ll cover in the next post.&lt;/p&gt;
+
+&lt;p&gt;So now, how should we implement the functionality of this directive? We decided that we want to use the
+&lt;a href=&quot;https://github.com/graphql/graphql-spec/blob/master/spec/Section%207%20--%20Response.md#response-format&quot;&gt;extensions&lt;/a&gt;
+part of our GraphQL response to carry this data, a free-form map of data up to the implementor, which is a perfect
+fit for this type of optional additional information. If an error occurs in a field tagged with the directive, we
+want the response to look something like:&lt;/p&gt;
+
+&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;6&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;7&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;8&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;9&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;10&lt;/span&gt;
+&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;json&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nt&quot;&gt;&amp;quot;data&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;err&quot;&gt;...&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nt&quot;&gt;&amp;quot;extensions&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nt&quot;&gt;&amp;quot;principalField&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;nt&quot;&gt;&amp;quot;error&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;...&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
+
+
+&lt;p&gt;In &lt;code&gt;express-graphql&lt;/code&gt;, we&#39;ll need a method appropriate for the
+&lt;a href=&quot;https://github.com/graphql/express-graphql#options&quot;&gt;extensions&lt;/a&gt; option. That looks like:&lt;/p&gt;
+
+&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;6&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;7&lt;/span&gt;
+&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;javascript&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;kr&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;principalFieldDirectiveExtension&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;({&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;documentAST&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;result&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;})&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;kr&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;path&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;getPrincipalFieldDirectivePath&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;documentAST&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;path&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;length&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;kr&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;error&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;result&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;errors&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;find&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;e&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;isEqual&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;e&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;path&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;path&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;error&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;principalField&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;error&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
+
+
+&lt;p&gt;If there is a field designated with the principal field directive, and there is an error at that same path, we&#39;ll
+return that information, otherwise do nothing.&lt;/p&gt;
+
+&lt;p&gt;That&#39;s it! We have one additional helper we need to write, &lt;code&gt;getPrincipalFieldDirectivePath&lt;/code&gt;. This builds an array
+of all the fields encountered to get to one tagged with our directive. It matches the way the
+&lt;a href=&quot;https://graphql.github.io/graphql-spec/June2018/#sec-Errors&quot;&gt;path of an error&lt;/a&gt; is constructed by the server, which
+enables us to determine if a particular error was associated with a field tagged with the directive.&lt;/p&gt;
+
+&lt;p&gt;That looks like:&lt;/p&gt;
+
+&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;6&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;7&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;8&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;9&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;10&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;11&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;12&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;13&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;14&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;15&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;16&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;17&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;18&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;19&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;20&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;21&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;22&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;23&lt;/span&gt;
+&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;javascript&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;kr&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;visit&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;BREAK&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;DocumentNode&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;graphql&amp;quot;&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;kr&quot;&gt;export&lt;/span&gt; &lt;span class=&quot;kr&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;getPrincipalFieldDirectivePath&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;documentNode&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;DocumentNode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;string&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;kr&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;path&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;string&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[]&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nx&quot;&gt;visit&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;documentNode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nx&quot;&gt;Field&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;nx&quot;&gt;enter&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;node&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;        &lt;span class=&quot;kr&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;name&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;node&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;alias&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;||&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;node&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;).&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;value&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;        &lt;span class=&quot;nx&quot;&gt;path&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;push&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;nx&quot;&gt;leave&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;        &lt;span class=&quot;nx&quot;&gt;path&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;pop&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nx&quot;&gt;Directive&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;node&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;node&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;value&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;===&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;principalField&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;BREAK&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;p&quot;&gt;})&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;path&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
+
+
+&lt;p&gt;This uses a &lt;a href=&quot;https://graphql.org/graphql-js/language/#visit&quot;&gt;GraphQL visitor&lt;/a&gt; to traverse our query, and build up
+an array of field names. We can exit early with that path if we encounter our directive.&lt;/p&gt;
+
+&lt;a name=&quot;Example.Query&quot;&gt;&lt;/a&gt;
+&lt;h2&gt;Example Query&lt;/h2&gt;
+
+&lt;p&gt;Let&#39;s take a look at how you can use this in practice, in order to help standardize when and with what status a UI
+can inform the user of an error.&lt;/p&gt;
+
+&lt;p&gt;Something like:&lt;/p&gt;
+
+&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;6&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;7&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;8&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;9&lt;/span&gt;
+&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;javascript&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nx&quot;&gt;artwork&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;id&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;andy-warhol-skull&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;@&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;principalField&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nx&quot;&gt;userReviews&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;nx&quot;&gt;notes&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nx&quot;&gt;contents&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;p&quot;&gt;...&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
+
+
+&lt;p&gt;results in:&lt;/p&gt;
+
+&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;6&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;7&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;8&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;9&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;10&lt;/span&gt;
+&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;json&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nt&quot;&gt;&amp;quot;data&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nt&quot;&gt;&amp;quot;artwork&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;kc&quot;&gt;null&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nt&quot;&gt;&amp;quot;extensions&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nt&quot;&gt;&amp;quot;principalFieldError&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;nt&quot;&gt;&amp;quot;httpStatusCode&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;404&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
+
+
+&lt;p&gt;and the UI can immediately return an appropriate message to the user, if the artwork is not found. If fetching the
+artwork is successful, but there&#39;s an issue with the reviews, the response will look like:&lt;/p&gt;
+
+&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;6&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;7&lt;/span&gt;
+&lt;span class=&#39;line-number&#39;&gt;8&lt;/span&gt;
+&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;json&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nt&quot;&gt;&amp;quot;data&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nt&quot;&gt;&amp;quot;artwork&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;nt&quot;&gt;&amp;quot;userReviews&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;kc&quot;&gt;null&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;nt&quot;&gt;&amp;quot;contents&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;...&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
+
+
+&lt;p&gt;We can make sure that our UI components (likely Relay containers) corresponding to &lt;code&gt;userReviews&lt;/code&gt; are defensive
+about that incoming prop being &lt;code&gt;null&lt;/code&gt;. Most likely a zero state (&quot;No Reviews Found&quot;), or just skipping the section
+entirely, is appropriate.&lt;/p&gt;
+
+&lt;a name=&quot;Conclusion&quot;&gt;&lt;/a&gt;
+&lt;h2&gt;Conclusion&lt;/h2&gt;
+
+&lt;p&gt;In this way, we can standardize on and remove ambiguity about how a UI handles one or more errors in query
+resolution and exactly when such an error should be propagated and made user-facing. We can help ensure that our
+UI&#39;s are resilient to errors occurring in a leaf.&lt;/p&gt;
+
+&lt;p&gt;In the next post, we&#39;ll look at how we can write a GraphQL validation rule to ensure that a client specifies at
+most one field with the &lt;code&gt;@principalField&lt;/code&gt; directive. After that, we&#39;ll take a look at how you can successfully
+parse and support GraphQL query resolution errors occurring in a variety of contexts such as during stitching.
+Putting this altogether, we hope you will come away with a better understanding of how to extend your GraphQL
+server with your own custom behaviors, and in particular how we&#39;ve used these to better log/propagate/present the
+potential errors occurring during a query.&lt;/p&gt;
+</description>
+        <pubDate>Mon, 13 Jan 2020 00:00:00 +0000</pubDate>
+        <link>http://artsy.github.io/blog/2020/01/13/graphql-custom-directives/</link>
+        <guid isPermaLink="true">http://artsy.github.io/blog/2020/01/13/graphql-custom-directives/</guid>
+        
+        
+        <category>error handling</category>
+        
+        <category>graphql</category>
+        
+      </item>
     
       <item>
         <title>Is this you? No, really, is this you?</title>
@@ -1571,212 +1963,6 @@ in making Artsy the best online destination for art.&lt;/p&gt;
         <category>react</category>
         
         <category>the art genome project</category>
-        
-      </item>
-    
-      <item>
-        <title>Artsy Writing Office Hours</title>
-        <description>&lt;p&gt;Welcome back to my series on writing for engineers. In the last post, we discussed &lt;a href=&quot;https://ashfurrow.com/blog/technical-writing-on-the-web/&quot;&gt;technical writing on the
-web&lt;/a&gt; from an individual&#39;s perspective: how do you get started? how do you leverage the web? how do you
-improve? In today&#39;s post, I want to change directions; instead of focusing on how &lt;em&gt;individuals&lt;/em&gt; write, we&#39;ll
-discuss how &lt;em&gt;teams&lt;/em&gt; write.&lt;/p&gt;
-
-&lt;!-- more --&gt;
-
-
-&lt;p&gt;To get started, I want to return the quote that opened up my first post. When
-&lt;a href=&quot;https://open.nytimes.com/five-questions-with-orta-therox-d5bb9659c50b&quot;&gt;interviewed by the New York Times developer blog&lt;/a&gt;,
-Artsy alumnus &lt;a href=&quot;https://twitter.com/orta&quot;&gt;Orta&lt;/a&gt; said:&lt;/p&gt;
-
-&lt;blockquote&gt;&lt;p&gt;One of my colleagues, Ash Furrow, is really the powerhouse behind improving the state of our public
-documentation. He runs weekly writing workshops internally and always encourages achievements as being
-post-worthy. Sometimes the best practice is to have someone who cares encouraging you. It works for me.&lt;/p&gt;&lt;/blockquote&gt;
-
-&lt;p&gt;This post is going to pick this quote apart, but first I want to address something upfront:&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;If you&#39;re thinking about helping others write, then you should do it&lt;/strong&gt;. Having the desire to help others write is
-the only qualification for &lt;em&gt;actually helping&lt;/em&gt;. You might think that in order to help others write, you should first
-become a proficient writer yourself. This is backwards. I became the writing powerhouse that Orta mentions &lt;em&gt;by
-helping others write&lt;/em&gt;.&lt;/p&gt;
-
-&lt;p&gt;Let&#39;s think about this in terms of coding. When you help teach someone, &lt;em&gt;you also&lt;/em&gt; learn a lot. Assisting others
-solidifies concepts &lt;em&gt;for you&lt;/em&gt; and helps &lt;em&gt;you&lt;/em&gt; hone your own skills. We recognize that engineers are ready to mentor
-other engineers long before they become &lt;em&gt;experts&lt;/em&gt;; indeed, it&#39;s usually &lt;em&gt;through mentoring&lt;/em&gt; that they become
-experts.&lt;/p&gt;
-
-&lt;p&gt;This is how writing works, too.&lt;/p&gt;
-
-&lt;p&gt;Engineering teams really benefit from having a culture of writing (and of sharing knowledge in general). To
-summarize the benefits of teams which write:&lt;/p&gt;
-
-&lt;ul&gt;
-&lt;li&gt;Generally speaking, documentation is important – but writing and maintaining it is difficult. A team culture of
-writing can help make it easier.&lt;/li&gt;
-&lt;li&gt;Public blog posts increase a team&#39;s reputation, which makes it easier for the team to hire (and onboard) new
-members.&lt;/li&gt;
-&lt;li&gt;Teaching and learning from colleagues helps &lt;a href=&quot;https://ashfurrow.com/blog/building-better-software-by-building-better-teams/&quot;&gt;cultivate a sense of psychological safety&lt;/a&gt;.&lt;/li&gt;
-&lt;/ul&gt;
-
-
-&lt;p&gt;I don&#39;t want to go into detail about the benefits here, but if you&#39;d like to learn more, you can check out &lt;a href=&quot;https://www.youtube.com/watch?v=SjjvnrqDjpM&quot;&gt;this
-talk&lt;/a&gt;.&lt;/p&gt;
-
-&lt;iframe width=&quot;100%&quot; height=&quot;400&quot; src=&quot;https://www.youtube.com/embed/SjjvnrqDjpM&quot; frameborder=&quot;0&quot; allow=&quot;accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture&quot; allowfullscreen&gt;&lt;/iframe&gt;
-
-
-&lt;p&gt;Okay let&#39;s dive in.&lt;/p&gt;
-
-&lt;a name=&quot;Just.Show.Up&quot;&gt;&lt;/a&gt;
-&lt;h2&gt;Just Show Up&lt;/h2&gt;
-
-&lt;blockquote&gt;&lt;p&gt;[Ash] runs weekly writing workshops.&lt;/p&gt;&lt;/blockquote&gt;
-
-&lt;p&gt;Most of success is honestly just showing up. By itself, having a time and space set aside for colleagues to come
-and write every week has pushed the team culture towards valuing writing. But it took time.&lt;/p&gt;
-
-&lt;p&gt;Six months after I started running weekly office hours, no one was really showing up. One or two people here and
-there, but that was it. Orta said that he&#39;d have cancelled the event by then, due to lack of interest. Here&#39;s the
-thing, though: the value of the writing office hours transcends just what gets written. Having a weekly place to
-come to write tells the team that &lt;em&gt;writing is important&lt;/em&gt;. It says something, to have writing office hours, even if
-no one shows up.&lt;/p&gt;
-
-&lt;p&gt;At first, writing office hours were aspirational. That&#39;s okay. There are still weeks where no one shows up. That&#39;s
-okay, too. Besides, even if no one showed up, &lt;em&gt;I&lt;/em&gt; still got an hour to write, so it was definitely worth my time.&lt;/p&gt;
-
-&lt;p&gt;But Orta had a point: people weren&#39;t showing up, so I looked at that problem. I asked around and it turned out that
-people were interested in &lt;em&gt;sharing knowledge&lt;/em&gt; but weren&#39;t always keen to write a blog post. So I changed my
-approach.&lt;/p&gt;
-
-&lt;p&gt;Nowadays when I announce the writing office hours at our &lt;a href=&quot;https://github.com/artsy/README/blob/master/events/open-standup.md&quot;&gt;weekly engineering standup&lt;/a&gt;, I am clear that it
-isn&#39;t &lt;em&gt;just&lt;/em&gt; for writing. I now let people know that this is a place where they can come for help with whatever
-knowledge-sharing they&#39;re interested in. Let&#39;s take a look at a few examples:&lt;/p&gt;
-
-&lt;ul&gt;
-&lt;li&gt;An engineer wanted to speak at a conference, so they brought their ideas and we outlined a talk proposal.&lt;/li&gt;
-&lt;li&gt;A product manager wanted to document how Artsy&#39;s product team works, so we worked on turning that documentation
-into a public blog post.&lt;/li&gt;
-&lt;li&gt;An engineer was planning an architecture review meeting to get the team up to speed on how some of our systems
-worked. They brought their slides and we went through the presentation together; I gave some feedback on what
-worked well and what was unclear.&lt;/li&gt;
-&lt;li&gt;An engineer had an idea for a blog post, but the post was too big and they felt overwhelmed. They brought their
-outline and we worked to break it into several smaller posts.&lt;/li&gt;
-&lt;/ul&gt;
-
-
-&lt;p&gt;So you can see that writing office hours grew to include more than just writing. And as the event helped more
-people accomplish their knowledge-sharing goals, I folded those success stories into my weekly standup pitch.&lt;/p&gt;
-
-&lt;p&gt;I also knew I needed to make it easier to write blog posts. Lots of engineers wanted to write, but had a difficult
-time starting. To help, I created some &lt;a href=&quot;https://artsy.github.io/blog/2017/12/01/engineering-blog-post-templates/&quot;&gt;engineering blog post templates&lt;/a&gt; to kick-start new blog posts.
-Sometimes, engineers just didn&#39;t know where to go to write a new blog post, so I did some pairing and lunch&amp;amp;learns
-demonstrating the blog&#39;s setup.&lt;/p&gt;
-
-&lt;p&gt;I still call the event &quot;writing office hours&quot; because it rolls of the tongue better than &quot;knowledge-sharing office
-hours&quot;, but that&#39;s basically what they&#39;ve become!&lt;/p&gt;
-
-&lt;a name=&quot;Frame.Deliverables.as.Blog.Posts&quot;&gt;&lt;/a&gt;
-&lt;h2&gt;Frame Deliverables as Blog Posts&lt;/h2&gt;
-
-&lt;blockquote&gt;&lt;p&gt;[Ash] always encourages achievements as being post-worthy.&lt;/p&gt;&lt;/blockquote&gt;
-
-&lt;p&gt;Here&#39;s my take: engineering work should be approached &lt;em&gt;primarily as a learning opportunity&lt;/em&gt;. A traditional
-engineering project might be structured around building some product, but my approach is to structure it around how
-to &lt;em&gt;learn&lt;/em&gt; how to build some product. As a team learns how to build it, the product is a natural consequence of
-that learning. If you&#39;re familiar with my talk on &lt;a href=&quot;https://ashfurrow.com/blog/building-compassionate-software/&quot;&gt;building compassionate software&lt;/a&gt;, this will sound familiar.
-It&#39;s also reflected in Artsy&#39;s &lt;a href=&quot;https://github.com/artsy/README/blob/master/culture/engineering-principles.md#psychological-safety&quot;&gt;psychological safety engineering principle&lt;/a&gt;.&lt;/p&gt;
-
-&lt;p&gt;A byproduct of this framing of work in terms of &lt;em&gt;learning&lt;/em&gt; experiences is that it lends itself naturally to framing
-work as &lt;em&gt;teaching&lt;/em&gt; experiences (ie: blog posts or other knowledge-sharing). So if you&#39;re writing a new feature, or
-fixing a difficult bug, or building a whole new app, then you should be thinking about the blog post as a
-deliverable for that project. At least I do, anyway. The benefit of my approach is that others don&#39;t need to share
-my views on teaching and learning – as long as I&#39;m there to support them, we can work together to share what they
-inevitably learn. We&#39;ll touch more on this in the next section.&lt;/p&gt;
-
-&lt;p&gt;A really common response I get to &quot;hey have you thought about writing a blog post about this?&quot; is that &quot;this isn&#39;t
-really worth writing a post about.&quot; I disagree. Even if a subject has been written about before, it has never been
-written about from &lt;em&gt;your perspective&lt;/em&gt;. And short posts are valuable, too – just think about how often you&#39;ll be
-searching for an answer to a question and find a short, simple blog post that&#39;s unblocked you. Here is a selection
-of short, focused posts from the Artsy blog:&lt;/p&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&quot;https://artsy.github.io/blog/2015/11/05/Using-OCR-To-Fix-A-Hilarious-Bug/&quot;&gt;Using OCR To Fix a Hilarious Bug&lt;/a&gt; (bug fix becomes a blog post)&lt;/li&gt;
-&lt;li&gt;&lt;a href=&quot;https://artsy.github.io/blog/2016/01/28/being-a-good-open-source-citizen/&quot;&gt;Being a Good OSS Citizen&lt;/a&gt; (an open source pull request becomes a blog post)&lt;/li&gt;
-&lt;li&gt;&lt;a href=&quot;https://artsy.github.io/blog/2018/01/19/upgrading-volt-to-circleci-two/&quot;&gt;Upgrading Volt to CircleCI 2.0&lt;/a&gt; (an infrastructure upgrade becomes a blog post)&lt;/li&gt;
-&lt;li&gt;&lt;a href=&quot;https://artsy.github.io/blog/2018/08/24/How-to-debug-jest-tests/&quot;&gt;How To Debug Jest Tests&lt;/a&gt; (learning a tool becomes a blog post)&lt;/li&gt;
-&lt;/ul&gt;
-
-
-&lt;p&gt;As you can see, each of these are small posts that represent significant engineering effort. Our time is valuable,
-and only through sharing what we learn (&lt;a href=&quot;https://ashfurrow.com/blog/contemporaneous-blogging/&quot;&gt;as we learn it&lt;/a&gt;) can we really honour the title of
-&lt;em&gt;engineer&lt;/em&gt;.&lt;/p&gt;
-
-&lt;a name=&quot;Caring.is.Sharing&quot;&gt;&lt;/a&gt;
-&lt;h2&gt;Caring is Sharing&lt;/h2&gt;
-
-&lt;blockquote&gt;&lt;p&gt;Sometimes the best practice is to have someone who cares encouraging you.&lt;/p&gt;&lt;/blockquote&gt;
-
-&lt;p&gt;Yup, this is the part of the post where I talk about feelings. I don&#39;t think you can effectively lead &lt;em&gt;anything&lt;/em&gt; –
-not a blog, not a team – without caring about the people around you.&lt;/p&gt;
-
-&lt;p&gt;Another way I tried to increase attendance to writing office hours was to reach out to colleagues one-on-one to
-offer my help (and mention the office hours). The first thing I did was look for engineers who &lt;em&gt;wanted&lt;/em&gt; to write
-more. Artsy uses &lt;a href=&quot;https://lattice.com&quot;&gt;Lattice&lt;/a&gt; to help employees accomplish their goals, so I looked for anyone who had shared a goal
-related to knowledge-sharing. I found a few and reached out to them to offer my help achieve those goals.&lt;/p&gt;
-
-&lt;p&gt;But that was just a one-off way to find people interested in writing; what I wanted to build was an ongoing way to
-encourage more blog posts. I found this &lt;em&gt;one weird trick&lt;/em&gt;: just pay attention to what people were working on.
-That&#39;s it. If I heard that someone had experimented with a new technology, or shipped a new feature, or solved an
-interesting bug, I would contact them privately to ask if they&#39;d be interested in writing a post about it.
-Sometimes over Slack, sometimes in person.&lt;/p&gt;
-
-&lt;p&gt;Over the years, I&#39;ve perfected my pitch:&lt;/p&gt;
-
-&lt;ul&gt;
-&lt;li&gt;Emphasize the learning experience they&#39;ve gone through: &quot;That must have been a difficult
-feature/bug/investigation. Good job figuring it out!&quot;&lt;/li&gt;
-&lt;li&gt;Ask them if they&#39;ve thought about writing a blog post (in a lot of cases, they had!): &quot;Have you thought about
-writing a blog post about this? The engineering blog would be a great spot, or you could use your personal blog.&quot;&lt;/li&gt;
-&lt;li&gt;Describe the value of writing: &quot;Lots of people have faced this same issue – a blog post would be really valuable
-to the whole web developer community!&quot;&lt;/li&gt;
-&lt;li&gt;Offer to help and tell them about weekly writing office hours: &quot;I run writing office hours every Wednesday at
-2:00, but feel free to ping me directly if I can help out before then.&quot;&lt;/li&gt;
-&lt;li&gt;Emphasize that, while I&#39;m here to help, there is no pressure to write: &quot;No pressure, of course! I know you&#39;re
-busy with such-and-such project.&quot;&lt;/li&gt;
-&lt;/ul&gt;
-
-
-&lt;p&gt;Pitching them is only the first step – I&#39;d then create recurring reminders in OmniFocus to follow-up with every few
-weeks. I&#39;d DM them to ask how the post was going and if I could help get them to the next step. So if they were
-still working on an outline, I&#39;d offer to help them finish it. Or if they had an outline and were working on
-filling it out, I&#39;d offer to read what they had so far and give feedback. It really depended on the person and
-their goals. At two reminders, I&#39;d offer to stop reminding them if it wasn&#39;t helpful. After five or so reminders,
-with no progress, I&#39;d quietly drop them from my OmniFocus list. No shame.&lt;/p&gt;
-
-&lt;p&gt;It might sound like a lot of work, but it&#39;s actually just a few small recurring tasks. With a little care and the
-right system for managing my own time, I might spend 10 minutes a week following up with people. The important part
-is just caring about the person and their knowledge-sharing goals (whatever they are).&lt;/p&gt;
-
-&lt;p&gt;I would estimate that my success rate was about 50%. That&#39;s pretty great, actually! Some blog posts just didn&#39;t go
-anywhere, and that&#39;s okay. Everyone is busy. Some were months-long journeys that &lt;em&gt;did&lt;/em&gt; eventually get posted. But
-some blog posts grew to be much more than blog posts – in one case, it grew to an entire working group of engineers
-who are now investing in everyone&#39;s capacity to grow as an engineer.&lt;/p&gt;
-
-&lt;p&gt;Like I said earlier, writing office hours became about more than &lt;em&gt;just&lt;/em&gt; writing.&lt;/p&gt;
-
-&lt;hr /&gt;
-
-&lt;p&gt;We saw in the &lt;a href=&quot;https://ashfurrow.com/blog/technical-writing-on-the-web/&quot;&gt;last post&lt;/a&gt; how to become a proficient technical writer. We saw in this post how to nurture
-a culture of writing on a team. It&#39;s an ongoing process – as I learn more, I&#39;ll be sure to share what I learn with
-all of you. Take care.&lt;/p&gt;
-</description>
-        <pubDate>Mon, 06 May 2019 00:00:00 +0000</pubDate>
-        <link>http://artsy.github.io/blog/2019/05/06/technical-writing-for-teams/</link>
-        <guid isPermaLink="true">http://artsy.github.io/blog/2019/05/06/technical-writing-for-teams/</guid>
-        
-        
-        <category>culture</category>
-        
-        <category>writing</category>
         
       </item>
     

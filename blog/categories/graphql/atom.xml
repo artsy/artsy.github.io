@@ -4,7 +4,7 @@
   <title><![CDATA[Category: graphql | Artsy Engineering]]></title>
   <link href="http://artsy.github.io/blog/categories/graphql/atom.xml" rel="self"/>
   <link href="http://artsy.github.io/"/>
-  <updated>2020-01-06T20:47:58+00:00</updated>
+  <updated>2020-01-13T15:38:49+00:00</updated>
   <id>http://artsy.github.io/</id>
   <author>
     <name><![CDATA[]]></name>
@@ -12,6 +12,282 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Better GraphQL Error Handling I - Using Custom Directives]]></title>
+    <link href="http://artsy.github.io/blog/2020/01/13/graphql-custom-directives/"/>
+    <updated>2020-01-13T00:00:00+00:00</updated>
+    <id>http://artsy.github.io/blog/2020/01/13/graphql-custom-directives</id>
+    <content type="html"><![CDATA[<p>This will be the first in a series of posts about how we used advanced GraphQL tooling and functionality to better
+handle errors occurring during query resolution, and better equip clients to reason about such errors.</p>
+
+<p>The goal is to describe our current approach, but also do a deep dive into specific ways we've extended our
+<a href="https://github.com/artsy/metaphysics">GraphQL server</a> to help us accomplish that. If you are an interested GraphQL
+user, you may find this useful, even if some of the larger context specifically around how we are using it to help
+standardize error handling doesn't apply.</p>
+
+<!-- more -->
+
+
+<a name="Introduction.and.Initial.Context"></a>
+<h2>Introduction and Initial Context</h2>
+
+<p>At Artsy, we use GraphQL as our API language of choice. In particular,
+<a href="https://artsy.github.io/blog/2018/05/08/is-graphql-the-future/">as</a>
+<a href="https://artsy.github.io/blog/2016/06/19/graphql-for-mobile/">we've described</a>
+<a href="https://artsy.github.io/blog/2016/11/02/improving-page-speed-with-graphql/">before</a>, we have an orchestration
+layer speaking GraphQL, which is what our front-end clients talk to. The GraphQL orchestration layer wraps up
+access to several backend services, which are made accessible via a combination of data loaders and
+<a href="https://www.apollographql.com/docs/apollo-server/features/schema-stitching/">schema stitching</a>.
+<a href="https://www.apollographql.com/docs/apollo-server/federation/introduction/">Apollo Federation</a> is another tool
+people are using to bring together disparate backends when using GraphQL in an orchestration layer.</p>
+
+<p>Now, consider the following query, which is a realistic one you might see when accessing a 'product' page.</p>
+
+<pre><code class="javascript">{
+  artwork(id: "andy-warhol-skull") {
+    mainContentStuff
+    biographicalData
+    userReviews {
+        ...
+    }  # Accesses a back-end reviews service
+    ...
+  }
+}
+</code></pre>
+
+<p>Part of the <a href="https://graphql.github.io/graphql-spec/">GraphQL spec</a> advises that one should return a 2XX status
+code, even if there are exceptions raised when resolving your query. A non-2XX status code from a GraphQL server
+would indicate an error with the server itself. Errors that occur during query resolution can be consolidated and
+placed in the <code>errors</code> key of the response. This is all
+<a href="https://graphql.github.io/graphql-spec/draft/#sec-Errors">advised by the spec</a>, and so is found in most GraphQL
+implementations.</p>
+
+<p>Given that this query likely backs a product page, some questions about possible error handling behavior that
+immediately arise:</p>
+
+<ul>
+<li>If there are multiple fields erroring, which error (if any) is reported to the user?</li>
+<li>How does the UI decide whether an error is recoverable? That is, if the <code>mainContentStuff</code> field for a view has
+errored, that's probably not recoverable, and appropriate feedback should be displayed. But, if user reviews are
+unavailable at this time, it's likely you might still want to render the main view, but with that section
+appropriately handled. Is there a generic way to handle this?</li>
+</ul>
+
+
+<a name="Using.a.Directive.to.Eliminate.Ambiguity"></a>
+<h2>Using a Directive to Eliminate Ambiguity</h2>
+
+<p>We decided to allow our UI components to declare, using a GraphQL directive, one and only one field in a query to
+optionally be the 'principal field'. That is, this is the field that, if there are any errors resolving it, should
+result in an entire view rendering an appropriate error state. For web, this means a non-2XX status code and
+resulting error page. Any errors occurring in field resolution of non-principal fields should still result in a 2XX
+to the user, and the UI should be able to gracefully recover from the missing data. Since we use
+React/Relay/GraphQL, and GraphQL queries are colocated with UI components, a GraphQL directive is particularly
+useful.</p>
+
+<p>Rewriting the above query, we might do something like:</p>
+
+<pre><code class="javascript">{
+  artwork(id: "andy-warhol-skull") {
+    mainContentStuff @principalField
+    biographicalData
+    userReviews {
+        ...
+    }  # Accesses a back-end reviews service
+    ...
+  }
+}
+</code></pre>
+
+<p>This would mean that any errors occuring in resolving <code>mainContentStuff</code> would result in either a 500 status code
+and error page to the user, or possibly a more specific error and status code. However, any errors occurring in
+resolving user reviews or other fields, would not cause a 500 and error page. Instead, there would be a 200 and the
+UI would render. This means that our UI components should generally be defensive about their incoming props being
+<code>null</code> (which is likely what you'd see when the corresponding field errors during query resolution). Using
+TypeScript and
+<a href="https://www.typescriptlang.org/docs/handbook/release-notes/typescript-2-0.html">strict null checking</a> can help
+make your UI bulletproof to these sorts of issues.</p>
+
+<p>With this context, let's look at how we implement a custom <code>@principalField</code> GraphQL directive. Future posts in
+this series talking about custom GraphQL functionality will likely skip this intro section.</p>
+
+<a name="Implementing.a.Custom.GraphQL.Directive"></a>
+<h2>Implementing a Custom GraphQL Directive</h2>
+
+<p>First, we have a new directive that we'd like to add to our schema. That is, we'd like a client to be able to
+specify <code>@principalField</code> alongside any field, and have that query be validated correctly by the server. You can
+<a href="https://metaphysics-staging.artsy.net/?query=%7B%0Aartwork(id%3A%22andy-warhol-skull%22)%20%40nonExistentDirective%7B%0A%20%20id%0A%7D%7D">see for yourself</a>
+how <a href="https://github.com/graphql/graphql-js">graphql-js</a> and
+<a href="https://github.com/graphql/express-graphql">express-graphql</a> respond when an unknown directive is specified. Your
+GraphQL server implementation may look slightly different.</p>
+
+<p>Turns out, that's pretty easy to do in <code>graphql-js</code>. We declare a variable of type <code>GraphQLDirective</code>, which
+operates on a <code>DirectiveLocation.FIELD</code> location:</p>
+
+<pre><code class="javascript">const PrincipalFieldDirective = new GraphQLDirective({
+  name: "principalField",
+  locations: [DirectiveLocation.FIELD]
+})
+</code></pre>
+
+<p>and then when we create our schema, we pass this in as <code>directives</code>. Since this will overwrite the
+<a href="https://www.apollographql.com/docs/apollo-server/schema/directives/">default directives</a>, we need to append ours.</p>
+
+<p>Something like:</p>
+
+<pre><code class="javascript">import { specifiedDirectives } from "graphql"
+
+new GraphQLSchema({
+  directives: [...specifiedDirectives, PrincipalFieldDirective],
+  query: ...
+  ...
+})
+</code></pre>
+
+<p>In terms of the SDL for your schema, this is equivalent to the following line:</p>
+
+<pre><code>directive @principalField on FIELD
+</code></pre>
+
+<p>That's it! You've successfully added a new directive to your schema. At this point, your GraphQL server will
+properly validate and allow a <code>@principalField</code> directive specified by a client alongside any field. Now, we do
+want to ensure that if this directive is used, it only appears once in your query. We can accomplish this with a
+custom GraphQL validation, which we'll cover in the next post.</p>
+
+<p>So now, how should we implement the functionality of this directive? We decided that we want to use the
+<a href="https://github.com/graphql/graphql-spec/blob/master/spec/Section%207%20--%20Response.md#response-format">extensions</a>
+part of our GraphQL response to carry this data, a free-form map of data up to the implementor, which is a perfect
+fit for this type of optional additional information. If an error occurs in a field tagged with the directive, we
+want the response to look something like:</p>
+
+<pre><code class="json">{
+  "data": {
+    ...
+  },
+  "extensions": {
+    "principalField": {
+      "error": ...
+    }
+  }
+}
+</code></pre>
+
+<p>In <code>express-graphql</code>, we'll need a method appropriate for the
+<a href="https://github.com/graphql/express-graphql#options">extensions</a> option. That looks like:</p>
+
+<pre><code class="javascript">const principalFieldDirectiveExtension = ({ documentAST, result }) =&gt; {
+  const path = getPrincipalFieldDirectivePath(documentAST)
+  if (path.length) {
+    const error = result.errors.find(e =&gt; isEqual(e.path, path))
+    if (error) return { principalField: error }
+  }
+}
+</code></pre>
+
+<p>If there is a field designated with the principal field directive, and there is an error at that same path, we'll
+return that information, otherwise do nothing.</p>
+
+<p>That's it! We have one additional helper we need to write, <code>getPrincipalFieldDirectivePath</code>. This builds an array
+of all the fields encountered to get to one tagged with our directive. It matches the way the
+<a href="https://graphql.github.io/graphql-spec/June2018/#sec-Errors">path of an error</a> is constructed by the server, which
+enables us to determine if a particular error was associated with a field tagged with the directive.</p>
+
+<p>That looks like:</p>
+
+<pre><code class="javascript">import { visit, BREAK, DocumentNode } from "graphql"
+
+export const getPrincipalFieldDirectivePath = (documentNode: DocumentNode): string[] =&gt; {
+  const path: string[] = []
+  visit(documentNode, {
+    Field: {
+      enter(node) {
+        const name = (node.alias || node.name).value
+        path.push(name)
+      },
+      leave() {
+        path.pop()
+      }
+    },
+    Directive(node) {
+      if (node.name.value === "principalField") {
+        return BREAK
+      }
+    }
+  })
+
+  return path
+}
+</code></pre>
+
+<p>This uses a <a href="https://graphql.org/graphql-js/language/#visit">GraphQL visitor</a> to traverse our query, and build up
+an array of field names. We can exit early with that path if we encounter our directive.</p>
+
+<a name="Example.Query"></a>
+<h2>Example Query</h2>
+
+<p>Let's take a look at how you can use this in practice, in order to help standardize when and with what status a UI
+can inform the user of an error.</p>
+
+<p>Something like:</p>
+
+<pre><code>{
+  artwork(id: "andy-warhol-skull") @principalField {
+    userReviews {
+      notes
+    }
+    contents
+    ...
+  }
+}
+</code></pre>
+
+<p>results in:</p>
+
+<pre><code class="json">{
+  "data": {
+    "artwork": null
+  },
+  "extensions": {
+    "principalFieldError": {
+      "httpStatusCode": 404
+    }
+  }
+}
+</code></pre>
+
+<p>and the UI can immediately return an appropriate message to the user, if the artwork is not found. If fetching the
+artwork is successful, but there's an issue with the reviews, the response will look like:</p>
+
+<pre><code class="json">{
+  "data": {
+    "artwork": {
+      "userReviews": null,
+      "contents": ...
+    }
+  }
+}
+</code></pre>
+
+<p>We can make sure that our UI components (likely Relay containers) corresponding to <code>userReviews</code> are defensive
+about that incoming prop being <code>null</code>. Most likely a zero state ("No Reviews Found"), or just skipping the section
+entirely, is appropriate.</p>
+
+<a name="Conclusion"></a>
+<h2>Conclusion</h2>
+
+<p>In this way, we can standardize on and remove ambiguity about how a UI handles one or more errors in query
+resolution and exactly when such an error should be propagated and made user-facing. We can help ensure that our
+UI's are resilient to errors occurring in a leaf.</p>
+
+<p>In the next post, we'll look at how we can write a GraphQL validation rule to ensure that a client specifies at
+most one field with the <code>@principalField</code> directive. After that, we'll take a look at how you can successfully
+parse and support GraphQL query resolution errors occurring in a variety of contexts such as during stitching.
+Putting this altogether, we hope you will come away with a better understanding of how to extend your GraphQL
+server with your own custom behaviors, and in particular how we've used these to better log/propagate/present the
+potential errors occurring during a query.</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[From TSLint to ESLint, or How I Learned to Lint GraphQL Code]]></title>
@@ -1575,397 +1851,6 @@ like that union makes it explicit that there was either success or failure and i
 rich information that's in your app's domain.</p></blockquote>
 
 <p>-- <a href="https://twitter.com/leeb/status/1020054709694943232">Lee Byron</a></p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[The Relay Network Deep Dive]]></title>
-    <link href="http://artsy.github.io/blog/2018/07/25/Relay-Networking-Deep-Dive/"/>
-    <updated>2018-07-25T00:00:00+00:00</updated>
-    <id>http://artsy.github.io/blog/2018/07/25/Relay-Networking-Deep-Dive</id>
-    <content type="html"><![CDATA[<blockquote><p>Hey all, we have another guest post, this one comes from <a href="https://github.com/sibelius">Sibelius Seraphini</a> - a very active contributor to
-Relay and its eco-system. When we spotted he had wrote an amazing article on how the networking aspects of Relay
-comes together, we wanted to expand his reach and inform more people on how Relay comes together.</p>
-
-<p>-- Orta</p></blockquote>
-
-<p>Data fetching is a hard problem for apps. You need to ask yourself a lot of questions: How do you ask for data from
-a server? How do you handle authentication? When is the right time to request data? How can you ensure you have all
-the necessary data to render your views? How can you make sure you're not over-fetching? Can you do lazy loading?
-When should you trigger lazy loading of data? What about pre-fetching data?</p>
-
-<p><a href="https://facebook.github.io/relay/">Relay</a> is a framework for building data-driven applications which handles data fetching for you. For an
-introduction to Relay, read <a href="https://facebook.github.io/relay/">their docs</a>, and also check out my Relay talk at <a href="https://speakerdeck.com/sibelius/reactconfbr-is-relay-modern-the-future">React Conf BR</a>.</p>
-
-<blockquote><p>You don’t deep dive if you don’t know how to swim</p></blockquote>
-
-<a name="TL.DR.Relay.Modern.Network"></a>
-<h2>TL;DR Relay Modern Network</h2>
-
-<p>Relay will aggregate the data requirements (fragments) for your components, then create a request to fulfill it.
-The API to do this is via the <a href="https://facebook.github.io/relay/docs/en/relay-environment.html">Relay Environment</a>:</p>
-
-<blockquote><p>The Relay "Environment" bundles together the configuration, cache storage, and network-handling that Relay needs
-in order to operate.</p></blockquote>
-
-<p>This post focuses on the "network-handling" part, the <a href="https://facebook.github.io/relay/docs/en/network-layer.html">Network Layer</a>. The network layer's responsibility
-is to make a request to a server (or a local graphql) and return the response data to Relay. Your implementation
-should conform to either <a href="https://github.com/facebook/relay/blob/v1.6.0/packages/relay-runtime/network/RelayNetworkTypes.js#L79-L90">FetchFunction</a> for a Promise-like API, or <a href="https://github.com/facebook/relay/blob/v1.6.0/packages/relay-runtime/network/RelayNetworkTypes.js#L92-L107">SubscribeFunction</a> for an
-Observable-like API.</p>
-
-<p>This article will provide 5 implementations of a Relay Network Interface, each of one providing more capabilities
-than the other one, eventually enabling GraphQL Live Queries and Deferrable Queries.</p>
-
-<p>You can see the code for these 5 network layers on GitHub here, open source under MIT license:
-<a href="https://github.com/sibelius/relay-modern-network-deep-dive">https://github.com/sibelius/relay-modern-network-deep-dive</a>.</p>
-
-<!-- more -->
-
-
-<a name="Simplest.Network.Layer"></a>
-<h3>Simplest Network Layer</h3>
-
-<p>The simplest network layer would; get the request, send it to a GraphQL server to resolve and return the data to
-Relay environment.</p>
-
-<pre><code class="js">const fetchFunction = async (
-  request: RequestNode,
-  variables: Variables,
-  cacheConfig: CacheConfig,
-  uploadables: ?UploadableMap
-) =&gt; {
-  // Most GraphQL APIs expect a POST with a JSON
-  // string containing the query and associated variables
-  const body = JSON.stringify({
-    query: request.text, // GraphQL text from input
-    variables
-  })
-
-  const headers = {
-    Accept: "application/json",
-    "Content-type": "application/json",
-    authorization: getToken()
-  }
-
-  const response = await fetchWithRetries(ENV.GRAPHQL_URL, {
-    method: "POST",
-    headers,
-    body,
-    fetchTimeout: 20000,
-    retryDelays: [1000, 3000, 5000, 10000]
-  })
-
-  const data = await response.json()
-
-  // Mutations should throw when they have errors, making it easier
-  // for client code to react
-  if (isMutation(request) &amp;&amp; data.errors) {
-    throw data
-  }
-
-  // We return the GraphQL response to update the Relay Environment
-  // which updates internal store where relay keeps its data
-  return data
-}
-</code></pre>
-
-<a name="Network.that.Handle.Uploadables"></a>
-<h3>Network that Handle Uploadables</h3>
-
-<p>The GraphQL spec does not handle form data, and so if you need to send along files to upload to your server with a
-mutation, you'll want to use the uploadables API in Relay when you commit the mutation.</p>
-
-<p>Adding uploadables in a mutation will inevitably get passed to your network interface, where you'll need to change
-your request body to use FormData instead of the JSON string above:</p>
-
-<pre><code class="js">function getRequestBodyWithUploadables(request, variables, uploadables) {
-  let formData = new FormData()
-  formData.append("query", request.text)
-  formData.append("variables", JSON.stringify(variables))
-
-  Object.keys(uploadables).forEach(key =&gt; {
-    if (Object.prototype.hasOwnProperty.call(uploadables, key)) {
-      formData.append(key, uploadables[key])
-    }
-  })
-
-  return formData
-}
-</code></pre>
-
-<a name="Network.that.Caches.Requests"></a>
-<h3>Network that Caches Requests</h3>
-
-<p>This builds on top of the other 2 implementations, we use
-<a href="https://github.com/facebook/relay/blob/v1.6.0/packages/relay-runtime/network/RelayQueryResponseCache.js#L24-L29">RelayQueryResponseCache</a>
-to query GraphQL requests based on query and variables.</p>
-
-<p>Every time a mutation happens, we should invalidate our cache as we are not sure how a change can affect all cached
-query responses.</p>
-
-<pre><code class="js">// Create our own in-memory cache
-const relayResponseCache = new RelayQueryResponseCache({ size: 250, ttl: oneMinute })
-
-const cacheHandler = async (
-  request: RequestNode,
-  variables: Variables,
-  cacheConfig: CacheConfig,
-  uploadables: UploadableMap
-) =&gt; {
-  const queryID = request.text
-
-  // If it's a mutation, clear all cache, then call the implementation above
-  if (isMutation(request)) {
-    relayResponseCache.clear()
-    return fetchFunction(request, variables, cacheConfig, uploadables)
-  }
-
-  // Try grab the request from the cache first
-  const fromCache = relayResponseCache.get(queryID, variables)
-  // Did it hit? Or did we suppress the cache for this request
-  if (isQuery(request) &amp;&amp; fromCache !== null &amp;&amp; !forceFetch(cacheConfig)) {
-    return fromCache
-  }
-
-  // Make the request, and cache it if we get a response
-  const fromServer = await fetchFunction(request, variables, cacheConfig, uploadables)
-  if (fromServer) {
-    relayResponseCache.set(queryID, variables, fromServer)
-  }
-
-  return fromServer
-}
-</code></pre>
-
-<a name="Network.using.Observable"></a>
-<h3>Network using Observable</h3>
-
-<p>Relay provides a limited implementation of the upcoming <a href="https://github.com/tc39/proposal-observable">ESObservables</a> spec. I recommend reading <a href="https://kriskowal.gitbooks.io/gtor/content/">A General
-Theory of Reactivity</a> to understand why Observables are a great solution instead of promises in some
-situations. Notably; a promise is one value in a time space, an observable is a stream of values in a time space.</p>
-
-<!-- [TODO: Why Sink and not the Relay Observable? Observable is exported but has one more function (complete)] -->
-
-
-<p>To work with this API, we're going to use a private interface for the observable object called Sink:</p>
-
-<pre><code class="js">/**
- * A Sink is an object of methods provided by Observable during construction.
- * The methods are to be called to trigger each event. It also contains a closed
- * field to see if the resulting subscription has closed.
- */
-export type Sink&lt;-T&gt; = {|
-  +next: T =&gt; void,
-  +error: (Error, isUncaughtThrownError?: boolean) =&gt; void,
-  +complete: () =&gt; void,
-  +closed: boolean
-|}
-</code></pre>
-
-<p>Which is the shape of the Observable object we pass back to Relay:</p>
-
-<pre><code class="js">const fetchFunction = async (
-  request: RequestNode,
-  variables: Variables,
-  cacheConfig: CacheConfig,
-  uploadables: ?UploadableMap,
-  sink: Sink&lt;any&gt;
-) =&gt; {
-  const body = getRequestBody(request, variables, uploadables)
-
-  const headers = {
-    ...getHeaders(uploadables),
-    authorization: getToken()
-  }
-
-  const response = await fetchWithRetries(ENV.GRAPHQL_URL, {
-    method: "POST",
-    headers,
-    body,
-    fetchTimeout: 20000,
-    retryDelays: [1000, 3000, 5000, 10000]
-  })
-
-  const data = await handleData(response)
-
-  if (isMutation(request) &amp;&amp; data.errors) {
-    sink.error(data)
-    sink.complete()
-
-    return
-  }
-
-  sink.next(data)
-  sink.complete()
-}
-
-// Instead of returning a Promise that will resolve a single GraphQL response.
-// We return an Observable that could fulfill many responses before it finishes.
-
-const executeFunction = (
-  request: RequestNode,
-  variables: Variables,
-  cacheConfig: CacheConfig,
-  uploadables: ?UploadableMap
-) =&gt; {
-  return Observable.create(sink =&gt; {
-    fetchFunction(request, variables, cacheConfig, uploadables, sink)
-  })
-}
-</code></pre>
-
-<p>This is an implementation you would need when working with <a href="https://github.com/facebook/relay/issues/2174">GraphQL Live Queries</a> (based on polling), as you
-are going to resolve the same query more than once.</p>
-
-<a name="Deferrable.Queries.Network"></a>
-<h3>Deferrable Queries Network</h3>
-
-<p>A common case for deferrable queries is to lazy load fragments. This lets you get request content above the page
-fold first, and then request additional data after. A good example is loading a Post's content first and then
-subsequently loading all comments of this post after the post has finished.</p>
-
-<p>Without deferrable queries you could simulate this using the <a href="https://facebook.github.io/relay/docs/en/graphql-in-relay.html#directives">@include</a> directive in your Relay fragment
-and a <a href="https://facebook.github.io/relay/docs/en/refetch-container.html">refetch container</a>. When the component mounts the refetch container changes the variable used on
-the <code>@include</code> to true and it will request the rest of the data.</p>
-
-<p>The problem with above approach is that you need to wait for the component to mount before you can start the next
-request. This becomes a bigger problem as React does more work asynchronously.</p>
-
-<!-- TODO: There are no docs for relay deferrable -->
-
-
-<p>An ideal deferrable query will start as soon as the previous query has finished, rather than depending on your
-React components render cycles. Relay provides a <a href="https://github.com/facebook/relay/issues/2194#issuecomment-383466255">directive</a> for this: <code>@relay(deferrable: true)</code>:</p>
-
-<pre><code class="js">const PostFragment = createFragmentContainer(Post, {
-  post: graphql`
-    fragment Post_post on Post {
-      title
-      commentsCount
-      ...CommentsList_post @relay(deferrable: true)
-    }
-  `
-})
-</code></pre>
-
-<p>In the fragment above, Relay will first get the <code>title</code> and <code>commentsCount</code> from the Post, then afterwards Relay
-will get the data for <code>CommentsList_post</code> fragment. Sending both through the observable.</p>
-
-<p>Here is the implementation of an execute function to handle a batched request:</p>
-
-<pre><code class="js">const executeFunction = (
-  request: RequestNode,
-  variables: Variables,
-  cacheConfig: CacheConfig,
-  uploadables: ?UploadableMap
-) =&gt; {
-  return Observable.create(sink =&gt; {
-    if (request.kind === "Request") {
-      cacheHandler(request, variables, cacheConfig, uploadables, sink, true)
-    }
-
-    if (request.kind === "BatchRequest") {
-      batchRequestQuery(request, variables, cacheConfig, uploadables, sink)
-    }
-  })
-}
-</code></pre>
-
-<p>This execute function now can handle 2 types of requests:</p>
-
-<ul>
-<li>a single GraphQL query <code>Request</code></li>
-<li>or a <code>BatchRequest</code> that could have be many queries with inter-related data</li>
-</ul>
-
-
-<p>So, what does the <code>batchRequestQuery</code> function look like?</p>
-
-<!-- TODO: Annotate ths code, I'm not 100% what it's doing myself -->
-
-
-<pre><code class="js">// Get variables from the results that have already been sent
-const getDeferrableVariables = (requests, request, variables: Variables) =&gt; {
-  const { argumentDependencies } = request
-
-  if (argumentDependencies.length === 0) {
-    return variables
-  }
-
-  return argumentDependencies.reduce((acc, ad) =&gt; {
-    const { response } = requests[ad.fromRequestName]
-
-    const variable = get(response.data, ad.fromRequestPath)
-
-    // TODO - handle ifList, ifNull
-    // See: https://github.com/facebook/relay/issues/2194
-    return {
-      ...acc,
-      [ad.name]: variable
-    }
-  }, {})
-}
-
-// Execute each of the requests, and call `sink.next()` as soon as it has the GraphQL
-/// server response data.
-//
-// It will only close the Observable stream when all requests has been fulfilled.
-const batchRequestQuery = async (
-  request: RequestNode,
-  variables: Variables,
-  cacheConfig: CacheConfig,
-  uploadables: ?UploadableMap,
-  sink: Sink&lt;ExecutePayload&gt;
-) =&gt; {
-  const requests = {}
-
-  for (const r of request.requests) {
-    const v = getDeferrableVariables(requests, r, variables)
-
-    const response = await cacheHandler(r, v, cacheConfig, uploadables, sink, false)
-
-    requests[r.name] = response
-  }
-
-  sink.complete()
-}
-</code></pre>
-
-<a name="Relay.Modern.is.very.flexible"></a>
-<h2>Relay Modern is very flexible</h2>
-
-<p>Depending on your application needs, you can scale from a simpler Promise-based API for your custom network layer
-to one that uses Observables to always resolves from cache data first and then resolves from the server.</p>
-
-<p>Here are some production examples:</p>
-
-<ul>
-<li><p><a href="https://github.com/artsy/emission/blob/master/src/lib/relay/fetchQuery.ts">Artsy Emission</a>: Uses the Promise API, caches the results locally, and shares logic with native code in
-an iOS app so that queries can be pre-cached before the JavaScript runtime has started.</p></li>
-<li><p><a href="https://github.com/relay-tools/react-relay-network-modern">ReactRelayNetworkModern</a>: A network layer that uses the middleware pattern to separate responsibilities like
-retrying, logging, caching and auth.</p></li>
-<li><p><a href="https://github.com/facebook/relay/issues/2174#issuecomment-375274003">timobetina's example</a>: The simplest Observable network layer you can start with.</p></li>
-</ul>
-
-
-<!-- TODO: More, @sibelius do you have some good examples? -->
-
-
-<a name="More.Resources"></a>
-<h2>More Resources</h2>
-
-<p>If you want to expand your understanding of GraphQL and Relay Modern, I have two great related resources:</p>
-
-<ul>
-<li><p>A boilerplate that uses dataloader to batch and cache requests to your database in a GraphQL API:
-<a href="https://github.com/entria/graphql-dataloader-boilerplate">https://github.com/entria/graphql-dataloader-boilerplate</a></p></li>
-<li><p>A simple boilerplate for working with Relay Modern and React Navigation:
-<a href="https://github.com/entria/ReactNavigationRelayModern">https://github.com/entria/ReactNavigationRelayModern</a></p></li>
-</ul>
-
-
-<p>If you have questions about this or anything send me a DM on twitter
-<a href="https://twitter.com/sseraphini">https://twitter.com/sseraphini</a></p>
 ]]></content>
   </entry>
   
