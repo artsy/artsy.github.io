@@ -1,7 +1,7 @@
 ---
 layout: epic
-title: "At Last: A Log Out Button"
-date: "2020-01-14"
+title: "At Long Last: A Log Out Button"
+date: "2020-01-15"
 author: [ash]
 categories: [ios, tech debt, hackathon]
 ---
@@ -74,7 +74,7 @@ meetings.
 Among all the ideas that Artsy staff submitted for the Hackathon, the Artsy iOS Log Out button received the third
 most votes.
 
-![Screenshot of our Hackathon ideas board](/images/2020-01-14-ios-logout-button-at-last/idea.png)
+![Screenshot of our Hackathon ideas board](/images/2020-01-15-ios-logout-button-at-last/idea.png)
 
 I sat down with another Mobile Experience engineer, Brian, and the people who submitted the Hackathon idea. If we
 were going to build this, it was worth doing right, so we asked questions and learned more about why users need a
@@ -103,7 +103,7 @@ its lifetime, anyway).
 We had a few other items to follow-up on, mostly reference cycles that were holding onto invalid singleton
 instances in-memory. Here's the log out button in action:
 
-![Screenshot of our new log out button!](/images/2020-01-14-ios-logout-button-at-last/logout.png)
+![Screenshot of our new log out button!](/images/2020-01-15-ios-logout-button-at-last/logout.png)
 
 We learned a tonne about the React Native bridge, the existing architecture of our app, and how we'd like to see
 that mature going forward.
