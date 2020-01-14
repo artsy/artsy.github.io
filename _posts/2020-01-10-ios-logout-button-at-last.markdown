@@ -32,11 +32,11 @@ of our app, but as the years wore on, it became less of a quirk and more of a pr
 after creating our new Mobile Experience team, we hadn't yet prioritized this feature. Let's
 [dive into this question](https://en.wikipedia.org/wiki/Five_whys) a little bit.
 
-The log out button hadn't been prioritized. **Why?** Well, to be honest, we had – and still have,
-[we're hiring by the way](http://artsy.net/jobs) – a lot of work to do to improve the app. Among the high-impact
-work we've been shipping, the log out button simply never made the cut. **Why?** It turns out be quite complicated
-to implement a log out button in our app. **Why?** To answer that, we need to step back and think about software
-development and requirements gathering, generally.
+The log out button hadn't been prioritized. **Why?** To be honest, we had – and still have – a lot of work to do to
+improve the app ([we're hiring, by the way](http://artsy.net/jobs)). Among the high-impact work we've been
+shipping, the log out button simply never made the cut. **Why?** It turns out be quite complicated to implement a
+log out button in our app. **Why?** To answer that, we need to step back and think about software development and
+requirements gathering, generally.
 
 Experienced software developers will tell you that it's far, far easier to build a piece of software with a feature
 in mind _from the start_ than it is to take an existing piece of software and add something to it that it was never
