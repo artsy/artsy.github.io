@@ -24,9 +24,14 @@ engineers to explore other teams. The purpose of this practice was to spread kno
 and give folks the opportunity to keep themselves aligned with projects they found most interesting.
 
 The downside of this practice was that it made teams feel short-lived, impermanent, and unstable. Some teams were
-hit harder than others - they'd see their team completely turn over every quarter. This was felt most strongly by our product managers who would take the time to learn the skills and strengths of each engineer on their team over the course of a quarter, just to have to start the process all over again, making it difficult to plan projects set goals for the following quarter.
+hit harder than others - they'd see their team completely turn over every quarter. This was felt most strongly by
+our product managers who would take the time to learn the skills and strengths of each engineer on their team over
+the course of a quarter, just to have to start the process all over again, making it difficult to plan projects set
+goals for the following quarter.
 
-To address these challenges, PDDE decided to set the expectation that engineers would stay on the same team each quarter, with the option to request a team change, when necessary, to fill a skill, capacity, or growth need elsewhere. This effectively ended the practice of shuffling teams every quarter. It was too much change, too often.
+To address these challenges, PDDE decided to set the expectation that engineers would stay on the same team each
+quarter, with the option to request a team change, when necessary, to fill a skill, capacity, or growth need
+elsewhere. This effectively ended the practice of shuffling teams every quarter. It was too much change, too often.
 
 As a result, our teams feel more stable and long-living. We're able to build deeper team identity. We've found one
 tool particularly helpful in finding and building team identity: Team Working Agreements.
@@ -42,7 +47,16 @@ of something - a process, a team, a culture - you are empowered to make impactfu
     <img src="/images/artsy-engineering-hiring/adam.jpg">
     <p class="intro">Adam Iskounen says...</p>
     <p>
-      Team cohesion and unity was a common theme that kept surfacing during the retrospective meeting that led to PDDE ending the quarterly shuffling of teams. I remembered that team working agreements were a tool used by a scrum master at my previous job to help a particular team that were struggling to gel, and brought it up without really knowing what was involved in the process. Fortunately my product manager - who was eager to form a team where each member felt empowered and excited to take ownership of our work - encouraged me to research and share the process for coming up with a team working agreement. At first I was nervous that some team members, especially those who I perceived to be more interested in technical challenges than on team-building, would not be interested in this and find that it was a waste of time. I was pleasantly surprised that not only did everyone on the team participate, but that those team members ended up being some of the more enthusiastic proponets for following-up on the team working agreement after our initial brainstorm.
+      Team cohesion and unity was a common theme that kept surfacing during the retrospective meeting that led to 
+      PDDE ending the quarterly shuffling of teams. I remembered that team working agreements were a tool used by 
+      a scrum master at my previous job to help a particular team that was struggling to gel, and brought it up 
+      without really knowing what was involved in the process. Fortunately my product manager - who was eager to 
+      form a team where each member felt empowered and excited to take ownership of our work - encouraged me to 
+      research and share the process for coming up with a team working agreement. At first I was nervous that some 
+      team members, especially those who I perceived to be more interested in technical challenges than on team-building, 
+      would not be interested in this and find that it was a waste of time. I was pleasantly surprised that not only did 
+      everyone on the team participate, but that those team members ended up being some of the more enthusiastic 
+      proponents for following-up on the team working agreement after our initial brainstorm.
     </p>
   </div>
 </aside>
@@ -62,11 +76,12 @@ Describe it in a few sentences:
 
 - https://github.com/artsy/README/blob/master/playbooks/agile/team-working-agreement.md#procedure
 
-3. Distill and translate brainstorming ideas into slogan-like habits (ADAM: find themes, combine similar ones, condense ideas >>> habits. habits are an amalgamation of ideas from brainstorming that fit together)
-4. Vote on the top 5 habits (ADAM: don't limit to 5. mention the output is a set of the most important habits that the team can agree on)
+3. Distill and translate brainstorming ideas into slogan-like habits (ADAM: find themes, combine similar ones,
+   condense ideas >>> habits. habits are an amalgamation of ideas from brainstorming that fit together)
+4. Vote on the top 5 habits (ADAM: don't limit to 5. mention the output is a set of the most important habits that
+   the team can agree on)
 
-(ADAM: what should come out of each step, and what is the way you get there?)
-(ADAM: add a step to revisit often)
+(ADAM: what should come out of each step, and what is the way you get there?) (ADAM: add a step to revisit often)
 
 ## Why establish a Team Working Agreement?
 
@@ -80,7 +95,8 @@ The brainstorm for a Team Working Agreement can fill this void.
 During the agreement brainstorm the team looks at _how_ they work, instead of looking at _what_ work they're doing.
 It's similar to what you might get out of a retro but at a higher level. It offers time to discuss "soft" skills
 that you don't often discuss, in a context that you don't usually discuss them - with other individual
-contributors, and with your closest collaborators. (ADAM: can this paragraph be reorganized to contrast the proactive nature of TWAs to the retroactive nature of retros?)
+contributors, and with your closest collaborators. (ADAM: can this paragraph be reorganized to contrast the
+proactive nature of TWAs to the retroactive nature of retros?)
 
 <aside>
   <div class="answer">
@@ -98,8 +114,8 @@ contributors, and with your closest collaborators. (ADAM: can this paragraph be 
       spending many sprints trying to guess.
     </p>
     <p>
-      So far, I have seen the most value out of *the actual brainstorm* than the agreement itself. My teams have learned so much about each others' habits and
-      values.
+      So far, I have seen the most value out of *the actual brainstorm* than the agreement itself. My teams have learned 
+      so much about each others' habits and values.
     </p>
   </div>
   <div class="answer">
@@ -138,9 +154,10 @@ it's important to update it...but having it in writing helps new members acclima
 Some teams have struggled to identify what belongs on a team agreement. Should it describe our team values? Habits?
 Procedures? Rules?
 
-It likely varies from team to team what you want here. (ADAM: provide some examples of how it may vary for some type of teams.) It's definitely important that you identify what you're
-looking for up front, and make it clear heading into the brainstorm. Suggest categories, sample habits, & questions
-to ask heading into the brainstorm, and keep them visible during the meeting.
+It likely varies from team to team what you want here. (ADAM: provide some examples of how it may vary for some
+type of teams.) It's definitely important that you identify what you're looking for up front, and make it clear
+heading into the brainstorm. Suggest categories, sample habits, & questions to ask heading into the brainstorm, and
+keep them visible during the meeting.
 
 Be cautious about introducing individual bias, though.
 
