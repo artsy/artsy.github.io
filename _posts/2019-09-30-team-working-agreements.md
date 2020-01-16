@@ -98,8 +98,7 @@ contributors, and with your closest collaborators. (ADAM: can this paragraph be 
       spending many sprints trying to guess.
     </p>
     <p>
-      This might be short-sighted, and maybe my opinion will change over time, but I have seen the most value out of
-      *the actual brainstorm* than the agreement itself. My teams have learned so much about each others' habits and
+      So far, I have seen the most value out of *the actual brainstorm* than the agreement itself. My teams have learned so much about each others' habits and
       values.
     </p>
   </div>
@@ -150,26 +149,36 @@ Be cautious about introducing individual bias, though.
     <img src="/images/artsy-engineering-hiring/steve.jpg">
     <p class="intro">Steve Hicks says...</p>
     <p>
-      (HICKS: passive voice?) Having been through a brainstorm on another team where I felt like we spent too much time talking about things I deemed "too specific," I made a strong effort on another team to constrain the suggestions. To me, team values were really important for this new team - and I did such a good job of encouraging those types of suggestions that it's pretty much all we ended up with.
+      During my first team agreement brainstorm, I felt like we spent a lot of time talking about details 
+      related to specific incidents. On my next team, I made a strong effort to constrain the suggestions 
+      to avoid this. To me, team values were really important for this new team - and I did such a good 
+      job of encouraging those types of suggestions that it's pretty much all we ended up with.
     </p>
     <p>
-      While this made me feel like I understood the values of my team better, we're months later _still_ paying for this bias. Our agreement lacked important procedural and tactical definition. We've been adding things like JIRA hygiene and responsibilities of project leaders as they come up, but I would not push a working agreement brainstorm so strongly in one direction again. (HICKS: discussed how to mitigate this)
+      While this made me feel like I understood the values of my team better, we're months later _still_ 
+      paying for this bias. Our agreement lacked important procedural and tactical definition. We've been adding 
+      things like JIRA hygiene and responsibilities of project leaders as they come up, but I would not push a working
+      agreement brainstorm so strongly in one direction again.
     </p>
   </div>
 </aside>
 
 (ADAM: Add an Adam says... section to share the habits that the Galleries team agreed upon)
 
+Remember that the agreement is a living document. If the team learns that it missed something in the brainstorm,
+don't hesitate to update the agreement.
+
 ### Agreements are hard to define for teams without a well-established identity.
-(HICKS: time =/= identity?)
-For a team that has been together for a while, and which has established an identity, the agreement is likely to
-affirm many things the team is already believing and doing. For a newer team, or a team that is not very aligned on
-their identity, the agreement is harder to pin down. Many opinions will surface, and they may be in conflict with
-each other.
+
+For a team that has a strong and cohesive identity, the agreement is likely to affirm many things the team is
+already believing and doing. For a less cohesive team the agreement is harder to pin down. Many opinions will
+surface, and they may be in conflict with each other.
 
 While this is indeed challenging, it is also important to note that teams that lack identity value _greatly_ from
-the team agreement brainstorm. Provided there is (HICKS: URL) psychological safety, this is a really great time for the team to
-learn about what matters to each other, and move toward establishing an identity.
+the team agreement brainstorm. Provided there is
+[psychological safety](https://github.com/artsy/README/blob/master/culture/engineering-principles.md#psychological-safety),
+this is a really great time for the team to learn about what matters to each other, and move toward establishing an
+identity.
 
 ### Facilitating the brainstorm can be difficult on a distributed team.
 
@@ -200,7 +209,8 @@ The problem of introducing bias to the distillation process is most challenging 
 across the team. One of our teams spent a lot of time talking about meetings in their brainstorm, but struggled to
 come to consensus on them. No single person, or even a pair, could add a disputed topic like this to the agreement
 without introducing their personal bias. In this specific case, the team chose to leave meetings off the agreement
-until they could reach consensus. (HICKS: follow up with advice on not getting bogged down and scheduling this later)
+until they could reach consensus. Topics that are disputed across the team are important to talk about at _some_
+point, but the brainstorm is probably not the time.
 
 ### Team health is easy to postpone when you have important product work to do.
 
