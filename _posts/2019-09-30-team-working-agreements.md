@@ -4,7 +4,7 @@ title: "Team Working Agreements"
 date: "2019-12-31"
 author: [steve-hicks, adam]
 categories: [people, culture, process, team]
-css: artsy-engineering-hiring
+css: dialogue
 ---
 
 The culture at Artsy is driven by every team member, not mandated or handed down from above. TODO: Something about
@@ -42,9 +42,9 @@ The current breakdown of our PDDE organization is relatively new; it's also an o
 feeling out how these teams will/should work together. One of the core beliefs at Artsy is that when you are a part
 of something - a process, a team, a culture - you are empowered to make impactful changes to it.
 
-<aside>
+<aside class="dialogue">
   <div class="answer">
-    <img src="/images/artsy-engineering-hiring/adam.jpg">
+    <img src="/images/dialogue/adam.jpg">
     <p class="intro">Adam Iskounen says...</p>
     <p>
       Team cohesion and unity was a common theme that kept surfacing during the retrospective meeting that led to 
@@ -98,9 +98,9 @@ that you don't often discuss, in a context that you don't usually discuss them -
 contributors, and with your closest collaborators. (ADAM: can this paragraph be reorganized to contrast the
 proactive nature of TWAs to the retroactive nature of retros?)
 
-<aside>
+<aside class="dialogue">
   <div class="answer">
-    <img src="/images/artsy-engineering-hiring/steve.jpg">
+    <img src="/images/dialogue/steve.jpg">
     <p class="intro">Steve Hicks says...</p>
     <p>
       When joining a new team, there's often a period of "feeling it out" - where I'm afraid to verbalize an
@@ -119,7 +119,7 @@ proactive nature of TWAs to the retroactive nature of retros?)
     </p>
   </div>
   <div class="answer">
-    <img src="/images/artsy-engineering-hiring/adam.jpg">
+    <img src="/images/dialogue/adam.jpg">
     <p class="intro">Adam Iskounen says...</p>
     <p>
       TODO Adam: put this in your own words/expand/do what you want here
@@ -161,9 +161,9 @@ keep them visible during the meeting.
 
 Be cautious about introducing individual bias, though.
 
-<aside>
+<aside class="dialogue">
   <div class="answer">
-    <img src="/images/artsy-engineering-hiring/steve.jpg">
+    <img src="/images/dialogue/steve.jpg">
     <p class="intro">Steve Hicks says...</p>
     <p>
       During my first team agreement brainstorm, I felt like we spent a lot of time talking about details 
