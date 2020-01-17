@@ -65,7 +65,7 @@ So what we had was a difficult technical problem that wasn't _that_ high of prio
 solution. Our product team wasn't feeling the pain, but our colleagues who interface more directly with our users
 _were_ feeling it.
 
-Artsy kicked off 2020 with a company-wide Hackathon. We run these events roughly once year, and they provide a
+Artsy kicked off 2020 with a company-wide Hackathon. We run these events roughly once a year, and they provide a
 great opportunity for engineers and non-engineers to work together to build something over a few days. Maybe it's a
 brand-new piece of software to help us do our jobs better. Maybe it's a new zine to collect our favourite artworks
 from the site? And maybe, just maybe, it's a long-neglected user feature that never made the cut in prioritization
