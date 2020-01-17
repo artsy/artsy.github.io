@@ -89,16 +89,19 @@ type PageCursors {
 ```
 
 This is our pagination schema. Including a field of type `pageCursors` as a connection-level field, onto a
-connection, is sufficient for a UI to incredibly simply 'just render' a correct pagination bar always. We can fully
-construct a simple UI (using Relay, shown in the next section) that can present and allow for the interactions
-desired, for windowed pagination.
+connection, is sufficient for a UI to incredibly simply 'just render' a correct pagination bar always, and be able
+to hook up proper interactions. We can fully construct a simple UI (using Relay, shown in the next section) that
+can present and allow for the interactions desired, for windowed pagination.
 
 But, of course we're glossing over the implementation for such a `pageCursors` type, so let's check that out before
 looking at how a client might consume this.
 
-One of our main observations, in thinking about translating between cursor/size and page/size, is that if we
-consider our cursors to be offsets, then we can perform some simple math to convert between the various style of
-parameters. A page of 4 with a size of 10, is equivalent to an offset of 29, with a size of 10. So we have:
+Our backing API's largely still paginate via offsets, and not cursors. That is, they accept page/size or
+size/offset style arguments. We use [graphql-relay-js](https://github.com/graphql/graphql-relay-js), which includes
+helpers to make sure types and resolvers are compatible with some Relay expectations. So, we use this library to
+generate our cursors, and can convert the cursor to an offset. A page of 4 with a size of 10, returns the elements
+numbered 30 - 39 in that list. So a page of 4 (and size of 10), is equivalent to an offset of 29 (and size of 10).
+We have:
 
 ```js
 const pageToCursor = (page, size) => {
@@ -116,20 +119,41 @@ For inspiration in constructing our `first`, `last`, and `around` groups, we tur
 [Fingertips](https://www.fngtps.com/) and their
 [pagination library](https://github.com/Fingertips/peiji-san/blob/6bd1bc7c152961dcde376a8bcb2ca393b5b45829/lib/peiji_san/view_helper.rb#L87).
 That code goes through the various cases possible (a short list, a long list where the current page is near the
-front, middle or end, various degenerate cases, etc.), and returns a proper structure that represents this data. I
-won't quote the code here, but our full implementation of that method can be found
+front, middle or end, various degenerate cases, etc.), and returns a proper structure that represents this data. It
+can handle all combinations of list sizes, and current position relative to the total size.
+
+In pseudo-code, it looks like:
+
+```js
+if emptyList
+  around = [1]
+else if listIsShort
+  around = [1...totalPages]
+else if nearBeginning
+  around = [1...3]
+  last = [totalPages]
+else if nearMiddle
+  first = [1]
+  middle = [currentPage-1, currentPage, currentPage+1]
+  last = [totalPages]
+else if nearEnd
+  first = [1]
+  around = [last-1, last, last+1]
+```
+
+Our full implementation of that method can be found
 [here](https://github.com/artsy/metaphysics/blob/205592be7f59970cf80313972ceb95bb1579c31f/src/schema/v2/fields/pagination.ts#L96).
-It can handle all combinations of list sizes, and current position relative to the total size.
 
 For a real-life example, check out
 [this link, corresponding to a page number of 4](<https://metaphysics-staging.artsy.net/v2?query=%7B%0AartworksConnection(first%3A5)%20%7B%0A%20%20pageCursors%7B%0A%20%20%20%20first%20%7B%0A%20%20%20%20%20%20cursor%0A%20%20%20%20%20%20page%0A%20%20%20%20%20%20isCurrent%0A%20%20%20%20%7D%0A%20%20%20%20last%20%7B%0A%20%20%20%20%20%20cursor%0A%20%20%20%20%20%20page%0A%20%20%20%20%20%20isCurrent%0A%20%20%20%20%7D%0A%20%20%20%20around%20%7B%0A%20%20%20%20%20%20cursor%0A%20%20%20%20%20%20page%0A%20%20%20%20%20%20isCurrent%0A%20%20%20%20%7D%0A%20%20%20%20previous%20%7B%0A%20%20%20%20%20%20page%0A%20%20%20%20%20%20cursor%0A%20%20%20%20%7D%0A%20%20%7D%0A%7D%7D>).
-You can adjust the arguments to see how the output changes based on where you are in the list. It looks like:
+You can adjust the arguments to see how the output changes based on where you are in the list. Try putting
+different cursor values in! It looks like:
 
 <img src="/images/2020-01-20-graphql-relay-windowed-pagination/graphiql.png">
 
-Let's look at a couple of other pieces of data included here. We include a `previous` page cursor as well. This is
-to support that action (the prev/next toggles) in the UI. However, we don't need a custom `next` item to support
-that behavior. That's because we tend to use
+Let's look at a couple of other pieces of data requested here. One of these is a `previous` page cursor. This is to
+support that action (the prev/next toggles) in the UI. However, we don't need a custom `next` item to support that
+behavior. That's because we tend to use
 [forward-style pagination arguments](https://facebook.github.io/relay/graphql/connections.htm#sec-Forward-pagination-arguments)
 with connections, which means the connection will already return the data needed for that action (remember, you can
 implement a scrolling infinite scroll feed that always takes you to the next page right out of the box).
@@ -270,7 +294,7 @@ query SomeConnectionQuery($first: Int, $after: String) {
 }
 ```
 
-But we're pretty much done, this is all just Relay boilerplate at this point.
+We're pretty much done, this is all just Relay boilerplate at this point.
 
 Putting it all together, our refetch container winds up rendering a fully functional pagination component in one
 line:
