@@ -1,7 +1,7 @@
 ---
 layout: epic
 title: Effortless Pagination with GraphQL and Relay? Really!
-date: 2020-01-20
+date: 2020-01-21
 categories: [GraphQL, Relay, Pagination]
 author: matt
 ---
@@ -19,7 +19,7 @@ infinite scroll has been replaced by a more traditional pagination bar.
 
 You know the one. Like the following, from [Amazon](https://www.amazon.com):
 
-<img src="/images/2020-01-20-graphql-relay-windowed-pagination/amazon.png">
+<img src="/images/2020-01-21-graphql-relay-windowed-pagination/amazon.png">
 
 You start to realize that the cursor-based setup of a connection, along with a Relay pagination container, does not
 lend itself to this more traditional UI. For one thing, a user can arbitrarily 'jump' to any page by including a
@@ -44,7 +44,7 @@ list. This (and more) is all covered in the aforementioned blog post.
 So, let's start by taking a look at our desired pagination UI, and think about what kind of schema/components make
 sense.
 
-<img src="/images/2020-01-20-graphql-relay-windowed-pagination/pagination.png">
+<img src="/images/2020-01-21-graphql-relay-windowed-pagination/pagination.png">
 
 There looks to be several types of appearances we want to show, based on the total size of our list and fixed page
 size chosen, as well as the current page. There's also some edge cases of empty lists, or lists that are short
@@ -149,7 +149,7 @@ For a real-life example, check out
 You can adjust the arguments to see how the output changes based on where you are in the list. Try putting
 different cursor values in! It looks like:
 
-<img src="/images/2020-01-20-graphql-relay-windowed-pagination/graphiql.png">
+<img src="/images/2020-01-21-graphql-relay-windowed-pagination/graphiql.png">
 
 Let's look at a couple of other pieces of data requested here. One of these is a `previous` page cursor. This is to
 support that action (the prev/next toggles) in the UI. However, we don't need a custom `next` item to support that
