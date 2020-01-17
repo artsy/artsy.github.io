@@ -4,7 +4,7 @@ title: "How Artsy Hires Engineers"
 date: "2019-01-23"
 author: [ash, lily, steve-hicks]
 categories: [people, best practices, hiring, culture, process, team]
-css: artsy-engineering-hiring
+css: dialogue
 comment_id: 528
 ---
 
@@ -21,24 +21,24 @@ see the tech community examine its hiring practices, and hopefully to adopt some
 successful. Focusing on knowledge and facts that are already acquired is one way to approach hiring; we prefer to
 look at how a person can fill a gap in our team and help us grow.
 
-<aside>
+<aside class="dialogue">
   <div class="question">
     <h3>What surprised you about the hiring process at Artsy while you were a candidate?</h3>
   </div>
   <div class="answer">
-    <img src="/images/artsy-engineering-hiring/ash.jpg">
+    <img src="/images/dialogue/ash.jpg">
     <p class="intro">Ash Furrow says...</p>
     <p>What most surprised me at the time was <em>who</em> was interviewing me. I had a teleconference screening with Artsy's now-CTO before moving on to in-person interviews. Since I was living in Amsterdam at the time, Artsy flew me to its nascent London office to meet two interviewers: a data engineer and a member of (what was then) the Arts team.</p>
     <p>I was surprised, but encouraged, to be speaking with someone who wasn't an engineer. They asked me questions to find out what motivated me, to evaluate how well those motivations would help Artsy achieve its mission. It was a natural fit!</p>
   </div>
   <div class="answer">
-    <img src="/images/artsy-engineering-hiring/lily.jpg">
+    <img src="/images/dialogue/lily.jpg">
     <p class="intro">Lily Pace says...</p>
     <p>Everything. I was pleasantly surprised by how different the interview process at Artsy was from my previous experiences, which felt more like standardized tests than conversations. The underlying presumption with "traditional" tech hiring practices is that candidates are somehow trying to trick their way into positions they aren’t qualified for. It's no wonder that impostor syndrome is so prevalent in underrepresented groups when the interview process is set up like an interrogation.</p>
     <p>I felt like the interviewers at Artsy had read my resume and cv and taken it at face value, so the interview was spent diving deeper into my skill-set and personality and determining compatibility, instead of trying to identify gaps in my knowledge.</p>
   </div>
   <div class="answer">
-    <img src="/images/artsy-engineering-hiring/steve.jpg">
+    <img src="/images/dialogue/steve.jpg">
     <p class="intro">Steve Hicks says...</p>
     <p>With 20 years (!!!) of experience as a software engineer, I've seen my share of interviews - from both sides. On the hiring side, I've said for years that technical interviews are unnecessary. If I can get a 30 minute conversation with a candidate, I feel like I can learn enough about them to know if they can do the job from a technical perspective. It's much less about knowing trivia or syntax, and much more about having the personality to solve problems.</p>
     <p>I'd never experienced that on the candidate side, though. When I did, I definitely felt like Artsy had forgotten part of the interview. Where was the whiteboard? The homework? People looking over my shoulder while I coded an anagram-checker? A technical challenge has been a part of every interview I've done as a candidate - until Artsy.</p>
@@ -165,22 +165,22 @@ competing assignments to work on.
 Many companies use take-home challenges early in the hiring process to shift the burden of evaluation from the
 company on to the candidates themselves. This unfairly excludes lots of potentially amazing colleagues.
 
-<aside>
+<aside class="dialogue">
   <div class="question">
     <h3>Why do you think these kinds of bad hiring practices are so common in the tech industry? And what sets hiring practices in tech apart from hiring in other industries?</h3>
   </div>
     <div class="answer">
-    <img src="/images/artsy-engineering-hiring/steve.jpg">
+    <img src="/images/dialogue/steve.jpg">
     <p class="intro">Steve Hicks says...</p>
     <p>We are very logical people in the tech industry. We want to create algorithms or heuristics for everything, including hiring. Using a yardstick like "Fizz Buzz" or trivia questions allows us to easily narrow down the candidate pool. It's a simple, intentional form of gate-keeping. The hiring algorithm is much easier to write when it's "Oh, you don't know what a closure is? Sorry, we're not interested." It's much harder to write a hiring algorithm that respects nuance: "well...it depends. Maybe you have different experiences than I do. It'll take some digging to find out if our experiences will complement each other."</p>
   </div>
   <div class="answer">
-    <img src="/images/artsy-engineering-hiring/lily.jpg">
+    <img src="/images/dialogue/lily.jpg">
     <p class="intro">Lily Pace says...</p>
     <p>I think the tech industry has an elitism problem, and this is reflected in the way candidates are evaluated. There’s a general feeling in some parts of the industry that what we do is different and somehow elevated from other professions, that engineering is a skill that only a select few are capable of, not something that anyone can learn with the right training and enthusiasm. Making candidates go through a gauntlet of challenges during the interview process reinforces this idea.</p>
   </div>
   <div class="answer">
-    <img src="/images/artsy-engineering-hiring/ash.jpg">
+    <img src="/images/dialogue/ash.jpg">
     <p class="intro">Ash Furrow says...</p>
     <p>I think when looking at the current state of the computer programming industry, and its hiring practices, we need to pay special attention to its history. The original computer programmers of the twentieth century were women, but they were <a href="https://www.theguardian.com/careers/2017/aug/10/how-the-tech-industry-wrote-women-out-of-history">systematically pushed out of the industry</a>. One way they were pushed out was through discriminatory hiring practices, especially interview questions and techniques specifically designed to exclude non-white, non-male applicants. Sadly, these hiring practices persist, even if their original motivations have been obscured by time.</p>
   </div>
@@ -204,22 +204,22 @@ When you interview with Artsy as an engineer, you won't just meet other engineer
 people from other departments too. If you're hired as an Artsy engineer, you're going to work with folks from all
 across the company - we want to make sure you can communicate with them because that's something we do every day.
 
-<aside>
+<aside class="dialogue">
   <div class="question">
     <h3>How has this impacted your day-to-day work at Artsy so far?</h3>
   </div>
   <div class="answer">
-    <img src="/images/artsy-engineering-hiring/lily.jpg">
+    <img src="/images/dialogue/lily.jpg">
     <p class="intro">Lily Pace says...</p>
     <p>I had a negative experience in the past with a coworker who lacked empathy and boundaries and made me feel unwelcome and othered as the only woman on the team and someone from a non-traditional background. It made me afraid to ask for help and stifled my progress. This experience made me hesitant to open up to new coworkers, especially when I needed assistance. Because Artsy evaluates candidates based on empathy, communication, and kindness, I arrived with a <a href="https://medium.com/artsy-blog/what-it-feels-like-to-work-in-a-supportive-environment-for-female-engineers-3c994a001007">level of trust in my new coworkers</a> that usually takes weeks or months to develop. </p>
   </div>
   <div class="answer">
-    <img src="/images/artsy-engineering-hiring/steve.jpg">
+    <img src="/images/dialogue/steve.jpg">
     <p class="intro">Steve Hicks says...</p>
     <p>In most of my previous jobs, it's taken me a while to learn who I can be vulnerable around and who I can't. At Artsy I have quickly learned that I don't need to worry about it. I feel an incredible sense of psychological safety with the Artsy team. I can be vocal about not understanding something, and I can ask for help without feeling like a burden or fool.</p>
   </div>
   <div class="answer">
-    <img src="/images/artsy-engineering-hiring/ash.jpg">
+    <img src="/images/dialogue/ash.jpg">
     <p class="intro">Ash Furrow says...</p>
     <p>I'm a sensitive person. I don't like pointless or inflammatory conflict – I find it distracting and counterproductive. However, I can relax and let my guard down at Artsy. My sensitivity to how others are feeling is a part of my contributions to the team, and I'm able to fold the emotional wellbeing that <strong>I</strong> get from everyone back into our team: a sort of constantly-accelerating feedback loop of good feelings.</p>
   </div>
@@ -281,22 +281,22 @@ We see the interview process as an opportunity to build a relationship with a ca
 out if they're a good fit for Artsy, and we help them decide if Artsy is a good fit for them. Our hiring process
 focuses more on human skills than most processes do. It's not perfect, but it has served us well.
 
-<aside>
+<aside class="dialogue">
   <div class="question">
     <h3>Where do you still think Artsy has to grow, in terms of how it hires engineers?</h3>
   </div>
   <div class="answer">
-    <img src="/images/artsy-engineering-hiring/lily.jpg">
+    <img src="/images/dialogue/lily.jpg">
     <p class="intro">Lily Pace says...</p>
     <p>I think Artsy is really unique and innovative in how it evaluates candidates and I think the more we can express this in our job postings the better. Stressing alignment with our values and an ability to learn and posting fewer hard requirements are some simple ways to convey to potential applicants that we evaluate differently.</p>
   </div>
   <div class="answer">
-    <img src="/images/artsy-engineering-hiring/ash.jpg">
+    <img src="/images/dialogue/ash.jpg">
     <p class="intro">Ash Furrow says...</p>
     <p>I think one area we've historically struggled with, and still do, is sourcing candidates from a wide range of backgrounds. Artsy Engineering's hiring pool still draws heavily from the professional networks of existing Artsy staff; while this has a lot of benefits, it also has the potential to exclude groups who aren't already represented on our team.</p>
   </div>
   <div class="answer">
-    <img src="/images/artsy-engineering-hiring/steve.jpg">
+    <img src="/images/dialogue/steve.jpg">
     <p class="intro">Steve Hicks says...</p>
     <p>I agree with Ash. I think all companies hire based on their employees' networks, because that's the easiest way to find people. <a href="https://twitter.com/seldo/">Laurie Voss</a> talked about this recently on <a href="https://reactpodcast.simplecast.fm/33">the React Podcast</a>. He pointed out that diversity at NPM has been better than average since the company started; and that the ratios of diversity have been consistent from the beginning, as a result of hiring from their own networks. I'd love to see Artsy hire beyond our networks (and as a result expand our networks).</p>
   </div>
