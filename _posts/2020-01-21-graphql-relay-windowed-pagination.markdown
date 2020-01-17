@@ -4,6 +4,7 @@ title: Effortless Pagination with GraphQL and Relay? Really!
 date: 2020-01-21
 categories: [GraphQL, Relay, Pagination]
 author: matt
+comment_id: 606
 ---
 
 It's the year 2020. You use a modern front-end stack of [Relay](https://relay.dev/),
