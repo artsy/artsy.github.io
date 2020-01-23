@@ -28,14 +28,14 @@ and give folks the opportunity to keep themselves aligned with projects they fou
 The downside of this practice was that it made teams feel short-lived, impermanent, and unstable. Some teams were
 hit harder than others - they'd see their team completely turn over every quarter. This was felt most strongly by
 our product managers who would take the time to learn the skills and strengths of each engineer on their team over
-the course of a quarter, just to have to start the process all over again, making it difficult to plan projects set
+the course of a quarter, just to have to start the process all over again, making it difficult to plan projects or set
 goals for the following quarter.
 
 To address these challenges, PDDE decided to set the expectation that engineers would stay on the same team each
 quarter, with the option to request a team change, when necessary, to fill a skill, capacity, or growth need
 elsewhere. This effectively ended the practice of shuffling teams every quarter. It was too much change, too often.
 
-As a result, our teams feel more stable and long-living. We're able to build deeper team identity. We've found one
+As a result, our teams feel more stable and long-lived. We're able to build deeper team identity. We've found one
 tool particularly helpful in finding and building team identity: Team working agreements.
 
 ## How did team working agreements come about at Artsy?
