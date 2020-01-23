@@ -185,7 +185,7 @@ Be cautious about introducing individual bias, though.
 (ADAM: Add an Adam says... section to share the habits that the Galleries team agreed upon)
 
 Remember that the working agreement is a living document. If the team learns that it missed something in the
-brainstorm, don't hesitate to update the agreement.
+brainstorm, don't hesitate to update the agreement. Team retros are a great time to make updates.
 
 ### Working agreements are hard to define for teams without a well-established identity.
 
