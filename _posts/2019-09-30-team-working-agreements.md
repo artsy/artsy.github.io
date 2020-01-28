@@ -174,8 +174,7 @@ Be cautious about introducing individual bias, though.
       job of encouraging those types of suggestions that it's pretty much all we ended up with.
     </p>
     <p>
-      While this made me feel like I understood the values of my team better, we're months later _still_ 
-      paying for this bias. Our working agreement lacked important procedural and tactical definition. We've 
+      As a result, our initial working agreement lacked important procedural and tactical definition. We've 
       been adding things like JIRA hygiene and responsibilities of project leaders as they come up, but I would
       not push a working agreement brainstorm so strongly in one direction again.
     </p>
