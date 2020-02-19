@@ -14,7 +14,9 @@ development and need to rapidly see updates and `yarn link` isn't working out th
 
 What if you need to test packages together in a staging environment? Generally the approach would to be to deploy a
 [canary](https://martinfowler.com/bliki/CanaryRelease.html) version to npm that you can use in your staging
-environment.
+environment. I'll go over how to do that and how Artsy automates it.
+
+<!-- more -->
 
 Publishing a canary isn't necessarily very hard. It's just a regular publish to npm with a few more steps.
 
