@@ -24,16 +24,26 @@ while minimizing disruptions.
 
 ## Consider the cost
 
-No change is free. The time it takes to build your tool or the complexity of maintaining it may be more effort than
-just dealing with the existing issue. Consider carefully before taking on a maintenance burden with a marginal
-benefit.
+Nothing is free and that's especially true with software. There's a few different aspects of cost to consider
+before starting to build a tool.
 
-There are other things to ask yourself.
+It may go without saying, but everything that you build has a maintenance cost. Depending on how complex and how
+widely used the tool may be, you could face a meaningful drain on both your time and energy. That's especially true
+if it's something you're working on outside of your primary responsibilities. Really take time to consider if the
+value the tool will deliver is worth that personal cost.
 
-Will adding this tool be interruptive to the user's workflow? Will it be hard to discover and thus unlikely to be
-used? If it breaks does it block critical work? Is it hard to set up?
+Ensure you also consider the cost of learning and using the tool will have on your intended audience. If it's hard
+to use and it doesn't make someone's life substantially better, they're likely not going to use it. If it's hard to
+understand, same story.
+
+Everything has a cost. Ensure the value you're providing offsets that cost. If it doesn't, rethink and try
+something else... or just don't build it. That's always a valid option.
 
 ## Understand the user
+
+Different users will have different proficiencies. If you're building a tool for other engineers on the team, maybe
+a stack trace is good enough for encountered errors. A non-technical audience will likely just think the tool is
+broken.
 
 ## Know the risks
 
