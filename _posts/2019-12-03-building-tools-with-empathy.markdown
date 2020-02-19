@@ -22,12 +22,13 @@ while minimizing disruptions.
 
 <!-- more -->
 
-## Evaluate the problem
-
 ## Consider the cost
 
-No change is free. Now that you understand your problem and have an idea of what you want to build to solve it take
-some time to consider the cost.
+No change is free. The time it takes to build your tool or the complexity of maintaining it may be more effort than
+just dealing with the existing issue. Consider carefully before taking on a maintenance burden with a marginal
+benefit.
+
+There are other things to ask yourself.
 
 Will adding this tool be interruptive to the user's workflow? Will it be hard to discover and thus unlikely to be
 used? If it breaks does it block critical work? Is it hard to set up?
