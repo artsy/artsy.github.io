@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Deploying canaries with auto - Artsy Engineering</title>
+  <meta name="author" content="">
+
+  
+  <meta name="description" content="Coordinating changes across many packages in the node ecosystem can be quite the challenge. You can use npm link
+or yarn link to create a symlink o...">
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <meta property="og:image" content="http://artsy.github.io/images/artsy_oss_image.png" />
+  <meta property="og:image:type" content="image/png" />
+
+  
+  <link rel="canonical" href="http://artsy.github.io/blog/2020/02/20/deploying-canaries-with-auto/">
+  <link rel="alternate" type="application/rss+xml" title="Artsy Engineering Blog" href="/feed">
+
+  <link href="/favicon.ico" rel="icon">
+  <link href="/css/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+
+  <script src="/javascripts/jquery-1.11.3.min.js"> </script>
+  <script src="/javascripts/gradient-fade.js"></script>
+  <script src="/javascripts/noframework.waypoints.min.js"></script>
+  <script src="/javascripts/sticky.min.js"></script>
+  <script src="/javascripts/search.min.js"></script>
+  <script src="/javascripts/custom-element.min.js"></script>
+  <script src="/javascripts/g-emoji-element.js"></script>
+
+  
+
+  <script type="text/javascript" src="https://fast.fonts.net/jsapi/f7f47a40-b25b-44ee-9f9c-cfdfc8bb2741.js"></script>
+
+
+  <link href="" rel="alternate" title="Artsy Engineering" type="application/atom+xml">
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-12450662-3']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+  <!--[if IE 8]><link href="/stylesheets/custom/ie_font.css" type="text/css"><![endif]-->
+
+</head>
+
+
+<link href="/css/epic.css" media="screen, projection" rel="stylesheet" type="text/css">
+
+
+
+<body>
+  <div>
+    <div id="bodywrapper">
+      <header>
+        <ul>
+          <li><a href="/">Artsy Engineering Blog</a></li>
+          <li><a href="https://www.artsy.net/jobs">Careers</a></li>
+          <li><a href="https://developers.artsy.net">API</a></li>
+        </ul>
+
+        <ul>
+          <li><a href="http://artsy.github.io/open-source/">Our Open Source</a></li>
+          <li><a href="http://twitter.com/artsyopensource">@artsyopensource</a></li>
+          <li><a href="https://www.artsy.net">artsy.net</a></li>
+        </ul>
+      </header>
+
+      <section>
+        <header id="page">
+          <h1>Deploying canaries with auto</h1>
+          <h3>
+          <!-- Yep, single line so the comma lines up right -->
+          By  Justin Bennett
+          </h3>
+          <time datetime="2020-02-20">Feb 20, 2020</time>
+        </header>
+
+        <article class='post'>
+          <p>Coordinating changes across many packages in the node ecosystem can be quite the challenge. You can use <code>npm link</code>
+or <code>yarn link</code> to create a symlink of the package you're developing on into another package, but it
+<a href="https://github.com/yarnpkg/yarn/issues/1761#issuecomment-259706202">has some drawbacks</a>. If you're doing local
+development and need to rapidly see updates and <code>yarn link</code> isn't working out there's always tools like
+<a href="https://github.com/whitecolor/yalc#yalc">yalc</a> to help you out. That's really only for local development though.</p>
+
+<p>What if you need to test packages together in a staging environment? Generally the approach would to be to deploy a
+<a href="https://martinfowler.com/bliki/CanaryRelease.html">canary</a> version to npm that you can use in your staging
+environment. I'll go over how to do that and how Artsy automates it.</p>
+
+<!-- more -->
+
+
+<p>Publishing a canary isn't necessarily very hard. It's just a regular publish to npm with a few more steps.</p>
+
+<p>For example, if we were wanting publish a canary version of <code>@artsy/reaction</code></p>
+
+<ol>
+<li>Update <code>package.json</code>, set version to a canary version, e.g. <code>2.0.0-canary-&lt;PR#&gt;</code>, <code>3.1.5-canary-&lt;PR#&gt;</code>, ...</li>
+<li>Run <code>npm publish --tag canary</code> in <code>reaction</code> to publish the package under the canary tag</li>
+<li>Run <code>yarn add @artsy/reaction@canary</code> to install canary package in the consuming system</li>
+</ol>
+
+
+<p><em>Tip: Running <code>npm dist-tag ls</code> can be helpful to see what tagged packages are available</em></p>
+
+<p>For a lot of people, that'd be enough. End blog post. Here at Artsy, we like things to be a little more
+frictionless.</p>
+
+<p>We're already big fans of <a href="https://github.com/intuit/auto">Auto</a>, Intuit's tool for automatically deploying
+releases on PR merges. Orta wrote an awesome blog post on how we
+<a href="https://artsy.github.io/blog/2019/01/03/label-based-prs/">migrated to auto</a> from semantic-release a while back.</p>
+
+<p>As a short recap, <code>Auto</code> makes the deployable units of a package be a PR instead of a commit. It uses labels like
+<code>Version: Major</code>, <code>Version: Minor</code>, etc to determine how the PR will affect the package version. When a PR is
+merged it'll automatically cut a released based on that label.</p>
+
+<p>As a testament to how awesome <code>Auto</code> is, it already supports
+<a href="https://intuit.github.io/auto/pages/generated/canary.html">canary deployments</a> out of the box!</p>
+
+<p>Essentially when we're on a branch that isn't master our CI runs this command:</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>auto canary</span></code></pre></td></tr></table></div></figure>
+
+
+<p>and auto takes care of publishing a canary version to NPM <em>and</em> updating the PR description with the version and
+instructions on how to use it.</p>
+
+<p>You can <a href="https://github.com/artsy/reaction/pull/3168">check out the PR</a> where I enabled in on reaction to see it in
+action. The CI configuration itself it's layered behind some
+<a href="https://circleci.com/docs/2.0/orb-intro/">CircleCI Orb</a>s. You can find all that configuration in
+<a href="https://github.com/artsy/orbs">artsy/orbs</a> if you're curious.</p>
+
+<p>Ultimately the culmination of this work means that every PR to a library at Artsy gets a canary. It's incredibly
+simple to test changes in another system now.</p>
+
+<p>There is, however, one caveat. Being as canaries are being deployed to NPM, they need our NPM token. We can't just
+share that with everyone, so this functionality doesn't work on forks. Given how CircleCI, this includes forks from
+folks who even have write access to the repository. We're thinking about how to solve that problem but that'll be
+another blog post for another day.</p>
+
+        </article>
+
+        <article class='post'>
+          <p style="padding-bottom: 0; margin-bottom:0;">
+            <a href="https://www.artsy.net/" style="background-image: none;">
+              <svg viewBox="0 0 510 510" width="40" height="40" xmlns="http://www.w3.org/2000/svg">
+                <path transform="scale(1, -1) translate(0, -480)" d="M0 -32h512v512h-512v-512v0zM464 16h-80v80h-48v-80h-288v416h416v-416v0zM194 384h-40l-74 -186h38l20 52h72l19 -52h39l-74 186v0zM149 282l25 66l24 -66h-49v0z"></path>
+              </svg>
+            </a>
+          <p/>
+        </article>
+
+      
+
+      </section>
+
+      <footer>
+        <article>
+
+          <section>
+            <h4>Author</h4>
+            <p> <a href="/author/justin"/>Justin Bennett</a></p>
+            <p></a></p>
+          </section>
+
+          <section>
+            <h4>Post Meta</h4>
+            <p>Feb 20, 2020</p>
+            <p>Tagged: <a class='category' href='/blog/categories/node/'>node</a>, <a class='category' href='/blog/categories/npm/'>npm</a>, <a class='category' href='/blog/categories/packages/'>packages</a>, <a class='category' href='/blog/categories/road-and-bridges/'>road and bridges</a>, <a class='category' href='/blog/categories/tools/'>tools</a></p>
+          </section>
+          <br/>
+          <section>
+            <h4>Artsy OSS</h4>
+            <ul>
+              <li><a href='https://www.artsy.net'>Artsy.net</a></li>
+              <li><a href='https://developers.artsy.net'>API</a></li>
+              <li><a href='http://artsy.github.io/open-source/'>Featured OSS</a></li>
+              <li><a href='https://www.artsy.net/jobs'>Careers</a></li>
+            </ul>
+          </section>
+
+          <section>
+            <h4>Blog</h4>
+            <ul>
+              <li><a href='http://artsy.github.io/blog/archives/'>Archives</a></li>
+              <li><a href='http://artsy.github.io/search/'>Search</a></li>
+              <li><a href='https://github.com/artsy/artsy.github.io'>Code on GitHub</a></li>
+              <li><a href='https://github.com/artsy/artsy.github.io/edit/source/_posts/2020-02-20-deploying-canaries-with-auto.markdown'>Fix typoes in this post</a></li>
+            </ul>
+          </section>
+
+        </article>
+
+        <article>
+          <section>
+            <h4>Post Series on the Blog</h4>
+            <ul>
+              
+              <li><a href='/series/react-native-at-artsy/'>React Native at Artsy</a></li>
+              
+              <li><a href='/series/javascriptures/'>JavaScriptures</a></li>
+              
+              <li><a href='/series/stages-of-professional-growth/'>Stages of Professional Growth</a></li>
+              
+              <li><a href='/series/artsy-tech-stack/'>Artsy Tech Stack</a></li>
+              
+              <li><a href='/series/open-source-by-default/'>Open Source by Default</a></li>
+              
+            </ul>
+          </section>
+
+          <section>
+          
+          </section>
+        </article>
+
+      </footer>
+    </div>
+  </div>
+</body>
