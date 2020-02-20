@@ -60,6 +60,6 @@ Ultimately the culmination of this work means that every PR to a library at Arts
 simple to test changes in another system now.
 
 There is, however, one caveat. Being as canaries are being deployed to NPM, they need our NPM token. We can't just
-share that with everyone, so this functionality doesn't work on forks. Given how CircleCI, this includes forks from
+share that with everyone, so this functionality doesn't work on forks. Given how CircleCI works, this includes forks from
 folks who even have write access to the repository. We're thinking about how to solve that problem but that'll be
 another blog post for another day.
