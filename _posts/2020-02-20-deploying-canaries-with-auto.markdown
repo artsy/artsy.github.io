@@ -20,7 +20,7 @@ environment. I'll go over how to do that and how Artsy automates it.
 
 Publishing a canary isn't necessarily very hard. It's just a regular publish to npm with a few more steps.
 
-For example, if we were wanting publish a canary version of `@artsy/reaction`
+For example, if we were wanting to publish a canary version of `@artsy/reaction`
 
 1. Update `package.json`, set version to a canary version, e.g. `2.0.0-canary-<PR#>`, `3.1.5-canary-<PR#>`, ...
 2. Run `npm publish --tag canary` in `reaction` to publish the package under the canary tag
@@ -51,8 +51,8 @@ auto canary
 and auto takes care of publishing a canary version to NPM _and_ updating the PR description with the version and
 instructions on how to use it.
 
-You can [check out the PR](https://github.com/artsy/reaction/pull/3168) where I enabled in on reaction to see it in
-action. The CI configuration itself it's layered behind some
+You can [check out the PR](https://github.com/artsy/reaction/pull/3168) where I enabled it on reaction to see it in
+action. The CI configuration itself is layered behind some
 [CircleCI Orb](https://circleci.com/docs/2.0/orb-intro/)s. You can find all that configuration in
 [artsy/orbs](https://github.com/artsy/orbs) if you're curious.
 
@@ -60,6 +60,6 @@ Ultimately the culmination of this work means that every PR to a library at Arts
 simple to test changes in another system now.
 
 There is, however, one caveat. Being as canaries are being deployed to NPM, they need our NPM token. We can't just
-share that with everyone, so this functionality doesn't work on forks. Given how CircleCI works, this includes forks from
-folks who even have write access to the repository. We're thinking about how to solve that problem but that'll be
-another blog post for another day.
+share that with everyone, so this functionality doesn't work on forks. Given how CircleCI works, this includes
+forks from folks who even have write access to the repository. We're thinking about how to solve that problem but
+that'll be another blog post for another day.
