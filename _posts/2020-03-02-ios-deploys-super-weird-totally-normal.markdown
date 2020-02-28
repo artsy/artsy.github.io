@@ -17,6 +17,8 @@ Native over the pats four years, we have had more and more of our web engineerin
 iOS app. For these web engineers, getting familiar with the iOS deploy constraints is as important as getting to
 know Xcode and CocoaPods.
 
+<!-- more -->
+
 We're going to use a case study to frame today's discussion. Artsy's Mobile Experience team recently got a ticket
 from our Platform team. The nature of the ticket itself doesn't matter, but it involved a change we were making to
 our API. I fixed the bug and submitted a pull request, which quickly got merged. We tested the bug fix in our next
@@ -88,7 +90,7 @@ as-is? And what amount of QA would need to be done to ship those changes as well
 
 That last point is really interesting because there was actually another option. Rather than deploy the app based
 off the current `master` branch (with the bug fix _and_ other work included), we did something a bit clever. Since
-our iOS deploys are automated through [Fastlane](https://fastlane.tools), all betas and App Store deploys are
+our iOS deploys are automated through [fastlane](https://fastlane.tools), all betas and App Store deploys are
 tagged in git. Rather than deploy the current `master` branch, which would require very rigorous QA, we checked out
 the previous release tag. We then used [`git cherry-pick`](https://www.atlassian.com/git/tutorials/cherry-pick) to
 apply _only_ the bug fix changes, and deployed from there.
