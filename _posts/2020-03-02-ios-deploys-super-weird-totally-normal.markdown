@@ -89,11 +89,12 @@ consider the other work that had been merged since our last release. Were we con
 as-is? And what amount of QA would need to be done to ship those changes as well?
 
 That last point is really interesting because there was actually another option. Rather than deploy the app based
-off the current `master` branch (with the bug fix _and_ other work included), we did something a bit clever. Since
-our iOS deploys are automated through [fastlane](https://fastlane.tools), all betas and App Store deploys are
-tagged in git. Rather than deploy the current `master` branch, which would require very rigorous QA, we checked out
-the previous release tag. We then used [`git cherry-pick`](https://www.atlassian.com/git/tutorials/cherry-pick) to
-apply _only_ the bug fix changes, and deployed from there.
+off the current `master` branch (with the bug fix _and_ other work included), we did something a bit clever.
+[fastlane](https://fastlane.tools), the tool we use to automate our iOS deploys, will tag each commit that we
+submit to the App Store. So rather than deploy the current `master` branch, which would require very rigorous QA,
+we checked out the previous release tag. We then used
+[`git cherry-pick`](https://www.atlassian.com/git/tutorials/cherry-pick) to apply _only_ the bug fix changes, and
+deployed from there.
 
 This isolated the changes we were making to the app and minimized the amount of QA we needed to feel confident in
 our release. Even still, we ran through our usual QA script. As I hope I've demonstrated above, it's always better
@@ -101,12 +102,12 @@ to be safe than be sorry when it comes to deploying iOS software.
 
 This `git cherry-pick` approach has its own trade-offs, but it is very effective in the right circumstance. It's an
 approach I've only had to use a few times during my time at Artsy, but it's a good approach to be familiar with.
-This situation also highlights a benefit of automating iOS deploys: we know _exactly_ which commit each
-version of our app is running, making it easy to `git cherry-pick` with confidence.
+This situation also highlights a benefit of automating iOS deploys: we know _exactly_ which commit each version of
+our app is running, making it easy to `git cherry-pick` with confidence.
 
 I hope I've illustrated how iOS software is a bit different from web software, both inherently and incidentally.
-Many of these same quirks apply to Android deploys as well. Mobile software, because of the nature of how the code
-is deployed and executed, feels closer to software sold in shrink-wrapped boxes than it does to Docker images
-shipped to Kubernetes clusters. And that's okay. Different platforms will always have different constraints.
-Hopefully by understanding these constraints, mobile and web engineers can gain a greater empathy for one another
-and, ideally, share ideas and solutions so we can all learn and grown together.
+Many of these same quirks apply to Android deploys as well. Mobile software feels closer to software sold in
+shrink-wrapped boxes than it does to Docker images shipped to Kubernetes clusters. And that's okay. Different
+platforms will always have different constraints. Hopefully by understanding these constraints, mobile and web
+engineers can gain a greater empathy for one another and, ideally, share ideas and solutions so we can all learn
+and grown together.
