@@ -13,11 +13,13 @@ processes, iOS developers have to work within some very different constraints.
 Today I want to explore the differences between deploying iOS software and front-end/back-end web software. Some of
 these differences are inherent to how the code gets executed, and some of the differences are incidental to choices
 that Apple has made. These are constraints that iOS developers need to work within. As Artsy has adopted React
-Native over the pats four years, we have had more and more of our web engineering colleagues contributing to our
+Native over the past four years, we have had more and more of our web engineering colleagues contributing to our
 iOS app. For these web engineers, getting familiar with the iOS deploy constraints is as important as getting to
 know Xcode and CocoaPods.
 
 <!-- more -->
+
+## A Release Case Study
 
 We're going to use a case study to frame today's discussion. Artsy's Mobile Experience team recently got a ticket
 from our Platform team. The nature of the ticket itself doesn't matter, but it involved a change we were making to
@@ -30,19 +32,23 @@ fix to get released to users _first_.
 
 So... what to do?
 
-Let's actually pause for a moment and consider one of the assumptions in that last paragraph. If you're a web
-engineer, the idea of releasing only every two weeks might seem pretty strange! I mean, why not release
-continuously? For example, Artsy's website gets deployed to our staging environment after every merged pull
-request, and staging then gets promoted to production several times a day. This process is generally referred to as
-"continuous delivery", and
-[it has a lot of advantages](https://www.thoughtworks.com/insights/blog/case-continuous-delivery). That's why it's
-so common among web engineering teams. So why not use continuous delivery on iOS apps?
+Do we release off-cadence? Or do we push back on our Platform team and ask them to hold off until the scheduled
+release?
+
+Let's actually pause for a moment and consider one of the assumptions we made above. If you're a web engineer, the
+idea of releasing only every two weeks might seem pretty strange! I mean, why not release continuously? For
+example, Artsy's website gets deployed to our staging environment after every merged pull request, and staging then
+gets promoted to production several times a day. This process is generally referred to as "continuous delivery",
+and [it has a lot of advantages](https://www.thoughtworks.com/insights/blog/case-continuous-delivery). That's why
+it's so common among web engineering teams. So why not use continuous delivery on iOS apps?
+
+## The Executable Problem
 
 There are two reasons we can't use continuous delivery on iOS. First, continuous delivery is only really possible
 when you control where the software gets executed (or, in the case of web front-ends, where the client-side code
-gets served from). Artsy controls our own servers, so we can delivery web software continuously. However, the Artsy
-iOS app runs on our users' devices, instead. We can't push out updates to users' iPhones or iPads in the same way
-we can push updates to our servers.
+gets served from). Artsy controls our own servers, so we can deliver web software continuously. The next time a
+user makes a web request, they'll get the updated code. However, the Artsy iOS app runs on our users' devices,
+instead. We can't push out updates to users' iPhones or iPads in the same way we can push updates to our servers.
 
 iOS apps are binary executables that are distributed through Apple's App Store, and updates to apps have to be
 pulled down by devices. Even if _most_ users have automatic updates turned on, those updates are typically
@@ -50,7 +56,7 @@ installed overnight. Consequently, there's quite a lag between when we deploy an
 code. While it only takes about a week for 80% of our users to update to the latest version, there's a very long
 tail after that.
 
-![Graph of in-use vesrions of Artsy's app, illustrating both the quick adoption of new updates by most users and the long tail of old versions that are never updated](/images/2020-03-02-ios-deploys-super-weird-totally-normal/graph.png)
+![Graph of in-use versions of Artsy's app, illustrating both the quick adoption of new updates by most users and the long tail of old versions that are never updated](/images/2020-03-02-ios-deploys-super-weird-totally-normal/graph.png)
 
 iOS software is executed in an environment that we don't control, that we can't push updates to, and most
 importantly, that we can't roll back deploys on. If we ship a version of our app with a bug, but then ship an
@@ -63,6 +69,8 @@ deploy, fix the bug, and re-deploy with the fix.
 JavaScript bundle. This is definitely possible, but our app is brownfield with some native code and some React
 Native code and we haven't yet built out the infrastructure for this. As more and more code shifts to React Native,
 we plan to investigate OTA updates to JavaScript bundles.)
+
+## Apple's Platform, Apple's Rules
 
 The second reason to deploy iOS software on a schedule, rather than with continuous delivery, depends on the App
 Store review process. This is another big difference that takes web engineers a while to get used to. Whenever we
@@ -80,7 +88,9 @@ rating? Is the app's description and App Store metadata correct? That kind of st
 So not only do iOS software developers need a lot of confidence in every deploy, but they also need to abide by
 Apple's guidelines.
 
-Alright. Let's revisit the situation from earlier.
+Alright. Let's return to the case study from earlier.
+
+## Case Study Resolution
 
 We had a bug fix in our app, and getting it deployed was blocking an important change to our back-end API. First,
 we had to consider that some users simply wouldn't get the update. We had to ask ourselves if this would block the
@@ -95,6 +105,8 @@ submit to the App Store. So rather than deploy the current `master` branch, whic
 we checked out the previous release tag. We then used
 [`git cherry-pick`](https://www.atlassian.com/git/tutorials/cherry-pick) to apply _only_ the bug fix changes, and
 deployed from there.
+
+![Screenshot from Slack where I detailed my plan to cherry-pick the commits](/images/2020-03-02-ios-deploys-super-weird-totally-normal/slack.png)
 
 This isolated the changes we were making to the app and minimized the amount of QA we needed to feel confident in
 our release. Even still, we ran through our usual QA script. As I hope I've demonstrated above, it's always better
