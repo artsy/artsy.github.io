@@ -50,7 +50,7 @@ installed overnight. Consequently, there's quite a lag between when we deploy an
 code. While it only takes about a week for 80% of our users to update to the latest version, there's a very long
 tail after that.
 
-// TODO: Insert image on Monday.
+![Graph of in-use vesrions of Artsy's app, illustrating both the quick adoption of new updates by most users and the long tail of old versions that are never updated](/images/2020-03-02-ios-deploys-super-weird-totally-normal/graph.png)
 
 iOS software is executed in an environment that we don't control, that we can't push updates to, and most
 importantly, that we can't roll back deploys on. If we ship a version of our app with a bug, but then ship an
