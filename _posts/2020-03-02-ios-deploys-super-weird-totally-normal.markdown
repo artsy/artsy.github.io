@@ -101,7 +101,7 @@ to be safe than be sorry when it comes to deploying iOS software.
 
 This `git cherry-pick` approach has its own trade-offs, but it is very effective in the right circumstance. It's an
 approach I've only had to use a few times during my time at Artsy, but it's a good approach to be familiar with.
-This situation also highlights a benefit of automating iOS deploys: we know _exactly_ which commit that each
+This situation also highlights a benefit of automating iOS deploys: we know _exactly_ which commit each
 version of our app is running, making it easy to `git cherry-pick` with confidence.
 
 I hope I've illustrated how iOS software is a bit different from web software, both inherently and incidentally.
