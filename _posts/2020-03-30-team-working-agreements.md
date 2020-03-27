@@ -1,7 +1,7 @@
 ---
 layout: epic
 title: "Team Working Agreements"
-date: "2019-12-31"
+date: "2020-03-30"
 author: [steve-hicks, adam]
 categories: [people, culture, process, team]
 css: dialogue
