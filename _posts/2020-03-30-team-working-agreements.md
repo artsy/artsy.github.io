@@ -235,15 +235,6 @@ Also be cautious about introducing individual bias.
       not push a working agreement brainstorm so strongly in one direction again.
     </p>
   </div>
-
-  <div class="answer">
-    <img src="/images/dialogue/adam.jpg">
-    <p class="intro">Adam Iskounen says...</p>
-    <p>
-      (ADAM: Add an Adam says... section to share the habits that the Galleries team agreed upon) TODO: slack this
-question to adam
-    </p>
-  </div>
 </aside>
 
 Remember that the working agreement is a living document. If the team learns that it missed something in the
