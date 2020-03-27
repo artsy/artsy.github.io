@@ -28,8 +28,8 @@ and give folks the opportunity to keep themselves aligned with projects they fou
 The downside of this practice was that it made teams feel short-lived, impermanent, and unstable. Some teams were
 hit harder than others - they'd see their team completely turn over every quarter. This was felt most strongly by
 our product managers who would take the time to learn the skills and strengths of each engineer on their team over
-the course of a quarter, just to have to start the process all over again, making it difficult to plan projects or set
-goals for the following quarter.
+the course of a quarter, just to have to start the process all over again, making it difficult to plan projects or
+set goals for the following quarter.
 
 To address these challenges, PDDE decided to set the expectation that engineers would stay on the same team each
 quarter, with the option to request a team change, when necessary, to fill a skill, capacity, or growth need
@@ -50,7 +50,13 @@ of something - a process, a team, a culture - you are empowered to make impactfu
     <p class="intro">Adam Iskounen says...</p>
     <p>
       Team cohesion and unity was a common theme that kept surfacing during the retrospective meeting that led to 
-      PDDE ending the quarterly shuffling of teams. I remembered that team working agreements were a tool used by 
+      PDDE ending the quarterly shuffling of teams. During my onboarding, I noticed in retros that teams were
+      strong on "what went well" and light on "what could be improved." We'd have 1 or 2 "didn't go well" tickets, 
+      but they were usually something light-hearted/benign like "team lunch was cancelled". One team in particular 
+      seemed like they were dancing around each other a bit, and important things like "not getting stuff done"
+      wasn't being brought up.
+    </p>
+    <p>I remembered that team working agreements were a tool used by 
       a scrum master at my previous job to help a particular team that was struggling to gel, and brought it up 
       without really knowing what was involved in the process. Fortunately my product manager - who was eager to 
       form a team where each member felt empowered and excited to take ownership of our work - encouraged me to 
@@ -69,27 +75,69 @@ with each other.
 
 ## What's a team working agreement?
 
-### Steps
+A team working agreement is a written set of guidelines for an engineering team. It enumerates the habits and
+practices that the team requires to be productive and successful. The agreement is a living document, and every
+member of the team has a part in shaping it.
 
-Describe it in a few sentences:
+[According to Bruce Tuckman, a team moves through four phases of development: forming, storming, norming, and performing](https://en.wikipedia.org/wiki/Tuckman%27s_stages_of_group_development).
+Team working agreements can help a team move more quickly through the stages. A team in the "forming" stage will
+quickly uncover areas of disagreement and move to "storming" when they attempt to align on a working agreement. A
+"storming" team might move to "norming" more quickly when their points of friction are arbitrated in a working
+agreement.
 
-1. Teach team about team working agreements
-2. Conduct a brainstorming meeting
+Examples of habits or practices on a team working agreement might include:
 
-- https://github.com/artsy/README/blob/master/playbooks/agile/team-working-agreement.md#procedure
+- Any change to the sprint backlog requires product manager approval.
+- Everyone owns the backlog and should add tickets for untracked work.
+- Update the backlog before each day’s standup.
 
-3. Distill and translate brainstorming ideas into slogan-like habits (ADAM: find themes, combine similar ones,
-   condense ideas >>> habits. habits are an amalgamation of ideas from brainstorming that fit together)
-4. Vote on the top 5 habits (ADAM: don't limit to 5. mention the output is a set of the most important habits that
-   the team can agree on)
+We've been using a fairly consistent process to develop team working agreements at Artsy.
 
-(ADAM: what should come out of each step, and what is the way you get there?) (ADAM: add a step to revisit often)
+### Step 1: Educate the team about team working agreements
+
+We want every team member to recognize the importance of creating an agreement.
+
+Each team reviews
+[our docs on the process of creating a working agreement](https://github.com/artsy/README/blob/master/playbooks/agile/team-working-agreement.md)
+before creating one. They might also review an existing working agreement.
+
+### Step 2: Conduct a brainstorming meeting
+
+The team meets for an hour to brainstorm ideas that promote success from each individual or the team as a whole.
+Some of our teams have met fully in-person and used physical sticky notes for brainstorming; many have used an
+online tool like [Miro](https://miro.com/) to include remote members.
+
+It's vital that _all_ members of the team attend the brainstorm. For us, that includes engineers and product
+managers, but also designers and data analysts. This is a discussion of how the entire team works together -
+everyone's voice should be heard.
+
+A sample brainstorm agenda is
+[shared in our docs](https://github.com/artsy/README/blob/master/playbooks/agile/team-working-agreement.md#sample-meeting-agenda).
+The output of the brainstorm is a set of ideas that everyone has contributed to.
+
+### Step 3: Distill brainstorming ideas into discrete, digestible habits
+
+The ideas from the brainstorming process can be sorted into themes. Within themes, we work to condense ideas into
+habits and practices that are agreeable to the entire team. We have found success in keeping the language for these
+habits small, discrete, and slogan-like.
+
+The distillation step might take several round-trips of gathering feedback and wordsmith-ing.
+
+### Step 4: Commit the most important habits to a "Team Working Agreement" document
+
+The team votes on which habits should be included in the agreement and a document is circulated.
+
+It's not done, though. Remember: it's a living document.
+
+### Step 5: Revisit the working agreement
+
+As a team, decide how often the agreement should be revisited, and what "revisiting the agreement" means. When
+should we amend it? When should we do another brainstorm? It probably doesn't make sense to scrap the old agreement
+when one new team member joins, but how much change on a team would inspire us to recreate our agreement?
 
 ## Why establish a team working agreement?
 
 ### The brainstorm itself is incredibly valuable.
-
-(ADAM: call out that all team members - P, D, D, and E - should attend.)
 
 Dedicated time to talk about values, habits, and processes is incredibly helpful to a team, yet rarely scheduled.
 The brainstorm for a team working agreement can fill this void.
@@ -97,8 +145,7 @@ The brainstorm for a team working agreement can fill this void.
 During the team agreement brainstorm the team looks at _how_ they work, instead of looking at _what_ work they're
 doing. It's similar to what you might get out of a retro but at a higher level. It offers time to discuss "soft"
 skills that you don't often discuss, in a context that you don't usually discuss them - with other individual
-contributors, and with your closest collaborators. (ADAM: can this paragraph be reorganized to contrast the
-proactive nature of TWAs to the retroactive nature of retros?)
+contributors, and with your closest collaborators.
 
 <aside class="dialogue">
   <div class="answer">
@@ -124,13 +171,16 @@ proactive nature of TWAs to the retroactive nature of retros?)
     <img src="/images/dialogue/adam.jpg">
     <p class="intro">Adam Iskounen says...</p>
     <p>
-      TODO Adam: put this in your own words/expand/do what you want here
       The process has helped confirm that the team shared interest in team dynamics & the process of collaboration 
       across the team. As a new member it's nice to know that information.
     </p>
+    <p>
+      It's been great to see teammates in different contexts bring up the team agreement. It wasn't just a one-hour 
+      brainstorm, it's something our team is living. Hearing our slogan-like habits recited during team meetings
+      long after the brainstorm is a testament to the value of the agreement.
+    </p>
   </div>
 </aside>
-(ADAM: discuss the value/impact of the brainstorm here. perhaps this is where I can discuss how I didn't think our retros were effective during onboarding rotations)
 
 ### It can lead to better engagement in sprint activities.
 
@@ -154,14 +204,20 @@ changes it's important to update it...but having it in writing helps new members
 ### Uncertainty about what the team agreement should include.
 
 Some teams have struggled to identify what belongs on a team working agreement. Should it describe our team values?
-Habits? Procedures? Rules?
+Habits? Procedures? Rules? Favorite afternoon snacks?
 
-It likely varies from team to team what you want here. (ADAM: provide some examples of how it may vary for some
-type of teams.) It's definitely important that you identify what you're looking for up front, and make it clear
-heading into the brainstorm. Suggest categories, sample habits, & questions to ask heading into the brainstorm, and
-keep them visible during the meeting.
+It likely varies from team to team what you want here. Some teams might require guidance around working with JIRA;
+others might be more focused on taking ownership of problems. These differences are likely a reflection of the
+problems the team is currently facing or has recently faced.
 
-Be cautious about introducing individual bias, though.
+It's definitely important that you identify what you're looking for up front, and make it clear heading into the
+brainstorm. Suggest categories, sample habits, & questions to ask heading into the brainstorm, and keep them
+visible during the meeting.
+
+Take notice of known problem areas: are they addressed or avoided in the agreement? It is easy for a team to avoid
+confrontation at their own expense.
+
+Also be cautious about introducing individual bias.
 
 <aside class="dialogue">
   <div class="answer">
@@ -179,9 +235,16 @@ Be cautious about introducing individual bias, though.
       not push a working agreement brainstorm so strongly in one direction again.
     </p>
   </div>
-</aside>
 
-(ADAM: Add an Adam says... section to share the habits that the Galleries team agreed upon)
+  <div class="answer">
+    <img src="/images/dialogue/adam.jpg">
+    <p class="intro">Adam Iskounen says...</p>
+    <p>
+      (ADAM: Add an Adam says... section to share the habits that the Galleries team agreed upon) TODO: slack this
+question to adam
+    </p>
+  </div>
+</aside>
 
 Remember that the working agreement is a living document. If the team learns that it missed something in the
 brainstorm, don't hesitate to update the agreement. Team retros are a great time to make updates.
