@@ -21,7 +21,7 @@ Artsy Engineering is part of a larger organization we call PDDE (Product, Design
 divided into several product teams, and each team contains at least one representative from product, design, data,
 and engineering. Each PDDE team delivers product solutions targeted to a specific product need.
 
-Until recently, those teams could expect a significant change in team members every quarter, as we encouraged
+Until recently, those teams could expect a significant change in team members at the start of every quarter, as we encouraged
 engineers to explore other teams. The purpose of this practice was to spread knowledge throughout the organization,
 and give folks the opportunity to keep themselves aligned with projects they found most interesting.
 
@@ -197,7 +197,7 @@ kind of repetition.
 
 When new members join a team, it takes time for them to adjust. A team working agreement provides an up-to-date
 reference on the team's preferred methods of working. The working agreement isn't set in stone, and as the team
-changes it's important to update it...but having it in writing helps new members acclimate quickly.
+changes it's important to update it... but having it in writing helps new members acclimate quickly.
 
 ## What are some challenges with team working agreements?
 
@@ -306,7 +306,7 @@ involved in turning a team working agreement into the team culture. We have many
 to answer:
 
 - How do you enforce the agreement?
-- **Should** you enforce the agreement?
+- _Should_ you enforce the agreement?
 - How do you get the entire team to embrace it?
 - What happens when the agreement is violated or disrespected?
 
