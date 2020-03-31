@@ -5,6 +5,7 @@ date: "2020-03-30"
 author: [steve-hicks, adam]
 categories: [people, culture, process, team]
 css: dialogue
+comment_id: 615
 ---
 
 Good team culture strives for cohesion. Once organizations get large enough, a tension emerges between the culture
@@ -21,9 +22,9 @@ Artsy Engineering is part of a larger organization we call PDDE (Product, Design
 divided into several product teams, and each team contains at least one representative from product, design, data,
 and engineering. Each PDDE team delivers product solutions targeted to a specific product need.
 
-Until recently, those teams could expect a significant change in team members at the start of every quarter, as we encouraged
-engineers to explore other teams. The purpose of this practice was to spread knowledge throughout the organization,
-and give folks the opportunity to keep themselves aligned with projects they found most interesting.
+Until recently, those teams could expect a significant change in team members at the start of every quarter, as we
+encouraged engineers to explore other teams. The purpose of this practice was to spread knowledge throughout the
+organization, and give folks the opportunity to keep themselves aligned with projects they found most interesting.
 
 The downside of this practice was that it made teams feel short-lived, impermanent, and unstable. Some teams were
 hit harder than others - they'd see their team completely turn over every quarter. This was felt most strongly by
