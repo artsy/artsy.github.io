@@ -1,7 +1,7 @@
 ---
 layout: epic
 title: "Team Working Agreements"
-date: "2020-03-30"
+date: "2020-04-01"
 author: [steve-hicks, adam]
 categories: [people, culture, process, team]
 css: dialogue
@@ -256,9 +256,9 @@ identity.
 ### Facilitating the brainstorm can be difficult on a distributed team.
 
 Some of our teams were able to brainstorm with everyone on-site. They were able to rely on post-it notes and
-in-person conversations, and read each other's non-verbal communication. Other teams have a mix of on-site and remote
-members, and used tools like [Miro](http://miro.com/) to facilitate. This _can_ present a challenge...but if you're
-already a distributed team, they are likely the same types of challenges you've worked to overcome for _all_
+in-person conversations, and read each other's non-verbal communication. Other teams have a mix of on-site and
+remote members, and used tools like [Miro](http://miro.com/) to facilitate. This _can_ present a challenge...but if
+you're already a distributed team, they are likely the same types of challenges you've worked to overcome for _all_
 meetings.
 
 The differences are worth noting, though. The importance of reading each other's non-verbal communication is
