@@ -37,7 +37,7 @@ quarter, with the option to request a team change, when necessary, to fill a ski
 elsewhere. This effectively ended the practice of shuffling teams every quarter. It was too much change, too often.
 
 As a result, our teams feel more stable and long-lived. We're able to build deeper team identity. We've found one
-tool particularly helpful in finding and building team identity: Team working agreements.
+tool particularly helpful in finding and building team identity: team working agreements.
 
 ## How did team working agreements come about at Artsy?
 
