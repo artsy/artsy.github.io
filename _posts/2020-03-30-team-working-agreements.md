@@ -176,7 +176,7 @@ contributors, and with your closest collaborators.
       across the team. As a new member it's nice to know that information.
     </p>
     <p>
-      It's been great to see teammates in different contexts bring up the team agreement. It wasn't just a one-hour 
+      It's been great to see teammates bring up the team agreement in different contexts. It wasn't just a one-hour 
       brainstorm, it's something our team is living. Hearing our slogan-like habits recited during team meetings
       long after the brainstorm is a testament to the value of the agreement.
     </p>
@@ -247,7 +247,7 @@ For a team that has a strong and cohesive identity, the agreement is likely to a
 already believing and doing. For a less cohesive team the agreement is harder to pin down. Many opinions will
 surface, and they may be in conflict with each other.
 
-While this is indeed challenging, it is also important to note that teams that lack identity value _greatly_ from
+While this is indeed challenging, it is also important to note that teams that lack identity benefit _greatly_ from
 the team agreement brainstorm. Provided there is
 [psychological safety](https://github.com/artsy/README/blob/master/culture/engineering-principles.md#psychological-safety),
 this is a really great time for the team to learn about what matters to each other, and move toward establishing an
@@ -256,7 +256,7 @@ identity.
 ### Facilitating the brainstorm can be difficult on a distributed team.
 
 Some of our teams were able to brainstorm with everyone on-site. They were able to rely on post-it notes and
-in-person conversations, and read each other's non-verbal communication. Other teams needed to accommodate remote
+in-person conversations, and read each other's non-verbal communication. Other teams have a mix of on-site and remote
 members, and used tools like [Miro](http://miro.com/) to facilitate. This _can_ present a challenge...but if you're
 already a distributed team, they are likely the same types of challenges you've worked to overcome for _all_
 meetings.
