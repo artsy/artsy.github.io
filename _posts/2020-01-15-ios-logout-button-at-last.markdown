@@ -109,7 +109,7 @@ We learned a tonne about the React Native bridge, the existing architecture of o
 that mature going forward.
 
 I said earlier that the longer we waited, the harder it was to build this log out button because more and more of
-our existing code relied upon assumptions that the log out button would break. Now that we _do_ hav a log out
+our existing code relied upon assumptions that the log out button would break. Now that we _do_ have a log out
 button, _new code we write needs to take it into account_. The assumptions coders can make about this codebase are
 shifting over time – this is an experience that I never appreciated while working on minimum viable products. I'm
 trying to lean into these shifts and use them to drive further modernizations in our codebase. For instance, I'm
