@@ -3,7 +3,7 @@ layout: epic
 title: From engineering to product management, and back again
 date: 2020-07-15
 author: will
-categories: []
+categories: [people, culture, product management, engineering]
 ---
 
 A year and a half ago I decided to become a product manager after 5 years as a software engineer. This past June,
@@ -17,7 +17,7 @@ What happened, and what did I learn?
 
 When I started at Artsy, I hadn't planned on becoming a product manager. As I onboarded and worked on projects like
 building Artsy's ecommerce backend [Exchange](https://www.github.com/artsy/exchange), I found myself wanting to be
-involved in the "what" and "why" of our product and not just the "how." I'm [an artist](https://willdoenlen.com),
+involved in the "what" and "why" of our product and not just the "how." [I'm an artist](https://willdoenlen.com),
 and so art and the art market are special topics for me. I felt like I would have more impact as a product manager,
 and I definitely wanted to have greater impact on the art world.
 
@@ -28,9 +28,9 @@ January 2019 I became the product manager for the Auctions team.
 # Becoming a product manager
 
 Product management is a surprisingly difficult job to define. Everyone agrees on one thing: product managers lead
-the product development process. However, what that means can be incredibly different from company to company, and
-where that process breaks down or needs to change is always particular to the situation. In practice, product
-managers find themselves doing a lot of things that on the surface have nothing to do with product development.
+the product development process. However, what product development actually entails differs from company to company
+because of differences in resources, culture and priorities. In practice, product managers may find themselves
+doing a lot of things that on the surface have nothing to do with product development.
 
 Product management can be distilled down into two tasks:
 
@@ -39,13 +39,13 @@ Product management can be distilled down into two tasks:
 
 A product manager's sole job is to do whatever it takes to make sure your users are getting the right product.
 That'll almost certainly involve talking to users to understand their needs, analyzing product usage data and
-working with your team and stakeholders to create the next great feature, but there's nothing in there about
-needing to do any of that. You can do this job any way you'd like as long as you get results. If I knew that I
-could have built a better product for my users by pogo sticking across the Brooklyn Bridge then you would have
-found me out there pogo sticking all day, every day.
+working with your team and stakeholders to create the next great feature, but there's nothing in those two tasks
+that says you need to do any of that. You can do this job any way you'd like as long as you get results. If I knew
+that I could have built a better product for my users by pogo sticking across the Brooklyn Bridge then you would
+have found me out there pogo sticking all day, every day.
 
-All that to say, the job is highly ambiguous by design. Any problem could be your problem, and it's up to you to
-judge whether or not that's the best use of your time for your users.
+All that to say, the job is highly ambiguous by design. **Any problem could be your problem**, and it's up to you
+to judge whether or not that's the best use of your time for your users.
 
 ## Redefining work
 
@@ -74,8 +74,8 @@ Another thing that helped me with the "feeling" of work was reading the perspect
 Grove's _High Output Management_ was especially useful. Somewhere along the line I read the phrase "the meeting
 _is_ the work," and it clicked for me. A core output of my job was to communicate with others (more on that later).
 As an engineer, it's counterintuitive. The more time you spend in a meeting, the less time you spend writing code.
-Product managers need quiet thinking time too, but a significant portion of the job is working with others. It's
-how the work gets done. That framing helped me feel more productive.
+Product managers need quiet thinking time too, but a significant portion of the job is working with others.
+Meetings are how the work gets done. That framing helped me feel more productive.
 
 Compounding the problem of not knowing what work "felt" like was not really even knowing what my work was. Here's a
 great journal entry from my second or third week as a PM:
@@ -138,7 +138,7 @@ thought about systems.
 
 That changed as I really dug into user needs. I cultivated user empathy to an entirely new level by immersing
 myself in user feedback and user research. I began to really _feel_ that the choices we made impacted the
-livelihoods and passions of collectors, institutions and artists. And that helped snapped me out of it: our users
+livelihoods and passions of collectors, institutions and artists. And that helped snap me out of it: our users
 needed a better product, not better systems, and so I began to focus much more on how to make a better product.
 
 To understand how to build a better product, I spent a lot of time examining other products to understand what made
@@ -155,7 +155,7 @@ don't make anything themselves, a product manager that nobody listens to simply 
 The interpersonal skills I had built up and practiced as a software engineer didn't directly translate to the
 skills I needed to build influence. As a baseline, engineering communication requires precision and clarity of
 thought. Since you're typically talking with other engineers, you have shared language and set of tools to help get
-your point across. For example, if you can't succictly express your idea in words you can just write that thought
+your point across. For example, if you can't succinctly express your idea in words you can just write that thought
 out in code and other engineers will get it.
 
 Product managers work with a lot of different kinds of people: engineers, designers, marketers, sales people,
@@ -164,10 +164,10 @@ different perspective, both from their organizational role and their own life ex
 wherever they are, so your communication style needs to be highly adaptive.
 
 Good communication feels seamless but is typically accompanied by a lot of planning and foresight. There was a lot
-I needed to learn to be an effective communicator and, in turn, an effective leader. How to write a good doc, how
-to run a meeting, how to craft a compelling story, how to be just the right amount of direct, how to be just the
-right amount of concise... and, as a fairly verbal person how to draw good diagrams and pictures to communicate my
-ideas. There's no shortcut to improving these skills. Getting better is a matter of practice and feedback.
+I needed to learn to be an effective communicator and, in turn, an effective leader. How to write a good document,
+how to run a meeting, how to craft a compelling story, how to be just the right amount of direct, how to be just
+the right amount of concise... and, as a fairly verbal person how to draw good diagrams and pictures to communicate
+my ideas. There's no shortcut to improving these skills. Getting better is a matter of practice and feedback.
 
 ## Learning to say no
 
@@ -198,7 +198,7 @@ launched some successful features, had weathered major organizational change and
 needed and what the future ought to look like. Over the next year I continued to hone my skills and expand my scope
 as a product manager. Overall, things were going well.
 
-I never stopped coding, though. I did small projects here and there both inside and outside of work, but I never
+I never stopped coding, though. I did small projects here and there, both inside and outside of work, but I never
 really had the time to do anything big. After a year of being out of engineering I started to get an itch to build
 and do technical work. I even had a few dreams where I was coding! I have dreams about all sorts of weird things
 and don't dwell on them, but something about my surreal dream edition of Visual Studio Code stuck with me.
@@ -217,7 +217,7 @@ While I did get to exercise technical thinking as a product manager it was rarel
 I realized I could achive that balance better as an empowered engineer rather than as a product manager.
 
 After a lot of thought, I decided that my longer term career direction made more sense as an engineering leader
-rather than as a product leader. Fortunately Artsy's leadership agreed to let me transition back into engineering,
+rather than as a product leader. Fortunately, Artsy's leadership agreed to let me transition back into engineering,
 and at the beginning of June I was re-minted as a software engineer.
 
 ## Onboarding the second time
@@ -226,9 +226,9 @@ At this point, I'm six weeks back into engineering and my experience feels very 
 most of my time ramping up and onboarding for the second time. Relearning our stack has been both a humbling and
 rewarding experience. I've forgotten a lot of the details of the frameworks we use, but this time instead of racing
 to get through tickets I've decided to really slow down and take the time to read the docs and do tutorials to make
-sure I fully understand what's going on. While it comes at the expense of speed in the short-term it'll make me a
+sure I fully understand what's going on. While it comes at the expense of speed in the short-term, it'll make me a
 stronger engineer down the road, and I know that tradeoff is worth it. I also can't speak highly enough of my
-fellow engineers, who have been incredibly supportful while I learn.
+fellow engineers, who have been incredibly supportive while I learn.
 
 ## Provide value, not code
 
