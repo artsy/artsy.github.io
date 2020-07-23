@@ -99,7 +99,7 @@ Knowing that felt both enormously empowering and terrifying. If I was unclear be
 even less clear now that any problem could be my problem. But I got used to it, and over time and with coaching
 from my manager I was able to suss out what not only _could_ be my problem but what _should_ be my problem. There
 are some things nobody can change, but there's a surprising amount a single person can do. In the end, I think this
-expansive view of work is the right framing for not only product managers but really any job.
+expansive view of work is the right framing for not only product management but really any job.
 
 ## From data paralyzed to data informed
 
