@@ -1,7 +1,7 @@
 ---
 layout: epic
 title: From engineering to product management, and back again
-date: 2020-07-15
+date: 2020-07-23
 author: will
 categories: [people, culture, product management, engineering]
 ---
