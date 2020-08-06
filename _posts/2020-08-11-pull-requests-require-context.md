@@ -1,7 +1,7 @@
 ---
 layout: epic
 title: "Pull Requests Need Context"
-date: "2020-07-08"
+date: "2020-08-11"
 author: [steve-hicks]
 categories: [tools, github, team, community, engineering]
 ---
