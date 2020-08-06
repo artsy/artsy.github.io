@@ -7,24 +7,25 @@ categories: [tools, github, team, community, engineering]
 ---
 
 Code review is an engineering process that has benefited greatly from a move toward asynchronous communication.
-Long ago, engineering teams would sit around in a room together with code on a projector to review changes. 😱 For
-many teams this would mean batching code reviews or even skipping them altogether. 😱😱
+Long ago, engineering teams would sit in a room with code on a projector to review changes together. 😱 For many
+teams this led to batching code reviews or even skipping them altogether. 😱😱
 
 Today, most engineering teams use incredible tools like GitHub or GitLab to review changes through Pull Requests
 (PRs). The greatest advantage of PRs is that the review can happen when it's convenient for the reviewer:
-asynchronously.
+asynchronously. Asynchronous communication isn't all sunshine and unicorns, though. Notably, it lacks the ability
+to course-correct when context is misunderstood.
 
 <!-- more -->
 
-One important feature _missing_ from asynchronous communication is the ability to course-correct when context is
-misunderstood. When you're in a synchronous conversation with someone, it doesn't take much time for them to let
-you know you've forgotten to include context. It doesn't take much time for you to add the missing context to keep
-the conversation moving forward.
+When you're in a synchronous conversation with someone, it doesn't take much time for them to let you know you've
+forgotten to include context. Their brow furrows. They look confused. You notice this and quickly add the missing
+context to keep the conversation moving forward. It takes a lot longer to identify missing context when
+communicating asynchronously. The non-verbal cues are missing.
 
-It takes a lot longer to identify missing context when communicating asynchronously. Worse, lack of context when
-_reviewing code_ asynchronously has a reverb effect. I create my PR when it's convenient for me, you ask a
-clarifying question when it's convenient for you, I respond when it's convenient for me, etc. Suddenly my PR has
-been open for three days and we haven't yet made it to a common understanding of why I've made these changes.
+Worse, lack of context when _reviewing code_ asynchronously has a reverb effect. I create my PR when it's
+convenient for me, you ask a clarifying question when it's convenient for you, I respond when it's convenient for
+me, etc. Suddenly my PR has been open for three days and we haven't yet made it to a common understanding of why
+I've made these changes.
 
 It's extremely important to include all available context when drafting a PR. It saves incredible amounts of time
 by cutting out slow round-trip conversations to clarify.
@@ -47,6 +48,11 @@ Why does this PR exist? Explain the problem it solves and describe your solution
 [Sarah](https://github.com/sweir27) does [in this PR](https://github.com/artsy/force/pull/3095). For bonus points,
 include alternative approaches you considered.
 
+As you are writing up the problem and solution, you might find that you've missed on the scope of your PR. Are
+there _many_ problems this PR is solving? Maybe this should be broken into smaller PRs. Is it hard to describe the
+problem because it requires multiple other PRs? Maybe those should be consolidated into one cohesive set of
+changes.
+
 ### Explain interesting lines of code
 
 The reviewers aren't the only ones who can comment on lines of code.
@@ -65,8 +71,9 @@ next change. It's like he's sitting next to you!
 
 ## Show Your Work
 
-If your PR contains work that is beyond trivial, "showing your work" can help reviewers understand what they're
-reviewing.
+If your PR contains work that is beyond trivial, show your reviewers how you thought about the problem. Demonstrate
+the effects of the changes. Give them confidence that you've worked through this problem thoroughly, and you've
+brought receipts.
 
 ### Make small, self-contained commits
 
@@ -106,12 +113,17 @@ calls are firing correctly.
 ### Share your progress
 
 One mistake many engineers make with non-trivial pull requests is to wait to open them until they're "done". If
-there are changes you'd like to get people's eyes on quickly, open a PR before the work is done and mark it as
-in-progress with`WIP` in the title. This helps avoid rework by starting early discussions about your approach.
+there are changes you'd like to get people's eyes on quickly, open a WIP PR before the work is done: mark it as a
+draft in GitHub, or put `WIP` in the title. Extra work up front avoids rework by starting early discussions about
+your approach.
 
 Let reviewers know in the body that your work isn't complete. As you continue your work, use a `TODO:` list in the
 body to illustrate your progress, as in [this PR](https://github.com/artsy/palette/pull/464) from
 [Sepand](https://github.com/sepans).
+
+Is this PR part of a larger scope of work? Is there followup work that will need to be done after it's merged? Are
+there PRs in other systems that need to merge in a specific sequence? Any migration details or timing that should
+be known before merging? Call these details out to avoid another round-trip conversation.
 
 ## Spread knowledge
 
