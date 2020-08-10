@@ -1,6 +1,6 @@
 ---
 layout: epic
-title: "Pull Requests Need Context"
+title: "Improve Pull Requests By Including Valuable Context"
 date: "2020-08-11"
 author: [steve-hicks]
 categories: [tools, github, team, community, engineering]
