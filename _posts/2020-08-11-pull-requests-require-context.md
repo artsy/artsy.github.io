@@ -56,9 +56,9 @@ changes.
 ### Explain interesting lines of code
 
 The reviewers aren't the only ones who can comment on lines of code.
-[Give them](https://github.com/artsy/emission/pull/2085#discussion_r378228269)
-[additional information](https://github.com/artsy/emission/pull/2085#discussion_r378230196)
-[about why](https://github.com/artsy/emission/pull/2085#discussion_r378231974) a particular line was written, as
+[Give them](https://github.com/artsy/emission/pull/2085#discussion_r378228269) some
+[additional information](https://github.com/artsy/emission/pull/2085#discussion_r378230196) about
+[why a particular line was written](https://github.com/artsy/emission/pull/2085#discussion_r378231974), as
 [David](https://github.com/ds300) does [in this PR](https://github.com/artsy/emission/pull/2085). Maybe you want
 feedback focused on that line or maybe the line has side-effects and implications that aren't obvious.
 
@@ -150,11 +150,14 @@ environment.
 
 ---
 
-Providing full context in a pull request will improve your asynchronous code reviews significantly. There are many
-other opportunities to improve code reviews, but a PR filled with helpful context will start you on the right foot.
-(TODO: this paragraph is blah but I need a "wrap it up" paragraph, haaaalllp)
+When your team embraces the pull request process, you reap rewards that extend far beyond the lines of code.
+Providing context up-front shortens the feedback loop and surfaces important discussions sooner, allowing you to
+ship changes more quickly. Sharing knowledge in PRs grows individuals and spreads expertise across your team. Every
+PR becomes an artifact for retracing history. You can look back and see not only _which_ decisions were made, but
+_why_ they were made.
 
 If you'd like to know more about how we work with pull requests at Artsy, take a look at our
 ["Engineer workflow" playbook](https://github.com/artsy/README/blob/master/playbooks/engineer-workflow.md#pull-requests),
-or poke around [our GitHub repositories](https://github.com/artsy). And if you've got examples of great PRs to
-share with the rest of us, leave a comment!
+or poke around [our GitHub repositories](https://github.com/artsy). Check out
+[the PR that created this article](https://github.com/artsy/artsy.github.io/pull/619). And if you've got examples
+of great PRs to share with the rest of us, leave a comment!
