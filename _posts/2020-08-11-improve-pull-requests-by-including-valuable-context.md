@@ -4,6 +4,7 @@ title: "Improve Pull Requests By Including Valuable Context"
 date: "2020-08-11"
 author: [steve-hicks]
 categories: [tools, github, team, community, engineering]
+comment_id: 621
 ---
 
 Code review is an engineering process that has benefited greatly from a move toward asynchronous communication.
