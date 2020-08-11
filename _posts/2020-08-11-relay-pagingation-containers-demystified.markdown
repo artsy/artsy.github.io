@@ -81,7 +81,7 @@ class Artist extends React.Component {
       /* Render each artwork */
       <Text key={node.id}>{node.name}</Text>
     )}
-    {this.props.relay.hasMore &&
+    {this.props.relay.hasMore() &&
       <Button onPress={() => this.props.relay.loadMore() } text="Load next page" />
     )
   }
@@ -89,12 +89,14 @@ class Artist extends React.Component {
 
 export ArtistFragmentContainer = createPaginationContainer(Artist, {
   artist: graphql`
-    fragment Artist_artist on Artist @argumentDefinitions(
-      count: { type: "Int", defaultValue: 10 }
-      cursor: { type: "String" } {
+    fragment Artist_artist on Artist
+      @argumentDefinitions(
+        count: { type: "Int", defaultValue: 10 }
+        cursor: { type: "String" }
+      ) {
       name
       id
-      artworksConnection (first: $count, after: $cursor) @connection(key: "Artist_artworks") {
+      artworksConnection(first: $count, after: $cursor) @connection(key: "Artist_artworks") {
         edges {
           node {
             title # Now fetch all the artwork data
@@ -162,7 +164,7 @@ Relay doesn't really want you to even be aware of (in this case, the Relay store
 
 So what are these two functions? Let's return to the docs:
 
-- `getFragmentVariables` is used when re-rendering the component, to retrieve the previously-fetch GraphQL response
+- `getFragmentVariables` is used when re-rendering the component, to retrieve the previously-fetched GraphQL response
   for a certain set of variables.
 - `getVariables` is used when actually fetching another page, and its return value is given to the `query`.
 
