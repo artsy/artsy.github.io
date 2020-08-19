@@ -1,7 +1,7 @@
 ---
 layout: epic
 title: "Relay Pagination Containers Demystified"
-date: 2020-08-11
+date: 2020-08-20
 categories: [react, relay, culture]
 author: ash
 ---
@@ -15,7 +15,12 @@ understand how it works.
 
 This is a problem as old as software engineering itself, and it has a simple solution: learn and then teach others.
 We'll be driving a peer learning group centering around Relay, but today we are going to dive into the part of
-Relay that comes up the most in requests for pairing: getting Relay pagination to work.
+Relay that comes up the most in requests for pairing: getting Relay pagination to work. (Note: we're going to use
+plain old Relay and not [relay-hooks](https://github.com/relay-tools/relay-hooks).)
+
+My goal with this post is to show my thought process when trying to learn about, and clean up how we use, Relay
+pagination containers. We'll briefly go over some Relay fundamentals before diving in to a case study on how
+problematic code can get copy-and-pasted throughout your team's code.
 
 Let's back up and talk a little bit about what Relay is and how it works. Relay is a framework that glues React
 components and GraphQL requests together. React components define the data they need from a GraphQL schema in order
@@ -59,7 +64,7 @@ _connections_ to show page after page of data.
 [GraphQL connections](https://www.apollographql.com/blog/explaining-graphql-connections-c48b7c3d6976/) are beyond
 the scope of this blog post, but they are a way to fetch lists of data without running into the limitations of
 returning a simple array. Connections can return metadata about their results, like how many total results there
-are and uses cursors (rather than page numbers) for paginating. They also handle when items are inserted or deleted
+are, and use cursors (rather than page numbers) for paginating. They also handle when items are inserted or deleted
 from the results between requests for pages. They're pretty cool!
 
 Pagination containers take considerably more setup than plain fragment containers, and the setup itself is very
@@ -159,17 +164,18 @@ Those all makes sense to me, but then we arrive at the real gotchas: `getFragmen
 docs are helpful, but only if you understand
 [the internals of how Relay works](https://relay.dev/docs/en/runtime-architecture.html). Relay has a sophisticated
 architecture that delivers some really well-performing code, but its abstractions sometimes
-"[leak](https://en.wikipedia.org/wiki/Leaky_abstraction)" and you have to deal with implementation details that
-Relay doesn't really want you to even be aware of (in this case, the Relay store).
+"[leak](https://en.wikipedia.org/wiki/Leaky_abstraction)" and you have to deal with underlying implementation
+details of Relay (like [the Relay store](https://relay.dev/docs/en/relay-store)) which you don't need to know about
+_most_ of the time.
 
 So what are these two functions? Let's return to the docs:
 
-- `getFragmentVariables` is used when re-rendering the component, to retrieve the previously-fetched GraphQL response
-  for a certain set of variables.
+- `getFragmentVariables` is used when re-rendering the component, to retrieve the previously-fetched GraphQL
+  response for a certain set of variables.
 - `getVariables` is used when actually fetching another page, and its return value is given to the `query`.
 
-I think of `getFragmentVariables` as kind of cache key for lookup in Relay's internal store. Our implementation of
-`getFragmentVariables` above doesn't really do anything interesting, but a connection that accepted `sort` or
+I think of `getFragmentVariables` as a kind of caches key for lookup in Relay's internal store. Our implementation
+of `getFragmentVariables` above doesn't really do anything interesting, but a connection that accepted `sort` or
 `filter` parameters would need to return those to avoid lookup collisions when the user changed sort and filter
 options.
 
@@ -230,7 +236,8 @@ This is a lot nicer! By not specifying unnecessary options, we have a smaller su
 also have fewer overloaded terms, like "variables", so now it's more obvious that `getVariables` supplies data for
 the `query` below it.
 
-Needless to say that I'll be following up with some pull requests to clean up our use of Relay pagination
-containers. But I wouldn't have discovered this if I hadn't really dug into the docs, which I only did so that I
-could write this blog post. Earlier I said that the solution to a knowledge gap is simple: learn, and then teach. I
-learned a lot about Relay today, and I hope this blog post illustrates the value in the learn-then-teach approach.
+I've already [sent a pull request](https://github.com/artsy/eigen/pull/3711) to clean up our use of pagination
+containers in our React Native app, and will be following up on the web side next. But I wouldn't have discovered
+this if I hadn't really dug into the docs, which I only did so that I could write this blog post. Earlier I said
+that the solution to a knowledge gap is simple: learn, and then teach. I learned a lot about Relay today, and I
+hope this blog post illustrates the value in the learn-then-teach approach.
