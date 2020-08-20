@@ -2,7 +2,7 @@
 layout: epic
 title: Servers for Everyone: Review Apps @ Artsy
 date: 2020-08-20
-categories: [devops, communication, culture, deployment]
+categories: [devops, hokusai, kubernetes, communication]
 author: daniel
 ---
 
@@ -13,16 +13,16 @@ This first part of this post covers a couple of common problems where
 topic-specific servers (i.e. review apps) are useful.
 
 The rest of the post describes Artsy's history with review app automation via
-iterative problem solving and the composition of a few well-known tools.
+incremental problem solving and the composition of a few well-known technologies.
 
 <!-- more -->
 
-### Problem 1.0: A Single Shared Staging Environment
+## Problem 1.0: A Single Shared Staging Environment
 
 At Artsy, we have a sizable engineering organization: ~40 engineers organized
 across many teams. Engineers on those teams work on many codebases, some are
 exclusive to a team, but many codebases are worked on by engineers across many
-teams. Artsy's website (www.artsy.net), Force, is a good example of such a shared
+teams. Artsy's website (www.artsy.net), [Force][force-homepage], is a good example of such a shared
 service.
 
 These different teams of developers working on a shared service have (mostly
@@ -33,10 +33,10 @@ Let's work the following example:
 
 - Team A is hard at work finishing up a new feature (say a new search
   page for a list of art auctions) on Service S and is now doing a final round
-  of QA before deploying to production.
-- Team B is fixing a bug in an unrelated part of Service S.
-- Team B confirmed that the bug was squashed on staging
-- Team B deploys Service S to production.
+  of QA before deploying to production
+- Team B is fixing a bug in an unrelated part of Service S
+- Team B confirms that the bug was squashed on staging
+- Team B deploys Service S to production
 
 Artsy's production deployment flow is rooted in a GitHub Pull Request, meaning
 that the commits that differ between staging (on the `staging` Git branch) and
@@ -51,7 +51,7 @@ their work is "safe to deploy"_.
 work.
 
 For example, Team A's new list of art auctions might require an API endpoint in
-another service to be deployed for the their part of the deploy of Service S to
+another Service Z to be deployed for their part of the deploy of Service S to
 be safe to deploy. Team B's bugfix might just requires a quick visual confirmation.
 
 Suffice to say, it's _hard to independently confirm that another team's work is
@@ -64,13 +64,13 @@ shared staging environment:
 
 1. Having a culture of quickly deploying code to production
 
-By building a culture that views frequent deploys positively, there's, on average,
+	By building a culture that views frequent deploys positively, there's, on average,
 less diff in every deploy, mitigating the risk of unintentionally deploying code
 that's not safe to deploy.
 
 2. Communicating deploys
 
-When deploying a service, Artsy engineers typically send a message to our #dev
+	When deploying a service, Artsy engineers typically send a message to our #dev
 Slack channel notifying of their plan to deploy a particular service, cc'ing the
 engineers that are involved in other PRs that are part of the deploy. In the example
 above, an engineer on Team B would notify relevant stakeholders of Team A, giving
@@ -111,31 +111,30 @@ staging being unsafe isn't _itself_ a bad thing, many bad things can result:
 
 1. [Bad] Blocked Deploys
 
-If staging is unsafe and this dangerous state is discovered, then top priority
+	If staging is unsafe and this dangerous state is discovered, then top priority
 is getting a service back into a safe state. While working to get a service
-back to a healthy state, new feature can't be delivered.
+back to a healthy state, new features can't be delivered.
 
-In aggregate, this can be a sizeable productivity loss.
+	In aggregate, this can be a sizeable productivity loss.
 
 2. [Worse] Unsafe Deploys
 
-If staging in unsafe and this dangerous state is not discovered before a production
+	If staging in unsafe and this dangerous state is not discovered before a production
 deploy (for example, the unsafe code might be from another team, as described above),
 then end-users might interact with a service that just isn't working. No good.
 
 3. [Terrible] Fear
 
-> Fear is the mind-killer.
+	> Fear is the mind-killer.
+	[Dune][dune-fear-quote]
 
-[Dune][dune-fear-quote]
-
-Alright, a bit over the top, but the risk of unsafe or blocked deploys can
+	Alright, a bit over the top, but the risk of unsafe or blocked deploys can
 implicitly or explicitly result in teams shying away from complex work.
 
-This avoidable fear might result in increased technical debt or not taking on
+	This avoidable fear might result in increased technical debt or not taking on
 certain projects.
 
-It's general bad for business and does not lead to a pleasant work environment!
+	It's generally bad for business and does not lead to a pleasant work environment!
 
 ## Problem Recap & Review App Introduction
 
@@ -159,13 +158,14 @@ Artsy has iterated on its review app tooling to the point where Team A and Team 
 can each deploy their changes to isolated servers of our main website, Force,
 on a single `git push` to a branch matching a naming convention.
 
-How is this review app approach implemented at Artsy.
+The rest of this post describes Artsy's evolution of its review app tooling
+and areas for continued improvement.
 
 ## Review App Tooling
 
 ### Heroku Days
 
-In the beginning, Artsy deployed most applications directly on Heroku.
+In the beginning, Artsy deployed most services on Heroku.
 
 [Heroku review apps][heroku-review-app-docs] were used on some teams sparingly.
 
@@ -173,7 +173,7 @@ In the beginning, Artsy deployed most applications directly on Heroku.
 
 For many reasons outside of the scope of this post, Artsy began migrating
 services off of Heroku and onto an AWS-backed Kubernetes (K8s) deployment model
-starting in [February 2017][introduction-to-hokusai-to-force].
+starting in [February 2017][introduction-of-hokusai-to-force].
 
 In order to allow application engineers to reasonably interface with K8s-backed
 services, Artsy developed a command line interface,
@@ -181,102 +181,118 @@ services, Artsy developed a command line interface,
 configuring and deploying these services.
 
 About a year after `hokusai`'s initial release, the tool released [its initial
-implementation of review apps][hokusai-review-app-pr].
+support for review apps][hokusai-review-app-pr].
 
-In essence, via subcommands within the `hokusai review_app` namespace, this
-feature enables developers to easily:
+Via subcommands within the `hokusai review_app` namespace, developers were able to:
 
-* Create the needed K8s YAML configuration file from the existing staging configuration file
+* Create the needed K8s YAML configuration file from an existing staging configuration file
 * Execute this configuration: creating a running server within a dedicated namespace
 * Perform other server management tasks: re-deploying to the server, setting ENV variables, etc.
 
 ### Problem: More Steps Needed
 
 While `hokusai`'s official review app feature handles much of the core infrastructure
-needed to get a service deployed to new location, additional steps are required
-before to have a working review app, which can be categorized into:
+needed to get a service deployed to a new server, additional tasks are required
+to have a working review app, which can be categorized into:
 
 1. Service Agnostic Tasks
 
-These include:
-
-- Pushing a Docker image of the Git commit/branch in question to
-  the appropriate Docker registery
-- Editing the generated YAML configuration file to reference this Docker image
-- Sourcing the appropriate ENV variables (typically from the shared staging
-  server)
-
-Check out [`hokusai`'s review app docs][hokusai-review-app-docs] for more
-details.
+	These include:
+	
+	- Pushing a Docker image of the Git revision in question to the appropriate
+	  Docker registry
+	- Editing the generated YAML configuration file to reference this Docker image
+	- Sourcing the appropriate ENV variables (typically from the shared staging
+	  server)
+	
+	Check out [`hokusai`'s review app docs][hokusai-review-app-docs] for more
+	details.
 
 2. Service Specific Tasks
 
-In addition, certain services have specific K8s-level needed which require
-considerating to build a fully functional review app.
-
-For example, in Force, we need to:
-
-- Publish front-end assets to S3 for the specific revision being deployed, and
-- Tweak some ENV variables from the values copied over from the shared staging
-  server
-
-before the review app is fully functional.
-
-*Net Effect*: Due to the manual labor required to (re)-learn and execute the
+	In addition, certain services have service-specific operational requirements that
+	need to be met before a review app is fully functional.
+	
+	For example, in Force, we need to:
+	
+	- Publish front-end assets to S3 for the specific revision being deployed, and
+	- Tweak some ENV variables from the values copied over from the shared staging
+	  server
+	
+	
+**Impact**: Due to the manual labor required to (re)-learn and execute the
 commands needed to build a review app, they were used sparingly by a few engineers
 that already invested time in learning up on them.
 
 ### Solution: A bash script
 
 While these tasks described above are tedious, they don't really require a
-decision-making human behind the computer and are automatable.
+decision-making human behind the computer and can be automated.
 
-In August 2019, I took an [initial stab][force-review-app-pr] at a Bash script for Force that
-executes these commands.
+In August 2019, we [automated][force-review-app-pr] these tasks via a Bash script.
 
-*Net Effect*: A developer is able take a Force commit and get it deployed to K8s
+**Impact**: A developer is able take a Force commit and get it deployed to K8s
 by running a single script on their laptop. Folks became excited about review
 apps and started to use them more for Force development.
 
 ### Problem: Depending upon a developer's laptop doesn't scale
 
-The increased excited and usage of review apps in Force revealed a new problem:
+The increased excitement and usage of review apps in Force revealed a new problem:
 
-Building and pushing >2 GB Docker image across WiFi networks can be incredibly
+Building and pushing >2 GB Docker image across home WiFi networks can be incredibly
 slow, decreasing the usefulness and adoption of the Bash script.
 
 ### Solution: Run the bash script on CI
 
-After discussions within Artsy's Platform Practice, we thought of solution to
-the problems introduced by running this Bash script locally: build the review
-app by running this Bash script on CircleCI upon push to a branch starting with
-`review-app`.
+After discussions within Artsy's Platform Practice, a possible solution
+emerged: build the review app by running this Bash script on CircleCI upon push
+to a branch starting with `review-app`.
 
-This means that a developer's laptop is then only reponsible for pushing a commit
-to a branch (which laptops and home networks re :ok-hand: at) and let's CircleCI
-do all the heavy lifting.
+This means that a developer's laptop is then only responsible for pushing a
+commit to a branch and CircleCI does all the heavy lifting.
 
-Moreover, the process of centralizing the review app creation into CI triggered
-by Git branching helped us realize the subsequent dev UX feature: updating, and
-not creating, review apps when a review app alreay exists for a given branch.
+Moreover, the process of centralizing the review app creation into CI helped us realize
+the subsequent requirement: updating, not creating, review apps when a review app
+already exists for a given branch.
 
-Nothing some more Bash and CircleCI configuration couldn't handle.
+Check out the [pull request][review-app-on-circle-pr] for the nitty gritty on how
+we leveraged CircleCI branch filtering and more Bash to move this workload into
+CircleCI and intelligently determine when to upgdate versus create a review app.
 
-Check out the [pull request][review-app-on-circle-pr] for the nitty gritty.
-
-*Net Effect*: Any developer can spin up a Force review app in ~15 minutes. Review
-app are being used often for major and minor changes alike.
+*Net Effect*: Any developer can spin up a Force review app in ~15 minutes on a `git push`.
+Review app are being used often for major and minor changes alike.
 
 ## Future Iterations
 
 Artsy has come far with its tooling for review applications, but, as always,
 there's areas for us for to grow in, including:
 
-1. Better automation around the deprovisioning of review apps that no
+1. Automating the de-provisioning of review apps that no
    longer useful.
-1. While the improvements to review app infrastructure has sparked similar
+
+2. Automating the creating of DNS CNAME records within Cloudflare, removing one
+   final manual step.
+
+3. While the improvements to review app infrastructure has sparked similar
    investments in other codebases, there's a lot of work we could do to bring
-   this infrastructure to other shared services we deploy at Artsy.
+   this Git-CircleCI-Bash based approach to other shared services we deploy at
+   Artsy.
+
+## On Incremental Improvement
+
+One of Artsy's Engineering Principles is ["Incremental
+Revolution"][artsy-eng-principles], which begins with:
+
+> Introduce new technologies slowly and incrementally.
+
+I think Artsy's approach to review apps is a great example of this principle
+implemented.
+
+As opposed to finding a silver bullet technology or strategy, our approach has
+been to build off of a working current state, layering on a new component to
+solve the next problem, resulting in an improved new current state.
+
+Thanks for reading!
 
 [heroku-review-app-docs]:https://devcenter.heroku.com/articles/github-integration-review-apps
 [introduction-of-hokusai-to-force]:https://github.com/artsy/force/pull/953
@@ -287,4 +303,6 @@ there's areas for us for to grow in, including:
 [review-app-on-circle-pr]:https://github.com/artsy/force/pull/5370
 [styled-systems-upgrade-pr]:https://github.com/artsy/force/pull/5697
 [dune-fear-quote]:https://www.goodreads.com/quotes/2-i-must-not-fear-fear-is-the-mind-killer-fear-is
-[example-force-deploy-pr]:
+[artsy-eng-principles]:https://github.com/artsy/README/blob/master/culture/engineering-principles.md#incremental-revolution
+[example-force-deploy-pr]:https://github.com/artsy/force/pull/6106
+[force-homepage]:https://github.com/artsy/force
