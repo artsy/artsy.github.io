@@ -6,50 +6,18 @@ categories: [devops, communication, culture, deployment]
 author: daniel
 ---
 
-<!--
+This blog post is going to motivate and describe Artsy's adoption and evolution
+of the usage of review apps.
 
-TODO:
+This first part of this post covers a couple of common problems where
+topic-specific servers (i.e. review apps) are useful.
 
-- Maybe extract a separate problem section for the distinct, but related, problem
-  of a healthy development process for work that needs to accessed on shared server
-  before deploying
-
-- Finish out implementation section
-
--->
-
-This blog post:
-
-1. Details some problems that review apps attempt to solve.
-1. Details how Artsy implements review apps, the history of our tooling and where
-   we might go from here.
+The rest of the post describes Artsy's history with review app automation via
+iterative problem solving and the composition of a few well-known tools.
 
 <!-- more -->
 
- -- consider striking --
-## So what's a review app?
-
-Popularized by [Heroku][heroku-review-app-docs], review apps refer to deployment
-targets (think staging, production) that are:
-
-1. Not staging or production
-1. Are as usable as staging or production
-1. Temporary
-
-Concretely, a review app for a website (say, www.artsy.net) would manifest as
-a website (say review.artsy.net or www.artsy-review.net) that is accessible for a
-limited period of time. It will look and feel just like www.artsy.net, except for
-the specific changes that we are "review"-ing!
-
-## Wait, but why?
-
-Sounds like another thing to think about? Why should I deal with these review app
-app things?
-
-Great question!
--- consider striking --
-
-### Problem: A Single Shared Staging Environment
+### Problem 1.0: A Single Shared Staging Environment
 
 At Artsy, we have a sizable engineering organization: ~40 engineers organized
 across many teams. Engineers on those teams work on many codebases, some are
@@ -89,7 +57,7 @@ be safe to deploy. Team B's bugfix might just requires a quick visual confirmati
 Suffice to say, it's _hard to independently confirm that another team's work is
 safe to deploy_.
 
-#### Mitigation Strategies
+#### Shared Staging Mitigation Strategies
 
 There are a couple of ways Artsy mitigates against the possible pitfalls of a
 shared staging environment:
@@ -108,35 +76,92 @@ engineers that are involved in other PRs that are part of the deploy. In the exa
 above, an engineer on Team B would notify relevant stakeholders of Team A, giving
 that team the opportunity to flag if their work is not yet safe to deploy.
 
-Semi-unstructured communication is prone to breakdown: the notified engineers
-on Team A might be pairing or in a meeting and Team B deploys anyways.
+While these 2 strategies are impactful:
 
-Moreover, _some work really needed to be deployed to a shared server to
-determine its safety/completeness_: think re-designs of existing pages or large
-overhauls of system internals (i.e. a Node upgrade).
+- Semi-unstructured communication is prone to breakdown: the notified engineers
+  on Team A might be pairing or in a meeting and Team B deploys anyways.
+- Without true continuous delivery model, it's a challenge to operationalize
+  very frequent production deploys. Moreover, the problem compounds as the team
+  grows and the velocity of work increases.
 
-*These types of changes are typically risky enough already -- the added risk of
-having a single deploy target that is not production magnifies that risk of:
+If only there was a way to allow Team A and B to work without risking stepping
+on each other toes!
 
-1. Deploying such a change before it's safe, or
-2. Blocking other teams from deploying other, safe, changes to production while
-the risky change is being assessed.*
+We'll discuss how review apps provide this safety, but first another related
+problem.
 
-Reviews apps are really just topic-specific staging environments.
+## Problem 2.0: Complex Work Needs Many Eyes
 
-Instead of performing performance testing and other QA tasks for a Node upgrade
-on a shared staging environment, given recent investments in our tooling, any Artsy
-engineer can deploy such a change to a new review app "server" (Kubernetes
-service scaled out to a few pods) given a `git push` to any branch that matches
-a certain regex (more on this later).
+But before it gets better, it's going to get a bit worse.
 
-This enables the engineer to take on the risky task with the space to safely
-share work in progress with other technical or non-technical stakeholders
-without risking an unsafe or blocked deploy scenario.
+While working on any mature distributed system is a challenge, some work is
+particularly challenging or risky. Generally, risk is reduced when many
+skilled eyes can review the risky thing.
 
-How does this all work?
+This class of work might include changes to authorization flows, page
+redesigns or infrastructural upgrades (i.e. a NodeJS upgrade).
 
-## Solution: Review App Tooling
+For example, to feel safe deploying [a major version upgrade of Artsy's design
+system in Force][styled-systems-upgrade-pr] the most pragmatic way forward was
+to deploy that PR to a server where other engineers could collaborate on QA.
+
+*If a single shared staging environment is the only non-production server to
+deploy to, the chances that work lands on staging in an unsafe state is high*. While
+staging being unsafe isn't _itself_ a bad thing, many bad things can result:
+
+1. [Bad] Blocked Deploys
+
+If staging is unsafe and this dangerous state is discovered, then top priority
+is getting a service back into a safe state. While working to get a service
+back to a healthy state, new feature can't be delivered.
+
+In aggregate, this can be a sizeable productivity loss.
+
+2. [Worse] Unsafe Deploys
+
+If staging in unsafe and this dangerous state is not discovered before a production
+deploy (for example, the unsafe code might be from another team, as described above),
+then end-users might interact with a service that just isn't working. No good.
+
+3. [Terrible] Fear
+
+> Fear is the mind-killer.
+
+[Dune][dune-fear-quote]
+
+Alright, a bit over the top, but the risk of unsafe or blocked deploys can
+implicitly or explicitly result in teams shying away from complex work.
+
+This avoidable fear might result in increased technical debt or not taking on
+certain projects.
+
+It's general bad for business and does not lead to a pleasant work environment!
+
+## Problem Recap & Review App Introduction
+
+In review, when working on complex tasks, particularly on shared services, it is
+really valuable to be able to share work easily, but when you can only share your
+work on a shared staging environment, many negative outcomes can result.
+
+Review apps are simply other staging environments that are easy to spin up and
+are deployed with the version of the service that you are working on.
+
+By QA-ing on a review app instead of a shared staging environment, teams can
+take their time ensuring the safety of their changes, removing the risks
+detailed above.
+
+Larger infrastructure upgrades (including upgrades to the
+underlying K8s configuration, in addition to app-level changes) can sit on a
+server for hours or days, allowing any slow-moving issue to show itself in a
+lower risk environment.
+
+Artsy has iterated on its review app tooling to the point where Team A and Team B
+can each deploy their changes to isolated servers of our main website, Force,
+on a single `git push` to a branch matching a naming convention.
+
+How is this review app approach implemented at Artsy.
+
+## Review App Tooling
 
 ### Heroku Days
 
@@ -217,7 +242,7 @@ apps and started to use them more for Force development.
 
 The increased excited and usage of review apps in Force revealed a new problem:
 
-Building and pushing >1 GB Docker image across WiFi networks can be incredibly
+Building and pushing >2 GB Docker image across WiFi networks can be incredibly
 slow, decreasing the usefulness and adoption of the Bash script.
 
 ### Solution: Run the bash script on CI
@@ -242,6 +267,17 @@ Check out the [pull request][review-app-on-circle-pr] for the nitty gritty.
 *Net Effect*: Any developer can spin up a Force review app in ~15 minutes. Review
 app are being used often for major and minor changes alike.
 
+## Future Iterations
+
+Artsy has come far with its tooling for review applications, but, as always,
+there's areas for us for to grow in, including:
+
+1. Better automation around the deprovisioning of review apps that no
+   longer useful.
+1. While the improvements to review app infrastructure has sparked similar
+   investments in other codebases, there's a lot of work we could do to bring
+   this infrastructure to other shared services we deploy at Artsy.
+
 [heroku-review-app-docs]:https://devcenter.heroku.com/articles/github-integration-review-apps
 [introduction-of-hokusai-to-force]:https://github.com/artsy/force/pull/953
 [hokusai-gh-homepage]:https://github.com/artsy/hokusai
@@ -249,4 +285,6 @@ app are being used often for major and minor changes alike.
 [hokusai-review-app-docs]:https://github.com/artsy/hokusai/blob/master/docs/Review_Apps.md
 [force-review-app-pr]:https://github.com/artsy/force/pull/4412
 [review-app-on-circle-pr]:https://github.com/artsy/force/pull/5370
+[styled-systems-upgrade-pr]:https://github.com/artsy/force/pull/5697
+[dune-fear-quote]:https://www.goodreads.com/quotes/2-i-must-not-fear-fear-is-the-mind-killer-fear-is
 [example-force-deploy-pr]:
