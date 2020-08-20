@@ -80,7 +80,7 @@ While these 2 strategies are impactful:
 
 - Semi-unstructured communication is prone to breakdown: the notified engineers
   on Team A might be pairing or in a meeting and Team B deploys anyways.
-- Without true continuous delivery model, it's a challenge to operationalize
+- Without a true continuous delivery model, it's a challenge to operationalize
   very frequent production deploys. Moreover, the problem compounds as the team
   grows and the velocity of work increases.
 
@@ -99,7 +99,7 @@ particularly challenging or risky. Generally, risk is reduced when many
 skilled eyes can review the risky thing.
 
 This class of work might include changes to authorization flows, page
-redesigns or infrastructural upgrades (i.e. a NodeJS upgrade).
+redesigns or infrastructural upgrades (e.g. a NodeJS upgrade).
 
 For example, to feel safe deploying [a major version upgrade of Artsy's design
 system in Force][styled-systems-upgrade-pr] the most pragmatic way forward was
@@ -119,7 +119,7 @@ back to a healthy state, new features can't be delivered.
 
 2. [Worse] Unsafe Deploys
 
-	If staging in unsafe and this dangerous state is not discovered before a production
+	If staging is unsafe and this dangerous state is not discovered before a production
 deploy (for example, the unsafe code might be from another team, as described above),
 then end-users might interact with a service that just isn't working. No good.
 
@@ -138,7 +138,7 @@ certain projects.
 
 ## Problem Recap & Review App Introduction
 
-In review, when working on complex tasks, particularly on shared services, it is
+To recap, when working on complex tasks, particularly on shared services, it is
 really valuable to be able to share work easily, but when you can only share your
 work on a shared staging environment, many negative outcomes can result.
 
