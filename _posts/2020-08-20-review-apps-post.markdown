@@ -259,7 +259,7 @@ Check out the [pull request][review-app-on-circle-pr] for the nitty gritty on ho
 we leveraged CircleCI branch filtering and more Bash to move this workload into
 CircleCI and intelligently determine when to upgdate versus create a review app.
 
-*Net Effect*: Any developer can spin up a Force review app in ~15 minutes on a `git push`.
+**Impact**: Any developer can spin up a Force review app in ~15 minutes on a `git push`.
 Review app are being used often for major and minor changes alike.
 
 ## Future Iterations
