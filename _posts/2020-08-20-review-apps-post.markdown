@@ -198,7 +198,7 @@ Via subcommands within the `hokusai review_app` namespace, developers were able 
 
 * Create the needed K8s YAML configuration file from an existing staging configuration file
 * Execute this configuration: creating a running server within a dedicated namespace
-* Perform other server management tasks: re-deploying to the server, setting ENV variables, etc.
+* Perform other server management tasks: re-deploying to the server, setting ENV variables, etc
 
 ### Problem: More Steps Needed
 
