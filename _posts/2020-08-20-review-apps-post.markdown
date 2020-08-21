@@ -44,8 +44,8 @@ production (on the `release` Git branch) are clear to whomever is managing a
 deploy ([example][example-force-deploy-pr]).
 
 While it's great that our deploys are easy to understand, ensuring that a deploy
-of a service is safe _requires communicating with all teams involved to ensure
-their work is "safe to deploy"_.
+of a service is safe _requires communicating with the teams that contributed
+code to ensure that their work is "safe to deploy"_.
 
 "Safe to deploy" might mean different things depending on the nature of the
 work.
@@ -57,9 +57,8 @@ be safe to deploy. Team B's bugfix might just requires a quick visual confirmati
 Suffice to say, it's _hard to independently confirm that another team's work is
 safe to deploy_.
 
-Despite the cultural mitigation strategies discussed next, there's real risk
-of deploying unsafe code whenever a single staging environment is used across
-many teams.
+Despite the mitigation strategies discussed next, there's risk of deploying unsafe
+code whenever a single staging environment is used across many teams.
 
 #### Shared Staging Mitigation Strategies
 
