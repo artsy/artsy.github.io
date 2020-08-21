@@ -301,7 +301,10 @@ implemented.
 
 As opposed to finding a silver bullet technology or strategy, our approach has
 been to build off of a working current state, layering on a new component to
-solve the next problem, resulting in an improved new current state.
+solve the next problem.
+
+At each point along our solution journey, we're left with a working and more valuable
+solution to the problem at hand.
 
 Thanks for reading!
 
