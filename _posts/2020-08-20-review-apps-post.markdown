@@ -281,7 +281,7 @@ there's areas for us for to grow in, including:
 1. Automating the de-provisioning of review apps that no
    longer useful.
 
-2. Automating the creating of DNS CNAME records within Cloudflare, removing one
+2. Automating the creation of DNS CNAME records within Cloudflare, removing one
    final manual step.
 
 3. While the improvements to review app infrastructure has sparked similar
