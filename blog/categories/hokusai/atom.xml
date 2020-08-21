@@ -4,7 +4,7 @@
   <title><![CDATA[Category: hokusai | Artsy Engineering]]></title>
   <link href="http://artsy.github.io/blog/categories/hokusai/atom.xml" rel="self"/>
   <link href="http://artsy.github.io/"/>
-  <updated>2020-08-11T15:59:56+00:00</updated>
+  <updated>2020-08-21T17:43:39+00:00</updated>
   <id>http://artsy.github.io/</id>
   <author>
     <name><![CDATA[]]></name>
@@ -12,6 +12,357 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Servers for Everyone: Review Apps @ Artsy]]></title>
+    <link href="http://artsy.github.io/blog/2020/08/20/review-apps-post/"/>
+    <updated>2020-08-20T00:00:00+00:00</updated>
+    <id>http://artsy.github.io/blog/2020/08/20/review-apps-post</id>
+    <content type="html"><![CDATA[<p>This blog post is going to motivate and describe Artsy's adoption and evolution
+of the usage of review apps.</p>
+
+<p>This first part of this post covers a couple of common problems where
+topic-specific servers (i.e. review apps) are useful.</p>
+
+<p>The rest of the post describes Artsy's history with review app automation via
+incremental problem solving and the composition of a few well-known technologies.</p>
+
+<!-- more -->
+
+
+<a name="Problem.1.0:.A.Single.Shared.Staging.Environment"></a>
+<h2>Problem 1.0: A Single Shared Staging Environment</h2>
+
+<p>At Artsy, we have a sizable engineering organization: ~40 engineers organized
+across many teams. Engineers on those teams work on many codebases, some are
+exclusive to a team, but many codebases are worked on by engineers across many
+teams. Artsy's website (www.artsy.net), <a href="https://github.com/artsy/force">Force</a>, is a good example of such a shared
+service.</p>
+
+<p>These different teams of developers working on a shared service have (mostly
+hidden) dependencies upon each other, most visible when a shared service is being
+deployed to production.</p>
+
+<p>Let's work the following example:</p>
+
+<ul>
+<li>Team A is hard at work finishing up a new feature (say a new search
+page for a list of art auctions) on Service S and is now doing a final round
+of QA before deploying to production</li>
+<li>Team B is fixing a bug in an unrelated part of Service S</li>
+<li>Team B confirms that the bug was squashed on staging</li>
+<li>Team B deploys Service S to production</li>
+</ul>
+
+
+<p>Artsy's production deployment flow is rooted in a GitHub Pull Request, meaning
+that the commits that differ between staging (on the <code>staging</code> Git branch) and
+production (on the <code>release</code> Git branch) are clear to whomever is managing a
+deploy (<a href="https://github.com/artsy/force/pull/6106">example</a>).</p>
+
+<p>While it's great that our deploys are easy to understand, ensuring that a deploy
+of a service is safe <em>requires communicating with the teams that contributed
+code to ensure that their work is "safe to deploy"</em>.</p>
+
+<p>"Safe to deploy" might mean different things depending on the nature of the
+work.</p>
+
+<p>For example, Team A's new list of art auctions might require an API endpoint in
+another Service Z to be deployed for their part of the deploy of Service S to
+be safe to deploy. Team B's bugfix might just requires a quick visual confirmation.</p>
+
+<p>Suffice to say, it's <em>hard to independently confirm that another team's work is
+safe to deploy</em>.</p>
+
+<p>Despite the mitigation strategies discussed next, there's risk of deploying unsafe
+code whenever a single staging environment is used across many teams.</p>
+
+<a name="Shared.Staging.Mitigation.Strategies"></a>
+<h4>Shared Staging Mitigation Strategies</h4>
+
+<p>There are a couple of ways Artsy mitigates against the possible pitfalls of a
+shared staging environment:</p>
+
+<ol>
+<li><p>Having a culture of quickly deploying code to production</p>
+
+<p> By building a culture that views frequent deploys positively, there's, on average,
+less diff in every deploy, mitigating the risk of unintentionally deploying code
+that's not safe to deploy.</p></li>
+<li><p>Using automated quality processes geared towards a stable staging environment</p>
+
+<p> We do our best to feel as confident as possible in a change <em>before it is deployed
+ to staging</em> by creating automated tests for changes, sharing visual changes over
+ Slack and in PRs, and other strategies relevant to the work at hand.</p></li>
+<li><p>Communicating deploys</p>
+
+<p> When deploying a service, Artsy engineers typically send a message to our #dev
+Slack channel notifying of their plan to deploy a particular service, cc'ing the
+engineers that are involved in other PRs that are part of the deploy. In the example
+above, an engineer on Team B would notify relevant stakeholders of Team A, giving
+that team the opportunity to flag if their work is not yet safe to deploy.</p></li>
+</ol>
+
+
+<p>While these strategies are impactful:</p>
+
+<ul>
+<li><p>Semi-unstructured communication is prone to breakdown: the notified engineers
+on Team A might be pairing or in a meeting and Team B deploys anyways.</p></li>
+<li><p>Without a true continuous delivery model, it's a challenge to operationalize
+very frequent production deploys. Moreover, the problem compounds as the team
+grows and the velocity of work increases.</p></li>
+<li><p>Particularly when working in a large distributed system, automated testing at
+the individual service level can only provide a certain level of safety for a
+change. Visual changes which require correctness on different viewports and devices
+are, pragmatically, often best to test manually.</p></li>
+</ul>
+
+
+<p>If only there was a way to allow Team A and B to work without risking stepping
+on each other toes!</p>
+
+<p>We'll discuss how review apps provide this safety, but first another related
+problem.</p>
+
+<a name="Problem.2.0:.Complex.Work.Needs.Many.Eyes"></a>
+<h2>Problem 2.0: Complex Work Needs Many Eyes</h2>
+
+<p>But before it gets better, it's going to get a bit worse.</p>
+
+<p>While working on any mature distributed system is a challenge, some work is
+particularly challenging or risky. Generally, risk is reduced when many
+skilled eyes can review the risky thing in an environment that closely mimics
+the production environment.</p>
+
+<p>This class of work might include changes to authorization flows, page
+redesigns or infrastructural upgrades (e.g. a NodeJS upgrade).</p>
+
+<p>For example, to feel safe deploying <a href="https://github.com/artsy/force/pull/5697">a major version upgrade of Artsy's design
+system in Force</a> the most pragmatic way forward was
+to deploy that PR to a server where other engineers could collaborate on QA.</p>
+
+<p><em>If a single shared staging environment is the only non-production server to
+deploy to, the chances that work lands on staging in an unsafe state is high</em>. While
+staging being unsafe isn't <em>itself</em> a bad thing, many bad things can result:</p>
+
+<ol>
+<li><p>[Bad] Blocked Deploys</p>
+
+<p> If staging is unsafe and this dangerous state is discovered, then top priority
+is getting a service back into a safe state. While working to get a service
+back to a healthy state, new features can't be delivered.</p>
+
+<p>  In aggregate, this can be a sizeable productivity loss.</p></li>
+<li><p>[Worse] Unsafe Deploys</p>
+
+<p> If staging is unsafe and this dangerous state is not discovered before a production
+deploy (for example, the unsafe code might be from another team, as described above),
+then end-users might interact with a service that just isn't working. No good.</p></li>
+<li><p>[Terrible] Fear</p>
+
+<blockquote><p>Fear is the mind-killer.
+ <a href="https://www.goodreads.com/quotes/2-i-must-not-fear-fear-is-the-mind-killer-fear-is">Dune</a></p></blockquote>
+
+<p> Alright, a bit over the top, but the risk of unsafe or blocked deploys can
+implicitly or explicitly result in teams shying away from complex work.</p>
+
+<p>  This avoidable fear might result in increased technical debt or not taking on
+certain projects.</p>
+
+<p>  It's generally bad for business and does not lead to a pleasant work environment!</p></li>
+</ol>
+
+
+<a name="Problem.Recap..amp..Review.App.Introduction"></a>
+<h2>Problem Recap &amp; Review App Introduction</h2>
+
+<p>To recap, there is an increased risk of unsafe or blocked deploys whenever there
+is a single staging environment for a shared service. Certain types of
+(incredibly useful) changes require interactive review on a live server
+before we feel comfortable with those changes, which magnifies the risk of a unsafe or
+blocked deploy.</p>
+
+<p>Review apps are simply other staging environments that are easy to spin up and
+are deployed with the version of the service that you are working on.</p>
+
+<p>By QA-ing on a review app instead of a shared staging environment, teams can
+take their time ensuring the safety of their changes, removing the risks
+detailed above.</p>
+
+<p>Larger infrastructure upgrades (including upgrades to the
+underlying K8s configuration, in addition to app-level changes) can sit on a
+server for hours or days, allowing any slow-moving issue to show itself in a
+lower risk environment.</p>
+
+<p>Artsy has iterated on its review app tooling to the point where Team A and Team B
+can each deploy their changes to isolated servers of our main website, Force,
+on a single <code>git push</code> to a branch matching a naming convention.</p>
+
+<p>The rest of this post describes Artsy's evolution of its review app tooling
+and areas for continued improvement.</p>
+
+<a name="Review.App.Tooling"></a>
+<h2>Review App Tooling</h2>
+
+<a name="Heroku.Days"></a>
+<h3>Heroku Days</h3>
+
+<p>In the beginning, Artsy deployed most services on Heroku. There were fewer engineers
+and teams, so the engineering organization was less impacted by the problems described above.</p>
+
+<p><a href="https://devcenter.heroku.com/articles/github-integration-review-apps">Heroku review apps</a> were used on some teams sparingly.</p>
+
+<a name="Enter.Kubernetes.and.Hokusai"></a>
+<h3>Enter Kubernetes and Hokusai</h3>
+
+<p>For many reasons outside of the scope of this post, Artsy began migrating
+services off of Heroku and onto an AWS-backed Kubernetes (K8s) deployment model
+starting in <a href="https://github.com/artsy/force/pull/953">February 2017</a>.</p>
+
+<p>In order to allow application engineers to reasonably interface with K8s-backed
+services, Artsy developed a command line interface,
+<a href="https://github.com/artsy/hokusai"><code>hokusai</code></a>, to provide a Heroku CLI-like interface for
+configuring and deploying these services.</p>
+
+<p>Check out some <a href="https://artsy.github.io/blog/2019/10/18/kubernetes-and-hokusai/">prior</a> <a href="https://artsy.github.io/blog/2018/01/24/kubernetes-and-hokusai/">posts</a> discussing the experience of working with Kubernetes
+and <code>hokusai</code>.</p>
+
+<p>About a year after <code>hokusai</code>'s initial release, the tool released <a href="https://github.com/artsy/hokusai/pull/62">its initial
+support for review apps</a>.</p>
+
+<p>Via subcommands within the <code>hokusai review_app</code> namespace, developers were able to:</p>
+
+<ul>
+<li>Create the needed K8s YAML configuration file from an existing staging configuration file</li>
+<li>Execute this configuration: creating a running server within a dedicated namespace</li>
+<li>Perform other server management tasks: re-deploying to the server, setting ENV variables, etc</li>
+</ul>
+
+
+<a name="Problem:.More.Steps.Needed"></a>
+<h3>Problem: More Steps Needed</h3>
+
+<p>While <code>hokusai</code>'s official review app feature handles much of the core infrastructure
+needed to get a service deployed to a new server, additional tasks are required
+to have a working review app, which can be categorized into:</p>
+
+<ol>
+<li><p>Service Agnostic Tasks</p>
+
+<p> These include:</p>
+
+<ul>
+<li>Pushing a Docker image of the Git revision in question to the appropriate
+Docker registry</li>
+<li>Editing the generated YAML configuration file to reference this Docker image</li>
+<li>Sourcing the appropriate ENV variables (typically from the shared staging
+server)</li>
+</ul>
+
+
+<p> Check out <a href="https://github.com/artsy/hokusai/blob/master/docs/Review_Apps.md"><code>hokusai</code>'s review app docs</a> for more
+ details.</p></li>
+<li><p>Service Specific Tasks</p>
+
+<p> In addition, certain services have service-specific operational requirements that
+ need to be met before a review app is fully functional.</p>
+
+<p> For example, in Force, we need to:</p>
+
+<ul>
+<li>Publish front-end assets to S3 for the specific revision being deployed, and</li>
+<li>Tweak some ENV variables from the values copied over from the shared staging
+server</li>
+</ul>
+</li>
+</ol>
+
+
+<p><strong>Impact</strong>: Due to the manual labor required to (re)-learn and execute the
+commands needed to build a review app, they were used sparingly by a few engineers
+that already invested time in learning up on them.</p>
+
+<a name="Solution:.A.bash.script"></a>
+<h3>Solution: A bash script</h3>
+
+<p>While these tasks described above are tedious, they don't really require a
+decision-making human behind the computer and can be automated.</p>
+
+<p>In August 2019, we <a href="https://github.com/artsy/force/pull/4412">automated</a> these tasks via a Bash script.</p>
+
+<p><strong>Impact</strong>: A developer is able take a Force commit and get it deployed to K8s
+by running a single script on their laptop. Folks became excited about review
+apps and started to use them more for Force development.</p>
+
+<a name="Problem:.Depending.upon.a.developer.s.laptop.doesn.t.scale"></a>
+<h3>Problem: Depending upon a developer's laptop doesn't scale</h3>
+
+<p>The increased excitement and usage of review apps in Force revealed a new problem:</p>
+
+<p>Building and pushing >2 GB Docker image across home WiFi networks can be incredibly
+slow, decreasing the usefulness and adoption of the Bash script.</p>
+
+<a name="Solution:.Run.the.bash.script.on.CI"></a>
+<h3>Solution: Run the bash script on CI</h3>
+
+<p>After discussions within Artsy's Platform Practice, a possible solution
+emerged: build the review app by running this Bash script on CircleCI upon push
+to a branch starting with <code>review-app</code>.</p>
+
+<p>This means that a developer's laptop is then only responsible for pushing a
+commit to a branch and CircleCI does all the heavy lifting.</p>
+
+<p>Moreover, the process of centralizing the review app creation into CI helped us realize
+the subsequent requirement: updating, not creating, review apps when a review app
+already exists for a given branch.</p>
+
+<p>Check out the <a href="https://github.com/artsy/force/pull/5370">pull request</a> for the nitty gritty on how
+we leveraged CircleCI branch filtering and more Bash to move this workload into
+CircleCI and intelligently determine when to update or create a review app.</p>
+
+<p><strong>Impact</strong>: Any developer can spin up a Force review app in ~15 minutes on a <code>git push</code>.
+Review app are being used often for major and minor changes alike.</p>
+
+<a name="Future.Iterations"></a>
+<h2>Future Iterations</h2>
+
+<p>Artsy has come far with its tooling for review applications, but, as always,
+there's areas for us for to grow in, including:</p>
+
+<ol>
+<li><p>Automating the de-provisioning of review apps that no
+longer useful.</p></li>
+<li><p>Automating the creation of DNS CNAME records within Cloudflare, removing one
+final manual step.</p></li>
+<li><p>While the improvements to review app infrastructure has sparked similar
+investments in other codebases, there's a lot of work we could do to bring
+this Git-CircleCI-Bash based approach to other shared services we deploy at
+Artsy.</p></li>
+</ol>
+
+
+<a name="On.Incremental.Improvement"></a>
+<h2>On Incremental Improvement</h2>
+
+<p>One of Artsy's Engineering Principles is <a href="https://github.com/artsy/README/blob/master/culture/engineering-principles.md#incremental-revolution">"Incremental
+Revolution"</a>, which begins with:</p>
+
+<blockquote><p>Introduce new technologies slowly and incrementally.</p></blockquote>
+
+<p>I think Artsy's approach to review apps is a great example of this principle
+implemented.</p>
+
+<p>As opposed to finding a silver bullet technology or strategy, our approach has
+been to build off of a working current state, layering on a new component to
+solve the next problem.</p>
+
+<p>At each point along our solution journey, we're left with a working and more valuable
+solution to the problem at hand.</p>
+
+<p>Thanks for reading!</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Kubernetes and Hokusai]]></title>
