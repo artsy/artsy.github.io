@@ -172,7 +172,8 @@ and areas for continued improvement.
 
 ### Heroku Days
 
-In the beginning, Artsy deployed most services on Heroku.
+In the beginning, Artsy deployed most services on Heroku. There were fewer engineers
+and teams, so the engineering organization was less impacted by the problems described above.
 
 [Heroku review apps][heroku-review-app-docs] were used on some teams sparingly.
 
