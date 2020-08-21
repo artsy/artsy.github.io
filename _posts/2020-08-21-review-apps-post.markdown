@@ -1,7 +1,7 @@
 ---
 layout: epic
 title: "Servers for Everyone: Review Apps @ Artsy"
-date: 2020-08-20
+date: 2020-08-21
 categories: [devops, hokusai, kubernetes, communication]
 author: daniel
 ---
@@ -89,11 +89,11 @@ While these strategies are impactful:
 
 - Semi-unstructured communication is prone to breakdown: the notified engineers
   on Team A might be pairing or in a meeting and Team B deploys anyways.
-  
+
 - Without a true continuous delivery model, it's a challenge to operationalize
   very frequent production deploys. Moreover, the problem compounds as the team
   grows and the velocity of work increases.
-  
+
 - Particularly when working in a large distributed system, automated testing at
   the individual service level can only provide a certain level of safety for a
   change. Visual changes which require correctness on different viewports and devices
@@ -155,7 +155,7 @@ certain projects.
 ## Problem Recap & Review App Introduction
 
 To recap, there is an increased risk of unsafe or blocked deploys whenever there
-is a single staging environment for a shared service. Certain types of 
+is a single staging environment for a shared service. Certain types of
 (incredibly useful) changes require interactive review on a live server
 before we feel comfortable with those changes, which magnifies the risk of a unsafe or
 blocked deploy.
@@ -220,13 +220,13 @@ to have a working review app, which can be categorized into:
 1. Service Agnostic Tasks
 
 	These include:
-	
+
 	- Pushing a Docker image of the Git revision in question to the appropriate
 	  Docker registry
 	- Editing the generated YAML configuration file to reference this Docker image
 	- Sourcing the appropriate ENV variables (typically from the shared staging
 	  server)
-	
+
 	Check out [`hokusai`'s review app docs][hokusai-review-app-docs] for more
 	details.
 
@@ -234,14 +234,14 @@ to have a working review app, which can be categorized into:
 
 	In addition, certain services have service-specific operational requirements that
 	need to be met before a review app is fully functional.
-	
+
 	For example, in Force, we need to:
-	
+
 	- Publish front-end assets to S3 for the specific revision being deployed, and
 	- Tweak some ENV variables from the values copied over from the shared staging
 	  server
-	
-	
+
+
 **Impact**: Due to the manual labor required to (re)-learn and execute the
 commands needed to build a review app, they were used sparingly by a few engineers
 that already invested time in learning up on them.
