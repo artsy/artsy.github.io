@@ -1,6 +1,6 @@
 ---
 layout: epic
-title: Servers for Everyone: Review Apps @ Artsy
+title: "Servers for Everyone: Review Apps @ Artsy"
 date: 2020-08-20
 categories: [devops, hokusai, kubernetes, communication]
 author: daniel
