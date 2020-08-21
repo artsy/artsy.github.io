@@ -57,6 +57,10 @@ be safe to deploy. Team B's bugfix might just requires a quick visual confirmati
 Suffice to say, it's _hard to independently confirm that another team's work is
 safe to deploy_.
 
+Despite the cultural mitigation strategies discussed next, there's real risk
+of deploying unsafe code whenever a single staging environment is used across
+many teams.
+
 #### Shared Staging Mitigation Strategies
 
 There are a couple of ways Artsy mitigates against the possible pitfalls of a
