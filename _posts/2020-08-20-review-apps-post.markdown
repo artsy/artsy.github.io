@@ -142,9 +142,11 @@ certain projects.
 
 ## Problem Recap & Review App Introduction
 
-To recap, when working on complex tasks, particularly on shared services, it is
-really valuable to be able to share work easily, but when you can only share your
-work on a shared staging environment, many negative outcomes can result.
+To recap, there is an increased risk of unsafe or blocked deploys whenever there
+is a single staging environment for a shared service. Certain types of 
+(incredibly useful) changes require review from others before we feel
+comfortable deploying those changes, which magnifies the risk of a unsafe or
+blocked deploy.
 
 Review apps are simply other staging environments that are easy to spin up and
 are deployed with the version of the service that you are working on.
