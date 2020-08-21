@@ -188,6 +188,9 @@ services, Artsy developed a command line interface,
 [`hokusai`][hokusai-gh-homepage], to provide a Heroku CLI-like interface for
 configuring and deploying these services.
 
+Check out some [prior][related-bp-1] [posts][related-bp-2] discussing the experience of working with Kubernetes
+and `hokusai`.
+
 About a year after `hokusai`'s initial release, the tool released [its initial
 support for review apps][hokusai-review-app-pr].
 
@@ -314,3 +317,5 @@ Thanks for reading!
 [artsy-eng-principles]:https://github.com/artsy/README/blob/master/culture/engineering-principles.md#incremental-revolution
 [example-force-deploy-pr]:https://github.com/artsy/force/pull/6106
 [force-homepage]:https://github.com/artsy/force
+[related-bp-1]:https://artsy.github.io/blog/2019/10/18/kubernetes-and-hokusai/
+[related-bp-2]:https://artsy.github.io/blog/2018/01/24/kubernetes-and-hokusai/
