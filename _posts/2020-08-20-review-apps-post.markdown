@@ -268,7 +268,7 @@ already exists for a given branch.
 
 Check out the [pull request][review-app-on-circle-pr] for the nitty gritty on how
 we leveraged CircleCI branch filtering and more Bash to move this workload into
-CircleCI and intelligently determine when to upgdate versus create a review app.
+CircleCI and intelligently determine when to update or create a review app.
 
 **Impact**: Any developer can spin up a Force review app in ~15 minutes on a `git push`.
 Review app are being used often for major and minor changes alike.
