@@ -100,7 +100,8 @@ But before it gets better, it's going to get a bit worse.
 
 While working on any mature distributed system is a challenge, some work is
 particularly challenging or risky. Generally, risk is reduced when many
-skilled eyes can review the risky thing.
+skilled eyes can review the risky thing in an environment that closely mimics
+the production environment.
 
 This class of work might include changes to authorization flows, page
 redesigns or infrastructural upgrades (e.g. a NodeJS upgrade).
@@ -144,8 +145,8 @@ certain projects.
 
 To recap, there is an increased risk of unsafe or blocked deploys whenever there
 is a single staging environment for a shared service. Certain types of 
-(incredibly useful) changes require review from others before we feel
-comfortable deploying those changes, which magnifies the risk of a unsafe or
+(incredibly useful) changes require interactive review on a live server
+before we feel comfortable with those changes, which magnifies the risk of a unsafe or
 blocked deploy.
 
 Review apps are simply other staging environments that are easy to spin up and
