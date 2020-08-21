@@ -71,7 +71,13 @@ shared staging environment:
 less diff in every deploy, mitigating the risk of unintentionally deploying code
 that's not safe to deploy.
 
-2. Communicating deploys
+2. Using automated quality processes geared towards a stable staging environment
+
+	We do our best to feel as confident as possible in a change _before it is deployed
+	to staging_ by creating automated tests for changes, sharing visual changes over
+	Slack and in PRs, and other strategies relevant to the work at hand.
+
+3. Communicating deploys
 
 	When deploying a service, Artsy engineers typically send a message to our #dev
 Slack channel notifying of their plan to deploy a particular service, cc'ing the
@@ -79,13 +85,19 @@ engineers that are involved in other PRs that are part of the deploy. In the exa
 above, an engineer on Team B would notify relevant stakeholders of Team A, giving
 that team the opportunity to flag if their work is not yet safe to deploy.
 
-While these 2 strategies are impactful:
+While these strategies are impactful:
 
 - Semi-unstructured communication is prone to breakdown: the notified engineers
   on Team A might be pairing or in a meeting and Team B deploys anyways.
+  
 - Without a true continuous delivery model, it's a challenge to operationalize
   very frequent production deploys. Moreover, the problem compounds as the team
   grows and the velocity of work increases.
+  
+- Particularly when working in a large distributed system, automated testing at
+  the individual service level can only provide a certain level of safety for a
+  change. Visual changes which require correctness on different viewports and devices
+  are, pragmatically, often best to test manually.
 
 If only there was a way to allow Team A and B to work without risking stepping
 on each other toes!
