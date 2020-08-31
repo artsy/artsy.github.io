@@ -18,9 +18,10 @@ We'll be driving a peer learning group centering around Relay, but today we are 
 Relay that comes up the most in requests for pairing: getting Relay pagination to work. (Note: we're going to use
 plain old Relay and not [relay-hooks](https://github.com/relay-tools/relay-hooks).)
 
-My goal with this post is to show my thought process when trying to learn about, and clean up how we use, Relay
-pagination containers. We'll briefly go over some Relay fundamentals before diving in to a case study on how
-problematic code can get copy-and-pasted throughout your team's code.
+My goal with this post is to show my thought process when trying to learn about, and clean up our use of, Relay
+pagination containers. This post emphasizes the _demystifying_ process and not so much the _Relay pagination
+containers_ themselves – we'll briefly cover some Relay fundamentals before diving into a case study on how
+problematic code proliferates through copy-and-paste.
 
 Let's back up and talk a little bit about what Relay is and how it works. Relay is a framework that glues React
 components and GraphQL requests together. React components define the data they need from a GraphQL schema in order
@@ -65,7 +66,9 @@ _connections_ to show page after page of data.
 the scope of this blog post, but they are a way to fetch lists of data without running into the limitations of
 returning a simple array. Connections can return metadata about their results, like how many total results there
 are, and use cursors (rather than page numbers) for paginating. They also handle when items are inserted or deleted
-from the results between requests for pages. They're pretty cool!
+from the results between requests for pages –
+[check out this blog post](https://artsy.github.io/blog/2020/01/21/graphql-relay-windowed-pagination/) for more
+info on how to use connections with Relay.
 
 Pagination containers take considerably more setup than plain fragment containers, and the setup itself is very
 fickle. Things simply will not work until you get the configuration _exactly correct_, and then everything works
