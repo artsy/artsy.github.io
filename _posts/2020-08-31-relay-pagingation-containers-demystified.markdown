@@ -1,7 +1,7 @@
 ---
 layout: epic
 title: "Relay Pagination Containers Demystified"
-date: 2020-08-20
+date: 2020-08-31
 categories: [react, relay, culture]
 author: ash
 ---
