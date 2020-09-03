@@ -18,6 +18,8 @@ We'll be driving a peer learning group centering around Relay, but today we are 
 Relay that comes up the most in requests for pairing: getting Relay pagination to work. (Note: we're going to use
 plain old Relay and not [relay-hooks](https://github.com/relay-tools/relay-hooks).)
 
+<!-- more -->
+
 My goal with this post is to show my thought process when trying to learn about, and clean up our use of, Relay
 pagination containers. This post emphasizes the _demystifying_ process and not so much the _Relay pagination
 containers_ themselves – we'll briefly cover some Relay fundamentals before diving into a case study on how
