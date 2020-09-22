@@ -1,7 +1,7 @@
 ---
 layout: epic
 title: "Becoming Mobile First"
-date: 2020-08-31
+date: 2020-09-29
 categories: [teams, culture, ios, react native]
 author: ash
 ---
@@ -14,6 +14,8 @@ direction, and I was listening intently.
 
 With Artsy's iOS app, I knew there were only really two directions we could go. As I listened, I reflected on how
 we had gotten here.
+
+<!-- more -->
 
 When I joined Artsy in 2014, I joined the Mobile Team. We were called the "mobile" team, even though we only worked
 on Artsy's iOS apps and not the mobile website. Artsy didn't have, and still doesn't have, and Android app. It was
@@ -66,11 +68,13 @@ what I thought, and he wanted to know if I was interested in leading the team.
 
 Honestly, it was a dream come true.
 
+![Screenshot of the RFC for creating the Mobile Experience team](/images/2020-09-29-becoming-mobile-first-at-artsy/rfc.png)
+
 Here we are, a year later. This is the story of how Artsy created its Mobile Experience team. How we recovered a
 languishing iOS app. How engineers help shift the product organization to a mobile-first product strategy. And how
 Artsy grew from _sometimes_ having _a_ team working on the app, to usually having _every_ team working on it.
 
-TODO: Talk a bit about the RFC.
+![Another screenshot of the RFC for creating the Mobile Experience team, describing freqently asked questions](/images/2020-09-29-becoming-mobile-first-at-artsy/faq.png)
 
 When Artsy created its new Mobile Experience team, we were already resource-constrained and so the new team would
 need to be nimble. We had three engineers (myself as tech lead, and two others), assisted by a designer, product
@@ -86,7 +90,9 @@ mobile website? No, that's too far-reaching. What about Android? Well, yes, even
 After we decided on our mandate, the next step was to get really familiar with the existing app. We storyboarded
 out all the existing screens and their connections to one another.
 
-// TODO: Miro board screenshots
+![Screenshot of all the screens in our app laid out to discuss](/images/2020-09-29-becoming-mobile-first-at-artsy/walkthrough.png)
+
+![Screenshot of a brainstorm for app ideas](/images/2020-09-29-becoming-mobile-first-at-artsy/brainstorm.png)
 
 No one on our team had complete knowledge of every screen in the app, so exploring it together was a great way to
 uncover what needed immediate attention. One example was our partner page, which displayed information to our users
@@ -94,14 +100,16 @@ about Artsy's partners: galleries, museums, auction houses, etc. We learned that
 web view, and it didn't even show the partners _artworks_. The artworks! Probably the most important thing for it
 to do!
 
+![Screenshot of a presentation showing the old partner page](/images/2020-09-29-becoming-mobile-first-at-artsy/old_partner.png)
+
+![Screenshot of a presentation showing the new partner page, which looks much nicer](/images/2020-09-29-becoming-mobile-first-at-artsy/new_partner.png)
+
 This is where "being scrappy" started to take root. Usually when developing new features, Artsy designers iterate
 on a design before we plan on execution, then we implement, test, and deploy. The nice part of replacing something
 that was _obviously broken_ was that we didn't feel beholden to this usual process; whatever we built would be
 better than what we had. One engineer and our designer started with a quick pencil sketch, using the app's existing
 UI abstractions to design something that we could quickly build. Once we had a prototype, the engineer and designer
 iterated. The whole project took only about three weeks.
-
-// TODO: Grab some screenshots here.
 
 Learning about the app itself was critical, but equally important was learning about how our users _used_ the app.
 We scheduled user interviews and, in the mean time, looked into our anonymized user analytics. Our data analyst
@@ -118,7 +126,7 @@ page, like adding entity subtitles so users would know if the result they were t
 artist, a gallery, and so on. The whole project took about a month to complete, and we have continued to iterate on
 the app's search.
 
-// TODO: Grab some screenshots here.
+// TODO: Find screenshots of old & new search
 
 In early conversations with company leadership, the Mobile Experience team settled on an... interesting strategy to
 what we would prioritize. Our mission was "to make the app not suck." This might seem harsh! But it came from a
@@ -128,6 +136,8 @@ make the app amazing."
 
 During 2020, we made a lot of changes to the app. We had built a new home page, a profile tab for users, granular
 push notification settings, Sign In with Apple, and more.
+
+![Screenshot of a presentation showing the new home page](/images/2020-09-29-becoming-mobile-first-at-artsy/new_home.png)
 
 It was really exciting to show off our progress to the rest of the company at our monthly Demo Day, especially in
 those early months. The product team makes up only a quarter of our company and it was really cool to hear gallery
@@ -164,15 +174,20 @@ blocked from releasing an redesigned artwork view because we were waiting for a 
 API to be completed. Without guidance or structure, different teams were building big projects and both had their
 changes in our default branch – it was a bit chaotic.
 
-As the Mobile Experience team formed, I reached out (TODO: find the tweet) to other mobile teams to find out about
-how they structured regular releases. (TODO: get permission to cite MG here) was really helpful in particular. We
-implemented a two-week release cadence so that all product teams could align their own feature development and
-testing around this predictable structure. We also created documentation for teams to hide their in-progress work
-behind feature flags. And finally, we refined our app QA process; teams would QA their own features and bug fixes
-while the Mobile Experience team would used a QA script to test the app _generally_, every other Monday, before
-submitting an update to the App Store.
+<center>
+<blockquote class="twitter-tweet"><p lang="en" dir="ltr">iOS developers! I have a question for you. I hear a lot about teams releasing app updates on a 2-week cadence, to increase user confidence/App Store ranking/team morale/etc.<br><br>Have any teams shared their experiences with this? Bonus points for any quantitative data. Thanks!! 🤗</p>&mdash; Ash Furrow (@ashfurrow) <a href="https://twitter.com/ashfurrow/status/1184845989510811649?ref_src=twsrc%5Etfw">October 17, 2019</a></blockquote> <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+</center><br />
 
-// TODO: screenshot of cadence notion doc
+As the Mobile Experience team formed, I reached out to other mobile teams to find out about how they structured
+regular releases. [Matt Greenwell](https://twitter.com/Cform) from BuzzFeed was really helpful in particular,
+outlining their experience of the pros and cons of a regular release cadence. We implemented a two-week release
+cadence so that all product teams could align their own feature development and testing around this predictable
+structure. We also created documentation for teams to hide their in-progress work behind feature flags. And
+finally, we refined our app QA process; teams would QA their own features and bug fixes while the Mobile Experience
+team would used a QA script to test the app _generally_, every other Monday, before submitting an update to the App
+Store.
+
+![Calendar describing our cadence on an example sprint](/images/2020-09-29-becoming-mobile-first-at-artsy/cadence.png)
 
 To further help teams get into the habit of developing and releasing iOS software often, we created nightly betas.
 We also adopted a clever idea from our web colleagues: deploy blocks. In case of a technical reason to block
@@ -181,9 +196,9 @@ a lot of chatter in Slack where engineers would ask "could I make a new beta?" I
 for the nightly beta. And if they get impatient, they now default to action (their beta deploy will fail if we set
 up a block).
 
-All of this was automated through Fastlane on our CI provider. We had been using Fastlane for a long time at Artsy,
-but the Mobile Experience team took the time to share knowledge of how it worked. Any engineer at Artsy can now
-make a beta (`make beta`) or promote the latest beta to an App Store submission
+All of this was automated through [fastlane](https://fastlane.tools) on our CI provider. We had been using fastlane
+for a long time at Artsy, but the Mobile Experience team took the time to share knowledge of how it worked. Any
+engineer at Artsy can now make a beta (`make beta`) or promote the latest beta to an App Store submission
 (`make promote_beta_to_submission`).
 
 We deploy more often and, consequently, each deploy is less scary. And everyone is aware of the need to hide
@@ -209,6 +224,8 @@ engineer to them for a few sprints. When they ran into problems, we were generou
 them. When they were nearing completion, we helped them test the new feature. This all culminated in a smooth
 release.
 
+![Screenshot of a presentation showing the new home page's new loading indicator](/images/2020-09-29-becoming-mobile-first-at-artsy/new_loader.png)
+
 Speaking of Developer Experience, we took a keen interest in standardizing our best practices and modernizing the
 codebase. We documented how we wanted the app's codebase to look and set up processes like lint rules to encourage
 developers to follow our best practices. We also invited any engineer at Artsy to join our twice-weekly Knowledge
@@ -224,7 +241,7 @@ ongoing process, and should remain an ongoing process. At the time of writing, e
 bottleneck with core parts of our app's logic that are still in Objective-C. We still have older practices in the
 app that we want to migrate away from, like testing with Enzyme. But overall, things are looking good.
 
-// TODO: embed my recent conference presentation https://www.youtube.com/watch?v=IEn2_WSKFHw
+<iframe width="100%" height="400" src="https://www.youtube.com/embed/IEn2_WSKFHw" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe><br />
 
 We achieved most of these big, infrastructural changes in meetings called _Knowledge Shares_. I should write a
 dedicated blog post on these, but in short: Knowledge Shares are a _structured_ time to facilitate _unstructured
@@ -257,7 +274,7 @@ every team is fully equipped and empowered to deliver on their own business goal
 Our App Store ranking has shot through the roof – not surprising considering our "make it not suck" and then "make
 it amazing" approach. Artsy's iOS app rating now sits at a stout 4.7.
 
-// TODO: App Store ratings chart
+![Screenshot of a graph showing an increasing average App Store rating](/images/2020-09-29-becoming-mobile-first-at-artsy/ratings.png)
 
 We've also started tracking our iOS developer experience within Artsy. We know exactly where we still need work
 because we ask our engineers where they need support.
