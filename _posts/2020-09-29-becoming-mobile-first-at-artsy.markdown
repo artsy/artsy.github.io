@@ -2,8 +2,10 @@
 layout: epic
 title: "Becoming Mobile First"
 date: 2020-09-29
-categories: [teams, culture, ios, react native]
+categories: [teams, culture, ios, tooling, mobile, eigen, emission, node, reactnative]
 author: ash
+series: React Native at Artsy
+comment_id: 630
 ---
 
 It was a Wednesday, mid-summer 2019. I don't know which Wednesday specifically, but I know that it was _a_
@@ -18,8 +20,7 @@ we had gotten here.
 <!-- more -->
 
 When I joined Artsy in 2014, I joined the Mobile Team. We were called the "mobile" team, even though we only worked
-on Artsy's iOS apps and not the mobile website. Artsy didn't have, and still doesn't have, and Android app. It was
-an amazing team.
+on Artsy's iOS apps and not the mobile website. It was an amazing team.
 
 By 2016, Artsy Engineering had grown to the size that having only a "mobile team" and a "web team" was no longer
 working well. We dissolved both teams and distributed the engineers into new product teams, focused on vertical
@@ -47,7 +48,7 @@ I could see Artsy either making a massive investment in the app, or I could see 
 focusing on the software that we already knew how to build. Which direction we took largely depended on this new
 CEO, who was now standing in front of us all and describing the direction Artsy's product would take next.
 
----
+## The Dream
 
 Mike said something that caused a lot of raised eyebrows in the crowd. People were excited. _I_ was excited.
 Artsy's product organization would shift to adopt a "mobile-first strategy."
@@ -75,6 +76,8 @@ languishing iOS app. How engineers help shift the product organization to a mobi
 Artsy grew from _sometimes_ having _a_ team working on the app, to usually having _every_ team working on it.
 
 ![Another screenshot of the RFC for creating the Mobile Experience team, describing freqently asked questions](/images/2020-09-29-becoming-mobile-first-at-artsy/faq.png)
+
+## Getting Our Bearings
 
 When Artsy created its new Mobile Experience team, we were already resource-constrained and so the new team would
 need to be nimble. We had three engineers (myself as tech lead, and two others), assisted by a designer, product
@@ -111,6 +114,8 @@ better than what we had. One engineer and our designer started with a quick penc
 UI abstractions to design something that we could quickly build. Once we had a prototype, the engineer and designer
 iterated. The whole project took only about three weeks.
 
+## Early Wins
+
 Learning about the app itself was critical, but equally important was learning about how our users _used_ the app.
 We scheduled user interviews and, in the mean time, looked into our anonymized user analytics. Our data analyst
 found a few representative sessions and we walked through each action that a user took. One big lesson here was how
@@ -126,7 +131,7 @@ page, like adding entity subtitles so users would know if the result they were t
 artist, a gallery, and so on. The whole project took about a month to complete, and we have continued to iterate on
 the app's search.
 
-// TODO: Find screenshots of old & new search
+![Screenshot of a presentation showing the new search](/images/2020-09-29-becoming-mobile-first-at-artsy/new_search.png)
 
 In early conversations with company leadership, the Mobile Experience team settled on an... interesting strategy to
 what we would prioritize. Our mission was "to make the app not suck." This might seem harsh! But it came from a
@@ -145,6 +150,8 @@ liaisons complementing our new partner page, or sales people complementing our r
 people had gotten so used to the app not moving much at all that this sudden high velocity of development was as
 exciting for them as it was for us.
 
+## Setting Up Others To Succeed
+
 Artsy's goal for the Mobile Experience team was explicitly _not_ to centralize all our iOS feature development, and
 so our mandate included much more that just working on iOS software ourselves. We wanted to sit between a typical
 product team and a "platform" team, to provide infrastructure and assistance so any team at Artsy could develop
@@ -161,6 +168,8 @@ provided weekly office hours for learners to get assistance with homework. I eve
 educator, developing new skills around curriculum design and delivery. After the course, learners responded
 positively to the experience and we have integrated lessons learned from the iOS Learning Group into subsequent
 peer learning groups.
+
+## Aligning Product Releases
 
 Now that engineers had a solid grasp of how to build software in our application, we could re-align our product
 development process around iOS. I can't speak to the design side of this, but from a product perspective the most
@@ -189,6 +198,8 @@ Store.
 
 ![Calendar describing our cadence on an example sprint](/images/2020-09-29-becoming-mobile-first-at-artsy/cadence.png)
 
+## Making Deploys Not Scary
+
 To further help teams get into the habit of developing and releasing iOS software often, we created nightly betas.
 We also adopted a clever idea from our web colleagues: deploy blocks. In case of a technical reason to block
 deploys, we create a block and the CI job that deploys the beta would fail with a descriptive message. This reduced
@@ -204,6 +215,8 @@ engineer at Artsy can now make a beta (`make beta`) or promote the latest beta t
 We deploy more often and, consequently, each deploy is less scary. And everyone is aware of the need to hide
 in-progress work behind feature flags. At this point, updates to our app are mundane, predictable, and boring. Just
 the way we like them.
+
+## Being Generous With Our Time
 
 Our QA and deploy process touches on something I want to go into more detail about, which is how the Mobile
 Experience team helped support other product teams. I described earlier how Mobile Experience sits somewhere
@@ -229,25 +242,36 @@ release.
 Speaking of Developer Experience, we took a keen interest in standardizing our best practices and modernizing the
 codebase. We documented how we wanted the app's codebase to look and set up processes like lint rules to encourage
 developers to follow our best practices. We also invited any engineer at Artsy to join our twice-weekly Knowledge
-Share meetings (more on those shortly). We looked for bottle necks in the development process and found many
-problems, which we addressed. We combined the Native iOS and React Native repositories (which had historically been
-separated). We overhauled the CI configuration to leverage heavy caching – average build times dropped from fifteen
-minutes to less than five. And we adopted stricter TypeScript compiler settings so that engineers would be forced
-to deal with nullability and other causes of bugs. (Hey, sometimes you need a carrot and sometimes you need a
-stick.)
+Share meetings (I'll discuss these in depth shortly). We looked for bottle necks in the development process and
+found many problems, which we addressed. We combined the Native iOS and React Native repositories (which had
+historically been separated). We overhauled the CI configuration to leverage heavy caching – average build times
+dropped from fifteen minutes to less than five. And we adopted stricter TypeScript compiler settings so that
+engineers would be forced to deal with nullability and other causes of bugs. (Hey, sometimes you need a carrot and
+sometimes you need a stick.)
+
+The React Native community has grown a lot since 2016. If Artsy were to begin our adoption of React Native today,
+we would be really well-supported by a community that has defined best practices, documented standard approaches to
+problems, and a consolidated opinion on what a React Native codebase should "feel" like. None of that existed in
+2016, and our early architectural decisions don't really reflect contemporary best practices. For example, we
+initially separated our native Objective-C and Swift code from the React Native JavaScript
+[in its own repo](https://github.com/artsy/emission). This worked well at the time but has since become a burden –
+so we combined the two repositories. We continue working on these kinds of projects, to bring our codebase closer
+to resembling a fresh project created with `react-native init`.
 
 I'm extraordinarily happy with how things have shaped up, and in the direction we continue to move. This is all an
 ongoing process, and should remain an ongoing process. At the time of writing, engineers are still facing a
 bottleneck with core parts of our app's logic that are still in Objective-C. We still have older practices in the
 app that we want to migrate away from, like testing with Enzyme. But overall, things are looking good.
 
-<iframe width="100%" height="400" src="https://www.youtube.com/embed/IEn2_WSKFHw" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe><br />
+<iframe width="100%" height="400" src="https://www.youtube.com/embed/IEn2_WSKFHw" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
+## Knowledge Shares
 
 We achieved most of these big, infrastructural changes in meetings called _Knowledge Shares_. I should write a
 dedicated blog post on these, but in short: Knowledge Shares are a _structured_ time to facilitate _unstructured
 learning_. Anyone can bring a topic to Knowledge Share, from a ticket that they're stuck on to an idea they have to
 a neat trick they recently learned. We set aside these two hours a week to discuss whatever the team wants, and we
-don't strictly invite engineers.
+don't only invite engineers.
 
 New feature designs, product roadmaps, and data analyses are often brought up by our non-engineering colleagues; we
 discuss these at the beginning of the meetings to make sure everyone's time is respected. Throughout the week,
@@ -263,7 +287,7 @@ is treated as the paramount goal.
 Like I said, I owe you a whole blog post on Knowledge Share meetings. I hope I have conveyed how important these
 scheduled "structured unstructured learning" times have been for us.
 
----
+## The Results
 
 So where does that leave us? It's been a year and change, where are we now? Well I'm happy to say that we've made a
 huge impact. We've gone from only having (at most) one product team writing iOS software at a time to having nearly
@@ -280,6 +304,8 @@ We've also started tracking our iOS developer experience within Artsy. We know e
 because we ask our engineers where they need support.
 
 It's taken a mammoth effort, but I feel ecstatic looking at the results.
+
+## Next Steps
 
 All that said, Artsy's product team is currently embarking on another reorganization. With so much technical and
 product debt paid off, Artsy has evolved past the need for a dedicated Mobile Experience team. It's bittersweet,
