@@ -10,9 +10,10 @@ comment_id: 630
 
 It was a Wednesday, mid-summer 2019. I don't know which Wednesday specifically, but I know that it was _a_
 Wednesday because I was attending Artsy's weekly all-hands meeting. Two hundred colleagues were also there (many
-dialing in remotely) and we were all listening to Artsy's new CEO talk about the company's direction. Mike Steib
-had only been around for a few months at that point, getting to know the business. He was talking about the product
-direction, and I was listening intently.
+dialing in remotely) and we were all listening to
+[Artsy's new CEO](https://files.artsy.net/documents/artsy-names-new-ceo.pdf) talk about the company's direction.
+Mike Steib had only been around for a few months at that point, getting to know the business. He was talking about
+the product direction, and I was listening intently.
 
 With Artsy's iOS app, I knew there were only really two directions we could go. As I listened, I reflected on how
 we had gotten here.
@@ -23,18 +24,19 @@ When I joined Artsy in 2014, I joined the Mobile Team. We were called the "mobil
 on Artsy's iOS apps and not the mobile website. It was an amazing team.
 
 By 2016, Artsy Engineering had grown to the size that having only a "mobile team" and a "web team" was no longer
-working well. We dissolved both teams and distributed the engineers into new product teams, focused on vertical
-aspects of Artsy's business. Auctions. Partner Success. Editorial. And so on. The idea was that each team would
-have total autonomy over building products to support their slice of the business, and each would have the
+working well. We dissolved both teams and distributed the engineers into
+[new product teams](https://artsy.github.io/blog/2016/03/28/artsy-engineering-organization-stack/), focused on
+vertical aspects of Artsy's business. Auctions. Partner Success. Editorial. And so on. The idea was that each team
+would have total autonomy over building products to support their slice of the business, and each would have the
 engineering and design resources to build new features across both our web and iOS canvases.
 
-That structure worked well, and continues to work well today. But by dissolving the Mobile Team, no one was looking
-at our iOS software holistically. The app had become a series of silos – each silo was internally consistent, but
-visually distinct from each other. Often each silo was written in distinct programming languages (we had also
-started adopting React Native). New iOS technologies had been created by Apple, but we weren't taking full
-advantage of them. We would update to support the latest versions of Xcode and iOS in the free time between other
-tickets. Of the [five original members of the Mobile Team](https://github.com/artsy/mobile), everyone else had
-moved on except me.
+That structure worked well, and continues to work well today (we have continued re-organizing ourselves into new
+teams to meet business goals). But by dissolving the Mobile Team, no one was looking at our iOS software
+holistically. The app had become a series of silos – each silo was internally consistent, but visually distinct
+from each other. Often each silo was written in distinct programming languages (we had also started adopting React
+Native). New iOS technologies had been created by Apple, but we weren't taking full advantage of them. We would
+update to support the latest versions of Xcode and iOS in the free time between other tickets. Of the
+[five original members of the Mobile Team](https://github.com/artsy/mobile), everyone else had moved on except me.
 
 As a product, the app was languishing.
 
@@ -86,7 +88,7 @@ needed to be scrappy. I'm really proud of the work that that early team accompli
 those first few months working with Sam, Joanna, David, Kieran, and Ani.
 
 The first thing we did was define our own mandate. What was this team responsible for? What was it _not_
-responsible? "Mobile Experience" is pretty vague, and we had to answer a lot of upfront questions. Would we be
+responsible for? "Mobile Experience" is pretty vague, and we had to answer a lot of upfront questions. Would we be
 responsible for _all_ of Artsy's iOS software? No, just the main collector app. Would we be responsible for Artsy's
 mobile website? No, that's too far-reaching. What about Android? Well, yes, eventually...
 
@@ -97,11 +99,11 @@ out all the existing screens and their connections to one another.
 
 ![Screenshot of a brainstorm for app ideas](/images/2020-09-29-becoming-mobile-first-at-artsy/brainstorm.png)
 
-No one on our team had complete knowledge of every screen in the app, so exploring it together was a great way to
-uncover what needed immediate attention. One example was our partner page, which displayed information to our users
-about Artsy's partners: galleries, museums, auction houses, etc. We learned that the app actually used an ancient
-web view, and it didn't even show the partners _artworks_. The artworks! Probably the most important thing for it
-to do!
+No one on our team had complete knowledge of every screen in the app, not even me, so exploring it together was a
+great way to uncover what needed immediate attention. One example was our partner page, which displayed information
+to our users about Artsy's partners: galleries, museums, auction houses, etc. We learned that the app actually used
+an ancient web view, and it didn't even show the partners _artworks_. The artworks! Probably the most important
+thing for it to do!
 
 ![Screenshot of a presentation showing the old partner page](/images/2020-09-29-becoming-mobile-first-at-artsy/old_partner.png)
 
@@ -125,11 +127,11 @@ session. For example, users would search for "banksy", wander off exploring some
 "bansky" again. And again. And again.
 
 Our search implementation didn't show users their own recent searches, which would have greatly reduced the amount
-of friction users experienced while exploring the art world in the app. Our other engineer took point, and worked
-with our designer to migrate the app's search to React Native. We also added some other features to our search
-page, like adding entity subtitles so users would know if the result they were tapping on was an artwork, and
-artist, a gallery, and so on. The whole project took about a month to complete, and we have continued to iterate on
-the app's search.
+of friction users experienced while exploring the art world in the app. Our other engineer took point working with
+our designer to migrate the app's search to React Native. We also added some other features to our search page,
+like adding entity subtitles so users would know if the result they were tapping on was an artwork, and artist, a
+gallery, and so on. The whole project took about a month to complete, and we have continued to iterate on the app's
+search.
 
 ![Screenshot of a presentation showing the new search](/images/2020-09-29-becoming-mobile-first-at-artsy/new_search.png)
 
@@ -182,6 +184,16 @@ problem was that large pieces of work tended to get coupled together. This came 
 blocked from releasing an redesigned artwork view because we were waiting for a major overhaul to Artsy's GraphQL
 API to be completed. Without guidance or structure, different teams were building big projects and both had their
 changes in our default branch – it was a bit chaotic.
+
+These two problems are incidental to how we worked at Artsy but there is another, inherent problem to developing
+mobile apps:
+[deploying iOS software is weird](https://artsy.github.io/blog/2020/03/02/ios-deploys-super-weird-totally-normal/).
+Engineers, designers, and product managers at Artsy are used to being able to quickly and cheaply deploy software
+to the _web_, not the App Store. iOS software is deployed to our user's hardware, not to servers we control, which
+introduces the possibility that users might no upgrade. Software we shipped years ago is still being ran today – we
+have the anayltics to prove it. Not to mention that every app update has to go through Apple's App Store review
+process. Getting our product team aligned on a release schedule might also help us get aligned on the weirdness of
+deploying iOS software.
 
 <center>
 <blockquote class="twitter-tweet"><p lang="en" dir="ltr">iOS developers! I have a question for you. I hear a lot about teams releasing app updates on a 2-week cadence, to increase user confidence/App Store ranking/team morale/etc.<br><br>Have any teams shared their experiences with this? Bonus points for any quantitative data. Thanks!! 🤗</p>&mdash; Ash Furrow (@ashfurrow) <a href="https://twitter.com/ashfurrow/status/1184845989510811649?ref_src=twsrc%5Etfw">October 17, 2019</a></blockquote> <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
@@ -240,38 +252,44 @@ release.
 ![Screenshot of a presentation showing the new home page's new loading indicator](/images/2020-09-29-becoming-mobile-first-at-artsy/new_loader.png)
 
 Speaking of Developer Experience, we took a keen interest in standardizing our best practices and modernizing the
-codebase. We documented how we wanted the app's codebase to look and set up processes like lint rules to encourage
-developers to follow our best practices. We also invited any engineer at Artsy to join our twice-weekly Knowledge
-Share meetings (I'll discuss these in depth shortly). We looked for bottle necks in the development process and
-found many problems, which we addressed. We combined the Native iOS and React Native repositories (which had
-historically been separated). We overhauled the CI configuration to leverage heavy caching – average build times
-dropped from fifteen minutes to less than five. And we adopted stricter TypeScript compiler settings so that
-engineers would be forced to deal with nullability and other causes of bugs. (Hey, sometimes you need a carrot and
-sometimes you need a stick.)
+codebase. We
+[documented how we wanted the app's codebase to look](https://github.com/artsy/eigen/blob/dc81bbc9cd33d51d10054a6c57e61a1bd0ee3e75/docs/preferred_practices.md)
+and set up
+[processes like lint rules](https://github.com/artsy/eigen/blob/dc81bbc9cd33d51d10054a6c57e61a1bd0ee3e75/tslint-rules/useWrappedComponentsRule.js)
+to encourage developers to follow our best practices. We also invited any engineer at Artsy to join our
+twice-weekly Knowledge Share meetings (I'll discuss these in depth shortly). We looked for bottle necks in the
+development process and found many problems, which we addressed.
+[We combined the Native iOS and React Native repositories](https://github.com/artsy/eigen/pull/3022) (which had
+historically been separated). [We overhauled the CI configuration](https://github.com/artsy/eigen/pull/3105) to
+leverage heavy caching – average build times dropped from fifteen minutes to less than five.
+[And we adopted stricter TypeScript compiler settings](https://github.com/artsy/eigen/pull/3210) so that engineers
+would be forced to deal with nullability and other causes of bugs. (Hey, sometimes you need a carrot and sometimes
+you need a stick.)
 
 The React Native community has grown a lot since 2016. If Artsy were to begin our adoption of React Native today,
 we would be really well-supported by a community that has defined best practices, documented standard approaches to
 problems, and a consolidated opinion on what a React Native codebase should "feel" like. None of that existed in
-2016, and our early architectural decisions don't really reflect contemporary best practices. For example, we
-initially separated our native Objective-C and Swift code from the React Native JavaScript
-[in its own repo](https://github.com/artsy/emission). This worked well at the time but has since become a burden –
-so we combined the two repositories. We continue working on these kinds of projects, to bring our codebase closer
-to resembling a fresh project created with `react-native init`.
+2016, and our early architectural decisions don't really reflect contemporary best practices. We continue working
+to bring our codebase closer to resembling a fresh project created with `react-native init`.
 
 I'm extraordinarily happy with how things have shaped up, and in the direction we continue to move. This is all an
-ongoing process, and should remain an ongoing process. At the time of writing, engineers are still facing a
-bottleneck with core parts of our app's logic that are still in Objective-C. We still have older practices in the
-app that we want to migrate away from, like testing with Enzyme. But overall, things are looking good.
+ongoing process, and should remain an ongoing process. For example, engineers were still facing a bottleneck with
+core parts of our app's routing logic that were in Objective-C, so we recently
+[moved all routing to TypeScript](https://github.com/artsy/eigen/pull/3771). Not only does moving code out of
+Objective-C make it easier for everyone to build, but it also ladders up to a cross-platform Artsy app.
+
+We still have older practices in the app that we want to migrate away from, like testing with Enzyme. But overall,
+things are looking good!
 
 <iframe width="100%" height="400" src="https://www.youtube.com/embed/IEn2_WSKFHw" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 
 ## Knowledge Shares
 
-We achieved most of these big, infrastructural changes in meetings called _Knowledge Shares_. I should write a
-dedicated blog post on these, but in short: Knowledge Shares are a _structured_ time to facilitate _unstructured
-learning_. Anyone can bring a topic to Knowledge Share, from a ticket that they're stuck on to an idea they have to
-a neat trick they recently learned. We set aside these two hours a week to discuss whatever the team wants, and we
-don't only invite engineers.
+We achieved most of these big, infrastructural changes in meetings called _Knowledge Shares_, which I mentioned
+earlier. I should write a dedicated blog post on these, but in short: Knowledge Shares are a _structured_ time to
+facilitate _unstructured learning_. Anyone can bring a topic to Knowledge Share, from a ticket that they're stuck
+on to an idea they have to a neat trick they recently learned. We set aside these two hours a week to discuss
+whatever the team wants, and we don't only invite engineers.
 
 New feature designs, product roadmaps, and data analyses are often brought up by our non-engineering colleagues; we
 discuss these at the beginning of the meetings to make sure everyone's time is respected. Throughout the week,
@@ -303,7 +321,8 @@ it amazing" approach. Artsy's iOS app rating now sits at a stout 4.7.
 We've also started tracking our iOS developer experience within Artsy. We know exactly where we still need work
 because we ask our engineers where they need support.
 
-It's taken a mammoth effort, but I feel ecstatic looking at the results.
+It's taken a mammoth effort, and there's so much more that I could talk about, but this blog post is long enough
+already! Looking at the work we've done, the ways we've done it, and the results of our effort... I feel ecstatic.
 
 ## Next Steps
 
@@ -311,11 +330,11 @@ All that said, Artsy's product team is currently embarking on another reorganiza
 product debt paid off, Artsy has evolved past the need for a dedicated Mobile Experience team. It's bittersweet,
 but I'm proud to say that the new Collector Experience team is about to be born. Our team will continue to own the
 mobile platform, including its holistic user experience and day-to-day developer experience, but we'll have an
-expanded mandate. We will now be helping collectors across Artsy's different canvasses have a best-in-class
-experience.
+expanded mandate. That mandate includes a cross-platform Artsy app that will work for collectors on Android as well
+as iOS.
 
 The Mobile Experience team has grown, too. Since we started last year with just a few engineers and limited product
 support, we now boast a full roster of engineers and product support. I want to thank everyone on the team,
 currently: David, Sam, Brian, Mike, Brittney, Pavlos, and Mounir. You have made the past year an incredibly
 rewarding experience for me as I learn the ropes of technical leadership. I'm so proud of what we've built together
-and I'm excited for what we're going to do next.
+and I'm excited for what the new Collector Experience team is going to do next!
