@@ -20,8 +20,8 @@ we had gotten here.
 
 <!-- more -->
 
-When I joined Artsy in 2014, I joined the Mobile Team. We were called the "mobile" team, even though we only worked
-on Artsy's iOS apps and not the mobile website. It was an amazing team.
+When I joined Artsy in 2014, I joined the Mobile Team. It was an amazing team. While we were called the "mobile"
+team, we only worked on Artsy's iOS apps and not the mobile website.
 
 By 2016, Artsy Engineering had grown to the size that having only a "mobile team" and a "web team" was no longer
 working well. We dissolved both teams and distributed the engineers into
@@ -31,24 +31,28 @@ would have total autonomy over building products to support their slice of the b
 engineering and design resources to build new features across both our web and iOS canvases.
 
 That structure worked well, and continues to work well today (we have continued re-organizing ourselves into new
-teams to meet business goals). But by dissolving the Mobile Team, no one was looking at our iOS software
-holistically. The app had become a series of silos – each silo was internally consistent, but visually distinct
-from each other. Often each silo was written in distinct programming languages (we had also started adopting React
-Native). New iOS technologies had been created by Apple, but we weren't taking full advantage of them. We would
-update to support the latest versions of Xcode and iOS in the free time between other tickets. Of the
-[five original members of the Mobile Team](https://github.com/artsy/mobile), everyone else had moved on except me.
+teams to better meet business goals). But once we dissolved the mobile team, there was no longer anyone looking at
+our iOS software holistically. The app had become a series of silos – each silo was internally consistent, but
+distinct from each other. Often each silo was written in distinct programming languages (we had also started
+adopting React Native).
+
+New iOS technologies had been created by Apple, but our teams weren't taking full advantage of them. We would
+update to support the latest versions of Xcode and iOS in the free time between other tickets. It wasn't ideal. Of
+the [five original members of the Mobile Team](https://github.com/artsy/mobile), everyone else had moved on except
+me.
 
 As a product, the app was languishing.
 
 Yet despite this, it was also hugely popular among our users and very important to Artsy's business. Art collectors
-love the app! It gets a large percentage of our total sessions. Also, users place an outsized number of auction
+love our app! It gets a large percentage of our total sessions. Also, users place an outsized number of auction
 bids and artwork inquiries using our app relative to the number of sessions on our website. In fact, the highest
 value artwork transaction _ever_ to take place on Artsy was made on an iPad, running software that I helped build.
 I'm still pretty proud of that.
 
-I could see Artsy either making a massive investment in the app, or I could see Artsy cutting its losses and
-focusing on the software that we already knew how to build. Which direction we took largely depended on this new
-CEO, who was now standing in front of us all and describing the direction Artsy's product would take next.
+So, Wednesday all-hands. I stood there, not sure of what would happen next. I could see Artsy either making a
+massive investment in the app, or I could see Artsy cutting its losses and focusing on the software that we already
+knew how to build. Which direction we took largely depended on this new CEO, who was now standing in front of us
+all and describing the direction Artsy's product would take next.
 
 ## The Dream
 
@@ -74,18 +78,18 @@ Honestly, it was a dream come true.
 ![Screenshot of the RFC for creating the Mobile Experience team](/images/2020-09-29-becoming-mobile-first-at-artsy/rfc.png)
 
 Here we are, a year later. This is the story of how Artsy created its Mobile Experience team. How we recovered a
-languishing iOS app. How engineers help shift the product organization to a mobile-first product strategy. And how
-Artsy grew from _sometimes_ having _a_ team working on the app, to usually having _every_ team working on it.
+languishing iOS app. How engineers helped shift the product organization to a mobile-first product strategy. And
+how Artsy grew from _sometimes_ having _a_ team working on the app, to usually having _every_ team working on it.
 
-![Another screenshot of the RFC for creating the Mobile Experience team, describing freqently asked questions](/images/2020-09-29-becoming-mobile-first-at-artsy/faq.png)
+![Another screenshot of the RFC for creating the Mobile Experience team, describing frequently asked questions](/images/2020-09-29-becoming-mobile-first-at-artsy/faq.png)
 
 ## Getting Our Bearings
 
 When Artsy created its new Mobile Experience team, we were already resource-constrained and so the new team would
-need to be nimble. We had three engineers (myself as tech lead, and two others), assisted by a designer, product
-manager, and data analyst, who would each be spending only half their work time on the Mobile Experience team. We
-needed to be scrappy. I'm really proud of the work that that early team accomplished, and I look back fondly on
-those first few months working with Sam, Joanna, David, Kieran, and Ani.
+need to be nimble. We had three full-time engineers (myself as tech lead, and two others), assisted by a designer,
+product manager, and data analyst, who would each be spending only half their work time on the Mobile Experience
+team. We needed to be scrappy. I'm really proud of the work that that early team accomplished, and I look back
+fondly on those first few months working with Sam, Joanna, David, Kieran, and Ani.
 
 The first thing we did was define our own mandate. What was this team responsible for? What was it _not_
 responsible for? "Mobile Experience" is pretty vague, and we had to answer a lot of upfront questions. Would we be
@@ -102,7 +106,7 @@ out all the existing screens and their connections to one another.
 No one on our team had complete knowledge of every screen in the app, not even me, so exploring it together was a
 great way to uncover what needed immediate attention. One example was our partner page, which displayed information
 to our users about Artsy's partners: galleries, museums, auction houses, etc. We learned that the app actually used
-an ancient web view, and it didn't even show the partners _artworks_. The artworks! Probably the most important
+an ancient web view, and it didn't even show the partner's _artworks_. The artworks! Probably the most important
 thing for it to do!
 
 ![Screenshot of a presentation showing the old partner page](/images/2020-09-29-becoming-mobile-first-at-artsy/old_partner.png)
@@ -112,9 +116,9 @@ thing for it to do!
 This is where "being scrappy" started to take root. Usually when developing new features, Artsy designers iterate
 on a design before we plan on execution, then we implement, test, and deploy. The nice part of replacing something
 that was _obviously broken_ was that we didn't feel beholden to this usual process; whatever we built would be
-better than what we had. One engineer and our designer started with a quick pencil sketch, using the app's existing
-UI abstractions to design something that we could quickly build. Once we had a prototype, the engineer and designer
-iterated. The whole project took only about three weeks.
+better than what we had. One engineer and our designer started the new partner page with a quick pencil sketch,
+using the app's existing UI abstractions to design something that we could quickly build. Once we had a prototype,
+the engineer and designer iterated. The whole project took only about three weeks.
 
 ## Early Wins
 
@@ -213,15 +217,15 @@ Store.
 ## Making Deploys Not Scary
 
 To further help teams get into the habit of developing and releasing iOS software often, we created nightly betas.
-We also adopted a clever idea from our web colleagues: deploy blocks. In case of a technical reason to block
-deploys, we create a block and the CI job that deploys the beta would fail with a descriptive message. This reduced
+We also adopted a clever idea from our web colleagues: deploy blocks. In case of a technical reason to not release
+a beta, we create a block and the CI job that deploys the beta would fail with a descriptive message. This reduced
 a lot of chatter in Slack where engineers would ask "could I make a new beta?" Instead, engineers usually just wait
 for the nightly beta. And if they get impatient, they now default to action (their beta deploy will fail if we set
 up a block).
 
 All of this was automated through [fastlane](https://fastlane.tools) on our CI provider. We had been using fastlane
 for a long time at Artsy, but the Mobile Experience team took the time to share knowledge of how it worked. Any
-engineer at Artsy can now make a beta (`make beta`) or promote the latest beta to an App Store submission
+engineer at Artsy can now make a beta (`make deploy`) or promote the latest beta to an App Store submission
 (`make promote_beta_to_submission`).
 
 We deploy more often and, consequently, each deploy is less scary. And everyone is aware of the need to hide
@@ -257,7 +261,7 @@ codebase. We
 and set up
 [processes like lint rules](https://github.com/artsy/eigen/blob/dc81bbc9cd33d51d10054a6c57e61a1bd0ee3e75/tslint-rules/useWrappedComponentsRule.js)
 to encourage developers to follow our best practices. We also invited any engineer at Artsy to join our
-twice-weekly Knowledge Share meetings (I'll discuss these in depth shortly). We looked for bottle necks in the
+twice-weekly Knowledge Share meetings (I'll discuss these in-depth shortly). We looked for bottle necks in the
 development process and found many problems, which we addressed.
 [We combined the Native iOS and React Native repositories](https://github.com/artsy/eigen/pull/3022) (which had
 historically been separated). [We overhauled the CI configuration](https://github.com/artsy/eigen/pull/3105) to
