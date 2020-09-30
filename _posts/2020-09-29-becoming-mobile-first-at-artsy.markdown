@@ -194,8 +194,8 @@ mobile apps:
 [deploying iOS software is weird](https://artsy.github.io/blog/2020/03/02/ios-deploys-super-weird-totally-normal/).
 Engineers, designers, and product managers at Artsy are used to being able to quickly and cheaply deploy software
 to the _web_, not the App Store. iOS software is deployed to our user's hardware, not to servers we control, which
-introduces the possibility that users might no upgrade. Software we shipped years ago is still being ran today – we
-have the anayltics to prove it. Not to mention that every app update has to go through Apple's App Store review
+introduces the possibility that users might not upgrade. Software we shipped years ago is still being run today –
+we have the analytics to prove it. Not to mention that every app update has to go through Apple's App Store review
 process. Getting our product team aligned on a release schedule might also help us get aligned on the weirdness of
 deploying iOS software.
 
