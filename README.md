@@ -8,6 +8,7 @@ their [website rocks](http://jekyllrb.com/).
 ```
 git clone git@github.com:artsy/artsy.github.io.git
 cd artsy.github.io
+bundle
 bundle exec rake bootstrap
 bundle exec rake build
 ```
