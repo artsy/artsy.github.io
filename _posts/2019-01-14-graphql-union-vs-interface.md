@@ -8,11 +8,11 @@ comment_id: 522
 ---
 
 At Artsy we’ve been moving towards GraphQL for all of our new services. Acknowledging GraphQL is a relatively new
-technology, we faced some challenging questions as we were developing one our most recent services.
+technology, we faced some challenging questions as we were developing one of our most recent services.
 
 Naively as my first attempt to define GraphQL types and schemas, I naturally tried to map our database models to
 GraphQL types. While this may work for lot of cases, we may not be utilizing some of the useful features that come
-with GraphQL that can make the consuming our data a lot easier.
+with GraphQL that can make the consuming of our data a lot easier.
 
 ## GraphQL: Interface or Union?
 
@@ -119,7 +119,7 @@ class SearchResultUnionType < Types::BaseUnion
 end
 ```
 
-With the above change you can now query for search results and use specific fragments for different result type:
+With the above change you can now query for search results and use specific fragments for different result types:
 
 ```js
 query {
@@ -307,6 +307,6 @@ end
 
 ## Conclusion
 
-The biggest learning experience for us was to realize that with GraphQL we have the option to decouple our database
+The biggest learning experience for us was realizing that with GraphQL we have the option to decouple our database
 modeling with how the data is exposed to consumers. This way when designing our persistence layer, we can focus on
-the needs of that layer and then separately think about whats the best way to expose the data to the outside world.
+the needs of that layer and then separately think about what's the best way to expose the data to the outside world.
