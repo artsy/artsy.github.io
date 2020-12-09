@@ -290,7 +290,7 @@ things are looking good!
 ## Knowledge Shares
 
 We achieved most of these big, infrastructural changes in meetings called _Knowledge Shares_, which I mentioned
-earlier. I should write a dedicated blog post on these, but in short: Knowledge Shares are a _structured_ time to
+earlier. I should write a dedicated blog post on these (update: [I did write one](/blog/2020/12/09/share-your-knowledge/)), but in short: Knowledge Shares are a _structured_ time to
 facilitate _unstructured learning_. Anyone can bring a topic to Knowledge Share, from a ticket that they're stuck
 on to an idea they have to a neat trick they recently learned. We set aside these two hours a week to discuss
 whatever the team wants, and we don't only invite engineers.
