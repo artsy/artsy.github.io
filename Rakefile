@@ -39,14 +39,14 @@ namespace :podcast do
     puts 'Upload completed.'
 
     output = <<-EOS
-    - title:
-      date: #{Time.new.to_s}
-      description:
-      url: #{s3_upload.public_url}
-      file_byte_length: #{filesize}
-      duration: #{duration}
+    - title: ""
+      date: "#{Time.new.to_s}"
+      description: ""
+      url: "#{s3_upload.public_url}"
+      file_byte_length: "#{filesize}"
+      duration: "#{duration}"
       credits:
-        -
+        - 
 EOS
 
     File.open('_config.yml', 'a') do |file|
