@@ -2,7 +2,7 @@
 layout: epic
 title: Intro to React Native for an iOS Developer
 date: 2017-07-06
-categories: [Technology, emission, reaction, react-native, react, javascript]
+categories: [Technology, emission, reaction, reactnative, react, javascript]
 author: orta
 series: React Native at Artsy
 css: what-is-react-native
@@ -11,7 +11,7 @@ comment_id: 362
 
 React Native is a new native library that vastly changes the way in which you can create applications. The majority of the information and tutorials on the subject come from the angle of _"you are a web developer, and want to do native"_.
 
-This makes sense, given that the size of the JavaScript/web audience is much bigger than native developers, and far more open in the idea of writing apps using JavaScript. For web developers it opens a new creative space to work, however for native developers it provides a way to work with different tools on the same problem. Considering that most developers with a few years on the platform will be comfortable with the Xcode toolset, recommending a change this drastic is a tough sell.
+This makes sense, given that the size of the JavaScript/web audience is much bigger than native developers, and far more open in the idea of writing apps using JavaScript. For web developers it opens a new creative space to work, however for native developers it provides a way to work with different tools on the same problem. Considering that most developers with a few years on the platform will be comfortable with the Xcode suites of tools, recommending a change this drastic is a tough sell.
 
 We've been using React Native now for about a year and a half, and have started to slow down on sweeping changes inside the codebase. This is great because it means we're spending less time trying to get things to work, and more time building on top of a solid foundations. Now that we're settled, it's time to start deeply understanding what happens with React Native.
 
@@ -52,9 +52,9 @@ React provides a single-direction Component model that _can_ handle what is trad
 
 React was built out of a desire to abstract away a web page's true view hierarchy (called the DOM) so that they could make changes to all of their views and then React would handle finding the differences between view states.
 
-This pattern is applied by providing a consistent way to represent a component's state. Imagine if every `UIView` subclass had a "`setState`" function where you can send a subset of all available options (backgroundColor, frame, alpha, etc) and then eventually UIKit would re-concile all changes to all views in batches.
+This pattern is applied by providing a consistent way to represent a component's state. Imagine if every `UIView` subclass had a "`setState`" function where you can send a subset of all available options (backgroundColor, frame, alpha, etc) and then eventually UIKit would reconcile all changes to all views in batches.
 
-To get a sense of what this feels like, I've created a simplified version of the React components for one of the screens in our app, the  [full implementation is here][search-results]. You can see the original design, a prototype of how that is then split into components, then the tree strucutre for those components and finally the props for each component. 
+To get a sense of what this feels like, I've created a simplified version of the React components for one of the screens in our app, the  [full implementation is here][search-results]. You can see the original design, a prototype of how that is then split into components, then the tree structure for those components and finally the props for each component. 
 
 
 <div class="expand-please">
@@ -185,7 +185,7 @@ Instead of MVC, React uses composition of components to handle complexity - this
 
 By merging the responsibilities of a `UIView` and `UIViewController` into a Component, there is a consistent way to work with all aspects of your app. 
 
-To try to undestand this, let's take a trivial example. Downloading some data from the network and showing it on a screen.
+To try to understand this, let's take a trivial example. Downloading some data from the network and showing it on a screen.
 
 In UIKit-world you would:
 
@@ -309,13 +309,15 @@ react-native init TrendingArtists
 ```
 
 </div>
-<div class="desktop-only" style='flex:1; display: block;'>
+<div id='installing-node' class="desktop-only" style='flex:1; display: block;'>
 
 <p>You'll need <code>node</code> and <code>yarn</code> installed globally so you can run JavaScript and handle dependency management respectively.<p>
 
 <p>For working inside a JavaScript project, I'd strongly recommend using Microsoft's <a href='https://code.visualstudio.com'>Visual Studio Code</a>, it does a great job for React Native.</p>
 
 <p>Next up we're going to make the initial project and look around, so once all the installing has finished. You can follow along with the next section.</p>
+
+<p>If the command `react-native` isn't working, <a href='https://github.com/keitaito'>@keitaito</a> has some useful advice in the <a href='#comments'>comments</a>.</p>
 
 </div>
 </article>
@@ -572,7 +574,7 @@ We found that the majority of our view controllers do a lot of work on init, the
 
 ## Facebook patent clause
 
-This has come up a few times in discussion, Facebook have a bit of a custom license for their open source. Back in 2015, they made changes to the license that makes this no problem for everyone but patent trolls. You can find a bunch of resources for further reading [on this gist][react-patents]. 
+Facebook used to have a [custom BSD license][react-patents] for their OSS projects like React and React Native, so you'll still read comments about how you can't trust those projects due to these patent rights in the license. In 2017, React moved to MIT and in 2018 React Native moved to BSD. Now this is a non-issue.
 
 ## React Dependencies
 
@@ -600,7 +602,7 @@ Our oldest app, Energy, is an app for keeping your portfolio of artworks with yo
 
 ## When to choose React Native?
 
-React Native provides a cross-platform API, and so it can fall into a watered down version of the API it abstracts. This means that it can be a bit more work than normal to use obviously iOS-specific features like `ARKit`, `UIUserActivity`, `CSSearchableIndex` or `UIUserNotification`s.
+React Native provides a cross-platform API, and so it can fall into a watered down version of the API it abstracts. This means that it can be a bit more work than normal to use obviously iOS-specific features like `ARKit`, `NSUserActivity`, `CSSearchableIndex` or `UIUserNotification`s.
 
 I say more work, because you definitely can still use them, but that transitions between your React code and your native code will require a bit more work than had you always been writing it natively.
 

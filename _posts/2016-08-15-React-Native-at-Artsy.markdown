@@ -1,10 +1,10 @@
 ---
-layout: post
+layout: epic
 title: "React Native at Artsy"
 date: 2016-08-15 21:17
 comments: true
 article-class: "expanded-code"
-categories: [React, eigen, Mobile]
+categories: [React, eigen, Mobile, reactnative]
 author: eloy
 series: React Native at Artsy
 ---

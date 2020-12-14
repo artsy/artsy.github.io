@@ -3,7 +3,7 @@ layout: post
 title: "Animating the Year In Art"
 date: 2017-02-01 14:21
 author: eve
-categories: [javascript]
+categories: [javascript, publishing]
 ---
 
 Artsy's end of year features are an annual chance to walk through highlights of the year while also exploring front-end experiments. Created in collaboration with UBS and designed by Owen Dodd, [The Year In Art 2016](https://www.artsy.net/2016-year-in-art) presents an interactive timeline of singular moments in art and culture over the past year.

@@ -1,5 +1,5 @@
 ---
-layout: post
+layout: epic
 title: "GraphQL for iOS Developers"
 date: 2016-06-19 12:09
 author: orta
@@ -57,7 +57,9 @@ Artsy's GraphQL server is (unsurprisingly) open-source, it's at [artsy/metaphysi
 
 GraphQL comes with a playground for the API! It's amazing! Clay called it the ["Killer App" of GraphQL](https://medium.com/the-graphqlhub/graphiql-graphql-s-killer-app-9896242b2125#.6ht6374bq) - I'm inclined to concur. I've never had API docs this useful. This is built on top of the schema/docs/type reflection APIs inside the GraphQL spec.
 
-{% expanded_img /images/2016-06-19-graphql-for-iOS-devs/graphiql.png Selection diagram %}
+
+{% include epic_img.html url="/images/2016-06-19-graphql-for-iOS-devs/graphiql.png" title="" style="width:100%;" %}
+
 
 ### How GraphQL Changed How We Write Native Code
 

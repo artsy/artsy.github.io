@@ -1,13 +1,5 @@
-# Look for prose issues
-prose.lint_files
-
 # Use the VS Code Spell-checker word ignore list
 require 'json'
-vscode_spellings = JSON.parse File.read('.vscode/settings.json')
-
-# Look for spelling issues
-prose.ignored_words = vscode_spellings['spellchecker.ignoreWordsList']
-prose.check_spelling
 
 avoid_exact_words = [
   { word: 'Github', reason: "Please use GitHub, capital 'H'" },
@@ -21,15 +13,20 @@ avoid_exact_words = [
   { word: 'react native', reason: 'Please use React Native with capitals' }
 ]
 
-active_files = (git.modified_files + git.added_files)
-markdowns = active_files.select { |file| file.start_with? '_posts/' }
+active_files = (git.modified_files + git.added_files).uniq
+markdowns = active_files
+  .select { |file| file.start_with? '_posts/' }
+  .select { |file| file.end_with?('.md', '.markdown') }
 
 # This could do with some code golfing sometime
-markdowns.each do |file|
-  lines = File.read(file).lines
+markdowns.each do |filename|
+  file = File.read(filename)
+  lines = file.lines
+  fail("Please add a <!-- more --> tag where you'd like this post to break for post preview", file: filename) unless file.include?("<!-- more -->")
   lines.each do |l|
     avoid_exact_words.each do |avoid|
-      warn(avoid[:reason], file: file, line: line) if l.include? avoid[:word]
+      line = lines.index line
+      warn(avoid[:reason], file: filename, line: line) if l.include? avoid[:word]
     end
   end
 end

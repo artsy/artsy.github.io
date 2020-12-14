@@ -19,7 +19,7 @@ Three years ago Artsy was a classic [Ruby-on-Rails](http://rubyonrails.org) mono
 
 <!-- more -->
 
-What you see today when you go to [www.artsy.net](https://www.artsy.net) is a website built with [Ezel.js](http://ezeljs.com), which is a boilerplate for [Backbone](http://backbonejs.org) projects running on [Node](https://nodejs.org) and using [Express](http://expressjs.com) and [Browserify](http://browserify.org). The [CoffeeScript code](https://github.com/artsy/force) is open-source. The mobile version of www.artsy.net is [m.artsy.net](https://m.artsy.net) and is built on the same technology. Both run on [Heroku](http://heroku.com) and use [Redis](http://redis.io) for caching. Assets, including artwork images, are served from [Amazon S3](http://aws.amazon.com/s3/) via the [CloudFront CDN](http://aws.amazon.com/cloudfront).
+What you see today when you go to [www.artsy.net](https://www.artsy.net) is a website built with [Ezel.js](https://github.com/artsy/ezel), which is a boilerplate for [Backbone](http://backbonejs.org) projects running on [Node](https://nodejs.org) and using [Express](http://expressjs.com) and [Browserify](http://browserify.org). The [CoffeeScript code](https://github.com/artsy/force) is open-source. The mobile version of www.artsy.net is [m.artsy.net](https://m.artsy.net) and is built on the same technology. Both run on [Heroku](http://heroku.com) and use [Redis](http://redis.io) for caching. Assets, including artwork images, are served from [Amazon S3](http://aws.amazon.com/s3/) via the [CloudFront CDN](http://aws.amazon.com/cloudfront).
 
 <center><img src='/images/2015-03-23-artsy-technology-stack-2015/artsy.png'></center>
 

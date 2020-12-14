@@ -4,7 +4,6 @@ title: "Xcode 8 Manual Codesigning with Fastlane"
 date: 2017-01-13 14:00
 author: ash
 categories: [mobile, ios, devops, ci]
-series: Open Source by Default
 ---
 
 New year, new deploy process! Late last year our mobile team completed the update to Swift 3 (and thus, the update to Xcode 8). The latest version of Apple's IDE includes a lovely feature: automating provisioning profile management! (Note: not sarcasm, the feature is really nice. Check out the [WWDC video](https://developer.apple.com/videos/play/wwdc2016/401/) for an in-depth exploration.)
