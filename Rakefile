@@ -24,6 +24,7 @@ namespace :podcast do
     file_name = File.basename(mp3_path)
 
     abort 'Please specify a path to the MP3.' if mp3_path.nil?
+    abort 'Please use a filename without spaces.' if file_name.include?(' ')
 
     duration = ''
     Mp3Info.open(mp3_path) do |mp3|
@@ -34,16 +35,18 @@ namespace :podcast do
     puts 'Uploading episode to S3 bucket.'
     s3 = Aws::S3::Resource.new(region: 'us-east-1')
     s3_upload = s3.bucket('artsy-engineering-podcast').object(file_name)
-    unless s3_upload.upload_file(mp3_path) abort "Upload failed."
+    abort "Upload failed." unless s3_upload.upload_file(mp3_path)
     puts 'Upload completed.'
 
     output = <<-EOS
-   - title:
-     date: #{Time.now.strftime("%Y-%m-%d")}
-     description:
-     podcast_url: http://artsy-engineering-podcast.s3.amazonaws.com/#{file_name}
-     file_byte_length: #{filesize}
-     duration: #{duration}
+    - title:
+      date: #{Time.new.to_s}
+      description:
+      url: #{s3_upload.public_url}
+      file_byte_length: #{filesize}
+      duration: #{duration}
+      credits:
+        -
 EOS
 
     File.open('_config.yml', 'a') do |file|
