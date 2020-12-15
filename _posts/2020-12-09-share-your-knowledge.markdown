@@ -8,7 +8,7 @@ author: ash
 
 Sharing knowledge! What a concept! [In my recent blog post](/blog/becoming-mobile-first-at-artsy), I discussed "Knowledge Share" meetings (also known simply as "Knowledge Shares", or abbreviated "KS") and I want to dive deeper into them today. Last time, I described them as follows:
 
-> Knowledge Shares are a **structured** time to facilitate **unstructured learning**. Anyone can bring a topic to Knowledge Share, from a ticket that they're stuck on to an idea they have to a neat trick they recently learned.
+> Knowledge Shares are a <u>structured</u> time to facilitate <u>unstructured learning</u>. Anyone can bring a topic to Knowledge Share, from a ticket that they're stuck on to an idea they have to a neat trick they recently learned.
 
 These meetings were really instrumental in ramping up the Mobile Experience team, but their history goes back a bit further. Today, we're going to discuss the origins of Knowledge Shares at Artsy, how they've evolved, the value they provide us as engineers, and how I'd recommend you adopt them on your team.
 
