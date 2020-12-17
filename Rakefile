@@ -45,8 +45,7 @@ namespace :podcast do
       url: "#{s3_upload.public_url}"
       file_byte_length: "#{filesize}"
       duration: "#{duration}"
-      credits:
-        - 
+      credits: ""
 EOS
 
     File.open('_config.yml', 'a') do |file|
