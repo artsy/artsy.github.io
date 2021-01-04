@@ -5,9 +5,88 @@
     <description></description>
     <link>https://artsy.github.io/</link>
     <atom:link href="https://artsy.github.io/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Tue, 29 Dec 2020 17:08:54 +0000</pubDate>
-    <lastBuildDate>Tue, 29 Dec 2020 17:08:54 +0000</lastBuildDate>
+    <pubDate>Mon, 04 Jan 2021 15:09:28 +0000</pubDate>
+    <lastBuildDate>Mon, 04 Jan 2021 15:09:28 +0000</lastBuildDate>
     <generator>Jekyll v2.5.3</generator>
+    
+      <item>
+        <title>Echoes From the Past: Supporting Old App Versions</title>
+        <description>&lt;p&gt;&lt;a href=&quot;https://artsy.github.io/blog/2020/03/02/ios-deploys-super-weird-totally-normal/&quot;&gt;In, a recent blog post&lt;/a&gt;, I discussed a fundamental difference between web and iOS deployments. Web software is deployed to servers that are under your control, while iOS software is deployed to users&#39; devices that you have &lt;em&gt;no&lt;/em&gt; control over. This distinction really changes how you think about the code that you ship, because that code could be running indefinitely on devices that never get updated.&lt;/p&gt;
+
+&lt;p&gt;The previous post focused on this distinction through the lens of accidentally shipping (and then fixing) a bug. This focus on bugs is important, but focusing &lt;em&gt;only&lt;/em&gt; on bugs left me unable to articulate an important, nuanced distinction between hosting code and shipping app binaries. So let&#39;s dive in.&lt;/p&gt;
+
+&lt;!-- more --&gt;
+
+
+&lt;p&gt;Software, ideally, is made up of more than just bugs; it has working code, too! Just like with (accidentally) shipping bugs, you need to be aware that the working code you ship is &lt;em&gt;also&lt;/em&gt; going to be running indefinitely. That puts pressure on developers to make sure that the code in their apps will continue to function correctly, even as (for example) the web APIs that the apps rely on get updated over time.&lt;/p&gt;
+
+&lt;a name=&quot;A.Case.Study&quot;&gt;&lt;/a&gt;
+&lt;h2&gt;A Case Study&lt;/h2&gt;
+
+&lt;p&gt;Artsy&#39;s iOS app relies on a services we call &quot;&lt;a href=&quot;https://github.com/artsy/echo&quot;&gt;Echo&lt;/a&gt;&quot; to serve remote configuration. This lets Artsy do things like selectively disable features (for example, to make non-backwards-compatible API changes), provide changes to URL-routing (to match corresponding changes to web URLs), or even to &lt;em&gt;require&lt;/em&gt; users on older versions of the app to update (which we have never had to do). Echo has helped Artsy meet its business goals and building this remote configuration for the app was a great idea.&lt;/p&gt;
+
+&lt;p&gt;However... Echo was built as a general-purpose remote-configuration-as-a-service, in anticipation of being used by other apps. That use that never materialized. It had a web portal and a database and an API, all to only ever serve a single JSON response to the app. That&#39;s fine, sometimes engineers build things that don&#39;t end up getting used widely as we expected. Echo did one thing, and it did it really well. It ran on a Hobby Dyno on Heroku without incident for years.&lt;/p&gt;
+
+&lt;p&gt;If you think about what I&#39;ve discussed so far in this post, you may realize that the app &lt;em&gt;depends&lt;/em&gt; on Echo. If Echo changes in some non-backwards-compatible way, then the app could break. For example, if Echo happened to stop working entirely, then the app could stop working too.&lt;/p&gt;
+
+&lt;p&gt;The Echo service went without being deployed for several years. It worked, so why update it? The problem was that at some point, its major dependencies got yanked, so we could no longer build it locally or even deploy it at all. Yikes. I asked a web colleague for help and our conclusion was that it would take more effort to get Echo working with its existing code than it would be to rebuild the whole thing. Double yikes. And finally, Echo was running on the &lt;a href=&quot;https://devcenter.heroku.com/articles/cedar-14-stack&quot;&gt;Cedar-14 Heroku stack&lt;/a&gt;, which was already at end-of-life and had stopped receiving security updates. Triple yikes.&lt;/p&gt;
+
+&lt;p&gt;(I have to note here that most of services at Artsy are deployed almost constantly – Echo was an odd one out. Echo never needed any updates, so it never needed to be deployed. However, we should have been keeping its dependencies up to date and deploying it regularly, which would have uncovered its problems sooner when they were still easily fixed. Anyway!)&lt;/p&gt;
+
+&lt;p&gt;So we have a service, Echo, that we can&#39;t develop, and can&#39;t deploy, and isn&#39;t getting security updates from our cloud provider. And the app depends on it. Since Echo had always been a bit over-engineered for what it ended up being, I wondered what the minimal replacement could be. My plan was to replace the Echo server with an S3 bucket, an Artsy-controlled CNAME DNS record, and a small shell script that runs automatically on CI.&lt;/p&gt;
+
+&lt;p&gt;Seriously! &lt;a href=&quot;https://github.com/artsy/echo/pull/39&quot;&gt;It worked&lt;/a&gt;! I made a proof-of-concept and then another engineer, Pavlos, finished building the new infrastructure. Changes to the app&#39;s configuration are now done via GitHub pull requests (&lt;a href=&quot;https://github.com/artsy/echo/pull/63&quot;&gt;here is an example PR&lt;/a&gt;), which we can track over time (unlike the old web interface).&lt;/p&gt;
+
+&lt;p&gt;I can&#39;t stress enough how much worry I had had about Echo&#39;s degrading status and the app&#39;s dependency on it. But! Everything about the change to S3 went smoothly.&lt;/p&gt;
+
+&lt;p&gt;Okay, so new versions of app are now referring to the S3 bucket instead of the old Echo API. Great! But what about the older versions of the app that are still out there? They&#39;re still hitting the Echo API as intended, right?&lt;/p&gt;
+
+&lt;a name=&quot;The.Problem&quot;&gt;&lt;/a&gt;
+&lt;h2&gt;The Problem&lt;/h2&gt;
+
+&lt;p&gt;Echo&#39;s API was still functioning, albeit on an EOL stack that we couldn&#39;t make any changes to. Since we can&#39;t rely on Heroku continuing to run the Echo API indefinitely, what could we do? Well, the easiest way to fix this would be to change Echo&#39;s Artsy-controlled CNAME record to point from the old Cedar-14 Heroku app to a new server app, which could pretend to be the old API for the sake of older app versions.&lt;/p&gt;
+
+&lt;p&gt;This leads me to one of the most scary lines of code in the entire Artsy iOS codebase. See if you can spot the problem.&lt;/p&gt;
+
+&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
+&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;objc&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;bp&quot;&gt;NSURL&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;url&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[[&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;NSURL&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;alloc&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;nl&quot;&gt;initWithString&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;@&amp;quot;https://echo-api-production.herokuapp.com/&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;];&lt;/span&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
+
+
+&lt;p&gt;For whatever reason, we never created an Artsy-controlled CNAME DNS record for Echo. We were just hitting the bare Heroku URL directly. That means that there are &lt;em&gt;seven years&#39;&lt;/em&gt; worth of Artsy app versions out there that &lt;em&gt;need&lt;/em&gt; to be able to continue hitting &lt;em&gt;that specific&lt;/em&gt; Heroku URL.&lt;/p&gt;
+
+&lt;p&gt;😬&lt;/p&gt;
+
+&lt;p&gt;This is what I meant earlier about how you need to think about properly-working code differently when you develop software that runs on someone else&#39;s hardware. If this was a server, this whole problem of old-code-hitting-outdated-APIs wouldn&#39;t exist. But because we ship apps as binaries that get ran on someone &lt;em&gt;else&#39;s&lt;/em&gt; hardware, we need to be aware of this kind of issue.&lt;/p&gt;
+
+&lt;p&gt;That URL was fine when the code was written and it worked as intended for years. No one could have predicted, when it was added, that it would cause us headaches much later. Nor could we have anticipated that the Echo server&#39;s codebase would end up in such a state.&lt;/p&gt;
+
+&lt;a name=&quot;The.Solution&quot;&gt;&lt;/a&gt;
+&lt;h2&gt;The Solution&lt;/h2&gt;
+
+&lt;p&gt;This is the part of the blog post where I get to be a hero (at least in my head). The Heroku app running Echo was on Cedar-14 and while we couldn&#39;t make any changes to its code, we &lt;em&gt;could&lt;/em&gt; replace the code entirely. This would give us a new server running at the old URL. So I wrote up a small Express server to proxy HEAD and GET API requests from old iOS app versions to return the response body and headers that were expected. &lt;a href=&quot;https://github.com/artsy/echo/pull/59#&quot;&gt;The work is here&lt;/a&gt; if you&#39;re curious. The nice thing about Heroku, at least, is that if this had gone horribly wrong we still could have reverted back to the Cedar-14 app while we figured out our next steps.&lt;/p&gt;
+
+&lt;p&gt;We will still need to keep this Heroku app running, indefinitely, which isn&#39;t ideal. Perhaps Artsy&#39;s migration to Kubernetes will never be &lt;em&gt;quite&lt;/em&gt; 100% complete, but that&#39;s a small price to pay for keeping users of our app happy.&lt;/p&gt;
+
+&lt;a name=&quot;Conclusion&quot;&gt;&lt;/a&gt;
+&lt;h2&gt;Conclusion&lt;/h2&gt;
+
+&lt;p&gt;It&#39;s not just bugs that you need to be aware of &lt;em&gt;accidentally&lt;/em&gt; shipping in your app binaries. You have to think about how the code that&#39;s running &lt;em&gt;as intended today&lt;/em&gt;, because it will continue to run for the foreseeable future. This means adding checks for non-200 response codes from APIs, being careful about third-party APIs, and thinking carefully about everything you ship. Apps are more than just their code; apps are everything that their code depends on, too.&lt;/p&gt;
+
+&lt;p&gt;This is a lesson that I&#39;ve been teaching engineers for a long time, but it&#39;s only with our recent Echo changes that I&#39;ve come to understand, at a deeper level, what it means to take ownership of code. Yes, the bugs, and of course, the happy little accidents, but also the mundane interconnected dependencies that make software systems so complex. And, if I&#39;m being honest, that make software systems so much fun to work on, too.&lt;/p&gt;
+</description>
+        <pubDate>Thu, 31 Dec 2020 00:00:00 +0000</pubDate>
+        <link>https://artsy.github.io/blog/2020/12/31/echo-supporting-old-app-versions/</link>
+        <guid isPermaLink="true">https://artsy.github.io/blog/2020/12/31/echo-supporting-old-app-versions/</guid>
+        
+        
+        <category>ios</category>
+        
+        <category>mobile</category>
+        
+        <category>teams</category>
+        
+      </item>
     
       <item>
         <title>Knowledge Shares For Great Good</title>
@@ -2245,456 +2324,6 @@ that&#39;ll be another blog post for another day.&lt;/p&gt;
         <category>road and bridges</category>
         
         <category>tools</category>
-        
-      </item>
-    
-      <item>
-        <title>Effortless Pagination with GraphQL and Relay? Really!</title>
-        <description>&lt;p&gt;It&#39;s the year 2020. You use a modern front-end stack of &lt;a href=&quot;https://relay.dev/&quot;&gt;Relay&lt;/a&gt;,
-&lt;a href=&quot;https://graphql.org/&quot;&gt;GraphQL&lt;/a&gt;, &lt;a href=&quot;https://reactjs.org/&quot;&gt;React&lt;/a&gt; and &lt;a href=&quot;https://www.typescriptlang.org/&quot;&gt;TypeScript&lt;/a&gt;.
-You can build an infinite scroll &#39;feed&#39; type UI totally out of the box with these tools, by mostly putting together
-boilerplate (proper &lt;a href=&quot;https://facebook.github.io/relay/graphql/connections.htm#sec-Connection-Types&quot;&gt;connections&lt;/a&gt;,
-along with a &lt;a href=&quot;https://relay.dev/docs/en/pagination-container&quot;&gt;pagination container&lt;/a&gt;). You have a design system, and
-are rapidly building up a component library. Things are great!&lt;/p&gt;
-
-&lt;p&gt;Then you take a look at the latest design comps for a &#39;browse&#39; type page, and you see that the
-&lt;a href=&quot;https://medium.com/simple-human/7-reasons-why-infinite-scrolling-is-probably-a-bad-idea-a0139e13c96b&quot;&gt;controversial&lt;/a&gt;
-infinite scroll has been replaced by a more traditional pagination bar.&lt;/p&gt;
-
-&lt;p&gt;You know the one. Like the following, from &lt;a href=&quot;https://www.amazon.com&quot;&gt;Amazon&lt;/a&gt;:&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;/images/2020-01-21-graphql-relay-windowed-pagination/amazon.png&quot;&gt;&lt;/p&gt;
-
-&lt;p&gt;You start to realize that the cursor-based setup of a connection, along with a Relay pagination container, does not
-lend itself to this more traditional UI. For one thing, a user can arbitrarily &#39;jump&#39; to any page by including a
-&lt;code&gt;?page=X&lt;/code&gt; query param (typically). For another, the user can only actually see the current page of content, versus
-a feed. As you go to sleep and dream of REST, Rails controllers, &lt;a href=&quot;https://github.com/kaminari/kaminari&quot;&gt;kaminari&lt;/a&gt;,
-&lt;a href=&quot;https://github.com/mislav/will_paginate&quot;&gt;will_paginate&lt;/a&gt;, and a simpler time, you start to have a vision...&lt;/p&gt;
-
-&lt;!-- more --&gt;
-
-
-&lt;p&gt;To get a good primer of what a GraphQL connection is and why they&#39;re so useful, read this
-&lt;a href=&quot;https://blog.apollographql.com/explaining-graphql-connections-c48b7c3d6976&quot;&gt;excellent Apollo blogpost&lt;/a&gt;. Seriously.
-It&#39;s one of the best writeups on this subject out there. I&#39;ll assume basic familiarity with connection types from
-this point forward.&lt;/p&gt;
-
-&lt;p&gt;We prefer to use connections in place of lists almost always. Not only do they provide a preferred cursor-based
-pagination API for clients, but their type specification (a map vs a list) is naturally forward-looking. Even if
-you do no pagination, a pure list type can&#39;t accomodate returning other metadata (such as a &lt;code&gt;totalCount&lt;/code&gt;) alongside
-the list. Additionally, if your data is very relational and better represented as nodes connected by edges (which
-would contain data about the &#39;join&#39; of the two nodes), the connection type gives one more flexibility than a simple
-list. This (and more) is all covered in the aforementioned blog post.&lt;/p&gt;
-
-&lt;p&gt;So, let&#39;s start by taking a look at our desired pagination UI, and think about what kind of schema/components make
-sense.&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;/images/2020-01-21-graphql-relay-windowed-pagination/pagination.png&quot;&gt;&lt;/p&gt;
-
-&lt;p&gt;There looks to be several types of appearances we want to show, based on the total size of our list and fixed page
-size chosen, as well as the current page. There&#39;s also some edge cases of empty lists, or lists that are short
-enough to just display all their page numbers. Users can click on any displayed page number to jump to it. There&#39;s
-a prev/next navigation, which brings the user forward and back one page at a time. Whenever the current page
-changes, the URL should update accordingly. For a responsive implementation, we want to hide the page numbers, and
-only show the prev/next toggles on small screens.&lt;/p&gt;
-
-&lt;p&gt;Wow! Ok, we have our work cut out for us. But wait til you see how easy this is! There&#39;ll be links to our actual
-production components involved (all open-source) at the end.&lt;/p&gt;
-
-&lt;a name=&quot;Pagination.Schema&quot;&gt;&lt;/a&gt;
-&lt;h2&gt;Pagination Schema&lt;/h2&gt;
-
-&lt;p&gt;Let&#39;s tackle the first part of this, which is: how do we adapt the
-&lt;a href=&quot;https://facebook.github.io/relay/graphql/connections.htm&quot;&gt;GraphQL connection spec&lt;/a&gt; in order to hold necessary
-information that a UI might need? Generally we want the UI&#39;s to be as simple as possible, and so if the server
-could construct a suitable pagination schema, that would be preferable. The simpler our UI, and the more business
-logic and good abstractions made in our GraphQL server, the more portable and reusable this all becomes.&lt;/p&gt;
-
-&lt;p&gt;What kind of data does the UI need, in order to render a particular page of contents? Well, for a particular page
-we&#39;d need to render the actual number it corresponds to. We&#39;ll need to know if this is the current page or not (so
-we can distinguish it in the UI from neighboring pages). And, we&#39;ll need to know the actual cursor (think:
-&lt;a href=&quot;https://relay.dev/graphql/connections.htm&quot;&gt;opaque string&lt;/a&gt;) that corresponds to this page number. It seems likely
-we&#39;ll need some sort of way to construct cursors from page numbers, on the server.&lt;/p&gt;
-
-&lt;p&gt;So, check this out:&lt;/p&gt;
-
-&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;6&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;7&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;8&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;9&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;10&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;11&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;12&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;13&lt;/span&gt;
-&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;js&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;c1&quot;&gt;// SDL&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;nx&quot;&gt;type&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;PageCursor&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nx&quot;&gt;cursor&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;String&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;!&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nx&quot;&gt;pageNumber&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;Int&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;!&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nx&quot;&gt;isCurrent&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;Boolean&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;!&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;nx&quot;&gt;type&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;PageCursors&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nx&quot;&gt;first&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;PageCursor&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nx&quot;&gt;around&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;PageCursor&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;!&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;!&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nx&quot;&gt;last&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;PageCursor&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nx&quot;&gt;previous&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;PageCursor&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
-
-
-&lt;p&gt;This is our pagination schema. Including a field of type &lt;code&gt;pageCursors&lt;/code&gt; as a connection-level field, onto a
-connection, is sufficient for a UI to incredibly simply &#39;just render&#39; a correct pagination bar always, and be able
-to hook up proper interactions. We can fully construct a simple UI (using Relay, shown in the next section) that
-can present and allow for the interactions desired, for windowed pagination.&lt;/p&gt;
-
-&lt;p&gt;But, of course we&#39;re glossing over the implementation for such a &lt;code&gt;pageCursors&lt;/code&gt; type, so let&#39;s check that out before
-looking at how a client might consume this.&lt;/p&gt;
-
-&lt;p&gt;Our backing API&#39;s largely still paginate via offsets, and not cursors. That is, they accept page/size or
-size/offset style arguments. We use &lt;a href=&quot;https://github.com/graphql/graphql-relay-js&quot;&gt;graphql-relay-js&lt;/a&gt;, which includes
-helpers to make sure types and resolvers are compatible with some Relay expectations. So, we use this library to
-generate our cursors, and can convert the cursor to an offset. A page of 4 with a size of 10, returns the elements
-numbered 30 - 39 in that list. So a page of 4 (and size of 10), is equivalent to an offset of 29 (and size of 10).
-We have:&lt;/p&gt;
-
-&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
-&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;js&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;kr&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;pageToCursor&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;page&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;size&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;String&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;((&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;page&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;size&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
-
-
-&lt;p&gt;This gives us the offset of the last value of the previous page. While our upstream services are all still
-paginating using this size/offset method, the &lt;a href=&quot;https://relay.dev/graphql/connections.htm&quot;&gt;GraphQL cursor spec&lt;/a&gt;
-prefers opaque cursors to be used on the client. This allows the actual implementation of pagination to change
-upstream while clients remain unaffected. Thus if we ever update our upstream pagination arguments/logic/setup, we
-could update this schema implementation accordingly, and clients would continue to be functional.&lt;/p&gt;
-
-&lt;p&gt;For inspiration in constructing our &lt;code&gt;first&lt;/code&gt;, &lt;code&gt;last&lt;/code&gt;, and &lt;code&gt;around&lt;/code&gt; groups, we turn to
-&lt;a href=&quot;https://www.fngtps.com/&quot;&gt;Fingertips&lt;/a&gt; and their
-&lt;a href=&quot;https://github.com/Fingertips/peiji-san/blob/6bd1bc7c152961dcde376a8bcb2ca393b5b45829/lib/peiji_san/view_helper.rb#L87&quot;&gt;pagination library&lt;/a&gt;.
-That code goes through the various cases possible (a short list, a long list where the current page is near the
-front, middle or end, various degenerate cases, etc.), and returns a proper structure that represents this data. It
-can handle all combinations of list sizes, and current position relative to the total size.&lt;/p&gt;
-
-&lt;p&gt;In pseudo-code, it looks like:&lt;/p&gt;
-
-&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;6&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;7&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;8&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;9&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;10&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;11&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;12&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;13&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;14&lt;/span&gt;
-&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;js&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;emptyList&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nx&quot;&gt;around&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;k&quot;&gt;else&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;listIsShort&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nx&quot;&gt;around&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;...&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;totalPages&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;k&quot;&gt;else&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;nearBeginning&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nx&quot;&gt;around&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;...&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;3&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nx&quot;&gt;last&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;totalPages&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;k&quot;&gt;else&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;nearMiddle&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nx&quot;&gt;first&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nx&quot;&gt;middle&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;currentPage&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;currentPage&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;currentPage&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;+&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nx&quot;&gt;last&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;totalPages&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;k&quot;&gt;else&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;nearEnd&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nx&quot;&gt;first&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nx&quot;&gt;around&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;last&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;last&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;last&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;+&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
-
-
-&lt;p&gt;Our full implementation of that method can be found
-&lt;a href=&quot;https://github.com/artsy/metaphysics/blob/205592be7f59970cf80313972ceb95bb1579c31f/src/schema/v2/fields/pagination.ts#L96&quot;&gt;here&lt;/a&gt;.&lt;/p&gt;
-
-&lt;p&gt;For a real-life example, check out
-&lt;a href=&quot;https://metaphysics-staging.artsy.net/v2?query=%7B%0AartworksConnection(first%3A5%2C%20after%3A%20%22YXJyYXljb25uZWN0aW9uOjE0%22)%20%7B%0A%20%20pageInfo%20%7B%0A%20%20%20%20hasNextPage%0A%20%20%20%20endCursor%0A%20%20%7D%0A%20%20pageCursors%7B%0A%20%20%20%20first%20%7B%0A%20%20%20%20%20%20cursor%0A%20%20%20%20%20%20page%0A%20%20%20%20%20%20isCurrent%0A%20%20%20%20%7D%0A%20%20%20%20last%20%7B%0A%20%20%20%20%20%20cursor%0A%20%20%20%20%20%20page%0A%20%20%20%20%20%20isCurrent%0A%20%20%20%20%7D%0A%20%20%20%20around%20%7B%0A%20%20%20%20%20%20cursor%0A%20%20%20%20%20%20page%0A%20%20%20%20%20%20isCurrent%0A%20%20%20%20%7D%0A%20%20%20%20previous%20%7B%0A%20%20%20%20%20%20page%0A%20%20%20%20%20%20cursor%0A%20%20%20%20%7D%0A%20%20%7D%0A%7D%7D&quot;&gt;this link, corresponding to a page number of 4&lt;/a&gt;.
-You can adjust the arguments to see how the output changes based on where you are in the list. Try putting
-different cursor values in! It looks like:&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;/images/2020-01-21-graphql-relay-windowed-pagination/graphiql.png&quot;&gt;&lt;/p&gt;
-
-&lt;p&gt;Let&#39;s look at a couple of other pieces of data requested here. One of these is a &lt;code&gt;previous&lt;/code&gt; page cursor. This is to
-support that action (the prev/next toggles) in the UI. However, we don&#39;t need a custom &lt;code&gt;next&lt;/code&gt; item to support that
-behavior. That&#39;s because we tend to use
-&lt;a href=&quot;https://facebook.github.io/relay/graphql/connections.htm#sec-Forward-pagination-arguments&quot;&gt;forward-style pagination arguments&lt;/a&gt;
-with connections, which means the connection will already return the data needed for that action (remember, you can
-implement a scrolling infinite scroll feed that always takes you to the next page right out of the box).
-Specifically, the &lt;code&gt;hasNextPage&lt;/code&gt; and &lt;code&gt;endCursor&lt;/code&gt; are those fields from the
-&lt;a href=&quot;https://facebook.github.io/relay/graphql/connections.htm#sec-undefined.PageInfo.Fields&quot;&gt;GraphQL &lt;code&gt;pageInfo&lt;/code&gt; object&lt;/a&gt;
-which give you that information.&lt;/p&gt;
-
-&lt;a name=&quot;Companion.UI.Component&quot;&gt;&lt;/a&gt;
-&lt;h2&gt;Companion UI Component&lt;/h2&gt;
-
-&lt;p&gt;Ok, now that we have a connection and corresponding fields that provide the needed data, let&#39;s take a look at a
-simple React component that can render this:&lt;/p&gt;
-
-&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;6&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;7&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;8&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;9&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;10&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;11&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;12&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;13&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;14&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;15&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;16&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;17&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;18&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;19&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;20&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;21&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;22&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;23&lt;/span&gt;
-&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;js&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;kr&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;Page&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;({&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;pageCursor&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;page&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;cursor&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;}})&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;Button&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;onClick&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;onClick&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;cursor&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)}&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;page&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;err&quot;&gt;/Button&amp;gt;&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;c1&quot;&gt;// Show page 1 if `first` is present, and append with dots&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;c1&quot;&gt;// Show everything in `around`&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;c1&quot;&gt;// Show last page if present, and prepend with dots&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;c1&quot;&gt;//&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;c1&quot;&gt;// Show previous toggle, active if present&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;c1&quot;&gt;// Show next toggle, active if next page exists&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;o&quot;&gt;&amp;lt;&amp;gt;&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;Button&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;disabled&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;!&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;previous&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;onClick&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;onClick&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;previous&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;cursor&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)}&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;Previous&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;err&quot;&gt;/Button&amp;gt;}&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;first&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&amp;gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;Page&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;pageCursor&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;first&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;/&amp;gt;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;...&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;err&quot;&gt;/&amp;gt;)}&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;around&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;map&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;page&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;Page&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;pageCursor&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;page&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)}&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;last&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&amp;gt;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;...&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;Page&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;pageCursor&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;last&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;/&amp;gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;err&quot;&gt;/&amp;gt;)}&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;Button&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;disabled&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;!&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;hasNextPage&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;onClick&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;onNext&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()}&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;Next&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;err&quot;&gt;/Button&amp;gt;}&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;err&quot;&gt;/&amp;gt;&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
-
-
-&lt;p&gt;That&#39;s basically it, visually speaking! The data provided by our GraphQL server is sufficient to render what&#39;s
-needed. You can see such a UI component in our design system
-&lt;a href=&quot;https://github.com/artsy/palette/blob/f882d32c3fdc6e7f81915c2922e3824bd26791e7/packages/palette/src/elements/Pagination/Pagination.tsx&quot;&gt;here&lt;/a&gt;.
-It looks very similar to the above code. Of note, is since this is a simple UI component, it is vanilla React. It
-is not a Relay component. It requires an &lt;code&gt;onClick&lt;/code&gt; and &lt;code&gt;onNext&lt;/code&gt; to be passed as props.&lt;/p&gt;
-
-&lt;a name=&quot;Relay.Integration.Step.I&quot;&gt;&lt;/a&gt;
-&lt;h2&gt;Relay Integration Step I&lt;/h2&gt;
-
-&lt;p&gt;Now, let&#39;s take a look at how we can build a Relay container that will use the above UI component. First, let&#39;s
-build a Relay-wrapped component of the above UI component. This is a fragment container, and lists all the fields
-needed:&lt;/p&gt;
-
-&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;6&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;7&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;8&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;9&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;10&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;11&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;12&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;13&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;14&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;15&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;16&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;17&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;18&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;19&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;20&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;21&lt;/span&gt;
-&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;js&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;nx&quot;&gt;fragment&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;Pagination_pageCursors&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;on&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;PageCursors&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nx&quot;&gt;around&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nx&quot;&gt;cursor&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nx&quot;&gt;page&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nx&quot;&gt;isCurrent&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nx&quot;&gt;first&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nx&quot;&gt;cursor&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nx&quot;&gt;page&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nx&quot;&gt;isCurrent&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nx&quot;&gt;last&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nx&quot;&gt;cursor&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nx&quot;&gt;page&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nx&quot;&gt;isCurrent&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nx&quot;&gt;previous&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nx&quot;&gt;cursor&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nx&quot;&gt;page&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
-
-
-&lt;p&gt;As a fragment container, this doesn&#39;t have the ability to fetch anything by itself. We want to pass in an &lt;code&gt;onClick&lt;/code&gt;
-and &lt;code&gt;onNext&lt;/code&gt; prop from a parent, as well as the &lt;code&gt;hasNextPage&lt;/code&gt; and &lt;code&gt;endCursor&lt;/code&gt; data. Check out
-&lt;a href=&quot;https://github.com/artsy/reaction/blob/c6d630f8c3213f47c5124f63eda13fbb9d8f497b/src/Components/v2/Pagination.tsx&quot;&gt;this component&lt;/a&gt;
-in our library to see how we take that vanilla React component mentioned above, and use the above fragment to make
-a Relay fragment container out of it.&lt;/p&gt;
-
-&lt;p&gt;Now, we need to decide what kind of parent container is appropriate, and how this fragment container will be used.&lt;/p&gt;
-
-&lt;a name=&quot;Relay.Integration.Step.II&quot;&gt;&lt;/a&gt;
-&lt;h2&gt;Relay Integration Step II&lt;/h2&gt;
-
-&lt;p&gt;This is going to be confusing, but for this step, we use a
-&lt;a href=&quot;https://relay.dev/docs/en/refetch-container&quot;&gt;refetch container&lt;/a&gt; in order to present our paginated collection view,
-rather than the aptly-named &lt;a href=&quot;https://relay.dev/docs/en/pagination-container&quot;&gt;Relay pagination container&lt;/a&gt;. The
-latter is more suited for an infinite scroll feed view (presenting all content already fetched, only adjacent pages
-in a particular direction are able to be scrolled to, etc.) vs. the windowed pagination we are trying to
-accomplish. The refetch container is a much more natural fit for our use case, despite the naming.&lt;/p&gt;
-
-&lt;p&gt;That fragment looks like:&lt;/p&gt;
-
-&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;6&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;7&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;8&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;9&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;10&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;11&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;12&lt;/span&gt;
-&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;js&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;nx&quot;&gt;fragment&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;ConnectionResults_query&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;on&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;Query&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;nx&quot;&gt;someConnection&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;first&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;$first&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;after&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;$after&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nx&quot;&gt;pageInfo&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;nx&quot;&gt;hasNextPage&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;nx&quot;&gt;endCursor&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nx&quot;&gt;pageCursors&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;p&quot;&gt;...&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;Pagination_pageCursors&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;p&quot;&gt;...&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;OtherStuffForYourView&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
-
-
-&lt;p&gt;We include our &lt;code&gt;pageCursors&lt;/code&gt; fragment, as well as the &lt;code&gt;hasNextPage&lt;/code&gt; and &lt;code&gt;endCursor&lt;/code&gt; from the &lt;code&gt;pageInfo&lt;/code&gt; object. We
-need to provide the &lt;code&gt;onClick&lt;/code&gt; and &lt;code&gt;onNext&lt;/code&gt; callbacks as well. Since this component will have access to a
-&lt;a href=&quot;https://relay.dev/docs/en/refetch-container#refetch&quot;&gt;&lt;code&gt;relay&lt;/code&gt; prop&lt;/a&gt; since it is a refetch container, those look
-like:&lt;/p&gt;
-
-&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;4&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;5&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;6&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;7&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;8&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;9&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;10&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;11&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;12&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;13&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;14&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;15&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;16&lt;/span&gt;
-&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;js&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;nx&quot;&gt;handleNext&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;hasNextPage&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;this&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;handleClick&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;endCursor&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;nx&quot;&gt;handleClick&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;cursor&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;string&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;k&quot;&gt;this&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;props&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;relay&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;refetch&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;nx&quot;&gt;first&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;PAGE_SIZE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;nx&quot;&gt;after&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;cursor&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;kc&quot;&gt;null&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;nx&quot;&gt;error&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;      &lt;span class=&quot;cm&quot;&gt;/* Update URL, set state, etc. */&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
-
-
-&lt;p&gt;The refetch query defined for the container will look like:&lt;/p&gt;
-
-&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;2&lt;/span&gt;
-&lt;span class=&#39;line-number&#39;&gt;3&lt;/span&gt;
-&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;js&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;nx&quot;&gt;query&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;SomeConnectionQuery&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;$first&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;Int&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;$after&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;String&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;  &lt;span class=&quot;p&quot;&gt;...&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;ConnectionResults_query&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;@&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;arguments&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;first&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;$first&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;after&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;$after&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
-
-
-&lt;p&gt;We&#39;re pretty much done, this is all just Relay boilerplate at this point.&lt;/p&gt;
-
-&lt;p&gt;Putting it all together, our refetch container winds up rendering a fully functional pagination component in one
-line:&lt;/p&gt;
-
-&lt;div class=&#39;bogus-wrapper&#39;&gt;&lt;notextile&gt;&lt;figure class=&#39;code&#39;&gt;&lt;figcaption&gt;&lt;span&gt;&lt;/span&gt;&lt;/figcaption&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#39;line-number&#39;&gt;1&lt;/span&gt;
-&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#39;code&#39;&gt;&lt;pre&gt;&lt;code class=&#39;js&#39;&gt;&lt;span class=&#39;line&#39;&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;Pagination&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;onClick&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;handleClick&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;onNext&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;handleNext&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;pageCursors&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;props&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;pageCursors&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;/&amp;gt;&lt;/span&gt;
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/notextile&gt;&lt;/div&gt;
-
-
-&lt;p&gt;That&#39;s it! Any connection can have this pagination functionality added to it very simply. You include the page
-cursor schema on the server for that type (we have a
-&lt;a href=&quot;https://github.com/artsy/metaphysics/blob/205592be7f59970cf80313972ceb95bb1579c31f/src/schema/v2/fields/pagination.ts#L160&quot;&gt;factory method&lt;/a&gt;
-to help us do that automatically for any connection type). Then, following the above steps, you can quickly build a
-Relay refetch container that displays and seamlessly paginates any list.&lt;/p&gt;
-
-&lt;p&gt;You can see an example of this in numerous places on the &lt;a href=&quot;https://www.artsy.net&quot;&gt;Artsy&lt;/a&gt; website. Head on over to
-our &lt;a href=&quot;https://www.artsy.net/collect&quot;&gt;Artworks browse experience&lt;/a&gt; and have fun filtering and searching/browsing
-through all accessible works! The pagination controls and functionality on this page, and others, are built using
-the technique described in this post.&lt;/p&gt;
-
-&lt;a name=&quot;Examples&quot;&gt;&lt;/a&gt;
-&lt;h2&gt;Examples&lt;/h2&gt;
-
-&lt;p&gt;Since our &lt;a href=&quot;https://github.com/artsy/metaphysics&quot;&gt;GraphQL orchestration layer&lt;/a&gt;, our
-&lt;a href=&quot;https://github.com/artsy/palette&quot;&gt;design system&lt;/a&gt; and
-&lt;a href=&quot;https://github.com/artsy/reaction&quot;&gt;UI component and app library&lt;/a&gt; are all open source, here&#39;s links to our actual
-production implementation of the above:&lt;/p&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&quot;https://github.com/artsy/metaphysics/blob/205592be7f59970cf80313972ceb95bb1579c31f/src/schema/v2/fields/pagination.ts&quot;&gt;Pagination schema in GraphQL&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&quot;https://github.com/artsy/palette/blob/f882d32c3fdc6e7f81915c2922e3824bd26791e7/packages/palette/src/elements/Pagination/Pagination.tsx&quot;&gt;React UI component&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&quot;https://github.com/artsy/reaction/blob/c6d630f8c3213f47c5124f63eda13fbb9d8f497b/src/Components/v2/Pagination.tsx&quot;&gt;Relay FragmentContainer wrapping of the above&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&quot;https://github.com/artsy/reaction/blob/c6d630f8c3213f47c5124f63eda13fbb9d8f497b/src/Apps/Search/Routes/Artists/SearchResultsArtists.tsx&quot;&gt;Relay RefetchContainer full example&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-</description>
-        <pubDate>Tue, 21 Jan 2020 00:00:00 +0000</pubDate>
-        <link>https://artsy.github.io/blog/2020/01/21/graphql-relay-windowed-pagination/</link>
-        <guid isPermaLink="true">https://artsy.github.io/blog/2020/01/21/graphql-relay-windowed-pagination/</guid>
-        
-        
-        <category>graphql</category>
-        
-        <category>pagination</category>
-        
-        <category>relay</category>
         
       </item>
     

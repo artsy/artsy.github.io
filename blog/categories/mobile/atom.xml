@@ -4,7 +4,7 @@
   <title><![CDATA[Category: mobile | Artsy Engineering]]></title>
   <link href="https://artsy.github.io/blog/categories/mobile/atom.xml" rel="self"/>
   <link href="https://artsy.github.io/"/>
-  <updated>2020-12-29T17:08:54+00:00</updated>
+  <updated>2021-01-04T15:09:28+00:00</updated>
   <id>https://artsy.github.io/</id>
   <author>
     <name><![CDATA[]]></name>
@@ -12,6 +12,75 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Echoes From the Past: Supporting Old App Versions]]></title>
+    <link href="https://artsy.github.io/blog/2020/12/31/echo-supporting-old-app-versions/"/>
+    <updated>2020-12-31T00:00:00+00:00</updated>
+    <id>https://artsy.github.io/blog/2020/12/31/echo-supporting-old-app-versions</id>
+    <content type="html"><![CDATA[<p><a href="https://artsy.github.io/blog/2020/03/02/ios-deploys-super-weird-totally-normal/">In, a recent blog post</a>, I discussed a fundamental difference between web and iOS deployments. Web software is deployed to servers that are under your control, while iOS software is deployed to users' devices that you have <em>no</em> control over. This distinction really changes how you think about the code that you ship, because that code could be running indefinitely on devices that never get updated.</p>
+
+<p>The previous post focused on this distinction through the lens of accidentally shipping (and then fixing) a bug. This focus on bugs is important, but focusing <em>only</em> on bugs left me unable to articulate an important, nuanced distinction between hosting code and shipping app binaries. So let's dive in.</p>
+
+<!-- more -->
+
+
+<p>Software, ideally, is made up of more than just bugs; it has working code, too! Just like with (accidentally) shipping bugs, you need to be aware that the working code you ship is <em>also</em> going to be running indefinitely. That puts pressure on developers to make sure that the code in their apps will continue to function correctly, even as (for example) the web APIs that the apps rely on get updated over time.</p>
+
+<a name="A.Case.Study"></a>
+<h2>A Case Study</h2>
+
+<p>Artsy's iOS app relies on a services we call "<a href="https://github.com/artsy/echo">Echo</a>" to serve remote configuration. This lets Artsy do things like selectively disable features (for example, to make non-backwards-compatible API changes), provide changes to URL-routing (to match corresponding changes to web URLs), or even to <em>require</em> users on older versions of the app to update (which we have never had to do). Echo has helped Artsy meet its business goals and building this remote configuration for the app was a great idea.</p>
+
+<p>However... Echo was built as a general-purpose remote-configuration-as-a-service, in anticipation of being used by other apps. That use that never materialized. It had a web portal and a database and an API, all to only ever serve a single JSON response to the app. That's fine, sometimes engineers build things that don't end up getting used widely as we expected. Echo did one thing, and it did it really well. It ran on a Hobby Dyno on Heroku without incident for years.</p>
+
+<p>If you think about what I've discussed so far in this post, you may realize that the app <em>depends</em> on Echo. If Echo changes in some non-backwards-compatible way, then the app could break. For example, if Echo happened to stop working entirely, then the app could stop working too.</p>
+
+<p>The Echo service went without being deployed for several years. It worked, so why update it? The problem was that at some point, its major dependencies got yanked, so we could no longer build it locally or even deploy it at all. Yikes. I asked a web colleague for help and our conclusion was that it would take more effort to get Echo working with its existing code than it would be to rebuild the whole thing. Double yikes. And finally, Echo was running on the <a href="https://devcenter.heroku.com/articles/cedar-14-stack">Cedar-14 Heroku stack</a>, which was already at end-of-life and had stopped receiving security updates. Triple yikes.</p>
+
+<p>(I have to note here that most of services at Artsy are deployed almost constantly – Echo was an odd one out. Echo never needed any updates, so it never needed to be deployed. However, we should have been keeping its dependencies up to date and deploying it regularly, which would have uncovered its problems sooner when they were still easily fixed. Anyway!)</p>
+
+<p>So we have a service, Echo, that we can't develop, and can't deploy, and isn't getting security updates from our cloud provider. And the app depends on it. Since Echo had always been a bit over-engineered for what it ended up being, I wondered what the minimal replacement could be. My plan was to replace the Echo server with an S3 bucket, an Artsy-controlled CNAME DNS record, and a small shell script that runs automatically on CI.</p>
+
+<p>Seriously! <a href="https://github.com/artsy/echo/pull/39">It worked</a>! I made a proof-of-concept and then another engineer, Pavlos, finished building the new infrastructure. Changes to the app's configuration are now done via GitHub pull requests (<a href="https://github.com/artsy/echo/pull/63">here is an example PR</a>), which we can track over time (unlike the old web interface).</p>
+
+<p>I can't stress enough how much worry I had had about Echo's degrading status and the app's dependency on it. But! Everything about the change to S3 went smoothly.</p>
+
+<p>Okay, so new versions of app are now referring to the S3 bucket instead of the old Echo API. Great! But what about the older versions of the app that are still out there? They're still hitting the Echo API as intended, right?</p>
+
+<a name="The.Problem"></a>
+<h2>The Problem</h2>
+
+<p>Echo's API was still functioning, albeit on an EOL stack that we couldn't make any changes to. Since we can't rely on Heroku continuing to run the Echo API indefinitely, what could we do? Well, the easiest way to fix this would be to change Echo's Artsy-controlled CNAME record to point from the old Cedar-14 Heroku app to a new server app, which could pretend to be the old API for the sake of older app versions.</p>
+
+<p>This leads me to one of the most scary lines of code in the entire Artsy iOS codebase. See if you can spot the problem.</p>
+
+<pre><code class="objc">NSURL *url = [[NSURL alloc] initWithString:@"https://echo-api-production.herokuapp.com/"];
+</code></pre>
+
+<p>For whatever reason, we never created an Artsy-controlled CNAME DNS record for Echo. We were just hitting the bare Heroku URL directly. That means that there are <em>seven years'</em> worth of Artsy app versions out there that <em>need</em> to be able to continue hitting <em>that specific</em> Heroku URL.</p>
+
+<p>😬</p>
+
+<p>This is what I meant earlier about how you need to think about properly-working code differently when you develop software that runs on someone else's hardware. If this was a server, this whole problem of old-code-hitting-outdated-APIs wouldn't exist. But because we ship apps as binaries that get ran on someone <em>else's</em> hardware, we need to be aware of this kind of issue.</p>
+
+<p>That URL was fine when the code was written and it worked as intended for years. No one could have predicted, when it was added, that it would cause us headaches much later. Nor could we have anticipated that the Echo server's codebase would end up in such a state.</p>
+
+<a name="The.Solution"></a>
+<h2>The Solution</h2>
+
+<p>This is the part of the blog post where I get to be a hero (at least in my head). The Heroku app running Echo was on Cedar-14 and while we couldn't make any changes to its code, we <em>could</em> replace the code entirely. This would give us a new server running at the old URL. So I wrote up a small Express server to proxy HEAD and GET API requests from old iOS app versions to return the response body and headers that were expected. <a href="https://github.com/artsy/echo/pull/59#">The work is here</a> if you're curious. The nice thing about Heroku, at least, is that if this had gone horribly wrong we still could have reverted back to the Cedar-14 app while we figured out our next steps.</p>
+
+<p>We will still need to keep this Heroku app running, indefinitely, which isn't ideal. Perhaps Artsy's migration to Kubernetes will never be <em>quite</em> 100% complete, but that's a small price to pay for keeping users of our app happy.</p>
+
+<a name="Conclusion"></a>
+<h2>Conclusion</h2>
+
+<p>It's not just bugs that you need to be aware of <em>accidentally</em> shipping in your app binaries. You have to think about how the code that's running <em>as intended today</em>, because it will continue to run for the foreseeable future. This means adding checks for non-200 response codes from APIs, being careful about third-party APIs, and thinking carefully about everything you ship. Apps are more than just their code; apps are everything that their code depends on, too.</p>
+
+<p>This is a lesson that I've been teaching engineers for a long time, but it's only with our recent Echo changes that I've come to understand, at a deeper level, what it means to take ownership of code. Yes, the bugs, and of course, the happy little accidents, but also the mundane interconnected dependencies that make software systems so complex. And, if I'm being honest, that make software systems so much fun to work on, too.</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Becoming Mobile First]]></title>
@@ -887,117 +956,6 @@ apps should use match.</p>
 <p>So we went looking and luckily found <a href="https://github.com/artsy/eigen/pull/2104">the solution</a>. We amended our codesigning setup with the <a href="https://docs.fastlane.tools/actions/#update_project_provisioning">update_project_provisioning</a> and <a href="https://docs.fastlane.tools/actions/#update_project_team">update_project_team</a> Fastlane actions, and the <a href="https://github.com/hjanuschka/fastlane-plugin-update_project_codesigning">update_project_codesigning plugin</a>. Basically, we disable the automatic signing feature and then manually set the provisioning profile to the one we cloned from our private GitHub repo.</p>
 
 <p>So remember folks, if you're ever asked to sacrifice ease of development for the sake of getting computers to behave, there's probably a better way.</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Accessing the app's Source Code from your Simulator]]></title>
-    <link href="https://artsy.github.io/blog/2016/10/14/Accessing-the-Source-Code-from-your-Simulator/"/>
-    <updated>2016-10-14T12:17:00+00:00</updated>
-    <id>https://artsy.github.io/blog/2016/10/14/Accessing-the-Source-Code-from-your-Simulator</id>
-    <content type="html"><![CDATA[<p>In the last few months twice I've wanted to access the source code of our application. The first time I did it I came up with a pretty neat hack, but it wouldn't really work in many places. The second time however, I <a href="https://twitter.com/orta/status/786470282093625344">asked the internet</a>, and the <a href="https://twitter.com/saniul/status/786470857635827712">internet</a> <a href="https://twitter.com/0xced/status/786619335116750848">replied</a>.</p>
-
-<p>TLDR: You can use your <a href="https://github.com/artsy/emission/pull/350/commits/2a39c743bcaaf2e3b848ad60621198f40365fdd2">project's scheme</a> to expose derived Xcode environment variables to your source code.</p>
-
-<p>The rest of the blog post is a little bit about <em>why</em> I wanted to do that and what I did with it.</p>
-
-<!-- more -->
-
-
-<p>Both times I've wanted to access the source code of our apps is because I've wanted to make better admin tools. It should come as no surprise to people who know me that I care about tooling, but I also care a lot about making it possible for our admins to do their own thing. As such, our <a href="https://github.com/artsy/eigen/blob/master/Artsy/View_Controllers/Admin/ARAdminSettingsViewController.m">admin settings panel</a> in Eigen is extensive.</p>
-
-<a name="Root.React.Components"></a>
-<h3>Root React Components</h3>
-
-<p>The first time came when I started to think about what admin options I'd like to see for people using our React Native side. These are the options I came up with:</p>
-
-<p> <img src="/images/source-code-sim/react-admin-eigen.png" alt="/images/source-code-sim/react-admin-eigen.png" /></p>
-
-<p>There are two interesting things about it:</p>
-
-<ul>
-<li>We support running any master commit of our React Native code inside Eigen, for Admins, <a href="https://apphub.io">via AppHub</a></li>
-<li>We allow loading arbitrary React components as an admin.</li>
-</ul>
-
-
-<p> It's this last bit that's interesting, right now I'm working on a new root Gene component (read: new view controller) in Emission, our React Native implementation. As this work has not moved upstream into Eigen, I can access it through a commit on AppHub, and then open it using our custom module loader:</p>
-
-<p><img src="/images/source-code-sim/react-module-eigen.png" alt="/images/source-code-sim/react-module-eigen.png" /></p>
-
-<p>In order to show the available root components (Artist/Home/Gene), we use GitHub's raw URLs to download the source code of our Open Source apps. Hah, a nice hack right? I <a href="https://github.com/artsy/eigen/blob/master/Artsy/View_Controllers/Admin/ARAdminNetworkModel.m">created</a> a <code>ARAdminNetworkModel</code> with an API like this:</p>
-
-<pre><code class="objc">@interface ARAdminNetworkModel : NSObject
-
-- (void)getEmissionJSON:(NSString *)path completion:(void (^)(NSDictionary *json, NSError *error))completion;
-
-- (void)getEmissionFile:(NSString *)path completion:(void (^)(NSString *fileContents, NSError *error))completion;
-
-@end
-</code></pre>
-
-<p>Which simply uses <code>NSURLSession</code> under the hood:</p>
-
-<pre><code class="objc">- (void)getEmissionData:(NSString *)path completion:(void (^)(NSData *data, NSError *error))completion;
-{
-    NSURLSession *session = [NSURLSession sharedSession];
-    NSString *urlFormat = @"https://raw.githubusercontent.com/artsy/emission/master/%@";
-    NSString *url = [NSString stringWithFormat: urlFormat, path];
-    NSURLRequest *request = [NSURLRequest requestWithURL:[NSURL URLWithString:url]];
-    NSURLSessionDataTask *task = [session dataTaskWithRequest:request completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
-            completion(data, error);
-    }];
-    [task resume];
-}
-</code></pre>
-
-<p>Nothing special, but it required a cognitive jump to get there.</p>
-
-<a name="Submodule.Introspection"></a>
-<h3>Submodule Introspection</h3>
-
-<p>The second time I wanted this is inside <a href="https://github.com/artsy/emission/tree/master/Example">the example app</a> for Emission. This is a typical example application for a library made by <code>pod lib create</code>. This example app is basically just the admin settings panel from Eigen, shown above.</p>
-
-<p>When I <a href="https://github.com/artsy/emission/pull/347">switched the</a> example app to use a similar theme and menu DSL as Eigen, I also took the chance to expand on the buttons we had available. Previously there was the ability to load the view controller for one specific artist, but I knew we had a <a href="https://github.com/artsy/metaphysics/blob/master/schema/artist/maps/artist_title_slugs.js">giant list of artist slugs</a> inside one of our optional sub-modules. What I wanted to do, was offer a random Artist from that if the submodule was <code>init</code>'d.</p>
-
-<p>This required introspecting the source, which I could have also done via the GitHub API, but it was also feasible to do by accessing the filesystem outside of the simulator. This is totally possible ( and is <a href="https://www.objc.io/issues/15-testing/snapshot-testing/">how FBSnapshots works</a> ) but I needed to access the project root, then I could build relative links. Thus, <a href="https://twitter.com/orta/status/786470282093625344">I asked the internet</a>. I knew these variables existed, but that they were a part of the build process - and not exposed to the app runtime.</p>
-
-<p>There are two ways to do it, both make sense for different contexts:</p>
-
-<ul>
-<li><a href="https://github.com/artsy/emission/blob/74d0bc6cc45da906436f8bbc33710ea030657ee8/Example/Emission/Info.plist#L5-L6">Baking the value into your Info.plist</a> - which makes it available for all consumers at runtime, e.g. you could deploy this value, but it's not too useful for my problem.</li>
-<li><a href="https://github.com/artsy/emission/pull/350/commits/2a39c743bcaaf2e3b848ad60621198f40365fdd2">Exposing it as an environment variable via your scheme</a> - perfect for this case, the variable won't be exported when you deploy.</li>
-</ul>
-
-
-<p>Now our scheme looks like this:</p>
-
-<p></div></div><a href='/images/source-code-sim/scheme-settings-emission.png'><img src="/images/source-code-sim/scheme-settings-emission.png"></a><div class='meta-container'><header>&nbsp;</header></div><div class='date-container'>&nbsp;</div><div class='content-container'><div class='entry-content'></p>
-
-<p>I can then use the value of <code>SRCROOT</code> as the start of an absolute path to get to any of the source code in our project. Making the <a href="https://github.com/artsy/emission/blob/dda57636e424ab7d4517de57f3e8bd917fcb3c6f/Example/Emission/ARRootViewController.m#L85-L108">final code</a>:</p>
-
-<pre><code class="obj-c">- (ARCellData *)jumpToRandomArtist
-{
-  NSString *sourceRoot = [NSProcessInfo processInfo].environment[@"SRCROOT"];
-  NSString *artistListFromExample = @"../externals/metaphysics/schema/artist/maps/artist_title_slugs.js";
-  NSString *slugsPath = [sourceRoot stringByAppendingPathComponent:artistListFromExample];
-
-  NSFileManager *manager = [NSFileManager defaultManager];
-
-  // Don't have the submodule? bail, it's no biggie
-  if (![manager fileExistsAtPath:slugsPath]) { return nil; }
-
-  // Otherwise lets support jumping to a random Artist
-  return [self tappableCellDataWithTitle:@"Artist (random from metaphysics)" selection: ^{
-    NSString *data = [NSString stringWithContentsOfFile:slugsPath encoding:NSUTF8StringEncoding error:nil];
-
-    ... and so on
-</code></pre>
-
-<a name="Tooling"></a>
-<h3>Tooling</h3>
-
-<p>Paying attention to your admin tools, and improving your development experience for the whole team is a great way to win friends and influence people. Introspecting your source code may help that.</p>
 ]]></content>
   </entry>
   
