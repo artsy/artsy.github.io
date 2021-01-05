@@ -18,7 +18,7 @@ Software, ideally, is made up of more than just bugs; it has working code, too! 
 
 Artsy's iOS app relies on a services we call "[Echo](https://github.com/artsy/echo)" to serve remote configuration. This lets Artsy do things like selectively disable features (for example, to make non-backwards-compatible API changes), provide changes to URL-routing (to match corresponding changes to web URLs), or even to _require_ users on older versions of the app to update (which we have never had to do). Echo has helped Artsy meet its business goals and building this remote configuration for the app was a great idea.
 
-However... Echo was built as a general-purpose remote-configuration-as-a-service, in anticipation of being used by other apps. That use that never materialized. It had a web portal and a database and an API, all to only ever serve a single JSON response to the app. That's fine, sometimes engineers build things that don't end up getting used widely as we expected. Echo did one thing, and it did it really well. It ran on a Hobby Dyno on Heroku without incident for years.
+However... Echo was built as a general-purpose remote-configuration-as-a-service, in anticipation of being used by other apps. That use never materialized. It had a web portal and a database and an API, all to only ever serve a single JSON response to the app. That's fine, sometimes engineers build things that don't end up getting used widely as we expected. Echo did one thing, and it did it really well. It ran on a Hobby Dyno on Heroku without incident for years.
 
 If you think about what I've discussed so far in this post, you may realize that the app _depends_ on Echo. If Echo changes in some non-backwards-compatible way, then the app could break. For example, if Echo happened to stop working entirely, then the app could stop working too.
 
@@ -28,7 +28,7 @@ The Echo service went without being deployed for several years. It worked, so wh
 
 So we have a service, Echo, that we can't develop, and can't deploy, and isn't getting security updates from our cloud provider. And the app depends on it. Since Echo had always been a bit over-engineered for what it ended up being, I wondered what the minimal replacement could be. My plan was to replace the Echo server with an S3 bucket, an Artsy-controlled CNAME DNS record, and a small shell script that runs automatically on CI.
 
-Seriously! [It worked](https://github.com/artsy/echo/pull/39)! I made a proof-of-concept and then another engineer, Pavlos, finished building the new infrastructure. Changes to the app's configuration are now done via GitHub pull requests ([here is an example PR](https://github.com/artsy/echo/pull/63)), which we can track over time (unlike the old web interface). 
+Seriously! [It worked](https://github.com/artsy/echo/pull/39)! I made a proof-of-concept and then another engineer, [Pavlos](https://github.com/pvinis), finished building the new infrastructure. Changes to the app's configuration are now done via GitHub pull requests ([here is an example PR](https://github.com/artsy/echo/pull/63)), which we can track over time (unlike the old web interface). 
 
 I can't stress enough how much worry I had had about Echo's degrading status and the app's dependency on it. But! Everything about the change to S3 went smoothly.
 
