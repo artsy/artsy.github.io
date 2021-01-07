@@ -15,6 +15,8 @@ There are a ton of amazing engineers here at Artsy and we're excited for you to 
 hope is that this podcast will make it easy for more engineers at Artsy to contribute to the public persona of
 Artsy Engineering.
 
+<!-- more -->
+
 We'll release new episodes every other week. Our target episode length is 30 minutes. Some episodes will be
 technical and others less so. Because
 [we work in the open](https://github.com/artsy/README/blob/master/culture/engineering-principles.md#open-source-by-default)
