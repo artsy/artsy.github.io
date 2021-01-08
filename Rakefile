@@ -46,6 +46,11 @@ namespace :podcast do
       file_byte_length: "#{filesize}"
       duration: "#{duration}"
       credits: ""
+      links:
+        - title: "links are optional"
+          url: "https://TODO"
+        - title: "please remove the links property if there are none"
+          url: "https://TODO"
 EOS
 
     File.open('_config.yml', 'a') do |file|
