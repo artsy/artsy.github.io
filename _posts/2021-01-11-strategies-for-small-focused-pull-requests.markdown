@@ -24,36 +24,46 @@ Note that the recommendation for "small and focused" PRs does not include the wo
 
 ### Integrating code a little at a time
 
-A caveat: the recommendations in this article assume you can integrate code a little bit at a time. I've worked on teams and projects where we had very long-lived branches for features or even epics, I know those environments exist. This article is probably not the one that will convince you to move to [trunk-based development](https://trunkbaseddevelopment.com/); it's also probably not going to help much in those environments. 
+A caveat: the recommendations in this article assume you can integrate code a little bit at a time. I've worked on teams and projects where we had very long-lived branches for features or even epic — I know those environments exist. This article is probably not the one that will convince you to move to [trunk-based development](https://trunkbaseddevelopment.com/); it also might be less useful without trunk-based development.
 
-On the other hand, ...???
+Having said that, even with long-lived feature branches you can introduce code _into those branches_ a little bit at a time. PRs can be opened against _any_ branch, not just `main`. 
+
+Some strategies we use at Artsy for integrating code a little bit at a time:
+
+* **[Feature toggles](https://trunkbaseddevelopment.com/feature-flags/)**. [Ash wrote about Echo](https://artsy.github.io/blog/2020/12/31/echo-supporting-old-app-versions/), a service for toggling features on mobile devices, but we have additional ways for enabling/disabling features at the system _or_ user level. When we introduce new code we can hide it behind a feature flag until we're ready for everyone to see it.
+* **"Hidden" routes**. Often when we redesign or modernize an existing route on Artsy.net we'll create a _second_ similar route. We hide the in-progress page behind that new route and don't share it until it's ready. 🤫
+* **TODO** maybe other ways?
+
+Armed with tools for integrating code incrementally, here are some strategies for reducing the size and scope of a PR.
+
+## Start with small scope — slice your stories small
+
+Swyx mentions it in https://www.swyx.io/quality-vs-consistency/ (and references James Clear) — of Consistency, Quality, and Scope, choose Consistency & Quality. Cut Scope. blahblahblah
 
 
-
-
-- caveat: breaking up PRs assumes you can integrate code a little bit at a time
-  - long-lived branching schemes _might_ make this harder
-    - though you can still PR & review into branches that aren't `main`
-  - feature toggles is a nice way to accomplish this 
-    - could talk about our different levels of feature toggles (echo, user admin flags or whatever from gravity, whatever comes before an echo flag)
-  - in web we use alternate routes when replacing an app (/search2 vs /search)
-    - find an example PR
-  - there are probably other ways I could list here
 - strategies for reducing size & scope of a PR
   - start with small scope -- make small stories
     - TODO: strategies for story-splitting
+      - by separate crud operations
+      - by vertical slices instead of horizontal layers
+      - by role
+      - by value-add
   - PR by layer
     - probably taken for granted at artsy because our layers are different services/repos (and therefore _require_ separate PRs)
+    - yes this contradicts the previous point about slicing _stories_ vertically instead of horizontally
   - walking skeleton
     - start with a PR that just connects the different pieces end-to-end
     - once that's merged, start filling in the skeleton with PRs
   - separate riskiest/most controversial from the more routine work
     - separates the signal from the noise for reviewers
-  - separate the work that makes a seam from the work that introduces the new feature
-    - separate refactoring into its own PR
+  - separate preparation/cleanup work
     - separate dependency updates into its own PR
+    - separate work that makes a seam for a feature
+    - separate unrelated refactoring into its own PR
+    - separate polish work
 - common problems
   - what happens if I start work thinking its a standalone PR but find bits I can separate? 
     - submit a PR for the offshoot, rebase off that branch
   - what happens if I'm halfway through the work when I realize I committed different kinds of work?
     - interactive rebase
+      - speaks to the importance of granular _commits_ --- so you can move them, reorder them, ...
