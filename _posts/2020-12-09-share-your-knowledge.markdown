@@ -6,7 +6,7 @@ categories: [teams, culture, people]
 author: ash
 ---
 
-Sharing knowledge! What a concept! [In my recent blog post](/blog/becoming-mobile-first-at-artsy), I discussed "Knowledge Share" meetings (also known simply as "Knowledge Shares", or abbreviated "KS") and I want to dive deeper into them today. Last time, I described them as follows:
+Sharing knowledge! What a concept! [In my recent blog post](/blog/2020/09/29/becoming-mobile-first-at-artsy/), I discussed "Knowledge Share" meetings (also known simply as "Knowledge Shares", or abbreviated "KS") and I want to dive deeper into them today. Last time, I described them as follows:
 
 > Knowledge Shares are a <u>structured</u> time to facilitate <u>unstructured learning</u>. Anyone can bring a topic to Knowledge Share, from a ticket that they're stuck on to an idea they have to a neat trick they recently learned.
 
