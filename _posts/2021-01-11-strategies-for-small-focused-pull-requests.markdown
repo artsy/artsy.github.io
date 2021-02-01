@@ -38,19 +38,29 @@ Armed with tools for integrating code incrementally, here are some strategies fo
 
 ## Start with small scope — slice your stories small
 
-Swyx mentions it in https://www.swyx.io/quality-vs-consistency/ (and references James Clear) — of Consistency, Quality, and Scope, choose Consistency & Quality. Cut Scope. blahblahblah
+One of the most valuable lessons I learned as a consultant with a company focused on agile development is that you can almost always slice a story smaller. You can do this by sacrificing quality, but you can also (and probably should) do it by cutting scope. We can ship a new screen for our app sooner if we focus on building the most absolutely critical features first, and follow up with the valuable-but-not-critical features later.
+
+There are many ways to break a story smaller, and all of them enable you to integrate code sooner in the form of smaller PRs: 
+
+- Separate CRUD (Create, Read, Update, Delete) operations and ship them one at a time
+- Separate by user role
+- Separate individual edge cases
+- Separate a simplified experience from an enhanced version
 
 
-- strategies for reducing size & scope of a PR
-  - start with small scope -- make small stories
-    - TODO: strategies for story-splitting
-      - by separate crud operations
-      - by vertical slices instead of horizontal layers
-      - by role
-      - by value-add
-  - PR by layer
-    - probably taken for granted at artsy because our layers are different services/repos (and therefore _require_ separate PRs)
-    - yes this contradicts the previous point about slicing _stories_ vertically instead of horizontally
+Think of these smaller scoped features as self-contained vertical slices of functionality. As each one is released, users can take advantage of them, and your team can start building the next module. 
+
+## PR by architectural layer
+
+Rather than building an entire feature end-to-end before creating a pull request, consider integrating one layer at a time. Embrace the boundaries between the front and back ends of your code — submit a PR to introduce changes to the API, and once it's merged follow up with another PR to introduce changes to the UI. 
+
+Depending on the architecture of your system, you might already be forced to this. At Artsy, our [web app lives in one repo](force), our [GraphQL endpoint lives in another](metaphysics), and many services are separated into repositories behind that. We _have_ to integrate our features one layer at a time. 
+
+The suggestion to PR by architectural layer is not in conflict with slicing stories small — in fact, these two strategies complement each other quite nicely. A PR that contains multiple features but only one layer is probably large enough to be difficult to review; so is a PR that contains one feature end-to-end. A PR containing one layer of one feature is easier to review.
+
+## Build a walking skeleton
+
+
   - walking skeleton
     - start with a PR that just connects the different pieces end-to-end
     - once that's merged, start filling in the skeleton with PRs
