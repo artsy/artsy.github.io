@@ -54,7 +54,7 @@ Think of these smaller scoped features as self-contained vertical slices of func
 
 Rather than building an entire feature end-to-end before creating a pull request, consider integrating one layer at a time. Embrace the boundaries between the front and back ends of your code — submit a PR to introduce changes to the API, and once it's merged follow up with another PR to introduce changes to the UI. 
 
-Depending on the architecture of your system, you might already be forced to this. At Artsy, our [web app lives in one repo](force), our [GraphQL endpoint lives in another](metaphysics), and many services are separated into repositories behind that. We _have_ to integrate our features one layer at a time. 
+Depending on the architecture of your system, you might already be forced to this. At Artsy, our [web app lives in one repo](force), our [GraphQL endpoint lives in another](metaphysics), and many services are separated into repositories behind that. We _have_ to integrate our features one layer at a time. TODO: link to examples
 
 The suggestion to PR by architectural layer is not in conflict with slicing stories small — in fact, these two strategies complement each other quite nicely. A PR that contains multiple features but only one layer is probably large enough to be difficult to review; so is a PR that contains one feature end-to-end. A PR containing one layer of one feature is easier to review.
 
@@ -69,7 +69,10 @@ The suggestion to PR by architectural layer is not in conflict with slicing stor
   - separate preparation/cleanup work
     - separate dependency updates into its own PR
     - separate work that makes a seam for a feature
-    - separate unrelated refactoring into its own PR
+    - separate refactoring into its own PR
+      - example (which I didn't extract but should have): 
+        - https://github.com/artsy/eigen/pull/4356/commits/0cb7b9d075469f6830772a1e48d82f925f104a09
+        - https://github.com/artsy/eigen/pull/4356/commits/6f0ff46a98c6df0918b1e230e864091f1d608cb1
     - separate polish work
 - common problems
   - what happens if I start work thinking its a standalone PR but find bits I can separate? 
