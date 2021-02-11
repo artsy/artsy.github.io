@@ -5,6 +5,7 @@ date: 2021-02-11
 categories: [team, culture, community, learning, teaching]
 author: anna
 canonical: https://medium.com/swlh/why-asking-for-help-strengthens-engineering-teams-6b1eadc86936
+comment_id: 664
 ---
 
 I know that for many developers, especially those early in their careers, asking for help can be intimidating. I
