@@ -34,7 +34,7 @@ Some strategies we use at Artsy for integrating code a little bit at a time:
 * **"Hidden" routes**. Often when we redesign or modernize an existing route on Artsy.net we'll create a _second_ similar route. We hide the in-progress page behind that new route and don't share it until it's ready. 🤫
 * **TODO** maybe other ways?
 
-Armed with tools for integrating code incrementally, here are some strategies for reducing the size and scope of a PR.
+Armed with tools for integrating code incrementally, here are some strategies for reducing the size and scope of a PR. I'm not suggesting you use these strategies universally, but if you think you're headed toward a very large PR, these are some things to try. 
 
 ## Start with small scope — slice your stories small
 
@@ -78,19 +78,37 @@ Routine implementation can be a noisy distraction in a PR that also contains a u
 
 The worst review you can get on a PR that contains both novel and routine work is "LGTM!" (looks good to me). It likely means the reviewer couldn't separate the signal from the noise and overlooked the bits you put a lot of thought and effort into. 
 
-## Separate foundational/infrastructural work from implementations
-    - separate dependency updates into its own PR
-    - separate work that makes a seam for a feature (ex: anna's canonical url stuff)
-    - separate refactoring into its own PR
-      - example (which I didn't extract but should have): 
-        - https://github.com/artsy/eigen/pull/4356/commits/0cb7b9d075469f6830772a1e48d82f925f104a09
-        - https://github.com/artsy/eigen/pull/4356/commits/6f0ff46a98c6df0918b1e230e864091f1d608cb1
-    - separate polish work
+## Separate infrastructural work from implementations
+
+A [t-shaped person](https://en.wikipedia.org/wiki/T-shaped_skills) is someone with a lot of shallow experience in many areas, and deep expertise in one or a few areas. Their skills are wide at the base, and tall and narrow in their area of focus. 
+
+Code can have a similar shape. Infrastructural work tends to be wide and shallow — it touches a lot of places in your code, but it doesn't go deep in any of them. Implementation work tends to be the opposite — it doesn't affect the entire app, but it goes very deep for one feature.
+
+We probably review infrastructural changes differently than we review implementation changes: 
+
+* Infrastructural work deserves scrutiny for the abstractions it introduces and how it might affect performance or future implementations. These kinds of changes introduce new patterns to the codebase and we want to make sure they're useful and usable patterns. 
+
+* An individual implementation gets more scrutiny on user-facing details. It's probably combining _existing_ patterns, so we'll spend less time looking at abstractions. We'll spend more time confirming it works for our users. 
+
+When a large PR combines wide, shallow, abstract work with tall, narrow, concrete work, it requires the reviewer to shift between two different mindsets. You might consider breaking your PR into two: one containing the wide infrastructural work, and one containing the tall implementation work. This allows reviewers to focus on abstractions in one PR and user-facing details in the other. 
+
+Some examples of infrastructural changes that could be separated from implementation work:
+
+* We needed to introduce a seam to the code in order to make room for our implementation. 
+* We needed to update a dependency to take advantage of a new feature. 
+* We wanted to refactor before we started our implementation.
 
 ## Common barriers to separating PRs 
 
+It's no surprise that large PRs happen. We usually don't recognize a PR is going to be large until it gets there. There's a lot of uncertainty when you start working on a feature, and we'd need to model the entire problem to completion to know what the PR was going to look like before we started. Often this is what prevents developers from separating PRs — it seems too difficult to de-tangle them when you recognize they could be de-tangled. 
 
+When you've got a branch that contains multiple lines of work and you want to separate them, [`git rebase`][git-rebase] is your best friend. A couple common scenarios where rebasing can help you de-tangle: 
+
+
+
+heeeeeerrrreeeee
 ### I'm working on a feature, but I want to clean up this unrelated issue and include it in my branch. 
+
     - submit a PR for the offshoot, rebase off that branch
 
 ### I've realized I could split this work into multiple PRs, but my commits are intermingled. 
