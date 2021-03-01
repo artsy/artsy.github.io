@@ -93,9 +93,9 @@ When a large PR combines wide, shallow, abstract work with tall, narrow, concret
 
 Some examples of infrastructural changes that could be separated from implementation work:
 
-* We needed to introduce a seam to the code in order to make room for our implementation. 
-* We needed to update a dependency to take advantage of a new feature. 
-* We wanted to refactor before we started our implementation.
+* We introduced a seam to the code in order to make room for our implementation. 
+* We updated a dependency to take advantage of a new feature. 
+* We refactored before we started our implementation.
 
 ## Separating an already-large PR
 
