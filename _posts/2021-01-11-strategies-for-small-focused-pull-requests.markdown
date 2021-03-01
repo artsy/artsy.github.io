@@ -8,7 +8,7 @@ author: steve-hicks
 
 A common suggestion for improving pull requests (PRs) is to "make your PR small and focused". I myself gave this suggestion in [a recent article on this very blog about including context in PRs](https://artsy.github.io/blog/2020/08/11/improve-pull-requests-by-including-valuable-context/). 
 
-Like most internet advice, this can feel like the ["draw the rest of the owl"](draw-the-rest-of-the-owl) meme. Even if we're in agreement that I _should_ make a PR smaller...**_how_** do I do it? How do I avoid a big PR when there's a lot of cross-cutting changes to make? How do I create small, focused units of work when I'm building a large feature? How can I overcome my perfectionism and submit a PR that feels incomplete to me because the edges aren't all polished?
+Like most internet advice, this can feel like the ["draw the rest of the owl"][draw-the-rest-of-the-owl] meme. Even if we're in agreement that I _should_ make a PR smaller...**_how_** do I do it? How do I avoid a big PR when there's a lot of cross-cutting changes to make? How do I create small, focused units of work when I'm building a large feature? How can I overcome my perfectionism and submit a PR that feels incomplete to me because the edges aren't all polished?
 
 <!-- more -->
 
@@ -28,11 +28,10 @@ A caveat: the recommendations in this article assume you can integrate code a li
 
 Having said that, even with long-lived feature branches you can introduce code _into those branches_ a little bit at a time. PRs can be opened against _any_ branch, not just `main`. 
 
-Some strategies we use at Artsy for integrating code a little bit at a time:
+A couple strategies we use at Artsy for integrating code a little bit at a time:
 
 * **[Feature toggles](https://trunkbaseddevelopment.com/feature-flags/)**. [Ash wrote about Echo](https://artsy.github.io/blog/2020/12/31/echo-supporting-old-app-versions/), a service for toggling features on mobile devices, but we have additional ways for enabling/disabling features at the system _or_ user level. When we introduce new code we can hide it behind a feature flag until we're ready for everyone to see it.
 * **"Hidden" routes**. Often when we redesign or modernize an existing route on Artsy.net we'll create a _second_ similar route. We hide the in-progress page behind that new route and don't share it until it's ready. 🤫
-* **TODO** maybe other ways?
 
 Armed with tools for integrating code incrementally, here are some strategies for reducing the size and scope of a PR. I'm not suggesting you use these strategies universally, but if you think you're headed toward a very large PR, these are some things to try. 
 
@@ -98,20 +97,23 @@ Some examples of infrastructural changes that could be separated from implementa
 * We needed to update a dependency to take advantage of a new feature. 
 * We wanted to refactor before we started our implementation.
 
-## Common barriers to separating PRs 
+## Separating an already-large PR
 
-It's no surprise that large PRs happen. We usually don't recognize a PR is going to be large until it gets there. There's a lot of uncertainty when you start working on a feature, and we'd need to model the entire problem to completion to know what the PR was going to look like before we started. Often this is what prevents developers from separating PRs — it seems too difficult to de-tangle them when you recognize they could be de-tangled. 
+It's natural for PRs to grow large. [Optimism bias][optimism-bias] affects our ability to estimate work often resulting in more code changes than we expected. A feature seems like it won't take much work until you get deeper and find complexity in places you hadn't considered. There's a lot of uncertainty when you start working on a feature and we'd need to model the entire problem to completion to know what the PR was going to look like before we started. A PR seems like it will be small until suddenly...it isn't anymore.
 
-When you've got a branch that contains multiple lines of work and you want to separate them, [`git rebase`][git-rebase] is your best friend. A couple common scenarios where rebasing can help you de-tangle: 
+This is what usually prevents developers from separating PRs — by the time you recognize the PRs could be de-tangled, it seems like a lot of effort to de-tangle them. 
+
+When you've got a PR/branch that contains multiple lines of work and you want to separate them, [`git rebase`][git-rebase] is your best friend. Rebasing enables you to rename, reorder, combine, and separate commits. Use `git rebase` to group your commits into one set for each branch you want to extract, and submit a PR for each smaller set of changes. 
+
+Good commit hygiene makes it easier to rebase commits. Commit small units of work so that they can be re-ordered and grouped, and apply clear messages to each commit in case you need to move it. While you might not _always_ separate/rebase PR branches, you'll appreciate small commits with clear messages when you do. 
+
+## conclusion
+
+somethiing something small PRs yay
 
 
+[optimism-bias]: https://thedecisionlab.com/biases/optimism-bias/
+[git-rebase]: https://www.atlassian.com/git/tutorials/rewriting-history/git-rebase
 
-heeeeeerrrreeeee
-### I'm working on a feature, but I want to clean up this unrelated issue and include it in my branch. 
 
-    - submit a PR for the offshoot, rebase off that branch
-
-### I've realized I could split this work into multiple PRs, but my commits are intermingled. 
-
-    - interactive rebase
-      - speaks to the importance of granular _commits_ --- so you can move them, reorder them, ...
+## 
