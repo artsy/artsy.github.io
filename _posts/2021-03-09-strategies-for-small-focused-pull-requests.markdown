@@ -4,6 +4,7 @@ title: "Strategies For Small, Focused Pull Requests"
 date: 2021-03-09
 categories: [tools, github, team, community, engineering]
 author: steve-hicks
+comment_id: 671
 ---
 
 A common suggestion for improving pull requests (PRs) is to "make your PR small and focused". I myself gave this suggestion in [a recent article on this very blog about including context in PRs](https://artsy.github.io/blog/2020/08/11/improve-pull-requests-by-including-valuable-context/). 
