@@ -68,7 +68,7 @@ Once a walking skeleton PR is merged, you can start filling in the skeleton. Eac
 
 This is a great approach if your team is looking to swarm on a feature. If we all work on our own sub-features without first merging a walking skeleton, we're likely to face some intense merge conflict headaches when we realize we've all connected the full stack in slightly different ways. Starting with a walking skeleton removes a lot of those merge conflicts, because we're mostly bolting fields on to existing infrastructure along the way. 
 
-[This PR](https://github.com/artsy/force/pull/6613) is an example of a walking skeleton. My goal was to stand up an app that connected [React][react], [Relay][relay], and [TypeScript][typescript]. [The actual app doesn't display very much](https://github.com/artsy/relay-workshop/pull/1/files#diff-26ad4b834941d9b19ebf9db8082bd202aaf72ea0ddea85f5a8a0cb3c729cc6f2R25) — just enough to prove that the pieces were all working.
+[This PR](https://github.com/artsy/relay-workshop/pull/1) is an example of a walking skeleton. My goal was to stand up an app that connected [React][react], [Relay][relay], and [TypeScript][typescript]. [The actual app doesn't display very much](https://github.com/artsy/relay-workshop/pull/1/files#diff-26ad4b834941d9b19ebf9db8082bd202aaf72ea0ddea85f5a8a0cb3c729cc6f2R25) — just enough to prove that the pieces were all working.
 
 ## Separate risky/controversial work from routine work
 
