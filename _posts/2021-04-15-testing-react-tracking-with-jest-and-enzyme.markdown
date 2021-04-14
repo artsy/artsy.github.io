@@ -12,7 +12,7 @@ Recently, I needed to test a button that would make a tracking call using
 presented some challenges - I wasn't sure how to create a mocked version of react-tracking that would allow a
 callback to be passed.
 
-With some help from fellow Artsy engineers Chris Pappas and [Pavlos Vinieratos](https://twitter.com/pvinis), I got
+With some help from fellow Artsy engineers [Christopher Pappas](https://github.com/damassi) and [Pavlos Vinieratos](https://twitter.com/pvinis), I got
 the tracking to work. Here's how we did it.
 
 <!-- more -->
