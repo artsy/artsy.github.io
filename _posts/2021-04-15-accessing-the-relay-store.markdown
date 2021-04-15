@@ -1,18 +1,20 @@
 ---
 layout: epic
-title: "A Cool Way to Access the Relay Store"
-date: 2021-04-14
+title: "Accessing the Relay Store Without A Mutation"
+date: 2021-04-15
 categories: [relay, graphql, react, redis, tooling]
 author: anna
 ---
 
-Need to access the Relay store without using a mutation? Relay's `commitLocalUpdate` allows you to modify the relay
-store from inside any relay component. The solution is particularly well suited to situations that just require
-client-side updates and do not involved changes to server-side data.
+Need to access the Relay store without using a mutation? Relay's `commitLocalUpdate` allows you to modify the Relay
+store from inside any Relay component. The solution is particularly well suited to situations that just require
+client-side updates and do not include changes to server-side data.
 
 <!-- more -->
 
 ```js
+import { commitLocalUpdate } from "relay-runtime"
+
 commitLocalUpdate(relay.environment, (store) => {
   const parentRecord = store.get(parentID)
 
@@ -45,8 +47,8 @@ React apps injected into HAML views——our way of incrementally converting the
 
 Relay is one of the many new pieces of technology I've learned on the job here at Artsy. Relay’s biggest advantage
 in my eyes is how it tightly couples the client view and API call (in our case, to the GraphQL layer of our stack,
-which we call Metaphysics.) In addition to performance and other benefits, having the data fetch right on top of
-the React component creates a pretty seamless developer experience.
+which we call Metaphysics.) In addition to performance and other benefits, colocating a component with its data
+requirements creates a pretty seamless developer experience.
 
 ## Building an Artwork Checklist
 
@@ -67,7 +69,7 @@ The feature makes use of [Redis][about-redis], a key-value store used for in-mem
    log in and load the page
 2. `excludeIDs` or “snoozed” IDs which Redis will store for 24 hours and ensure the user does not see
 
-When a user presses the “snooze” button, the ID for the artwork is added to the snoozed list in Redis. The list
+When a user presses the “snooze” button, the ID for the artwork is added to the snoozed list in Redis. The list of
 `includeIDs` and the list of `excludeIDs` are passed down from Rails controllers to our HAML views and then passed
 as props into our React `HomePageChecklist` app. In our Checklist component, we use both the `includeIDs` and the
 `excludeIDs` as arguments passed to our Relay query to determine what is returned from Metaphysics (Artsy's GraphQL
@@ -78,26 +80,18 @@ fragment ArtworksMissingMetadata_partner on Partner
 @argumentDefinitions(
   first: { type: "Int", defaultValue: 5 }
   after: { type: "String" }
-  checklistArtworkIDs: { type: "[String!]" }
-  checklistExcludedArtworkIDs: { type: "[String!]" }
-  missingPriorityMetadata: { type: "Boolean", defaultValue: true }
-  publishedWithin: { type: "Int", defaultValue: 7776000 }
-  shallow: { type: "Boolean", defaultValue: false }
+  includeIDs: { type: "[String!]" }
+  excludeIDs: { type: "[String!]" }
 ) {
   id
   artworksConnection(
     first: $first
     after: $after
-    artworkIDs: $checklistArtworkIDs
-    exclude: $checklistExcludedArtworkIDs
-    missingPriorityMetadata: $missingPriorityMetadata
-    publishedWithin: $publishedWithin
-    shallow: $shallow
+    includeIDs: $includeIDs
+    excludeIDs: $excludeIDs
   ) @connection(key: "ArtworksMissingMetadata_partner_artworksConnection", filters: []) {
-    totalCount
     edges {
       node {
-        internalID
         ...ArtworksMissingMetadataItem_artwork
       }
     }
@@ -105,30 +99,30 @@ fragment ArtworksMissingMetadata_partner on Partner
 }
 ```
 
-## The Damn User
+## Problem: How to Change the Data Displayed When a User Interacts with the Page
 
-The problem we were running into is that when the user presses “snooze” on an item, Redis is updated but the list
-that we’re using in our Relay query becomes stale. When the user reloads the page, the response from our Relay
-query is correct because it's using the fresh Redis list, but we needed to make sure that the list in the UI is
-also correct and does not include that snoozed item.
+The problem we were running into occurs when the user presses “snooze” on an item. Redis is successfully updated
+with the new snoozed items, but the UI still shows the snoozed item. (The response from Relay in the component
+becomes stale.) If the user refreshes the page, the list is correct: the fresh Redis list will be passed into our
+component and used in the Relay query. But without refreshing the page, we need to make sure that the list in the
+UI updates when the user snoozes an item.
 
-Without reloading, our initial solution was to use a local state variable in our React component to keep track of
-which items were snoozed. This looked like:
+The initial solution was to use a local state variable in the parent React component to keep track of which items
+were snoozed. This looked like:
 
 ```js
 const [localSnoozedItems, setLocalSnoozedItems] = useState([])
 ```
 
-`localSnoozedItems ` and `setLocalSnoozedItems` were passed down to each of the children items so when the “snooze”
-button was pressed on that item, not only was the new key stored in Redis (for future reloads of the page) but the
-`localSnoozedItems` state variable was also updated. The connection returned from our Relay query (which remember,
-is already filtered based on our Redis `excludeIDs` from Redis) passes through an additional check to make sure
-that none of those items were snoozed locally and checked again the `localSnoozedItemsList`.
+`localSnoozedItems ` and `setLocalSnoozedItems` were passed down to each of the children items. When the “snooze”
+button was pressed on an item, the `localSnoozedItems` in the parent was updated with the complete list of snoozed
+items. The parent then controls which items get rendered. We used `localSnoozedItemsList` to filter the connection
+returned from our Relay query (which remember, is already filtered based on our Redis `excludeIDs` from Redis.)
 
 This worked, but it definitely did not feel great to have two sources of truth for snoozing: The Redis key and the
 local state variable.
 
-## Head to the Relay Store
+## Solution: Deleting a Record From the Relay Store
 
 Cue the [RelayModernStore][relay-documentation-relay-modern-store]! I learned that Relay keeps track of the GraphQL
 data returned by each query in a store on the client. Each record in the store has a unique ID and the store can be
@@ -137,57 +131,25 @@ changed, added to, and deleted from. There are a couple of helpful blog posts (l
 [this][wrangling-the-client-store-with-the-relay-modern-updater-function]) that explain the store and how to
 interact with it.
 
-In most of the Relay documentation, blog posts, and Artsy’s uses cases, the store is accessed through an updater
+In most of the Relay documentation, blog posts, and Artsy’s uses cases, the store is accessed through an `updater`
 function via [mutations][relay-documentation-mutations]. [Updater functions][relay-documentation-updater-functions]
-that take the store as an argument can optionally be added to Relay mutations. Inside that function, you can use
-the store to access and modify the records you need.
+that take the store as an argument can optionally be added to Relay mutations. Inside that function, you can access
+the store to modify the records you need.
 
 Here's an example from our app:
 
 ```js
-commitMutation <
-  MyCollectionArtworkModelDeleteArtworkMutation >
-  (defaultEnvironment,
-  {
-    mutation: graphql`
-      mutation MyCollectionArtworkModelDeleteArtworkMutation($input: MyCollectionDeleteArtworkInput!) {
-        myCollectionDeleteArtwork(input: $input) {
-          artworkOrError {
-            ... on MyCollectionArtworkMutationDeleteSuccess {
-              success
-            }
-            # TODO: Handle error
-            ... on MyCollectionArtworkMutationFailure {
-              mutationError {
-                message
-              }
-            }
-          }
-        }
+commitMutation(defaultEnvironment, {
+  mutation: graphql`
+    mutation MyCollectionArtworkModelDeleteArtworkMutation {
+      ...
       }
-    `,
-    variables: {
-      input: {
-        artworkId: input.artworkId,
-      },
-    },
-
-    updater: (store) => {
-      const parentID = store.get(me.id)
-
-      if (parentID) {
-        const connection = ConnectionHandler.getConnection(
-          parentID,
-          "MyCollectionArtworkList_myCollectionConnection"
-        )
-        if (connection) {
-          ConnectionHandler.deleteNode(connection, input.artworkGlobalId)
-        }
-      }
-    },
-    onCompleted: () => actions.deleteArtworkComplete(),
-    onError: actions.deleteArtworkError,
-  })
+    }
+  `,
+  updater: (store) => {
+    // Do something with the store
+  },
+})
 ```
 
 In my use case, I was not using a Relay mutation because I did not need to modify anything on the server. Since
@@ -195,18 +157,18 @@ Redis is keeping track of our `excludeIDs` for us, any round trip to the server 
 modify our local data store.
 
 Relay provides a [separate API method to make local updates][relay-documentation-local-data-updates] to the Relay
-store: `commitLocalUpdate`. `commitLocalUpdate` takes two arguments: the first is the relay environment, which you
-can easily access from the parent relay fragment or refetch container. The second is an updater that takes in the
-store as the first argument. We now have access to the store!
+store: `commitLocalUpdate`. `commitLocalUpdate` takes two arguments: the first is the Relay environment, which you
+can easily access from the parent Relay fragment or refetch container. The second is an `updater` callback function
+that returns the store in the first argument We now have access to the store!
 
-## Finishing the Checklist Task with ConnectionHandler
+## Deleting a Connection Node with ConnectionHandler
 
 The main hurdle here was finding an appropriate way to hook into the store for our specific use case——when we do
 not require an update to server data.
 
 But to close us out: Let's delete the item from the connection in the store.
 
-When an item is snoozed, we call `commitLocalUpdate`, pass in the relay environment, and then pass in the updater
+When an item is snoozed, we call `commitLocalUpdate`, pass in the Relay environment, and then pass in the `updater`
 function. Once we have access to the store, our goal is to delete this particular item from the
 `artworksConnection`, which is the GraphQL object returned by our original Relay query.
 
@@ -225,6 +187,8 @@ Bonus: Because `commitLocalUpdate` works anywhere in Relay land, we got to perfo
 the children from their parent component, which wasn't as intuitive.)
 
 ```js
+import { commitLocalUpdate } from "relay-runtime"
+
 commitLocalUpdate(relay.environment, (store) => {
   const parentRecord = store.get(parentID)
 
@@ -242,19 +206,22 @@ commitLocalUpdate(relay.environment, (store) => {
 
 ## Key Takeaways
 
-1. Relay is great because it couples our data fetch with our React component.
+1. Relay is great because it colocates a component with its data requirements.
 2. The Relay store allows us to access and modify data that we are using on the client.
 3. `commitLocalUpdate` provides us access to the store if we just need to modify local data and aren’t using a
    mutation to update server-side data.
 
 [why-does-artsy-use-relay]: https://artsy.github.io/blog/2019/04/10/omakase-relay/
-[how-losing-my-way-helped-me-find-my-way-back]: https://medium.com/swlh/how-losing-my-job-helped-me-find-my-way-back-8c8f86552acc
+[how-losing-my-way-helped-me-find-my-way-back]:
+  https://medium.com/swlh/how-losing-my-job-helped-me-find-my-way-back-8c8f86552acc
 [about-redis]: https://redis.io/
 [relay-documentation-relay-modern-store]: https://relay.dev/docs/api-reference/store/
 [deep-dive-into-the-relay-store]: https://yashmahalwal.medium.com/a-deep-dive-into-the-relay-store-9388affd2c2b
-[wrangling-the-client-store-with-the-relay-modern-updater-function]: https://medium.com/entria/wrangling-the-client-store-with-the-relay-modern-updater-function-5c32149a71ac
+[wrangling-the-client-store-with-the-relay-modern-updater-function]:
+  https://medium.com/entria/wrangling-the-client-store-with-the-relay-modern-updater-function-5c32149a71ac
 [relay-documentation-mutations]: https://relay.dev/docs/guided-tour/updating-data/graphql-mutations/
-[relay-documentation-updater-functions]: https://relay.dev/docs/guided-tour/updating-data/graphql-mutations/#updater-functions
+[relay-documentation-updater-functions]:
+  https://relay.dev/docs/guided-tour/updating-data/graphql-mutations/#updater-functions
 [relay-documentation-local-data-updates]: https://relay.dev/docs/guided-tour/updating-data/local-data-updates/
 [relay-documentation-connection-handler]: https://relay.dev/docs/api-reference/store/#connectionhandler
 [relay-modern-connection-derivative]: https://www.prisma.io/blog/relay-moderns-connection-directive-1ecd8322f5c8
