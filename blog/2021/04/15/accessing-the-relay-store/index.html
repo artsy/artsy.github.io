@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Accessing the Relay Store Without a Mutation - Artsy Engineering</title>
+  <meta name="author" content="">
+
+  
+  <meta name="description" content="I recently encountered a problem where client-side data (returned from a Relay query) became out of sync after a
+user interaction. How can we make ...">
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <meta property="og:image" content="http://artsy.github.io/images/artsy_oss_image.png" />
+  <meta property="og:image:type" content="image/png" />
+
+  
+  <link rel="canonical" href="https://artsy.github.io/blog/2021/04/15/accessing-the-relay-store/">
+  <link rel="alternate" type="application/rss+xml" title="Artsy Engineering Blog" href="/feed">
+  <link rel="alternate" type="application/atom+xml" title="Podcast Feed" href="/podcast.xml" />
+
+  <link href="/favicon.ico" rel="icon">
+  <link href="/css/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+
+  <script src="/javascripts/jquery-1.11.3.min.js"> </script>
+  <script src="/javascripts/gradient-fade.js"></script>
+  <script src="/javascripts/noframework.waypoints.min.js"></script>
+  <script src="/javascripts/sticky.min.js"></script>
+  <script src="/javascripts/search.min.js"></script>
+  <script src="/javascripts/custom-element.min.js"></script>
+  <script src="/javascripts/g-emoji-element.js"></script>
+
+  
+
+  <script type="text/javascript" src="https://fast.fonts.net/jsapi/f7f47a40-b25b-44ee-9f9c-cfdfc8bb2741.js"></script>
+
+
+  <link href="/feed.xml" rel="alternate" title="Artsy Engineering" type="application/atom+xml">
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-12450662-3']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+  <!--[if IE 8]><link href="/stylesheets/custom/ie_font.css" type="text/css"><![endif]-->
+
+</head>
+
+
+<link href="/css/epic.css" media="screen, projection" rel="stylesheet" type="text/css">
+
+
+
+<body>
+  <div>
+    <div id="bodywrapper">
+      <header>
+        <ul>
+          <li><a href="/">Artsy Engineering Blog</a></li>
+          <li><a href="https://www.artsy.net/jobs">Careers</a></li>
+          <li><a href="https://developers.artsy.net">API</a></li>
+        </ul>
+
+        <ul>
+          <li><a href="http://artsy.github.io/open-source/">Our Open Source</a></li>
+          <li><a href="http://twitter.com/artsyopensource">@artsyopensource</a></li>
+          <li><a href="https://www.artsy.net">artsy.net</a></li>
+        </ul>
+      </header>
+
+      <section>
+        <header id="page">
+          <h1>Accessing the Relay Store Without a Mutation</h1>
+          <h3>
+          <!-- Yep, single line so the comma lines up right -->
+          By  Anna Carey
+          </h3>
+          <time datetime="2021-04-15">Apr 15, 2021</time>
+        </header>
+
+        <article class='post'>
+          <p>I recently encountered a problem where client-side data (returned from a Relay query) became out of sync after a
+user interaction. How can we make sure our data is consistent while maintaining a single source of truth? This post
+explores why a developer might want to update client-side data locally, the basics of Relay and its store, and how
+to delete records in the store when you're not using a mutation.</p>
+
+<a name="Relay.x.Artsy.x.Me"></a>
+<h2>Relay x Artsy x Me</h2>
+
+<p><a href="https://relay.dev/">Relay</a> is a GraphQL client library maintained by Facebook engineers and enables rapid client-side data
+fetching in React applications. <a href="https://artsy.github.io/blog/2019/04/10/omakase-relay/">Artsy's adoption of Relay</a> coincided with our move
+toward using React Native for our mobile work around 2016. I joined Artsy as an engineer in November of 2020 (after
+<a href="https://medium.com/swlh/how-losing-my-job-helped-me-find-my-way-back-8c8f86552acc">transitioning to engineering from a non-technical role at the
+company</a>.) When I joined, I was about a year into React development
+and completely new to Relay.</p>
+
+<!-- more -->
+
+
+<p>I work on the Partner Experience (PX) team at Artsy. We build and maintain software used by our gallery and auction
+house partners to sell artwork on Artsy. Although Relay is not new to Artsy, it’s relatively new to our team’s main
+repository, Volt. (Volt is Artsy’s CMS used by gallery partners to manage their presences on the platform.) A topic
+for another blog post, but Volt’s structure is worth noting here: Volt is a collection of mini React apps injected
+into HAML views—our way of incrementally converting the codebase to our new stack.</p>
+
+<p>Relay’s biggest advantage in my eyes is how it tightly couples the client view and API call (in our case, to the
+GraphQL layer of our stack, which we call Metaphysics.) In addition to performance and other benefits, colocating a
+component with its data requirements creates a pretty seamless developer experience.</p>
+
+<a name="Building.an.Artwork.Checklist"></a>
+<h2>Building an Artwork Checklist</h2>
+
+<p>On the PX team, we recently launched a checklist feature aimed at empowering our gallery partners to be more
+self-sufficient and find the greatest success possible on Artsy. The checklist prompts galleries to add specific
+metadata to artworks that we know (because of our awesome data team) will make the work more likely to sell. The
+new feature gathers a list of five high-priority artworks (meaning they are published, for-sale, and by a
+top-selling artist) that are missing key pieces of metadata. The checklist prompts users to add the missing
+metadata. Users also have the ability to click a button to “snooze” works, which removes them from the list for the
+day.</p>
+
+<figure class="illustration">
+    <img src="https://user-images.githubusercontent.com/9466631/114630150-28886200-9c77-11eb-9f04-461101496ee0.png">
+</figure>
+
+
+<p>The feature makes use of <a href="https://redis.io/">Redis</a>, a key-value store used for in-memory cache, to store two lists:</p>
+
+<ol>
+<li><code>includeIDs</code> to store the five artworks in the list, so users see a consistent list of artworks whenever they
+log in and load the page</li>
+<li><code>excludeIDs</code> or “snoozed” IDs which Redis will store for 24 hours and ensure the user does not see</li>
+</ol>
+
+
+<p>When a user presses the “snooze” button, the ID for the artwork is added to the snoozed list in Redis. The list of
+<code>includeIDs</code> and the list of <code>excludeIDs</code> are passed down from Rails controllers to our HAML views and then passed
+as props into our React <code>HomePageChecklist</code> app. In our Checklist component, we use both the <code>includeIDs</code> and the
+<code>excludeIDs</code> as arguments passed to our Relay query to determine what is returned from Metaphysics (Artsy's GraphQL
+layer).</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+</pre></td><td class='code'><pre><code class='js'><span class='line'><span class="nx">fragment</span> <span class="nx">ArtworksMissingMetadata_partner</span> <span class="nx">on</span> <span class="nx">Partner</span>
+</span><span class='line'>  <span class="err">@</span><span class="nx">argumentDefinitions</span><span class="p">(</span>
+</span><span class='line'>    <span class="nx">first</span><span class="o">:</span> <span class="p">{</span> <span class="nx">type</span><span class="o">:</span> <span class="s2">&quot;Int&quot;</span><span class="p">,</span> <span class="nx">defaultValue</span><span class="o">:</span> <span class="mi">5</span> <span class="p">}</span>
+</span><span class='line'>    <span class="nx">after</span><span class="o">:</span> <span class="p">{</span> <span class="nx">type</span><span class="o">:</span> <span class="s2">&quot;String&quot;</span> <span class="p">}</span>
+</span><span class='line'>    <span class="nx">includeIDs</span><span class="o">:</span> <span class="p">{</span> <span class="nx">type</span><span class="o">:</span> <span class="s2">&quot;[String!]&quot;</span> <span class="p">}</span>
+</span><span class='line'>    <span class="nx">excludeIDs</span><span class="o">:</span> <span class="p">{</span> <span class="nx">type</span><span class="o">:</span> <span class="s2">&quot;[String!]&quot;</span> <span class="p">}</span>
+</span><span class='line'>  <span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>    <span class="nx">id</span>
+</span><span class='line'>    <span class="nx">artworksConnection</span><span class="p">(</span>
+</span><span class='line'>      <span class="nx">first</span><span class="o">:</span> <span class="nx">$first</span>
+</span><span class='line'>      <span class="nx">after</span><span class="o">:</span> <span class="nx">$after</span>
+</span><span class='line'>      <span class="nx">includeIDs</span><span class="o">:</span> <span class="nx">$includeIDs</span>
+</span><span class='line'>      <span class="nx">excludeIDs</span><span class="o">:</span> <span class="nx">$excludeIDs</span>
+</span><span class='line'>    <span class="p">)</span> <span class="err">@</span><span class="nx">connection</span><span class="p">(</span><span class="nx">key</span><span class="o">:</span> <span class="s2">&quot;ArtworksMissingMetadata_partner_artworksConnection&quot;</span><span class="p">,</span> <span class="nx">filters</span><span class="o">:</span> <span class="p">[])</span> <span class="p">{</span>
+</span><span class='line'>      <span class="nx">edges</span> <span class="p">{</span>
+</span><span class='line'>        <span class="nx">node</span> <span class="p">{</span>
+</span><span class='line'>          <span class="p">...</span><span class="nx">ArtworksMissingMetadataItem_artwork</span>
+</span><span class='line'>        <span class="p">}</span>
+</span><span class='line'>      <span class="p">}</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'>  <span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<a name="Problem:.How.to.Change.the.Data.Displayed.When.a.User.Interacts.with.the.Page"></a>
+<h2>Problem: How to Change the Data Displayed When a User Interacts with the Page</h2>
+
+<p>The problem we were running into occurs when the user presses “snooze” on an item. We successfully update Redis
+with the new snoozed item, but the UI still renders the item on the page. (This is because the response from Relay
+becomes stale.) If the user refreshes the page, the list is correct: The up-to-date Redis <code>excludeIDS</code> list will be
+passed into our component and used in the Relay query. But without refreshing the page, we need to make sure that
+the list in the UI updates when the user snoozes an item.</p>
+
+<p>The initial fix was to use a local state variable to keep track of which items were snoozed. We defined the following variable in the parent
+React component that renders the list:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='js'><span class='line'><span class="kr">const</span> <span class="p">[</span><span class="nx">localSnoozedItems</span><span class="p">,</span> <span class="nx">setLocalSnoozedItems</span><span class="p">]</span> <span class="o">=</span> <span class="nx">useState</span><span class="p">([])</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>We passed <code>localSnoozedItems</code> and <code>setLocalSnoozedItems</code> down to each of the children items. When the “snooze”
+button was pressed on an item, the <code>localSnoozedItems</code> in the parent was updated with the complete list of snoozed
+items. The parent then controls which items get rendered. We used the <code>localSnoozedItems</code> list to filter the connection
+returned from our Relay query (which remember, is already filtered based on our Redis <code>excludeIDs</code> from Redis.)</p>
+
+<p>This worked, but it definitely did not feel great to have two sources of truth for snoozing: The Redis key and the
+local state variable.</p>
+
+<a name="Solution:.Deleting.a.Record.From.the.Relay.Store"></a>
+<h2>Solution: Deleting a Record From the Relay Store</h2>
+
+<p>Cue the <a href="https://relay.dev/docs/api-reference/store/">RelayModernStore</a>! I learned that Relay keeps track of the GraphQL
+data returned by each query in a store on the client. Each record in the store has a unique ID, and the store can be
+changed, added to, and deleted from. There are a couple of helpful blog posts (like
+<a href="https://yashmahalwal.medium.com/a-deep-dive-into-the-relay-store-9388affd2c2b">this</a> and
+<a href="https://medium.com/entria/wrangling-the-client-store-with-the-relay-modern-updater-function-5c32149a71ac">this</a>) that explain the store and how to
+interact with it.</p>
+
+<p>In most of the Relay documentation, blog posts, and Artsy’s uses cases, the store is accessed through an <code>updater</code>
+function via <a href="https://relay.dev/docs/guided-tour/updating-data/graphql-mutations/">mutations</a>. <a href="https://relay.dev/docs/guided-tour/updating-data/graphql-mutations/#updater-functions">Updater functions</a>
+that return the store in the first argument can optionally be added to Relay mutations. Inside that function, you can access
+the store to modify the records you need.</p>
+
+<p>Here's an example:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+</pre></td><td class='code'><pre><code class='js'><span class='line'><span class="nx">commitMutation</span><span class="p">(</span><span class="nx">defaultEnvironment</span><span class="p">,</span> <span class="p">{</span>
+</span><span class='line'>  <span class="nx">mutation</span><span class="o">:</span> <span class="nx">graphql</span><span class="err">`</span>
+</span><span class='line'>    <span class="nx">mutation</span> <span class="nx">SomeMutation</span> <span class="p">{</span>
+</span><span class='line'>      <span class="p">...</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'>  <span class="err">`</span><span class="p">,</span>
+</span><span class='line'>  <span class="nx">updater</span><span class="o">:</span> <span class="p">(</span><span class="nx">store</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span>
+</span><span class='line'>    <span class="c1">// Do something with the store</span>
+</span><span class='line'>  <span class="p">},</span>
+</span><span class='line'><span class="p">})</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>In my use case, I was not using a Relay mutation because I did not need to modify anything on the server. Since
+Redis is keeping track of our <code>excludeIDs</code> for us, any round trip to the server will be up-to-date. We just need to
+modify our local data store.</p>
+
+<p>Relay provides a <a href="https://relay.dev/docs/guided-tour/updating-data/local-data-updates/">separate API method to make local updates</a> to the Relay
+store: <code>commitLocalUpdate</code>. <code>commitLocalUpdate</code> takes two arguments: the first is the Relay environment, which you
+can easily access from the parent Relay fragment or refetch container. The second is an <code>updater</code> callback function
+that returns the store in the first argument. We now have access to the store!</p>
+
+<a name="Deleting.a.Connection.Node.with.ConnectionHandler"></a>
+<h2>Deleting a Connection Node with ConnectionHandler</h2>
+
+<p>My main hurdle during this journey was finding an appropriate way to hook into the store for our specific use case—when we do
+not require an update to server data.</p>
+
+<p>But to close us out: Let's finish the job and delete the item from the connection in the store.</p>
+
+<p>When an item is snoozed, we call <code>commitLocalUpdate</code>, pass in the Relay environment, and then pass in the <code>updater</code>
+function. Once we have access to the store, our goal is to delete this particular item from the
+<code>artworksConnection</code>, which is the GraphQL object returned by our original Relay query.</p>
+
+<p>Because we are dealing with connections, we want to use the <a href="https://relay.dev/docs/api-reference/store/#connectionhandler">ConnectionHandler
+API</a> provided by Relay. <code>ConnectionHandler.getConnection</code> takes in the
+connection's parent record (which we can find using the GraphQL ID added as a field on our query for the
+connection) as the first argument and the connection key which can be provided through <a href="https://www.prisma.io/blog/relay-moderns-connection-directive-1ecd8322f5c8">Relay’s @connection
+directive</a>.</p>
+
+<p>Once we have the connection, we will use <code>ConnectionHandler.deleteNode</code> which takes the connection as the first
+argument and the id to be deleted, which we can also easily access using the GraphQL ID added as a field to the
+query for the item.</p>
+
+<p>Bonus: Because <code>commitLocalUpdate</code> works anywhere in Relay land, we got to perform this deletion exactly where the
+"snooze" action is happening: in the child item component. (In our previous solution, we had to manage the state of
+the children from their parent component, which wasn't as intuitive.)</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+</pre></td><td class='code'><pre><code class='js'><span class='line'><span class="kr">import</span> <span class="p">{</span> <span class="nx">commitLocalUpdate</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;relay-runtime&quot;</span>
+</span><span class='line'>
+</span><span class='line'><span class="nx">commitLocalUpdate</span><span class="p">(</span><span class="nx">relay</span><span class="p">.</span><span class="nx">environment</span><span class="p">,</span> <span class="p">(</span><span class="nx">store</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span>
+</span><span class='line'>  <span class="kr">const</span> <span class="nx">parentRecord</span> <span class="o">=</span> <span class="nx">store</span><span class="p">.</span><span class="nx">get</span><span class="p">(</span><span class="nx">parentID</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">if</span> <span class="p">(</span><span class="nx">parentRecord</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>    <span class="kr">const</span> <span class="nx">artworksConnection</span> <span class="o">=</span> <span class="nx">ConnectionHandler</span><span class="p">.</span><span class="nx">getConnection</span><span class="p">(</span>
+</span><span class='line'>      <span class="nx">parentRecord</span><span class="p">,</span>
+</span><span class='line'>      <span class="s2">&quot;ArtworksMissingMetadata_partner_artworksConnection&quot;</span>
+</span><span class='line'>    <span class="p">)</span>
+</span><span class='line'>    <span class="k">if</span> <span class="p">(</span><span class="nx">artworksConnection</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>      <span class="nx">ConnectionHandler</span><span class="p">.</span><span class="nx">deleteNode</span><span class="p">(</span><span class="nx">artworksConnection</span><span class="p">,</span> <span class="nx">id</span><span class="p">)</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'>  <span class="p">}</span>
+</span><span class='line'><span class="p">})</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<a name="Key.Takeaways"></a>
+<h2>Key Takeaways</h2>
+
+<ol>
+<li>Relay is great because it colocates a component with its data requirements.</li>
+<li>The Relay store allows us to access and modify data that we are using on the client.</li>
+<li><code>commitLocalUpdate</code> provides us access to the store if we just need to modify local data and aren’t using a
+mutation to update server-side data.</li>
+</ol>
+
+
+        </article>
+
+        <article class='post'>
+          <p style="padding-bottom: 0; margin-bottom:0;">
+            <a href="https://www.artsy.net/" style="background-image: none;">
+              <svg viewBox="0 0 510 510" width="40" height="40" xmlns="http://www.w3.org/2000/svg">
+                <path transform="scale(1, -1) translate(0, -480)" d="M0 -32h512v512h-512v-512v0zM464 16h-80v80h-48v-80h-288v416h416v-416v0zM194 384h-40l-74 -186h38l20 52h72l19 -52h39l-74 186v0zM149 282l25 66l24 -66h-49v0z"></path>
+              </svg>
+            </a>
+          <p/>
+        </article>
+
+      
+
+      </section>
+
+      <footer>
+        <article>
+
+          <section>
+            <h4>Author</h4>
+            <p> <a href="/author/anna"/>Anna Carey</a></p>
+            <p></a></p>
+          </section>
+
+          <section>
+            <h4>Post Meta</h4>
+            <p>Apr 15, 2021</p>
+            <p>Tagged: <a class='category' href='/blog/categories/graphql/'>graphql</a>, <a class='category' href='/blog/categories/react/'>react</a>, <a class='category' href='/blog/categories/redis/'>redis</a>, <a class='category' href='/blog/categories/relay/'>relay</a>, <a class='category' href='/blog/categories/tooling/'>tooling</a></p>
+          </section>
+          <br/>
+          <section>
+            <h4>Artsy OSS</h4>
+            <ul>
+              <li><a href='https://www.artsy.net'>Artsy.net</a></li>
+              <li><a href='https://developers.artsy.net'>API</a></li>
+              <li><a href='http://artsy.github.io/open-source/'>Featured OSS</a></li>
+              <li><a href='https://www.artsy.net/jobs'>Careers</a></li>
+            </ul>
+          </section>
+
+          <section>
+            <h4>Blog</h4>
+            <ul>
+              <li><a href='http://artsy.github.io/blog/archives/'>Archives</a></li>
+              <li><a href='http://artsy.github.io/search/'>Search</a></li>
+              <li><a href='https://github.com/artsy/artsy.github.io'>Code on GitHub</a></li>
+              <li><a href='https://github.com/artsy/artsy.github.io/edit/source/_posts/2021-04-15-accessing-the-relay-store.markdown'>Fix typoes in this post</a></li>
+            </ul>
+          </section>
+
+        </article>
+
+        <article>
+          <section>
+            <h4>Post Series on the Blog</h4>
+            <ul>
+              
+              <li><a href='/series/react-native-at-artsy/'>React Native at Artsy</a></li>
+              
+              <li><a href='/series/javascriptures/'>JavaScriptures</a></li>
+              
+              <li><a href='/series/stages-of-professional-growth/'>Stages of Professional Growth</a></li>
+              
+              <li><a href='/series/artsy-tech-stack/'>Artsy Tech Stack</a></li>
+              
+              <li><a href='/series/open-source-by-default/'>Open Source by Default</a></li>
+              
+            </ul>
+          </section>
+
+          <section>
+          
+          </section>
+        </article>
+
+      </footer>
+    </div>
+  </div>
+</body>
