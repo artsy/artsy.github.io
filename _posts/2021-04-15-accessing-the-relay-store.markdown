@@ -6,6 +6,10 @@ categories: [relay, graphql, react, redis, tooling]
 author: anna
 ---
 
+I recently encountered a problem where client-side data (returned from a Relay query) became out of sync after a user interaction. How can we make sure our data is consistent while maintaining a single source of truth? This post explores why a developer might want to update client-side data locally, the basics of Relay and its store, and how to delete records in the store when you're not using a mutation.
+
+## Relay x Artsy x Me
+
 Relay is a GraphQL client library maintained by Facebook engineers and enables rapid client-side data fetching in
 React applications. [Artsy's adoption of Relay][why-does-artsy-use-relay] coincided with our move toward using
 React Native for our mobile work around 2016. I joined Artsy as an engineer in November of 2020 (after
@@ -16,10 +20,10 @@ and completely new to Relay.
 <!-- more -->
 
 I work on the Partner Experience (PX) team at Artsy. We build and maintain software used by our gallery and auction
-house partners to sell artwork on Artsy. Although Relay is not particularly new to Artsy, it’s relatively new to
-our team’s main repository, Volt. (Volt is Artsy’s CMS used by gallery partners to manage their presences on the
-platform.) A topic for another blog post, but Volt’s structure is worth noting here. Volt is a collection of mini
-React apps injected into HAML views——our way of incrementally converting the codebase to our new stack.
+house partners to sell artwork on Artsy. Although Relay is not new to Artsy, it’s relatively new to our team’s main
+repository, Volt. (Volt is Artsy’s CMS used by gallery partners to manage their presences on the platform.) A topic
+for another blog post, but Volt’s structure is worth noting here. Volt is a collection of mini React apps injected
+into HAML views—our way of incrementally converting the codebase to our new stack.
 
 Relay is one of the many new pieces of technology I've learned on the job here at Artsy. Relay’s biggest advantage
 in my eyes is how it tightly couples the client view and API call (in our case, to the GraphQL layer of our stack,
