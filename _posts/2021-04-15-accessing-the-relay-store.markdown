@@ -126,7 +126,6 @@ commitMutation(defaultEnvironment, {
   mutation: graphql`
     mutation SomeMutation {
       ...
-      }
     }
   `,
   updater: (store) => {
