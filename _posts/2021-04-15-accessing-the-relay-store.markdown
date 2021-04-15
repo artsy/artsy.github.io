@@ -1,36 +1,10 @@
 ---
 layout: epic
-title: "Accessing the Relay Store Without A Mutation"
+title: "Accessing the Relay Store Without a Mutation"
 date: 2021-04-15
 categories: [relay, graphql, react, redis, tooling]
 author: anna
 ---
-
-Need to access the Relay store without using a mutation? Relay's `commitLocalUpdate` allows you to modify the Relay
-store from inside any Relay component. The solution is particularly well suited to situations that just require
-client-side updates and do not include changes to server-side data.
-
-<!-- more -->
-
-```js
-import { commitLocalUpdate } from "relay-runtime"
-
-commitLocalUpdate(relay.environment, (store) => {
-  const parentRecord = store.get(parentID)
-
-  if (parentRecord) {
-    const artworksConnection = ConnectionHandler.getConnection(
-      parentRecord,
-      "ArtworksMissingMetadata_partner_artworksConnection"
-    )
-    if (artworksConnection) {
-      ConnectionHandler.deleteNode(artworksConnection, id)
-    }
-  }
-})
-```
-
-## Quick Intro to Artsy x Relay x Me
 
 Relay is a GraphQL client library maintained by Facebook engineers and enables rapid client-side data fetching in
 React applications. [Artsy's adoption of Relay][why-does-artsy-use-relay] coincided with our move toward using
@@ -38,6 +12,8 @@ React Native for our mobile work around 2016. I joined Artsy as an engineer in N
 [transitioning to engineering from a non-technical role at the
 company][how-losing-my-way-helped-me-find-my-way-back].) When I joined, I was about a year into React development
 and completely new to Relay.
+
+<!-- more -->
 
 I work on the Partner Experience (PX) team at Artsy. We build and maintain software used by our gallery and auction
 house partners to sell artwork on Artsy. Although Relay is not particularly new to Artsy, it’s relatively new to
