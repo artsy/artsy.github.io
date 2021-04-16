@@ -7,13 +7,13 @@ author: matt-dole
 comment_id: 680
 ---
 
-Recently, I needed to test a button that would make a tracking call using
+Recently, I needed to test a button that would make an analytics tracking call using
 [react-tracking](https://github.com/NYTimes/react-tracking) and then navigate to a new page in a callback. This
 presented some challenges - I wasn't sure how to create a mocked version of react-tracking that would allow a
 callback to be passed.
 
-With some help from fellow Artsy engineers [Christopher Pappas](https://github.com/damassi) and [Pavlos Vinieratos](https://twitter.com/pvinis), I got
-the tracking to work. Here's how we did it.
+With some help from fellow Artsy engineers [Christopher Pappas](https://github.com/damassi) and
+[Pavlos Vinieratos](https://twitter.com/pvinis), I got the tracking and testing to work. Here's how we did it.
 
 <!-- more -->
 
@@ -32,8 +32,9 @@ PR, and now we wanted to make it execute a tracking call before navigating.
 We use Segment for tracking, and their tracking setup relies on a JS snippet being available on your pages. That
 snippet sets a `window.analytics` property, which in turn
 [has a](https://segment.com/docs/connections/sources/catalog/libraries/website/javascript/#track) `.track()`
-method. On a fundamental level, all of our tracking calls boil down to a call to `window.analytics.track()`, where
-we pass a list of properties to `.track()`
+method. On a fundamental level, all of our tracking calls boil down to a call to `window.analytics.track()`. We
+pass a list of properties to `.track()`, Segment receives the event and properties, and the resulting JSON is
+stored in our data warehouse.
 
 # Adding react-tracking
 
@@ -44,28 +45,23 @@ a `<BaseApp>` component, so we added a new `<TrackerContextCohesion>` component 
 be available to all of our React apps:
 
 ```ts
-interface TrackEventProps {
-  data: { [key: string]: string }
-  options: {}
-  callback: () => void
-}
+import React from "react"
+import { track } from "react-tracking"
 
-export const trackEvent = ({ data, options, callback }: Partial<TrackEventProps>): void => {
+const trackEvent = ({ data, options, callback }) => {
   // Action can be something like "click" or "Viewed tooltip"; we pull it out and send it to Segment
   // separately since it defines the event type
   const actionName = data.action || data.action_type
   const trackingData = omit(data, ["action_type", "action"])
-
-  if (actionName) {
-    // This is where we actually call Segment and pass the tracking event
-    window.analytics.track(actionName, trackingData, options, callback)
-  } else {
-    console.error(`Unknown analytics schema being used: ${JSON.stringify(data)}`)
-  }
+  // This is where we actually call Segment and pass the tracking event. See their docs for more on
+  // these fields: https://segment.com/docs/connections/sources/catalog/libraries/website/javascript/#track
+  window.analytics.track(actionName, trackingData, options, callback)
 }
 
 // We're following the instructions from react-tracking's README on overriding the dispatch function
-export const TrackerContextCohesion = track(
+const TrackerContextCohesion = track(
+  // This is blank because we're not actually tracking a specific event here, just modifying dispatch
+  // so that all components in the tree can use it
   {},
   {
     dispatch: (args) => {
@@ -75,43 +71,46 @@ export const TrackerContextCohesion = track(
 )((props) => {
   return props.children
 })
+
+export const BaseApp = (props) => {
+  return <TrackerContextCohesion>{props.children}</TrackerContextCohesion>
+}
 ```
 
 This allows us to make tracking calls in our components, including the passing of custom callback functions:
 
 ```ts
-const { trackEvent } = useTracking()
+import { useTracking } from "react-tracking"
+import { Box, Button } from "@artsy/palette"
 
-// This type is defined in Cohesion, making it easy for us to ensure we have the correct tracking
-// properties
-const trackingArgs: ClickedEditArtwork = {
-  action: ActionType.clickedEditArtwork,
-  context_module: ContextModule.toDoList,
-  context_page_owner_type: OwnerType.home,
-  destination_page_owner_id: internalID,
-  destination_page_owner_slug: slug,
-  destination_page_owner_type: OwnerType.artwork,
-  destination_path: "/artworks",
-  label: "Add info",
-}
+// Assumes that MyComponent is wrapped in <BaseApp> wherever it's used, giving
+// it access to tracking context
+const MyComponent = () => {
+  const { trackEvent } = useTracking()
+  const handleClick = () => {
+    trackEvent({
+      data: { action: "Click", somePropToTrack: "andy-warhol" },
+      options: {}, // Additional Segment options, e.g. integrations: { 'Intercom': false, }
+      callback: () => {
+        window.location.assign("/artworks")
+      },
+    })
+  }
 
-const handleAddInfoClick = (): void => {
-  trackEvent({
-    data: trackingArgs,
-    options: {},
-    callback: () => {
-      window.location.assign("/artworks")
-    },
-  })
+  return (
+    <Box>
+      <Button onClick={handleClick}>Track and navigate</Button>
+    </Box>
+  )
 }
 ```
 
 Being able to pass a callback was especially important in our case. We realized that if we needed to track _and
 then navigate_, the callback was necessary. In our testing, we saw that if we simply tried to fire the tracking
-call then then run `window.location.assign()` synchronously, the tracking call might not get executed before the
+call then run `window.location.assign()` synchronously, the tracking call might not get executed before the
 navigation started, so we would effectively lose that event. Segment specifically
 [allows you to pass a callback](https://segment.com/docs/connections/sources/catalog/libraries/website/javascript/#track)
-to their tracking function to their track function for this situation. The describe the optional `callback`
+to their tracking function to their track function for this situation. They describe the optional `callback`
 parameter as:
 
 > A function that is executed after a short timeout, giving the browser time to make outbound requests first.
@@ -120,29 +119,32 @@ Thus, we pass the tracking data and the callback to the custom `track` call we i
 
 # The problem with testing
 
-Our use-case is simple enough, but we wanted to make that when the button was pressed, we would both execute the
-tracking call and then navigate. A test checking that the navigation worked had already been implemented. However,
-after moving the call to `window.location.assign` into a callback, our test started failing because our component
-was trying to execute a tracking call before navigating.
+Our use-case is simple enough, but we wanted to make sure that when the button was pressed, we would both execute
+the tracking call and then navigate. A test checking that the navigation worked had already been implemented.
+However, after moving the `window.location.assign` call into a callback, our test started failing because our
+component was trying to execute a tracking call before navigating.
 
 The test that predated the addition of tracking looked like this:
 
 ```ts
+import React from "react"
+import { mount } from "enzyme"
+import { MyComponent } from "./MyComponent"
+import { TestApp } from "testing/components/TestApp"
+
 window.location.assign = jest.fn()
 
-const wrapper = mount(
-  <TestApp>
-    <ArtworksMissingMetadataItem {...props} />
-  </TestApp>
-)
+it("Navigates to artworks page", () => {
+  const wrapper = mount(
+    <TestApp>
+      <MyComponent />
+    </TestApp>
+  )
 
-wrapper.find("Button").simulate("click")
-expect(window.location.assign).toBeCalledWith("/artworks/test-internal-id/images/new?redirect-flow=homeChecklist")
+  wrapper.find("Button").simulate("click")
+  expect(window.location.assign).toBeCalledWith("/artworks")
+})
 ```
-
-If you've used [Enzyme](https://airbnb.io/projects/enzyme/) before, this `wrapper` idea should be pretty familiar,
-even without much of the testing context. If you're not familiar - it's basically a way of rendering a React
-component in a testing environment.
 
 So we were rendering our button, clicking on it, and expecting to try to navigate. How could we mock our tracking
 call while still executing a passed callback?
@@ -158,13 +160,14 @@ window.analytics = {
 
 jest.mock("react-tracking", () => ({
   useTracking: jest.fn(),
-  track: () => (children): typeof children => children,
+  track: () => (children) => children,
 }))
 
 const trackEvent = jest.fn((args) => {
-  args.callback && args.callback()
+  args.callback()
 })
-;(useTracking as jest.Mock).mockImplementation(() => ({
+
+useTracking.mockImplementation(() => ({
   trackEvent,
 }))
 ```
@@ -185,7 +188,7 @@ Next:
 ```ts
 jest.mock("react-tracking", () => ({
   useTracking: jest.fn(),
-  track: () => (children): typeof children => children,
+  track: () => (children) => children,
 }))
 ```
 
@@ -202,17 +205,17 @@ Last:
 
 ```ts
 const trackEvent = jest.fn((args) => {
-  args.callback && args.callback()
+  args.callback()
 })
-;(useTracking as jest.Mock).mockImplementation(() => ({
+useTracking.mockImplementation(() => ({
   trackEvent,
 }))
 ```
 
-`trackEvent` is a mock function that takes in an `args` object and executes `args.callback()` if it exists. We then
-update our `useTracking` mock to make it return a function that returns an object with a `trackEvent` property.
-What a mouthful! That sounds super confusing, but remember that we're trying to mock something that we actually use
-like this:
+`trackEvent` is a mock function that takes in an `args` object and executes `args.callback()`. We then update our
+`useTracking` mock to make it return a function that returns an object with a `trackEvent` property. What a
+mouthful! That sounds super confusing, but remember that we're trying to mock something that we actually use like
+this:
 
 ```ts
 const { trackEvent } = useTracking()
@@ -229,13 +232,29 @@ a tracking call in a component and didn't explicitly mock the tracking calls in 
 At the end of the day, we can use these mocked calls in our test files by doing the following:
 
 ```ts
+import React from "react"
+import { mount } from "enzyme"
+import { MyComponent } from "./MyComponent"
+import { TestApp } from "testing/components/TestApp"
 import { useTracking } from "react-tracking"
 
-// This only works because we mock tracking in setup.ts
+// This only works because we mock tracking in setup.ts, and we only need to
+// declare it because we want to check how many times it was called
 const { trackEvent } = useTracking()
 
-// Then inside a test where we expect tracking to be called:
-expect(trackEvent).toHaveBeenCalledTimes(1)
+window.location.assign = jest.fn()
+
+it("Calls tracking and navigates to artworks page", () => {
+  const wrapper = mount(
+    <TestApp>
+      <MyComponent {...props} />
+    </TestApp>
+  )
+
+  wrapper.find("Button").simulate("click")
+  expect(trackEvent).toHaveBeenCalledTimes(1)
+  expect(window.location.assign).toBeCalledWith("/artworks")
+})
 ```
 
 That's it! If you're trying to test something similar and found this post, I hope it helps you out. If so, or if
