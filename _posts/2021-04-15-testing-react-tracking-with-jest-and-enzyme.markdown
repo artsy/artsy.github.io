@@ -87,6 +87,7 @@ import { Box, Button } from "@artsy/palette"
 // it access to tracking context
 const MyComponent = () => {
   const { trackEvent } = useTracking()
+
   const handleClick = () => {
     trackEvent({
       data: { action: "Click", somePropToTrack: "andy-warhol" },
