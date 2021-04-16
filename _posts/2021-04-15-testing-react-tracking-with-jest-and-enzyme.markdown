@@ -4,7 +4,7 @@ title: "Testing React Tracking with Jest and Enzyme"
 date: 2021-04-15
 categories: [testing, tracking, volt, cms, enzyme, react-tracking]
 author: matt-dole
-comment_id: 680
+comment_id: 683
 ---
 
 Recently, I needed to test a button that would make an analytics tracking call using
@@ -48,24 +48,14 @@ be available to all of our React apps:
 import React from "react"
 import { track } from "react-tracking"
 
-const trackEvent = ({ data, options, callback }) => {
-  // Action can be something like "click" or "Viewed tooltip"; we pull it out and send it to Segment
-  // separately since it defines the event type
-  const actionName = data.action || data.action_type
-  const trackingData = omit(data, ["action_type", "action"])
-  // This is where we actually call Segment and pass the tracking event. See their docs for more on
-  // these fields: https://segment.com/docs/connections/sources/catalog/libraries/website/javascript/#track
-  window.analytics.track(actionName, trackingData, options, callback)
-}
-
 // We're following the instructions from react-tracking's README on overriding the dispatch function
 const TrackerContextCohesion = track(
   // This is blank because we're not actually tracking a specific event here, just modifying dispatch
   // so that all components in the tree can use it
   {},
   {
-    dispatch: (args) => {
-      trackEvent(args)
+    dispatch: ({ data, options, callback }) => {
+      trackEvent(window.analytics.track(data.action, data, options, callback))
     },
   }
 )((props) => {
@@ -240,7 +230,9 @@ import { TestApp } from "testing/components/TestApp"
 import { useTracking } from "react-tracking"
 
 // This only works because we mock tracking in setup.ts, and we only need to
-// declare it because we want to check how many times it was called
+// declare it because we want to check how many times it was called. Also, it
+// would break the rules of hooks (https://reactjs.org/docs/hooks-rules.html)
+// if it wasn't mocked. Tread cautiously!
 const { trackEvent } = useTracking()
 
 window.location.assign = jest.fn()
