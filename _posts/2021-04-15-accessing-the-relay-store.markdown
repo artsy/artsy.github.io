@@ -3,6 +3,7 @@ layout: epic
 title: "Accessing the Relay Store Without a Mutation"
 date: 2021-04-15
 categories: [relay, graphql, react, redis, tooling]
+comment_id: 685
 author: anna
 ---
 
