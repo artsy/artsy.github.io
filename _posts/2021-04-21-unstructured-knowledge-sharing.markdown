@@ -6,11 +6,11 @@ categories: [teams, culture, people]
 author: steve-hicks
 ---
 
-Something something why is knowledge sharing important? blah blah blah we emphasize it at Artsy. 
+Something something why is knowledge sharing important? blah blah blah we emphasize it at Artsy.
 
 <!-- more -->
 
-We have a handful of regularly scheduled meetings in place at Artsy devoted to knowledge sharing: 
+We have a handful of regularly scheduled meetings in place at Artsy devoted to knowledge sharing:
 
 - Team-based knowledge share meetings
 - Open office hours for anyone to join when they want help with something
@@ -18,45 +18,77 @@ We have a handful of regularly scheduled meetings in place at Artsy devoted to k
 - Show & tell, where attendees bring recent learnings or explorations to demo to the group
 - Peer learning groups that are dedicated to learning a specific topic in development
 
-As [Ash][ash] mentioned in [his article on knowledge shares][knowledge-shares], these are all great _structured_ opportunities for us to share knowledge. Learning is easy to de-prioritize in the face of shipping features, and scheduling these meetings reinforces learning as a priority.
+As [Ash][ash] mentioned in [his article on knowledge shares][knowledge-shares], these are all great _structured_
+opportunities for us to share knowledge. Learning is easy to de-prioritize in the face of shipping features, and
+scheduling these meetings reinforces learning as a priority.
 
-But what about the _unstructured_ ways in which we share knowledge? Structured sharing time demonstrates that the team is interested in spreading knowledge; _unstructured_ sharing time demonstrates that the spreading of knowledge has become _the default_ mode for the team. Instead of the team forming habits of working in isolation or hoarding expertise, they've formed habits of learning from and teaching each other. 
+But what about the _unstructured_ ways in which we share knowledge? Structured sharing time demonstrates that the
+team is interested in spreading knowledge; _unstructured_ sharing time demonstrates that the spreading of knowledge
+has become _the default_ mode for the team. Instead of the team forming habits of working in isolation or hoarding
+expertise, they've formed habits of learning from and teaching each other.
 
-This article describes a few things we do that are unstructured and unscheduled, all of which demonstrate our emphasis on learning at Artsy.
+This article describes a few things we do that are unstructured and unscheduled, all of which demonstrate our
+emphasis on learning at Artsy.
 
 ## The #dev-help Slack Channel
 
 <blockquote class="twitter-tweet"><p lang="en" dir="ltr">Shortest blog post of all time:<br>“Add a <a href="https://twitter.com/hashtag/dev?src=hash&amp;ref_src=twsrc%5Etfw">#dev</a>-help channel to your slack where devs can pose questions to the wider team. You won’t regret it!”<br>-- Chris Pappas</p>&mdash; Artsy Open Source (@ArtsyOpenSource) <a href="https://twitter.com/ArtsyOpenSource/status/1357819867638812672?ref_src=twsrc%5Etfw">February 5, 2021</a></blockquote> <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
 
-We have many dev-specific channels set up in the Artsy Slack, but one in particular has become a massively important knowledge-base for the entire team: the #dev-help channel.
+We have many dev-specific channels set up in the Artsy Slack, but one in particular has become a massively
+important knowledge-base for the entire team: the #dev-help channel.
 
-This channel is a place for engineers to post when they're stuck. All engineers watch the #dev-help channel (to some degree) and offer support when they can. Each issue is threaded to avoid noise in the channel. When the question is answered, it gets marked as "solved" by applying a ✅ reaction. [Pavlos][pavlos] set up a Slack app that auto-applies the ✅ reaction when someone says "solved" in the thread. 
-
-(example screenshot)
-
-The cumulative result of the questions asked and answered in this channel is an incredible knowledge base for all engineers. When I run into a new issue, the first place I search is #dev-help. More often than not I find my exact problem already solved.
-
-This knowledge base is so important and powerful that it's no longer only a place to _ask_ for help. Engineers will also share problems they've _already solved_ in a new thread in the channel, in case someone else runs into the problem. Usually we'll tag these problems up front with `[already solved]` or similar, to make it obvious no one should spend cycles trying to _solve_ this problem.
+This channel is a place for engineers to post when they're stuck. All engineers watch the #dev-help channel (to
+some degree) and offer support when they can. Each issue is threaded to avoid noise in the channel. When the
+question is answered, it gets marked as "solved" by applying a ✅ reaction. [Pavlos][pavlos] set up a Slack app
+that auto-applies the ✅ reaction when someone says "solved" in the thread.
 
 (example screenshot)
 
-One other important thing to say about the #dev-help channel: as engineers it's tempting to solve problems with new and novel tooling, but in the case of #dev-help we found a way to use our existing tooling in a slightly different way. Sometimes the best solution is one you already have. We could have investigated dedicated software like a StackOverflow for Teams, or we could have built our own knowledge-base tool. Instead we put some rules around how we would use a Slack channel, and gained a huge benefit at a fraction of the cost.
+The cumulative result of the questions asked and answered in this channel is an incredible knowledge base for all
+engineers. When I run into a new issue, the first place I search is #dev-help. More often than not I find my exact
+problem already solved.
+
+This knowledge base is so important and powerful that it's no longer only a place to _ask_ for help. Engineers will
+also share problems they've _already solved_ in a new thread in the channel, in case someone else runs into the
+problem. Usually we'll tag these problems up front with `[already solved]` or similar, to make it obvious no one
+should spend cycles trying to _solve_ this problem.
+
+(example screenshot)
+
+One other important thing to say about the #dev-help channel: as engineers it's tempting to solve problems with new
+and novel tooling, but in the case of #dev-help we found a way to use our existing tooling in a slightly different
+way. Sometimes the best solution is one you already have. We could have investigated dedicated software like a
+StackOverflow for Teams, or we could have built our own knowledge-base tool. Instead we put some rules around how
+we would use a Slack channel, and gained a huge benefit at a fraction of the cost.
 
 ## Internal Live-Streaming
 
-Occasionally an Artsy engineer will broadcast that they're taking on work that is ripe for knowledge-sharing, and they'll spin up a Zoom call for others to join. It might be something they know how to solve — like when [Roop][roop] spun up a call to walk through how he'd use [Observable][observablehq] to explore search index weighting. There might be more uncertainty to the problem, like when [Pavlos][pavlos] started up a call to investigate a CI build failure using [`git bisect`][git-bisect]. It might be somewhere in between, like when [Adam][adam-b] was doing some refactoring of our React Native navigation. 
+Occasionally an Artsy engineer will broadcast that they're taking on work that is ripe for knowledge-sharing, and
+they'll spin up a Zoom call for others to join. It might be something they know how to solve — like when
+[Roop][roop] spun up a call to walk through how he'd use [Observable][observablehq] to explore search index
+weighting. There might be more uncertainty to the problem, like when [Pavlos][pavlos] started up a call to
+investigate a CI build failure using [`git bisect`][git-bisect]. It might be somewhere in between, like when
+[Adam][adam-b] was doing some refactoring of our React Native navigation.
 
-Sometimes this might end up looking more like a pairing or mobbing session, but often it ends up looking more like live-streaming. An engineer is demonstrating by solving a real problem. If audience members can contribute, great — but they are also free to tag along and learn.
+Sometimes this might end up looking more like a pairing or mobbing session, but often it ends up looking more like
+live-streaming. An engineer is demonstrating by solving a real problem. If audience members can contribute, great —
+but they are also free to tag along and learn.
 
 ## Pairing
 
-[Yuki][yuki] wrote on this blog [about pair-programming at Artsy][yukis-article]. Pairing isn't an unusual practice for development teams....but there is something notable in regards to knowledge-sharing. 
+[Yuki][yuki] wrote on this blog [about pair-programming at Artsy][yukis-article]. Pairing isn't an unusual practice
+for development teams....but there is something notable in regards to knowledge-sharing.
 
-We're somewhere in the middle on the pairing frequency spectrum at Artsy. We don't have dedicated pairs working on problems together all day/every day. But we also don't only pair when we're stuck. 
+We're somewhere in the middle on the pairing frequency spectrum at Artsy. We don't have dedicated pairs working on
+problems together all day/every day. But we also don't only pair when we're stuck.
 
-Pairing when you're stuck is great, and it can help move you forward on a problem. If that's the only time you pair, though, you're missing out on a massive learning opportunity. 
+Pairing when you're stuck is great, and it can help move you forward on a problem. If that's the only time you
+pair, though, you're missing out on a massive learning opportunity.
 
-Pairing to build a feature gives you exposure to an entire toolbox you might never have used before. How does your pair approach a problem? How do they manage their time? What development tools do they use? What techniques do they use for testing and debugging? How do they tighten their feedback loop? This is knowledge-sharing beyond the code or the product you're building — it's knowledge-sharing of tools, skills, and habits.
+Pairing to build a feature gives you exposure to an entire toolbox you might never have used before. How does your
+pair approach a problem? How do they manage their time? What development tools do they use? What techniques do they
+use for testing and debugging? How do they tighten their feedback loop? This is knowledge-sharing beyond the code
+or the product you're building — it's knowledge-sharing of tools, skills, and habits.
 
 ---
 
