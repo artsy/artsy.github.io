@@ -30,7 +30,7 @@ This article describes a few things we do that are unstructured and unscheduled,
 
 We have many dev-specific channels set up in the Artsy Slack, but one in particular has become a massively important knowledge-base for the entire team: the #dev-help channel.
 
-This channel is a place for engineers to post when they're stuck. All engineers watch the #dev-help channel (to some degree) and offer support when they can. Each issue is threaded to avoid noise in the channel. When the question is answered, it gets marked as "solved" by applying a ✅ reaction. We've even got a Slack app that auto-applies the ✅ reaction when someone says their problem is solved.
+This channel is a place for engineers to post when they're stuck. All engineers watch the #dev-help channel (to some degree) and offer support when they can. Each issue is threaded to avoid noise in the channel. When the question is answered, it gets marked as "solved" by applying a ✅ reaction. [Pavlos][pavlos] set up a Slack app that auto-applies the ✅ reaction when someone says "solved" in the thread. 
 
 (example screenshot)
 
