@@ -8,6 +8,8 @@ author: steve-hicks
 
 Something something why is knowledge sharing important? blah blah blah we emphasize it at Artsy. 
 
+<!-- more -->
+
 We have a handful of regularly scheduled meetings in place at Artsy devoted to knowledge sharing: 
 
 - Team-based knowledge share meetings
