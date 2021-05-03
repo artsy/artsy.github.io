@@ -1,7 +1,7 @@
 ---
 layout: epic
 title: "Unstructured Knowledge Sharing"
-date: 2021-04-21
+date: 2021-05-11
 categories: [teams, culture, people]
 author: steve-hicks
 ---
@@ -42,7 +42,7 @@ some degree) and offer support when they can. Each issue is threaded to avoid no
 question is answered, it gets marked as "solved" by applying a ✅ reaction. [Pavlos][pavlos] set up a Slack app
 that auto-applies the ✅ reaction when someone says "solved" in the thread.
 
-(example screenshot)
+![A question asked and answered in our #dev-help slack](/images/2021-05-11-unstructured-knowledge-sharing/dev-help.png)
 
 The cumulative result of the questions asked and answered in this channel is an incredible knowledge base for all
 engineers. When I run into a new issue, the first place I search is #dev-help. More often than not I find my exact
@@ -53,7 +53,7 @@ also share problems they've _already solved_ in a new thread in the channel, in 
 problem. Usually we'll tag these problems up front with `[already solved]` or similar, to make it obvious no one
 should spend cycles trying to _solve_ this problem.
 
-(example screenshot)
+![An already-solved thread in our #dev-help slack](/images/2021-05-11-unstructured-knowledge-sharing/already-solved.png)
 
 One other important thing to say about the #dev-help channel: as engineers it's tempting to solve problems with new
 and novel tooling, but in the case of #dev-help we found a way to use our existing tooling in a slightly different
