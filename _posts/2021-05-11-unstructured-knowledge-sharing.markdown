@@ -4,6 +4,7 @@ title: "Unstructured Knowledge Sharing"
 date: 2021-05-11
 categories: [teams, culture, people]
 author: steve-hicks
+comment_id: 690
 ---
 
 We have a handful of regularly scheduled meetings in place at Artsy devoted to knowledge sharing.
