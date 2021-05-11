@@ -6,33 +6,35 @@ categories: [teams, culture, people]
 author: steve-hicks
 ---
 
-Something something why is knowledge sharing important? blah blah blah we emphasize it at Artsy.
+We have a handful of regularly scheduled meetings in place at Artsy devoted to knowledge sharing.
+
+But what about the _unstructured_ ways in which we share knowledge? If structured sharing time demonstrates that a
+team is _interested_ in spreading knowledge, _unstructured_ sharing time demonstrates that spreading knowledge is
+the default mode for the team. Instead of the team forming habits of working in isolation or hoarding expertise,
+they've formed habits of learning from and teaching each other.
 
 <!-- more -->
 
-We have a handful of regularly scheduled meetings in place at Artsy devoted to knowledge sharing:
+Regularly scheduled meetings we have for knowledge sharing include:
 
 - Team-based knowledge share meetings
-- Open office hours for anyone to join when they want help with something
+- Open office hours for anyone to bring questions
 - Lunch & learns for presenting across all of Artsy engineering
 - Show & tell, where attendees bring recent learnings or explorations to demo to the group
 - Peer learning groups that are dedicated to learning a specific topic in development
 
-As [Ash][ash] mentioned in [his article on knowledge shares][knowledge-shares], these are all great _structured_
-opportunities for us to share knowledge. Learning is easy to de-prioritize in the face of shipping features, and
-scheduling these meetings reinforces learning as a priority.
+As [Ash][ash] mentioned in [his article on knowledge shares][knowledge-shares], these are all great opportunities
+for us to share knowledge. Learning is easy to de-prioritize in the face of shipping features, and scheduling these
+meetings reinforces learning as a priority.
 
-But what about the _unstructured_ ways in which we share knowledge? Structured sharing time demonstrates that the
-team is interested in spreading knowledge; _unstructured_ sharing time demonstrates that the spreading of knowledge
-has become _the default_ mode for the team. Instead of the team forming habits of working in isolation or hoarding
-expertise, they've formed habits of learning from and teaching each other.
-
-This article describes a few things we do that are unstructured and unscheduled, all of which demonstrate our
-emphasis on learning at Artsy.
-
-## The #dev-help Slack Channel
+Recently [Chris Pappas][chris] pointed out the incredible value we get out of one specific Slack channel:
 
 <blockquote class="twitter-tweet"><p lang="en" dir="ltr">Shortest blog post of all time:<br>“Add a <a href="https://twitter.com/hashtag/dev?src=hash&amp;ref_src=twsrc%5Etfw">#dev</a>-help channel to your slack where devs can pose questions to the wider team. You won’t regret it!”<br>-- Chris Pappas</p>&mdash; Artsy Open Source (@ArtsyOpenSource) <a href="https://twitter.com/ArtsyOpenSource/status/1357819867638812672?ref_src=twsrc%5Etfw">February 5, 2021</a></blockquote> <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+
+This piqued my interest. What unstructured/unscheduled things do we do at Artsy to demonstrate our emphasis on
+learning?
+
+## The #dev-help Slack Channel
 
 We have many dev-specific channels set up in the Artsy Slack, but one in particular has become a massively
 important knowledge-base for the entire team: the #dev-help channel.
@@ -51,15 +53,15 @@ problem already solved.
 This knowledge base is so important and powerful that it's no longer only a place to _ask_ for help. Engineers will
 also share problems they've _already solved_ in a new thread in the channel, in case someone else runs into the
 problem. Usually we'll tag these problems up front with `[already solved]` or similar, to make it obvious no one
-should spend cycles trying to _solve_ this problem.
+should spend cycles trying to solve this problem.
 
 ![An already-solved thread in our #dev-help slack](/images/2021-05-11-unstructured-knowledge-sharing/already-solved.png)
 
 One other important thing to say about the #dev-help channel: as engineers it's tempting to solve problems with new
 and novel tooling, but in the case of #dev-help we found a way to use our existing tooling in a slightly different
-way. Sometimes the best solution is one you already have. We could have investigated dedicated software like a
-StackOverflow for Teams, or we could have built our own knowledge-base tool. Instead we put some rules around how
-we would use a Slack channel, and gained a huge benefit at a fraction of the cost.
+way. Sometimes the best solution is one you already have. We could have investigated dedicated software like Stack
+Overflow for Teams, or we could have built our own knowledge-base tool. Instead we put some rules around how we
+would use a Slack channel, and gained a huge benefit at a fraction of the cost.
 
 ## Internal Live-Streaming
 
@@ -70,9 +72,9 @@ weighting. There might be more uncertainty to the problem, like when [Pavlos][pa
 investigate a CI build failure using [`git bisect`][git-bisect]. It might be somewhere in between, like when
 [Adam][adam-b] was doing some refactoring of our React Native navigation.
 
-Sometimes this might end up looking more like a pairing or mobbing session, but often it ends up looking more like
-live-streaming. An engineer is demonstrating by solving a real problem. If audience members can contribute, great —
-but they are also free to tag along and learn.
+Sometimes this looks like a pairing or mobbing session, but sometimes it looks more like live-streaming. An
+engineer is demonstrating by solving a real problem. If audience members can contribute, great — but they are also
+welcome to tag along and learn.
 
 ## Pairing
 
@@ -95,6 +97,7 @@ or the product you're building — it's knowledge-sharing of tools, skills, and 
 What are the unstructured/unscheduled ways in which your team shares knowledge? Leave us a note in the comments!
 
 [ash]: https://twitter.com/ashfurrow
+[chris]: https://github.com/damassi
 [knowledge-shares]: https://artsy.github.io/blog/2020/12/09/share-your-knowledge/
 [roop]: https://github.com/anandaroop
 [observablehq]: https://observablehq.com/
