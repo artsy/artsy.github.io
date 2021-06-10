@@ -1,11 +1,17 @@
 ---
 layout: epic
-title: "A Tour Of Artsy's Web Front-end"
+title: "A Tour Of Artsy's Web Front-end in 2021"
 date: 2021-06-18
 categories: [architecture]
 author: steve-hicks
 comment_id: 690
 ---
+
+- history
+
+  - 2018-10-04-artsy-frontend-history
+  - 2017-04-14-artsy-technology-stack-2017
+  - 2017-02-05-Front-end-JavaScript-at-Artsy-2017
 
 - we have articles that cover individual libraries/tools we use in our web front-end
   - but we don't have a single place that lists them all
@@ -46,8 +52,6 @@ What happens when you make a request to artsy.net/some-url?
 
 - anything to say about legacy code?
 - anything to say about emission/reaction getting absorbed into eigen/force?
--
-
----
+- ***
 
 reference: https://artsyproduct.atlassian.net/browse/WP-10
