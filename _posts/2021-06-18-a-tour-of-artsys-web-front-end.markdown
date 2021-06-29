@@ -25,64 +25,67 @@ The first stop: an [Express][express]
 with [Typescript](https://artsy.github.io/blog/2019/04/05/omakase-typescript/). Many (most?) of Artsy's services
 are built with Rails, but [Force](https://github.com/artsy/force), our web app, is one of the few built on NodeJS.
 
-Force uses the [`found`](https://github.com/4Catalyzer/found) router to render a React app from the server. We have
-[many child apps](https://github.com/artsy/force/tree/a52a4998ff59daeaae1619a0388314cd9a8376df/src/v2/Apps) within
-Force. Each app defines its own routes, and
+[Force's express app](https://github.com/artsy/force/blob/89ce00df9816e892f456e6885fab17c9ab539235/src/v2/server.ts#L52)
+[server-renders a React app](https://github.com/artsy/force/blob/89ce00df9816e892f456e6885fab17c9ab539235/src/v2/Artsy/Router/buildServerApp.tsx#L164).
+
+## React App
+
+To wrangle the many pages and routes available on artsy.net, we define
+[Many child apps](https://github.com/artsy/force/tree/a52a4998ff59daeaae1619a0388314cd9a8376df/src/v2/Apps). Each
+defines its own [`found`](https://github.com/4Catalyzer/found) routes, and
 [they're all aggregated together](https://github.com/artsy/force/blob/0c1b86322a7056ee952703abc08d9d399a05fb32/src/v2/routes.tsx)
-to route your request to the corresponding app.
+to route your request to the correct app.
 
----
+We've written previously about the `fresnel` app, and how [we use it to predict whether we should serve you a
+mobile or desktop view][server-rendering-responsively].
+[It gets included at the root of our React tree](https://github.com/artsy/force/blob/89ce00df9816e892f456e6885fab17c9ab539235/src/v2/Artsy/Router/Boot.tsx#L75),
+along with a handful of other global providers.
 
-- history
+### Querying data
 
-  - 2019-04-10-omakase-relay
+When a child app renders the page for your request, it uses Relay to query data from [metaphysics][metaphysics],
+our GraphQL gateway for many back-end services. todo: link to 2019-04-10-omakase-relay
 
-- we have articles that cover individual libraries/tools we use in our web front-end
-  - but we don't have a single place that lists them all
-  - this article is that.
+- a Relay environment is created in `buildServerApp` and
+  [passed into `Boot`](https://github.com/artsy/force/blob/89ce00df9816e892f456e6885fab17c9ab539235/src/v2/Artsy/Router/buildClientApp.tsx#L114)
+- explain what it is
+- noteworthy - we aren't using latest version of relay (the one with hooks)
+  - why?
 
-What happens when you make a request to artsy.net/some-url?
+### Making it look nice
 
-- renders a react app server-side
-  - https://github.com/artsy/force/blob/89ce00df9816e892f456e6885fab17c9ab539235/src/v2/Artsy/Router/buildServerApp.tsx#L164
-  - [`Boot` is our React wrapper](https://github.com/artsy/force/blob/89ce00df9816e892f456e6885fab17c9ab539235/src/v2/Artsy/Router/Boot.tsx#L39)
-    - includes some providers we
-      [get from fresnel](https://github.com/artsy/force/blob/89ce00df9816e892f456e6885fab17c9ab539235/src/v2/Utils/Responsive/index.tsx#L16)
-      - link to fresnel, explain it
-  - once server-rendered content is rendered in the browser,
-    [the client app is hydrated](https://github.com/artsy/force/blob/89ce00df9816e892f456e6885fab17c9ab539235/src/v2/client.tsx#L40)
-    - [a lot of the same things that happened on the server happen here](https://github.com/artsy/force/blob/89ce00df9816e892f456e6885fab17c9ab539235/src/v2/Artsy/Router/buildClientApp.tsx#L38)
-      - including hooking up our `Boot` React wrapper, and our aggregated found routes
-- data is queried from metaphysics with relay
-  - server-side for most data, but also client-side for some things like lazy-loaded data that appears on scroll.
-  - a Relay environment is
-    [created in `buildServerApp` and `buildClientApp`](https://github.com/artsy/force/blob/89ce00df9816e892f456e6885fab17c9ab539235/src/v2/Artsy/Router/buildClientApp.tsx#L50)
-    and
-    [passed into `Boot`](https://github.com/artsy/force/blob/89ce00df9816e892f456e6885fab17c9ab539235/src/v2/Artsy/Router/buildClientApp.tsx#L114)
-  - link to article on relay
-  - explain what it is
-  - noteworthy - we aren't using latest version of relay (the one with hooks)
-    - why?
 - content is styled with palette
   - our design system; currently v3
   - based on styled-system, based on styled-components
-- integration tested with cypress, via integrity
 
+### Interactivity
+
+- once server-rendered content is rendered in the browser,
+  [the client app is hydrated](https://github.com/artsy/force/blob/89ce00df9816e892f456e6885fab17c9ab539235/src/v2/client.tsx#L40)
+
+  - [a lot of the same things that happened on the server happen here](https://github.com/artsy/force/blob/89ce00df9816e892f456e6885fab17c9ab539235/src/v2/Artsy/Router/buildClientApp.tsx#L38)
+    - including hooking up our `Boot` React wrapper, and our aggregated found routes
+
+- Relay: client-side for some things like lazy-loaded data that appears on scroll.
+- a Relay environment is
+  [created in `buildClientApp`](https://github.com/artsy/force/blob/89ce00df9816e892f456e6885fab17c9ab539235/src/v2/Artsy/Router/buildClientApp.tsx#L50)
+  and
+  [passed into `Boot`](https://github.com/artsy/force/blob/89ce00df9816e892f456e6885fab17c9ab539235/src/v2/Artsy/Router/buildClientApp.tsx#L114)
+- link to article on relay
+
+### Testing
+
+---
+
+- integration tested with cypress, via integrity?
 - anything to say about legacy code?
 - anything to say about emission/reaction getting absorbed into eigen/force?
-- ***
 
 reference: https://artsyproduct.atlassian.net/browse/WP-10
-
-- headers per system/technology
-  - palette
-  - react
-  - relay
-  - express
-  - fresnel
 
 [2017-02-article]: http://artsy.github.io/blog/2017/02/05/Front-end-JavaScript-at-Artsy-2017
 [2017-04-article]: http://artsy.github.io/blog/2017/04/14/artsy-technology-stack-2017
 [2018-10-article]: http://artsy.github.io/blog/2018/10/04/artsy-frontend-history
 [express]: https://expressjs.com/
 [typescript-article]: https://artsy.github.io/blog/2019/04/05/omakase-typescript/
+[server-rendering-responsively]: https://artsy.github.io/blog/2019/05/24/server-rendering-responsively/
