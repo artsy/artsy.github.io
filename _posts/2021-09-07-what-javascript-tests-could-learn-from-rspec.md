@@ -50,11 +50,12 @@ end
 If you're new to Ruby, the only line that doesn't translate almost directly to a similar JavaScript expression is
 the `let` statement.
 
-The `let` statement in RSpec creates a thing named `counter`, which is evaluated to a new instance of the `Counter`
-class. There are a few important things to note about `let` blocks:
+The `let` statement in RSpec [creates a method with a specified name, which lazily evaluates to the result of a
+block][rspec-let]. In this case, we get a method named `counter`, which is evaluated to a new instance of the
+`Counter` class. There are a few important things to note about `let` blocks:
 
-1. They're evaluated lazily, so that thing doesn't actually get created until I reference it.
-2. They're memoized, so wherever I reference `counter` within that `describe "counter"` block, I'm getting the same
+1. They're evaluated lazily (by default). That `counter` doesn't actually get created until I reference it.
+2. They're memoized. Wherever I reference `counter` within that `describe "counter"` block, I'm getting the same
    instance. It's initialized to whatever I return inside the `let` block.
 3. I can override a `let` block deeper inside the tree of tests, by declaring another `let(:counter)` later. When I
    do this, the closest `let` block in the tree for that thing is the one that gets used.
@@ -167,8 +168,8 @@ describe("Calculator", () => {
 
         it("returns a positive number", () => {
           expect(getResult()).toEqual(3)
-        end
-      end
+        })
+      })
 
       describe("when the second value is positive", () => {
         beforeEach(() => { second = 3 })
@@ -212,16 +213,54 @@ describe("Calculator", () => {
 You could certainly make the case for this contrived example that _this_ is actually the most readable set of
 tests, because there's less code. I would have a hard time arguing. But most real-life tests are more complex than
 these examples, with state and side-effects to mock out, and more scenarios and edge cases worth testing. Once
-things get a little more complicated than these contrived examples, the RSpec tests become the winner — they're
-easier to read and manage, with their `let` and `context` blocks more discretely describing your test scenarios.
+things get a little more complicated than these contrived examples, the RSpec tests become the winner for me —
+they're easier to read and manage, with their `let` and `context` blocks more discretely describing your test
+scenarios.
 
 You could also argue that the bigger win here would be breaking scenarios into individual `describe` blocks in
 JavaScript tests, instead of cramming the entire scenario into one long `it("...")` statement. I wouldn't argue
 that either.
 
-But lately every time I try to write JavaScript tests, I find myself trying (unsuccessfully) to recreate that RSpec
-example above. It represents exactly how I want to think about complex test scenarios. Each level of the tests has
-exactly the setup that is unique to that level. There's very little distraction or noise at each `context` and
-`it`. It totally aligns with
+## Caveats
+
+The day after I wrote this article, a conversation started in the Artsy slack about how confusing `let` was because
+it moved variable initializations far away from where the tests used them.
+
+This makes sense! I think it points to two truths in software development:
+
+### Code readability is subjective
+
+For years I was convinced that practices like small functions or long and descriptive function names were
+_objectively_ more readable. I leaned into this, and my code reviews almost always included comments on what I
+thought would make the code more readable.
+
+As more people pushed back on my feedback over time, I realized that the feedback I was giving was _subjective_. I
+still like code that uses many short functions wired together, but not everyone finds that more readable! I've
+stopped giving readability feedback on PRs, unless I can provide nearly-objective facts or scenarios that point to
+a readability improvement.
+
+In this article, I find the RSpec `let` examples to be much more readable than the JavaScript examples. But you and
+your team might not! Maybe the distance between a `let` block's definition and its method's usage makes it hard for
+you to follow the test. That's cool!
+
+### Any cool thing can be abused
+
+Earlier in this article I linked to [an article that describes `let` blocks in more detail][rspec-let]. It includes
+[a warning from the actual `let` docs](https://www.rubydoc.info/github/rspec/rspec-core/RSpec%2FCore%2FMemoizedHelpers%2FClassMethods%3Alet):
+
+> Note: `let` can enhance readability when used sparingly (1,2, or maybe 3 declarations) in any given example
+> group, but that can quickly degrade with overuse. YMMV.
+
+I've definitely seen code where I had a hard time following a stream of `let` blocks. The RSpec example I gave
+above reads nicely to me — but it's probably teetering on the edge of where `let` usage becomes confusing. I'm
+guessing I have a slightly higher tolerance for this particular abstraction than my friends who don't like
+it...again pointing to readability being subjective.
+
+Having said all that — lately every time I try to write JavaScript tests, I find myself trying (unsuccessfully) to
+recreate that RSpec example above. It represents exactly how I want to think about complex test scenarios. Each
+level of the tests has exactly the setup that is unique to that level. There's very little distraction or noise at
+each `context` and `it`. It totally aligns with
 [my desire to minimize irrelevant test setup](https://www.stevenhicks.me/blog/2018/01/chekhovs-gun-and-better-unit-tests/).
 I'm in ❤️ ❤️ ❤️ ❤️ ❤️.
+
+[rspec-let]: https://medium.com/@tomkadwill/all-about-rspec-let-a3b642e08d39
