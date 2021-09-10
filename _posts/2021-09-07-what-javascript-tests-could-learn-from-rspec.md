@@ -5,6 +5,7 @@ date: 2021-09-10
 categories: [testing, rspec, jest]
 author: steve-hicks
 canonical: https://www.stevenhicks.me/blog/2021/09/what-javascript-tests-could-learn-from-rspec/
+comment_id: 701
 ---
 
 When I started at Artsy a few years ago, I'd never written a line of Ruby. I feel at home with JavaScript — it's
