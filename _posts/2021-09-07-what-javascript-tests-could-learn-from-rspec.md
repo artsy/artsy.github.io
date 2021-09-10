@@ -4,9 +4,8 @@ title: "What JavaScript Tests Could Learn From RSpec"
 date: 2021-09-10
 categories: [testing, rspec, jest]
 author: steve-hicks
+canonical: https://www.stevenhicks.me/blog/2021/09/what-javascript-tests-could-learn-from-rspec/
 ---
-
-TODO: rel="canonical" to the original on my blog
 
 When I started at Artsy a few years ago, I'd never written a line of Ruby. I feel at home with JavaScript — it's
 been my buddy since I started my career over 20 years ago. I've written enough tests in JavaScript that I sometimes
@@ -271,5 +270,8 @@ level of the tests has exactly the setup that is unique to that level. There's v
 each `context` and `it`. It totally aligns with
 [my desire to minimize irrelevant test setup](https://www.stevenhicks.me/blog/2018/01/chekhovs-gun-and-better-unit-tests/).
 I'm in ❤️ ❤️ ❤️ ❤️ ❤️.
+
+> _This post originally appeared on
+> [Steve's blog](https://www.stevenhicks.me/blog/2021/09/what-javascript-tests-could-learn-from-rspec/)._
 
 [rspec-let]: https://medium.com/@tomkadwill/all-about-rspec-let-a3b642e08d39
