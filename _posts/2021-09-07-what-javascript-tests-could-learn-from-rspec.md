@@ -21,10 +21,46 @@ that something's missing in my Jest tests! My experiences with RSpec have me lon
 
 <!-- more -->
 
-1. `let` blocks
-2. `context` blocks
+1. `context` blocks
+2. `let` blocks
 
-## 1. `let` blocks
+## 1. `context` blocks
+
+A [`context` block](https://relishapp.com/rspec/rspec-core/v/2-11/docs/example-groups/basic-structure-describe-it)
+in an RSpec test is, as I understand it, literally the same thing as a `describe` block. Like it's just an alias of
+`describe`. What's the point, you ask?
+
+The difference is in, well, context. Well-organized RSpec tests use `describe` to describe what's being
+tested...and `context` to describe scenarios of the thing being tested.
+
+For example, if I wanted to test the `multiply` method of a `Calculator` class, I might write some test scenarios
+that look like this:
+
+```rb
+describe "Calculator" do
+  describe ".multiply" do
+    context "when the first value is negative" do
+      context "when the second value is negative" do
+        it "returns a positive number" do
+        end
+      end
+      context "when the second value is positive" do
+        it "returns a negative number" do
+        end
+      end
+    end
+  end
+end
+```
+
+See the difference in those test cases between `describe` and `context`? The way I think about it is: if the
+statement coming after my `describe`/`context` describes a pre-condition for the test, it's a `context`; otherwise
+it's a `describe`.
+
+`context` wouldn't be hard to implement in JavaScript — I'd bet there are test frameworks that have it. It'd just
+be an alias of `describe`.
+
+## 2. `let` blocks
 
 [`let` blocks](https://relishapp.com/rspec/rspec-core/v/2-11/docs/helper-methods/let-and-let) are used in an RSpec
 test to set things up for your test scenario.
@@ -60,38 +96,11 @@ block][rspec-let]. In this case, we get a method named `counter`, which is evalu
 3. I can override a `let` block deeper inside the tree of tests, by declaring another `let(:counter)` later. When I
    do this, the closest `let` block in the tree for that thing is the one that gets used.
 
-## 2. `context` blocks
-
-A [`context` block](https://relishapp.com/rspec/rspec-core/v/2-11/docs/example-groups/basic-structure-describe-it)
-in an RSpec test is, as I understand it, literally the same thing as a `describe` block. Like it's just an alias of
-`describe`. What's the point, you ask?
-
-The difference is in, well, context. Well-organized RSpec tests use `describe` to describe what's being
-tested...and `context` to describe scenarios of the thing being tested.
-
-For example, if I wanted to test the `multiply` method of a `Calculator` class, I might write some test scenarios
-that look like this:
-
-```rb
-describe "Calculator" do
-  describe ".multiply" do
-    context "when the first value is negative" do
-      context "when the second value is negative" do
-        it "returns a positive number" do
-        end
-      end
-      context "when the second value is positive" do
-        it "returns a negative number" do
-        end
-      end
-    end
-  end
-end
-```
-
-See the difference in those test cases between `describe` and `context`? The way I think about it is: if the
-statement coming after my `describe`/`context` describes a pre-condition for the test, it's a `context`; otherwise
-it's a `describe`.
+I don't think it's possible to implement `let` in JavaScript — at least not in the way it exists in RSpec. It
+relies on
+[Ruby meta-programming to intercept calls to missing methods](https://www.leighhalliday.com/ruby-metaprogramming-method-missing),
+which just doesn't exist in JavaScript. The [givens](https://github.com/enova/givens) library does something pretty
+close, but it relies on string keys to define things, and there's a bit of extra work when working with TypeScript.
 
 ## What's the big deal?
 
@@ -212,10 +221,10 @@ describe("Calculator", () => {
 
 You could certainly make the case for this contrived example that _this_ is actually the most readable set of
 tests, because there's less code. I would have a hard time arguing. But most real-life tests are more complex than
-these examples, with state and side-effects to mock out, and more scenarios and edge cases worth testing. Once
-things get a little more complicated than these contrived examples, the RSpec tests become the winner for me —
-they're easier to read and manage, with their `let` and `context` blocks more discretely describing your test
-scenarios.
+these examples, with state and side-effects to mock out, and more scenarios and edge cases worth testing. Each test
+case here includes multiple conditions, but there are only two permutations represented. Once things get a little
+more complicated than these contrived examples, the RSpec tests become the clear winner for me — they're easier to
+read and manage, with their `let` and `context` blocks more discretely describing your test scenarios.
 
 You could also argue that the bigger win here would be breaking scenarios into individual `describe` blocks in
 JavaScript tests, instead of cramming the entire scenario into one long `it("...")` statement. I wouldn't argue
