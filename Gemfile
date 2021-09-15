@@ -2,6 +2,7 @@ source 'https://rubygems.org'
 
 gem 'compass'
 gem 'jekyll'
+gem 'jekyll-paginate'
 gem 'minima'
 gem 'octopress-hooks'
 gem 'pygments.rb'
