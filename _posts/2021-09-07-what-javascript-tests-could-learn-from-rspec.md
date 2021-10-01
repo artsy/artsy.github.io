@@ -158,7 +158,7 @@ And each block has very little noise to distract you.
 
 Here's what I'd do in JavaScript/Jest to accomplish something similar:
 
-```JavaScript
+```js
 describe("Calculator", () => {
   let calculator
   beforeEach(() => { calculator = new Calculator() })
@@ -198,7 +198,7 @@ more noise, but it is definitely more noise.
 In real life I wouldn't expect to find tests like the above JavaScript example. I'd expect to find the tests in
 JavaScript looking more like this:
 
-```JavaScript
+```js
 describe("Calculator", () => {
   let calculator
   beforeEach(() => { calculator = new Calculator() })
