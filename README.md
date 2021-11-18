@@ -13,6 +13,19 @@ bundle exec rake bootstrap
 bundle exec rake build
 ```
 
+### Common issues
+
+<details><summary>Issues installing `therubyracer` and/or `v8` dependencies</summary>
+Some combination of the following might help resolve issues with installing these dependencies:
+
+- Installing `v8` via homebrew: `brew install v8`
+- Installing the `libv8` gem using a specific version and v8 flag:
+  `gem install libv8 -v '3.16.14.19' -- --with-system-v8`
+- Assigning configuration options, as in
+  [this comment](https://gist.github.com/fernandoaleman/868b64cd60ab2d51ab24e7bf384da1ca#gistcomment-3114668).
+
+</details>
+
 ## License
 
 The code in this repository is released under the MIT license. The contents of the blog itself (ie: the contents of
@@ -72,7 +85,6 @@ twitter-url: http://twitter.com/mmcnierney
 blog-url: http://mattmcnierney.wordpress.com
 categories: [Design, CSS, HTML5]
 ---
-
 ```
 
 More info can be found in the [Jekyll docs](http://jekyllrb.com/docs/posts/).
@@ -122,7 +134,8 @@ You can look at previous tweets from our account to get a feel for these. If you
 
 ## Authoring a Podcast Episode
 
-To add a new episode of the podcast, [configure](https://github.com/aws/aws-sdk-ruby#configuration) your local AWS environment. The easiest is in environment variables stored in `~/.zshrc` or equivalent.
+To add a new episode of the podcast, [configure](https://github.com/aws/aws-sdk-ruby#configuration) your local AWS
+environment. The easiest is in environment variables stored in `~/.zshrc` or equivalent.
 
 ```
 export AWS_ACCESS_KEY_ID=
@@ -135,7 +148,8 @@ After you have set up the environment, run the following rake task.
 rake podcast:new_episode /path/to/local/mp3
 ```
 
-This will add required YAML to `_config.yml`. You'll need to fill in some other fields manually; when finished it'll look like this:
+This will add required YAML to `_config.yml`. You'll need to fill in some other fields manually; when finished
+it'll look like this:
 
 ```yaml
 - title: Name of your episode
@@ -152,16 +166,13 @@ This will add required YAML to `_config.yml`. You'll need to fill in some other 
   <img align="left" src="https://avatars2.githubusercontent.com/u/546231?s=200&v=4"/>
 </a>
 
-This project is the work of engineers at [Artsy][footer_website], the world's
-leading and largest online art marketplace and platform for discovering art.
-One of our core [Engineering Principles][footer_principles] is being [Open
-Source by Default][footer_open] which means we strive to share as many details
-of our work as possible.
+This project is the work of engineers at [Artsy][footer_website], the world's leading and largest online art
+marketplace and platform for discovering art. One of our core [Engineering Principles][footer_principles] is being
+[Open Source by Default][footer_open] which means we strive to share as many details of our work as possible.
 
-You can learn more about this work from [our blog][footer_blog] and by following
-[@ArtsyOpenSource][footer_twitter] or explore our public data by checking out
-[our API][footer_api]. If you're interested in a career at Artsy, read through
-our [job postings][footer_jobs]!
+You can learn more about this work from [our blog][footer_blog] and by following [@ArtsyOpenSource][footer_twitter]
+or explore our public data by checking out [our API][footer_api]. If you're interested in a career at Artsy, read
+through our [job postings][footer_jobs]!
 
 [footer_website]: https://www.artsy.net/
 [footer_principles]: https://github.com/artsy/README/blob/master/culture/engineering-principles.md
