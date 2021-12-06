@@ -44,6 +44,7 @@ Wow - what a year! Here are some notable achievements, failures, and learnings f
 - Developed an in-house auction results pipeline
 - Made improvements in recommendations (New Works for You) for the first time in a while!
 - Migrated X repos to continuously deploy - Props to the Platform team
+- N questions answered in our #dev-help slack channel to help get each other unstuck!
 
 ## Failures too!
 
