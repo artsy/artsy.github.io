@@ -51,6 +51,7 @@ Wow - what a year! Here are some notable achievements, failures, and learnings f
 - We had X incidents
 - Codecov exploit nightmare and (maybe?) process/tool improvements that it inspired
 - Released an app that defaulted to staging :grimace: improved our app QA process in response
+- number of PRs that were reverted after deploy (if that's an easy number to gather -- the point being, we break some eggs along the way)
 
 ## More learnings?
 
