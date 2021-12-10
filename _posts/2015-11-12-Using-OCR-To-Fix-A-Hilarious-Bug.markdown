@@ -43,7 +43,7 @@ The script eventually turned into something like:
 # initialize and configure Tesseract
 engine = Tesseract::Engine.new do |config|
   config.language  = :eng
-  config.denylist = '|'
+  config.blacklist = '|'
 end
 
 # iterate over artists and pull their thumbnails
