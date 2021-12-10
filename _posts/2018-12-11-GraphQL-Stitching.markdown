@@ -153,7 +153,7 @@ export const executableGravitySchema = async () => {
 
   // Types which come from Gravity which MP already has copies of.
   // In the future, these could get merged into the MP types.
-  const blacklistedTypes = ["Artist", "Artwork"]
+  const denylistedTypes = ["Artist", "Artwork"]
 
   // Gravity's GraphQL contains a bunch of objects and root fields that will conflict
   // with what we have in MP already, this lets us bring them in one by one
@@ -165,7 +165,7 @@ export const executableGravitySchema = async () => {
       return !allowlistedRootFields.includes(name)
     }),
     new FilterTypes(type => {
-      return !blacklistedTypes.includes(type.name)
+      return !denylistedTypes.includes(type.name)
     }),
     // snip
   ])
@@ -179,7 +179,7 @@ what exists:
 import { executableGravitySchema } from "../schema"
 import { getTypesFromSchema } from "lib/stitching/lib/getTypesFromSchema"
 
-it("Does not include blacklisted types", async () => {
+it("Does not include denylisted types", async () => {
   const gravitySchema = await executableGravitySchema()
   const gravityTypes = await getTypesFromSchema(gravitySchema)
 
