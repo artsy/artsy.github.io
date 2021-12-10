@@ -185,7 +185,7 @@ The user/authentication JWT is not the only JWT in play in Peril.
 
 I needed the ability for the JavaScript Runtime to send messages back to the Peril server. Peril re-uses JWTs for
 creating a short-lived (2 min) token. This token only has access to a single installation and is given a
-list of mutations it has whitelisted access to in the GraphQL API. This token is a part of the data injected in at
+list of mutations it has allowlisted access to in the GraphQL API. This token is a part of the data injected in at
 the start of the process. The Peril JavaScript DSL uses this token under the hood when you run particular functions.
 This approach, the above post argues, is a perfect use-case for JWTs.
 

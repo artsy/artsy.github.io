@@ -65,7 +65,7 @@ So 10 months ago I decided it was worth starting from scratch and re-created Dan
 
 This constraint negates one of the key problems with running running a Dangerfile on a server - having to have a copy of the code and the PR's environment. 
 
-In addition, JavaScript has a much simpler model for evaluating, importing and exporting code and so whitelisting modules and functions can be feasible for a hosted version of Danger. 
+In addition, JavaScript has a much simpler model for evaluating, importing and exporting code and so allowlisting modules and functions can be feasible for a hosted version of Danger. 
 
 <center><img src ="/images/danger/danger.png" style="width:50%"></center>
 

@@ -157,12 +157,12 @@ export const executableGravitySchema = async () => {
 
   // Gravity's GraphQL contains a bunch of objects and root fields that will conflict
   // with what we have in MP already, this lets us bring them in one by one
-  const whitelistedRootFields = ["Query", "recordArtworkView"]
+  const allowlistedRootFields = ["Query", "recordArtworkView"]
 
   // Return the new modified schema
   return transformSchema(schema, [
     new FilterRootFields((_type, name) => {
-      return !whitelistedRootFields.includes(name)
+      return !allowlistedRootFields.includes(name)
     }),
     new FilterTypes(type => {
       return !blacklistedTypes.includes(type.name)

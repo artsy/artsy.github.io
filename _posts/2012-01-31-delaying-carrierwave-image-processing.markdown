@@ -38,7 +38,7 @@ Here's the complete source.
         "#{self.class.image_url_prefix}/#{self.class.store_path_base(self.model)}:version.jpg"
       end
 
-      # a whitelist for uploading
+      # an allowlist for uploading
       def extension_white_list
         %w(jpg jpeg png gif tif tiff bmp)
       end

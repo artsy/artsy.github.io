@@ -28,7 +28,7 @@ When MongoDB's [database-level write-lock](http://docs.mongodb.org/manual/faq/co
 Extracting a web front-end from a monolithic app
 ---
 
-The [artsy.net](https://artsy.net) site was recently extracted from our main Rails application into a dedicated Node.js app and a true client of our API. We rolled it out almost page-by-page; we simply configured [Nginx](http://wiki.nginx.org/Main) to proxy requests for a whitelist of paths to the new site. That allowed us to start with the simplest of pages and incorporate new ones as they were developed. Nginx supports [sophisticated proxying rules](http://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_pass), but our example can be as simple as:
+The [artsy.net](https://artsy.net) site was recently extracted from our main Rails application into a dedicated Node.js app and a true client of our API. We rolled it out almost page-by-page; we simply configured [Nginx](http://wiki.nginx.org/Main) to proxy requests for an allowlist of paths to the new site. That allowed us to start with the simplest of pages and incorporate new ones as they were developed. Nginx supports [sophisticated proxying rules](http://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_pass), but our example can be as simple as:
 
 ```
 location ^~ /about|press {
