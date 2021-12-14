@@ -13,7 +13,7 @@ Wow - what a year! Here are some notable achievements, failures, and learnings f
 ## Success!
 
 - Launched shipping integration with Arta
-- Leveraged our investment in React Native to launch our Android App: Props to David, Mounir, Pavlos, Joanna, and the Collector Experience team
+- Leveraged our investment in React Native to launch our Android App: Props to David, Brian, Mounir, Pavlos, Joanna, and the Collector Experience team
 - Moved X% of Force apps to V2 and Y% of Force traffic: Props to Chris, Damon, (...)
 - We killed X repos and retired N services
 - The awards for fastest PR from start date goes to: A! And even better, Ole did his first PR to Artsy 3 months before he joined.
