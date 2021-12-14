@@ -12,6 +12,7 @@ Wow - what a year! Here are some notable achievements, failures, and learnings f
 
 ## Success!
 
+- Launched shipping integration with Arta
 - Leveraged our investment in React Native to launch our Android App: Props to David, Mounir, Pavlos, Joanna, and the Collector Experience team
 - Moved X% of Force apps to V2 and Y% of Force traffic: Props to Chris, Damon, (...)
 - We killed X repos and retired N services
