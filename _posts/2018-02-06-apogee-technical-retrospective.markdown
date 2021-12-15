@@ -246,6 +246,11 @@ As a closing note, I want to discuss something that's been on my mind lately. I'
 I think this is a common frame of mind, among iOS developers, among all developers. But now I regret avoiding new technology for so long. The languages and tools that I knew had become part of my identity: I was an "iOS Developer." That identity was a source of strength, but was also a limitation.
 
 Developers solve problems. Sometimes those problems are best solved with iOS apps. And sometimes, they're best solved with spreadsheet plugins. After [realizing][feels] last year that I was limiting myself, I'm still coming to terms with how that impacts my identity. But I'll say this: if _I_ can leave the safety blanket of the iOS world and build something completely new, so can you. Don't let your expertise and experience limit what you think you can build.
+ 
+---
+
+_Editor's Note: This post has been updated as part of an effort to adopt more inclusive language across Artsy's
+GitHub repositories and editorial content ([RFC](https://github.com/artsy/README/issues/427))._
 
 [overview]: /blog/2018/02/02/artsy-apogee/
 [deploys]: /blog/2018/01/24/kubernetes-and-hokusai/

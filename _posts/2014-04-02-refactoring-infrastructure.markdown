@@ -62,3 +62,9 @@ The tools for managing infrastructure have been improving steadily (see [Chef](h
 
 <blockquote class="twitter-tweet" lang="en"><p>for each desired change, make the change easy (warning: this may be hard), then make the easy change</p>&mdash; Kent Beck (@KentBeck) <a href="https://twitter.com/KentBeck/statuses/250733358307500032">September 25, 2012</a></blockquote>
 <script async src="//platform.twitter.com/widgets.js" charset="utf-8"></script>
+
+
+---
+
+_Editor's Note: This post has been updated as part of an effort to adopt more inclusive language across Artsy's
+GitHub repositories and editorial content ([RFC](https://github.com/artsy/README/issues/427))._

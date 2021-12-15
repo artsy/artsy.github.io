@@ -166,3 +166,8 @@ There's no need to look back. The future is here and its URLs are #! free!
 * [Twitter advocates #!](http://www.adequatelygood.com/2011/2/Thoughts-on-the-Hashbang)
 * [Dan Webb's critique _It's About the Hashbangs_](http://danwebb.net/2011/5/28/it-is-about-the-hashbangs)
 * [Twitter ditches #!](http://engineering.twitter.com/2012/05/improving-performance-on-twittercom.html)
+
+---
+
+_Editor's Note: This post has been updated as part of an effort to adopt more inclusive language across Artsy's
+GitHub repositories and editorial content ([RFC](https://github.com/artsy/README/issues/427))._

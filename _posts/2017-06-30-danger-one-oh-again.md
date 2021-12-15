@@ -196,6 +196,11 @@ So give Danger a shot, and if you're bold. give [Peril][peril] a shot.
 
 This post uses the CC license image from [this tweet](https://twitter.com/CloudyConway/status/880426417024114688) with some changes to make it fit with the design of the blog. Thanks [Vexorian](https://www.patreon.com/vexorian). 
  
+---
+
+_Editor's Note: This post has been updated as part of an effort to adopt more inclusive language across Artsy's
+GitHub repositories and editorial content ([RFC](https://github.com/artsy/README/issues/427))._
+
 [prose]: https://github.com/dbgrandi/danger-prose 
 [proselint]: https://github.com/amperser/proselint/
 [mdspell]: https://github.com/lukeapage/node-markdown-spellcheck

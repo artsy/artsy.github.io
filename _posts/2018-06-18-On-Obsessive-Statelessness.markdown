@@ -234,6 +234,11 @@ start off small and hard enough that it doesn't consume all my spare time with s
 of these ideas in tow, I've been able to feel pretty confident in letting others access staging environments and use
 my hosted version of Peril. Which means I can move on to the next items in my TODO list, making the dashboard make
 sense and to start thinking about what the public facing product pages look like for Peril.
+ 
+---
+
+_Editor's Note: This post has been updated as part of an effort to adopt more inclusive language across Artsy's
+GitHub repositories and editorial content ([RFC](https://github.com/artsy/README/issues/427))._
 
 [nosqliscool]: https://www.infoworld.com/article/2990184/database/nosql-simply-isnt-hip-anymore.html
 [probots]: https://probot.github.io

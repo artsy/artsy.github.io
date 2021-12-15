@@ -360,6 +360,11 @@ GraphQL Stitching solves the problem of API consolidation in a really well thoug
 it one of the most interesting avenues of exploration into what GraphQL will be in the future (see [Is GraphQL The
 Future?][igtf] for a more philosophical take also.)
 
+---
+
+_Editor's Note: This post has been updated as part of an effort to adopt more inclusive language across Artsy's
+GitHub repositories and editorial content ([RFC](https://github.com/artsy/README/issues/427))._
+
 <!-- prettier-ignore-start -->
 
 [stitching_announcement]: https://dev-blog.apollodata.com/the-next-generation-of-schema-stitching-2716b3b259c0

@@ -124,3 +124,8 @@ To use, you will add some code in `config/initializers/carrierwave.rb` and add `
 * [config/initializers/carrierwave.rb](https://gist.github.com/1710609#file_carrierwave.rb)
 
 The code above works with Mongoid. You will have to do some work to make this work with other storage.
+
+---
+
+_Editor's Note: This post has been updated as part of an effort to adopt more inclusive language across Artsy's
+GitHub repositories and editorial content ([RFC](https://github.com/artsy/README/issues/427))._
