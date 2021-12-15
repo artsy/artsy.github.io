@@ -139,3 +139,8 @@ hitting the test environment while it's being built and may be in a half-baked s
 Finally, we also run production daily cron-like tasks via Jenkins. It gives us email notifications, console output
 and the ability to manually trigger them. Centralizing operations in the same environment as CI creates truly
 continuous integration, deployment and operations.
+
+---
+
+_Editor's Note: This post has been updated as part of an effort to adopt more inclusive language across Artsy's
+GitHub repositories and editorial content ([RFC](https://github.com/artsy/README/issues/427))._

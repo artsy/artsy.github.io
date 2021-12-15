@@ -110,3 +110,8 @@ use [AFNetworking](https://github.com/AFNetworking/AFNetworking/). We manage ext
 
 We hope you find this useful and are happy to describe any aspect of our system on this blog. Please ask questions
 below, we’ll be happy to answer them.
+
+---
+
+_Editor's Note: This post has been updated as part of an effort to adopt more inclusive language across Artsy's
+GitHub repositories and editorial content ([RFC](https://github.com/artsy/README/issues/427))._

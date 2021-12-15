@@ -78,3 +78,8 @@ improvements to be made:
 - Cooler still would be for the EC2 plugin to take advantage of Amazon's
   [spot pricing](http://aws.amazon.com/ec2/spot-instances/). Though not supported at the moment, it would allow us
   to spend a fraction as much (or spend the same amount, but on more powerful resources).
+
+---
+
+_Editor's Note: This post has been updated as part of an effort to adopt more inclusive language across Artsy's
+GitHub repositories and editorial content ([RFC](https://github.com/artsy/README/issues/427))._
