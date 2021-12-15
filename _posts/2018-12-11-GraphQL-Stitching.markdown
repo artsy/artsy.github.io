@@ -153,19 +153,19 @@ export const executableGravitySchema = async () => {
 
   // Types which come from Gravity which MP already has copies of.
   // In the future, these could get merged into the MP types.
-  const blacklistedTypes = ["Artist", "Artwork"]
+  const denylistedTypes = ["Artist", "Artwork"]
 
   // Gravity's GraphQL contains a bunch of objects and root fields that will conflict
   // with what we have in MP already, this lets us bring them in one by one
-  const whitelistedRootFields = ["Query", "recordArtworkView"]
+  const allowlistedRootFields = ["Query", "recordArtworkView"]
 
   // Return the new modified schema
   return transformSchema(schema, [
     new FilterRootFields((_type, name) => {
-      return !whitelistedRootFields.includes(name)
+      return !allowlistedRootFields.includes(name)
     }),
     new FilterTypes(type => {
-      return !blacklistedTypes.includes(type.name)
+      return !denylistedTypes.includes(type.name)
     }),
     // snip
   ])
@@ -179,7 +179,7 @@ what exists:
 import { executableGravitySchema } from "../schema"
 import { getTypesFromSchema } from "lib/stitching/lib/getTypesFromSchema"
 
-it("Does not include blacklisted types", async () => {
+it("Does not include denylisted types", async () => {
   const gravitySchema = await executableGravitySchema()
   const gravityTypes = await getTypesFromSchema(gravitySchema)
 
@@ -359,6 +359,11 @@ any OSS dependency, but that's, like, just my opinion man.)
 GraphQL Stitching solves the problem of API consolidation in a really well thought out abstraction, and I consider
 it one of the most interesting avenues of exploration into what GraphQL will be in the future (see [Is GraphQL The
 Future?][igtf] for a more philosophical take also.)
+
+---
+
+_Editor's Note: This post has been updated as part of an effort to adopt more inclusive language across Artsy's
+GitHub repositories and editorial content ([RFC](https://github.com/artsy/README/issues/427))._
 
 <!-- prettier-ignore-start -->
 

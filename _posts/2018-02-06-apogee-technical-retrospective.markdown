@@ -33,7 +33,7 @@ Based on the parser selected by the user, Apogee gathers the required data from 
 
 Unfortunately, Google Add-ons are a bit... strange. The Add-on itself is executed in Google's datacentres (not the user's browser) and is written in [JavaScript 1.6-ish][version]. Specifically, it runs with JavaScript 1.6, plus some features from 1.7, plus some other features from 1.8, and also ["Google Advanced Services"][gas]. The execution environment also lacks an event loop, which makes sense from Google's perspective (their servers need to know if a script execution has completed) but is still a bit unusual.
 
-Rather than deal with a weird version of JavaScript, we decided to write the Add-on in [TypeScript][] and compile down to something Google can execute. We also found [open source typings][typings] for the Google APIs, which helped a lot. Google also provides access to certain whitelisted libraries, including [Lodash][], which is handy.
+Rather than deal with a weird version of JavaScript, we decided to write the Add-on in [TypeScript][] and compile down to something Google can execute. We also found [open source typings][typings] for the Google APIs, which helped a lot. Google also provides access to certain allowlisted libraries, including [Lodash][], which is handy.
 
 Add-ons also have a somewhat complex permissions and authentication model. The [documentation][] provided is a great illustration of why _complete_ documentation is not necessarily _effective_ documentation. If you already understand what you're doing, the docs are a good reference, but I found them difficult to learn from. I really like [this explanation][docs] of how to structure documentation like unit tests.
 
@@ -246,6 +246,11 @@ As a closing note, I want to discuss something that's been on my mind lately. I'
 I think this is a common frame of mind, among iOS developers, among all developers. But now I regret avoiding new technology for so long. The languages and tools that I knew had become part of my identity: I was an "iOS Developer." That identity was a source of strength, but was also a limitation.
 
 Developers solve problems. Sometimes those problems are best solved with iOS apps. And sometimes, they're best solved with spreadsheet plugins. After [realizing][feels] last year that I was limiting myself, I'm still coming to terms with how that impacts my identity. But I'll say this: if _I_ can leave the safety blanket of the iOS world and build something completely new, so can you. Don't let your expertise and experience limit what you think you can build.
+ 
+---
+
+_Editor's Note: This post has been updated as part of an effort to adopt more inclusive language across Artsy's
+GitHub repositories and editorial content ([RFC](https://github.com/artsy/README/issues/427))._
 
 [overview]: /blog/2018/02/02/artsy-apogee/
 [deploys]: /blog/2018/01/24/kubernetes-and-hokusai/
