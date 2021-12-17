@@ -5,6 +5,7 @@ date: 2012-07-10 13:30
 comments: true
 categories: [Jenkins, Testing, Continuous Integration, EC2]
 author: [joey, frank]
+redirect_from: /blog/2012/07/10/on-demand-jenkins-slaves-with-amazon-ec2/
 ---
 
 The [Artsy](http://artsy.net) team faithfully uses [Jenkins](http://jenkins-ci.org) for continuous integration.
@@ -47,13 +48,13 @@ AMI:
 Next we installed the Amazon EC2 Plugin on our Jenkins controller, and entered the following configuration
 arguments for the plugin. (Replace the AMI ID with your own, the result of Step 4 above.)
 
-![/images/2012-07-10-on-demand-jenkins-slaves-with-amazon-ec2/ec2-plugin-config.png](Jenkins EC2 Plugin
-configuration)
+![Jenkins EC2 Plugin
+configuration](/images/2012-07-10-on-demand-jenkins-agents-with-amazon-ec2/ec2-plugin-config.png)
 
 New build agents began spawning immediately in response to job demand! Our new "Computers" page on Jenkins looks
 like this:
 
-![/images/2012-07-10-on-demand-jenkins-slaves-with-amazon-ec2/computer-list.png](Jenkins computer list)
+![Jenkins computer list](/images/2012-07-10-on-demand-jenkins-agents-with-amazon-ec2/computer-list.png)
 
 We have the option of provisioning a new build agent via a single click, but so far, this hasn't been necessary,
 since agents have automatically scaled up and down with demand. We average around 4-8 build agents during the day,
