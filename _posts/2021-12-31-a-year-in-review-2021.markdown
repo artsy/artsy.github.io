@@ -30,7 +30,7 @@ Wow - what a year! As we wrap up 2021 and kick off 2022, here's a rough and loos
 - Launched improvements to our recommendations (New Works for You) for the first time in a while!
 - Launched integrations with [Arta](https://arta.io) (shipping), Avalara (tax complianca), Algolia (search), Adjust (deep-linking), Braze (marketing), and Postie (marketing).
 - Moved 38+ of Force apps to a new and improved V2 setup
-- Rebuilt our design system Palette, updated its documentation, and migrated many web and mobile surfaces to the new look
+- Rebuilt our design system [Palette](https://github.com/artsy/palette), updated its documentation, and migrated many web and mobile surfaces to the new look
 - Rebuilt our artwork inquiry flow! Finally!
 - Migrated to a new marketing email service provider without incident (described as a project “i wouldn’t wish on my worst enemy”)
 - Added Make Offer support for artwork inquiries
