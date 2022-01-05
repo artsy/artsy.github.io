@@ -16,7 +16,7 @@ What did you ship in 2021? We would love to hear about it and celebrate with you
 - Recorded and released 42 episodes of the [Artsy Engineering Radio][]
 - Onboarded 23 engineers in Berlin, Germany
 - Leveraged our investment in React Native to launch the [Artsy Android App][]
-- We opened 12,425 PRs
+- We [opened][] 13,368 pull requests! 12,054 were [merged][] and 1,050 were [closed][]. (note: includes contributions in private repositories)
 - Responded to and resolved 29 incidents
 - Collaborated with [iTechArt][] engineers on impactful projects
 - Migrated more repositories to deploy continuously
@@ -41,6 +41,10 @@ What did you ship in 2021? We would love to hear about it and celebrate with you
 - Invested in an improved turn-key set-up for new folks
 - Integrated our API with more third-party art management systems like [ArtBase][] and [Artsystems][]
 - Spun up a trial integration with [Split][] (experimentation and feature flagging vendor)
+
+[opened]: https://github.com/pulls?q=is%3Apr+user%3Aartsy+created%3A%3E%3D2021-01-01+-created%3A%3E%3D2022-01-01
+[merged]: https://github.com/pulls?q=is%3Apr+user%3Aartsy+created%3A%3E%3D2021-01-01+-created%3A%3E%3D2022-01-01+is%3Amerged+merged%3A%3C%3D2021-12-31
+[closed]: https://github.com/pulls?q=is%3Apr+user%3Aartsy+created%3A%3E%3D2021-01-01+-created%3A%3E%3D2022-01-01+is%3Aclosed+is%3Aunmerged
 
 [Adjust]: https://www.adjust.com
 [Algolia]: https://algolia.com
