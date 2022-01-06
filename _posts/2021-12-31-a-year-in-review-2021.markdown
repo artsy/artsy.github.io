@@ -4,11 +4,13 @@ title: "A Year in Review: 2021"
 date: 2022-01-06
 categories: [team, engineering]
 author: artsy_engineering
+comment_id: 714
 ---
 
-Ufff, 2021 was a tough year. It was the second year of the covid-19 pandemic. We tried our best to support each
+Ufff, 2021 was a tough year. It was the second year of the Covid-19 pandemic. We tried our best to support each
 other through these challenging times and in that spirit, we feel like it's important not to lose sight of our
 accomplishments. As we say goodbye to 2021 and hello to 2022, here are some Artsy Engineering wins from this past year.
+
 What did you ship in 2021? We would love to hear about it and celebrate with you!
 
 <!-- more -->
