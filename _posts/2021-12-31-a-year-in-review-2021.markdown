@@ -32,7 +32,7 @@ What did you ship in 2021? We would love to hear about it and celebrate with you
 - Developed an in-house auction results pipeline
 - Launched improvements to our recommendations (New Works for You) for the first time in a while!
 - Launched integrations with [Arta][] (shipping), [Avalara][] (tax compliance), [Algolia][] (search), [Adjust][] (analytics), [Braze][] (marketing), and [Postie][] (marketing).
-- Moved 38+ of Force apps to a new and improved V2 setup
+- Moved 38+ of [Force][] (artsy.net) apps to a new and improved V2 setup
 - Rebuilt our design system [Palette][], updated its documentation, and migrated many web and mobile surfaces to the new look
 - Rebuilt our artwork inquiry flow! Finally!
 - Migrated to a new marketing email service provider without incident (described as a project “i wouldn’t wish on my worst enemy”)
@@ -60,6 +60,7 @@ What did you ship in 2021? We would love to hear about it and celebrate with you
 [Braze]: https://www.braze.com
 [Core Web Vitals]: https://web.dev/vitals
 [iTechArt]: https://www.itechart.com
+[Force]: https://github.com/artsy/force
 [Palette]: https://github.com/artsy/palette
 [Postie]: https://postie.com
 [Split]: https://www.split.io
