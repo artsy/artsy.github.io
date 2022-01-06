@@ -23,7 +23,7 @@ What did you ship in 2021? We would love to hear about it and celebrate with you
 - Collaborated with [iTechArt][] engineers on impactful projects
 - Migrated more repositories to deploy continuously
 - Significantly improved [Core Web Vitals][] across our web surfaces
-- Answered a bunch of questions in our #dev-help Slack channel to help get each other unstuck!
+- Answered a bunch of questions in our #dev-help Slack channel to help [get each other unstuck][unstuck]!
 - After many false starts, we finally agreed to pull the trigger on a full auction bidding engine rewrite
 - More stable end-to-end automated testing tooling (codenamed "integrity")
 - Worked with [Applause][] to help us with external QA for our mobile apps
@@ -64,3 +64,4 @@ What did you ship in 2021? We would love to hear about it and celebrate with you
 [Palette]: https://github.com/artsy/palette
 [Postie]: https://postie.com
 [Split]: https://www.split.io
+[unstuck]: https://youtu.be/3XscuivvUzI
