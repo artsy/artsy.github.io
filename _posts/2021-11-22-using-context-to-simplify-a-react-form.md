@@ -2,7 +2,7 @@
 layout: epic
 title: Using Context to Simplify a VERY Large React Form
 subtitle: How We Took Incremental Steps to Revamp the Artwork Form at Artsy
-date: 2021-11-22
+date: 2022-01-11
 categories: [refactoring, react, context, typescript]
 author: [anna, laura]
 comment_id: 715
