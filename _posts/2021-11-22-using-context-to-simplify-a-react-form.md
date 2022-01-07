@@ -154,6 +154,4 @@ of Artsy's user researchers to conduct user testing on the form. Feedback from g
 we next take this project. We're excited to have buy-in from our product team to work on a project that will
 elevate the user experience while allowing us to use that opportunity to improve the developer experience as well.
 
-```
 
-```
