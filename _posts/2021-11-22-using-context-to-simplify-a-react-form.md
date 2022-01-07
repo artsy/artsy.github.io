@@ -5,6 +5,7 @@ subtitle: How We Took Incremental Steps to Revamp the Artwork Form at Artsy
 date: 2021-11-22
 categories: [refactoring, react, context, typescript]
 author: [anna, laura]
+comment_id: 715
 ---
 
 For those unfamiliar, Artsy is a fine art marketplace. Knowing that, it follows logically to say that the form via
@@ -50,8 +51,8 @@ Here are the steps we took to do this conversion:
 
 1. Create a hook that allows us to use the Formik context throughout the form
 
-   The hook wraps `useFormikContext` to allow all of our components inside of Formik to access the values from
-   Formik context. It looks like this:
+   The hook wraps [`useFormikContext`](https://formik.org/docs/api/useFormikContext) to allow all of our components
+   inside of Formik to access the values from Formik context. It looks like this:
 
    ```typescript
    export function useArtworkForm(): FormikContextType<ArtworkValues> {
@@ -59,6 +60,9 @@ Here are the steps we took to do this conversion:
      return formikContext
    }
    ```
+
+   We use `ArtworkValues` as the generic type so that when we are accessing `values` anywhere inside the component
+   tree, `values` can be type-checked.
 
 2. Convert all of the components in the form to functional components and to TypeScript. (Because the form is
    several years old, there were still many class components and many components that were not yet using
@@ -74,7 +78,7 @@ Here are the steps we took to do this conversion:
    needed props passed down, we explicitly typed the props at the top of each component in an interface because we
    now knew exactly which props we would need inside of the component. Another key step here was going into the
    parent component and getting rid of any prop spreading (this: `...props`) and instead explicitly passing down
-   exactly the props needed in the component (if there were any.)
+   exactly the props needed in the component (if there were any).
 
    1. A note on tests: Whenever we took advantage of the Formik context in a component, we were breaking that
       component's tests, because the wrappers we were using in the tests did not have access to the Formik context
@@ -96,6 +100,23 @@ Here are the steps we took to do this conversion:
    }
    ```
 
+   Here is an example of `TestFormikWrapper` used in a test:
+
+   ```tsx
+   describe("TestComponent", () => {
+     it("displays values", () => {
+       const wrapper = mount(
+         <TestFormikWrapper values={{ name: "Andy Warhol" }}>
+           <TestComponent />
+         </TestFormikWrapper>
+       )
+
+       const name = wrapper.find("#name").html()
+       expect(name).toInclude("Andy Warhol")
+     })
+   })
+   ```
+
 4. Once we completed the conversion all the way up the tree to the root component, the `ArtworkForm`, we typed that
    component as strictly as possible and made sure to get rid of `any`'s. There were quite a few when we started
    the process.
@@ -115,13 +136,15 @@ for developers to understand the Artwork From.
 How did the Artwork Form get so complicated? Well, as we shared, the Artwork Form is the key to achieving one of
 the PX team's core goals: surfacing the most accurate and rich information about artworks to collectors. We have to
 allow partners to add more and increasingly specific pieces of metadata to artworks. The form has been growing and
-for better or worse, will need to keep growing. Hopefully, this refactor will allow us to expand the form more
-seamlessly and will make it easier to navigate as it grows.
+for better or worse, will need to keep growing. Even though we expect to grow the form to meet metadata needs, we
+do not put too much focus on the UX/UI of the Artwork Form in order to prioritize our collector-facing apps. (The
+Artwork Form is only used by a relatively small subset of users, mostly gallery partners.) Hopefully, this refactor
+will allow us to expand the form more seamlessly and will make it easier to navigate as it grows.
 
-This refactor is still early days. The next steps for making the form easier to use (for both developers and our
+This refactor is still in its early days. The next steps for making the form easier to use (for both developers and our
 end users) will require larger changes. When we think about further progress on revamping the Artwork Form, our
 team is considering breaking the form up into smaller forms. Imagine, we are rendering several different top-level
-`Formik` components that include discreet sections of the form, instead of just one giant `Formik` tree as we have
+`Formik` components that include discrete sections of the form, instead of just one giant `Formik` tree as we have
 now. We would then combine these "mini forms" together, making better use of React's core principle of composition.
 
 Breaking up the form would be a big change for the developer experience (but hopefully made easier by this
@@ -130,3 +153,7 @@ developers. It's hard for users too. Over the next couple of months, our Product
 of Artsy's user researchers to conduct user testing on the form. Feedback from galleries will help determine where
 we next take this project. We're excited to have buy-in from our product team to work on a project that will
 elevate the user experience while allowing us to use that opportunity to improve the developer experience as well.
+
+```
+
+```
