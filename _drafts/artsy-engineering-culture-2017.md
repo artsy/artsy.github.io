@@ -3,7 +3,7 @@ layout: post_longform
 title: Artsy's Culture Stack, 2017
 date: 2017-03-05
 categories: [Technology, eigen, force, gravity]
-author: [orta, artsy_engineering]
+author: [orta, artsy-engineering]
 series: Artsy Tech Stack
 ---
 
