@@ -3,7 +3,7 @@ layout: epic
 title: Artsy's Technology Stack, 2017
 date: 2017-04-14
 categories: [Technology, eigen, force, gravity]
-author: [orta, artsy_engineering]
+author: [orta, artsy-engineering]
 series: Artsy Tech Stack
 ---
 
