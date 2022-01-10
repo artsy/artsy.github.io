@@ -3,7 +3,7 @@ layout: epic
 title: "A Year in Review: 2021"
 date: 2022-01-06
 categories: [team, engineering]
-author: artsy-engineering
+author: [devon, artsy-engineering]
 comment_id: 714
 ---
 
