@@ -123,7 +123,7 @@ task :deploy do
     puts `git commit -m "Deploy"`
 
     puts 'Pushing to github.'
-    # puts `git push --quiet > /dev/null 2>&1`
+    puts `git push --quiet > /dev/null 2>&1`
   end
 end
 
