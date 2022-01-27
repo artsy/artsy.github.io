@@ -95,26 +95,26 @@ task :serve => 'serve:drafts'
 desc 'Deploy the site to the gh_pages branch and push'
 task :deploy do
   FileUtils.rm_rf '_gh-pages'
-  puts 'Cloning main branch...'
+  puts 'Cloning main_test branch...'
   puts `git clone https://github.com/artsy/artsy.github.io.git _gh-pages`
   Dir.chdir('_gh-pages') do
-    puts `git checkout main`
+    puts `git checkout main_test`
   end
 
   Dir.chdir('_gh-pages') do
     puts 'Pulling changes from server.'
     puts `git reset --hard`
     puts `git clean -xdf`
-    puts `git checkout main`
-    puts `git pull origin main`
+    puts `git checkout main_test`
+    puts `git pull origin main_test`
   end
 
   Rake::Task['build'].invoke
 
   Dir.chdir('_gh-pages') do
     puts 'Pulling changes from server.'
-    puts `git checkout main`
-    puts `git pull origin main`
+    puts `git checkout main_test`
+    puts `git pull origin main_test`
 
     puts 'Creating a commit for the deploy.'
 
