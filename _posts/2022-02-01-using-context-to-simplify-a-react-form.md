@@ -2,7 +2,7 @@
 layout: epic
 title: Using Context to Simplify a VERY Large React Form
 subtitle: How We Took Incremental Steps to Revamp the Artwork Form at Artsy
-date: 2022-01-11
+date: 2022-02-01
 categories: [refactoring, react, context, typescript]
 author: [anna, laura]
 comment_id: 715
@@ -141,8 +141,8 @@ do not put too much focus on the UX/UI of the Artwork Form in order to prioritiz
 Artwork Form is only used by a relatively small subset of users, mostly gallery partners.) Hopefully, this refactor
 will allow us to expand the form more seamlessly and will make it easier to navigate as it grows.
 
-This refactor is still in its early days. The next steps for making the form easier to use (for both developers and our
-end users) will require larger changes. When we think about further progress on revamping the Artwork Form, our
+This refactor is still in its early days. The next steps for making the form easier to use (for both developers and
+our end users) will require larger changes. When we think about further progress on revamping the Artwork Form, our
 team is considering breaking the form up into smaller forms. Imagine, we are rendering several different top-level
 `Formik` components that include discrete sections of the form, instead of just one giant `Formik` tree as we have
 now. We would then combine these "mini forms" together, making better use of React's core principle of composition.
@@ -153,5 +153,3 @@ developers. It's hard for users too. Over the next couple of months, our Product
 of Artsy's user researchers to conduct user testing on the form. Feedback from galleries will help determine where
 we next take this project. We're excited to have buy-in from our product team to work on a project that will
 elevate the user experience while allowing us to use that opportunity to improve the developer experience as well.
-
-
