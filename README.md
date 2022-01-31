@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/artsy/artsy.github.io.svg)](https://travis-ci.org/artsy/artsy.github.io)
+[![Build Status](https://circleci.com/gh/artsy/artsy.github.io.svg?style=svg)](https://circleci.com/gh/artsy/artsy.github.io)
 
 The Artsy OSS page and the blog runs on top of a default jekyll install. If you would like an overview of jekyll,
 their [website rocks](http://jekyllrb.com/).
