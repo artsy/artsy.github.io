@@ -5,9 +5,177 @@
     <description></description>
     <link>https://artsy.github.io/</link>
     <atom:link href="https://artsy.github.io/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Mon, 10 Jan 2022 18:20:02 +0100</pubDate>
-    <lastBuildDate>Mon, 10 Jan 2022 18:20:02 +0100</lastBuildDate>
+    <pubDate>Wed, 02 Feb 2022 16:57:18 +0000</pubDate>
+    <lastBuildDate>Wed, 02 Feb 2022 16:57:18 +0000</lastBuildDate>
     <generator>Jekyll v2.5.3</generator>
+    
+      <item>
+        <title>Using Context to Simplify a VERY Large React Form</title>
+        <description>&lt;p&gt;For those unfamiliar, Artsy is a fine art marketplace. Knowing that, it follows logically to say that the form via
+which our partners list artworks for sale is an integral part of Artsy&#39;s core systems. This form, known only as
+&quot;The Artwork Form,&quot; is whispered about in the halls of Arty&#39;s New York headquarters. It is legendary. It is a
+colossus. It is old enough not only to predate React v16.8 hooks and context APIs, but Artsy&#39;s use of React
+entirely. The first version of the Artwork Form was built in 2014 using ruby and haml, and began its refactoring
+into JS/JQuery/React a full 2 years later, after having expanded considerably from the original implementation.
+That process (at least what we&#39;ve gleaned from our git excavation) was incremental, experimental, and passed
+through many hands before it landed in the lap of the current Partner Experience (PX) team.&lt;/p&gt;
+
+&lt;!-- more --&gt;
+
+
+&lt;p&gt;PX has since been tasked with the maintenance of this unwieldy kaiju, spending endless amounts of time on seemingly
+insignificant changes to behavior or UI, all while watching its performance degrade. Many of the people reading
+this are already familiar with the story we&#39;re telling. Many have worked in their very own version of the tale, and
+borne witness to the fact that legacy code of this scale becomes a living, breathing entity. The developers that
+tend these beasts learn their patterns and idiosyncrasies, their little moans and groans, and for the sake of
+expediency work within those constraints to accomplish their tasks. But when is enough, enough? When does the
+developer time expended working within the constraints of an obsolete design begin to outweigh the time it would
+take to simply &lt;em&gt;fix&lt;/em&gt; &lt;em&gt;the code&lt;/em&gt;?&lt;/p&gt;
+
+&lt;p&gt;First, let&#39;s be honest: there is no single right answer to this question. When working in software development we
+have to deal with certain realities: user experience vs. developer experience, lead time to the next release,
+buy-in from stakeholders, etc. These factors may weigh more or less depending on the shop and the product. At Artsy
+we&#39;re very lucky, in that our engineering department is given the time to attend to our tech debt and to be
+deliberate about when and how we go about this. In the case of the Artwork Form, there were several issues that had
+become too glaring to ignore:&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;The data coming in, and subsequently being passed to individual components, was being completely obscured by the
+amount of prop drilling and spreading that existed within the composed form.&lt;/li&gt;
+&lt;li&gt;The prolific use of &lt;code&gt;any&lt;/code&gt; when typing data was disabling typescript and consequently removing its usefulness
+while still imposing all of its burdens.&lt;/li&gt;
+&lt;li&gt;The components within the form were tightly coupled, the number and specificity of props needed for each
+disallowing reuse in other parts of the app.&lt;/li&gt;
+&lt;/ol&gt;
+
+
+&lt;p&gt;A few of us on the PX team decided to take matters into our own hands and address some of these key problems with
+the Artwork Form. We came up with a plan to incrementally convert the form to use values from the Formik context,
+use these values wherever possible to reduce prop-drilling, add much more complete types to the components to get
+rid of all the &lt;code&gt;any&lt;/code&gt;&#39;s, and update some of our testing strategies as needed.&lt;/p&gt;
+
+&lt;p&gt;Here are the steps we took to do this conversion:&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;&lt;p&gt;Create a hook that allows us to use the Formik context throughout the form&lt;/p&gt;
+
+&lt;p&gt;The hook wraps &lt;a href=&quot;https://formik.org/docs/api/useFormikContext&quot;&gt;&lt;code&gt;useFormikContext&lt;/code&gt;&lt;/a&gt; to allow all of our components
+inside of Formik to access the values from Formik context. It looks like this:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&quot;typescript&quot;&gt;export function useArtworkForm(): FormikContextType&amp;lt;ArtworkValues&amp;gt; {
+  const formikContext = useFormikContext&amp;lt;ArtworkValues&amp;gt;()
+  return formikContext
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;We use &lt;code&gt;ArtworkValues&lt;/code&gt; as the generic type so that when we are accessing &lt;code&gt;values&lt;/code&gt; anywhere inside the component
+tree, &lt;code&gt;values&lt;/code&gt; can be type-checked.&lt;/p&gt;&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;Convert all of the components in the form to functional components and to TypeScript. (Because the form is
+several years old, there were still many class components and many components that were not yet using
+TypeScript.) This step could be done in parallel with Step 1. One note here is that when converting files from
+JavaScript to TypeScript, we did not explicitly type the props in an interface. Once we can take advantage of
+our &lt;code&gt;useArtworkForm&lt;/code&gt; hook, we will reduce the amount of props needed in each component, so we will hold off on
+typing the props until step 3.&lt;/p&gt;&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;The bulk of the work was making use of the &lt;code&gt;useArtworkForm&lt;/code&gt; hook in the Artwork Form components. Starting with
+the lowest leaves of the component tree and moving up, we removed the &lt;code&gt;props&lt;/code&gt; from the component definition and
+destructured any values we needed in the component from the &lt;code&gt;useArtworkForm&lt;/code&gt; hook. Once we used everything we
+could from the context, we added back in any additional props that we would still need to have passed down from
+the parent. In many cases, this was no props at all—a particularly satisfying case. If the component still
+needed props passed down, we explicitly typed the props at the top of each component in an interface because we
+now knew exactly which props we would need inside of the component. Another key step here was going into the
+parent component and getting rid of any prop spreading (this: &lt;code&gt;...props&lt;/code&gt;) and instead explicitly passing down
+exactly the props needed in the component (if there were any).&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;A note on tests: Whenever we took advantage of the Formik context in a component, we were breaking that
+component&#39;s tests, because the wrappers we were using in the tests did not have access to the Formik context
+and were being passed props that the component was no longer looking at. We created a helper test wrapper
+that we could use in all of our Artwork Form tests to wrap the test&#39;s specific wrapper inside of a
+&lt;code&gt;&amp;lt;Formik/&amp;gt;&lt;/code&gt; component and provide the specific &lt;code&gt;values&lt;/code&gt; to use as the initial values for &lt;code&gt;Formik&lt;/code&gt;. Many of
+our test cases involve passing different &lt;code&gt;values&lt;/code&gt; into the component, which we originally did via props but
+now will do via the Formik context through the wrapper. Here&#39;s what the wrapper looks like:&lt;/li&gt;
+&lt;/ol&gt;
+
+
+&lt;pre&gt;&lt;code class=&quot;tsx&quot;&gt;export const TestFormikWrapper: React.FC&amp;lt;TestFormikWrapperProps&amp;gt; = (props) =&amp;gt; {
+  const { children, values } = props
+
+  return (
+    &amp;lt;Formik initialValues={values} onSubmit={jest.fn()}&amp;gt;
+      {children}
+    &amp;lt;/Formik&amp;gt;
+  )
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Here is an example of &lt;code&gt;TestFormikWrapper&lt;/code&gt; used in a test:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&quot;tsx&quot;&gt;describe(&quot;TestComponent&quot;, () =&amp;gt; {
+  it(&quot;displays values&quot;, () =&amp;gt; {
+    const wrapper = mount(
+      &amp;lt;TestFormikWrapper values=&amp;gt;
+        &amp;lt;TestComponent /&amp;gt;
+      &amp;lt;/TestFormikWrapper&amp;gt;
+    )
+
+    const name = wrapper.find(&quot;#name&quot;).html()
+    expect(name).toInclude(&quot;Andy Warhol&quot;)
+  })
+})
+&lt;/code&gt;&lt;/pre&gt;&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;Once we completed the conversion all the way up the tree to the root component, the &lt;code&gt;ArtworkForm&lt;/code&gt;, we typed that
+component as strictly as possible and made sure to get rid of &lt;code&gt;any&lt;/code&gt;&#39;s. There were quite a few when we started
+the process.&lt;/p&gt;&lt;/li&gt;
+&lt;/ol&gt;
+
+
+&lt;p&gt;So, where did we end up? Now all of the components in the Artwork Form are making use of the &lt;code&gt;useArtworkForm&lt;/code&gt; hook
+if they were previously accessing any of the values from the Formik context from props. We have much less prop
+drilling between components and instead explicitly pass down the props needed from parent to child. It&#39;s now much
+more clear for developers what data is passing between the components and what data is actually being used in the
+child. All of the components are also explicitly typed so we know exactly which props, if any, need to be passed
+down from the parent. If any of these props are removed, TypeScript helps us by failing loudly.&lt;/p&gt;
+
+&lt;p&gt;One of the main pain points of the Artwork Form is that it&#39;s very difficult for new developers (whether new to
+Artsy or new to the Partner Experience team) to contribute and make changes to the form without breaking something
+or spending extra time figuring out how data is passed within the form. Hopefully, this change will make it easier
+for developers to understand the Artwork From.&lt;/p&gt;
+
+&lt;p&gt;How did the Artwork Form get so complicated? Well, as we shared, the Artwork Form is the key to achieving one of
+the PX team&#39;s core goals: surfacing the most accurate and rich information about artworks to collectors. We have to
+allow partners to add more and increasingly specific pieces of metadata to artworks. The form has been growing and
+for better or worse, will need to keep growing. Even though we expect to grow the form to meet metadata needs, we
+do not put too much focus on the UX/UI of the Artwork Form in order to prioritize our collector-facing apps. (The
+Artwork Form is only used by a relatively small subset of users, mostly gallery partners.) Hopefully, this refactor
+will allow us to expand the form more seamlessly and will make it easier to navigate as it grows.&lt;/p&gt;
+
+&lt;p&gt;This refactor is still in its early days. The next steps for making the form easier to use (for both developers and
+our end users) will require larger changes. When we think about further progress on revamping the Artwork Form, our
+team is considering breaking the form up into smaller forms. Imagine, we are rendering several different top-level
+&lt;code&gt;Formik&lt;/code&gt; components that include discrete sections of the form, instead of just one giant &lt;code&gt;Formik&lt;/code&gt; tree as we have
+now. We would then combine these &quot;mini forms&quot; together, making better use of React&#39;s core principle of composition.&lt;/p&gt;
+
+&lt;p&gt;Breaking up the form would be a big change for the developer experience (but hopefully made easier by this
+refactor). It could also involve big changes to the UI. The Artwork Form is not just hard to navigate for
+developers. It&#39;s hard for users too. Over the next couple of months, our Product Manager will be working with one
+of Artsy&#39;s user researchers to conduct user testing on the form. Feedback from galleries will help determine where
+we next take this project. We&#39;re excited to have buy-in from our product team to work on a project that will
+elevate the user experience while allowing us to use that opportunity to improve the developer experience as well.&lt;/p&gt;
+</description>
+        <pubDate>Tue, 01 Feb 2022 00:00:00 +0000</pubDate>
+        <link>https://artsy.github.io/blog/2022/02/01/using-context-to-simplify-a-react-form/</link>
+        <guid isPermaLink="true">https://artsy.github.io/blog/2022/02/01/using-context-to-simplify-a-react-form/</guid>
+        
+        
+        <category>context</category>
+        
+        <category>react</category>
+        
+        <category>refactoring</category>
+        
+        <category>typescript</category>
+        
+      </item>
     
       <item>
         <title>A Year in Review: 2021</title>
@@ -52,7 +220,7 @@ accomplishments. As we say goodbye to 2021 and hello to 2022, here are some Arts
 &lt;/ul&gt;
 
 </description>
-        <pubDate>Thu, 06 Jan 2022 00:00:00 +0100</pubDate>
+        <pubDate>Thu, 06 Jan 2022 00:00:00 +0000</pubDate>
         <link>https://artsy.github.io/blog/2022/01/06/a-year-in-review-2021/</link>
         <guid isPermaLink="true">https://artsy.github.io/blog/2022/01/06/a-year-in-review-2021/</guid>
         
@@ -448,7 +616,7 @@ I&#39;m in ❤️ ❤️ ❤️ ❤️ ❤️.&lt;/p&gt;
 &lt;blockquote&gt;&lt;p&gt;&lt;em&gt;This post originally appeared on
 &lt;a href=&quot;https://www.stevenhicks.me/blog/2021/09/what-javascript-tests-could-learn-from-rspec/&quot;&gt;Steve&#39;s blog&lt;/a&gt;.&lt;/em&gt;&lt;/p&gt;&lt;/blockquote&gt;
 </description>
-        <pubDate>Fri, 10 Sep 2021 00:00:00 +0200</pubDate>
+        <pubDate>Fri, 10 Sep 2021 00:00:00 +0000</pubDate>
         <link>https://artsy.github.io/blog/2021/09/10/what-javascript-tests-could-learn-from-rspec/</link>
         <guid isPermaLink="true">https://artsy.github.io/blog/2021/09/10/what-javascript-tests-could-learn-from-rspec/</guid>
         
@@ -563,7 +731,7 @@ or the product you&#39;re building — it&#39;s knowledge-sharing of tools, skil
 
 &lt;p&gt;What are the unstructured/unscheduled ways in which your team shares knowledge? Leave us a note in the comments!&lt;/p&gt;
 </description>
-        <pubDate>Tue, 11 May 2021 00:00:00 +0200</pubDate>
+        <pubDate>Tue, 11 May 2021 00:00:00 +0000</pubDate>
         <link>https://artsy.github.io/blog/2021/05/11/unstructured-knowledge-sharing/</link>
         <guid isPermaLink="true">https://artsy.github.io/blog/2021/05/11/unstructured-knowledge-sharing/</guid>
         
@@ -945,7 +1113,7 @@ a tracking call in a component and didn&#39;t explicitly mock the tracking calls
 &lt;p&gt;That&#39;s it! If you&#39;re trying to test something similar and found this post, I hope it helps you out. If so, or if
 you&#39;re still confused, leave a comment!&lt;/p&gt;
 </description>
-        <pubDate>Thu, 15 Apr 2021 00:00:00 +0200</pubDate>
+        <pubDate>Thu, 15 Apr 2021 00:00:00 +0000</pubDate>
         <link>https://artsy.github.io/blog/2021/04/15/testing-react-tracking-with-jest-and-enzyme/</link>
         <guid isPermaLink="true">https://artsy.github.io/blog/2021/04/15/testing-react-tracking-with-jest-and-enzyme/</guid>
         
@@ -1214,7 +1382,7 @@ mutation to update server-side data.&lt;/li&gt;
 &lt;/ol&gt;
 
 </description>
-        <pubDate>Thu, 15 Apr 2021 00:00:00 +0200</pubDate>
+        <pubDate>Thu, 15 Apr 2021 00:00:00 +0000</pubDate>
         <link>https://artsy.github.io/blog/2021/04/15/accessing-the-relay-store/</link>
         <guid isPermaLink="true">https://artsy.github.io/blog/2021/04/15/accessing-the-relay-store/</guid>
         
@@ -1358,7 +1526,7 @@ mutation to update server-side data.&lt;/li&gt;
 
 &lt;p&gt;The size of a pull request can be influenced long before the PR is opened. Slice features small in your product backlog; make small commits along the way; combine small commits into small pull requests. Among other benefits, a focus on breaking work into small parts will make it easier to review your changes.&lt;/p&gt;
 </description>
-        <pubDate>Tue, 09 Mar 2021 00:00:00 +0100</pubDate>
+        <pubDate>Tue, 09 Mar 2021 00:00:00 +0000</pubDate>
         <link>https://artsy.github.io/blog/2021/03/09/strategies-for-small-focused-pull-requests/</link>
         <guid isPermaLink="true">https://artsy.github.io/blog/2021/03/09/strategies-for-small-focused-pull-requests/</guid>
         
@@ -1482,7 +1650,7 @@ career will pay dividends to my team in the months and years to come.&lt;/p&gt;
 
 &lt;blockquote&gt;&lt;p&gt;&lt;em&gt;This post originally appeared on Anna&#39;s blog on &lt;a href=&quot;https://anna-carey.medium.com/&quot;&gt;Medium&lt;/a&gt;.&lt;/em&gt;&lt;/p&gt;&lt;/blockquote&gt;
 </description>
-        <pubDate>Thu, 11 Feb 2021 00:00:00 +0100</pubDate>
+        <pubDate>Thu, 11 Feb 2021 00:00:00 +0000</pubDate>
         <link>https://artsy.github.io/blog/2021/02/11/asking-for-help/</link>
         <guid isPermaLink="true">https://artsy.github.io/blog/2021/02/11/asking-for-help/</guid>
         
@@ -1536,7 +1704,7 @@ a conversation between &lt;a href=&quot;https://artsy.github.io/author/steve-hic
 &lt;p&gt;Find the first few episodes right now in your podcast player. Watch for future episodes in your feed and we&#39;ll
 announce them &lt;a href=&quot;https://twitter.com/artsyopensource&quot;&gt;on Twitter&lt;/a&gt; when they&#39;re released.&lt;/p&gt;
 </description>
-        <pubDate>Wed, 06 Jan 2021 00:00:00 +0100</pubDate>
+        <pubDate>Wed, 06 Jan 2021 00:00:00 +0000</pubDate>
         <link>https://artsy.github.io/blog/2021/01/06/introducing-artsy-engineering-radio/</link>
         <guid isPermaLink="true">https://artsy.github.io/blog/2021/01/06/introducing-artsy-engineering-radio/</guid>
         
@@ -1615,7 +1783,7 @@ announce them &lt;a href=&quot;https://twitter.com/artsyopensource&quot;&gt;on T
 
 &lt;p&gt;This is a lesson that I&#39;ve been teaching engineers for a long time, but it&#39;s only with our recent Echo changes that I&#39;ve come to understand, at a deeper level, what it means to take ownership of code. Yes, the bugs, and of course, the happy little accidents, but also the mundane interconnected dependencies that make software systems so complex. And, if I&#39;m being honest, that make software systems so much fun to work on, too.&lt;/p&gt;
 </description>
-        <pubDate>Thu, 31 Dec 2020 00:00:00 +0100</pubDate>
+        <pubDate>Thu, 31 Dec 2020 00:00:00 +0000</pubDate>
         <link>https://artsy.github.io/blog/2020/12/31/echo-supporting-old-app-versions/</link>
         <guid isPermaLink="true">https://artsy.github.io/blog/2020/12/31/echo-supporting-old-app-versions/</guid>
         
@@ -1623,80 +1791,6 @@ announce them &lt;a href=&quot;https://twitter.com/artsyopensource&quot;&gt;on T
         <category>ios</category>
         
         <category>mobile</category>
-        
-        <category>teams</category>
-        
-      </item>
-    
-      <item>
-        <title>Knowledge Shares For Great Good</title>
-        <description>&lt;p&gt;Sharing knowledge! What a concept! &lt;a href=&quot;/blog/2020/09/29/becoming-mobile-first-at-artsy/&quot;&gt;In my recent blog post&lt;/a&gt;, I discussed &quot;Knowledge Share&quot; meetings (also known simply as &quot;Knowledge Shares&quot;, or abbreviated &quot;KS&quot;) and I want to dive deeper into them today. Last time, I described them as follows:&lt;/p&gt;
-
-&lt;blockquote&gt;&lt;p&gt;Knowledge Shares are a &lt;u&gt;structured&lt;/u&gt; time to facilitate &lt;u&gt;unstructured learning&lt;/u&gt;. Anyone can bring a topic to Knowledge Share, from a ticket that they&#39;re stuck on to an idea they have to a neat trick they recently learned.&lt;/p&gt;&lt;/blockquote&gt;
-
-&lt;p&gt;These meetings were really instrumental in ramping up the Mobile Experience team, but their history goes back a bit further. Today, we&#39;re going to discuss the origins of Knowledge Shares at Artsy, how they&#39;ve evolved, the value they provide us as engineers, and how I&#39;d recommend you adopt them on your team.&lt;/p&gt;
-
-&lt;p&gt;Let&#39;s go!&lt;/p&gt;
-
-&lt;!-- more --&gt;
-
-
-&lt;p&gt;To my recollection, the Auctions team was the first at Artsy to start doing &quot;Knowledge Share&quot; meetings. It was late 2016, I think. We were a small team of about five engineers, but were spread across many different front-end apps and back-end microservices. To make sure Artsy&#39;s nascent auction business was a success, every engineer on the team had to have a working understanding of every one of our codebases. The team&#39;s lead, Alan, suggested that devote an hour each week to sharing knowledge so no one person would become a silo.&lt;/p&gt;
-
-&lt;p&gt;The idea is simple enough: spend time working on something together. Kind of like pair programming, but with a slightly bigger group. Maybe there would be a ticket someone had that we would start together. Or maybe there had been a production incident that we wanted to investigate together. Maybe someone had an idea for a new technical approach to some problem and they wanted early feedback.&lt;/p&gt;
-
-&lt;p&gt;I think this forum worked well for us because our team was small and had a high level of interpersonal trust. Leading a five-person &lt;a href=&quot;https://en.wikipedia.org/wiki/Mob_programming&quot;&gt;mobbing session&lt;/a&gt; could be really intimidating, and later I&#39;ll discuss how I&#39;ve since structured the Knowledge Shares that I lead to make everyone feel welcome contributing.&lt;/p&gt;
-
-&lt;p&gt;And they worked great! Other engineers learned about the iOS front-end code that I had written, and I learned about the back-end systems that powered that front-end. This was important for the team because our response time to production incidents was critical – one extra minute of looking up docs or finding a specific URL could make the difference between a happy user winning their lot, or an unhappy user taking their business elsewhere.&lt;/p&gt;
-
-&lt;p&gt;As time went on, other product teams started their own Knowledge Shares. They proliferated naturally throughout Artsy Engineering. When I started the Mobile Experience team in 2019, Knowledge Shares were one of the first recurring team meetings I scheduled. After a few months, I got really positive feedback about them. In fact, engineers wanted more of them. So I scheduled a second hour-long Knowledge Share each week.&lt;/p&gt;
-
-&lt;p&gt;Today, Knowledge Shares are for more than just engineers. They are for product managers, designers, data analysts, and other team stakeholders. Sometimes engineers from other teams even join my team&#39;s Knowledge Shares, though scheduling becomes a hassle at a certain scale. We start each Knowledge Share with team-wide topics that apply to more than only engineers; we then move on to engineering-specific topics. This lets non-engineers still contribute while also letting them drop off so the engineers can dig into code.&lt;/p&gt;
-
-&lt;p&gt;Here are some examples of things that we have used Knowledge Shares for:&lt;/p&gt;
-
-&lt;ul&gt;
-&lt;li&gt;Sharing early designs for upcoming project work.&lt;/li&gt;
-&lt;li&gt;Going over work-in-progress pull requests and soliciting feedback on the technical approach.&lt;/li&gt;
-&lt;li&gt;Spiking on big-picture projects together, to help us plan what work needs to happen and in which order.&lt;/li&gt;
-&lt;li&gt;Exploring anonymized user sessions to learn more about how our product actually gets used in the real world.&lt;/li&gt;
-&lt;li&gt;Investigating small quality-of-life problems with our codebase&#39;s developer experience and working on solutions.&lt;/li&gt;
-&lt;li&gt;Brainstorming about how to address specific pieces of technical debt.&lt;/li&gt;
-&lt;/ul&gt;
-
-
-&lt;p&gt;Topics range from the technical to the product-focused, from what has already shipped to what is still on the drawing board. This breadth of focus helps everyone on the team feel like they can contribute. We keep a shared document of evergreen topic ideas and everyone is encouraged to add to it. As Tech Lead, I also send Slack reminders before each meeting to solicit for timely topics.&lt;/p&gt;
-
-&lt;p&gt;Throughout the normal course of our week, topics will naturally come up for discussion – topics that would normally need their own meeting to be scheduled. But instead, we can use the time we already have scheduled. For example: if an engineer has feedback on a new feature&#39;s design, we don&#39;t need to schedule a dedicated meeting for that conversation – we can use a Knowledge Share. It might feel like having recurring &quot;Knowledge Share&quot; meetings only adds more meetings to everyone&#39;s already-busy calendars. But in our experience, these Knowledge Shares prevent us from scheduling &lt;em&gt;yet more&lt;/em&gt; one-off meetings, so it balances out as a time-saver.&lt;/p&gt;
-
-&lt;p&gt;As a Tech Lead, I like to use Knowledge Shares as an opportunity to reinforce the shared understanding that &lt;em&gt;learning&lt;/em&gt; is our paramount goal. That is to say, our goal isn&#39;t to &lt;em&gt;build&lt;/em&gt; some new feature, but is rather to &lt;em&gt;learn &lt;strong&gt;how&lt;/strong&gt; to build&lt;/em&gt; that new feature. That&#39;s why I emphasize in our Knowledge Shares that &lt;em&gt;learning is contributing&lt;/em&gt; (language which I added to our engineering onboarding docs). New team members might not have topics of their own, but they&#39;re encouraged to contribute by learning and by asking questions.&lt;/p&gt;
-
-&lt;p&gt;When I described the origins of Knowledge Shares above, I said that they worked well on the early Auctions team because the team already had a high level of interpersonal trust. But looking back at those early days, I have to admit that I&#39;m not sure which came first: the Knowledge Shares, or the trust? Having now bootstrapped two product teams at Artsy, I can tell you that Knowledge Shares are a key tool I use as Tech Lead to get teams working well together, quickly. The experience of being confused (together) and then gaining understanding (together) is great for building up &lt;a href=&quot;https://ashfurrow.com/blog/building-better-software-by-building-better-teams/&quot;&gt;the interpersonal trust that makes teams perform well&lt;/a&gt;. I just can&#39;t recommend Knowledge Shares enough!&lt;/p&gt;
-
-&lt;p&gt;Today, Knowledge Shares at Artsy provide a variety of benefits. Among others, those benefits are:&lt;/p&gt;
-
-&lt;ul&gt;
-&lt;li&gt;De-siloing information, to prevent any one engineer from becoming a single-point-of-failure for Artsy&#39;s systems.&lt;/li&gt;
-&lt;li&gt;Getting the team used to working together, used to communicating with one another, and used to providing and accepting feedback.&lt;/li&gt;
-&lt;li&gt;Surfacing problems developers commonly run into during day-to-day work – and then fixing them permanently, together.&lt;/li&gt;
-&lt;li&gt;Fostering a sense that everyone &quot;owns&quot; this meeting (and, by extension, everyone &quot;owns&quot; the team&#39;s culture).&lt;/li&gt;
-&lt;/ul&gt;
-
-
-&lt;p&gt;Okay, so, let&#39;s imagine I&#39;ve sold you on the idea of Knowledge Shares. Great! So where do you start? How do you get your team on board?&lt;/p&gt;
-
-&lt;p&gt;If you are the team&#39;s lead then adopting Knowledge Shares is quite easy: send your team this blog post, tell them you want to try Knowledge Shares, try them out, and discuss what everyone thinks in an upcoming retrospective. Whether you make the Knowledges Shares mandatory, or just encourage everyone&#39;s participation, is up to you. They are mandatory for engineers on my team, but I accept the responsibility of making sure the meetings providing value to all engineers. I trust you to make these work well for however your team works.&lt;/p&gt;
-
-&lt;p&gt;What if you&#39;re &lt;em&gt;not&lt;/em&gt; the team lead? That&#39;s okay, you have options. If you&#39;re comfortable, I would recommend following the same steps as above. Send your team this blog post, express interest in trying out a weekly Knowledge Share, and schedule something. (By showing this kind of leadership initiative, it won&#39;t be long before you find yourself leading your own team!) But if you want to avoid stepping on toes, you can also discuss this with your team&#39;s lead privately. Every team is different and I trust you to navigate your own team best.&lt;/p&gt;
-</description>
-        <pubDate>Wed, 09 Dec 2020 00:00:00 +0100</pubDate>
-        <link>https://artsy.github.io/blog/2020/12/09/share-your-knowledge/</link>
-        <guid isPermaLink="true">https://artsy.github.io/blog/2020/12/09/share-your-knowledge/</guid>
-        
-        
-        <category>culture</category>
-        
-        <category>people</category>
         
         <category>teams</category>
         
