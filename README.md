@@ -45,8 +45,10 @@ Categories are generated when the ENV var `PRODUCTION` = `"YES"`.
 
 ## Deploying
 
-Travis CI will automatically deploy when new commits are pushed to the `source` branch, so you should not need to
-deploy from your local computer. However, if you need to deploy locally, the `rake deploy` command is available.
+- Circle automatically deploys to GitHub Pages when new commits are pushed to the `source` branch.
+- If you need to trigger a deploy locally, the `rake deploy` command is available.
+- See the `Rakefile` for details on how builds/deploys are done.
+- Note that the `main` branch does not build on Circle, due to all deploy commits being prefixed with `[skip ci]`.
 
 ## Adding an Author
 
