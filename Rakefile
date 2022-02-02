@@ -120,7 +120,7 @@ task :deploy do
 
     puts `git ls-files --deleted -z | xargs -0 git rm;`
     puts `git add .`
-    puts `git commit -m "Deploy"`
+    puts `git commit -m "[skip ci] Deploy"`
 
     puts 'Pushing to github.'
     puts `git push --quiet > /dev/null 2>&1`
