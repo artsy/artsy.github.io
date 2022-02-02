@@ -127,29 +127,5 @@ task :deploy do
   end
 end
 
-namespace :deploy do
-
-  namespace :travis do
-    task :checks do
-      branch = ENV['TRAVIS_BRANCH'] # Ensure this command is only run on Travis.
-      abort 'Must be run on Travis.' unless branch
-      abort "Skipping deploy for non-source branch #{branch}." if branch != 'source'
-
-      pull_request = ENV['TRAVIS_PULL_REQUEST'] #Ensure this command is only not run on pull requests
-      abort 'Skipping deploy from pull request.' if pull_request != 'false'
-    end
-
-    task :github_setup do
-      puts `git config --global user.email #{ENV['GIT_EMAIL']}`
-      puts `git config --global user.name #{ENV['GIT_NAME']}`
-      File.open("#{ENV['HOME']}/.netrc", 'w') { |f| f.write("machine github.com login #{ENV['GH_TOKEN']}") }
-      puts `chmod 600 ~/.netrc`
-    end
-  end
-
-  desc 'Run on Travis only; deploys the site when built on the source branch'
-  task :travis => ['deploy:travis:checks', 'deploy:travis:github_setup', :deploy]
-end
-
 desc 'Defaults to serve:drafts'
 task :default => 'serve:drafts'
