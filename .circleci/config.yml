@@ -1,0 +1,74 @@
+# Use the latest 2.1 version of CircleCI pipeline process engine.
+# See: https://circleci.com/docs/2.0/configuration-reference
+version: 2.1
+
+# Orbs are reusable packages of CircleCI configuration that you may share across projects, enabling you to create encapsulated, parameterized commands, jobs, and executors that can be used across multiple projects.
+# See: https://circleci.com/docs/2.0/orb-intro/
+orbs:
+  ruby: circleci/ruby@0.1.2
+
+only_source: &only_source
+  filters:
+    branches:
+      only: source
+
+not_main_or_source: &not_main_or_source
+  filters:
+    branches:
+      ignore:
+        - main
+        - source
+
+# Define a job to be invoked later in a workflow.
+# See: https://circleci.com/docs/2.0/configuration-reference/#jobs
+jobs:
+  build:
+    docker:
+      - image: circleci/ruby:2.6.3-stretch-node
+    executor: ruby/default
+    steps:
+      - checkout
+      - run:
+          name: Install Bundler
+          command: gem install bundler:2.2.1
+      - run:
+          name: Which bundler?
+          command: bundle -v
+      - ruby/bundle-install
+      - run:
+          name: Build it
+          command: bundle exec rake build
+
+  deploy:
+      docker:
+        - image: circleci/ruby:2.6.3-stretch-node
+      executor: ruby/default
+      steps:
+        - add_ssh_keys:
+            fingerprints:
+              - "6a:61:a2:62:90:49:01:6f:67:5d:29:44:d8:93:63:5e"
+        - checkout
+        - run:
+            name: Install Bundler
+            command: gem install bundler:2.2.1
+        - run:
+            name: Which bundler?
+            command: bundle -v
+        - ruby/bundle-install
+        - run:
+            name: Setting Up Github account
+            command: git config --global user.email "deploys@artsy.net" && git config --global user.name "GH Pages Deploy Bot"
+        - run:
+            name: Deploy it
+            command: bundle exec rake deploy
+
+# Invoke jobs via workflows
+# See: https://circleci.com/docs/2.0/configuration-reference/#workflows
+workflows:
+  default:
+    jobs:
+      - deploy:
+          <<: *only_source
+
+      - build:
+          <<: *not_main_or_source
