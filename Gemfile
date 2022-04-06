@@ -12,6 +12,7 @@ gem 'mp3info'
 gem 'aws-sdk'
 gem 'jekyll-lunr-js-search', git: 'https://github.com/ashfurrow/jekyll-lunr-js-search.git', branch: 'v2'
 gem 'jekyll-redirect-from'
+gem 'jekyll-paginate'
 
 group :distribution do
   gem 'danger'

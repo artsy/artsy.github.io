@@ -1,5 +1,4 @@
 require './_plugins/pygments_code'
-require './_plugins/raw'
 
 module BacktickCodeBlock
   AllOptions = /([^\s]+)\s+(.+?)\s+(https?:\/\/\S+|\/\S+)\s*(.+)?/i

@@ -1,7 +1,6 @@
 # Custom filters taken from Octopress
 
 require './_plugins/backtick_code_block'
-require './_plugins/raw'
 require 'octopress-hooks'
 
 class ArtsyBlogHooks < Octopress::Hooks::Post
