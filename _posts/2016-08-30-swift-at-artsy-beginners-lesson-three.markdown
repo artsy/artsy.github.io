@@ -13,8 +13,7 @@ Yesterday was lesson three and I have a [screen recording][youtube] of my walkth
 
 <!-- more -->
 
-{% youtube e2ErzD8ibG8 %}
-
+<iframe width="100%" height="400" src="https://www.youtube.com/embed/e2ErzD8ibG8" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 
 [course]: http://artsy.github.io/blog/2016/01/26/swift-at-artsy/
 [youtube]: https://youtu.be/e2ErzD8ibG8

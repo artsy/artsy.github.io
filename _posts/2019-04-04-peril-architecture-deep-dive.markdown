@@ -17,7 +17,7 @@ for a smaller inline preview.
 
 <!-- more -->
 
-{% youtube 3HNmiNHCvdA %}
+<iframe width="100%" height="400" src="https://www.youtube.com/embed/3HNmiNHCvdA" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 
 [intro_peril]: /blog/2017/09/04/Introducing-Peril/
 [peril_readme]: https://github.com/artsy/README/blob/master/culture/peril.md

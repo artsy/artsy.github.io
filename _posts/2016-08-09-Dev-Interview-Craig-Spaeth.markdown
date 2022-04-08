@@ -17,4 +17,4 @@ Jump [to YouTube](https://www.youtube.com/watch?v=-0WK1Ebis3M) for the video, or
 
 <!-- more -->
 
-{% youtube -0WK1Ebis3M %}
+<iframe width="100%" height="400" src="https://www.youtube.com/embed/-0WK1Ebis3M" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
