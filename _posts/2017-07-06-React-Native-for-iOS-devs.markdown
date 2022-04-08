@@ -61,8 +61,6 @@ To get a sense of what this feels like, I've created a simplified version of the
 <p>Warning: You may need to expand the width of this window to see the full diagram.</p>
 </div>
 
-</article>
-<article class="desktop-only" style='display: flex; flex-flow:row; position: absolute; left:10px; right: 10px; height: 360px; min-width: 1200px;'>
 <div style='flex:1; text-align:center;'>
 <img style=' margin-top: 20px; margin-right:20px;' src="/images/what-is-rn/simple-overview-render.png" width=269 height=474/>
 </div>
@@ -128,8 +126,6 @@ $(".component").hover(function(){
     unHighlight(newID)
 });
 </script>
-</article>
-<article class="post" style="margin-top: 620px">
 
 This kind of tree structure should feel quite similar to the `UIView` tree that you see inside a tool like Reveal, or inside the Xcode visual inspector. Next up I want to show you what the code for this would look like in JavaScript:
 
@@ -286,10 +282,6 @@ This fundamentally means you can have both: a faster more elegant way to write y
 
 OK, no joke, don't skip this bit, you try React Native right now. This will require some terminal skills, and about 5 minutes, it shouldn't be more complex than using CocoaPods via the terminal.
 
-</article>
-<article class="desktop-only" style='display: flex; flex-flow:row;'>
-<div style='flex:1; display: block;'>
-
 ```sh
 # If you don't have homebrew
 # see https://brew.sh
@@ -308,20 +300,13 @@ yarn global add react-native-cli
 react-native init TrendingArtists
 ```
 
-</div>
-<div id='installing-node' class="desktop-only" style='flex:1; display: block;'>
-
-<p>You'll need <code>node</code> and <code>yarn</code> installed globally so you can run JavaScript and handle dependency management respectively.<p>
+<p>You'll need <code>node</code> and <code>yarn</code> installed globally so you can run JavaScript and handle dependency management respectively.</p>
 
 <p>For working inside a JavaScript project, I'd strongly recommend using Microsoft's <a href='https://code.visualstudio.com'>Visual Studio Code</a>, it does a great job for React Native.</p>
 
 <p>Next up we're going to make the initial project and look around, so once all the installing has finished. You can follow along with the next section.</p>
 
 <p>If the command `react-native` isn't working, <a href='https://github.com/keitaito'>@keitaito</a> has some useful advice in the <a href='#comments'>comments</a>.</p>
-
-</div>
-</article>
-<article class='post'>
 
 Alright, so that should do a lot of downloading, and you'll have a new folder with a fully set up project for iOS and Android. We'll be focusing on the iOS side.
 
@@ -331,12 +316,8 @@ The `run-ios` command first uses `xcodebuild` to compile the native app found in
 
 Once a simulator has popped up, you'll see the "Welcome to React Native" screen. Now that we've got "an app" running. It will take a minute or two to parse all your JavaScript. So then let's take a moment to look through what we have in our file system now.
 
-</article>
-<article class="desktop-only" style='display: flex; flex-flow: row;'>
-<div class="desktop-only" style='flex:1; display: block;'>
 
-
-```sh
+```
 # If you want tree: brew install tree
 $ tree .
 
@@ -375,9 +356,6 @@ $ tree .
 └── yarn.lock
 ```
 
-</div>
-<div class="desktop-only" style='flex:1; display: block;'>
-
 <p><strong>What are we looking at?</strong></p>
 
 <p>First up - we have some test files, these files are unique per platform - though they do have the same code right now. In React Native imports can resolve to be different per-platform, which is why you see <code>.android.js</code> or <code>.ios.js</code>.</p>
@@ -389,10 +367,6 @@ $ tree .
 <p>The Xcode project is really barebones, it's just an <code>AppDelegate</code> that creates a <code>UIView</code> subclass. You can see that it references <code>index.ios.js</code> which is where your JavaScript side starts.</p>
 
 <p>Then you have the <code>package.json</code> which is like an Xcodeproj + Podfile in one, and the <code>node_modules</code> folder. This file houses all your JavaScript dependencies, your runtime scripts and app metadata.</p>
-
-</div>
-</article>
-<article class='post'>
 
 I'd like to show you how to make a change appear instantly. In your iOS Simulator, perform a shake gesture (<code>cmd + ctrl + z</code>) and in the React Native debug menu, hit "Enable Hot Reloading". It will trigger a reload of all your JS code again.
 
@@ -418,8 +392,6 @@ JavaScript is a deceptively simple language with a lot of weird gotchas, which m
 I think it's safe to say that the majority of JavaScript's warts are fixed by community tooling nowadays. Tools like ESLint, TSLint, Babel, Prettier, TypeScript and Flow make it difficult to write bad code, and the JavaScript community really comes together to fix it's own problems. This differs from the [Sword of Damocles][] that [exists for big OSS projects][retro-swift-sherlock] in the iOS community. 
 
 Here's a collection of tools that we use every day in the JS world:
-</article>
-<article><center>
 
 
 | Project   |  What it does  | Why it's awesome |
@@ -437,8 +409,6 @@ Here's a collection of tools that we use every day in the JS world:
 | [DangerJS][] | Code review automation | Stop asking for CHANGELOG entries etc |
 | [Metro Bundler][] |Code bundler for React Native | Handles code changes at runtime for you |
 
-</center></article>
-<article class='post'>
 
 These inter-linked, composable tools basically represent the entire idea of the JavaScript community. You add them to your project, and your project gets all these small config files that eventually create the kind of cohesive tooling that you would expect from a single vendor in a native environment.
 
