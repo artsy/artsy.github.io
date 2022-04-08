@@ -15,7 +15,7 @@ After scratching our heads about exactly what that meant, we tried it anyway. If
 
 Artsy has been experimenting with OpsWorks for a few months now and recently adopted it for the production [artsy.net](http://artsy.net) site. We're excited to share what we've learned in the process.
 
-{% include expanded_img.html url="/images/2013-08-27-introduction-to-aws-opsworks/opsworks.png" title="OpsWorks overview" %}
+{% include expanded_img.html url='/images/2013-08-27-introduction-to-aws-opsworks/opsworks.png' title='OpsWorks overview' %}
 
 <!-- more -->
 
@@ -125,7 +125,7 @@ OpsWorks instances can be launched in multiple AWS availability zones for greate
 
 Especially useful is the automatic scaling, which can be time-based or load-based. This nicely matches  the horizontal scaling needs of our app: we've chosen to run additional Rails app servers during peak business hours, and additional background workers when load on existing servers exceeds a certain threshold.
 
-{% include expanded_img.html url="/images/2013-08-27-introduction-to-aws-opsworks/time-based_scaling.png" title ="time-based scaling" %}
+{% include expanded_img.html url="/images/2013-08-27-introduction-to-aws-opsworks/time-based_scaling.png" title="time-based scaling" %}
 
 {% include expanded_img.html url="/images/2013-08-27-introduction-to-aws-opsworks/load-based_scaling.png" title="load-based scaling" %}
 
