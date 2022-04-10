@@ -15,7 +15,7 @@ After scratching our heads about exactly what that meant, we tried it anyway. If
 
 Artsy has been experimenting with OpsWorks for a few months now and recently adopted it for the production [artsy.net](http://artsy.net) site. We're excited to share what we've learned in the process.
 
-{% include expanded_img.html url='/images/2013-08-27-introduction-to-aws-opsworks/opsworks.png' title='OpsWorks overview' %}
+{% include expanded_img.html url="/images/2013-08-27-introduction-to-aws-opsworks/opsworks.png" title="OpsWorks overview" %}
 
 <!-- more -->
 

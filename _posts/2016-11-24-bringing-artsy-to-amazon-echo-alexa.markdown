@@ -14,9 +14,7 @@ Alexa knows about the weather, but it doesn't know much about art.
 
 In this post I'll dig a little inside the Alexa software platform and go over the technical details of bringing Artsy to the Echo, starting with a very simple "Ask Artsy about Norman Rockwell."
 
-<a href='https://www.youtube.com/watch?v=zi3OubNiV9U' target='_blank'>
-<iframe width="280" height="280" src="https://www.youtube.com/embed/zi3OubNiV9U" frameborder="0" allowfullscreen></iframe>
-</a>
+<iframe width="280" height="280" src="https://www.youtube.com/embed/zi3OubNiV9U" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 
 Find the [Artsy skill in the Alexa app](http://alexa.amazon.com/spa/index.html#skills/dp/B01MYLJO1N) and [the complete Skill code on Github](https://github.com/artsy/elderfield). And if you just want to learn to write a skill quickly, watch [@dblock live-code a skill in this video](https://www.youtube.com/watch?v=pzM4jv7k7Rg).
 
