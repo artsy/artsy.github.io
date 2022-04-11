@@ -15,8 +15,7 @@ Today was lesson one of the beginner group, and I have a [screen recording][yout
 
 <!-- more -->
 
-{% youtube OLdSg0XpFqA %}
-
+<iframe width="100%" height="400" src="https://www.youtube.com/embed/OLdSg0XpFqA" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 
 [course]: http://artsy.github.io/blog/2016/01/26/swift-at-artsy/
 [youtube]: https://youtu.be/OLdSg0XpFqA

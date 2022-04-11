@@ -16,7 +16,7 @@ Jump [to YouTube](https://www.youtube.com/watch?v=PYC47YKnK4k) for the video, or
 
 <!-- more -->
 
-{% youtube PYC47YKnK4k %}
+<iframe width="100%" height="400" src="https://www.youtube.com/embed/PYC47YKnK4k" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 
 Beautiful right?
 
