@@ -46,7 +46,7 @@ A `FragmentContainer` is based on a [GraphQL fragment][gql-frag]. If you've neve
 abstraction that lets you declare shared field-selections on a specific GraphQL type to reduce duplication in your
 queries. For example:
 
-```graphql
+```
 query GetPopularArtistAndFeaturedArtist {
   featuredArtist {
     id
@@ -63,7 +63,7 @@ query GetPopularArtistAndFeaturedArtist {
 
 To move this query to use fragments:
 
-```graphql
+```
 query GetPopularArtistAndFeaturedArtist {
   featuredArtist {
     ...ArtistMetadata

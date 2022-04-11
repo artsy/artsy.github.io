@@ -34,7 +34,6 @@ Next up was to use Hokusai in our CI environment. [Circle CI 2.0][circle] is ver
 
 Here's a slightly redacted copy of our Circle config:
 
-{% raw %}
 ```yaml
 version: 2
 jobs:
@@ -113,7 +112,6 @@ workflows:
           requires:
             - push
 ```
-{% endraw %}
 
 The initial build on `master` built and pushed the server image, but the deploy failed. This is an [issue][] that's being tracked in Hokusai – I'm sure it'll get addressed on the road to a 1.0. To explain, it's a Catch-22: we can't deploy until we have an image, but we only want to build images on CI, so the first deploy on CI is expected to fail.
 

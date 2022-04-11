@@ -16,4 +16,4 @@ This was done as a part of the engineering team's weekly lunch and learn session
 
 Jump [to YouTube](https://www.youtube.com/watch?v=LAAMk7oLrmg) for the video, or click more for a smaller inline preview.
 
-<iframe width="100%" height="400" src="https://www.youtube.com/embed/LAAMk7oLrmg" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+{% youtube LAAMk7oLrmg %}

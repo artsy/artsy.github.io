@@ -102,7 +102,6 @@ Here are the steps we took to do this conversion:
 
    Here is an example of `TestFormikWrapper` used in a test:
 
-{% raw %}
    ```tsx
    describe("TestComponent", () => {
      it("displays values", () => {
@@ -117,7 +116,6 @@ Here are the steps we took to do this conversion:
      })
    })
    ```
-{% endraw %}
 
 4. Once we completed the conversion all the way up the tree to the root component, the `ArtworkForm`, we typed that
    component as strictly as possible and made sure to get rid of `any`'s. There were quite a few when we started
