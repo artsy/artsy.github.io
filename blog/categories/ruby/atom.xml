@@ -4,7 +4,7 @@
   <title><![CDATA[Category: ruby | Artsy Engineering]]></title>
   <link href="https://artsy.github.io/blog/categories/ruby/atom.xml" rel="self"/>
   <link href="https://artsy.github.io/"/>
-  <updated>2022-04-11T22:55:41+00:00</updated>
+  <updated>2022-04-11T23:15:43+00:00</updated>
   <id>https://artsy.github.io/</id>
   <author>
     <name><![CDATA[]]></name>
@@ -25,289 +25,293 @@ technology, we faced some challenging questions as we were developing one of our
 GraphQL types. While this may work for lot of cases, we may not be utilizing some of the useful features that come
 with GraphQL that can make the consuming of our data a lot easier.</p>
 
-<h2 id="graphql-interface-or-union">GraphQL: Interface or Union?</h2>
+<a name="GraphQL:.Interface.or.Union."></a>
+<h2>GraphQL: Interface or Union?</h2>
 
 <p>Think of the case where we are trying to expose search functionality and the result of our search can be either a
-<code class="language-plaintext highlighter-rouge">Book</code> , <code class="language-plaintext highlighter-rouge">Movie</code> or <code class="language-plaintext highlighter-rouge">Album</code>. One way to think about this is to have our search query return something like:</p>
+<code>Book</code> , <code>Movie</code> or <code>Album</code>. One way to think about this is to have our search query return something like:</p>
 
 <!-- more -->
 
-<div class="language-js highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nx">search</span><span class="p">(</span><span class="nx">term</span><span class="p">:</span> <span class="dl">"</span><span class="s2">something</span><span class="dl">"</span><span class="p">)</span> <span class="p">{</span>
-  <span class="nx">books</span> <span class="p">{</span>
-    <span class="nx">id</span>
-    <span class="nx">title</span>
-    <span class="nx">author</span>
-  <span class="p">}</span>
-  <span class="nx">movies</span> <span class="p">{</span>
-    <span class="nx">id</span>
-    <span class="nx">title</span>
-    <span class="nx">director</span>
-  <span class="p">}</span>
-  <span class="nx">albums</span> <span class="p">{</span>
-    <span class="nx">id</span>
-    <span class="nx">name</span>
-  <span class="p">}</span>
-<span class="p">}</span>
-</code></pre></div></div>
+
+<pre><code class="js">search(term: "something") {
+  books {
+    id
+    title
+    author
+  }
+  movies {
+    id
+    title
+    director
+  }
+  albums {
+    id
+    name
+  }
+}
+</code></pre>
 
 <p>While ☝️ works, we can’t rank the result based on relevance in one result set. Ideally, we would return one result
 set that can have different types in it. A naive approach for this could be to only return one type in the results:</p>
 
-<div class="language-js highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nx">search</span><span class="p">(</span><span class="nx">term</span><span class="p">:</span> <span class="dl">"</span><span class="s2">something</span><span class="dl">"</span><span class="p">)</span> <span class="p">{</span>
-  <span class="nx">results</span> <span class="p">{</span>
-    <span class="nx">id</span>
-    <span class="nx">name</span>
-    <span class="nx">author</span>   <span class="c1">// when a book</span>
-    <span class="nx">director</span> <span class="c1">// when a movie</span>
-    <span class="nx">title</span>    <span class="c1">// when a movie/book</span>
-  <span class="p">}</span>
-<span class="p">}</span>
-
-</code></pre></div></div>
+<pre><code class="js">search(term: "something") {
+  results {
+    id
+    name
+    author   // when a book
+    director // when a movie
+    title    // when a movie/book
+  }
+}
+</code></pre>
 
 <p>We could have a single object that has all these values as optional properties:</p>
 
-<div class="language-js highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nx">type</span> <span class="nx">Result</span> <span class="p">{</span>
-  <span class="nl">id</span><span class="p">:</span> <span class="nx">ID</span><span class="o">!</span>
-  <span class="nx">name</span><span class="p">:</span> <span class="nb">String</span><span class="o">!</span>
+<pre><code class="js">type Result {
+  id: ID!
+  name: String!
 
-  <span class="c1">// All of the optional data, available as nullable types</span>
-  <span class="nx">author</span><span class="p">:</span> <span class="nb">String</span>
-  <span class="nx">director</span><span class="p">:</span> <span class="nb">String</span>
-  <span class="nx">title</span><span class="p">:</span> <span class="nb">String</span>
-<span class="p">}</span>
-</code></pre></div></div>
+  // All of the optional data, available as nullable types
+  author: String
+  director: String
+  title: String
+}
+</code></pre>
 
 <p>But returning these Result objects would be very messy on the server and for clients, plus it would undermine using
-GraphQL’s type system.</p>
+GraphQL's type system.</p>
 
 <p>There are two main solutions in the GraphQL toolkit for this problem:
 <a href="https://graphql.org/learn/schema/#union-types">Unions</a> and
 <a href="https://graphql.org/learn/schema/#interfaces">Interfaces</a>.</p>
 
-<h3 id="union">Union</h3>
+<a name="Union"></a>
+<h3>Union</h3>
 
 <p>GraphQL interfaces are useful to solve problems like above where we want to have the returned type possibly from
 different types.</p>
 
-<p>For this to work, we can define a <code class="language-plaintext highlighter-rouge">Union</code> type that can resolve to either one of <code class="language-plaintext highlighter-rouge">Book</code>, <code class="language-plaintext highlighter-rouge">Movie</code> or <code class="language-plaintext highlighter-rouge">Album</code> and
+<p>For this to work, we can define a <code>Union</code> type that can resolve to either one of <code>Book</code>, <code>Movie</code> or <code>Album</code> and
 then each type can have its own set of fields.</p>
 
-<p>In <code class="language-plaintext highlighter-rouge">graphql-ruby</code> you can define Unions with:</p>
+<p>In <code>graphql-ruby</code> you can define Unions with:</p>
 
-<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">class</span> <span class="nc">Types::Movie</span> <span class="o">&lt;</span> <span class="no">Types</span><span class="o">::</span><span class="no">BaseObject</span>
-  <span class="n">field</span> <span class="ss">:id</span><span class="p">,</span> <span class="no">ID</span><span class="p">,</span> <span class="ss">null: </span><span class="kp">false</span>
-  <span class="n">field</span> <span class="ss">:title</span><span class="p">,</span> <span class="no">String</span><span class="p">,</span> <span class="ss">null: </span><span class="kp">false</span>
-  <span class="n">field</span> <span class="ss">:director</span><span class="p">,</span> <span class="no">String</span><span class="p">,</span> <span class="ss">null: </span><span class="kp">false</span>
-<span class="k">end</span>
+<pre><code class="ruby">class Types::Movie &lt; Types::BaseObject
+  field :id, ID, null: false
+  field :title, String, null: false
+  field :director, String, null: false
+end
 
-<span class="k">class</span> <span class="nc">Types::Book</span> <span class="o">&lt;</span> <span class="no">Types</span><span class="o">::</span><span class="no">BaseObject</span>
-  <span class="n">field</span> <span class="ss">:id</span><span class="p">,</span> <span class="no">ID</span><span class="p">,</span> <span class="ss">null: </span><span class="kp">false</span>
-  <span class="n">field</span> <span class="ss">:title</span><span class="p">,</span> <span class="no">String</span><span class="p">,</span> <span class="ss">null: </span><span class="kp">false</span>
-<span class="k">end</span>
+class Types::Book &lt; Types::BaseObject
+  field :id, ID, null: false
+  field :title, String, null: false
+end
 
-<span class="k">class</span> <span class="nc">Types::Album</span> <span class="o">&lt;</span> <span class="no">Types</span><span class="o">::</span><span class="no">BaseObject</span>
-  <span class="n">field</span> <span class="ss">:id</span><span class="p">,</span> <span class="no">ID</span><span class="p">,</span> <span class="ss">null: </span><span class="kp">false</span>
-  <span class="n">field</span> <span class="ss">:name</span><span class="p">,</span> <span class="no">String</span><span class="p">,</span> <span class="ss">null: </span><span class="kp">false</span>
-<span class="k">end</span>
+class Types::Album &lt; Types::BaseObject
+  field :id, ID, null: false
+  field :name, String, null: false
+end
 
-<span class="k">class</span> <span class="nc">SearchResultUnionType</span> <span class="o">&lt;</span> <span class="no">Types</span><span class="o">::</span><span class="no">BaseUnion</span>
-  <span class="n">description</span> <span class="s1">'Represents either a Movie, Book or Album'</span>
-  <span class="n">possible_types</span> <span class="no">Book</span><span class="p">,</span> <span class="no">Movie</span><span class="p">,</span> <span class="no">Album</span>
-  <span class="k">def</span> <span class="nc">self</span><span class="o">.</span><span class="nf">resolve_type</span><span class="p">(</span><span class="n">object</span><span class="p">,</span> <span class="n">_context</span><span class="p">)</span>
-    <span class="k">case</span> <span class="n">object</span>
-    <span class="k">when</span> <span class="no">Movie</span> <span class="k">then</span> <span class="no">Types</span><span class="o">::</span><span class="no">Movie</span>
-    <span class="k">when</span> <span class="no">Book</span> <span class="k">then</span> <span class="no">Types</span><span class="o">::</span><span class="no">Book</span>
-    <span class="k">when</span> <span class="no">Album</span> <span class="k">then</span> <span class="no">Types</span><span class="o">::</span><span class="no">Album</span>
-    <span class="k">else</span>
-      <span class="k">raise</span> <span class="s2">"Unknown search result type"</span>
-    <span class="k">end</span>
-  <span class="k">end</span>
-<span class="k">end</span>
-</code></pre></div></div>
+class SearchResultUnionType &lt; Types::BaseUnion
+  description 'Represents either a Movie, Book or Album'
+  possible_types Book, Movie, Album
+  def self.resolve_type(object, _context)
+    case object
+    when Movie then Types::Movie
+    when Book then Types::Book
+    when Album then Types::Album
+    else
+      raise "Unknown search result type"
+    end
+  end
+end
+</code></pre>
 
 <p>With the above change you can now query for search results and use specific fragments for different result types:</p>
 
-<div class="language-js highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nx">query</span> <span class="p">{</span>
-  <span class="nx">search</span><span class="p">(</span><span class="nx">term</span><span class="p">:</span> <span class="dl">"</span><span class="s2">something</span><span class="dl">"</span><span class="p">)</span> <span class="p">{</span>
-    <span class="p">...</span> <span class="nx">on</span> <span class="nx">Movie</span> <span class="p">{</span>
-      <span class="nx">__typename</span>
-      <span class="nx">id</span>
-      <span class="nx">title</span>
-    <span class="p">}</span>
-    <span class="p">...</span> <span class="nx">on</span> <span class="nx">Book</span> <span class="p">{</span>
-      <span class="nx">__typename</span>
-      <span class="nx">id</span>
-      <span class="nx">title</span>
-    <span class="p">}</span>
-    <span class="p">...</span> <span class="nx">on</span> <span class="nx">Album</span> <span class="p">{</span>
-      <span class="nx">__typename</span>
-      <span class="nx">id</span>
-      <span class="nx">name</span>
-    <span class="p">}</span>
-  <span class="p">}</span>
-<span class="p">}</span>
-</code></pre></div></div>
+<pre><code class="js">query {
+  search(term: "something") {
+    ... on Movie {
+      __typename
+      id
+      title
+    }
+    ... on Book {
+      __typename
+      id
+      title
+    }
+    ... on Album {
+      __typename
+      id
+      name
+    }
+  }
+}
+</code></pre>
 
-<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
-  </span><span class="nl">"data"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
-    </span><span class="p">{</span><span class="w">
-      </span><span class="nl">"__typename"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Movie"</span><span class="p">,</span><span class="w">
-      </span><span class="nl">"id"</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w">
-      </span><span class="nl">"title"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Close-Up"</span><span class="w">
-    </span><span class="p">},</span><span class="w">
-    </span><span class="p">{</span><span class="w">
-      </span><span class="nl">"__typename"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Album"</span><span class="p">,</span><span class="w">
-      </span><span class="nl">"id"</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w">
-      </span><span class="nl">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Dark Side Of The Moon"</span><span class="w">
-    </span><span class="p">}</span><span class="w">
-  </span><span class="p">]</span><span class="w">
-</span><span class="p">}</span><span class="w">
-</span></code></pre></div></div>
+<pre><code class="json">{
+  "data": [
+    {
+      "__typename": "Movie",
+      "id": 1,
+      "title": "Close-Up"
+    },
+    {
+      "__typename": "Album",
+      "id": 2,
+      "name": "Dark Side Of The Moon"
+    }
+  ]
+}
+</code></pre>
 
-<h3 id="interface">Interface</h3>
+<a name="Interface"></a>
+<h3>Interface</h3>
 
 <p>Unions are useful when we are trying to group different types together in one field. Now let’s think of the case
 where we are trying to expose models of the same Type that can have different fields populated.</p>
 
-<p>For example a music <code class="language-plaintext highlighter-rouge">Instrument</code> can have strings or not. If it has strings we want to mention how many strings it
-has in <code class="language-plaintext highlighter-rouge">numberOfStrings</code> field. For any non-string instrument this field would be <code class="language-plaintext highlighter-rouge">null</code> in the database.</p>
+<p>For example a music <code>Instrument</code> can have strings or not. If it has strings we want to mention how many strings it
+has in <code>numberOfStrings</code> field. For any non-string instrument this field would be <code>null</code> in the database.</p>
 
-<p>One way to do this is to have the <code class="language-plaintext highlighter-rouge">Instrument</code> Type always have <code class="language-plaintext highlighter-rouge">numberOfStrings</code> and in the case of non-string
-instruments return <code class="language-plaintext highlighter-rouge">nil</code>. Sample result for this would be:</p>
+<p>One way to do this is to have the <code>Instrument</code> Type always have <code>numberOfStrings</code> and in the case of non-string
+instruments return <code>nil</code>. Sample result for this would be:</p>
 
-<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
-  </span><span class="nl">"data"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
-    </span><span class="p">{</span><span class="w">
-      </span><span class="nl">"id"</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w">
-      </span><span class="nl">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Guitar"</span><span class="p">,</span><span class="w">
-      </span><span class="nl">"numberOfStrings"</span><span class="p">:</span><span class="w"> </span><span class="mi">6</span><span class="w">
-    </span><span class="p">},</span><span class="w">
-    </span><span class="p">{</span><span class="w">
-      </span><span class="nl">"id"</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w">
-      </span><span class="nl">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Drums"</span><span class="p">,</span><span class="w">
-      </span><span class="nl">"numberOfStrings"</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span><span class="w">
-    </span><span class="p">}</span><span class="w">
-  </span><span class="p">]</span><span class="w">
-</span><span class="p">}</span><span class="w">
-</span></code></pre></div></div>
+<pre><code class="json">{
+  "data": [
+    {
+      "id": 1,
+      "name": "Guitar",
+      "numberOfStrings": 6
+    },
+    {
+      "id": 2,
+      "name": "Drums",
+      "numberOfStrings": null
+    }
+  ]
+}
+</code></pre>
 
-<p>The above solution would work, but it will add extra work on the clients to decide if <code class="language-plaintext highlighter-rouge">numberOfStrings</code> is even
+<p>The above solution would work, but it will add extra work on the clients to decide if <code>numberOfStrings</code> is even
 applicable to this current instrument or not.</p>
 
-<p>The more GraphQL approach for this would be to use an <code class="language-plaintext highlighter-rouge">Interface</code>. We can define a generic <code class="language-plaintext highlighter-rouge">Instrument</code> interface and
+<p>The more GraphQL approach for this would be to use an <code>Interface</code>. We can define a generic <code>Instrument</code> interface and
 have all the common fields between all instruments defined there. Then we can have each specific category of
 instruments define its own special fields and then access those specific fields using fragments.</p>
 
-<p>In <code class="language-plaintext highlighter-rouge">graphql-ruby</code> you can define an Interface with:</p>
+<p>In <code>graphql-ruby</code> you can define an Interface with:</p>
 
-<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">module</span> <span class="nn">Types::InstrumentInterface</span>
-  <span class="kp">include</span> <span class="no">Types</span><span class="o">::</span><span class="no">BaseInterface</span>
+<pre><code class="ruby">module Types::InstrumentInterface
+  include Types::BaseInterface
 
-  <span class="n">description</span> <span class="s1">'A Musical Instrument'</span>
-  <span class="n">graphql_name</span> <span class="s1">'Musical Instrument'</span>
+  description 'A Musical Instrument'
+  graphql_name 'Musical Instrument'
 
-  <span class="n">field</span> <span class="ss">:id</span><span class="p">,</span> <span class="no">ID</span><span class="p">,</span> <span class="ss">null: </span><span class="kp">false</span>
-  <span class="n">field</span> <span class="ss">:name</span><span class="p">,</span> <span class="no">String</span><span class="p">,</span> <span class="ss">null: </span><span class="kp">false</span>
-  <span class="n">field</span> <span class="ss">:category</span><span class="p">,</span> <span class="no">String</span><span class="p">,</span> <span class="ss">null: </span><span class="kp">false</span>
+  field :id, ID, null: false
+  field :name, String, null: false
+  field :category, String, null: false
 
-  <span class="n">definition_methods</span> <span class="k">do</span>
-    <span class="k">def</span> <span class="nf">resolve_type</span><span class="p">(</span><span class="n">object</span><span class="p">,</span> <span class="n">_context</span><span class="p">)</span>
-      <span class="k">case</span> <span class="n">object</span><span class="p">.</span><span class="nf">category</span>
-      <span class="k">when</span> <span class="s2">"string"</span> <span class="k">then</span> <span class="no">Types</span><span class="o">::</span><span class="no">StringInstrument</span>
-      <span class="k">when</span> <span class="s2">"drums"</span> <span class="k">then</span> <span class="no">Types</span><span class="o">::</span><span class="no">DrumInstrument</span>
-      <span class="k">else</span>
-        <span class="k">raise</span> <span class="s1">'Unknown instrument type'</span>
-      <span class="k">end</span>
-    <span class="k">end</span>
-  <span class="k">end</span>
-<span class="k">end</span>
-</code></pre></div></div>
+  definition_methods do
+    def resolve_type(object, _context)
+      case object.category
+      when "string" then Types::StringInstrument
+      when "drums" then Types::DrumInstrument
+      else
+        raise 'Unknown instrument type'
+      end
+    end
+  end
+end
+</code></pre>
 
 <p>Then we can have our specific types implementing this interface.</p>
 
-<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">class</span> <span class="nc">Types::StringInstrument</span> <span class="o">&lt;</span> <span class="no">Types</span><span class="o">::</span><span class="no">BaseObject</span>
-  <span class="n">implements</span> <span class="no">Types</span><span class="o">::</span> <span class="no">InstrumentInterface</span>
+<pre><code class="ruby">class Types::StringInstrument &lt; Types::BaseObject
+  implements Types:: InstrumentInterface
 
-  <span class="n">field</span> <span class="ss">:number_of_strings</span><span class="p">,</span> <span class="no">Integer</span><span class="p">,</span> <span class="ss">null: </span><span class="kp">false</span>
-<span class="k">end</span>
-</code></pre></div></div>
+  field :number_of_strings, Integer, null: false
+end
+</code></pre>
 
 <p>For types that don’t have any extra field, they can just reuse everything from interface.</p>
 
-<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">class</span> <span class="nc">Types::DrumInstrument</span> <span class="o">&lt;</span> <span class="no">Types</span><span class="o">::</span><span class="no">BaseObject</span>
-  <span class="n">implements</span> <span class="no">Types</span><span class="o">::</span> <span class="no">InstrumentInterface</span>
-<span class="k">end</span>
-</code></pre></div></div>
+<pre><code class="ruby">class Types::DrumInstrument &lt; Types::BaseObject
+  implements Types:: InstrumentInterface
+end
+</code></pre>
 
 <p>This way the query for getting instruments can look like</p>
 
-<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">query</span> <span class="p">{</span>
-  <span class="n">instruments</span> <span class="p">{</span>
-    <span class="nb">id</span>
-    <span class="nb">name</span>
-    <span class="n">category</span>
-    <span class="o">...</span> <span class="n">on</span> <span class="no">StringInstrument</span> <span class="p">{</span>
-       <span class="n">numberOfStrings</span>
-    <span class="p">}</span>
-  <span class="p">}</span>
-<span class="p">}</span>
-</code></pre></div></div>
+<pre><code class="ruby">query {
+  instruments {
+    id
+    name
+    category
+    ... on StringInstrument {
+       numberOfStrings
+    }
+  }
+}
+</code></pre>
 
 <p>Sample response can look like</p>
 
-<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
-  </span><span class="nl">"data"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
-    </span><span class="p">{</span><span class="w">
-      </span><span class="nl">"id"</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w">
-      </span><span class="nl">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Guitar"</span><span class="p">,</span><span class="w">
-      </span><span class="nl">"category"</span><span class="p">:</span><span class="w"> </span><span class="s2">"StringInstrument"</span><span class="p">,</span><span class="w">
-      </span><span class="nl">"numberOfStrings"</span><span class="p">:</span><span class="w"> </span><span class="mi">6</span><span class="w">
-    </span><span class="p">},</span><span class="w">
-    </span><span class="p">{</span><span class="w">
-      </span><span class="nl">"id"</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w">
-      </span><span class="nl">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Drums"</span><span class="p">,</span><span class="w">
-      </span><span class="nl">"category"</span><span class="p">:</span><span class="w"> </span><span class="s2">"StringInstrument"</span><span class="w">
-    </span><span class="p">}</span><span class="w">
-  </span><span class="p">]</span><span class="w">
-</span><span class="p">}</span><span class="w">
-</span></code></pre></div></div>
+<pre><code class="json">{
+  "data": [
+    {
+      "id": 1,
+      "name": "Guitar",
+      "category": "StringInstrument",
+      "numberOfStrings": 6
+    },
+    {
+      "id": 2,
+      "name": "Drums",
+      "category": "StringInstrument"
+    }
+  ]
+}
+</code></pre>
 
-<p>One issue we found after doing the above was, since this way we don’t reference <code class="language-plaintext highlighter-rouge">StringInstrument</code> and <code class="language-plaintext highlighter-rouge">DrumInstrument</code>
+<p>One issue we found after doing the above was, since this way we don’t reference <code>StringInstrument</code> and <code>DrumInstrument</code>
 types anywhere in our schema, they actually don’t end up showing in the generated schema. For them to show up we
-have to add them as <code class="language-plaintext highlighter-rouge">orphan_types</code> in the interface. So the interface definition will look like:</p>
+have to add them as <code>orphan_types</code> in the interface. So the interface definition will look like:</p>
 
-<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">module</span> <span class="nn">Types::InstrumentInterface</span>
-  <span class="kp">include</span> <span class="no">Types</span><span class="o">::</span><span class="no">BaseInterface</span>
+<pre><code class="ruby">module Types::InstrumentInterface
+  include Types::BaseInterface
 
-  <span class="n">description</span> <span class="s1">'A Music Album'</span>
-  <span class="n">graphql_name</span> <span class="s1">'Album'</span>
+  description 'A Music Album'
+  graphql_name 'Album'
 
-  <span class="n">field</span> <span class="ss">:id</span><span class="p">,</span> <span class="no">ID</span><span class="p">,</span> <span class="ss">null: </span><span class="kp">false</span>
-  <span class="n">field</span> <span class="ss">:name</span><span class="p">,</span> <span class="no">String</span><span class="p">,</span> <span class="ss">null: </span><span class="kp">false</span>
-  <span class="n">field</span> <span class="ss">:category</span><span class="p">,</span> <span class="no">String</span><span class="p">,</span> <span class="ss">null: </span><span class="kp">false</span>
+  field :id, ID, null: false
+  field :name, String, null: false
+  field :category, String, null: false
 
-  <span class="c1">## Changes</span>
-  <span class="n">orphan_types</span> <span class="no">Types</span><span class="o">::</span><span class="no">StringInstrument</span><span class="p">,</span> <span class="no">Types</span><span class="o">::</span><span class="no">DrumInstrument</span>
+  ## Changes
+  orphan_types Types::StringInstrument, Types::DrumInstrument
 
-  <span class="n">definition_methods</span> <span class="k">do</span>
-    <span class="k">def</span> <span class="nf">resolve_type</span><span class="p">(</span><span class="n">object</span><span class="p">,</span> <span class="n">_context</span><span class="p">)</span>
-      <span class="k">case</span> <span class="n">object</span><span class="p">.</span><span class="nf">category</span>
-      <span class="k">when</span> <span class="s2">"string"</span> <span class="k">then</span> <span class="no">Types</span><span class="o">::</span><span class="no">StringInstrument</span>
-      <span class="k">when</span> <span class="s2">"drums"</span> <span class="k">then</span> <span class="no">Types</span><span class="o">::</span><span class="no">DrumInstrument</span>
-      <span class="k">else</span>
-        <span class="k">raise</span> <span class="s1">'Unknown instrument type'</span>
-      <span class="k">end</span>
-    <span class="k">end</span>
-  <span class="k">end</span>
-<span class="k">end</span>
-</code></pre></div></div>
+  definition_methods do
+    def resolve_type(object, _context)
+      case object.category
+      when "string" then Types::StringInstrument
+      when "drums" then Types::DrumInstrument
+      else
+        raise 'Unknown instrument type'
+      end
+    end
+  end
+end
+</code></pre>
 
-<h2 id="conclusion">Conclusion</h2>
+<a name="Conclusion"></a>
+<h2>Conclusion</h2>
 
 <p>The biggest learning experience for us was realizing that with GraphQL we have the option to decouple our database
 modeling with how the data is exposed to consumers. This way when designing our persistence layer, we can focus on
-the needs of that layer and then separately think about what’s the best way to expose the data to the outside world.</p>
+the needs of that layer and then separately think about what's the best way to expose the data to the outside world.</p>
 ]]></content>
   </entry>
   
@@ -316,474 +320,429 @@ the needs of that layer and then separately think about what’s the best way to
     <link href="https://artsy.github.io/blog/2018/02/06/apogee-technical-retrospective/"/>
     <updated>2018-02-06T00:00:00+00:00</updated>
     <id>https://artsy.github.io/blog/2018/02/06/apogee-technical-retrospective</id>
-    <content type="html"><![CDATA[<p>We’ve previously covered <a href="/blog/2018/02/02/artsy-apogee/">what Apogee is</a> and <a href="/blog/2018/01/24/kubernetes-and-hokusai/">how it’s deployed</a>, so all that’s left to cover is the technology used to build it. As a refresher: Apogee is a Google Sheets Add-on we built to help our Auctions Ops team transform the data given to us by our partners into a format that our CMS can understand. This process, done manually up until now, takes a long time and is a perfect candidate for automation.</p>
+    <content type="html"><![CDATA[<p>We've previously covered <a href="/blog/2018/02/02/artsy-apogee/">what Apogee is</a> and <a href="/blog/2018/01/24/kubernetes-and-hokusai/">how it's deployed</a>, so all that's left to cover is the technology used to build it. As a refresher: Apogee is a Google Sheets Add-on we built to help our Auctions Ops team transform the data given to us by our partners into a format that our CMS can understand. This process, done manually up until now, takes a long time and is a perfect candidate for automation.</p>
 
-<p>Apogee had some really interesting technical challenges that I enjoyed solving, and I’m excited to share some lessons I learned. So let’s dive in!</p>
+<p>Apogee had some really interesting technical challenges that I enjoyed solving, and I'm excited to share some lessons I learned. So let's dive in!</p>
 
 <!-- more -->
 
-<p>We built a prototype as a “pure” Add-on, written only inside Google’s sandbox, but that approach wouldn’t work for us in production: the Add-on environment was just too difficult to work with. Google expects you to write Add-ons in their in-browser <a href="http://script.google.com">Script Editor</a> and – while whether or not that editor is <em>good</em> is a matter of preference – the environment isn’t suited for collaborating or unit testing. Additionally, we could not get Add-on deploys automated, so we’d like to minimize how often we <em>have</em> to deploy.</p>
 
-<p>So we split things up. Instead of building all Apogee’s logic into an Add-on, we decided to build two pieces: a very thin Add-on and a Rails server with all the real logic.</p>
+<p>We built a prototype as a "pure" Add-on, written only inside Google's sandbox, but that approach wouldn't work for us in production: the Add-on environment was just too difficult to work with. Google expects you to write Add-ons in their in-browser <a href="http://script.google.com">Script Editor</a> and – while whether or not that editor is <em>good</em> is a matter of preference – the environment isn't suited for collaborating or unit testing. Additionally, we could not get Add-on deploys automated, so we'd like to minimize how often we <em>have</em> to deploy.</p>
 
-<p>(Because Apogee necessarily includes information about how our partners format their data, we decided not to open source it. Data formats are <em>probably</em> not sensitive, but that’s a judgement best left up to our partners.)</p>
+<p>So we split things up. Instead of building all Apogee's logic into an Add-on, we decided to build two pieces: a very thin Add-on and a Rails server with all the real logic.</p>
 
-<h2 id="apogee-add-on">Apogee Add-on</h2>
+<p>(Because Apogee necessarily includes information about how our partners format their data, we decided not to open source it. Data formats are <em>probably</em> not sensitive, but that's a judgement best left up to our partners.)</p>
+
+<a name="Apogee.Add-on"></a>
+<h2>Apogee Add-on</h2>
 
 <p>The Add-on we built is very simple, by design. Our goal was to make an Add-on that was flexible enough such that we would need to deploy it less frequently than adding new parsers.</p>
 
 <p>Add-on responsibilities include:</p>
 
 <ul>
-  <li>fetching the available parsers from the server.</li>
-  <li>setting up an Add-on user interface (a menu of partners, each with available parsers).</li>
-  <li>responding to invocations from that interface.</li>
+<li>fetching the available parsers from the server.</li>
+<li>setting up an Add-on user interface (a menu of partners, each with available parsers).</li>
+<li>responding to invocations from that interface.</li>
 </ul>
 
-<p>Based on the parser selected by the user, Apogee gathers the required data from the current spreadsheet, sends it to the server for processing, and appends the results to the sheet. Pretty straightforward, you’d think.</p>
 
-<p>Unfortunately, Google Add-ons are a bit… strange. The Add-on itself is executed in Google’s datacentres (not the user’s browser) and is written in <a href="https://developers.google.com/apps-script/guides/services/#basic_javascript_features">JavaScript 1.6-ish</a>. Specifically, it runs with JavaScript 1.6, plus some features from 1.7, plus some other features from 1.8, and also <a href="https://developers.google.com/apps-script/guides/services/advanced">“Google Advanced Services”</a>. The execution environment also lacks an event loop, which makes sense from Google’s perspective (their servers need to know if a script execution has completed) but is still a bit unusual.</p>
+<p>Based on the parser selected by the user, Apogee gathers the required data from the current spreadsheet, sends it to the server for processing, and appends the results to the sheet. Pretty straightforward, you'd think.</p>
+
+<p>Unfortunately, Google Add-ons are a bit... strange. The Add-on itself is executed in Google's datacentres (not the user's browser) and is written in <a href="https://developers.google.com/apps-script/guides/services/#basic_javascript_features">JavaScript 1.6-ish</a>. Specifically, it runs with JavaScript 1.6, plus some features from 1.7, plus some other features from 1.8, and also <a href="https://developers.google.com/apps-script/guides/services/advanced">"Google Advanced Services"</a>. The execution environment also lacks an event loop, which makes sense from Google's perspective (their servers need to know if a script execution has completed) but is still a bit unusual.</p>
 
 <p>Rather than deal with a weird version of JavaScript, we decided to write the Add-on in <a href="https://www.typescriptlang.org">TypeScript</a> and compile down to something Google can execute. We also found <a href="https://www.npmjs.com/package/@types/google-apps-script">open source typings</a> for the Google APIs, which helped a lot. Google also provides access to certain allowlisted libraries, including <a href="https://lodash.com">Lodash</a>, which is handy.</p>
 
-<p>Add-ons also have a somewhat complex permissions and authentication model. The <a href="https://developers.google.com/apps-script/add-ons/lifecycle">documentation</a> provided is a great illustration of why <em>complete</em> documentation is not necessarily <em>effective</em> documentation. If you already understand what you’re doing, the docs are a good reference, but I found them difficult to learn from. I really like <a href="https://twitter.com/kosamari/status/852319140060823553">this explanation</a> of how to structure documentation like unit tests.</p>
+<p>Add-ons also have a somewhat complex permissions and authentication model. The <a href="https://developers.google.com/apps-script/add-ons/lifecycle">documentation</a> provided is a great illustration of why <em>complete</em> documentation is not necessarily <em>effective</em> documentation. If you already understand what you're doing, the docs are a good reference, but I found them difficult to learn from. I really like <a href="https://twitter.com/kosamari/status/852319140060823553">this explanation</a> of how to structure documentation like unit tests.</p>
 
-<p>Permissions vary wildly depending on the execution context. For example, the <code class="language-plaintext highlighter-rouge">onOpen</code> callback is able to make network requests when the script is run as an attachment to a spreadsheet, but not when deployed. This makes it difficult to populate our menu UI, which is based off an API response. I learned to not have confidence everything was working until I saw it work end-to-end.</p>
+<p>Permissions vary wildly depending on the execution context. For example, the <code>onOpen</code> callback is able to make network requests when the script is run as an attachment to a spreadsheet, but not when deployed. This makes it difficult to populate our menu UI, which is based off an API response. I learned to not have confidence everything was working until I saw it work end-to-end.</p>
 
-<p>One other peculiarity of Google’s API is how UI callbacks work. You could create a menu for your Add-on with the following code:</p>
+<p>One other peculiarity of Google's API is how UI callbacks work. You could create a menu for your Add-on with the following code:</p>
 
-<div class="language-js highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nx">SpreadsheetApp</span><span class="p">.</span><span class="nx">getUi</span><span class="p">()</span>
-  <span class="p">.</span><span class="nx">createAddonMenu</span><span class="p">()</span>
-  <span class="p">.</span><span class="nx">addItem</span><span class="p">(</span><span class="dl">'</span><span class="s1">Do something</span><span class="dl">'</span><span class="p">,</span> <span class="dl">'</span><span class="s1">doSomething</span><span class="dl">'</span><span class="p">)</span>
-  <span class="p">.</span><span class="nx">addToUi</span><span class="p">()</span>
-  
-<span class="kd">function</span> <span class="nx">doSomething</span><span class="p">()</span> <span class="p">{</span>
-<span class="p">}</span>
-</code></pre></div></div>
+<pre><code class="js">SpreadsheetApp.getUi()
+  .createAddonMenu()
+  .addItem('Do something', 'doSomething')
+  .addToUi()
 
-<p>You’ll notice that the callback function is specified by a <em>string</em> representing a function name (and not as a function itself, which would be more idiomatic). So, for every menu item, there must exist a corresponding function in the global scope with a corresponding name. Sadly, no parameters are passed to these callbacks, so it’s impossible for a function to determine which menu item it was invoked by. Therefore, every menu item <em>must</em> have exactly <em>one</em> corresponding function. That presents a problem for an Add-on with a dynamic menu.</p>
+function doSomething() {
+}
+</code></pre>
 
-<p>The Add-on isn’t executed in a browser; we’re running on Google’s datacentres so let’s just brute-force this. Our menu is a list of partner names, which is itself a submenu of parsers specific to that partner. That means that each menu item (and corresponding callback) can be indexed by two integers: a partner index and a operation index. So now we have a way to map from our user interface to a specific operation to perform inside <em>one</em> common menu handler.</p>
+<p>You'll notice that the callback function is specified by a <em>string</em> representing a function name (and not as a function itself, which would be more idiomatic). So, for every menu item, there must exist a corresponding function in the global scope with a corresponding name. Sadly, no parameters are passed to these callbacks, so it's impossible for a function to determine which menu item it was invoked by. Therefore, every menu item <em>must</em> have exactly <em>one</em> corresponding function. That presents a problem for an Add-on with a dynamic menu.</p>
 
-<p>Let’s take a look at the actual code.</p>
+<p>The Add-on isn't executed in a browser; we're running on Google's datacentres so let's just brute-force this. Our menu is a list of partner names, which is itself a submenu of parsers specific to that partner. That means that each menu item (and corresponding callback) can be indexed by two integers: a partner index and a operation index. So now we have a way to map from our user interface to a specific operation to perform inside <em>one</em> common menu handler.</p>
 
-<div class="language-ts highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kr">interface</span> <span class="nx">Operation</span> <span class="p">{</span>
-  <span class="nl">name</span><span class="p">:</span> <span class="kr">string</span>
-  <span class="nx">columns</span><span class="p">:</span> <span class="kr">string</span><span class="p">[]</span>
-  <span class="nx">token</span><span class="p">:</span> <span class="kr">string</span>
-<span class="p">}</span>
+<p>Let's take a look at the actual code.</p>
 
-<span class="kr">interface</span> <span class="nx">Partner</span> <span class="p">{</span>
-  <span class="nl">name</span><span class="p">:</span> <span class="kr">string</span>
-  <span class="nx">operations</span><span class="p">:</span> <span class="nx">Operation</span><span class="p">[]</span>
-<span class="p">}</span>
+<pre><code class="ts">interface Operation {
+  name: string
+  columns: string[]
+  token: string
+}
 
-<span class="c1">// Sets up the Add-on menu and submenus.</span>
-<span class="kd">function</span> <span class="nx">setupAddon</span><span class="p">(</span><span class="nx">ui</span><span class="p">:</span> <span class="nx">Partner</span><span class="p">[])</span> <span class="p">{</span>
-  <span class="c1">// Reduce the ui to a list of submenus.</span>
-  <span class="kd">const</span> <span class="nx">addOnMenu</span> <span class="o">=</span> <span class="nx">ui</span><span class="p">.</span><span class="nx">reduce</span><span class="p">((</span><span class="nx">menu</span><span class="p">,</span> <span class="nx">partner</span><span class="p">,</span> <span class="nx">partnerIndex</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span>
-    <span class="c1">// Reduce the operations list to a list of menu items.</span>
-    <span class="k">return</span> <span class="nx">menu</span><span class="p">.</span><span class="nx">addSubMenu</span><span class="p">(</span><span class="nx">partner</span><span class="p">.</span><span class="nx">operations</span><span class="p">.</span><span class="nx">reduce</span><span class="p">((</span><span class="nx">memo</span><span class="p">,</span> <span class="nx">operation</span><span class="p">,</span> <span class="nx">operationIndex</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span>
-      <span class="k">return</span> <span class="nx">memo</span><span class="p">.</span><span class="nx">addItem</span><span class="p">(</span><span class="nx">operation</span><span class="p">.</span><span class="nx">name</span><span class="p">,</span> <span class="s2">`partner</span><span class="p">${</span><span class="nx">partnerIndex</span><span class="p">}</span><span class="s2">Operation</span><span class="p">${</span><span class="nx">operationIndex</span><span class="p">}</span><span class="s2">`</span><span class="p">)</span>
-    <span class="p">},</span> <span class="nx">SpreadsheetApp</span><span class="p">.</span><span class="nx">getUi</span><span class="p">().</span><span class="nx">createMenu</span><span class="p">(</span><span class="nx">partner</span><span class="p">.</span><span class="nx">name</span><span class="p">)))</span>
-  <span class="p">},</span> <span class="nx">SpreadsheetApp</span><span class="p">.</span><span class="nx">getUi</span><span class="p">().</span><span class="nx">createAddonMenu</span><span class="p">())</span>
-  <span class="c1">// Add the generated menu to the Add-on UI.</span>
-  <span class="nx">addOnMenu</span><span class="p">.</span><span class="nx">addToUi</span><span class="p">()</span>
-<span class="p">}</span>
-</code></pre></div></div>
+interface Partner {
+  name: string
+  operations: Operation[]
+}
 
-<p>Each menu has a callback function named something like <code class="language-plaintext highlighter-rouge">partnerXOperationY</code>. Then we just generated a few thousand functions that match that format and call a shared handler <em>with</em> <code class="language-plaintext highlighter-rouge">X</code> and <code class="language-plaintext highlighter-rouge">Y</code> as parameters. The generated code looks like this:</p>
+// Sets up the Add-on menu and submenus.
+function setupAddon(ui: Partner[]) {
+  // Reduce the ui to a list of submenus.
+  const addOnMenu = ui.reduce((menu, partner, partnerIndex) =&gt; {
+    // Reduce the operations list to a list of menu items.
+    return menu.addSubMenu(partner.operations.reduce((memo, operation, operationIndex) =&gt; {
+      return memo.addItem(operation.name, `partner${partnerIndex}Operation${operationIndex}`)
+    }, SpreadsheetApp.getUi().createMenu(partner.name)))
+  }, SpreadsheetApp.getUi().createAddonMenu())
+  // Add the generated menu to the Add-on UI.
+  addOnMenu.addToUi()
+}
+</code></pre>
 
-<div class="language-js highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">function</span> <span class="nx">partner0Operation0</span><span class="p">()</span> <span class="p">{</span>
-    <span class="nx">sharedHandler</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">);</span>
-<span class="p">}</span>
-<span class="kd">function</span> <span class="nx">partner0Operation1</span><span class="p">()</span> <span class="p">{</span>
-    <span class="nx">sharedHandler</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">);</span>
-<span class="p">}</span>
-<span class="kd">function</span> <span class="nx">partner0Operation2</span><span class="p">()</span> <span class="p">{</span>
-    <span class="nx">sharedHandler</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">);</span>
-<span class="p">}</span>
+<p>Each menu has a callback function named something like <code>partnerXOperationY</code>. Then we just generated a few thousand functions that match that format and call a shared handler <em>with</em> <code>X</code> and <code>Y</code> as parameters. The generated code looks like this:</p>
 
-<span class="kd">function</span> <span class="nx">sharedHandler</span><span class="p">(</span><span class="nx">partnerIndex</span><span class="p">,</span> <span class="nx">operationIndex</span><span class="p">)</span> <span class="p">{</span>
-    <span class="c1">// TODO: Look up the appropriate parser to use.</span>
-<span class="p">}</span>
-</code></pre></div></div>
+<pre><code class="js">function partner0Operation0() {
+    sharedHandler(0, 0);
+}
+function partner0Operation1() {
+    sharedHandler(0, 1);
+}
+function partner0Operation2() {
+    sharedHandler(0, 2);
+}
 
-<p>It’s not elegant, but it works. Actually, I think it does have a certain elegance, given the constraints it has to operate within.</p>
+function sharedHandler(partnerIndex, operationIndex) {
+    // TODO: Look up the appropriate parser to use.
+}
+</code></pre>
 
-<p>So that’s it! The rest of the challenges were just weird permissions issues or config problems, but the Add-on was pretty easy to build. The file generated by the TypeScript compiler is only 166 lines long, and the file with all our menu callbacks is “only” 8000 lines long. Next, let’s talk about the server.</p>
+<p>It's not elegant, but it works. Actually, I think it does have a certain elegance, given the constraints it has to operate within.</p>
 
-<h2 id="apogee-server">Apogee Server</h2>
+<p>So that's it! The rest of the challenges were just weird permissions issues or config problems, but the Add-on was pretty easy to build. The file generated by the TypeScript compiler is only 166 lines long, and the file with all our menu callbacks is "only" 8000 lines long. Next, let's talk about the server.</p>
 
-<p>So, Rails’ philosophy is “<a href="https://en.wikipedia.org/wiki/Convention_over_configuration">convention over configuration</a>”, which is pretty great as long as you know the conventions. I’d never run <code class="language-plaintext highlighter-rouge">rails new</code> before. Also, that philosophy works best when you’re building <em>conventional</em> apps. Because Apogee is a bit unconventional, I was going to write Apogee in Sinatra before my colleague suggested I use Rails in <a href="http://guides.rubyonrails.org/api_app.html">API-only mode</a> instead. It seemed a bit overkill, but I also didn’t want to pass up the chance to finally learn Rails.</p>
+<a name="Apogee.Server"></a>
+<h2>Apogee Server</h2>
+
+<p>So, Rails' philosophy is "<a href="https://en.wikipedia.org/wiki/Convention_over_configuration">convention over configuration</a>", which is pretty great as long as you know the conventions. I'd never run <code>rails new</code> before. Also, that philosophy works best when you're building <em>conventional</em> apps. Because Apogee is a bit unconventional, I was going to write Apogee in Sinatra before my colleague suggested I use Rails in <a href="http://guides.rubyonrails.org/api_app.html">API-only mode</a> instead. It seemed a bit overkill, but I also didn't want to pass up the chance to finally learn Rails.</p>
 
 <p>The server has two endpoints:</p>
 
 <ul>
-  <li><code class="language-plaintext highlighter-rouge">/ui</code> provides a list of partners and their respective parsers.</li>
-  <li><code class="language-plaintext highlighter-rouge">/columns</code> accepts spreadsheet columns and returns processed data (cell contents and a background colour to indicate our confidence in parsed results).</li>
+<li><code>/ui</code> provides a list of partners and their respective parsers.</li>
+<li><code>/columns</code> accepts spreadsheet columns and returns processed data (cell contents and a background colour to indicate our confidence in parsed results).</li>
 </ul>
+
 
 <p>We needed a way for the server to specify all its operations in a way that they could be invoked through the second endpoint. We decided to use a token-based approach: each parser has a token that can be used to invoke the parser later on. This dovetails with how I structured the parsers, too.</p>
 
-<p>Each partner is defined by a submodule within the <code class="language-plaintext highlighter-rouge">Apogee::Parser</code> module, and each parser is defined by a class within that partner module. Let’s take a look at some code.</p>
+<p>Each partner is defined by a submodule within the <code>Apogee::Parser</code> module, and each parser is defined by a class within that partner module. Let's take a look at some code.</p>
 
-<div class="language-rb highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">module</span> <span class="nn">Apogee</span>
-  <span class="k">module</span> <span class="nn">Parser</span>
-    <span class="k">module</span> <span class="nn">Skinner</span>
-      <span class="kp">extend</span> <span class="no">Apogee</span><span class="o">::</span><span class="no">BaseParser</span>
-      
-      <span class="k">class</span> <span class="nc">DimensionsParser</span>
-        <span class="c1"># Name to show in Add-on UI.</span>
-        <span class="k">def</span> <span class="nc">self</span><span class="o">.</span><span class="nf">menu_name</span>
-          <span class="s2">"Parse dimensions from Description column"</span>
-        <span class="k">end</span>
+<pre><code class="rb">module Apogee
+  module Parser
+    module Skinner
+      extend Apogee::BaseParser
 
-        <span class="c1"># Columns required by the `/columns` endpoint.</span>
-        <span class="k">def</span> <span class="nc">self</span><span class="o">.</span><span class="nf">column_names</span>
-          <span class="sx">%w[Description]</span>
-        <span class="k">end</span>
-        
-        <span class="c1"># Parse the columns, called from the `/columns` endpoint.</span>
-        <span class="k">def</span> <span class="nc">self</span><span class="o">.</span><span class="nf">parse</span><span class="p">(</span><span class="n">columns</span><span class="p">)</span>
-          <span class="c1"># TODO: parse the columns.</span>
-        <span class="k">end</span>
-      <span class="k">end</span>
-    <span class="k">end</span>
-  <span class="k">end</span>
-<span class="k">end</span>
-</code></pre></div></div>
+      class DimensionsParser
+        # Name to show in Add-on UI.
+        def self.menu_name
+          "Parse dimensions from Description column"
+        end
+
+        # Columns required by the `/columns` endpoint.
+        def self.column_names
+          %w[Description]
+        end
+
+        # Parse the columns, called from the `/columns` endpoint.
+        def self.parse(columns)
+          # TODO: parse the columns.
+        end
+      end
+    end
+  end
+end
+</code></pre>
 
 <p>Each class within a partner is expected to have those three class methods.</p>
 
 <p>So now that we have a defined structure for our parsers, we can use Ruby reflection to collect a list of partner modules:</p>
 
-<div class="language-rb highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="no">Parser</span><span class="p">.</span><span class="nf">constants</span>
-  <span class="p">.</span><span class="nf">select</span> <span class="p">{</span> <span class="o">|</span><span class="n">c</span><span class="o">|</span> <span class="no">Parser</span><span class="p">.</span><span class="nf">const_get</span><span class="p">(</span><span class="n">c</span><span class="p">).</span><span class="nf">is_a?</span> <span class="no">Module</span> <span class="p">}</span>
-  <span class="p">.</span><span class="nf">map</span> <span class="k">do</span> <span class="o">|</span><span class="n">c</span><span class="o">|</span>
-    <span class="p">{</span>
-      <span class="ss">name: </span><span class="n">c</span><span class="p">,</span>
-      <span class="ss">operations: </span><span class="no">Parser</span><span class="p">.</span><span class="nf">const_get</span><span class="p">(</span><span class="n">c</span><span class="p">).</span><span class="nf">public_parsers</span>
-    <span class="p">}</span>
-<span class="k">end</span>
-</code></pre></div></div>
+<pre><code class="rb">Parser.constants
+  .select { |c| Parser.const_get(c).is_a? Module }
+  .map do |c|
+    {
+      name: c,
+      operations: Parser.const_get(c).public_parsers
+    }
+end
+</code></pre>
 
-<p>Each module also has a <code class="language-plaintext highlighter-rouge">public_parsers</code> function (inherited from <code class="language-plaintext highlighter-rouge">Apogee::BaseParser</code>) which also uses reflection:</p>
+<p>Each module also has a <code>public_parsers</code> function (inherited from <code>Apogee::BaseParser</code>) which also uses reflection:</p>
 
-<div class="language-rb highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="nf">public_parsers</span>
-  <span class="nb">constants</span>
-    <span class="p">.</span><span class="nf">select</span> <span class="p">{</span> <span class="o">|</span><span class="n">c</span><span class="o">|</span> <span class="nb">const_get</span><span class="p">(</span><span class="n">c</span><span class="p">).</span><span class="nf">is_a?</span> <span class="no">Class</span> <span class="p">}</span>
-    <span class="p">.</span><span class="nf">map</span> <span class="p">{</span> <span class="o">|</span><span class="n">c</span><span class="o">|</span> <span class="nb">const_get</span><span class="p">(</span><span class="n">c</span><span class="p">)</span> <span class="p">}</span>
-    <span class="p">.</span><span class="nf">map</span> <span class="k">do</span> <span class="o">|</span><span class="n">klass</span><span class="o">|</span>
-      <span class="p">{</span>
-        <span class="ss">klass: </span><span class="n">klass</span><span class="p">.</span><span class="nf">to_s</span><span class="p">,</span>
-        <span class="ss">name: </span><span class="n">klass</span><span class="p">.</span><span class="nf">menu_name</span><span class="p">,</span>
-        <span class="ss">columns: </span><span class="n">klass</span><span class="p">.</span><span class="nf">column_names</span><span class="p">,</span>
-        <span class="ss">token: </span><span class="no">Digest</span><span class="o">::</span><span class="no">SHA256</span><span class="p">.</span><span class="nf">base64digest</span><span class="p">(</span><span class="n">klass</span><span class="p">.</span><span class="nf">to_s</span><span class="p">)</span>
-      <span class="p">}</span>
-    <span class="k">end</span>
-<span class="k">end</span>
-</code></pre></div></div>
+<pre><code class="rb">def public_parsers
+  constants
+    .select { |c| const_get(c).is_a? Class }
+    .map { |c| const_get(c) }
+    .map do |klass|
+      {
+        klass: klass.to_s,
+        name: klass.menu_name,
+        columns: klass.column_names,
+        token: Digest::SHA256.base64digest(klass.to_s)
+      }
+    end
+end
+</code></pre>
 
-<p>This code collects all the Ruby classes inside a module into a data structure that can be consumed by the Apogee Add-on through the <code class="language-plaintext highlighter-rouge">/ui</code> endpoint. As a bonus, the tokens are generated from the SHA256 hash of the fully-qualified parser class names. And we also avoid having to maintain a separate list of parsers that I would inevitably forget to update. Win-win.</p>
+<p>This code collects all the Ruby classes inside a module into a data structure that can be consumed by the Apogee Add-on through the <code>/ui</code> endpoint. As a bonus, the tokens are generated from the SHA256 hash of the fully-qualified parser class names. And we also avoid having to maintain a separate list of parsers that I would inevitably forget to update. Win-win.</p>
 
-<p>All that’s left to do is to lookup a parser class from a token. This is as easy as finding the class with the matching token and calling its <code class="language-plaintext highlighter-rouge">parse</code> function.</p>
+<p>All that's left to do is to lookup a parser class from a token. This is as easy as finding the class with the matching token and calling its <code>parse</code> function.</p>
 
-<div class="language-rb highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">parser</span> <span class="o">=</span> <span class="n">partners</span>
-  <span class="p">.</span><span class="nf">map</span> <span class="p">{</span> <span class="o">|</span><span class="nb">p</span><span class="o">|</span> <span class="nb">p</span><span class="p">[</span><span class="ss">:operations</span><span class="p">]</span> <span class="p">}</span>
-  <span class="p">.</span><span class="nf">flatten</span>
-  <span class="p">.</span><span class="nf">find</span> <span class="p">{</span> <span class="o">|</span><span class="n">op</span><span class="o">|</span> <span class="n">op</span><span class="p">[</span><span class="ss">:token</span><span class="p">]</span> <span class="o">==</span> <span class="n">token</span> <span class="p">}</span>
-<span class="no">Object</span><span class="p">.</span><span class="nf">const_get</span><span class="p">(</span><span class="n">parser</span><span class="p">[</span><span class="ss">:klass</span><span class="p">]).</span><span class="nf">parse</span><span class="p">(</span><span class="n">columns</span><span class="p">)</span>
-</code></pre></div></div>
+<pre><code class="rb">parser = partners
+  .map { |p| p[:operations] }
+  .flatten
+  .find { |op| op[:token] == token }
+Object.const_get(parser[:klass]).parse(columns)
+</code></pre>
 
 <p>Neat!</p>
 
-<p>This approach is <em>good</em>, but strikes me as overly object-oriented. <em>Most</em> of the parsers we’re going to write are going to do the same thing: they have the same three methods and the <code class="language-plaintext highlighter-rouge">parse</code> method is basically just matching each spreadsheet cell against a regular expression. We can make a better abstraction.</p>
+<p>This approach is <em>good</em>, but strikes me as overly object-oriented. <em>Most</em> of the parsers we're going to write are going to do the same thing: they have the same three methods and the <code>parse</code> method is basically just matching each spreadsheet cell against a regular expression. We can make a better abstraction.</p>
 
 <p>Since the parsers are defined by the presence of a class within a partner module, we can use metaprogramming to abstract away all the common pieces and add classes to the module programmatically. The implementation is too in-depth to explain in detail here, but our partner module above could be rewritten to look like the following:</p>
 
-<div class="language-rb highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">module</span> <span class="nn">Apogee</span>
-  <span class="k">module</span> <span class="nn">Parser</span>
-    <span class="k">module</span> <span class="nn">Skinner</span>
-      <span class="kp">extend</span> <span class="no">Apogee</span><span class="o">::</span><span class="no">BaseParser</span>
-      
-      <span class="n">add_single_column_parser</span><span class="p">(</span>
-        <span class="ss">class_name: </span><span class="s1">'DimensionsParser'</span><span class="p">,</span>
-        <span class="ss">menu_name: </span><span class="s1">'Parse dimensions from Description column'</span><span class="p">,</span>
-        <span class="ss">column_name: </span><span class="s1">'Description'</span><span class="p">,</span>
-        <span class="ss">regex: </span><span class="sr">%r{REGEX GOES HERE}</span><span class="p">,</span>
-        <span class="ss">new_columns: </span><span class="sx">%w[Height Width Depth Unit]</span>
-      <span class="p">)</span> <span class="k">do</span> <span class="o">|</span><span class="n">match</span><span class="o">|</span>
-        <span class="c1"># TODO: Process each cell.</span>
-      <span class="k">end</span>
-    <span class="k">end</span>
-  <span class="k">end</span>
-<span class="k">end</span>
-</code></pre></div></div>
+<pre><code class="rb">module Apogee
+  module Parser
+    module Skinner
+      extend Apogee::BaseParser
 
-<p>I created two such methods: one that uses a single regex, and another that uses multiple regexes (for more complex needs). I also wrote a handy <code class="language-plaintext highlighter-rouge">add_all_parser</code> method which adds a sort of meta-parser, which collates the results from calling <code class="language-plaintext highlighter-rouge">parse</code> on all the <em>other</em> parsers in that module. Our Ops team just needs to click “Parse everything” and the entire spreadsheet is processed with all the parsers in seconds.</p>
+      add_single_column_parser(
+        class_name: 'DimensionsParser',
+        menu_name: 'Parse dimensions from Description column',
+        column_name: 'Description',
+        regex: %r{REGEX GOES HERE},
+        new_columns: %w[Height Width Depth Unit]
+      ) do |match|
+        # TODO: Process each cell.
+      end
+    end
+  end
+end
+</code></pre>
+
+<p>I created two such methods: one that uses a single regex, and another that uses multiple regexes (for more complex needs). I also wrote a handy <code>add_all_parser</code> method which adds a sort of meta-parser, which collates the results from calling <code>parse</code> on all the <em>other</em> parsers in that module. Our Ops team just needs to click "Parse everything" and the entire spreadsheet is processed with all the parsers in seconds.</p>
 
 <p>And of course, since all our parsers are just Ruby classes, they were easy to unit test.</p>
 
-<p>I’ve done metaprogramming in other languages, and it was a lot of fun to use it in Ruby. I ran the code by my colleagues who are more experienced in Ruby than I am, and documented everything thoroughly. It’s a real shame the codebase isn’t open source, because I’m really proud of the approach and would love to share it with you.</p>
+<p>I've done metaprogramming in other languages, and it was a lot of fun to use it in Ruby. I ran the code by my colleagues who are more experienced in Ruby than I am, and documented everything thoroughly. It's a real shame the codebase isn't open source, because I'm really proud of the approach and would love to share it with you.</p>
 
-<h2 id="apogee-authentication">Apogee Authentication</h2>
+<a name="Apogee.Authentication"></a>
+<h2>Apogee Authentication</h2>
 
-<p>We needed to make sure that only the Add-on itself was invoking the server’s endpoints. Not because the server has sensitive data – Apogee’s server has no database and doesn’t access any APIs – but just because it’s good practice to limit access to services to only who needs them.</p>
+<p>We needed to make sure that only the Add-on itself was invoking the server's endpoints. Not because the server has sensitive data – Apogee's server has no database and doesn't access any APIs – but just because it's good practice to limit access to services to only who needs them.</p>
 
 <p>We evaluated a bunch of prospective auth strategies, including (but not limited to) the following:</p>
 
 <ul>
-  <li>Whitelist Google datacentre IP addresses, block all others.</li>
-  <li>HTTP Basic Auth.</li>
-  <li>Shared secret.</li>
-  <li>OAuth with Artsy’s API, by the user upon Add-on installation.</li>
-  <li>Something totally custom, or a combination of any of these.</li>
+<li>Whitelist Google datacentre IP addresses, block all others.</li>
+<li>HTTP Basic Auth.</li>
+<li>Shared secret.</li>
+<li>OAuth with Artsy's API, by the user upon Add-on installation.</li>
+<li>Something totally custom, or a combination of any of these.</li>
 </ul>
 
-<p>After thoughtful discussion, we decided on a solution that works for us. I’m not going to specify what we used – not because I’m that concerned about the security, but because each project and team will have their own needs. If you build a server, think carefully about what kind of authentication makes sense for you and your team.</p>
 
-<h2 id="conclusion">Conclusion</h2>
+<p>After thoughtful discussion, we decided on a solution that works for us. I'm not going to specify what we used – not because I'm that concerned about the security, but because each project and team will have their own needs. If you build a server, think carefully about what kind of authentication makes sense for you and your team.</p>
 
-<p>Apogee was a really fun project. It had a defined scope, so it was a good first Rails project for me to tackle. The Add-on helps my colleagues on the Auctions Ops team do their jobs easier, so it was intrinsically rewarding to build. And it turns out that our Gallery Partnerships team also has to import a lot of partner data into Artsy’s CMS, so I’m now exploring ways Apogee can help them, too.</p>
+<a name="Conclusion"></a>
+<h2>Conclusion</h2>
 
-<p>As a closing note, I want to discuss something that’s been on my mind lately. I’ve been developing iOS apps <a href="https://ashfurrow.com/blog/5-years-of-ios/">since 2009</a>, and have a <a href="https://ashfurrow.com/books/">very intimate knowledge</a> of Objective-C, Swift, and UIKit. For a long time, I actually avoided learning new languages and frameworks because they intimidated me – starting over in a new framework, from scratch, felt like a step backward.</p>
+<p>Apogee was a really fun project. It had a defined scope, so it was a good first Rails project for me to tackle. The Add-on helps my colleagues on the Auctions Ops team do their jobs easier, so it was intrinsically rewarding to build. And it turns out that our Gallery Partnerships team also has to import a lot of partner data into Artsy's CMS, so I'm now exploring ways Apogee can help them, too.</p>
 
-<p>I think this is a common frame of mind, among iOS developers, among all developers. But now I regret avoiding new technology for so long. The languages and tools that I knew had become part of my identity: I was an “iOS Developer.” That identity was a source of strength, but was also a limitation.</p>
+<p>As a closing note, I want to discuss something that's been on my mind lately. I've been developing iOS apps <a href="https://ashfurrow.com/blog/5-years-of-ios/">since 2009</a>, and have a <a href="https://ashfurrow.com/books/">very intimate knowledge</a> of Objective-C, Swift, and UIKit. For a long time, I actually avoided learning new languages and frameworks because they intimidated me – starting over in a new framework, from scratch, felt like a step backward.</p>
 
-<p>Developers solve problems. Sometimes those problems are best solved with iOS apps. And sometimes, they’re best solved with spreadsheet plugins. After <a href="https://ashfurrow.com/blog/swift-vs-react-native-feels/">realizing</a> last year that I was limiting myself, I’m still coming to terms with how that impacts my identity. But I’ll say this: if <em>I</em> can leave the safety blanket of the iOS world and build something completely new, so can you. Don’t let your expertise and experience limit what you think you can build.</p>
+<p>I think this is a common frame of mind, among iOS developers, among all developers. But now I regret avoiding new technology for so long. The languages and tools that I knew had become part of my identity: I was an "iOS Developer." That identity was a source of strength, but was also a limitation.</p>
+
+<p>Developers solve problems. Sometimes those problems are best solved with iOS apps. And sometimes, they're best solved with spreadsheet plugins. After <a href="https://ashfurrow.com/blog/swift-vs-react-native-feels/">realizing</a> last year that I was limiting myself, I'm still coming to terms with how that impacts my identity. But I'll say this: if <em>I</em> can leave the safety blanket of the iOS world and build something completely new, so can you. Don't let your expertise and experience limit what you think you can build.</p>
 
 <hr />
 
-<p><em>Editor’s Note: This post has been updated as part of an effort to adopt more inclusive language across Artsy’s
+<p><em>Editor's Note: This post has been updated as part of an effort to adopt more inclusive language across Artsy's
 GitHub repositories and editorial content (<a href="https://github.com/artsy/README/issues/427">RFC</a>).</em></p>
-
 ]]></content>
   </entry>
   
   <entry>
-    <title type="html"><![CDATA[Debugging Bundler Issues on Heroku]]></title>
-    <link href="https://artsy.github.io/blog/2013/01/15/debugging-bundler-issues-with-heroku/"/>
-    <updated>2013-01-15T21:21:00+00:00</updated>
-    <id>https://artsy.github.io/blog/2013/01/15/debugging-bundler-issues-with-heroku</id>
-    <content type="html"><![CDATA[<p>A few days ago we have started seeing the Heroku deployments of one of our applications randomly hang during <code class="language-plaintext highlighter-rouge">bundle install</code>. The problem worsened with time and we were not able to do a deployment for days.</p>
+    <title type="html"><![CDATA[Using OCR To Fix a Hilarious Bug]]></title>
+    <link href="https://artsy.github.io/blog/2015/11/05/Using-OCR-To-Fix-A-Hilarious-Bug/"/>
+    <updated>2015-11-05T00:00:00+00:00</updated>
+    <id>https://artsy.github.io/blog/2015/11/05/Using-OCR-To-Fix-A-Hilarious-Bug</id>
+    <content type="html"><![CDATA[<p>For a little while, we would get very strange bug reports. People would complain that artist thumbnails (viewed in several different contexts across the web and our iOS apps) would not be an image of the artist's work, but rather text, which had inexplicably become an actual JPG. This wasn't just text appearing in a <code>div</code> that should contain an <code>img</code> or something like that, these were actual JPG's that were pictures of text.</p>
 
-<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ git push -f git@heroku.com:application.git FETCH_HEAD:master
------&gt; Deleting 12 files matching .slugignore patterns.
------&gt; Ruby/Rails app detected
------&gt; Using Ruby version: ruby-1.9.3
------&gt; Installing dependencies using Bundler version 1.3.0.pre.5
-       Running: bundle install --without development:test --path vendor/bundle --binstubs vendor/bundle/bin
-       Fetching gem metadata from http://rubygems.org/.......
-       Fetching gem metadata from http://rubygems.org/..
-/app/slug-compiler/lib/utils.rb:66:in `block (2 levels) in spawn': command='/app/slug-compiler/lib/../../tmp/buildpacks/ruby/bin/compile /tmp/build_1p6071sni4hh1 /app/tmp/repo.git/.cache' exit_status=0 out='' at=timeout elapsed=900.1056394577026 (Utils::TimeoutError)
-  from /app/slug-compiler/lib/utils.rb:52:in `loop'
-  from /app/slug-compiler/lib/utils.rb:52:in `block in spawn'
-  from /app/slug-compiler/lib/utils.rb:47:in `popen'
-  from /app/slug-compiler/lib/utils.rb:47:in `spawn'
-  from /app/slug-compiler/lib/buildpack.rb:37:in `block in compile'
-  from /app/slug-compiler/lib/buildpack.rb:35:in `fork'
-  from /app/slug-compiler/lib/buildpack.rb:35:in `compile'
-  from /app/slug-compiler/lib/slug.rb:497:in `block in run_buildpack'
- !     Heroku push rejected, failed to compile Ruby/rails app
-</code></pre></div></div>
+<p>We would fix these as they came up, chalking the strangeness up to some relic of an old image processing pipeline, data being migrated, etc.</p>
 
-<p>Seeing bundler hang on “Fetching gem metadata from http://rubygems.org/”, my immediate reaction was to blame the RubyGems Dependency API for its poor performance and attempt the <a href="http://hone.herokuapp.com/bundler%20heroku/2012/10/22/rubygems-and-the-dependency-api.html">recommended workaround</a> of switching to <em>http://bundler-api.herokuapp.com</em>. That didn’t work.</p>
-
-<p>I also tried to reproduce the issue on a local environment, including a (what I thought was) a completely clean machine at no avail. My <code class="language-plaintext highlighter-rouge">bundle install</code> would always succeed.</p>
-
-<p>Finally, everything pointed at an infrastructure problem with Heroku itself, so I opened a ticket (#72648), <a href="https://twitter.com/dblockdotorg/status/290221530892365824">tweeted</a> endlessly to Heroku devs, pinged a  contact at Heroku on Skype and generally annoyed people for 5 straight days. It was a frustrating problem and I was getting no useful help.</p>
-
-<p>Fast forward, this turned out to be <a href="https://github.com/carlhuda/bundler/issues/2248">an issue in Bundler</a>. Narrowing it down would have been relatively easy if I had known where to look.</p>
-
-<p>I hope this post helps you with similar issues.</p>
+<p>However, the reports kept coming in. This blog post is about how we diagnosed this actual bug, and how we used a simple Ruby script and OCR to help us detect and fix the existing images.</p>
 
 <!-- more -->
 
-<h2 id="heroku-slug-compiler">Heroku Slug Compiler</h2>
 
-<p>Heroku provides small Ubuntu virtual machines on-demand, called “dynos”, that look very much like any other Linux box. You can <code class="language-plaintext highlighter-rouge">heroku run bash</code> and examine the file system of a running dyno. You can delete the bundler cache, rerun <code class="language-plaintext highlighter-rouge">bundle install</code>, etc. But deployment does not happen in a running dyno - every time you push to Heroku, deployment happens inside a compiler dyno. Heroku attaches the dyno to your slug filesystem (your code), which may include a cache from previous runs. It then executes the code inside <a href="https://github.com/heroku/heroku-buildpack-ruby">heroku-buildpack-ruby</a>, specifically <a href="https://github.com/heroku/heroku-buildpack-ruby/blob/5dbf4c06c765dc832c073fe5be9360533fd1846d/lib/language_pack/ruby.rb#L49">this method</a>.</p>
+<p>Here's an example of a bug report where the thumbnail for <a href="https://www.artsy.net/artist/marina-abramovic-1">Marina Abramović</a> became the text of her bio.</p>
 
-<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="nf">compile</span>
-  <span class="no">Dir</span><span class="p">.</span><span class="nf">chdir</span><span class="p">(</span><span class="n">build_path</span><span class="p">)</span>
-  <span class="n">remove_vendor_bundle</span>
-  <span class="n">install_ruby</span>
-  <span class="n">install_jvm</span>
-  <span class="n">setup_language_pack_environment</span>
-  <span class="n">setup_profiled</span>
-  <span class="n">allow_git</span> <span class="k">do</span>
-    <span class="n">install_language_pack_gems</span>
-    <span class="n">build_bundler</span>
-    <span class="n">create_database_yml</span>
-    <span class="n">install_binaries</span>
-    <span class="n">run_assets_precompile_rake_task</span>
-  <span class="k">end</span>
-<span class="k">end</span>
-</code></pre></div></div>
+<p><img src="/images/2015-11-12-hilarious-bug/search.png" alt="Bad Search" /></p>
 
-<p>A lot of these functions invoke <code class="language-plaintext highlighter-rouge">IO.open</code> and transmit <code class="language-plaintext highlighter-rouge">$stdout</code> and <code class="language-plaintext highlighter-rouge">$stderr</code> back to you. You see everything Heroku sees and while you cannot get access to the compiler dyno, there’s really no mystery to this process. Heroku slug compiler will timeout after 15 minutes and produce a stack with <code class="language-plaintext highlighter-rouge">Utils::TimeoutError</code>. And everything Heroku does should be reproducible locally.</p>
+<p>Here's one from our <a href="https://github.com/artsy/eigen">iOS app</a> showing that thumbnails for related artists are set to their bios as well.</p>
 
-<h2 id="troubleshooting-bundler">Troubleshooting Bundler</h2>
+<p><img src="/images/2015-11-12-hilarious-bug/eigen.png" alt="Bad Related Artists" /></p>
 
-<p>The key to getting a repro of my issue locally was to use the <a href="https://github.com/carlhuda/bundler/blob/master/ISSUES.md">Bundler Troubleshooting</a> section. I had previously missed one of the steps in cleaning the local Bundler cache.</p>
+<p>Weird right? We eventually tracked down what was going on, and it's actually perfectly summarized in <a href="https://github.com/blueimp/jQuery-File-Upload/pull/3356">this issue</a>. When someone copies text from Excel, it also generates an image of that cell or cells, and puts it into the clipboard. We immediately suspected something with <code>pasteZone</code>, and the bug was easy to reproduce - have an image in your clipboard and paste anywhere on the page.</p>
 
-<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code># remove user-specific gems and git repos
-rm -rf ~/.bundle/ ~/.gem/bundler/ ~/.gems/cache/bundler/
+<p>We have an admin panel that allows some metadata about an artist to be edited. This includes their bio, as well as a place to upload a representative image as their 'cover thumbnail'.</p>
 
-# remove system-wide git repos and git checkouts
-rm -rf $GEM_HOME/bundler/ $GEM_HOME/cache/bundler/
+<p>As the issue describes, we had some text input fields, as well as a file upload form using <a href="https://github.com/blueimp/jQuery-File-Upload">Blueimp's jQuery File Upload</a>. When you don't specify a <code>pasteZone</code> it defaults to the entire document. This means that a paste event anywhere on the page will trigger that event.</p>
 
-# remove project-specific settings and git repos
-rm -rf .bundle/
+<p>Our editorial team was using Microsoft Excel and Word to organize some data about the artist, including bios. When ready, a team member would copy and paste the bio into the bio input text field. This would also immediately fire the event for the image upload, which now automagically became an actual picture of the text of the bio. Our API and image processing pipeline would happily accept that, leading to the incredibly bizarre bug reports.</p>
 
-# remove project-specific cached .gem files
-rm -rf vendor/cache/
+<p>My immediate fix was to specify and scope <code>pasteZone</code> (and similarly, <code>dropZone</code>) to the element the file upload widget was bound to. That would prevent the problem from happening again. Taking a quick look art some random samples of artists, it looked like potentially thousands of records might have been affected and I became interested in a programmatic way to detect these images. A manual approach would have been very cumbersome.</p>
 
-# remove the saved resolve of the Gemfile
-rm -rf Gemfile.lock
+<p>Since the images were that of text, I decided to use OCR to remove artist thumbnails that it determined had 'too much text'. This may have unset valid covers from artists that use lots of text in their work, such as <a href="https://www.artsy.net/artist/joseph-kosuth">Joseph Kosuth</a>. However, this was safe to do since we have some custom logic to fall back to an image of an iconic artwork by the artist in the case of a missing thumbnail.</p>
 
-# uninstall the rubygems-bundler and open_gem gems
-rvm gemset use global # if using rvm
-gem uninstall rubygems-bundler open_gem
+<p>To get OCR functionality in Ruby, I decided to use <a href="https://github.com/tesseract-ocr/tesseract">Tesseract</a>, a great OSS library. Once I had it installed, I used a <a href="https://github.com/meh/ruby-tesseract-ocr">ruby wrapper</a> to make using it easier.</p>
 
-# try to install one more time
-bundle install
-</code></pre></div></div>
+<p>The script eventually turned into something like:</p>
 
-<p>This hung with my Gemfile the same way as on Heroku.</p>
-
-<h2 id="bundler-dependency-resolver">Bundler Dependency Resolver</h2>
-
-<p>So what is bundler doing?</p>
-
-<p>Bundler runs the gem dependency resolver, which is described in detail in <a href="http://patshaughnessy.net/2011/9/24/how-does-bundler-bundle">Pat Shaughnessy’s blog post</a>. The post suggests running <code class="language-plaintext highlighter-rouge">DEBUG_RESOLVER=1 bundle install</code>, which produced a mountain of output that isn’t very helpful.</p>
-
-<p>I made a <a href="https://github.com/carlhuda/bundler/pull/2249">pull request</a> with a similar setting called <code class="language-plaintext highlighter-rouge">DEBUG_RESOLVER_TREE</code>, which reduces the output to the gems being resolved. This helped me narrow down a <a href="https://github.com/carlhuda/bundler/issues/2248">small repro</a>. I was also able to make some sense of what bundler was doing: backtracking in an attempt to find a combination of gems matching the versions declared in <code class="language-plaintext highlighter-rouge">Gemfile</code> for every combinations of <code class="language-plaintext highlighter-rouge">railties</code>, <code class="language-plaintext highlighter-rouge">actionmailer</code>, <code class="language-plaintext highlighter-rouge">activeresource</code>, <code class="language-plaintext highlighter-rouge">activerecord</code>, <code class="language-plaintext highlighter-rouge">actionpack</code> and <code class="language-plaintext highlighter-rouge">builder</code> above version 3.2, only to fail to find a compatible version of <code class="language-plaintext highlighter-rouge">builder</code> every single time. That’s a lot of versions to try.</p>
-
-<p>Adding an entry for <code class="language-plaintext highlighter-rouge">builder</code> to <code class="language-plaintext highlighter-rouge">Gemfile</code> fixed the issue.</p>
-
-<p>Similar issues to my <a href="https://github.com/carlhuda/bundler/issues/2248">#2248</a> in Bundler have been reported in <a href="https://github.com/carlhuda/bundler/issues/2030">#2030</a>, <a href="https://github.com/carlhuda/bundler/issues/2090">#2090</a> and <a href="https://github.com/carlhuda/bundler/issues/2125">#2125</a>.</p>
-
-<h2 id="troubleshooting-tip">Troubleshooting Tip</h2>
-
-<p>If you remember anything from this post, next time you have a hang inside <code class="language-plaintext highlighter-rouge">bundle install</code> on or off Heroku, start with <a href="https://github.com/carlhuda/bundler/blob/master/ISSUES.md">Bundler Troubleshooting</a>.</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Beat Heroku's 60 Seconds Application Boot Timeout with a Proxy]]></title>
-    <link href="https://artsy.github.io/blog/2012/12/13/beat-heroku-60-seconds-application-boot-timeout-with-a-proxy/"/>
-    <updated>2012-12-13T21:21:00+00:00</updated>
-    <id>https://artsy.github.io/blog/2012/12/13/beat-heroku-60-seconds-application-boot-timeout-with-a-proxy</id>
-    <content type="html"><![CDATA[<p><img src="/images/2012-12-13-beat-heroku-60-seconds-application-boot-timeout-with-a-proxy/heroku-logo-light-234x60.png" /></p>
-
-<p>Heroku will log an <a href="https://devcenter.heroku.com/articles/error-codes#r10-boot-timeout">R10 - Boot Timeout</a> error when a web process takes longer than 60 seconds to bind to its assigned port. This error is often caused by a process being unable to reach an external resource, such as a database or because you have a lot of gems in your <code class="language-plaintext highlighter-rouge">Gemfile</code> which take a long time to load.</p>
-
-<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Dec 12 12:12:12 prod heroku/web.1:
-  Error R10 (Boot timeout)
-  Web process failed to bind to $PORT within 60 seconds of launch
-</code></pre></div></div>
-
-<p>There’s currently no way to increase this boot timeout, but we can beat it with a proxy implemented by our new <a href="https://github.com/dblock/heroku-forward">heroku-forward</a> gem.</p>
-
-<!-- more -->
-
-<p>The concepts for <code class="language-plaintext highlighter-rouge">heroku-forward</code> come from <a href="http://noverloop.be/beating-herokus-60s-boot-times-with-the-cedar-stack-and-a-reverse-proxy/">this article</a> by Nicolas Overloop. The basic idea is to have a proxy bind to the port immediately and then buffer requests until the backend came up. The proxy implementation is Ilya Grigorik’s <a href="https://github.com/igrigorik/em-proxy">em-proxy</a>. Communication between the proxy and the backend happens over a unix domain socket (a file), which needed a bit of work (see <a href="https://github.com/igrigorik/em-proxy/pull/31">#31</a>), inspired by an excellent article, <a href="http://jgwmaxwell.com/fighting-the-unicorns-becoming-a-thin-wizard-on-heroku">Fighting the Unicorns: Becoming a Thin Wizard on Heroku</a> by JGW Maxwell. The <code class="language-plaintext highlighter-rouge">heroku-forward</code> gem connects all the dots.</p>
-
-<p>Check out the gem’s <a href="https://github.com/dblock/heroku-forward/blob/master/README.md">README</a> for how to set it up.</p>
-
-<p>Here’s the log output from an application that uses this gem. Notice that Heroku reports the state of <code class="language-plaintext highlighter-rouge">web.1</code> up after just 4 seconds, while the application takes 67 seconds to boot.</p>
-
-<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>2012-12-11T23:33:42+00:00 heroku[web.1]: Starting process with command `bundle exec ruby config.ru`
-2012-12-11T23:33:46+00:00 app[web.1]:  INFO -- : Launching Backend ...
-2012-12-11T23:33:46+00:00 app[web.1]:  INFO -- : Launching Proxy Server at 0.0.0.0:42017 ...
-2012-12-11T23:33:46+00:00 app[web.1]: DEBUG -- : Attempting to connect to /tmp/thin20121211-2-1bfazzx.
-2012-12-11T23:33:46+00:00 app[web.1]:  WARN -- : no connection, 10 retries left.
-2012-12-11T23:33:46+00:00 heroku[web.1]: State changed from starting to up
-2012-12-11T23:34:32+00:00 app[web.1]: &gt;&gt; Thin web server (v1.5.0 codename Knife)
-2012-12-11T23:34:32+00:00 app[web.1]: &gt;&gt; Maximum connections set to 1024
-2012-12-11T23:34:32+00:00 app[web.1]: &gt;&gt; Listening on /tmp/thin20121211-2-1bfazzx, CTRL+C to stop
-2012-12-11T23:34:53+00:00 app[web.1]: DEBUG -- : Attempting to connect to /tmp/thin20121211-2-1bfazzx.
-2012-12-11T23:34:53+00:00 app[web.1]: DEBUG -- : Proxy Server ready at 0.0.0.0:42017 (67s).
-</code></pre></div></div>
-
-<p>You can read more about how we use Heroku at <a href="http://success.heroku.com/artsy">http://success.heroku.com/artsy</a>.</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Measuring Performance in Grape APIs with NewRelic RPM]]></title>
-    <link href="https://artsy.github.io/blog/2012/11/29/measuring-performance-in-grape-apis-with-new-relic/"/>
-    <updated>2012-11-29T21:21:00+00:00</updated>
-    <id>https://artsy.github.io/blog/2012/11/29/measuring-performance-in-grape-apis-with-new-relic</id>
-    <content type="html"><![CDATA[<p>Knowing how well your API performs in real time is essential to any successful project. That’s because you can’t fix what you can’t measure.</p>
-
-<p>We use and heavily contribute to <a href="http://github.com/intridea/grape">Grape</a>, a Ruby API DSL. Grape is a Rack middleware and we have been reporting API performance data to <a href="http://newrelic.com/">NewRelic</a> with code from <a href="http://code.dblock.org/new-relic-performance-instrumentation-with-grape-api">my older blog post</a>.</p>
-
-<p>It’s time to improve the reporting implementation and address performance monitoring in both development and production environments. Here’s what a single API request breakdown is going to look like.</p>
-
-<p><img src="/images/2012-11-29-measuring-performance-in-grape-apis-with-new-relic/transaction-detail.png" /></p>
-
-<!-- more -->
-
-<h2 id="newrelic-rpm">NewRelic RPM</h2>
-
-<p>The first step is to add the <code class="language-plaintext highlighter-rouge">newrelic_rpm</code> gem to Gemfile, which implements the actual realtime performance reporting to NewRelic. We also use <a href="https://github.com/mongoid/mongoid">Mongoid</a> and the <a href="https://github.com/mongoid/moped">Moped</a> MongoDB Ruby driver, which can be instrumented with <code class="language-plaintext highlighter-rouge">newrelic_moped</code>.</p>
-
-<p>``` ruby Gemfile
-gem “newrelic_moped”, “0.0.3”
-gem “newrelic_rpm”, “3.3.3”</p>
-<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
-You will need `config/newrelic.yml` in your application. Ours can be found in [this gist](https://gist.github.com/4170458) and works well both locally and on Heroku.
-
-Instrumenting Grape
--------------------
-
-In the past we used [NewRelic::Agent::Instrumentation::API](https://gist.github.com/1233422), which works for any generic Rack middleware. This would report all API calls to NewRelic, but would treat requests to */api/artist/andy-warhol* and */api/artist/wassily-kandinsky* as unrelated. That is because the instrumenter is a Rack middleware that wraps Grape requests *before* they reach Grape. The only information available is the request URL, and not the actual API route that is going to be matched when the request is processed.
-
-We want both requests to */api/artist/andy-warhol* and */api/artist/wassily-kandinsky* to be treated as */api/artist/:id*. Lets insert a middleware inside Grape itself, once the URL has been matched to a route.
-
-``` ruby api.rb
-class API &lt;&lt; Grape::API
-  use ApiNewRelicInstrumenter
-  ...
+<pre><code class="ruby"># initialize and configure Tesseract
+engine = Tesseract::Engine.new do |config|
+  config.language  = :eng
+  config.blacklist = '|'
 end
-</code></pre></div></div>
 
-<p>The new instrumenter has access to the current API endpoint via <code class="language-plaintext highlighter-rouge">env['api.endpoint']</code> and reports data via NewRelic’s <code class="language-plaintext highlighter-rouge">ControllerInstrumentation</code>.</p>
+# iterate over artists and pull their thumbnails
+# given the URL to a publicly accessible image at img
 
-<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">class</span> <span class="nc">ApiNewRelicInstrumenter</span> <span class="o">&lt;</span> <span class="no">Grape</span><span class="o">::</span><span class="no">Middleware</span><span class="o">::</span><span class="no">Base</span>
-  <span class="kp">include</span> <span class="no">NewRelic</span><span class="o">::</span><span class="no">Agent</span><span class="o">::</span><span class="no">Instrumentation</span><span class="o">::</span><span class="no">ControllerInstrumentation</span>
+text = engine.text_for(img)
+text = text.gsub(/[^a-z ]/i, '').gsub(' ', '')
+if text.length &gt; 30
+  puts "Found problematic artist #{artist_doc['last']}"
+  # ...
+end
+</code></pre>
 
-  <span class="k">def</span> <span class="nf">call</span><span class="p">(</span><span class="n">env</span><span class="p">)</span>
-    <span class="n">trace_options</span> <span class="o">=</span> <span class="p">{</span>
-      <span class="ss">category: :rack</span><span class="p">,</span>
-      <span class="ss">path: </span><span class="n">env</span><span class="p">[</span><span class="s1">'api.endpoint'</span><span class="p">].</span><span class="nf">routes</span><span class="p">.</span><span class="nf">first</span><span class="p">.</span><span class="nf">route_path</span><span class="p">,</span>
-      <span class="ss">request: </span><span class="n">request</span><span class="p">,</span>
-      <span class="o">...</span>
-    <span class="p">}</span>
+<p>So all we do is find all the text in an image, and then remove any garbage characters or artifacts from the OCR analysis, and then use 30 as an arbitrary cutoff to determine if an image was problematic. If the image had more than 30 characters as detected by the OCR library, we wound up unsetting it from the artist.</p>
 
-    <span class="n">perform_action_with_newrelic_trace</span><span class="p">(</span><span class="n">trace_options</span><span class="p">)</span> <span class="k">do</span>
-      <span class="k">yield</span>
-    <span class="k">end</span>
+<p>The additional logic to set artist covers from their iconic artworks was already in place, and I ran this script in production, identifying and unsetting over 1000 problematic thumbnails. And we haven't gotten any new reports of this bug since then :)</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Splitting up a large test suite]]></title>
+    <link href="https://artsy.github.io/blog/2015/09/24/splitting-up-a-large-test-suite/"/>
+    <updated>2015-09-24T22:13:00+00:00</updated>
+    <id>https://artsy.github.io/blog/2015/09/24/splitting-up-a-large-test-suite</id>
+    <content type="html"><![CDATA[<p>A while back, we wrote about <a href="/blog/2012/10/09/how-to-run-rspec-test-suites-in-parallel-with-jenkins-ci-build-flow/">How to Run RSpec Test Suites in Parallel with Jenkins CI Build Flow</a>. A version of that still handles our largest test suite, but over time the initial division of specs became unbalanced. We ended up with some tasks that took twice as long as others. Even worse, in an attempt to rebalance task times, we ended up with awkward file patterns like <code>'spec/api/**/[a-m]*_spec.rb'</code>.</p>
 
-  <span class="k">end</span>
-<span class="k">end</span>
-</code></pre></div></div>
+<p>To keep our parallel spec tasks approximately equal in size and to support arbitrary concurrency, we've added a new <code>spec:sliced</code> task:</p>
 
-<p>The complete code for <code class="language-plaintext highlighter-rouge">ApiNewRelicInstrumenter</code> can be found in <a href="https://gist.github.com/4170469">this gist</a>. It supports enabling and disabling performance reporting by setting <code class="language-plaintext highlighter-rouge">NEW_RELIC_ID</code> and works around NewRelic’s method name limitations (these cannot contain slashes).</p>
+<!-- more -->
 
-<h2 id="development-environment">Development Environment</h2>
 
-<p>You can now see NewRelic performance data in development mode, too. If you mount Grape inside Rails run <code class="language-plaintext highlighter-rouge">NEW_RELIC_ID=foo rails s</code>. Navigate to <em>http://localhost:3000/newrelic</em> to see your local traces.</p>
+<pre><code class="ruby">namespace :spec do
+  task :set_up_spec_files do
+    spec_files = Dir['spec/**/*_spec.rb']
+    @spec_file_digests = Hash[spec_files.map { |f| [f, Zlib.crc32(f)] }]
+  end
 
-<p><img src="/images/2012-11-29-measuring-performance-in-grape-apis-with-new-relic/developer-mode.png" /></p>
+  RSpec::Core::RakeTask.new(:sliced, [:index, :concurrency] =&gt; :set_up_spec_files) do |t, args|
+    index = args[:index].to_i
+    concurrency = args[:concurrency].to_i
+    t.pattern = @spec_file_digests.select { |f, d| d % concurrency == index }.keys
+  end
+end
+</code></pre>
 
-<p>Drill into an individual request to find several detailed breakdowns of how time was spent, including specific MongoDB queries (under “SQL”, naturally).</p>
+<p>As you can see, the <code>set_up_spec_files</code> helper task builds a hash of spec file paths and corresponding checksums. When we invoke the <code>sliced</code> task with <code>index</code> and <code>concurrency</code> values (e.g., <code>0</code> and <code>5</code>), only the spec files with checksums equal to <code>0</code> when mod-ed by <code>5</code> are run. Thus, the Jenkins build flow would look like:</p>
 
-<p><img src="/images/2012-11-29-measuring-performance-in-grape-apis-with-new-relic/sql-detail.png" /></p>
+<pre><code class="java">parallel (
+  {build("master-ci-task", tasks: "spec:sliced[0,5]")},
+  {build("master-ci-task", tasks: "spec:sliced[1,5]")},
+  {build("master-ci-task", tasks: "spec:sliced[2,5]")},
+  {build("master-ci-task", tasks: "spec:sliced[3,5]")},
+  {build("master-ci-task", tasks: "spec:sliced[4,5]")}
+)
+build("master-ci-succeeded")
+</code></pre>
 
-<p>NewRelic is a commercial product, but you can run development mode for free! Note that enabling this will triple your local Rails boot time: we enable development mode by setting <code class="language-plaintext highlighter-rouge">development_mode: &lt;%= !!ENV['NEW_RELIC_ID'] %&gt;</code> in <a href="https://gist.github.com/4170458">newrelic.rpm</a>.</p>
+<p>Now, spec times <em>might</em> continue to be unbalanced despite files being split up approximately evenly. (For a more thorough approach based on recording spec times, see <a href="https://github.com/ArturT/knapsack">knapsack</a>.) However, this little bit of randomness was a big improvement over our previous approach, and promises to scale in a uniform manner.</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Releasecop Tracks Stale Releases]]></title>
+    <link href="https://artsy.github.io/blog/2015/09/01/releasecop-tracks-stale-releases/"/>
+    <updated>2015-09-01T17:30:00+00:00</updated>
+    <id>https://artsy.github.io/blog/2015/09/01/releasecop-tracks-stale-releases</id>
+    <content type="html"><![CDATA[<p>Artsy practices a sort of <a href="http://en.wikipedia.org/wiki/Continuous_delivery">continuous delivery</a>. We keep release cycles short and the process of reviewing, testing, and deploying our software as reliable, fast, and automated as possible. (This blog has touched on these practices <a href="http://artsy.github.io/blog/categories/testing/">multiple</a> <a href="http://artsy.github.io/blog/categories/continuous-integration">times</a>.)</p>
+
+<p>Usually, commits that have been reviewed and merged are immediately built and tested. Successfully built versions of the codebase are often automatically deployed to a staging environment. On an automated or frequent-but-manual basis, that version is deployed to a production environment. Thus, commits form a pipeline:</p>
+
+<ul>
+<li>From developers' working branches</li>
+<li>To the master branch</li>
+<li>Through a hopefully-successful build</li>
+<li>To a staging environment</li>
+<li>To production</li>
+</ul>
+
+
+<p>The number of apps and services we deploy has grown to <em>dozens</em> per team, so sometimes things fall through the cracks. We've been using <a href="https://github.com/joeyAghion/releasecop">Releasecop</a> for the last few months to get gentle email reminders when an environment could use a deploy.</p>
+
+<!-- more -->
+
+
+<pre><code>gem install releasecop
+releasecop edit
+</code></pre>
+
+<p>This opens a <em>manifest</em> file where you can describe the sequence of git remotes and branches that make up your own release pipeline. For example:</p>
+
+<pre><code>{
+  "projects": {
+    "charge": [
+      { "name": "master", "git": "git@github.com:artsy/charge.git" },
+      { "name": "staging", "git": "git@heroku.com:charge-staging.git" },
+      { "name": "production", "git": "git@heroku.com:charge-production.git" }
+    ],
+    "gravity": [
+      { "name": "master", "git": "git@github.com:artsy/gravity.git" },
+      { "name": "master-succeeded", "git": "git@github.com:artsy/gravity.git", "branch": "master-succeeded" },
+      { "name": "staging", "git": "git@github.com:artsy/gravity.git", "branch": "staging" },
+      { "name": "production", "git": "git@github.com:artsy/gravity.git", "branch": "production" }
+    ]
+  }
+}
+</code></pre>
+
+<p>The <code>charge</code> app is a typical deployment to Heroku. Work progresses from the <code>master</code> branch to a <code>charge-staging</code> app to a <code>charge-production</code> app. The <code>gravity</code> app is a more complicated, non-Heroku deployment. It updates git branches to reflect what has been merged (<code>master</code>), tested (<code>master-succeeded</code>), deployed to staging, and deployed to production.</p>
+
+<p>Run the <code>releasecop check [app]</code> command to report the status of your apps' releases:</p>
+
+<pre><code>$ releasecop check --all
+charge...
+  staging is up-to-date with master
+  production is up-to-date with staging
+gravity...
+  master-succeeded is up-to-date with master
+  staging is up-to-date with master-succeeded
+  production is behind staging by:
+    06ca969 2015-09-04 [config] Replace Apple Push Notification certificates that expire today. (Eloy Durán)
+    171121f 2015-09-03 Admin-only API for cancelling a bid (Matthew Zikherman)
+    4c5feea 2015-09-02 install mongodb client in Docker so that import rake tasks can run (Barry Hoggard)
+    95347d1 2015-08-31 Update to delayed_job cookbook that works with Chef 11.10 (Joey Aghion)
+2 project(s) checked. 1 environment(s) out-of-date.
+</code></pre>
+
+<p>A nightly <a href="https://jenkins-ci.org/">Jenkins</a> job emails us the results, but a cron job could work equally well.</p>
+
+<p><a href="https://github.com/joeyAghion/releasecop">Releasecop</a> reminds us to deploy ready commits and close the loop on in-progress work. We hope you find it useful. (Pull requests are welcome!)</p>
 ]]></content>
   </entry>
   

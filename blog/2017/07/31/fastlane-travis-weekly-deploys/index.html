@@ -8,7 +8,7 @@
   <meta name="author" content="">
 
   
-  <meta name="description" content="We have a few apps now, but one of them isn’t really used by anyone other than developers. This is our React Native host app. We built our React Na...">
+  <meta name="description" content="We have a few apps now, but one of them isn't really used by anyone other than developers. This is our React Native host app. We built our React Na...">
   
 
   <!-- http://t.co/dKP3o1e -->
@@ -94,282 +94,483 @@
         </header>
 
         <article class='post'>
-          <p>We have a few apps now, but one of them isn’t really used by anyone other than developers. This is <a href="https://github.com/artsy/emission/tree/master/Example">our React Native host app</a>. We built our React Native components <a href="/blog/2016/08/24/On-Emission/">as a library</a> to be consumed by our other apps. Our development environment for these components is a unique app that acts as a host for the React Native components. It’s effectively a long tableview.</p>
+          <p>We have a few apps now, but one of them isn't really used by anyone other than developers. This is <a href="https://github.com/artsy/emission/tree/master/Example">our React Native host app</a>. We built our React Native components <a href="/blog/2016/08/24/On-Emission/">as a library</a> to be consumed by our other apps. Our development environment for these components is a unique app that acts as a host for the React Native components. It's effectively a long tableview.</p>
 
 <p>This app is often updated for developers, but never deployed to beta users inside Artsy. So I automated it. Using Travis CI and fastlane. This post covers how I got that set up.</p>
 
 <!-- more -->
 
+
+
+
 <center>
-  <img src="/images/fastlane-weekly/screenshot.png" width="300" />
+  <img src="/images/fastlane-weekly/screenshot.png" width=300>
 </center>
 
-<p>As the JavaScript is continuously deployed, the native side of the app rarely gets a deploy. In order to ensure an up-to-date version of the app, I used the <a href="https://docs.travis-ci.com/user/cron-jobs/">scheduler</a> now available in Travis CI, and Circle CI. This is a perfect use-case for one-off tasks like uploading an app to Apple’s Testflight on a weekly basis.</p>
+
+<p>As the JavaScript is continuously deployed, the native side of the app rarely gets a deploy. In order to ensure an up-to-date version of the app, I used the <a href="https://docs.travis-ci.com/user/cron-jobs/">scheduler</a> now available in Travis CI, and Circle CI. This is a perfect use-case for one-off tasks like uploading an app to Apple's Testflight on a weekly basis.</p>
 
 <p>I wanted this to exist outside of our current CI environment for two reasons:</p>
 
 <ul>
-  <li>Our CI is already <a href="https://github.com/artsy/emission/pull/263">using AppHub</a> to deploy the JavaScript parts of our React Native on a per-commit basis. It’s complicated enough as it is, without adding a lot more process.</li>
-  <li>Our CI is currently running on Linux boxes, and so everything is fast and stable. Deploying using the main repo would force us to use macOS which would slow down our processes.</li>
+<li>Our CI is already <a href="https://github.com/artsy/emission/pull/263">using AppHub</a> to deploy the JavaScript parts of our React Native on a per-commit basis. It's complicated enough as it is, without adding a lot more process.</li>
+<li>Our CI is currently running on Linux boxes, and so everything is fast and stable. Deploying using the main repo would force us to use macOS which would slow down our processes.</li>
 </ul>
+
 
 <p>The downside of this choice is that the process of uploading is not inside the main repo, and can go out of sync with the main app.</p>
 
-<h2 id="setup">Setup</h2>
+<a name="Setup"></a>
+<h2>Setup</h2>
 
 <p>I created a new repo, and added the <a href="https://github.com/artsy/emission-nebula/commit/4d18a11629e097c71b9a375465c754abf45f62d6">usual LICENSE and README</a>, then started <a href="https://github.com/artsy/emission-nebula/pull/1">working on a PR</a> that added the initial support for CI to run. Here are the general steps I needed to make work:</p>
 
 <ul>
-  <li>Downloading and setting up the application.</li>
-  <li>Ensuring signing will work.</li>
-  <li>Creating the build and shipping it to Testflight.</li>
-  <li>Notifications that it passed or succeeded.</li>
+<li>Downloading and setting up the application.</li>
+<li>Ensuring signing will work.</li>
+<li>Creating the build and shipping it to Testflight.</li>
+<li>Notifications that it passed or succeeded.</li>
 </ul>
 
-<p>Finally I needed to document the process, which is what you’re reading.</p>
 
-<h2 id="downloading-and-setting-up-the-application">Downloading and setting up the application</h2>
+<p>Finally I needed to document the process, which is what you're reading.</p>
 
-<p>My initial thoughts were to use a submodule, but that option provides little advantage over cloning the repo itself so it’s done inline. Our dependencies for the app live in Rubygems (fastlane/CocoaPods), NPM (React Native) and CocoaPods (Artsy Mobile code), so I use the <code class="language-plaintext highlighter-rouge">before_install</code> and <code class="language-plaintext highlighter-rouge">before_script</code> section of the <code class="language-plaintext highlighter-rouge">.travis.yml</code> to set up our dependencies:</p>
+<a name="Downloading.and.setting.up.the.application"></a>
+<h2>Downloading and setting up the application</h2>
 
-<div class="language-yml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1"># Use a Mac build please</span>
-<span class="na">language</span><span class="pi">:</span> <span class="s">objective-c</span>
-<span class="na">osx_image</span><span class="pi">:</span> <span class="s">xcode8.2</span>
+<p>My initial thoughts were to use a submodule, but that option provides little advantage over cloning the repo itself so it's done inline. Our dependencies for the app live in Rubygems (fastlane/CocoaPods), NPM (React Native) and CocoaPods (Artsy Mobile code), so I use the <code>before_install</code> and <code>before_script</code> section of the <code>.travis.yml</code> to set up our dependencies:</p>
 
-<span class="c1"># Ensure that fastlane is at the latest version</span>
-<span class="na">before_install</span><span class="pi">:</span>
-<span class="pi">-</span> <span class="s">bundle update</span>
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+</pre></td><td class='code'><pre><code class='yaml'><span class='line'><span class="c1"># Use a Mac build please</span>
+</span><span class='line'><span class="l-Scalar-Plain">language</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">objective-c</span>
+</span><span class='line'><span class="l-Scalar-Plain">osx_image</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">xcode8.2</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1"># Ensure that fastlane is at the latest version</span>
+</span><span class='line'><span class="l-Scalar-Plain">before_install</span><span class="p-Indicator">:</span>
+</span><span class='line'><span class="p-Indicator">-</span> <span class="l-Scalar-Plain">bundle update</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1"># Let fastlane set up the other dependency managers</span>
+</span><span class='line'><span class="l-Scalar-Plain">before_script</span><span class="p-Indicator">:</span>
+</span><span class='line'><span class="p-Indicator">-</span> <span class="l-Scalar-Plain">bundle exec fastlane setup</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1"># Separate fastlane lanes so that they can be individually</span>
+</span><span class='line'><span class="c1"># tested one by one during development</span>
+</span><span class='line'><span class="l-Scalar-Plain">script</span><span class="p-Indicator">:</span>
+</span><span class='line'><span class="p-Indicator">-</span> <span class="l-Scalar-Plain">bundle exec fastlane validate_env_vars</span>
+</span><span class='line'><span class="p-Indicator">-</span> <span class="l-Scalar-Plain">bundle exec fastlane ci_deploy</span>
+</span></code></pre></td></tr></table></div></figure>
 
-<span class="c1"># Let fastlane set up the other dependency managers</span>
-<span class="na">before_script</span><span class="pi">:</span>
-<span class="pi">-</span> <span class="s">bundle exec fastlane setup</span>
 
-<span class="c1"># Separate fastlane lanes so that they can be individually</span>
-<span class="c1"># tested one by one during development</span>
-<span class="na">script</span><span class="pi">:</span>
-<span class="pi">-</span> <span class="s">bundle exec fastlane validate_env_vars</span>
-<span class="pi">-</span> <span class="s">bundle exec fastlane ci_deploy</span>
-</code></pre></div></div>
+<p>Note the <code>- bundle update</code>. As fastlane works against unofficial iTunes connect which is always changing, it's safer to always use the most recent release.</p>
 
-<p>Note the <code class="language-plaintext highlighter-rouge">- bundle update</code>. As fastlane works against unofficial iTunes connect which is always changing, it’s safer to always use the most recent release.</p>
+<a name="Ensuring.signing.will.work."></a>
+<h2>Ensuring signing will work.</h2>
 
-<h2 id="ensuring-signing-will-work">Ensuring signing will work.</h2>
+<p>This one is a bit tricker, luckily I've already set up one of our apps to use <a href="/blog/2017/04/05/what-is-fastlane-match/">fastlane match</a> and I can re-use that infrastructure. As it is a private repo, Travis did not have access to clone the repo. I fixed this by creating an access token for a user with read-only access to our match-codesigning repo, then exposed this as a private environment variable in CI which the Matchfile uses. E.g.</p>
 
-<p>This one is a bit tricker, luckily I’ve already set up one of our apps to use <a href="/blog/2017/04/05/what-is-fastlane-match/">fastlane match</a> and I can re-use that infrastructure. As it is a private repo, Travis did not have access to clone the repo. I fixed this by creating an access token for a user with read-only access to our match-codesigning repo, then exposed this as a private environment variable in CI which the Matchfile uses. E.g.</p>
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">git_url</span> <span class="s2">&quot;https://</span><span class="si">#{</span><span class="no">ENV</span><span class="o">[</span><span class="s1">&#39;GITHUB_SUBMODULES_USER&#39;</span><span class="o">]</span><span class="si">}</span><span class="s2">@github.com/artsy/mobile_fastlane_match&quot;</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1"># Instead of </span>
+</span><span class='line'><span class="c1"># git_url &quot;https://github.com/artsy/mobile_fastlane_match&quot;</span>
+</span></code></pre></td></tr></table></div></figure>
 
-<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">git_url</span> <span class="s2">"https://</span><span class="si">#{</span><span class="no">ENV</span><span class="p">[</span><span class="s1">'GITHUB_SUBMODULES_USER'</span><span class="p">]</span><span class="si">}</span><span class="s2">@github.com/artsy/mobile_fastlane_match"</span>
 
-<span class="c1"># Instead of </span>
-<span class="c1"># git_url "https://github.com/artsy/mobile_fastlane_match"</span>
-</code></pre></div></div>
-
-<p>This is one of the highlights on fastlane’s choice in building a DSL that which sits above a real programming language, you give users a lot of flexibility.</p>
+<p>This is one of the highlights on fastlane's choice in building a DSL that which sits above a real programming language, you give users a lot of flexibility.</p>
 
 <p>Next up, I added a fastlane lane for code signing, and keychain setup. This just calls two setup functions.</p>
 
-<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">lane</span> <span class="ss">:setup_signing</span> <span class="k">do</span>
-  <span class="n">setup_travis</span>
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">lane</span> <span class="ss">:setup_signing</span> <span class="k">do</span>
+</span><span class='line'>  <span class="n">setup_travis</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="n">match</span><span class="p">(</span><span class="ss">type</span><span class="p">:</span> <span class="s1">&#39;appstore&#39;</span><span class="p">)</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
 
-  <span class="n">match</span><span class="p">(</span><span class="ss">type: </span><span class="s1">'appstore'</span><span class="p">)</span>
-<span class="k">end</span>
-</code></pre></div></div>
 
-<h2 id="creating-the-build-and-shipping-it-to-testflight">Creating the build and shipping it to Testflight</h2>
+<a name="Creating.the.build.and.shipping.it.to.Testflight"></a>
+<h2>Creating the build and shipping it to Testflight</h2>
 
 <p>This is handled by <a href="https://github.com/fastlane/fastlane/tree/master/gym">fastlane gym</a> at the start of the main lane.</p>
 
-<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1"># The main job for fastlane in this repo, you can run this on your computer</span>
-<span class="c1"># You can run it via `bundle exec fastlane ship`</span>
-<span class="n">lane</span> <span class="ss">:ship</span> <span class="k">do</span>
-  <span class="c1"># We were having issues with building an a few folders deep.</span>
-  <span class="c1"># The /Pods bit is because we can rely on it being there, see</span>
-  <span class="c1"># this link: https://docs.fastlane.tools/advanced/#directory-behavior</span>
-  <span class="c1">#</span>
-  <span class="no">Dir</span><span class="p">.</span><span class="nf">chdir</span><span class="p">(</span><span class="s1">'../emission/Example/Pods'</span><span class="p">)</span> <span class="k">do</span>
-    <span class="n">gym</span> <span class="ss">workspace: </span><span class="s1">'Emission.xcworkspace'</span><span class="p">,</span>
-        <span class="ss">configuration: </span><span class="s1">'Deploy'</span><span class="p">,</span>
-        <span class="ss">scheme: </span><span class="s1">'Emission'</span>
-  <span class="k">end</span>
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="c1"># The main job for fastlane in this repo, you can run this on your computer</span>
+</span><span class='line'><span class="c1"># You can run it via `bundle exec fastlane ship`</span>
+</span><span class='line'><span class="n">lane</span> <span class="ss">:ship</span> <span class="k">do</span>
+</span><span class='line'>  <span class="c1"># We were having issues with building an a few folders deep.</span>
+</span><span class='line'>  <span class="c1"># The /Pods bit is because we can rely on it being there, see</span>
+</span><span class='line'>  <span class="c1"># this link: https://docs.fastlane.tools/advanced/#directory-behavior</span>
+</span><span class='line'>  <span class="c1">#</span>
+</span><span class='line'>  <span class="no">Dir</span><span class="o">.</span><span class="n">chdir</span><span class="p">(</span><span class="s1">&#39;../emission/Example/Pods&#39;</span><span class="p">)</span> <span class="k">do</span>
+</span><span class='line'>    <span class="n">gym</span> <span class="ss">workspace</span><span class="p">:</span> <span class="s1">&#39;Emission.xcworkspace&#39;</span><span class="p">,</span>
+</span><span class='line'>        <span class="ss">configuration</span><span class="p">:</span> <span class="s1">&#39;Deploy&#39;</span><span class="p">,</span>
+</span><span class='line'>        <span class="ss">scheme</span><span class="p">:</span> <span class="s1">&#39;Emission&#39;</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c1"># [...]</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
 
-  <span class="c1"># [...]</span>
-<span class="k">end</span>
-</code></pre></div></div>
 
 <p>It uses a scheme for deploys, which prioritises using AppHub over a local React Native server. Gym handles a lot of CLI ugliness for us, and works well.</p>
 
 <p>Sending the app to Testflight involves a a few lines:</p>
 
-<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1"># Get the last 10 lines of the CHANGELOG for Testflight</span>
-<span class="n">changelog</span> <span class="o">=</span> <span class="s1">'../emission/CHANGELOG.md'</span>
-<span class="n">upcoming_release_notes</span> <span class="o">=</span> <span class="no">File</span><span class="p">.</span><span class="nf">read</span><span class="p">(</span><span class="n">changelog</span><span class="p">).</span><span class="nf">split</span><span class="p">(</span><span class="s2">"</span><span class="se">\n</span><span class="s2">### "</span><span class="p">).</span><span class="nf">first</span>
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="c1"># Get the last 10 lines of the CHANGELOG for Testflight</span>
+</span><span class='line'><span class="n">changelog</span> <span class="o">=</span> <span class="s1">&#39;../emission/CHANGELOG.md&#39;</span>
+</span><span class='line'><span class="n">upcoming_release_notes</span> <span class="o">=</span> <span class="no">File</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">changelog</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">### &quot;</span><span class="p">)</span><span class="o">.</span><span class="n">first</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1"># Ship to testflight</span>
+</span><span class='line'><span class="n">pilot</span><span class="p">(</span><span class="ss">changelog</span><span class="p">:</span> <span class="n">upcoming_release_notes</span><span class="p">)</span>
+</span></code></pre></td></tr></table></div></figure>
 
-<span class="c1"># Ship to testflight</span>
-<span class="n">pilot</span><span class="p">(</span><span class="ss">changelog: </span><span class="n">upcoming_release_notes</span><span class="p">)</span>
-</code></pre></div></div>
 
 <p>This lets the deploy process figure out what the latest release version is, and how many builds have shipped for that version. Then those can be used to set the build version and create a tag associated with it.</p>
 
 <p><a href="https://github.com/fastlane/fastlane/tree/master/pilot">fastlane pilot</a> is used to send off the compiled build to Testflight.</p>
 
-<h2 id="keeping-track-of-deploys">Keeping track of deploys</h2>
+<a name="Keeping.track.of.deploys"></a>
+<h2>Keeping track of deploys</h2>
 
-<p>I don’t know when we’ll need it today, but it’s always good to be able to go back and see what code lines up to every release. To do this I have a few lines of Ruby that creates a tag inside the original Emission repo.</p>
+<p>I don't know when we'll need it today, but it's always good to be able to go back and see what code lines up to every release. To do this I have a few lines of Ruby that creates a tag inside the original Emission repo.</p>
 
-<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1"># Do a tag, we use a http git remote so we can have push access</span>
-<span class="c1"># as the default remote for travis is read-only. This needs to be</span>
-<span class="c1"># inside the emission repo, instead of our own.</span>
-<span class="no">Dir</span><span class="p">.</span><span class="nf">chdir</span><span class="p">(</span><span class="s1">'../emission/Example/'</span><span class="p">)</span> <span class="k">do</span>
-  <span class="n">tag</span> <span class="o">=</span> <span class="s2">"deploy-</span><span class="si">#{</span><span class="n">latest_version</span><span class="si">}</span><span class="s2">-</span><span class="si">#{</span><span class="n">build_version</span><span class="si">}</span><span class="s2">"</span>
-  <span class="n">add_git_tag</span><span class="p">(</span><span class="ss">key: </span><span class="n">tag</span><span class="p">)</span>
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="c1"># Do a tag, we use a http git remote so we can have push access</span>
+</span><span class='line'><span class="c1"># as the default remote for travis is read-only. This needs to be</span>
+</span><span class='line'><span class="c1"># inside the emission repo, instead of our own.</span>
+</span><span class='line'><span class="no">Dir</span><span class="o">.</span><span class="n">chdir</span><span class="p">(</span><span class="s1">&#39;../emission/Example/&#39;</span><span class="p">)</span> <span class="k">do</span>
+</span><span class='line'>  <span class="n">tag</span> <span class="o">=</span> <span class="s2">&quot;deploy-</span><span class="si">#{</span><span class="n">latest_version</span><span class="si">}</span><span class="s2">-</span><span class="si">#{</span><span class="n">build_version</span><span class="si">}</span><span class="s2">&quot;</span>
+</span><span class='line'>  <span class="n">add_git_tag</span><span class="p">(</span><span class="ss">key</span><span class="p">:</span> <span class="n">tag</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">if</span> <span class="no">ENV</span><span class="o">[</span><span class="s1">&#39;GITHUB_SUBMODULES_USER&#39;</span><span class="o">]</span>
+</span><span class='line'>    <span class="n">writable_remote</span> <span class="o">=</span> <span class="s2">&quot;https://</span><span class="si">#{</span><span class="no">ENV</span><span class="o">[</span><span class="s1">&#39;GITHUB_SUBMODULES_USER&#39;</span><span class="o">]</span><span class="si">}</span><span class="s2">@github.com/artsy/emission.git&quot;</span>
+</span><span class='line'>    <span class="n">sh</span> <span class="s2">&quot;git remote add http </span><span class="si">#{</span><span class="n">writable_remote</span><span class="si">}</span><span class="s2">&quot;</span>
+</span><span class='line'>  <span class="k">else</span>
+</span><span class='line'>    <span class="n">sh</span> <span class="s1">&#39;git remote add http https://github.com/artsy/emission.git&#39;</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>  <span class="n">push_git_tags</span><span class="p">(</span><span class="ss">remote</span><span class="p">:</span> <span class="s1">&#39;http&#39;</span><span class="p">)</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
 
-  <span class="k">if</span> <span class="no">ENV</span><span class="p">[</span><span class="s1">'GITHUB_SUBMODULES_USER'</span><span class="p">]</span>
-    <span class="n">writable_remote</span> <span class="o">=</span> <span class="s2">"https://</span><span class="si">#{</span><span class="no">ENV</span><span class="p">[</span><span class="s1">'GITHUB_SUBMODULES_USER'</span><span class="p">]</span><span class="si">}</span><span class="s2">@github.com/artsy/emission.git"</span>
-    <span class="n">sh</span> <span class="s2">"git remote add http </span><span class="si">#{</span><span class="n">writable_remote</span><span class="si">}</span><span class="s2">"</span>
-  <span class="k">else</span>
-    <span class="n">sh</span> <span class="s1">'git remote add http https://github.com/artsy/emission.git'</span>
-  <span class="k">end</span>
-  <span class="n">push_git_tags</span><span class="p">(</span><span class="ss">remote: </span><span class="s1">'http'</span><span class="p">)</span>
-<span class="k">end</span>
-</code></pre></div></div>
 
-<h2 id="notifications-that-it-passed-or-succeeded">Notifications that it passed or succeeded.</h2>
+<a name="Notifications.that.it.passed.or.succeeded."></a>
+<h2>Notifications that it passed or succeeded.</h2>
 
 <p>This was easy, I created a new slack inbound web-hook and added that as an environment variable. Then when a build passes we post a notification that there is a new version for everyone in Slack, if the lane fails then it will also post to slack. To ensure we keep on top of it, during development this was commented out.</p>
 
-<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1"># If the weekly task fails, then ship a message</span>
-<span class="n">error</span> <span class="k">do</span> <span class="o">|</span><span class="n">_</span><span class="p">,</span> <span class="n">exception</span><span class="o">|</span>
-   <span class="n">slack</span> <span class="ss">message: </span><span class="s2">"Error Deploying Emission: </span><span class="si">#{</span><span class="n">exception</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
-         <span class="ss">success: </span><span class="kp">false</span><span class="p">,</span>
-         <span class="ss">payload: </span><span class="p">{</span> <span class="no">Output</span><span class="p">:</span> <span class="n">exception</span><span class="p">.</span><span class="nf">error_info</span><span class="p">.</span><span class="nf">to_s</span> <span class="p">}</span>
-<span class="k">end</span>
-</code></pre></div></div>
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="c1"># If the weekly task fails, then ship a message</span>
+</span><span class='line'><span class="n">error</span> <span class="k">do</span> <span class="o">|</span><span class="n">_</span><span class="p">,</span> <span class="n">exception</span><span class="o">|</span>
+</span><span class='line'>   <span class="n">slack</span> <span class="ss">message</span><span class="p">:</span> <span class="s2">&quot;Error Deploying Emission: </span><span class="si">#{</span><span class="n">exception</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+</span><span class='line'>         <span class="ss">success</span><span class="p">:</span> <span class="kp">false</span><span class="p">,</span>
+</span><span class='line'>         <span class="ss">payload</span><span class="p">:</span> <span class="p">{</span> <span class="ss">Output</span><span class="p">:</span> <span class="n">exception</span><span class="o">.</span><span class="n">error_info</span><span class="o">.</span><span class="n">to_s</span> <span class="p">}</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
 
-<p>That wraps up setting up the CI. Once you’ve confirmed everything has worked, you can add the scheduler inside Travis and expect to see a slack notification in a week.</p>
 
-<p>By the end of the process, our <code class="language-plaintext highlighter-rouge">Fastfile</code> looked like:</p>
+<p>That wraps up setting up the CI. Once you've confirmed everything has worked, you can add the scheduler inside Travis and expect to see a slack notification in a week.</p>
 
-<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1"># This is documented in the Artsy Blog: </span>
-<span class="c1"># http://artsy.github.io/blog/2017/07/31/fastlane-travis-weekly-deploys/</span>
-<span class="n">lane</span> <span class="ss">:setup</span> <span class="k">do</span>
-  <span class="no">Dir</span><span class="p">.</span><span class="nf">chdir</span><span class="p">(</span><span class="s1">'..'</span><span class="p">)</span> <span class="k">do</span>
-    <span class="n">sh</span> <span class="s1">'rm -rf emission'</span> <span class="k">if</span> <span class="no">Dir</span><span class="p">.</span><span class="nf">exist?</span> <span class="s1">'Emission'</span>
-    <span class="n">sh</span> <span class="s1">'git clone https://github.com/artsy/emission.git'</span>
-    <span class="no">Dir</span><span class="p">.</span><span class="nf">chdir</span><span class="p">(</span><span class="s1">'emission'</span><span class="p">)</span> <span class="k">do</span>
-      <span class="n">sh</span> <span class="s1">'. ~/.nvm/nvm.sh &amp;&amp; nvm use &amp;&amp; npm install yarn --global &amp;&amp; yarn install'</span>
-    <span class="k">end</span>
+<p>By the end of the process, our <code>Fastfile</code> looked like:</p>
 
-    <span class="no">Dir</span><span class="p">.</span><span class="nf">chdir</span><span class="p">(</span><span class="s1">'emission/Example'</span><span class="p">)</span> <span class="k">do</span>
-      <span class="n">sh</span> <span class="s1">'pod repo update'</span>
-      <span class="n">sh</span> <span class="s1">'pod install'</span>
-    <span class="k">end</span>
-    <span class="n">stamp_plist</span>
-  <span class="k">end</span>
-<span class="k">end</span>
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+<span class='line-number'>38</span>
+<span class='line-number'>39</span>
+<span class='line-number'>40</span>
+<span class='line-number'>41</span>
+<span class='line-number'>42</span>
+<span class='line-number'>43</span>
+<span class='line-number'>44</span>
+<span class='line-number'>45</span>
+<span class='line-number'>46</span>
+<span class='line-number'>47</span>
+<span class='line-number'>48</span>
+<span class='line-number'>49</span>
+<span class='line-number'>50</span>
+<span class='line-number'>51</span>
+<span class='line-number'>52</span>
+<span class='line-number'>53</span>
+<span class='line-number'>54</span>
+<span class='line-number'>55</span>
+<span class='line-number'>56</span>
+<span class='line-number'>57</span>
+<span class='line-number'>58</span>
+<span class='line-number'>59</span>
+<span class='line-number'>60</span>
+<span class='line-number'>61</span>
+<span class='line-number'>62</span>
+<span class='line-number'>63</span>
+<span class='line-number'>64</span>
+<span class='line-number'>65</span>
+<span class='line-number'>66</span>
+<span class='line-number'>67</span>
+<span class='line-number'>68</span>
+<span class='line-number'>69</span>
+<span class='line-number'>70</span>
+<span class='line-number'>71</span>
+<span class='line-number'>72</span>
+<span class='line-number'>73</span>
+<span class='line-number'>74</span>
+<span class='line-number'>75</span>
+<span class='line-number'>76</span>
+<span class='line-number'>77</span>
+<span class='line-number'>78</span>
+<span class='line-number'>79</span>
+<span class='line-number'>80</span>
+<span class='line-number'>81</span>
+<span class='line-number'>82</span>
+<span class='line-number'>83</span>
+<span class='line-number'>84</span>
+<span class='line-number'>85</span>
+<span class='line-number'>86</span>
+<span class='line-number'>87</span>
+<span class='line-number'>88</span>
+<span class='line-number'>89</span>
+<span class='line-number'>90</span>
+<span class='line-number'>91</span>
+<span class='line-number'>92</span>
+<span class='line-number'>93</span>
+<span class='line-number'>94</span>
+<span class='line-number'>95</span>
+<span class='line-number'>96</span>
+<span class='line-number'>97</span>
+<span class='line-number'>98</span>
+<span class='line-number'>99</span>
+<span class='line-number'>100</span>
+<span class='line-number'>101</span>
+<span class='line-number'>102</span>
+<span class='line-number'>103</span>
+<span class='line-number'>104</span>
+<span class='line-number'>105</span>
+<span class='line-number'>106</span>
+<span class='line-number'>107</span>
+<span class='line-number'>108</span>
+<span class='line-number'>109</span>
+<span class='line-number'>110</span>
+<span class='line-number'>111</span>
+<span class='line-number'>112</span>
+<span class='line-number'>113</span>
+<span class='line-number'>114</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="c1"># This is documented in the Artsy Blog: </span>
+</span><span class='line'><span class="c1"># http://artsy.github.io/blog/2017/07/31/fastlane-travis-weekly-deploys/</span>
+</span><span class='line'><span class="n">lane</span> <span class="ss">:setup</span> <span class="k">do</span>
+</span><span class='line'>  <span class="no">Dir</span><span class="o">.</span><span class="n">chdir</span><span class="p">(</span><span class="s1">&#39;..&#39;</span><span class="p">)</span> <span class="k">do</span>
+</span><span class='line'>    <span class="n">sh</span> <span class="s1">&#39;rm -rf emission&#39;</span> <span class="k">if</span> <span class="no">Dir</span><span class="o">.</span><span class="n">exist?</span> <span class="s1">&#39;Emission&#39;</span>
+</span><span class='line'>    <span class="n">sh</span> <span class="s1">&#39;git clone https://github.com/artsy/emission.git&#39;</span>
+</span><span class='line'>    <span class="no">Dir</span><span class="o">.</span><span class="n">chdir</span><span class="p">(</span><span class="s1">&#39;emission&#39;</span><span class="p">)</span> <span class="k">do</span>
+</span><span class='line'>      <span class="n">sh</span> <span class="s1">&#39;. ~/.nvm/nvm.sh &amp;&amp; nvm use &amp;&amp; npm install yarn --global &amp;&amp; yarn install&#39;</span>
+</span><span class='line'>    <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="no">Dir</span><span class="o">.</span><span class="n">chdir</span><span class="p">(</span><span class="s1">&#39;emission/Example&#39;</span><span class="p">)</span> <span class="k">do</span>
+</span><span class='line'>      <span class="n">sh</span> <span class="s1">&#39;pod repo update&#39;</span>
+</span><span class='line'>      <span class="n">sh</span> <span class="s1">&#39;pod install&#39;</span>
+</span><span class='line'>    <span class="k">end</span>
+</span><span class='line'>    <span class="n">stamp_plist</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1"># Lets the CI run a bunch of jobs, and share ENV vars between them</span>
+</span><span class='line'><span class="n">lane</span> <span class="ss">:ci_deploy</span> <span class="k">do</span>
+</span><span class='line'>  <span class="n">setup_signing</span>
+</span><span class='line'>  <span class="n">stamp_plist</span>
+</span><span class='line'>  <span class="n">ship</span>
+</span><span class='line'><span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1"># The main job for fastlane in this repo, you can run this on your computer</span>
+</span><span class='line'><span class="c1"># You can run it via `bundle exec fastlane ship`</span>
+</span><span class='line'><span class="n">lane</span> <span class="ss">:ship</span> <span class="k">do</span>
+</span><span class='line'>  <span class="c1"># We were having issues with building an a few folders deep.</span>
+</span><span class='line'>  <span class="c1"># The /Pods bit is because we can rely on it being there, see</span>
+</span><span class='line'>  <span class="c1"># this link: https://docs.fastlane.tools/advanced/#directory-behavior</span>
+</span><span class='line'>  <span class="c1">#</span>
+</span><span class='line'>  <span class="no">Dir</span><span class="o">.</span><span class="n">chdir</span><span class="p">(</span><span class="s1">&#39;../emission/Example/Pods&#39;</span><span class="p">)</span> <span class="k">do</span>
+</span><span class='line'>    <span class="n">gym</span><span class="p">(</span><span class="ss">workspace</span><span class="p">:</span> <span class="s1">&#39;Emission.xcworkspace&#39;</span><span class="p">,</span>
+</span><span class='line'>        <span class="ss">configuration</span><span class="p">:</span> <span class="s1">&#39;Deploy&#39;</span><span class="p">,</span>
+</span><span class='line'>        <span class="ss">scheme</span><span class="p">:</span> <span class="s1">&#39;Emission&#39;</span><span class="p">)</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c1"># Get the last 10 lines of the CHANGELOG for Testflight</span>
+</span><span class='line'>  <span class="n">changelog</span> <span class="o">=</span> <span class="s1">&#39;../emission/CHANGELOG.md&#39;</span>
+</span><span class='line'>  <span class="n">upcoming_release_notes</span> <span class="o">=</span> <span class="no">File</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">changelog</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">### &quot;</span><span class="p">)</span><span class="o">.</span><span class="n">first</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c1"># Ship to testflight</span>
+</span><span class='line'>  <span class="n">pilot</span><span class="p">(</span><span class="ss">changelog</span><span class="p">:</span> <span class="n">upcoming_release_notes</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c1"># Log into iTunes connect, get the latest version of the app we shipped, and how many builds we&#39;ve sent</span>
+</span><span class='line'>  <span class="no">Spaceship</span><span class="o">::</span><span class="no">Tunes</span><span class="o">.</span><span class="n">login</span><span class="p">(</span><span class="no">ENV</span><span class="o">[</span><span class="s1">&#39;FASTLANE_USERNAME&#39;</span><span class="o">]</span><span class="p">,</span> <span class="no">ENV</span><span class="o">[</span><span class="s1">&#39;FASTLANE_PASSWORD&#39;</span><span class="o">]</span><span class="p">)</span>
+</span><span class='line'>  <span class="n">app</span> <span class="o">=</span> <span class="no">Spaceship</span><span class="o">::</span><span class="no">Tunes</span><span class="o">::</span><span class="no">Application</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s1">&#39;net.artsy.Emission&#39;</span><span class="p">)</span>
+</span><span class='line'>  <span class="n">latest_version</span> <span class="o">=</span> <span class="n">app</span><span class="o">.</span><span class="n">build_trains</span><span class="o">.</span><span class="n">keys</span><span class="o">.</span><span class="n">sort</span><span class="o">.</span><span class="n">last</span>
+</span><span class='line'>  <span class="n">train</span> <span class="o">=</span> <span class="n">app</span><span class="o">.</span><span class="n">build_trains</span><span class="o">[</span><span class="n">latest_version</span><span class="o">]</span>
+</span><span class='line'>  <span class="n">build_version</span> <span class="o">=</span> <span class="n">train</span><span class="o">.</span><span class="n">builds</span><span class="o">.</span><span class="n">count</span> <span class="o">+</span> <span class="mi">1</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c1"># Do a tag, we use a http git remote so we can have push access</span>
+</span><span class='line'>  <span class="c1"># as the default remote for travis is read-only. This needs to be</span>
+</span><span class='line'>  <span class="c1"># inside the emission repo, instead of our own.</span>
+</span><span class='line'>  <span class="no">Dir</span><span class="o">.</span><span class="n">chdir</span><span class="p">(</span><span class="s1">&#39;../emission/Example/&#39;</span><span class="p">)</span> <span class="k">do</span>
+</span><span class='line'>    <span class="n">tag</span> <span class="o">=</span> <span class="s2">&quot;deploy-</span><span class="si">#{</span><span class="n">latest_version</span><span class="si">}</span><span class="s2">-</span><span class="si">#{</span><span class="n">build_version</span><span class="si">}</span><span class="s2">&quot;</span>
+</span><span class='line'>    <span class="n">add_git_tag</span><span class="p">(</span><span class="ss">key</span><span class="p">:</span> <span class="n">tag</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="k">if</span> <span class="no">ENV</span><span class="o">[</span><span class="s1">&#39;GITHUB_SUBMODULES_USER&#39;</span><span class="o">]</span>
+</span><span class='line'>      <span class="n">writable_remote</span> <span class="o">=</span> <span class="s2">&quot;https://</span><span class="si">#{</span><span class="no">ENV</span><span class="o">[</span><span class="s1">&#39;GITHUB_SUBMODULES_USER&#39;</span><span class="o">]</span><span class="si">}</span><span class="s2">@github.com/artsy/emission.git&quot;</span>
+</span><span class='line'>      <span class="n">sh</span> <span class="s2">&quot;git remote add http </span><span class="si">#{</span><span class="n">writable_remote</span><span class="si">}</span><span class="s2">&quot;</span>
+</span><span class='line'>    <span class="k">else</span>
+</span><span class='line'>      <span class="n">sh</span> <span class="s1">&#39;git remote add http https://github.com/artsy/emission.git&#39;</span>
+</span><span class='line'>    <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="n">push_git_tags</span><span class="p">(</span><span class="ss">remote</span><span class="p">:</span> <span class="s1">&#39;http&#39;</span><span class="p">)</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="n">slack</span> <span class="ss">message</span><span class="p">:</span> <span class="s1">&#39;There is a new Emission beta available on Testflight.&#39;</span><span class="p">,</span>
+</span><span class='line'>        <span class="ss">payload</span><span class="p">:</span> <span class="p">{</span>
+</span><span class='line'>          <span class="s1">&#39;Version&#39;</span> <span class="o">=&gt;</span> <span class="n">latest_version</span><span class="p">,</span>
+</span><span class='line'>          <span class="s2">&quot;What&#39;s new&quot;</span> <span class="o">=&gt;</span> <span class="n">upcoming_release_notes</span>
+</span><span class='line'>        <span class="p">},</span>
+</span><span class='line'>        <span class="ss">default_payloads</span><span class="p">:</span> <span class="o">[]</span>
+</span><span class='line'><span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1"># In case you need to update the signing profiles for this app</span>
+</span><span class='line'><span class="n">lane</span> <span class="ss">:update_signing</span> <span class="k">do</span>
+</span><span class='line'>  <span class="n">match</span><span class="p">(</span><span class="ss">type</span><span class="p">:</span> <span class="s1">&#39;appstore&#39;</span><span class="p">)</span>
+</span><span class='line'><span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1"># Used by CI, will not sneakily update (the CI only has read-only access to the repo anyway)</span>
+</span><span class='line'><span class="n">lane</span> <span class="ss">:setup_signing</span> <span class="k">do</span>
+</span><span class='line'>  <span class="n">setup_travis</span>
+</span><span class='line'>  <span class="n">match</span><span class="p">(</span><span class="ss">type</span><span class="p">:</span> <span class="s1">&#39;appstore&#39;</span><span class="p">)</span>
+</span><span class='line'><span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1"># Minor plist modifications</span>
+</span><span class='line'><span class="n">lane</span> <span class="ss">:stamp_plist</span> <span class="k">do</span>
+</span><span class='line'>  <span class="n">plist</span> <span class="o">=</span> <span class="s1">&#39;emission/Example/Emission/Info.plist&#39;</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c1"># Increment build number to current date</span>
+</span><span class='line'>  <span class="n">build_number</span> <span class="o">=</span> <span class="no">Time</span><span class="o">.</span><span class="n">new</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;%Y.%m.%d.%H&#39;</span><span class="p">)</span>
+</span><span class='line'>  <span class="sb">`/usr/libexec/PlistBuddy -c &quot;Set CFBundleVersion </span><span class="si">#{</span><span class="n">build_number</span><span class="si">}</span><span class="sb">&quot; &quot;</span><span class="si">#{</span><span class="n">plist</span><span class="si">}</span><span class="sb">&quot;`</span>
+</span><span class='line'><span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1"># Mainly so we don&#39;t forget to include these vars in the future</span>
+</span><span class='line'><span class="n">lane</span> <span class="ss">:validate_env_vars</span> <span class="k">do</span>
+</span><span class='line'>  <span class="k">unless</span> <span class="no">ENV</span><span class="o">[</span><span class="s1">&#39;FASTLANE_USERNAME&#39;</span><span class="o">]</span> <span class="o">&amp;&amp;</span> <span class="no">ENV</span><span class="o">[</span><span class="s1">&#39;FASTLANE_PASSWORD&#39;</span><span class="o">]</span> <span class="o">&amp;&amp;</span> <span class="no">ENV</span><span class="o">[</span><span class="s1">&#39;MATCH_PASSWORD&#39;</span><span class="o">]</span>
+</span><span class='line'>    <span class="k">raise</span> <span class="s1">&#39;You need to set FASTLANE_USERNAME, FASTLANE_PASSWORD and MATCH_PASSWORD in your environment&#39;</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">unless</span> <span class="no">ENV</span><span class="o">[</span><span class="s1">&#39;SLACK_URL&#39;</span><span class="o">]</span>
+</span><span class='line'>    <span class="k">raise</span> <span class="s2">&quot;You need to set SLACK_URL (</span><span class="si">#{</span><span class="no">ENV</span><span class="o">[</span><span class="s1">&#39;SLACK_URL&#39;</span><span class="o">]</span><span class="si">}</span><span class="s2">) in your environment.&quot;</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1"># If the weekly task fails, then ship a message, a success would also send</span>
+</span><span class='line'><span class="n">error</span> <span class="k">do</span> <span class="o">|</span><span class="n">_</span><span class="p">,</span> <span class="n">exception</span><span class="o">|</span>
+</span><span class='line'>  <span class="n">slack</span><span class="p">(</span><span class="ss">message</span><span class="p">:</span> <span class="s2">&quot;Error Deploying Emission: </span><span class="si">#{</span><span class="n">exception</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+</span><span class='line'>        <span class="ss">success</span><span class="p">:</span> <span class="kp">false</span><span class="p">,</span>
+</span><span class='line'>        <span class="ss">payload</span><span class="p">:</span> <span class="p">{</span> <span class="ss">Output</span><span class="p">:</span> <span class="n">exception</span><span class="o">.</span><span class="n">error_info</span><span class="o">.</span><span class="n">to_s</span> <span class="p">})</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
 
-<span class="c1"># Lets the CI run a bunch of jobs, and share ENV vars between them</span>
-<span class="n">lane</span> <span class="ss">:ci_deploy</span> <span class="k">do</span>
-  <span class="n">setup_signing</span>
-  <span class="n">stamp_plist</span>
-  <span class="n">ship</span>
-<span class="k">end</span>
 
-<span class="c1"># The main job for fastlane in this repo, you can run this on your computer</span>
-<span class="c1"># You can run it via `bundle exec fastlane ship`</span>
-<span class="n">lane</span> <span class="ss">:ship</span> <span class="k">do</span>
-  <span class="c1"># We were having issues with building an a few folders deep.</span>
-  <span class="c1"># The /Pods bit is because we can rely on it being there, see</span>
-  <span class="c1"># this link: https://docs.fastlane.tools/advanced/#directory-behavior</span>
-  <span class="c1">#</span>
-  <span class="no">Dir</span><span class="p">.</span><span class="nf">chdir</span><span class="p">(</span><span class="s1">'../emission/Example/Pods'</span><span class="p">)</span> <span class="k">do</span>
-    <span class="n">gym</span><span class="p">(</span><span class="ss">workspace: </span><span class="s1">'Emission.xcworkspace'</span><span class="p">,</span>
-        <span class="ss">configuration: </span><span class="s1">'Deploy'</span><span class="p">,</span>
-        <span class="ss">scheme: </span><span class="s1">'Emission'</span><span class="p">)</span>
-  <span class="k">end</span>
-
-  <span class="c1"># Get the last 10 lines of the CHANGELOG for Testflight</span>
-  <span class="n">changelog</span> <span class="o">=</span> <span class="s1">'../emission/CHANGELOG.md'</span>
-  <span class="n">upcoming_release_notes</span> <span class="o">=</span> <span class="no">File</span><span class="p">.</span><span class="nf">read</span><span class="p">(</span><span class="n">changelog</span><span class="p">).</span><span class="nf">split</span><span class="p">(</span><span class="s2">"</span><span class="se">\n</span><span class="s2">### "</span><span class="p">).</span><span class="nf">first</span>
-
-  <span class="c1"># Ship to testflight</span>
-  <span class="n">pilot</span><span class="p">(</span><span class="ss">changelog: </span><span class="n">upcoming_release_notes</span><span class="p">)</span>
-
-  <span class="c1"># Log into iTunes connect, get the latest version of the app we shipped, and how many builds we've sent</span>
-  <span class="no">Spaceship</span><span class="o">::</span><span class="no">Tunes</span><span class="p">.</span><span class="nf">login</span><span class="p">(</span><span class="no">ENV</span><span class="p">[</span><span class="s1">'FASTLANE_USERNAME'</span><span class="p">],</span> <span class="no">ENV</span><span class="p">[</span><span class="s1">'FASTLANE_PASSWORD'</span><span class="p">])</span>
-  <span class="n">app</span> <span class="o">=</span> <span class="no">Spaceship</span><span class="o">::</span><span class="no">Tunes</span><span class="o">::</span><span class="no">Application</span><span class="p">.</span><span class="nf">find</span><span class="p">(</span><span class="s1">'net.artsy.Emission'</span><span class="p">)</span>
-  <span class="n">latest_version</span> <span class="o">=</span> <span class="n">app</span><span class="p">.</span><span class="nf">build_trains</span><span class="p">.</span><span class="nf">keys</span><span class="p">.</span><span class="nf">sort</span><span class="p">.</span><span class="nf">last</span>
-  <span class="n">train</span> <span class="o">=</span> <span class="n">app</span><span class="p">.</span><span class="nf">build_trains</span><span class="p">[</span><span class="n">latest_version</span><span class="p">]</span>
-  <span class="n">build_version</span> <span class="o">=</span> <span class="n">train</span><span class="p">.</span><span class="nf">builds</span><span class="p">.</span><span class="nf">count</span> <span class="o">+</span> <span class="mi">1</span>
-
-  <span class="c1"># Do a tag, we use a http git remote so we can have push access</span>
-  <span class="c1"># as the default remote for travis is read-only. This needs to be</span>
-  <span class="c1"># inside the emission repo, instead of our own.</span>
-  <span class="no">Dir</span><span class="p">.</span><span class="nf">chdir</span><span class="p">(</span><span class="s1">'../emission/Example/'</span><span class="p">)</span> <span class="k">do</span>
-    <span class="n">tag</span> <span class="o">=</span> <span class="s2">"deploy-</span><span class="si">#{</span><span class="n">latest_version</span><span class="si">}</span><span class="s2">-</span><span class="si">#{</span><span class="n">build_version</span><span class="si">}</span><span class="s2">"</span>
-    <span class="n">add_git_tag</span><span class="p">(</span><span class="ss">key: </span><span class="n">tag</span><span class="p">)</span>
-
-    <span class="k">if</span> <span class="no">ENV</span><span class="p">[</span><span class="s1">'GITHUB_SUBMODULES_USER'</span><span class="p">]</span>
-      <span class="n">writable_remote</span> <span class="o">=</span> <span class="s2">"https://</span><span class="si">#{</span><span class="no">ENV</span><span class="p">[</span><span class="s1">'GITHUB_SUBMODULES_USER'</span><span class="p">]</span><span class="si">}</span><span class="s2">@github.com/artsy/emission.git"</span>
-      <span class="n">sh</span> <span class="s2">"git remote add http </span><span class="si">#{</span><span class="n">writable_remote</span><span class="si">}</span><span class="s2">"</span>
-    <span class="k">else</span>
-      <span class="n">sh</span> <span class="s1">'git remote add http https://github.com/artsy/emission.git'</span>
-    <span class="k">end</span>
-
-    <span class="n">push_git_tags</span><span class="p">(</span><span class="ss">remote: </span><span class="s1">'http'</span><span class="p">)</span>
-  <span class="k">end</span>
-
-  <span class="n">slack</span> <span class="ss">message: </span><span class="s1">'There is a new Emission beta available on Testflight.'</span><span class="p">,</span>
-        <span class="ss">payload: </span><span class="p">{</span>
-          <span class="s1">'Version'</span> <span class="o">=&gt;</span> <span class="n">latest_version</span><span class="p">,</span>
-          <span class="s2">"What's new"</span> <span class="o">=&gt;</span> <span class="n">upcoming_release_notes</span>
-        <span class="p">},</span>
-        <span class="ss">default_payloads: </span><span class="p">[]</span>
-<span class="k">end</span>
-
-<span class="c1"># In case you need to update the signing profiles for this app</span>
-<span class="n">lane</span> <span class="ss">:update_signing</span> <span class="k">do</span>
-  <span class="n">match</span><span class="p">(</span><span class="ss">type: </span><span class="s1">'appstore'</span><span class="p">)</span>
-<span class="k">end</span>
-
-<span class="c1"># Used by CI, will not sneakily update (the CI only has read-only access to the repo anyway)</span>
-<span class="n">lane</span> <span class="ss">:setup_signing</span> <span class="k">do</span>
-  <span class="n">setup_travis</span>
-  <span class="n">match</span><span class="p">(</span><span class="ss">type: </span><span class="s1">'appstore'</span><span class="p">)</span>
-<span class="k">end</span>
-
-<span class="c1"># Minor plist modifications</span>
-<span class="n">lane</span> <span class="ss">:stamp_plist</span> <span class="k">do</span>
-  <span class="n">plist</span> <span class="o">=</span> <span class="s1">'emission/Example/Emission/Info.plist'</span>
-
-  <span class="c1"># Increment build number to current date</span>
-  <span class="n">build_number</span> <span class="o">=</span> <span class="no">Time</span><span class="p">.</span><span class="nf">new</span><span class="p">.</span><span class="nf">strftime</span><span class="p">(</span><span class="s1">'%Y.%m.%d.%H'</span><span class="p">)</span>
-  <span class="sb">`/usr/libexec/PlistBuddy -c "Set CFBundleVersion </span><span class="si">#{</span><span class="n">build_number</span><span class="si">}</span><span class="sb">" "</span><span class="si">#{</span><span class="n">plist</span><span class="si">}</span><span class="sb">"`</span>
-<span class="k">end</span>
-
-<span class="c1"># Mainly so we don't forget to include these vars in the future</span>
-<span class="n">lane</span> <span class="ss">:validate_env_vars</span> <span class="k">do</span>
-  <span class="k">unless</span> <span class="no">ENV</span><span class="p">[</span><span class="s1">'FASTLANE_USERNAME'</span><span class="p">]</span> <span class="o">&amp;&amp;</span> <span class="no">ENV</span><span class="p">[</span><span class="s1">'FASTLANE_PASSWORD'</span><span class="p">]</span> <span class="o">&amp;&amp;</span> <span class="no">ENV</span><span class="p">[</span><span class="s1">'MATCH_PASSWORD'</span><span class="p">]</span>
-    <span class="k">raise</span> <span class="s1">'You need to set FASTLANE_USERNAME, FASTLANE_PASSWORD and MATCH_PASSWORD in your environment'</span>
-  <span class="k">end</span>
-
-  <span class="k">unless</span> <span class="no">ENV</span><span class="p">[</span><span class="s1">'SLACK_URL'</span><span class="p">]</span>
-    <span class="k">raise</span> <span class="s2">"You need to set SLACK_URL (</span><span class="si">#{</span><span class="no">ENV</span><span class="p">[</span><span class="s1">'SLACK_URL'</span><span class="p">]</span><span class="si">}</span><span class="s2">) in your environment."</span>
-  <span class="k">end</span>
-<span class="k">end</span>
-
-<span class="c1"># If the weekly task fails, then ship a message, a success would also send</span>
-<span class="n">error</span> <span class="k">do</span> <span class="o">|</span><span class="n">_</span><span class="p">,</span> <span class="n">exception</span><span class="o">|</span>
-  <span class="n">slack</span><span class="p">(</span><span class="ss">message: </span><span class="s2">"Error Deploying Emission: </span><span class="si">#{</span><span class="n">exception</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
-        <span class="ss">success: </span><span class="kp">false</span><span class="p">,</span>
-        <span class="ss">payload: </span><span class="p">{</span> <span class="no">Output</span><span class="p">:</span> <span class="n">exception</span><span class="p">.</span><span class="nf">error_info</span><span class="p">.</span><span class="nf">to_s</span> <span class="p">})</span>
-<span class="k">end</span>
-</code></pre></div></div>
-
-<p>Automatically deploying is a good pattern for encouraging more deploys of an app which has only been deployed once. It’s a pattern we could also move to in some of our other apps too, if it feels good. If you’re interested in if something has changed since this post was authored, the repo is here: https://github.com/artsy/emission-nebula so you can read out the Fastfile and we’ll answer questions you have inside GitHub issues on it.</p>
+<p>Automatically deploying is a good pattern for encouraging more deploys of an app which has only been deployed once. It's a pattern we could also move to in some of our other apps too, if it feels good. If you're interested in if something has changed since this post was authored, the repo is here: https://github.com/artsy/emission-nebula so you can read out the Fastfile and we'll answer questions you have inside GitHub issues on it.</p>
 
 <p>The most annoying part about building deployment changes are that an iteration takes ~20 minutes, so make sure you also have another (easily interrupted) task to do at the same time.</p>
 
-<p>The second most annoying is that it took months to eventually get this right - so I owe Felix Krause a big thanks for sitting down and pairing with me, we figuring out that <code class="language-plaintext highlighter-rouge">xcodebuild</code> can create empty archive issues when you run projects that have the xcproject/xcworkspace a few levels deep.</p>
-
+<p>The second most annoying is that it took months to eventually get this right - so I owe Felix Krause a big thanks for sitting down and pairing with me, we figuring out that <code>xcodebuild</code> can create empty archive issues when you run projects that have the xcproject/xcworkspace a few levels deep.</p>
 
         </article>
 
@@ -392,7 +593,7 @@
 
           <section>
             <h4>Author</h4>
-            <p> <a href="/author/orta">Orta Therox</a></p>
+            <p> <a href="/author/orta"/>Orta Therox</a></p>
             <p>Code Janitor at Artsy, thinking about JS tooling.</a></p>
           </section>
 
@@ -418,7 +619,7 @@
               <li><a href='http://artsy.github.io/blog/archives/'>Archives</a></li>
               <li><a href='http://artsy.github.io/search/'>Search</a></li>
               <li><a href='https://github.com/artsy/artsy.github.io'>Code on GitHub</a></li>
-              <li><a href='https://github.com/artsy/artsy.github.io/edit/source/_posts/2017-07-31-fastlane-travis-weekly-deploys.md'>Fix typos in this post</a></li>
+              <li><a href='https://github.com/artsy/artsy.github.io/edit/source/_posts/2017-07-31-fastlane-travis-weekly-deploys.md'>Fix typoes in this post</a></li>
             </ul>
           </section>
 

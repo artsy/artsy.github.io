@@ -94,113 +94,174 @@
         <article class='post'>
           <p>As engineers we are constantly in the process of building new features and improving our existing ones. Nowadays, with the help of tools and processes like code reviews one could argue the quality of the code being written has risen. At Artsy a pull request normally has one Assignee and possibly one or more Reviewers, so why do we still do a lot of refactoring?</p>
 
-<blockquote>
-  <p>There is no means of testing which decision is better, because there is no basis for comparison. We live everything as it comes, without warning, like an actor going on cold. And what can life be worth if the first rehearsal for life is life itself?</p>
+<blockquote><p>There is no means of testing which decision is better, because there is no basis for comparison. We live everything as it comes, without warning, like an actor going on cold. And what can life be worth if the first rehearsal for life is life itself?</p>
 
-  <p>― Milan Kundera, <a href="https://en.wikipedia.org/wiki/The_Unbearable_Lightness_of_Being">The Unbearable Lightness of Being</a></p>
-</blockquote>
+<p>― Milan Kundera, <a href="https://en.wikipedia.org/wiki/The_Unbearable_Lightness_of_Being">The Unbearable Lightness of Being</a></p></blockquote>
 
-<p>Part of me wants to end this blogpost by Kundra’s quote, but for now let’s get deeper.</p>
+<p>Part of me wants to end this blogpost by Kundra’s quote, but for now let's get deeper.</p>
 
 <!-- more -->
 
-<h2 id="the-refactor">“The Refactor”</h2>
-<p>Recently we’ve started adding <a href="https://stripe.com/docs/strong-customer-authentication">Strong Customer Authentication (SCA)</a> support to one of our services. This service is relatively young in our stack and very well-reviewed. While the original code and approach looked nice and simple, as this service naturally grew and we started adding more logic to it, things got more and more complicated. During SCA support efforts, we realized it’s time to refactor. The code I was trying to refactor was less than a year old and <a href="https://twitter.com/davidwalshblog/status/953663412013293569">originally written, well… by me</a>!</p>
 
-<p>Should I be worried? Embarrassed? Well, not really. As engineers, when we build things we tend to look at current state of affairs, and we attempt to predict the future as much as possible. But the future is always changing, moving. SCA feature we were about to add to our existing logic weren’t a requirement a year ago (a year ago I didn’t know what SCA was). So first thing, <strong>never be embarrassed about refactoring</strong>, because the thing you’re working on is often entirely unknown and you can’t expect to get something unknown totally right the first time around. Looked at it in this light, refactoring is healthy.</p>
+<a name="L.The.Refactor."></a>
+<h2>"The Refactor"</h2>
 
-<h3 id="lets-get-more-specific">Lets Get More Specific</h3>
+<p>Recently we've started adding <a href="https://stripe.com/docs/strong-customer-authentication">Strong Customer Authentication (SCA)</a> support to one of our services. This service is relatively young in our stack and very well-reviewed. While the original code and approach looked nice and simple, as this service naturally grew and we started adding more logic to it, things got more and more complicated. During SCA support efforts, we realized it's time to refactor. The code I was trying to refactor was less than a year old and <a href="https://twitter.com/davidwalshblog/status/953663412013293569">originally written, well... by me</a>!</p>
+
+<p>Should I be worried? Embarrassed? Well, not really. As engineers, when we build things we tend to look at current state of affairs, and we attempt to predict the future as much as possible. But the future is always changing, moving. SCA feature we were about to add to our existing logic weren't a requirement a year ago (a year ago I didn't know what SCA was). So first thing, <strong>never be embarrassed about refactoring</strong>, because the thing you're working on is often entirely unknown and you can't expect to get something unknown totally right the first time around. Looked at it in this light, refactoring is healthy.</p>
+
+<a name="Lets.Get.More.Specific"></a>
+<h3>Lets Get More Specific</h3>
 
 <p>Back to our SCA change, we ended up having some discussions about how to improve our already complicated logic in a way that easily supports future updates. We started by trying to separate the different steps that an order has to go through to fully get submitted and try to simplify it, weighing the pros and cons of each approach. While pretty much all of our solutions would have some disadvantages, we managed to find our best option and started refactoring. Without getting too technical, lets look at the actual change.</p>
 
-<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">## before refactor</span>
-<span class="n">order</span><span class="p">.</span><span class="nf">submit!</span> <span class="k">do</span>
-  <span class="n">order</span><span class="p">.</span><span class="nf">line_items</span><span class="p">.</span><span class="nf">each</span> <span class="p">{</span> <span class="o">|</span><span class="n">li</span><span class="o">|</span> <span class="n">li</span><span class="p">.</span><span class="nf">update!</span><span class="p">(</span><span class="ss">commission_fee_cents: </span><span class="n">li</span><span class="p">.</span><span class="nf">current_commission_fee_cents</span><span class="p">)</span> <span class="p">}</span>
-  <span class="n">totals</span> <span class="o">=</span> <span class="no">BuyOrderTotals</span><span class="p">.</span><span class="nf">new</span><span class="p">(</span><span class="n">order</span><span class="p">)</span>
-  <span class="n">order</span><span class="p">.</span><span class="nf">update!</span><span class="p">(</span>
-   <span class="c1"># set totals</span>
-  <span class="p">)</span>
-  <span class="n">order_processor</span><span class="p">.</span><span class="nf">hold!</span>
-  <span class="k">raise</span> <span class="no">Errors</span><span class="o">::</span><span class="no">InsufficientInventoryError</span> <span class="k">if</span> <span class="n">order_processor</span><span class="p">.</span><span class="nf">failed_inventory?</span>
-  <span class="c1"># in case of failed transaction, we need to rollback this block,</span>
-  <span class="c1"># but still need to add transaction, so we raise an ActiveRecord::Rollback</span>
-  <span class="k">raise</span> <span class="no">ActiveRecord</span><span class="o">::</span><span class="no">Rollback</span> <span class="k">if</span> <span class="n">order_processor</span><span class="p">.</span><span class="nf">failed_payment?</span> <span class="o">||</span> <span class="n">order_processor</span><span class="p">.</span><span class="nf">requires_action?</span>
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="c1">## before refactor</span>
+</span><span class='line'><span class="n">order</span><span class="o">.</span><span class="n">submit!</span> <span class="k">do</span>
+</span><span class='line'>  <span class="n">order</span><span class="o">.</span><span class="n">line_items</span><span class="o">.</span><span class="n">each</span> <span class="p">{</span> <span class="o">|</span><span class="n">li</span><span class="o">|</span> <span class="n">li</span><span class="o">.</span><span class="n">update!</span><span class="p">(</span><span class="ss">commission_fee_cents</span><span class="p">:</span> <span class="n">li</span><span class="o">.</span><span class="n">current_commission_fee_cents</span><span class="p">)</span> <span class="p">}</span>
+</span><span class='line'>  <span class="n">totals</span> <span class="o">=</span> <span class="no">BuyOrderTotals</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="n">order</span><span class="p">)</span>
+</span><span class='line'>  <span class="n">order</span><span class="o">.</span><span class="n">update!</span><span class="p">(</span>
+</span><span class='line'>   <span class="c1"># set totals</span>
+</span><span class='line'>  <span class="p">)</span>
+</span><span class='line'>  <span class="n">order_processor</span><span class="o">.</span><span class="n">hold!</span>
+</span><span class='line'>  <span class="k">raise</span> <span class="no">Errors</span><span class="o">::</span><span class="no">InsufficientInventoryError</span> <span class="k">if</span> <span class="n">order_processor</span><span class="o">.</span><span class="n">failed_inventory?</span>
+</span><span class='line'>  <span class="c1"># in case of failed transaction, we need to rollback this block,</span>
+</span><span class='line'>  <span class="c1"># but still need to add transaction, so we raise an ActiveRecord::Rollback</span>
+</span><span class='line'>  <span class="k">raise</span> <span class="no">ActiveRecord</span><span class="o">::</span><span class="no">Rollback</span> <span class="k">if</span> <span class="n">order_processor</span><span class="o">.</span><span class="n">failed_payment?</span> <span class="o">||</span> <span class="n">order_processor</span><span class="o">.</span><span class="n">requires_action?</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="n">order</span><span class="o">.</span><span class="n">update!</span><span class="p">(</span>
+</span><span class='line'>    <span class="c1"># set payment</span>
+</span><span class='line'>  <span class="p">)</span>
+</span><span class='line'>  <span class="n">order</span><span class="o">.</span><span class="n">transactions</span> <span class="o">&lt;&lt;</span> <span class="n">order_processor</span><span class="o">.</span><span class="n">transaction</span>
+</span><span class='line'>  <span class="no">PostTransactionNotificationJob</span><span class="o">.</span><span class="n">perform_later</span><span class="p">(</span><span class="n">order_processor</span><span class="o">.</span><span class="n">transaction</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">user_id</span><span class="p">)</span>
+</span><span class='line'>  <span class="k">raise</span> <span class="no">Errors</span><span class="o">::</span><span class="no">FailedTransactionError</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="ss">:charge_authorization_failed</span><span class="p">,</span> <span class="n">order_processor</span><span class="o">.</span><span class="n">transaction</span><span class="p">)</span> <span class="k">if</span> <span class="n">order_processor</span><span class="o">.</span><span class="n">failed_payment?</span>
+</span><span class='line'>  <span class="k">if</span> <span class="n">order_processor</span><span class="o">.</span><span class="n">requires_action?</span>
+</span><span class='line'>    <span class="c1"># because of an issue with `ActiveRecord::Rollback` we have to force a reload here</span>
+</span><span class='line'>    <span class="c1"># rollback does not clean the model and calling update on it will raise error</span>
+</span><span class='line'>    <span class="n">order</span><span class="o">.</span><span class="n">reload</span><span class="o">.</span><span class="n">update!</span><span class="p">(</span><span class="ss">external_charge_id</span><span class="p">:</span> <span class="n">order_processor</span><span class="o">.</span><span class="n">transaction</span><span class="o">.</span><span class="n">external_id</span><span class="p">)</span>
+</span><span class='line'>    <span class="no">Exchange</span><span class="o">.</span><span class="n">dogstatsd</span><span class="o">.</span><span class="n">increment</span> <span class="s1">&#39;******&#39;</span>
+</span><span class='line'>    <span class="k">raise</span> <span class="no">Errors</span><span class="o">::</span><span class="no">PaymentRequiresActionError</span><span class="p">,</span> <span class="n">order_processor</span><span class="o">.</span><span class="n">action_data</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
 
-  <span class="n">order</span><span class="p">.</span><span class="nf">update!</span><span class="p">(</span>
-    <span class="c1"># set payment</span>
-  <span class="p">)</span>
-  <span class="n">order</span><span class="p">.</span><span class="nf">transactions</span> <span class="o">&lt;&lt;</span> <span class="n">order_processor</span><span class="p">.</span><span class="nf">transaction</span>
-  <span class="no">PostTransactionNotificationJob</span><span class="p">.</span><span class="nf">perform_later</span><span class="p">(</span><span class="n">order_processor</span><span class="p">.</span><span class="nf">transaction</span><span class="p">.</span><span class="nf">id</span><span class="p">,</span> <span class="n">user_id</span><span class="p">)</span>
-  <span class="k">raise</span> <span class="no">Errors</span><span class="o">::</span><span class="no">FailedTransactionError</span><span class="p">.</span><span class="nf">new</span><span class="p">(</span><span class="ss">:charge_authorization_failed</span><span class="p">,</span> <span class="n">order_processor</span><span class="p">.</span><span class="nf">transaction</span><span class="p">)</span> <span class="k">if</span> <span class="n">order_processor</span><span class="p">.</span><span class="nf">failed_payment?</span>
-  <span class="k">if</span> <span class="n">order_processor</span><span class="p">.</span><span class="nf">requires_action?</span>
-    <span class="c1"># because of an issue with `ActiveRecord::Rollback` we have to force a reload here</span>
-    <span class="c1"># rollback does not clean the model and calling update on it will raise error</span>
-    <span class="n">order</span><span class="p">.</span><span class="nf">reload</span><span class="p">.</span><span class="nf">update!</span><span class="p">(</span><span class="ss">external_charge_id: </span><span class="n">order_processor</span><span class="p">.</span><span class="nf">transaction</span><span class="p">.</span><span class="nf">external_id</span><span class="p">)</span>
-    <span class="no">Exchange</span><span class="p">.</span><span class="nf">dogstatsd</span><span class="p">.</span><span class="nf">increment</span> <span class="s1">'******'</span>
-    <span class="k">raise</span> <span class="no">Errors</span><span class="o">::</span><span class="no">PaymentRequiresActionError</span><span class="p">,</span> <span class="n">order_processor</span><span class="p">.</span><span class="nf">action_data</span>
-  <span class="k">end</span>
-<span class="k">end</span>
-</code></pre></div></div>
 
-<p>In the original solution, we wrapped all of our changes in a database transaction within <code class="language-plaintext highlighter-rouge">order.submit!</code> to have a lock on that record. This was all good since we would ensure data integrity provided by database transaction. This way we ensure updates to <code class="language-plaintext highlighter-rouge">order</code> and <code class="language-plaintext highlighter-rouge">line_items</code> happen only in case of success. A failure in this block would rollback all changes which is good 👍</p>
+<p>In the original solution, we wrapped all of our changes in a database transaction within <code>order.submit!</code> to have a lock on that record. This was all good since we would ensure data integrity provided by database transaction. This way we ensure updates to <code>order</code> and <code>line_items</code> happen only in case of success. A failure in this block would rollback all changes which is good 👍</p>
 
-<p>But things got complicated once some of the changes in the block <em>should</em> have been preserved, even in case of rollback. Specifically we want to make sure a <code class="language-plaintext highlighter-rouge">transaction</code> is stored on the <code class="language-plaintext highlighter-rouge">order</code> if it payment fails or requires action.
-We found out that we can use <code class="language-plaintext highlighter-rouge">raise ActiveRecord::Rollback</code> which is a specific exception in Rails that only bubbles up in the surrounding transaction and does not get thrown outside of the block. This already makes things super complicated.</p>
+<p>But things got complicated once some of the changes in the block <em>should</em> have been preserved, even in case of rollback. Specifically we want to make sure a <code>transaction</code> is stored on the <code>order</code> if it payment fails or requires action.
+We found out that we can use <code>raise ActiveRecord::Rollback</code> which is a specific exception in Rails that only bubbles up in the surrounding transaction and does not get thrown outside of the block. This already makes things super complicated.</p>
 
 <p>In order to make our code less complicated, we did a few things:</p>
 
 <ul>
-  <li>We delegated more responsibility to a service class,<code class="language-plaintext highlighter-rouge">OrderProcessor</code>.</li>
-  <li>Instead of wrapping all code in one transaction, we now optimistically <code class="language-plaintext highlighter-rouge">submit</code> the order at the beginning and in case anything went wrong, we revert the changes.</li>
+<li>We delegated more responsibility to a service class,<code>OrderProcessor</code>.</li>
+<li>Instead of wrapping all code in one transaction, we now optimistically <code>submit</code> the order at the beginning and in case anything went wrong, we revert the changes.</li>
 </ul>
 
-<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">order_processor</span> <span class="o">=</span> <span class="no">OrderProcessor</span><span class="p">.</span><span class="nf">new</span><span class="p">(</span><span class="n">order</span><span class="p">,</span> <span class="n">user_id</span><span class="p">)</span>
-<span class="k">raise</span> <span class="no">Errors</span><span class="o">::</span><span class="no">ValidationError</span><span class="p">,</span> <span class="n">order_processor</span><span class="p">.</span><span class="nf">validation_error</span> <span class="k">unless</span> <span class="n">order_processor</span><span class="p">.</span><span class="nf">valid?</span>
 
-<span class="n">order_processor</span><span class="p">.</span><span class="nf">advance_state</span><span class="p">(</span><span class="ss">:submit!</span><span class="p">)</span>
-<span class="k">unless</span> <span class="n">order_processor</span><span class="p">.</span><span class="nf">deduct_inventory</span>
-  <span class="n">order_processor</span><span class="p">.</span><span class="nf">revert!</span>
-  <span class="k">raise</span> <span class="no">Errors</span><span class="o">::</span><span class="no">InsufficientInventoryError</span>
-<span class="k">end</span>
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">order_processor</span> <span class="o">=</span> <span class="no">OrderProcessor</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="n">order</span><span class="p">,</span> <span class="n">user_id</span><span class="p">)</span>
+</span><span class='line'><span class="k">raise</span> <span class="no">Errors</span><span class="o">::</span><span class="no">ValidationError</span><span class="p">,</span> <span class="n">order_processor</span><span class="o">.</span><span class="n">validation_error</span> <span class="k">unless</span> <span class="n">order_processor</span><span class="o">.</span><span class="n">valid?</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">order_processor</span><span class="o">.</span><span class="n">advance_state</span><span class="p">(</span><span class="ss">:submit!</span><span class="p">)</span>
+</span><span class='line'><span class="k">unless</span> <span class="n">order_processor</span><span class="o">.</span><span class="n">deduct_inventory</span>
+</span><span class='line'>  <span class="n">order_processor</span><span class="o">.</span><span class="n">revert!</span>
+</span><span class='line'>  <span class="k">raise</span> <span class="no">Errors</span><span class="o">::</span><span class="no">InsufficientInventoryError</span>
+</span><span class='line'><span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">order_processor</span><span class="o">.</span><span class="n">set_totals!</span>
+</span><span class='line'><span class="n">order_processor</span><span class="o">.</span><span class="n">hold</span>
+</span><span class='line'><span class="n">order_processor</span><span class="o">.</span><span class="n">store_transaction</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">if</span> <span class="n">order_processor</span><span class="o">.</span><span class="n">failed_payment?</span>
+</span><span class='line'>  <span class="n">order_processor</span><span class="o">.</span><span class="n">revert!</span>
+</span><span class='line'>  <span class="k">raise</span> <span class="no">Errors</span><span class="o">::</span><span class="no">FailedTransactionError</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="ss">:charge_authorization_failed</span><span class="p">,</span> <span class="n">order_processor</span><span class="o">.</span><span class="n">transaction</span><span class="p">)</span>
+</span><span class='line'><span class="k">elsif</span> <span class="n">order_processor</span><span class="o">.</span><span class="n">requires_action?</span>
+</span><span class='line'>  <span class="n">order_processor</span><span class="o">.</span><span class="n">revert!</span>
+</span><span class='line'>  <span class="no">Exchange</span><span class="o">.</span><span class="n">dogstatsd</span><span class="o">.</span><span class="n">increment</span> <span class="s1">&#39;******&#39;</span>
+</span><span class='line'>  <span class="k">raise</span> <span class="no">Errors</span><span class="o">::</span><span class="no">PaymentRequiresActionError</span><span class="p">,</span> <span class="n">order_processor</span><span class="o">.</span><span class="n">action_data</span>
+</span><span class='line'><span class="k">end</span>
+</span><span class='line'><span class="n">order_processor</span><span class="o">.</span><span class="n">on_success</span>
+</span></code></pre></td></tr></table></div></figure>
 
-<span class="n">order_processor</span><span class="p">.</span><span class="nf">set_totals!</span>
-<span class="n">order_processor</span><span class="p">.</span><span class="nf">hold</span>
-<span class="n">order_processor</span><span class="p">.</span><span class="nf">store_transaction</span>
 
-<span class="k">if</span> <span class="n">order_processor</span><span class="p">.</span><span class="nf">failed_payment?</span>
-  <span class="n">order_processor</span><span class="p">.</span><span class="nf">revert!</span>
-  <span class="k">raise</span> <span class="no">Errors</span><span class="o">::</span><span class="no">FailedTransactionError</span><span class="p">.</span><span class="nf">new</span><span class="p">(</span><span class="ss">:charge_authorization_failed</span><span class="p">,</span> <span class="n">order_processor</span><span class="p">.</span><span class="nf">transaction</span><span class="p">)</span>
-<span class="k">elsif</span> <span class="n">order_processor</span><span class="p">.</span><span class="nf">requires_action?</span>
-  <span class="n">order_processor</span><span class="p">.</span><span class="nf">revert!</span>
-  <span class="no">Exchange</span><span class="p">.</span><span class="nf">dogstatsd</span><span class="p">.</span><span class="nf">increment</span> <span class="s1">'******'</span>
-  <span class="k">raise</span> <span class="no">Errors</span><span class="o">::</span><span class="no">PaymentRequiresActionError</span><span class="p">,</span> <span class="n">order_processor</span><span class="p">.</span><span class="nf">action_data</span>
-<span class="k">end</span>
-<span class="n">order_processor</span><span class="p">.</span><span class="nf">on_success</span>
-</code></pre></div></div>
 <p>Well, this at least is a lot more readable.</p>
 
-<h3 id="get-the-change-to-production">Get The Change to Production</h3>
+<a name="Get.The.Change.to.Production"></a>
+<h3>Get The Change to Production</h3>
 
 <p>The next question is how to get this to production. We tried to isolate this specific refactoring by:</p>
 
 <ul>
-  <li>Open a PR that only focuses on our refactoring</li>
-  <li>Make sure in the PR above we don’t touch any API level tests and make sure all these tests still pass. This would give us more confidence that we are not impacting our existing clients.</li>
-  <li>Review and merge refactoring PR and test on staging.</li>
-  <li>Deploy everything in current pipeline to isolate the refactor deploy.</li>
-  <li>Deploy the refactoring PR to production.</li>
+<li>Open a PR that only focuses on our refactoring</li>
+<li>Make sure in the PR above we don't touch any API level tests and make sure all these tests still pass. This would give us more confidence that we are not impacting our existing clients.</li>
+<li>Review and merge refactoring PR and test on staging.</li>
+<li>Deploy everything in current pipeline to isolate the refactor deploy.</li>
+<li>Deploy the refactoring PR to production.</li>
 </ul>
 
-<h2 id="how-did-it-go">How Did It Go?</h2>
 
-<p>This plan worked for us, for the most part. We ended up having to rollback the deploy since we found a bug in a non-API part of our app. From this we learned that even if we already have tests written in different layers of our app, we still need to verify them and make sure they cover all cases. Relying too much on existing tests can often lead to trouble – verify!</p>
+<a name="How.Did.It.Go."></a>
+<h2>How Did It Go?</h2>
 
-<h2 id="our-learnings">Our learnings</h2>
+<p>This plan worked for us, for the most part. We ended up having to rollback the deploy since we found a bug in a non-API part of our app. From this we learned that even if we already have tests written in different layers of our app, we still need to verify them and make sure they cover all cases. Relying too much on existing tests can often lead to trouble -- verify!</p>
+
+<a name="Our.learnings"></a>
+<h2>Our learnings</h2>
+
 <ul>
-  <li>Don’t be afraid of refactors. They are natural and a healthy engineering tool / practice.</li>
-  <li>Ensure that refactor PR’s only include refactor-related changes. It’s often tempting to fix other things along the way, but those fixes can take place in follow-up PRs.</li>
-  <li>Don’t rely only on existing tests. Refactoring is a great opportunity to review and verify your tests. Verify them and make sure they cover all scenarios.</li>
+<li>Don't be afraid of refactors. They are natural and a healthy engineering tool / practice.</li>
+<li>Ensure that refactor PR's only include refactor-related changes. It's often tempting to fix other things along the way, but those fixes can take place in follow-up PRs.</li>
+<li>Don't rely only on existing tests. Refactoring is a great opportunity to review and verify your tests. Verify them and make sure they cover all scenarios.</li>
 </ul>
+
 
 <p>Curious about the PR? At Artsy we believe in <a href="https://github.com/artsy/README/blob/master/culture/engineering-principles.md#open-source-by-default">Open Source By Default</a>, so check out the code <a href="https://github.com/artsy/exchange/pull/475/files">here</a>.</p>
 
@@ -359,7 +420,7 @@ We found out that we can use <code class="language-plaintext highlighter-rouge">
 
           <section>
             <h4>Author</h4>
-            <p> <a href="/author/ashkan">Ashkan Nasseri</a></p>
+            <p> <a href="/author/ashkan"/>Ashkan Nasseri</a></p>
             <p></a></p>
           </section>
 
@@ -385,7 +446,7 @@ We found out that we can use <code class="language-plaintext highlighter-rouge">
               <li><a href='http://artsy.github.io/blog/archives/'>Archives</a></li>
               <li><a href='http://artsy.github.io/search/'>Search</a></li>
               <li><a href='https://github.com/artsy/artsy.github.io'>Code on GitHub</a></li>
-              <li><a href='https://github.com/artsy/artsy.github.io/edit/source/_posts/2019-09-10-unbearable-lightness-of-refactoring.markdown'>Fix typos in this post</a></li>
+              <li><a href='https://github.com/artsy/artsy.github.io/edit/source/_posts/2019-09-10-unbearable-lightness-of-refactoring.markdown'>Fix typoes in this post</a></li>
             </ul>
           </section>
 

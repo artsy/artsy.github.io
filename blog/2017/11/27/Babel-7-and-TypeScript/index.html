@@ -92,219 +92,361 @@
         </header>
 
         <article class='post'>
-          <p>At Artsy we &lt;3 <a href="https://www.typescriptlang.org/">TypeScript</a>. We use it with React Native via <a href="https://github.com/artsy/emission">Emission</a> and on the web via <a href="https://github.com/artsy/reaction">Reaction</a>. Until recently, however, projects that required the use of Babel had to implement convoluted tooling pipelines in order to work with the TypeScript compiler, increasing friction in an already complex landscape. (An example of this is Emission’s use of Relay, which requires <a href="https://facebook.github.io/relay/docs/babel-plugin-relay.html#setting-up-babel-plugin-relay">babel-plugin-relay</a> to convert <code class="language-plaintext highlighter-rouge">graphql</code> literals into require calls.) Thankfully, those days <a href="https://github.com/babel/babel/tree/master/packages/babel-preset-typescript">are over</a>. Read on for an example project, as well as some advice on how to avoid common pitfalls when working with the new beta version of Babel 7.</p>
+          <p>At Artsy we &lt;3 <a href="https://www.typescriptlang.org/">TypeScript</a>. We use it with React Native via <a href="https://github.com/artsy/emission">Emission</a> and on the web via <a href="https://github.com/artsy/reaction">Reaction</a>. Until recently, however, projects that required the use of Babel had to implement convoluted tooling pipelines in order to work with the TypeScript compiler, increasing friction in an already complex landscape. (An example of this is Emission's use of Relay, which requires <a href="https://facebook.github.io/relay/docs/babel-plugin-relay.html#setting-up-babel-plugin-relay">babel-plugin-relay</a> to convert <code>graphql</code> literals into require calls.) Thankfully, those days <a href="https://github.com/babel/babel/tree/master/packages/babel-preset-typescript">are over</a>. Read on for an example project, as well as some advice on how to avoid common pitfalls when working with the new beta version of Babel 7.</p>
 
 <!-- more -->
 
-<p>Babel configurations can be complicated. They take time to set up and maintain and can often contain some pretty <a href="https://github.com/kentcdodds/babel-macros">far-out features</a> that make interop with other environments difficult. That’s why we were elated when <a href="https://github.com/babel/babylon/pull/523">this PR</a> appeared in the wild from <a href="https://github.com/andy-ms">@andy-ms</a>, a developer on the TypeScript team, announcing a new parser for Babylon. <a href="https://github.com/babel/babel/tree/master/packages/babel-preset-typescript">@babel/preset-typescript</a> arrived soon after and we felt it was finally time to give it a try. There was a catch, however: TypeScript support only works with Babel 7+!</p>
 
-<p><strong>TLDR; <a href="https://github.com/damassi/babel-7-typescript-example" target="_blank">Check out the project on GitHub &gt;</a></strong></p>
+<p>Babel configurations can be complicated. They take time to set up and maintain and can often contain some pretty <a href="https://github.com/kentcdodds/babel-macros">far-out features</a> that make interop with other environments difficult. That's why we were elated when <a href="https://github.com/babel/babylon/pull/523">this PR</a> appeared in the wild from <a href="https://github.com/andy-ms">@andy-ms</a>, a developer on the TypeScript team, announcing a new parser for Babylon. <a href="https://github.com/babel/babel/tree/master/packages/babel-preset-typescript">@babel/preset-typescript</a> arrived soon after and we felt it was finally time to give it a try. There was a catch, however: TypeScript support only works with Babel 7+!</p>
 
-<p>Here’s list of setup issues we faced in no specific order:</p>
+<p><strong>TLDR; <a href="https://github.com/damassi/babel-7-typescript-example" target="_blank">Check out the project on GitHub ></a></strong></p>
 
-<h2 id="1-new-babel-namespace">1) New @babel Namespace</h2>
+<p>Here's list of setup issues we faced in no specific order:</p>
 
-<p>One of the first things Babel 7 users will notice is the package ecosystem now exists as a <a href="https://github.com/babel/babel/tree/master/packages">monorepo</a> and all NPM modules are namespaced behind the <code class="language-plaintext highlighter-rouge">@babel</code> org address. Packages that used to be installed via</p>
+<a name="L1..New..babel.Namespace"></a>
+<h2>1) New @babel Namespace</h2>
 
-<div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code>yarn add <span class="nt">-D</span> <span class="se">\</span>
-  babel-core <span class="se">\</span>
-  babel-preset-react <span class="se">\</span>
-  babel-preset-stage-3
-  ...
-</code></pre></div></div>
+<p>One of the first things Babel 7 users will notice is the package ecosystem now exists as a <a href="https://github.com/babel/babel/tree/master/packages">monorepo</a> and all NPM modules are namespaced behind the <code>@babel</code> org address. Packages that used to be installed via</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='sh'><span class='line'>yarn add -D <span class="se">\</span>
+</span><span class='line'>  babel-core <span class="se">\</span>
+</span><span class='line'>  babel-preset-react <span class="se">\</span>
+</span><span class='line'>  babel-preset-stage-3
+</span><span class='line'>  ...
+</span></code></pre></td></tr></table></div></figure>
+
+
 <p>are now installed via</p>
-<div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code>yarn add <span class="nt">-D</span> <span class="se">\</span>
-  @babel/core <span class="se">\</span>
-  @babel/preset-react <span class="se">\</span>
-  @babel/preset-stage-3
-  ...
-</code></pre></div></div>
-<p>which immediately creates upgrade conflicts between libraries that use Babel 6 and Babel 7. For example, <code class="language-plaintext highlighter-rouge">babel-jest</code> internally points to <code class="language-plaintext highlighter-rouge">babel-core</code> which supports a <a href="https://github.com/facebook/jest/blob/master/packages/babel-jest/package.json#L19">version range between 6 and 7</a> – but! – <code class="language-plaintext highlighter-rouge">babel-core</code> is now <code class="language-plaintext highlighter-rouge">@babel/core</code> so this breaks.</p>
 
-<p>This wasn’t immediately apparent at the time, and so we would often find errors like</p>
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='sh'><span class='line'>yarn add -D <span class="se">\</span>
+</span><span class='line'>  @babel/core <span class="se">\</span>
+</span><span class='line'>  @babel/preset-react <span class="se">\</span>
+</span><span class='line'>  @babel/preset-stage-3
+</span><span class='line'>  ...
+</span></code></pre></td></tr></table></div></figure>
 
-<div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Error: Could not find preset <span class="s2">"@babel/env"</span> relative to directory
-</code></pre></div></div>
 
-<p>These errors appeared ambiguous because the folder structure was correct and commands like <code class="language-plaintext highlighter-rouge">yarn list @babel/preset-env</code> yielded expected results:</p>
+<p>which immediately creates upgrade conflicts between libraries that use Babel 6 and Babel 7. For example, <code>babel-jest</code> internally points to <code>babel-core</code> which supports a <a href="https://github.com/facebook/jest/blob/master/packages/babel-jest/package.json#L19">version range between 6 and 7</a> -- but! -- <code>babel-core</code> is now <code>@babel/core</code> so this breaks.</p>
 
-<div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code>└─ @babel/preset-env@7.0.0-beta.32
-✨  Done <span class="k">in </span>0.58s.
-</code></pre></div></div>
+<p>This wasn't immediately apparent at the time, and so we would often find errors like</p>
 
-<p>Why was the package not found? Digging deeper, it seemed like Babel 6 was still being used somewhere. Running <code class="language-plaintext highlighter-rouge">yarn list babel-core</code> revealed the culprit:</p>
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='sh'><span class='line'>Error: Could not find preset <span class="s2">&quot;@babel/env&quot;</span> relative to directory
+</span></code></pre></td></tr></table></div></figure>
 
-<div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code>└─ babel-core@6.25.0
-✨  Done <span class="k">in </span>0.58s.
-</code></pre></div></div>
 
-<p>Thankfully, <a href="https://github.com/babel/babel-bridge">babel-bridge</a> exists to “bridge” the gap, but one can see how complications can and will arise. Further, not all packages have implemented this fix and so we had to rely on <code class="language-plaintext highlighter-rouge">yarn</code>’s new <a href="https://yarnpkg.com/lang/en/docs/selective-version-resolutions/">selective dependency resolution</a> feature which overrides child dependency versions with a fixed number set directly in <code class="language-plaintext highlighter-rouge">package.json</code>:</p>
+<p>These errors appeared ambiguous because the folder structure was correct and commands like <code>yarn list @babel/preset-env</code> yielded expected results:</p>
 
-<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nl">"resolutions"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
-  </span><span class="nl">"babel-core"</span><span class="p">:</span><span class="w"> </span><span class="s2">"^7.0.0-bridge.0"</span><span class="w">
-</span><span class="p">}</span><span class="err">,</span><span class="w">
-</span></code></pre></div></div>
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='sh'><span class='line'>└─ @babel/preset-env@7.0.0-beta.32
+</span><span class='line'>✨  Done in 0.58s.
+</span></code></pre></td></tr></table></div></figure>
 
-<p>With this in place many of our errors disappeared and packages like <code class="language-plaintext highlighter-rouge">jest</code> now worked like a charm.</p>
 
-<h2 id="2-missing-es2015-features">2) Missing ES2015 Features</h2>
+<p>Why was the package not found? Digging deeper, it seemed like Babel 6 was still being used somewhere. Running <code>yarn list babel-core</code> revealed the culprit:</p>
 
-<p>Another error we faced early on surrounded language features that worked with Babel <em>or</em> TypeScript, but not with Babel <em>and</em> TypeScript. For example, take an existing Babel project that points to <code class="language-plaintext highlighter-rouge">index.js</code> as an entrypoint, configure it to support TypeScript via Babel 7, and then run it:</p>
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='sh'><span class='line'>└─ babel-core@6.25.0
+</span><span class='line'>✨  Done in 0.58s.
+</span></code></pre></td></tr></table></div></figure>
 
-<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nl">"scripts"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
-  </span><span class="nl">"start"</span><span class="p">:</span><span class="w"> </span><span class="s2">"babel-node index.js"</span><span class="w">
-</span><span class="p">}</span><span class="w">
-</span></code></pre></div></div>
-<div class="language-js highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// index.js</span>
-<span class="nx">require</span><span class="p">(</span><span class="dl">'</span><span class="s1">@babel/register</span><span class="dl">'</span><span class="p">)({</span>
-  <span class="na">extensions</span><span class="p">:</span> <span class="p">[</span><span class="dl">'</span><span class="s1">.js</span><span class="dl">'</span><span class="p">,</span> <span class="dl">'</span><span class="s1">.jsx</span><span class="dl">'</span><span class="p">,</span> <span class="dl">'</span><span class="s1">.ts</span><span class="dl">'</span><span class="p">,</span> <span class="dl">'</span><span class="s1">.tsx</span><span class="dl">'</span><span class="p">]</span>
-<span class="p">})</span>
-<span class="nx">require</span><span class="p">(</span><span class="dl">'</span><span class="s1">app/server.ts</span><span class="dl">'</span><span class="p">)</span>
-</code></pre></div></div>
-<div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// app/server.ts</span>
-<span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="dl">'</span><span class="s1">hi!</span><span class="dl">'</span><span class="p">)</span>
-</code></pre></div></div>
+
+<p>Thankfully, <a href="https://github.com/babel/babel-bridge">babel-bridge</a> exists to "bridge" the gap, but one can see how complications can and will arise. Further, not all packages have implemented this fix and so we had to rely on <code>yarn</code>'s new <a href="https://yarnpkg.com/lang/en/docs/selective-version-resolutions/">selective dependency resolution</a> feature which overrides child dependency versions with a fixed number set directly in <code>package.json</code>:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='json'><span class='line'><span class="s2">&quot;resolutions&quot;</span><span class="err">:</span> <span class="p">{</span>
+</span><span class='line'>  <span class="nt">&quot;babel-core&quot;</span><span class="p">:</span> <span class="s2">&quot;^7.0.0-bridge.0&quot;</span>
+</span><span class='line'><span class="p">}</span><span class="err">,</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>With this in place many of our errors disappeared and packages like <code>jest</code> now worked like a charm.</p>
+
+<a name="L2..Missing.ES2015.Features"></a>
+<h2>2) Missing ES2015 Features</h2>
+
+<p>Another error we faced early on surrounded language features that worked with Babel <em>or</em> TypeScript, but not with Babel <em>and</em> TypeScript. For example, take an existing Babel project that points to <code>index.js</code> as an entrypoint, configure it to support TypeScript via Babel 7, and then run it:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='json'><span class='line'><span class="s2">&quot;scripts&quot;</span><span class="err">:</span> <span class="p">{</span>
+</span><span class='line'>  <span class="nt">&quot;start&quot;</span><span class="p">:</span> <span class="s2">&quot;babel-node index.js&quot;</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='js'><span class='line'><span class="c1">// index.js</span>
+</span><span class='line'><span class="nx">require</span><span class="p">(</span><span class="s1">&#39;@babel/register&#39;</span><span class="p">)({</span>
+</span><span class='line'>  <span class="nx">extensions</span><span class="o">:</span> <span class="p">[</span><span class="s1">&#39;.js&#39;</span><span class="p">,</span> <span class="s1">&#39;.jsx&#39;</span><span class="p">,</span> <span class="s1">&#39;.ts&#39;</span><span class="p">,</span> <span class="s1">&#39;.tsx&#39;</span><span class="p">]</span>
+</span><span class='line'><span class="p">})</span>
+</span><span class='line'><span class="nx">require</span><span class="p">(</span><span class="s1">&#39;app/server.ts&#39;</span><span class="p">)</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='javascript'><span class='line'><span class="c1">// app/server.ts</span>
+</span><span class='line'><span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="s1">&#39;hi!&#39;</span><span class="p">)</span>
+</span></code></pre></td></tr></table></div></figure>
+
 
 <p>Running</p>
 
-<div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code>yarn start
-<span class="nv">$ </span>babel-node index.js
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='sh'><span class='line'>yarn start
+</span><span class='line'><span class="nv">$ </span>babel-node index.js
+</span><span class='line'>
+</span><span class='line'>hi!
+</span><span class='line'>✨  Done in 1.88s.
+</span></code></pre></td></tr></table></div></figure>
 
-hi!
-✨  Done <span class="k">in </span>1.88s.
-</code></pre></div></div>
 
-<p>Everything seems to be working; our <code class="language-plaintext highlighter-rouge">.js</code> entrypoint is configured to support <code class="language-plaintext highlighter-rouge">.ts</code> extensions and we kick off the boot process.</p>
+<p>Everything seems to be working; our <code>.js</code> entrypoint is configured to support <code>.ts</code> extensions and we kick off the boot process.</p>
 
-<p>Let’s now try to import a file from within <code class="language-plaintext highlighter-rouge">app/server.ts</code>:</p>
+<p>Let's now try to import a file from within <code>app/server.ts</code>:</p>
 
-<div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nx">path</span> <span class="k">from</span> <span class="dl">'</span><span class="s1">path</span><span class="dl">'</span>
-<span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="s2">`Hello </span><span class="p">${</span><span class="nx">path</span><span class="p">.</span><span class="nx">resolve</span><span class="p">(</span><span class="nx">process</span><span class="p">.</span><span class="nx">cwd</span><span class="p">())}</span><span class="s2">!`</span><span class="p">)</span>
-</code></pre></div></div>
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='javascript'><span class='line'><span class="kr">import</span> <span class="nx">path</span> <span class="nx">from</span> <span class="s1">&#39;path&#39;</span>
+</span><span class='line'><span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="err">`</span><span class="nx">Hello</span> <span class="nx">$</span><span class="p">{</span><span class="nx">path</span><span class="p">.</span><span class="nx">resolve</span><span class="p">(</span><span class="nx">process</span><span class="p">.</span><span class="nx">cwd</span><span class="p">())}</span><span class="o">!</span><span class="err">`</span><span class="p">)</span>
+</span></code></pre></td></tr></table></div></figure>
 
-<div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code>yarn start
-<span class="nv">$ </span>yarn run v1.3.2
-<span class="nv">$ </span>babel-node index.js
-sites/src/index.tsx:1
-<span class="o">(</span><span class="k">function</span> <span class="o">(</span>exports, require, module, __filename, __dirname<span class="o">)</span> <span class="o">{</span> import path from <span class="s1">'path'</span>
-                                                              ^^^^^^
 
-SyntaxError: Unexpected token import
-</code></pre></div></div>
 
-<p>Maybe my <code class="language-plaintext highlighter-rouge">tsconfig.json</code> file is misconfigured?</p>
 
-<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
-  </span><span class="nl">"compilerOptions"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
-    </span><span class="nl">"module"</span><span class="p">:</span><span class="w"> </span><span class="s2">"es2015"</span><span class="w">
-  </span><span class="p">}</span><span class="w">
-</span><span class="p">}</span><span class="w">
-</span></code></pre></div></div>
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class='sh'><span class='line'>yarn start
+</span><span class='line'><span class="nv">$ </span>yarn run v1.3.2
+</span><span class='line'><span class="nv">$ </span>babel-node index.js
+</span><span class='line'>sites/src/index.tsx:1
+</span><span class='line'><span class="o">(</span><span class="k">function</span> <span class="o">(</span>exports, require, module, __filename, __dirname<span class="o">)</span> <span class="o">{</span> import path from <span class="s1">&#39;path&#39;</span>
+</span><span class='line'>                                                              ^^^^^^
+</span><span class='line'>
+</span><span class='line'>SyntaxError: Unexpected token import
+</span></code></pre></td></tr></table></div></figure>
 
-<p>Nope, all good. How about my <code class="language-plaintext highlighter-rouge">.babelrc</code>?</p>
 
-<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
-  </span><span class="nl">"presets"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
-    </span><span class="p">[</span><span class="s2">"@babel/env"</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w">
-      </span><span class="nl">"targets"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
-        </span><span class="nl">"browsers"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"last 2 versions"</span><span class="p">]</span><span class="w">
-      </span><span class="p">}</span><span class="w">
-    </span><span class="p">}],</span><span class="w">
-    </span><span class="s2">"@babel/stage-3"</span><span class="p">,</span><span class="w">
-    </span><span class="s2">"@babel/react"</span><span class="p">,</span><span class="w">
-    </span><span class="s2">"@babel/typescript"</span><span class="w">
-  </span><span class="p">]</span><span class="w">
-</span><span class="p">}</span><span class="w">
-</span></code></pre></div></div>
+<p>Maybe my <code>tsconfig.json</code> file is misconfigured?</p>
 
-<p>We’re using <a href="https://github.com/babel/babel/tree/master/packages/babel-preset-env"><code class="language-plaintext highlighter-rouge">@babel/preset-env</code></a> which handles selecting the JS features we need, so thats not it. And anyways, doesn’t TypeScript support <code class="language-plaintext highlighter-rouge">ES2015</code> modules right out of the box?</p>
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='json'><span class='line'><span class="p">{</span>
+</span><span class='line'>  <span class="nt">&quot;compilerOptions&quot;</span><span class="p">:</span> <span class="p">{</span>
+</span><span class='line'>    <span class="nt">&quot;module&quot;</span><span class="p">:</span> <span class="s2">&quot;es2015&quot;</span>
+</span><span class='line'>  <span class="p">}</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
 
-<p>Continuing, how about specifying the extension list directly in <code class="language-plaintext highlighter-rouge">package.json</code>:</p>
 
-<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nl">"start"</span><span class="p">:</span><span class="w"> </span><span class="s2">"babel-node --extensions '.ts,.tsx' index.js"</span><span class="w">
-</span></code></pre></div></div>
+<p>Nope, all good. How about my <code>.babelrc</code>?</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+</pre></td><td class='code'><pre><code class='json'><span class='line'><span class="p">{</span>
+</span><span class='line'>  <span class="nt">&quot;presets&quot;</span><span class="p">:</span> <span class="p">[</span>
+</span><span class='line'>    <span class="p">[</span><span class="s2">&quot;@babel/env&quot;</span><span class="p">,</span> <span class="p">{</span>
+</span><span class='line'>      <span class="nt">&quot;targets&quot;</span><span class="p">:</span> <span class="p">{</span>
+</span><span class='line'>        <span class="nt">&quot;browsers&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;last 2 versions&quot;</span><span class="p">]</span>
+</span><span class='line'>      <span class="p">}</span>
+</span><span class='line'>    <span class="p">}],</span>
+</span><span class='line'>    <span class="s2">&quot;@babel/stage-3&quot;</span><span class="p">,</span>
+</span><span class='line'>    <span class="s2">&quot;@babel/react&quot;</span><span class="p">,</span>
+</span><span class='line'>    <span class="s2">&quot;@babel/typescript&quot;</span>
+</span><span class='line'>  <span class="p">]</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>We're using <a href="https://github.com/babel/babel/tree/master/packages/babel-preset-env"><code>@babel/preset-env</code></a> which handles selecting the JS features we need, so thats not it. And anyways, doesn't TypeScript support <code>ES2015</code> modules right out of the box?</p>
+
+<p>Continuing, how about specifying the extension list directly in <code>package.json</code>:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='json'><span class='line'><span class="s2">&quot;start&quot;</span><span class="err">:</span> <span class="s2">&quot;babel-node --extensions &#39;.ts,.tsx&#39; index.js&quot;</span>
+</span></code></pre></td></tr></table></div></figure>
+
 
 <p>Still no go 🙁</p>
 
-<p>Last try: Create a new entrypoint file that uses a <code class="language-plaintext highlighter-rouge">.ts</code> extension and then use <em>that</em> to boot the rest of the app:</p>
+<p>Last try: Create a new entrypoint file that uses a <code>.ts</code> extension and then use <em>that</em> to boot the rest of the app:</p>
 
-<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nl">"start"</span><span class="p">:</span><span class="w"> </span><span class="s2">"babel-node --extensions '.ts,.tsx' index.ts"</span><span class="w">
-</span></code></pre></div></div>
-<div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// index.ts</span>
-<span class="k">import</span> <span class="dl">'</span><span class="s1">./app/server</span><span class="dl">'</span>
-</code></pre></div></div>
-<div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code>yarn start
-<span class="nv">$ </span>yarn run v1.3.2
-<span class="nv">$ </span>babel-node index.js
-Hello /sites!
-</code></pre></div></div>
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='json'><span class='line'><span class="s2">&quot;start&quot;</span><span class="err">:</span> <span class="s2">&quot;babel-node --extensions &#39;.ts,.tsx&#39; index.ts&quot;</span>
+</span></code></pre></td></tr></table></div></figure>
 
-<p>Once this change was in place, we could ditch <code class="language-plaintext highlighter-rouge">@babel/register</code> and instead rely on the <code class="language-plaintext highlighter-rouge">--extensions</code> configuration from <code class="language-plaintext highlighter-rouge">package.json</code>, just like the <a href="https://github.com/babel/babel/tree/master/packages/babel-preset-typescript">README</a> suggests (doh! 🤦).</p>
 
-<p><strong>NOTE:</strong> If you’re using <a href="https://github.com/tleunen/babel-plugin-module-resolver"><code class="language-plaintext highlighter-rouge">babel-plugin-module-resolver</code></a> to support absolute path imports make sure to update the <code class="language-plaintext highlighter-rouge">extensions</code> <a href="https://github.com/tleunen/babel-plugin-module-resolver#options">option</a> with <code class="language-plaintext highlighter-rouge">.ts</code> and <code class="language-plaintext highlighter-rouge">.tsx</code>.</p>
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='javascript'><span class='line'><span class="c1">// index.ts</span>
+</span><span class='line'><span class="kr">import</span> <span class="s1">&#39;./app/server&#39;</span>
+</span></code></pre></td></tr></table></div></figure>
 
-<h2 id="3-type-checking">3) Type-Checking</h2>
 
-<p>Lastly, since Babel 7 is now responsible for compiling our TypeScript files we no longer need to rely on TypeScript’s own <code class="language-plaintext highlighter-rouge">tsc</code> compiler to output JavaScript and instead just use it to type-check our code. Again, in <code class="language-plaintext highlighter-rouge">package.json</code>:</p>
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+</pre></td><td class='code'><pre><code class='sh'><span class='line'>yarn start
+</span><span class='line'><span class="nv">$ </span>yarn run v1.3.2
+</span><span class='line'><span class="nv">$ </span>babel-node index.js
+</span><span class='line'>Hello /sites!
+</span></code></pre></td></tr></table></div></figure>
 
-<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>"type-check": "tsc"
-</code></pre></div></div>
 
-<p>This reads in settings located in <code class="language-plaintext highlighter-rouge">tsconfig.json</code>:</p>
-<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
-  </span><span class="nl">"compilerOptions"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
-    </span><span class="nl">"noEmit"</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span><span class="w">
-    </span><span class="nl">"pretty"</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w">
-    </span><span class="err">...</span><span class="w">
-  </span><span class="p">}</span><span class="w">
-</span><span class="p">}</span><span class="w">
-</span></code></pre></div></div>
+<p>Once this change was in place, we could ditch <code>@babel/register</code> and instead rely on the <code>--extensions</code> configuration from <code>package.json</code>, just like the <a href="https://github.com/babel/babel/tree/master/packages/babel-preset-typescript">README</a> suggests (doh! 🤦).</p>
 
-<p>Notice the <code class="language-plaintext highlighter-rouge">noEmit</code> flag? That tells <code class="language-plaintext highlighter-rouge">tsc</code> not to output any JS and instead only check for correctness. The “pretty” flag gives us nicer type-checker output.</p>
+<p><strong>NOTE:</strong> If you're using <a href="https://github.com/tleunen/babel-plugin-module-resolver"><code>babel-plugin-module-resolver</code></a> to support absolute path imports make sure to update the <code>extensions</code> <a href="https://github.com/tleunen/babel-plugin-module-resolver#options">option</a> with <code>.ts</code> and <code>.tsx</code>.</p>
 
-<p>While this seemed to be all that was needed, running <code class="language-plaintext highlighter-rouge">yarn type-check</code> would throw an error:</p>
+<a name="L3..Type-Checking"></a>
+<h2>3) Type-Checking</h2>
 
-<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ yarn type-check
-yarn run v1.3.2
-$ tsc
+<p>Lastly, since Babel 7 is now responsible for compiling our TypeScript files we no longer need to rely on TypeScript's own <code>tsc</code> compiler to output JavaScript and instead just use it to type-check our code. Again, in <code>package.json</code>:</p>
 
-node_modules/@types/jest/index.d.ts(1053,34): error TS2304: Cannot find name 'Set'.
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='sh'><span class='line'><span class="s2">&quot;type-check&quot;</span>: <span class="s2">&quot;tsc&quot;</span>
+</span></code></pre></td></tr></table></div></figure>
 
-1053         onRunComplete?(contexts: Set&lt;Context&gt;, results: AggregatedResult): Maybe&lt;Promise&lt;void&gt;&gt;;
-                                      ~~~
 
-error Command failed with exit code 1.
-</code></pre></div></div>
+<p>This reads in settings located in <code>tsconfig.json</code>:</p>
 
-<p>Why is it TypeChecking my <code class="language-plaintext highlighter-rouge">node_modules</code> folder when <code class="language-plaintext highlighter-rouge">rootDirs</code> is set to <code class="language-plaintext highlighter-rouge">src</code>? It looks like we missed a TypeScript setting:</p>
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+</pre></td><td class='code'><pre><code class='json'><span class='line'><span class="p">{</span>
+</span><span class='line'>  <span class="nt">&quot;compilerOptions&quot;</span><span class="p">:</span> <span class="p">{</span>
+</span><span class='line'>    <span class="nt">&quot;noEmit&quot;</span><span class="p">:</span> <span class="kc">true</span><span class="p">,</span>
+</span><span class='line'>    <span class="nt">&quot;pretty&quot;</span><span class="p">:</span> <span class="kc">true</span>
+</span><span class='line'>    <span class="err">...</span>
+</span><span class='line'>  <span class="p">}</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
 
-<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
-  </span><span class="nl">"compilerOptions"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
-    </span><span class="nl">"skipLibCheck"</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w">
-  </span><span class="p">}</span><span class="w">
-</span><span class="p">}</span><span class="w">
-</span></code></pre></div></div>
+
+<p>Notice the <code>noEmit</code> flag? That tells <code>tsc</code> not to output any JS and instead only check for correctness. The "pretty" flag gives us nicer type-checker output.</p>
+
+<p>While this seemed to be all that was needed, running <code>yarn type-check</code> would throw an error:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+</pre></td><td class='code'><pre><code class='json'><span class='line'><span class="err">$</span> <span class="err">yarn</span> <span class="err">type-check</span>
+</span><span class='line'><span class="err">yarn</span> <span class="err">run</span> <span class="err">v</span><span class="mf">1.3</span><span class="err">.</span><span class="mi">2</span>
+</span><span class='line'><span class="err">$</span> <span class="err">tsc</span>
+</span><span class='line'>
+</span><span class='line'><span class="err">node_modules/@types/jest/index.d.ts(</span><span class="mi">1053</span><span class="err">,</span><span class="mi">34</span><span class="err">):</span> <span class="err">error</span> <span class="err">TS</span><span class="mi">2304</span><span class="err">:</span> <span class="err">Cannot</span> <span class="err">find</span> <span class="err">name</span> <span class="err">&#39;Set&#39;.</span>
+</span><span class='line'>
+</span><span class='line'><span class="mi">1053</span>         <span class="err">onRunComplete?(contexts:</span> <span class="err">Set&lt;Context&gt;,</span> <span class="err">results:</span> <span class="err">AggregatedResult):</span> <span class="err">Maybe&lt;Promise&lt;void&gt;&gt;;</span>
+</span><span class='line'>                                      <span class="err">~~~</span>
+</span><span class='line'>
+</span><span class='line'><span class="err">error</span> <span class="err">Command</span> <span class="err">failed</span> <span class="err">with</span> <span class="err">exit</span> <span class="err">code</span> <span class="mi">1</span><span class="err">.</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Why is it TypeChecking my <code>node_modules</code> folder when <code>rootDirs</code> is set to <code>src</code>? It looks like we missed a TypeScript setting:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='json'><span class='line'><span class="p">{</span>
+</span><span class='line'>  <span class="nt">&quot;compilerOptions&quot;</span><span class="p">:</span> <span class="p">{</span>
+</span><span class='line'>    <span class="nt">&quot;skipLibCheck&quot;</span><span class="p">:</span> <span class="kc">true</span>
+</span><span class='line'>  <span class="p">}</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
 
 <p>With that last missing piece everything now works:</p>
 
-<div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code>yarn type-check <span class="nt">-w</span>
-yarn run v1.3.2
-<span class="nv">$ </span>tsc <span class="nt">-w</span>
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+</pre></td><td class='code'><pre><code class='sh'><span class='line'>yarn <span class="nb">type</span>-check -w
+</span><span class='line'>yarn run v1.3.2
+</span><span class='line'><span class="nv">$ </span>tsc -w
+</span><span class='line'>
+</span><span class='line'>src/index.tsx<span class="o">(</span>5,7<span class="o">)</span>: error TS2451: Cannot redeclare block-scoped variable <span class="s1">&#39;test&#39;</span>.
+</span><span class='line'>
+</span><span class='line'><span class="m">5</span> const <span class="nb">test</span> <span class="o">=</span> <span class="o">(</span>foo: string<span class="o">)</span> <span class="o">=</span>&gt; foo
+</span><span class='line'>        ~~~~
+</span><span class='line'>
+</span><span class='line'>src/index.tsx<span class="o">(</span>6,6<span class="o">)</span>: error TS2345: Argument of <span class="nb">type</span> <span class="s1">&#39;2&#39;</span> is not assignable to parameter of <span class="nb">type</span> <span class="s1">&#39;string&#39;</span>.
+</span><span class='line'>
+</span><span class='line'><span class="m">6</span> <span class="nb">test</span><span class="o">(</span>2<span class="o">)</span>
+</span><span class='line'>       ~
+</span></code></pre></td></tr></table></div></figure>
 
-src/index.tsx<span class="o">(</span>5,7<span class="o">)</span>: error TS2451: Cannot redeclare block-scoped variable <span class="s1">'test'</span><span class="nb">.</span>
-
-5 const <span class="nb">test</span> <span class="o">=</span> <span class="o">(</span>foo: string<span class="o">)</span> <span class="o">=&gt;</span> foo
-        ~~~~
-
-src/index.tsx<span class="o">(</span>6,6<span class="o">)</span>: error TS2345: Argument of <span class="nb">type</span> <span class="s1">'2'</span> is not assignable to parameter of <span class="nb">type</span> <span class="s1">'string'</span><span class="nb">.</span>
-
-6 <span class="nb">test</span><span class="o">(</span>2<span class="o">)</span>
-       ~
-</code></pre></div></div>
 
 <p>Proper type-checking, but compilation handled by Babel 😎.</p>
 
-<h2 id="4-typescript-and-flow">4) TypeScript and Flow</h2>
+<a name="L4..TypeScript.and.Flow"></a>
+<h2>4) TypeScript and Flow</h2>
 
 <p>Unfortunately, the TypeScript and Flow plugins for Babel cannot be loaded at the same time, as there could be ambiguity about how to parse some code.</p>
 
@@ -318,32 +460,32 @@ src/index.tsx<span class="o">(</span>6,6<span class="o">)</span>: error TS2345: 
 
 <p>There’s even projects that publish their Flow annotated code <em>without</em> compiling/stripping type annotations, the one we know of and use is <a href="https://github.com/facebook/react-native/issues/7850#issuecomment-225415645">React Native</a>. There’s no way around this other than patching the code. You may think that you could use a plugin like <a href="https://babeljs.io/docs/plugins/transform-flow-strip-types/">babel-plugin-transform-flow-strip-types</a>, but in reality that transform needs the Flow plugin to be able to do its work and thus is a no-go.</p>
 
-<p>The way we’ve worked around that is by <a href="https://github.com/artsy/emission/pull/780/files#diff-b9cfc7f2cdf78a7f4b91a753d10865a2R36">stripping Flow type annotations from <em>all</em> dependencies</a> at <a href="https://github.com/artsy/emission/pull/780/files#diff-b9cfc7f2cdf78a7f4b91a753d10865a2R39">dependency install time</a> using the <a href="https://github.com/flowtype/flow-remove-types"><code class="language-plaintext highlighter-rouge">flow-remove-types</code> tool</a>. It can get a little slow on many files which is why we do a bunch of filtering to only process files that have <code class="language-plaintext highlighter-rouge">@flow</code> directives, the downside is that some files don’t have directives like they should and so <a href="https://github.com/artsy/emission/pull/780/files#diff-d6d30dd9bd4cdb1ac0d1268937508814R65">we patch those to add them</a> using the aforementioned <a href="https://github.com/ds300/patch-package">patch-package</a>.</p>
+<p>The way we’ve worked around that is by <a href="https://github.com/artsy/emission/pull/780/files#diff-b9cfc7f2cdf78a7f4b91a753d10865a2R36">stripping Flow type annotations from <em>all</em> dependencies</a> at <a href="https://github.com/artsy/emission/pull/780/files#diff-b9cfc7f2cdf78a7f4b91a753d10865a2R39">dependency install time</a> using the <a href="https://github.com/flowtype/flow-remove-types"><code>flow-remove-types</code> tool</a>. It can get a little slow on many files which is why we do a bunch of filtering to only process files that have <code>@flow</code> directives, the downside is that some files don’t have directives like they should and so <a href="https://github.com/artsy/emission/pull/780/files#diff-d6d30dd9bd4cdb1ac0d1268937508814R65">we patch those to add them</a> using the aforementioned <a href="https://github.com/ds300/patch-package">patch-package</a>.</p>
 
-<h2 id="5-limitations-in-typescript-support">5) Limitations in TypeScript support</h2>
+<a name="L5..Limitations.in.TypeScript.support"></a>
+<h2>5) Limitations in TypeScript support</h2>
 
 <p>It is important to note that you <em>may</em> run into a few cases that TypeScript’s Babel plugin does/can not support. From <a href="https://github.com/babel/babel/blob/master/packages/babel-plugin-transform-typescript/README.md#babelplugin-transform-typescript">the plugin’s README</a>:</p>
 
-<blockquote>
-  <p>Does not support <code class="language-plaintext highlighter-rouge">namespace</code>s or <code class="language-plaintext highlighter-rouge">const enum</code>s because those require type information to transpile.
-Also does not support <code class="language-plaintext highlighter-rouge">export =</code> and <code class="language-plaintext highlighter-rouge">import =</code>, because those cannot be transpiled to ES.next.</p>
-</blockquote>
+<blockquote><p>Does not support <code>namespace</code>s or <code>const enum</code>s because those require type information to transpile.
+Also does not support <code>export =</code> and <code>import =</code>, because those cannot be transpiled to ES.next.</p></blockquote>
 
-<p>The lack of namespace support hasn’t been a problem for us, we’re only using it in one place which could easily be changed to use regular ES6 modules as namespace. This is also why for instance the ‘recommended’ list of TSLint checks includes <a href="https://palantir.github.io/tslint/rules/no-namespace/">the <code class="language-plaintext highlighter-rouge">no-namespace</code> rule</a>.</p>
+<p>The lack of namespace support hasn’t been a problem for us, we’re only using it in one place which could easily be changed to use regular ES6 modules as namespace. This is also why for instance the ‘recommended’ list of TSLint checks includes <a href="https://palantir.github.io/tslint/rules/no-namespace/">the <code>no-namespace</code> rule</a>.</p>
 
-<p>The <code class="language-plaintext highlighter-rouge">const enum</code> feature is a runtime optimization that will cause the compiler to inline code. We don’t have a need for this at the moment, but <a href="https://github.com/babel/babel/issues/6476">some discussion</a> is happening to possibly still being able to make use of this feature when compiling production builds with the TypeScript compiler instead.</p>
+<p>The <code>const enum</code> feature is a runtime optimization that will cause the compiler to inline code. We don’t have a need for this at the moment, but <a href="https://github.com/babel/babel/issues/6476">some discussion</a> is happening to possibly still being able to make use of this feature when compiling production builds with the TypeScript compiler instead.</p>
 
-<p>The <code class="language-plaintext highlighter-rouge">export =</code> and <code class="language-plaintext highlighter-rouge">import =</code> syntax is meant to <a href="https://github.com/Microsoft/TypeScript-Handbook/blob/master/pages/Modules.md#export--and-import--require">work with CommonJS and AMD modules</a>; however, we strictly use ES6 modules.</p>
+<p>The <code>export =</code> and <code>import =</code> syntax is meant to <a href="https://github.com/Microsoft/TypeScript-Handbook/blob/master/pages/Modules.md#export--and-import--require">work with CommonJS and AMD modules</a>; however, we strictly use ES6 modules.</p>
 
 <p><strong>References:</strong></p>
 
 <ul>
-  <li><a href="https://github.com/damassi/babel-7-typescript-example">babel-7-typescript-example</a></li>
-  <li><a href="https://github.com/babel/babel/tree/master/packages/babel-preset-typescript">babel-preset-typescript</a></li>
-  <li><a href="https://github.com/artsy/emission">emission</a></li>
-  <li><a href="https://github.com/artsy/reaction">reaction</a></li>
-  <li><a href="https://github.com/ds300/patch-package">patch-package</a></li>
+<li><a href="https://github.com/damassi/babel-7-typescript-example">babel-7-typescript-example</a></li>
+<li><a href="https://github.com/babel/babel/tree/master/packages/babel-preset-typescript">babel-preset-typescript</a></li>
+<li><a href="https://github.com/artsy/emission">emission</a></li>
+<li><a href="https://github.com/artsy/reaction">reaction</a></li>
+<li><a href="https://github.com/ds300/patch-package">patch-package</a></li>
 </ul>
+
 
         </article>
 
@@ -366,7 +508,7 @@ Also does not support <code class="language-plaintext highlighter-rouge">export 
 
           <section>
             <h4>Author</h4>
-            <p> <a href="/author/chris">Christopher Pappas</a>, <a href="/author/eloy">Eloy Durán</a></p>
+            <p> <a href="/author/chris"/>Christopher Pappas</a>, <a href="/author/eloy"/>Eloy Durán</a></p>
             <p></a></a></p>
           </section>
 
@@ -392,7 +534,7 @@ Also does not support <code class="language-plaintext highlighter-rouge">export 
               <li><a href='http://artsy.github.io/blog/archives/'>Archives</a></li>
               <li><a href='http://artsy.github.io/search/'>Search</a></li>
               <li><a href='https://github.com/artsy/artsy.github.io'>Code on GitHub</a></li>
-              <li><a href='https://github.com/artsy/artsy.github.io/edit/source/_posts/2017-11-27-Babel-7-and-TypeScript.markdown'>Fix typos in this post</a></li>
+              <li><a href='https://github.com/artsy/artsy.github.io/edit/source/_posts/2017-11-27-Babel-7-and-TypeScript.markdown'>Fix typoes in this post</a></li>
             </ul>
           </section>
 

@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
 
-  <title><![CDATA[Category: Bidding | Artsy Engineering]]></title>
+  <title><![CDATA[Category: bidding | Artsy Engineering]]></title>
   <link href="https://artsy.github.io/blog/categories/bidding/atom.xml" rel="self"/>
   <link href="https://artsy.github.io/"/>
-  <updated>2022-04-11T22:55:41+00:00</updated>
+  <updated>2022-04-11T23:15:43+00:00</updated>
   <id>https://artsy.github.io/</id>
   <author>
     <name><![CDATA[]]></name>
@@ -25,161 +25,166 @@
 <p>The domain of auctions is a fascinating one, and includes everything from buying items on eBay to trading livestock and selling investment products on the stock exchange. For those interested in the large spectrum of auctions I highly recommend <a href="http://www.sci.brooklyn.cuny.edu/~parsons/projects/mech-design/publications/bluffers-final.pdf">Auctions and bidding: A guide for computer
 scientists</a> by Simon Parsons (CUNY), Juan A. Rodriguez-Aguilar (CSIC) and Mark Klein (MIT).</p>
 
-<p>At Artsy we implemented a classic English auction with, so called, “book bids”. I spent a fair amount of time visiting engineering teams that have built internet auctions, most of which were transactional systems where taking a position on an item involved starting a transaction, running an auction round and committing the changes. In contrast, we chose to deliver a simpler, eventually consistent system on top of MongoDB, in which all data is immutable and where some level of serialization occurs within a single background process.</p>
+<p>At Artsy we implemented a classic English auction with, so called, "book bids". I spent a fair amount of time visiting engineering teams that have built internet auctions, most of which were transactional systems where taking a position on an item involved starting a transaction, running an auction round and committing the changes. In contrast, we chose to deliver a simpler, eventually consistent system on top of MongoDB, in which all data is immutable and where some level of serialization occurs within a single background process.</p>
 
-<p>In this post we’ll go over some data modeling and examine the auction engine implementation details.</p>
+<p>In this post we'll go over some data modeling and examine the auction engine implementation details.</p>
 
 <!-- more -->
 
-<h3 id="data-modeling">Data Modeling</h3>
+
+<a name="Data.Modeling"></a>
+<h3>Data Modeling</h3>
 
 <p>In the Artsy platform, an <em>Auction</em> is an specialization of a more general concept of a <em>Sale</em>. A sale typically has an opening and a closing date, during which bidding or purchases can occur. We create a relationship between an artwork and a sale, which, in the case of an auction, includes the opening bid amount. We store all money in cents, and assume the currency to be USD, making it easy to extend the system for other currencies in the future.</p>
 
-<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">class</span> <span class="nc">SaleArtwork</span>
-  <span class="kp">include</span> <span class="no">Mongoid</span><span class="o">::</span><span class="no">Document</span>
+<pre><code class="ruby">class SaleArtwork
+  include Mongoid::Document
 
-  <span class="n">field</span> <span class="ss">:opening_bid_cents</span><span class="p">,</span> <span class="ss">type: </span><span class="no">Integer</span>
+  field :opening_bid_cents, type: Integer
 
-  <span class="n">belongs_to</span> <span class="ss">:artwork</span><span class="p">,</span> <span class="ss">inverse_of: </span><span class="kp">nil</span>
-  <span class="n">belongs_to</span> <span class="ss">:sale</span>
+  belongs_to :artwork, inverse_of: nil
+  belongs_to :sale
 
-  <span class="n">belongs_to</span> <span class="ss">:highest_bid</span><span class="p">,</span> <span class="ss">class_name: </span><span class="s2">"Bid"</span><span class="p">,</span> <span class="ss">inverse_of: </span><span class="kp">nil</span>
+  belongs_to :highest_bid, class_name: "Bid", inverse_of: nil
 
-  <span class="c1"># Minimum next acceptable bid amount, in cents.</span>
-  <span class="k">def</span> <span class="nf">minimum_next_bid_cents</span>
-    <span class="k">return</span> <span class="n">opening_bid_cents</span> <span class="k">if</span> <span class="n">highest_bid</span><span class="p">.</span><span class="nf">nil?</span> <span class="o">&amp;&amp;</span> <span class="n">opening_bid_cents</span><span class="p">.</span><span class="nf">present?</span>
-    <span class="c1"># calculate using a bid incrementing strategy ...</span>
-  <span class="k">end</span>
-<span class="k">end</span>
-</code></pre></div></div>
+  # Minimum next acceptable bid amount, in cents.
+  def minimum_next_bid_cents
+    return opening_bid_cents if highest_bid.nil? &amp;&amp; opening_bid_cents.present?
+    # calculate using a bid incrementing strategy ...
+  end
+end
+</code></pre>
 
 <p>A user registers to bid and creates a <em>Bidder</em> record.</p>
 
-<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">class</span> <span class="nc">Bidder</span>
-  <span class="kp">include</span> <span class="no">Mongoid</span><span class="o">::</span><span class="no">Document</span>
+<pre><code class="ruby">class Bidder
+  include Mongoid::Document
 
-  <span class="n">belongs_to</span> <span class="ss">:user</span>
-  <span class="n">belongs_to</span> <span class="ss">:sale</span>
+  belongs_to :user
+  belongs_to :sale
 
-  <span class="n">has_many</span> <span class="ss">:positions</span><span class="p">,</span> <span class="ss">class_name: </span><span class="s1">'BidderPosition'</span><span class="p">,</span> <span class="ss">inverse_of: :bidder</span>
-<span class="k">end</span>
-</code></pre></div></div>
+  has_many :positions, class_name: 'BidderPosition', inverse_of: :bidder
+end
+</code></pre>
 
-<p>This doesn’t just mimic the real world where bidding typically requires registration - the bidder record doesn’t belong to the user and contains essential data to identify an individual that is placing a bid. It also solves a very peculiar problem where a user decides to delete their account mid-auction. Finally, a bidder could eventually delegate bidding to an agent through this model’s permissions.</p>
+<p>This doesn't just mimic the real world where bidding typically requires registration - the bidder record doesn't belong to the user and contains essential data to identify an individual that is placing a bid. It also solves a very peculiar problem where a user decides to delete their account mid-auction. Finally, a bidder could eventually delegate bidding to an agent through this model's permissions.</p>
 
-<p>A bidder doesn’t actually place any bids, but create a <em>Bidder Position</em>, which indicates the highest amount they are willing to pay for a given artwork.</p>
+<p>A bidder doesn't actually place any bids, but create a <em>Bidder Position</em>, which indicates the highest amount they are willing to pay for a given artwork.</p>
 
-<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">class</span> <span class="nc">BidderPosition</span>
-  <span class="kp">include</span> <span class="no">Mongoid</span><span class="o">::</span><span class="no">Document</span>
+<pre><code class="ruby">class BidderPosition
+  include Mongoid::Document
 
-  <span class="n">field</span> <span class="ss">:active</span><span class="p">,</span> <span class="ss">type: </span><span class="no">Boolean</span><span class="p">,</span> <span class="ss">default: </span><span class="kp">true</span>
-  <span class="n">field</span> <span class="ss">:max_bid_amount_cents</span><span class="p">,</span> <span class="ss">type: </span><span class="no">Integer</span>
+  field :active, type: Boolean, default: true
+  field :max_bid_amount_cents, type: Integer
 
-  <span class="n">belongs_to</span> <span class="ss">:bidder</span><span class="p">,</span> <span class="ss">class_name: </span><span class="s1">'Bidder'</span><span class="p">,</span> <span class="ss">inverse_of: :positions</span>
-  <span class="n">belongs_to</span> <span class="ss">:sale_artwork</span>
-  <span class="n">has_many</span> <span class="ss">:bids</span><span class="p">,</span> <span class="ss">inverse_of: :position</span>
+  belongs_to :bidder, class_name: 'Bidder', inverse_of: :positions
+  belongs_to :sale_artwork
+  has_many :bids, inverse_of: :position
 
-  <span class="n">scope</span> <span class="ss">:active</span><span class="p">,</span> <span class="n">where</span><span class="p">(</span><span class="ss">active: </span><span class="kp">true</span><span class="p">).</span><span class="nf">asc</span><span class="p">(</span><span class="ss">:max_bid_amount_cents</span><span class="p">)</span>
-<span class="k">end</span>
-</code></pre></div></div>
+  scope :active, where(active: true).asc(:max_bid_amount_cents)
+end
+</code></pre>
 
-<p>This is called a “book bid” - before technology took over the auctions world buyers delegated an agent to bid on their behalf after giving them a maximum amount they were willing to part with. Bidder positions belong to a bidder and to the artwork-to-sale relationship. They cannot be changed - if a user wants to increase his maximum bid, he simply creates a new bidder position.</p>
+<p>This is called a "book bid" - before technology took over the auctions world buyers delegated an agent to bid on their behalf after giving them a maximum amount they were willing to part with. Bidder positions belong to a bidder and to the artwork-to-sale relationship. They cannot be changed - if a user wants to increase his maximum bid, he simply creates a new bidder position.</p>
 
-<h3 id="bidding-round">Bidding Round</h3>
+<a name="Bidding.Round"></a>
+<h3>Bidding Round</h3>
 
 <p>Every time a bidder position is created, a <em>Bidding Round</em> is queued for the item being bid on. We can parallelize execution of these by artwork, however all bidding rounds for the same artwork are serialized.</p>
 
-<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">class</span> <span class="nc">EnglishAuction</span>
-  <span class="c1"># Run multiple rounds of bidding for the given lot, to rest. Return number of bids generated.</span>
-  <span class="k">def</span> <span class="nc">self</span><span class="o">.</span><span class="nf">run!</span><span class="p">(</span><span class="n">sale_artwork</span><span class="p">)</span>
-    <span class="k">return</span> <span class="mi">0</span> <span class="k">unless</span> <span class="n">sale_artwork</span><span class="p">.</span><span class="nf">sale</span> <span class="o">&amp;&amp;</span> <span class="n">sale_artwork</span><span class="p">.</span><span class="nf">sale</span><span class="p">.</span><span class="nf">biddable?</span>
+<pre><code class="ruby">class EnglishAuction
+  # Run multiple rounds of bidding for the given lot, to rest. Return number of bids generated.
+  def self.run!(sale_artwork)
+    return 0 unless sale_artwork.sale &amp;&amp; sale_artwork.sale.biddable?
 
-    <span class="n">round</span> <span class="o">=</span> <span class="no">EnglishAuction</span><span class="o">::</span><span class="no">Round</span><span class="p">.</span><span class="nf">new</span><span class="p">(</span><span class="n">sale_artwork</span><span class="p">)</span>
-    <span class="n">round</span><span class="p">.</span><span class="nf">run!</span>
+    round = EnglishAuction::Round.new(sale_artwork)
+    round.run!
 
-    <span class="n">round</span><span class="p">.</span><span class="nf">bids_generated</span><span class="p">.</span><span class="nf">size</span>
-  <span class="k">end</span>
-<span class="k">end</span>
-</code></pre></div></div>
+    round.bids_generated.size
+  end
+end
+</code></pre>
 
 <p>A bidding round iterates over all active bidder positions in ascending order by dollar value, outbids any bidders below the max bid, and places new bids, as necessary. The entire round algorithm is below.</p>
 
-<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1"># A bidding round for an English auction.</span>
-<span class="k">class</span> <span class="nc">Round</span>
-  <span class="nb">attr_accessor</span> <span class="ss">:bids_generated</span>
+<pre><code class="ruby"># A bidding round for an English auction.
+class Round
+  attr_accessor :bids_generated
 
-  <span class="c1"># @param sale_artwork A relationship between an artwork and a sale.</span>
-  <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="n">sale_artwork</span><span class="p">)</span>
-    <span class="vi">@sale_artwork</span> <span class="o">=</span> <span class="n">sale_artwork</span>
-    <span class="vi">@bids_generated</span> <span class="o">=</span> <span class="p">[]</span>
-  <span class="k">end</span>
+  # @param sale_artwork A relationship between an artwork and a sale.
+  def initialize(sale_artwork)
+    @sale_artwork = sale_artwork
+    @bids_generated = []
+  end
 
-  <span class="c1"># Run multiple rounds of bidding, to rest.</span>
-  <span class="k">def</span> <span class="nf">run!</span>
-    <span class="k">while</span> <span class="p">(</span><span class="n">bids</span> <span class="o">=</span> <span class="n">process_more_bids!</span><span class="p">).</span><span class="nf">any?</span> <span class="k">do</span>
-      <span class="vi">@bids_generated</span> <span class="o">+=</span> <span class="n">bids</span>
-    <span class="k">end</span>
-  <span class="k">end</span>
+  # Run multiple rounds of bidding, to rest.
+  def run!
+    while (bids = process_more_bids!).any? do
+      @bids_generated += bids
+    end
+  end
 
-  <span class="c1"># Run one round of bidding. Return bids.</span>
-  <span class="k">def</span> <span class="nf">process_more_bids!</span>
-    <span class="vi">@sale_artwork</span><span class="p">.</span><span class="nf">bidder_positions</span><span class="p">.</span><span class="nf">active</span><span class="p">.</span><span class="nf">map</span> <span class="k">do</span> <span class="o">|</span><span class="n">bidder_position</span><span class="o">|</span>
-      <span class="n">process_bidder_position!</span><span class="p">(</span><span class="n">bidder_position</span><span class="p">)</span>
-    <span class="k">end</span><span class="p">.</span><span class="nf">compact</span>
-  <span class="k">end</span>
+  # Run one round of bidding. Return bids.
+  def process_more_bids!
+    @sale_artwork.bidder_positions.active.map do |bidder_position|
+      process_bidder_position!(bidder_position)
+    end.compact
+  end
 
-  <span class="c1"># Process a single bid position.</span>
-  <span class="c1"># @returns Generated bid, if any.</span>
-  <span class="k">def</span> <span class="nf">process_bidder_position!</span><span class="p">(</span><span class="n">bidder_position</span><span class="p">)</span>
+  # Process a single bid position.
+  # @returns Generated bid, if any.
+  def process_bidder_position!(bidder_position)
 
-    <span class="c1"># ignore if current position is highest</span>
-    <span class="k">return</span> <span class="kp">nil</span> <span class="k">if</span> <span class="n">bidder_position</span> <span class="o">==</span> <span class="vi">@sale_artwork</span><span class="p">.</span><span class="nf">highest_bid</span><span class="p">.</span><span class="nf">try</span><span class="p">(</span><span class="ss">:position</span><span class="p">)</span>
+    # ignore if current position is highest
+    return nil if bidder_position == @sale_artwork.highest_bid.try(:position)
 
-    <span class="c1"># ignore if bidder is already highest</span>
-    <span class="k">return</span> <span class="kp">nil</span> <span class="k">if</span> <span class="n">bidder_position</span><span class="p">.</span><span class="nf">bidder</span> <span class="o">==</span> <span class="vi">@sale_artwork</span><span class="p">.</span><span class="nf">highest_bid</span><span class="p">.</span><span class="nf">try</span><span class="p">(</span><span class="ss">:position</span><span class="p">).</span><span class="nf">try</span><span class="p">(</span><span class="ss">:bidder</span><span class="p">)</span>
+    # ignore if bidder is already highest
+    return nil if bidder_position.bidder == @sale_artwork.highest_bid.try(:position).try(:bidder)
 
-    <span class="c1"># close if below opening bid</span>
-    <span class="k">if</span> <span class="n">bidder_position</span><span class="p">.</span><span class="nf">max_bid_amount_cents</span> <span class="o">&lt;</span> <span class="p">(</span><span class="vi">@sale_artwork</span><span class="p">.</span><span class="nf">opening_bid_cents</span> <span class="o">||</span> <span class="mi">1</span><span class="p">)</span>
-      <span class="n">bidder_position</span><span class="p">.</span><span class="nf">deactivate!</span> <span class="s2">"Bid must be greater than the minimum bid of </span><span class="si">#{</span><span class="vi">@sale_artwork</span><span class="p">.</span><span class="nf">opening_bid_cents</span><span class="si">}</span><span class="s2">."</span>
-      <span class="k">return</span> <span class="kp">nil</span>
-    <span class="k">end</span>
+    # close if below opening bid
+    if bidder_position.max_bid_amount_cents &lt; (@sale_artwork.opening_bid_cents || 1)
+      bidder_position.deactivate! "Bid must be greater than the minimum bid of #{@sale_artwork.opening_bid_cents}."
+      return nil
+    end
 
-    <span class="n">amount_cents</span> <span class="o">=</span> <span class="vi">@sale_artwork</span><span class="p">.</span><span class="nf">minimum_next_bid_cents</span> <span class="c1"># opening bid or an increment thereafter</span>
+    amount_cents = @sale_artwork.minimum_next_bid_cents # opening bid or an increment thereafter
 
-    <span class="k">if</span> <span class="n">bidder_position</span><span class="p">.</span><span class="nf">max_bid_amount_cents</span> <span class="o">&lt;</span> <span class="n">amount_cents</span>
-      <span class="n">highest_bid_amount</span> <span class="o">=</span> <span class="vi">@sale_artwork</span><span class="p">.</span><span class="nf">highest_bid</span><span class="p">.</span><span class="nf">try</span><span class="p">(</span><span class="ss">:amount_cents</span><span class="p">)</span> <span class="o">||</span> <span class="mi">0</span>
+    if bidder_position.max_bid_amount_cents &lt; amount_cents
+      highest_bid_amount = @sale_artwork.highest_bid.try(:amount_cents) || 0
 
-      <span class="c1"># if max is between current and increment (or if it's at current, but earlier), bid max anyway</span>
-      <span class="c1"># this means that a bidder who placed an identical max bid earlier becomes the highest bidder</span>
-      <span class="k">if</span> <span class="n">bidder_position</span><span class="p">.</span><span class="nf">max_bid_amount_cents</span> <span class="o">&gt;</span> <span class="n">highest_bid_amount</span> <span class="o">||</span>
-        <span class="p">(</span><span class="n">bidder_position</span><span class="p">.</span><span class="nf">max_bid_amount_cents</span> <span class="o">==</span> <span class="n">highest_bid_amount</span> <span class="o">&amp;&amp;</span> <span class="n">bidder_position</span><span class="p">.</span><span class="nf">id</span> <span class="o">&lt;</span> <span class="vi">@sale_artwork</span><span class="p">.</span><span class="nf">highest_bid</span><span class="p">.</span><span class="nf">position</span><span class="p">.</span><span class="nf">id</span><span class="p">)</span>
-        <span class="n">amount_cents</span> <span class="o">=</span> <span class="n">bidder_position</span><span class="p">.</span><span class="nf">max_bid_amount_cents</span>
-      <span class="k">else</span>
-        <span class="c1"># outbid, next bid must be at least amount_cents</span>
-        <span class="n">bidder_position</span><span class="p">.</span><span class="nf">update_attributes!</span> <span class="ss">active: </span><span class="kp">false</span>
-        <span class="k">return</span> <span class="kp">nil</span>
-      <span class="k">end</span>
-    <span class="k">end</span>
+      # if max is between current and increment (or if it's at current, but earlier), bid max anyway
+      # this means that a bidder who placed an identical max bid earlier becomes the highest bidder
+      if bidder_position.max_bid_amount_cents &gt; highest_bid_amount ||
+        (bidder_position.max_bid_amount_cents == highest_bid_amount &amp;&amp; bidder_position.id &lt; @sale_artwork.highest_bid.position.id)
+        amount_cents = bidder_position.max_bid_amount_cents
+      else
+        # outbid, next bid must be at least amount_cents
+        bidder_position.update_attributes! active: false
+        return nil
+      end
+    end
 
-    <span class="c1"># place a bid</span>
-    <span class="n">bidder_position</span><span class="p">.</span><span class="nf">bids</span><span class="p">.</span><span class="nf">create!</span><span class="p">(</span><span class="n">attrs</span><span class="p">).</span><span class="nf">tap</span> <span class="k">do</span> <span class="o">|</span><span class="n">bid</span><span class="o">|</span>
-      <span class="vi">@sale_artwork</span><span class="p">.</span><span class="nf">update_attributes!</span> <span class="ss">highest_bid: </span><span class="n">bid</span>
-    <span class="k">end</span>
-  <span class="k">end</span>
-<span class="k">end</span>
-</code></pre></div></div>
+    # place a bid
+    bidder_position.bids.create!(attrs).tap do |bid|
+      @sale_artwork.update_attributes! highest_bid: bid
+    end
+  end
+end
+</code></pre>
 
 <p>One of the interesting aspects of this system is what happens when two users create two identical bidder positions - the earlier one wins and the later one is outbid. In a transactional system we could produce an error message to the second bidder before the position is even created.</p>
 
-<h3 id="bidder-notifications">Bidder Notifications</h3>
+<a name="Bidder.Notifications"></a>
+<h3>Bidder Notifications</h3>
 
-<p>Notifying upon being “outbid” is straightforward, because a position only enters that state once, but notifying bidders of when they are the current high bidder or when their bid has been increased is trickier. We don’t want to generate notifications every time a bid is made (i.e., it’s the current high). Rather, we want to allow the round to reach a stable state at which there’s only a single active position and then notify the current high and outbid bidders. This happens after each <code class="language-plaintext highlighter-rouge">round.run!</code>.</p>
+<p>Notifying upon being "outbid" is straightforward, because a position only enters that state once, but notifying bidders of when they are the current high bidder or when their bid has been increased is trickier. We don't want to generate notifications every time a bid is made (i.e., it's the current high). Rather, we want to allow the round to reach a stable state at which there's only a single active position and then notify the current high and outbid bidders. This happens after each <code>round.run!</code>.</p>
 
-<h3 id="beyond-bidding">Beyond Bidding</h3>
+<a name="Beyond.Bidding"></a>
+<h3>Beyond Bidding</h3>
 
-<p>Aside of the bidding implementation we’ve built a whole software ecosystem around auctions. We developed a backend system to manage these. We put up projection screens at the event that list works being auctioned and flash every time a bid is placed. We register users’ credit cards and collect their money.</p>
+<p>Aside of the bidding implementation we've built a whole software ecosystem around auctions. We developed a backend system to manage these. We put up projection screens at the event that list works being auctioned and flash every time a bid is placed. We register users' credit cards and collect their money.</p>
 
-<p>The software part, however, is definitely dwarfed by the amount of logistics and people involved in making one of those auctions a success. We’re only trying to make that a bit more efficient. We’ll see you at the upcoming BAM Art Auction, SFMOMA Modern Ball or the Whitney Museum Art Party!</p>
+<p>The software part, however, is definitely dwarfed by the amount of logistics and people involved in making one of those auctions a success. We're only trying to make that a bit more efficient. We'll see you at the upcoming BAM Art Auction, SFMOMA Modern Ball or the Whitney Museum Art Party!</p>
 ]]></content>
   </entry>
   
