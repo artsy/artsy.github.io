@@ -17,7 +17,7 @@ namespace :podcast do
   task :new_episode do
     require 'mp3info'
     require 'pathname'
-    require 'aws-sdk'
+    require 'aws-sdk-s3'
 
     mp3_path = ARGV.last
     file_name = File.basename(mp3_path)
