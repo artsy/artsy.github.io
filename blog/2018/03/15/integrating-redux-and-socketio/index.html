@@ -8,7 +8,7 @@
   <meta name="author" content="">
 
   
-  <meta name="description" content="On the engineering team at Artsy, we've built a CMS for both internal and external editors to write and publish articles. We have a team of a dozen...">
+  <meta name="description" content="On the engineering team at Artsy, we’ve built a CMS for both internal and external editors to write and publish articles. We have a team of a dozen...">
   
 
   <!-- http://t.co/dKP3o1e -->
@@ -92,193 +92,118 @@
         </header>
 
         <article class='post'>
-          <p>On the engineering team at Artsy, we've built a CMS for both internal and external editors to write and publish <a href="https://www.artsy.net/article/artsy-editorial-brooklyn-born-sisters-diego-rivera-dubbed-the-greatest-living-women-mural-painters">articles</a>. We have a team of a dozen in-house editors creating new content on a daily basis. As many people starting using the app simultaneously, something became apparent. Editors would unintentionally go and override each other’s work because there was no way to tell if someone else was currently editing an article. As a workaround, team members would be forced to edit drafts in another editor such as google docs and copy their work over once ready. This made for a lackluster collaborative experience.</p>
+          <p>On the engineering team at Artsy, we’ve built a CMS for both internal and external editors to write and publish <a href="https://www.artsy.net/article/artsy-editorial-brooklyn-born-sisters-diego-rivera-dubbed-the-greatest-living-women-mural-painters">articles</a>. We have a team of a dozen in-house editors creating new content on a daily basis. As many people starting using the app simultaneously, something became apparent. Editors would unintentionally go and override each other’s work because there was no way to tell if someone else was currently editing an article. As a workaround, team members would be forced to edit drafts in another editor such as google docs and copy their work over once ready. This made for a lackluster collaborative experience.</p>
 
-<p>So we decided to implement a system that would make our editors more confident in our CMS by ensuring only one editor could go in and edit an article at any given time. I was tasked with coming up with an elegant technical solution for this feature. Here's the approach I took....</p>
+<p>So we decided to implement a system that would make our editors more confident in our CMS by ensuring only one editor could go in and edit an article at any given time. I was tasked with coming up with an elegant technical solution for this feature. Here’s the approach I took….</p>
 
 <!-- more -->
 
-
 <p>We decided to resolve this issue building an article locking mechanism. When an editor would start editing an article, all other users in sessions would be notified. One of the requirements for this new feature was for things needed to update without refreshing the page. In order to fulfill this, we needed to implement a system to push events from the server to clients.</p>
 
-<p>Based on the requirements presented, I looked at potential solutions for this. Right away, the HTML5 WebSocket API seemed like the perfect solution to keep all clients synced in realtime, however a few issues arose. For one, many proxies and firewalls block WebSocket connections, so it's not always an available option for clients. I needed to find another option to mitigate that problem. That's where <a href="https://socket.io">socket.io</a> comes in.</p>
+<p>Based on the requirements presented, I looked at potential solutions for this. Right away, the HTML5 WebSocket API seemed like the perfect solution to keep all clients synced in realtime, however a few issues arose. For one, many proxies and firewalls block WebSocket connections, so it’s not always an available option for clients. I needed to find another option to mitigate that problem. That’s where <a href="https://socket.io">socket.io</a> comes in.</p>
 
 <p>Socket.io, a battle tested library for creating real-time bidirectional communication channels, helps mitigate those problems. In a gist socket.io initially establishes a long-polling HTTP connection, and in parallel tries to upgrade it to WebSocket.</p>
 
-<p>By the time this project was proposed, we had already started the process of converting the app from using Coffeescript, Backbone + Jade to a modern javascript stack based on ES6, React for UI components and Redux for managing app state. Naturally, one of the goals was to leverage Redux to manage state for this feature. You've probably at least heard of Redux as it has emerged as the industry standard way of implementing one-way data flows in apps. If you're not familiar with Redux and its architecture, here's an excellent <a href="https://www.smashingmagazine.com/2016/06/an-introduction-to-redux/">intro to redux</a> article to familiarize yourself.</p>
+<p>By the time this project was proposed, we had already started the process of converting the app from using Coffeescript, Backbone + Jade to a modern javascript stack based on ES6, React for UI components and Redux for managing app state. Naturally, one of the goals was to leverage Redux to manage state for this feature. You’ve probably at least heard of Redux as it has emerged as the industry standard way of implementing one-way data flows in apps. If you’re not familiar with Redux and its architecture, here’s an excellent <a href="https://www.smashingmagazine.com/2016/06/an-introduction-to-redux/">intro to redux</a> article to familiarize yourself.</p>
 
-<p> So how do we go about integrating socket.io in the Redux-based state architecture we just designed. I thought the best would be to change as little as possible to the code structures developers familiar with Redux are already used to. Namely, use standard Redux actions creators and simply use a decorator to enhance them.</p>
+<p>So how do we go about integrating socket.io in the Redux-based state architecture we just designed. I thought the best would be to change as little as possible to the code structures developers familiar with Redux are already used to. Namely, use standard Redux actions creators and simply use a decorator to enhance them.</p>
 
 <p><img src="/images/2018-03-15-integrating-redux-and-socketio/example.gif" alt="/images/2018-03-15-integrating-redux-and-socketio/example.gif" /></p>
 
-<p>Here's a simplified version of the <a href="https://leanpub.com/javascriptallongesix/read#decorators">function decorator</a> which broadcasts redux actions via a socket connection to other connected clients.</p>
+<p>Here’s a simplified version of the <a href="https://leanpub.com/javascriptallongesix/read#decorators">function decorator</a> which broadcasts redux actions via a socket connection to other connected clients.</p>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-<span class='line-number'>19</span>
-</pre></td><td class='code'><pre><code class='javascript'><span class='line'><span class="c1">// From client</span>
-</span><span class='line'><span class="kr">import</span> <span class="nx">io</span> <span class="nx">from</span> <span class="s1">&#39;socket.io-client&#39;</span>
-</span><span class='line'><span class="kr">import</span> <span class="p">{</span> <span class="nx">messageTypes</span> <span class="p">}</span> <span class="nx">from</span> <span class="s1">&#39;./messageTypes&#39;</span>
-</span><span class='line'>
-</span><span class='line'><span class="kd">let</span> <span class="nx">socket</span> <span class="o">=</span> <span class="nx">io</span><span class="p">(</span><span class="nx">rootURL</span><span class="p">)</span>
-</span><span class='line'>
-</span><span class='line'><span class="c1">// Helper to emit a redux action to our websocket server</span>
-</span><span class='line'><span class="kr">const</span> <span class="nx">emitAction</span> <span class="o">=</span> <span class="p">(</span><span class="nx">actionCreator</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span>
-</span><span class='line'>  <span class="k">return</span> <span class="p">(...</span><span class="nx">args</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span>
-</span><span class='line'>    <span class="c1">// This return the action object which gets sent to our backend</span>
-</span><span class='line'>    <span class="c1">// server via the socket connection</span>
-</span><span class='line'>    <span class="kr">const</span> <span class="nx">result</span> <span class="o">=</span> <span class="nx">actionCreator</span><span class="p">.</span><span class="nx">apply</span><span class="p">(</span><span class="k">this</span><span class="p">,</span> <span class="nx">args</span><span class="p">)</span>
-</span><span class='line'>    <span class="nx">socket</span><span class="p">.</span><span class="nx">emit</span><span class="p">(</span><span class="nx">result</span><span class="p">.</span><span class="nx">key</span><span class="p">,</span> <span class="p">{</span>
-</span><span class='line'>      <span class="p">...</span><span class="nx">result</span><span class="p">.</span><span class="nx">payload</span><span class="p">,</span>
-</span><span class='line'>      <span class="nx">type</span><span class="o">:</span> <span class="nx">result</span><span class="p">.</span><span class="nx">type</span>
-</span><span class='line'>    <span class="p">})</span>
-</span><span class='line'>    <span class="k">return</span> <span class="nx">result</span>
-</span><span class='line'>  <span class="p">}</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
+<div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// From client</span>
+<span class="k">import</span> <span class="nx">io</span> <span class="k">from</span> <span class="dl">'</span><span class="s1">socket.io-client</span><span class="dl">'</span>
+<span class="k">import</span> <span class="p">{</span> <span class="nx">messageTypes</span> <span class="p">}</span> <span class="k">from</span> <span class="dl">'</span><span class="s1">./messageTypes</span><span class="dl">'</span>
 
+<span class="kd">let</span> <span class="nx">socket</span> <span class="o">=</span> <span class="nx">io</span><span class="p">(</span><span class="nx">rootURL</span><span class="p">)</span>
 
-<p>To recap the code above, <code>emitAction</code> is a <a href="https://leanpub.com/javascriptallongesix/read#decorators">function decorator</a> that enhances action creators to dispatch actions via the local store and also broadcast that same action to other connected clients. The following code snippet shows how it's being used to wrap a typical redux action creator.</p>
+<span class="c1">// Helper to emit a redux action to our websocket server</span>
+<span class="kd">const</span> <span class="nx">emitAction</span> <span class="o">=</span> <span class="p">(</span><span class="nx">actionCreator</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="p">(...</span><span class="nx">args</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span>
+    <span class="c1">// This return the action object which gets sent to our backend</span>
+    <span class="c1">// server via the socket connection</span>
+    <span class="kd">const</span> <span class="nx">result</span> <span class="o">=</span> <span class="nx">actionCreator</span><span class="p">.</span><span class="nx">apply</span><span class="p">(</span><span class="k">this</span><span class="p">,</span> <span class="nx">args</span><span class="p">)</span>
+    <span class="nx">socket</span><span class="p">.</span><span class="nx">emit</span><span class="p">(</span><span class="nx">result</span><span class="p">.</span><span class="nx">key</span><span class="p">,</span> <span class="p">{</span>
+      <span class="p">...</span><span class="nx">result</span><span class="p">.</span><span class="nx">payload</span><span class="p">,</span>
+      <span class="na">type</span><span class="p">:</span> <span class="nx">result</span><span class="p">.</span><span class="nx">type</span>
+    <span class="p">})</span>
+    <span class="k">return</span> <span class="nx">result</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-<span class='line-number'>19</span>
-<span class='line-number'>20</span>
-<span class='line-number'>21</span>
-<span class='line-number'>22</span>
-<span class='line-number'>23</span>
-<span class='line-number'>24</span>
-</pre></td><td class='code'><pre><code class='javascript'><span class='line'><span class="c1">// actions.js</span>
-</span><span class='line'><span class="kr">import</span> <span class="nx">keyMirror</span> <span class="nx">from</span> <span class="s1">&#39;client/lib/keyMirror&#39;</span>
-</span><span class='line'><span class="kr">import</span> <span class="p">{</span> <span class="nx">emitAction</span> <span class="p">}</span> <span class="nx">from</span> <span class="s1">&#39;client/apps/websocket/client&#39;</span>
-</span><span class='line'><span class="kr">import</span> <span class="p">{</span> <span class="nx">messageTypes</span> <span class="p">}</span> <span class="nx">from</span> <span class="s1">&#39;client/apps/websocket/messageTypes&#39;</span>
-</span><span class='line'>
-</span><span class='line'><span class="kr">export</span> <span class="kr">const</span> <span class="nx">actions</span> <span class="o">=</span> <span class="nx">keyMirror</span><span class="p">(</span>
-</span><span class='line'>  <span class="p">...</span>
-</span><span class='line'>  <span class="s1">&#39;START_EDITING_ARTICLE&#39;</span><span class="p">,</span>
-</span><span class='line'>  <span class="s1">&#39;STOP_EDITING_ARTICLE&#39;</span><span class="p">,</span>
-</span><span class='line'>  <span class="p">...</span>
-</span><span class='line'><span class="p">)</span>
-</span><span class='line'>
-</span><span class='line'><span class="kr">export</span> <span class="kr">const</span> <span class="nx">startEditingArticle</span> <span class="o">=</span> <span class="nx">emitAction</span><span class="p">((</span><span class="nx">data</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span>
-</span><span class='line'>  <span class="k">return</span> <span class="p">{</span>
-</span><span class='line'>    <span class="nx">type</span><span class="o">:</span> <span class="nx">actions</span><span class="p">.</span><span class="nx">START_EDITING_ARTICLE</span><span class="p">,</span>
-</span><span class='line'>    <span class="nx">key</span><span class="o">:</span> <span class="nx">messageTypes</span><span class="p">.</span><span class="nx">userStartedEditing</span><span class="p">,</span>
-</span><span class='line'>    <span class="nx">payload</span><span class="o">:</span> <span class="p">{</span>
-</span><span class='line'>      <span class="nx">timestamp</span><span class="o">:</span> <span class="k">new</span> <span class="nb">Date</span><span class="p">().</span><span class="nx">toISOString</span><span class="p">(),</span>
-</span><span class='line'>      <span class="p">...</span><span class="nx">data</span>
-</span><span class='line'>    <span class="p">}</span>
-</span><span class='line'>  <span class="p">}</span>
-</span><span class='line'><span class="p">})</span>
-</span><span class='line'>
-</span><span class='line'><span class="p">...</span>
-</span></code></pre></td></tr></table></div></figure>
+<p>To recap the code above, <code class="language-plaintext highlighter-rouge">emitAction</code> is a <a href="https://leanpub.com/javascriptallongesix/read#decorators">function decorator</a> that enhances action creators to dispatch actions via the local store and also broadcast that same action to other connected clients. The following code snippet shows how it’s being used to wrap a typical redux action creator.</p>
 
+<div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// actions.js</span>
+<span class="k">import</span> <span class="nx">keyMirror</span> <span class="k">from</span> <span class="dl">'</span><span class="s1">client/lib/keyMirror</span><span class="dl">'</span>
+<span class="k">import</span> <span class="p">{</span> <span class="nx">emitAction</span> <span class="p">}</span> <span class="k">from</span> <span class="dl">'</span><span class="s1">client/apps/websocket/client</span><span class="dl">'</span>
+<span class="k">import</span> <span class="p">{</span> <span class="nx">messageTypes</span> <span class="p">}</span> <span class="k">from</span> <span class="dl">'</span><span class="s1">client/apps/websocket/messageTypes</span><span class="dl">'</span>
+
+<span class="k">export</span> <span class="kd">const</span> <span class="nx">actions</span> <span class="o">=</span> <span class="nx">keyMirror</span><span class="p">(</span>
+  <span class="p">...</span>
+  <span class="dl">'</span><span class="s1">START_EDITING_ARTICLE</span><span class="dl">'</span><span class="p">,</span>
+  <span class="dl">'</span><span class="s1">STOP_EDITING_ARTICLE</span><span class="dl">'</span><span class="p">,</span>
+  <span class="p">...</span>
+<span class="p">)</span>
+
+<span class="k">export</span> <span class="kd">const</span> <span class="nx">startEditingArticle</span> <span class="o">=</span> <span class="nx">emitAction</span><span class="p">((</span><span class="nx">data</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="p">{</span>
+    <span class="na">type</span><span class="p">:</span> <span class="nx">actions</span><span class="p">.</span><span class="nx">START_EDITING_ARTICLE</span><span class="p">,</span>
+    <span class="na">key</span><span class="p">:</span> <span class="nx">messageTypes</span><span class="p">.</span><span class="nx">userStartedEditing</span><span class="p">,</span>
+    <span class="na">payload</span><span class="p">:</span> <span class="p">{</span>
+      <span class="na">timestamp</span><span class="p">:</span> <span class="k">new</span> <span class="nb">Date</span><span class="p">().</span><span class="nx">toISOString</span><span class="p">(),</span>
+      <span class="p">...</span><span class="nx">data</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+<span class="p">})</span>
+
+<span class="p">...</span>
+</code></pre></div></div>
 
 <p>On the receiving end, we simply add a reducer to process the event from the action payload which we can then return a new state from.</p>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-<span class='line-number'>19</span>
-<span class='line-number'>20</span>
-<span class='line-number'>21</span>
-<span class='line-number'>22</span>
-<span class='line-number'>23</span>
-<span class='line-number'>24</span>
-<span class='line-number'>25</span>
-</pre></td><td class='code'><pre><code class='javascript'><span class='line'><span class="c1">//reducers.js</span>
-</span><span class='line'><span class="kr">import</span> <span class="p">{</span> <span class="nx">data</span> <span class="nx">as</span> <span class="nx">sd</span> <span class="p">}</span> <span class="nx">from</span> <span class="s1">&#39;sharify&#39;</span>
-</span><span class='line'><span class="kr">import</span> <span class="p">{</span> <span class="nx">actions</span> <span class="p">}</span> <span class="nx">from</span> <span class="s1">&#39;client/actions/editActions&#39;</span>
-</span><span class='line'><span class="kr">import</span> <span class="nx">u</span> <span class="nx">from</span> <span class="s1">&#39;updeep&#39;</span>
-</span><span class='line'>
-</span><span class='line'><span class="kr">export</span> <span class="kr">const</span> <span class="nx">initialState</span> <span class="o">=</span> <span class="p">{</span>
-</span><span class='line'>  <span class="nx">articles</span><span class="o">:</span> <span class="nx">sd</span><span class="p">.</span><span class="nx">ARTICLES</span><span class="p">,</span>
-</span><span class='line'>  <span class="nx">articlesInSession</span><span class="o">:</span> <span class="nx">sd</span><span class="p">.</span><span class="nx">ARTICLES_IN_SESSION</span> <span class="o">||</span> <span class="p">{}</span>
-</span><span class='line'><span class="p">}</span>
-</span><span class='line'>
-</span><span class='line'><span class="kr">export</span> <span class="kd">function</span> <span class="nx">articlesReducer</span> <span class="p">(</span><span class="nx">state</span> <span class="o">=</span> <span class="nx">initialState</span><span class="p">,</span> <span class="nx">action</span><span class="p">)</span> <span class="p">{</span>
-</span><span class='line'>  <span class="k">switch</span> <span class="p">(</span><span class="nx">action</span><span class="p">.</span><span class="nx">type</span><span class="p">)</span> <span class="p">{</span>
-</span><span class='line'>    <span class="p">...</span>
-</span><span class='line'>    <span class="k">case</span> <span class="nx">actions</span><span class="p">.</span><span class="nx">START_EDITING_ARTICLE</span><span class="o">:</span> <span class="p">{</span>
-</span><span class='line'>      <span class="kr">const</span> <span class="nx">session</span> <span class="o">=</span> <span class="nx">action</span><span class="p">.</span><span class="nx">payload</span>
-</span><span class='line'>
-</span><span class='line'>      <span class="k">return</span> <span class="nx">u</span><span class="p">({</span>
-</span><span class='line'>        <span class="nx">articlesInSession</span><span class="o">:</span> <span class="p">{</span>
-</span><span class='line'>          <span class="p">[</span><span class="nx">session</span><span class="p">.</span><span class="nx">article</span><span class="p">]</span><span class="o">:</span> <span class="nx">session</span>
-</span><span class='line'>        <span class="p">}</span>
-</span><span class='line'>      <span class="p">},</span> <span class="nx">state</span><span class="p">)</span>
-</span><span class='line'>    <span class="p">}</span>
-</span><span class='line'>    <span class="p">...</span>
-</span><span class='line'>  <span class="p">}</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
+<div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">//reducers.js</span>
+<span class="k">import</span> <span class="p">{</span> <span class="nx">data</span> <span class="k">as</span> <span class="nx">sd</span> <span class="p">}</span> <span class="k">from</span> <span class="dl">'</span><span class="s1">sharify</span><span class="dl">'</span>
+<span class="k">import</span> <span class="p">{</span> <span class="nx">actions</span> <span class="p">}</span> <span class="k">from</span> <span class="dl">'</span><span class="s1">client/actions/editActions</span><span class="dl">'</span>
+<span class="k">import</span> <span class="nx">u</span> <span class="k">from</span> <span class="dl">'</span><span class="s1">updeep</span><span class="dl">'</span>
 
+<span class="k">export</span> <span class="kd">const</span> <span class="nx">initialState</span> <span class="o">=</span> <span class="p">{</span>
+  <span class="na">articles</span><span class="p">:</span> <span class="nx">sd</span><span class="p">.</span><span class="nx">ARTICLES</span><span class="p">,</span>
+  <span class="na">articlesInSession</span><span class="p">:</span> <span class="nx">sd</span><span class="p">.</span><span class="nx">ARTICLES_IN_SESSION</span> <span class="o">||</span> <span class="p">{}</span>
+<span class="p">}</span>
 
-<p>We can now use our <code>emitAction</code> decorator function to enhance any number of action creators. All that's needed is to add a <code>key</code> property to the action object. We can then decide to either process actions
+<span class="k">export</span> <span class="kd">function</span> <span class="nx">articlesReducer</span> <span class="p">(</span><span class="nx">state</span> <span class="o">=</span> <span class="nx">initialState</span><span class="p">,</span> <span class="nx">action</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">switch</span> <span class="p">(</span><span class="nx">action</span><span class="p">.</span><span class="nx">type</span><span class="p">)</span> <span class="p">{</span>
+    <span class="p">...</span>
+    <span class="k">case</span> <span class="nx">actions</span><span class="p">.</span><span class="nx">START_EDITING_ARTICLE</span><span class="p">:</span> <span class="p">{</span>
+      <span class="kd">const</span> <span class="nx">session</span> <span class="o">=</span> <span class="nx">action</span><span class="p">.</span><span class="nx">payload</span>
+
+      <span class="k">return</span> <span class="nx">u</span><span class="p">({</span>
+        <span class="na">articlesInSession</span><span class="p">:</span> <span class="p">{</span>
+          <span class="p">[</span><span class="nx">session</span><span class="p">.</span><span class="nx">article</span><span class="p">]:</span> <span class="nx">session</span>
+        <span class="p">}</span>
+      <span class="p">},</span> <span class="nx">state</span><span class="p">)</span>
+    <span class="p">}</span>
+    <span class="p">...</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>We can now use our <code class="language-plaintext highlighter-rouge">emitAction</code> decorator function to enhance any number of action creators. All that’s needed is to add a <code class="language-plaintext highlighter-rouge">key</code> property to the action object. We can then decide to either process actions
  on a backend service or proxy them directly to other clients. You can find the remainder of the server implementation and our <a href="https://github.com/artsy/positron/blob/master/src/client/apps/websocket/index.js">event handlers</a> in our <a href="https://github.com/artsy/positron">github repo</a> along with instructions on how to run the code.</p>
 
-<a name="Future.improvements"></a>
-<h2>Future improvements</h2>
+<h2 id="future-improvements">Future improvements</h2>
 
-<p>There's an opportunity to extract this module for reuse in other projects and apps. Another logical improvement to this project would be to implement collaborative editing using this architecture. It would also be nice to include helpers for handling events on backend servers.</p>
+<p>There’s an opportunity to extract this module for reuse in other projects and apps. Another logical improvement to this project would be to implement collaborative editing using this architecture. It would also be nice to include helpers for handling events on backend servers.</p>
 
-<a name="Useful.links"></a>
-<h2>Useful links</h2>
+<h2 id="useful-links">Useful links</h2>
 
 <ul>
-<li><a href="https://redux.js.org/">Redux</a></li>
-<li><a href="https://socket.io/docs/">Socket.io</a></li>
-<li><a href="https://github.com/substantial/updeep">Updeep</a></li>
+  <li><a href="https://redux.js.org/">Redux</a></li>
+  <li><a href="https://socket.io/docs/">Socket.io</a></li>
+  <li><a href="https://github.com/substantial/updeep">Updeep</a></li>
 </ul>
-
 
         </article>
 
@@ -301,14 +226,14 @@
 
           <section>
             <h4>Author</h4>
-            <p> <a href="/author/luc"/>Luc Succes</a></p>
+            <p> <a href="/author/luc">Luc Succes</a></p>
             <p></a></p>
           </section>
 
           <section>
             <h4>Post Meta</h4>
             <p>Mar 15, 2018</p>
-            <p>Tagged: <a class='category' href='/blog/categories/javascript/'>javascript</a>, <a class='category' href='/blog/categories/positron/'>positron</a>, <a class='category' href='/blog/categories/technology/'>technology</a></p>
+            <p>Tagged: <a class='category' href='/blog/categories/technology/'>Technology</a>, <a class='category' href='/blog/categories/javascript/'>javascript</a>, <a class='category' href='/blog/categories/positron/'>positron</a></p>
           </section>
           <br/>
           <section>
@@ -327,7 +252,7 @@
               <li><a href='http://artsy.github.io/blog/archives/'>Archives</a></li>
               <li><a href='http://artsy.github.io/search/'>Search</a></li>
               <li><a href='https://github.com/artsy/artsy.github.io'>Code on GitHub</a></li>
-              <li><a href='https://github.com/artsy/artsy.github.io/edit/source/_posts/2018-03-15-integrating-redux-and-socketio.markdown'>Fix typoes in this post</a></li>
+              <li><a href='https://github.com/artsy/artsy.github.io/edit/source/_posts/2018-03-15-integrating-redux-and-socketio.markdown'>Fix typos in this post</a></li>
             </ul>
           </section>
 

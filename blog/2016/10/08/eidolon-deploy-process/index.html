@@ -14,8 +14,6 @@
 
     
 
-
-
   
     
       
@@ -27,6 +25,8 @@
         
         Oct 8, 2016
           
+
+
   
 
 ...">
@@ -133,9 +133,7 @@
       <div>
   <article class="hentry" role="article">
 
-    
-<div class="article-container-single ">
-
+    <div class="article-container-single ">
 
   
     <div class="meta-container">
@@ -148,8 +146,6 @@
         
         <time datetime="2016-10-08">Oct 8, 2016</time>
           <p class="meta-author">
-  
-
 
 
   
@@ -176,269 +172,184 @@
     
       <div class="entry-content"><p>Since we <a href="http://artsy.github.io/blog/2014/11/13/eidolon-retrospective/">originally built</a> Eidolon – an auction bidding kiosk app – the project has largely remained in maintenance mode. Eidolon was one of the first projects that we used automated deploys for, and the deploy process has remained largely unchanged. I believe this stability of the deploy process is a testament to how well the automated deploys have gone.</p>
 
-<p>This post is going to detail the mechanics of automated deploys for an enterprise-distributed iOS application, discuss lessons we learned and applied to other projects' deploy processes, and describe some of the changes we'd like to make. Our project is entirely open source, so you can check out any part of the code on your own or <a href="https://github.com/artsy/eidolon/issues/new">open an issue</a> with questions.</p>
+<p>This post is going to detail the mechanics of automated deploys for an enterprise-distributed iOS application, discuss lessons we learned and applied to other projects’ deploy processes, and describe some of the changes we’d like to make. Our project is entirely open source, so you can check out any part of the code on your own or <a href="https://github.com/artsy/eidolon/issues/new">open an issue</a> with questions.</p>
 
 <!-- more -->
 
+<h2 id="deploying-eidolon">Deploying Eidolon</h2>
 
-<a name="Deploying.Eidolon"></a>
-<h2>Deploying Eidolon</h2>
+<p>It’s one command on the terminal to deploy Eidolon:</p>
 
-<p>It's one command on the terminal to deploy Eidolon:</p>
+<div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code>bundle <span class="nb">exec </span>fast lane deploy version:X.Y.Z
+</code></pre></div></div>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-</pre></td><td class='code'><pre><code class='sh'><span class='line'>bundle <span class="nb">exec </span>fast lane deploy version:X.Y.Z
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>This command does a lot of things. It uses <a href="https://fastlane.tools">Fastlane</a>, and you can <a href="https://github.com/artsy/eidolon/blob/a0aad31bccfe2b4abf648fc64892cc165be400b4/fastlane/Fastfile#L40-L131">read the entire script here</a>. We're going to go over each part line-by-line. A few notes:</p>
+<p>This command does a lot of things. It uses <a href="https://fastlane.tools">Fastlane</a>, and you can <a href="https://github.com/artsy/eidolon/blob/a0aad31bccfe2b4abf648fc64892cc165be400b4/fastlane/Fastfile#L40-L131">read the entire script here</a>. We’re going to go over each part line-by-line. A few notes:</p>
 
 <ul>
-<li>We run this command locally on a development machine that has the keys installed to sign a deploy.</li>
-<li>Our changelog is formatted in <a href="https://en.wikipedia.org/wiki/YAML">yaml</a>, our script uses this strategically.</li>
-<li>Our deploy script modifies the project's Info.plist version and build number, as well as the changelog.</li>
+  <li>We run this command locally on a development machine that has the keys installed to sign a deploy.</li>
+  <li>Our changelog is formatted in <a href="https://en.wikipedia.org/wiki/YAML">yaml</a>, our script uses this strategically.</li>
+  <li>Our deploy script modifies the project’s Info.plist version and build number, as well as the changelog.</li>
 </ul>
 
+<p>Let’s dive in!</p>
 
-<p>Let's dive in!</p>
+<h2 id="the-script">The Script</h2>
 
-<a name="The.Script"></a>
-<h2>The Script</h2>
+<p>The first thing we do is verify that the version number we’ve been given is in the proper <a href="http://semver.org">SemVer</a> format.</p>
 
-<p>The first thing we do is verify that the version number we've been given is in the proper <a href="http://semver.org">SemVer</a> format.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-</pre></td><td class='code'><pre><code class='rb'><span class='line'><span class="n">version</span> <span class="o">=</span> <span class="n">options</span><span class="o">[</span><span class="ss">:version</span><span class="o">]</span>
-</span><span class='line'><span class="k">raise</span> <span class="s2">&quot;You must specify a version in A.B.X format to deploy.&quot;</span> <span class="k">if</span> <span class="n">version</span><span class="o">.</span><span class="n">nil?</span> <span class="o">||</span> <span class="n">version</span><span class="o">.</span><span class="n">scan</span><span class="p">(</span><span class="sr">/\d+\.\d+\.\d+/</span><span class="p">)</span><span class="o">.</span><span class="n">length</span> <span class="o">==</span> <span class="mi">0</span>
-</span></code></pre></td></tr></table></div></figure>
-
+<div class="language-rb highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">version</span> <span class="o">=</span> <span class="n">options</span><span class="p">[</span><span class="ss">:version</span><span class="p">]</span>
+<span class="k">raise</span> <span class="s2">"You must specify a version in A.B.X format to deploy."</span> <span class="k">if</span> <span class="n">version</span><span class="p">.</span><span class="nf">nil?</span> <span class="o">||</span> <span class="n">version</span><span class="p">.</span><span class="nf">scan</span><span class="p">(</span><span class="sr">/\d+\.\d+\.\d+/</span><span class="p">).</span><span class="nf">length</span> <span class="o">==</span> <span class="mi">0</span>
+</code></pre></div></div>
 
 <p>We deploy using Hockey, so make sure that an environment variable with the Hockey API key is set.</p>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-</pre></td><td class='code'><pre><code class='rb'><span class='line'><span class="n">hockey_api_token</span> <span class="o">=</span> <span class="no">ENV</span><span class="o">[</span><span class="s1">&#39;HOCKEY_API_TOKEN&#39;</span><span class="o">]</span>
-</span><span class='line'><span class="k">raise</span> <span class="s2">&quot;You must specify a HOCKEY_API_TOKEN environment variable to deploy.&quot;</span> <span class="k">if</span> <span class="n">hockey_api_token</span><span class="o">.</span><span class="n">nil?</span>
-</span></code></pre></td></tr></table></div></figure>
+<div class="language-rb highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">hockey_api_token</span> <span class="o">=</span> <span class="no">ENV</span><span class="p">[</span><span class="s1">'HOCKEY_API_TOKEN'</span><span class="p">]</span>
+<span class="k">raise</span> <span class="s2">"You must specify a HOCKEY_API_TOKEN environment variable to deploy."</span> <span class="k">if</span> <span class="n">hockey_api_token</span><span class="p">.</span><span class="nf">nil?</span>
+</code></pre></div></div>
 
+<p>We also want to verify that we have valid API keys for analytics, the Artsy API, and a few other services the app uses. This validation only makes sure the keys have been set to non-empty values. And we don’t want to accidentally deploy uncommited changes, so we check the git status first.</p>
 
-<p>We also want to verify that we have valid API keys for analytics, the Artsy API, and a few other services the app uses. This validation only makes sure the keys have been set to non-empty values. And we don't want to accidentally deploy uncommited changes, so we check the git status first.</p>
+<div class="language-rb highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">verify_pod_keys</span>
+<span class="n">ensure_git_status_clean</span>
+</code></pre></div></div>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-</pre></td><td class='code'><pre><code class='rb'><span class='line'><span class="n">verify_pod_keys</span>
-</span><span class='line'><span class="n">ensure_git_status_clean</span>
-</span></code></pre></td></tr></table></div></figure>
+<p>Next we need to set the build number. These need to be unique, and we use the current date. This could be a problem if we need to deploy more than once in a day. It hasn’t been a problem yet, though, since we rarely deploy.</p>
 
+<p>We also want to set the Info.plist’s version to the one specified when we run the <code class="language-plaintext highlighter-rouge">fastlane</code> command.</p>
 
-<p>Next we need to set the build number. These need to be unique, and we use the current date. This could be a problem if we need to deploy more than once in a day. It hasn't been a problem yet, though, since we rarely deploy.</p>
+<div class="language-rb highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">build_number</span> <span class="o">=</span> <span class="no">Time</span><span class="p">.</span><span class="nf">new</span><span class="p">.</span><span class="nf">strftime</span><span class="p">(</span><span class="s2">"%Y.%m.%d"</span><span class="p">)</span>
+<span class="n">increment_build_number</span> <span class="ss">build_number: </span><span class="n">build_number</span>
 
-<p>We also want to set the Info.plist's version to the one specified when we run the <code>fastlane</code> command.</p>
+<span class="n">increment_version_number</span> <span class="ss">version_number: </span><span class="n">version</span>
+</code></pre></div></div>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-</pre></td><td class='code'><pre><code class='rb'><span class='line'><span class="n">build_number</span> <span class="o">=</span> <span class="no">Time</span><span class="o">.</span><span class="n">new</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y.%m.%d&quot;</span><span class="p">)</span>
-</span><span class='line'><span class="n">increment_build_number</span> <span class="ss">build_number</span><span class="p">:</span> <span class="n">build_number</span>
-</span><span class='line'>
-</span><span class='line'><span class="n">increment_version_number</span> <span class="ss">version_number</span><span class="p">:</span> <span class="n">version</span>
-</span></code></pre></td></tr></table></div></figure>
+<p>Okay, now it’s time to generate markdown release notes from the changelog. Our changelog is in the following format:</p>
 
+<div class="language-yaml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="na">upcoming</span><span class="pi">:</span>
+<span class="pi">-</span> <span class="s">Upcoming version bug fix.</span>
 
-<p>Okay, now it's time to generate markdown release notes from the changelog. Our changelog is in the following format:</p>
+<span class="na">releases</span><span class="pi">:</span>
+<span class="pi">-</span> <span class="na">version</span><span class="pi">:</span> <span class="s">X.Y.Z</span>
+  <span class="na">date</span><span class="pi">:</span> <span class="s">Month Day Year</span>
+  <span class="na">notes</span><span class="pi">:</span>
+  <span class="pi">-</span> <span class="s">Previous version bug fix.</span>
+</code></pre></div></div>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-</pre></td><td class='code'><pre><code class='yaml'><span class='line'><span class="l-Scalar-Plain">upcoming</span><span class="p-Indicator">:</span>
-</span><span class='line'><span class="p-Indicator">-</span> <span class="l-Scalar-Plain">Upcoming version bug fix.</span>
-</span><span class='line'>
-</span><span class='line'><span class="l-Scalar-Plain">releases</span><span class="p-Indicator">:</span>
-</span><span class='line'><span class="p-Indicator">-</span> <span class="l-Scalar-Plain">version</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">X.Y.Z</span>
-</span><span class='line'>  <span class="l-Scalar-Plain">date</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">Month Day Year</span>
-</span><span class='line'>  <span class="l-Scalar-Plain">notes</span><span class="p-Indicator">:</span>
-</span><span class='line'>  <span class="p-Indicator">-</span> <span class="l-Scalar-Plain">Previous version bug fix.</span>
-</span></code></pre></td></tr></table></div></figure>
+<p>We want to grab the <code class="language-plaintext highlighter-rouge">upcoming</code> notes for the changelog, and then move them to the <code class="language-plaintext highlighter-rouge">releases</code> section. Let’s generate the notes first:</p>
 
+<div class="language-rb highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">changelog_filename</span> <span class="o">=</span> <span class="s1">'../CHANGELOG.yml'</span>
+<span class="n">changelog_yaml</span> <span class="o">=</span> <span class="no">YAML</span><span class="p">.</span><span class="nf">load_file</span><span class="p">(</span><span class="n">changelog_filename</span><span class="p">)</span>
+<span class="n">release_notes</span> <span class="o">=</span> <span class="n">changelog_yaml</span><span class="p">[</span><span class="s1">'upcoming'</span><span class="p">].</span><span class="nf">map</span><span class="p">{</span> <span class="o">|</span><span class="n">note</span><span class="o">|</span> <span class="n">note</span><span class="p">.</span><span class="nf">prepend</span> <span class="s1">'- '</span> <span class="p">}.</span><span class="nf">join</span><span class="p">(</span><span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="p">)</span>
+</code></pre></div></div>
 
-<p>We want to grab the <code>upcoming</code> notes for the changelog, and then move them to the <code>releases</code> section. Let's generate the notes first:</p>
+<p>Updating the changelog is a little messy. I tried parsing the changelog as yaml, modifying it, and then writing it back as yaml, but kept running into trouble. Instead, I treat it as plain text. We open the changelog, split on <code class="language-plaintext highlighter-rouge">releases:</code>, prepend the existing releases with a the generated release notes, and write the changelog.</p>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-</pre></td><td class='code'><pre><code class='rb'><span class='line'><span class="n">changelog_filename</span> <span class="o">=</span> <span class="s1">&#39;../CHANGELOG.yml&#39;</span>
-</span><span class='line'><span class="n">changelog_yaml</span> <span class="o">=</span> <span class="no">YAML</span><span class="o">.</span><span class="n">load_file</span><span class="p">(</span><span class="n">changelog_filename</span><span class="p">)</span>
-</span><span class='line'><span class="n">release_notes</span> <span class="o">=</span> <span class="n">changelog_yaml</span><span class="o">[</span><span class="s1">&#39;upcoming&#39;</span><span class="o">].</span><span class="n">map</span><span class="p">{</span> <span class="o">|</span><span class="n">note</span><span class="o">|</span> <span class="n">note</span><span class="o">.</span><span class="n">prepend</span> <span class="s1">&#39;- &#39;</span> <span class="p">}</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
-</span></code></pre></td></tr></table></div></figure>
+<div class="language-rb highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">changelog_contents</span> <span class="o">=</span> <span class="no">File</span><span class="p">.</span><span class="nf">read</span><span class="p">(</span><span class="n">changelog_filename</span><span class="p">)</span>
+<span class="n">existing_releases</span> <span class="o">=</span> <span class="n">changelog_contents</span><span class="p">.</span><span class="nf">split</span><span class="p">(</span><span class="s1">'releases:'</span><span class="p">).</span><span class="nf">last</span>
+<span class="n">this_release</span> <span class="o">=</span> <span class="n">changelog_yaml</span><span class="p">[</span><span class="s1">'upcoming'</span><span class="p">].</span><span class="nf">map</span><span class="p">{</span> <span class="o">|</span><span class="n">note</span><span class="o">|</span> <span class="n">note</span><span class="p">.</span><span class="nf">prepend</span> <span class="s1">'  '</span> <span class="p">}.</span><span class="nf">join</span><span class="p">(</span><span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="p">)</span>
+<span class="n">changelog_contents</span> <span class="o">=</span> <span class="o">&lt;&lt;-</span><span class="no">EOS</span><span class="sh">
+upcoming:
+releases:
+- version: </span><span class="si">#{</span><span class="n">version</span><span class="si">}</span><span class="sh">
+  date: </span><span class="si">#{</span><span class="no">Time</span><span class="p">.</span><span class="nf">new</span><span class="p">.</span><span class="nf">strftime</span><span class="p">(</span><span class="s2">"%B %d %Y"</span><span class="p">)</span><span class="si">}</span><span class="sh">
+  notes:
+</span><span class="si">#{</span><span class="n">this_release</span><span class="si">}</span><span class="sh">
+</span><span class="si">#{</span><span class="n">existing_releases</span><span class="si">}</span><span class="sh">
+</span><span class="no">EOS</span>
 
+<span class="no">File</span><span class="p">.</span><span class="nf">open</span><span class="p">(</span><span class="n">changelog_filename</span><span class="p">,</span> <span class="s1">'w'</span><span class="p">)</span> <span class="p">{</span> <span class="o">|</span><span class="n">file</span><span class="o">|</span> <span class="n">file</span><span class="p">.</span><span class="nf">puts</span> <span class="n">changelog_contents</span> <span class="p">}</span>
+</code></pre></div></div>
 
-<p>Updating the changelog is a little messy. I tried parsing the changelog as yaml, modifying it, and then writing it back as yaml, but kept running into trouble. Instead, I treat it as plain text. We open the changelog, split on <code>releases:</code>, prepend the existing releases with a the generated release notes, and write the changelog.</p>
+<p>At this point, we’re ready to start the actual deploy process. First we need to download the provisioning profiles, which is only one step with Fastlane:</p>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-</pre></td><td class='code'><pre><code class='rb'><span class='line'><span class="n">changelog_contents</span> <span class="o">=</span> <span class="no">File</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">changelog_filename</span><span class="p">)</span>
-</span><span class='line'><span class="n">existing_releases</span> <span class="o">=</span> <span class="n">changelog_contents</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;releases:&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">last</span>
-</span><span class='line'><span class="n">this_release</span> <span class="o">=</span> <span class="n">changelog_yaml</span><span class="o">[</span><span class="s1">&#39;upcoming&#39;</span><span class="o">].</span><span class="n">map</span><span class="p">{</span> <span class="o">|</span><span class="n">note</span><span class="o">|</span> <span class="n">note</span><span class="o">.</span><span class="n">prepend</span> <span class="s1">&#39;  &#39;</span> <span class="p">}</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
-</span><span class='line'><span class="n">changelog_contents</span> <span class="o">=</span> <span class="o">&lt;&lt;-</span><span class="no">EOS</span>
-</span><span class='line'><span class="sh">upcoming:</span>
-</span><span class='line'><span class="sh">releases:</span>
-</span><span class='line'><span class="sh">- version: #{version}</span>
-</span><span class='line'><span class="sh">  date: #{Time.new.strftime(&quot;%B %d %Y&quot;)}</span>
-</span><span class='line'><span class="sh">  notes:</span>
-</span><span class='line'><span class="sh">#{this_release}</span>
-</span><span class='line'><span class="sh">#{existing_releases}</span>
-</span><span class='line'><span class="no">EOS</span>
-</span><span class='line'>
-</span><span class='line'><span class="no">File</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">changelog_filename</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="p">{</span> <span class="o">|</span><span class="n">file</span><span class="o">|</span> <span class="n">file</span><span class="o">.</span><span class="n">puts</span> <span class="n">changelog_contents</span> <span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
+<div class="language-rb highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">sigh</span>
+</code></pre></div></div>
 
+<p>Next we build our app using <code class="language-plaintext highlighter-rouge">gym</code>. We need to use the legacy build API, I can’t remember why.</p>
 
-<p>At this point, we're ready to start the actual deploy process. First we need to download the provisioning profiles, which is only one step with Fastlane:</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-</pre></td><td class='code'><pre><code class='rb'><span class='line'><span class="n">sigh</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>Next we build our app using <code>gym</code>. We need to use the legacy build API, I can't remember why.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-</pre></td><td class='code'><pre><code class='rb'><span class='line'><span class="n">gym</span><span class="p">(</span>
-</span><span class='line'>  <span class="ss">scheme</span><span class="p">:</span> <span class="s2">&quot;Kiosk&quot;</span><span class="p">,</span>
-</span><span class='line'>  <span class="ss">export_method</span><span class="p">:</span> <span class="s1">&#39;enterprise&#39;</span><span class="p">,</span>
-</span><span class='line'>  <span class="ss">use_legacy_build_api</span><span class="p">:</span> <span class="kp">true</span>
-</span><span class='line'><span class="p">)</span>
-</span></code></pre></td></tr></table></div></figure>
-
+<div class="language-rb highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">gym</span><span class="p">(</span>
+  <span class="ss">scheme: </span><span class="s2">"Kiosk"</span><span class="p">,</span>
+  <span class="ss">export_method: </span><span class="s1">'enterprise'</span><span class="p">,</span>
+  <span class="ss">use_legacy_build_api: </span><span class="kp">true</span>
+<span class="p">)</span>
+</code></pre></div></div>
 
 <p>With our build finished, we upload to Hockey.</p>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-</pre></td><td class='code'><pre><code class='rb'><span class='line'><span class="n">hockey</span><span class="p">(</span>
-</span><span class='line'>  <span class="ss">api_token</span><span class="p">:</span> <span class="n">hockey_api_token</span><span class="p">,</span>
-</span><span class='line'>  <span class="ss">notes</span><span class="p">:</span> <span class="n">release_notes</span>
-</span><span class='line'><span class="p">)</span>
-</span></code></pre></td></tr></table></div></figure>
+<div class="language-rb highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">hockey</span><span class="p">(</span>
+  <span class="ss">api_token: </span><span class="n">hockey_api_token</span><span class="p">,</span>
+  <span class="ss">notes: </span><span class="n">release_notes</span>
+<span class="p">)</span>
+</code></pre></div></div>
 
+<p>Okay, our build is deployed. Time to let the team know there’s a new version available:</p>
 
-<p>Okay, our build is deployed. Time to let the team know there's a new version available:</p>
+<div class="language-rb highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">slack</span><span class="p">(</span>
+  <span class="ss">message: </span><span class="s2">"There is a new version of the Kiosk app available. Download it at http://artsy.net/kioskbeta"</span><span class="p">,</span>
+  <span class="ss">success: </span><span class="kp">true</span><span class="p">,</span>        <span class="c1"># optional, defaults to true</span>
+  <span class="ss">payload: </span><span class="p">{</span>            <span class="c1"># optional, lets you specify any number of your own Slack attachments</span>
+    <span class="s1">'Version'</span> <span class="o">=&gt;</span> <span class="n">version</span><span class="p">,</span>
+    <span class="s1">'What\'s new'</span> <span class="o">=&gt;</span> <span class="n">release_notes</span><span class="p">,</span>
+  <span class="p">},</span>
+  <span class="ss">default_payloads: </span><span class="p">[],</span>
+<span class="p">)</span>
+</code></pre></div></div>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-</pre></td><td class='code'><pre><code class='rb'><span class='line'><span class="n">slack</span><span class="p">(</span>
-</span><span class='line'>  <span class="ss">message</span><span class="p">:</span> <span class="s2">&quot;There is a new version of the Kiosk app available. Download it at http://artsy.net/kioskbeta&quot;</span><span class="p">,</span>
-</span><span class='line'>  <span class="ss">success</span><span class="p">:</span> <span class="kp">true</span><span class="p">,</span>        <span class="c1"># optional, defaults to true</span>
-</span><span class='line'>  <span class="ss">payload</span><span class="p">:</span> <span class="p">{</span>            <span class="c1"># optional, lets you specify any number of your own Slack attachments</span>
-</span><span class='line'>    <span class="s1">&#39;Version&#39;</span> <span class="o">=&gt;</span> <span class="n">version</span><span class="p">,</span>
-</span><span class='line'>    <span class="s1">&#39;What\&#39;s new&#39;</span> <span class="o">=&gt;</span> <span class="n">release_notes</span><span class="p">,</span>
-</span><span class='line'>  <span class="p">},</span>
-</span><span class='line'>  <span class="ss">default_payloads</span><span class="p">:</span> <span class="o">[]</span><span class="p">,</span>
-</span><span class='line'><span class="p">)</span>
-</span></code></pre></td></tr></table></div></figure>
+<p><code class="language-plaintext highlighter-rouge">default_payloads</code> needs to be empty I think, I can’t remember why. Seems like “I can’t remember why” is a common theme here…</p>
 
+<p>Before committing the changes we’ve made to the changelog and Info.plist files, we need to clean any build artefacts. This includes the actual binary that was compiled, unit test coverage reports, and downloaded provisioning profiles.</p>
 
-<p><code>default_payloads</code> needs to be empty I think, I can't remember why. Seems like "I can't remember why" is a common theme here...</p>
+<div class="language-rb highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">clean_build_artifacts</span>
+</code></pre></div></div>
 
-<p>Before committing the changes we've made to the changelog and Info.plist files, we need to clean any build artefacts. This includes the actual binary that was compiled, unit test coverage reports, and downloaded provisioning profiles.</p>
+<p>Finally, we commit, tag the build, and push to GitHub. Fastlane’s built-in commands to commit to git reject any changes except to Info.plist files, and we’ve modified the changelog, so I used <code class="language-plaintext highlighter-rouge">sh</code> and used git directly.</p>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-</pre></td><td class='code'><pre><code class='rb'><span class='line'><span class="n">clean_build_artifacts</span>
-</span></code></pre></td></tr></table></div></figure>
+<div class="language-rb highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">sh</span> <span class="s2">"git add .. ; git commit -m 'Deploying version </span><span class="si">#{</span><span class="n">version</span><span class="si">}</span><span class="s2">.'"</span>
+<span class="n">add_git_tag</span> <span class="ss">tag: </span><span class="n">version</span>
+<span class="n">push_to_git_remote</span>
+</code></pre></div></div>
 
-
-<p>Finally, we commit, tag the build, and push to GitHub. Fastlane's built-in commands to commit to git reject any changes except to Info.plist files, and we've modified the changelog, so I used <code>sh</code> and used git directly.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-</pre></td><td class='code'><pre><code class='rb'><span class='line'><span class="n">sh</span> <span class="s2">&quot;git add .. ; git commit -m &#39;Deploying version </span><span class="si">#{</span><span class="n">version</span><span class="si">}</span><span class="s2">.&#39;&quot;</span>
-</span><span class='line'><span class="n">add_git_tag</span> <span class="ss">tag</span><span class="p">:</span> <span class="n">version</span>
-</span><span class='line'><span class="n">push_to_git_remote</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>And that's it! With one terminal command, we've done all the following:</p>
+<p>And that’s it! With one terminal command, we’ve done all the following:</p>
 
 <ul>
-<li>Verified version number format.</li>
-<li>Verified the local environment is set up to deploy.</li>
-<li>Verified API keys used by the app aren't empty.</li>
-<li>Incremented the build number and version.</li>
-<li>Updated the changelog.</li>
-<li>Built and signed the app.</li>
-<li>Uploaded the build to Hockey.</li>
-<li>Posted a notification to Slack.</li>
-<li>Tagged the release and pushed to GitHub.</li>
+  <li>Verified version number format.</li>
+  <li>Verified the local environment is set up to deploy.</li>
+  <li>Verified API keys used by the app aren’t empty.</li>
+  <li>Incremented the build number and version.</li>
+  <li>Updated the changelog.</li>
+  <li>Built and signed the app.</li>
+  <li>Uploaded the build to Hockey.</li>
+  <li>Posted a notification to Slack.</li>
+  <li>Tagged the release and pushed to GitHub.</li>
 </ul>
 
+<h2 id="lessons-learned">Lessons Learned</h2>
 
-<a name="Lessons.Learned"></a>
-<h2>Lessons Learned</h2>
+<p>Automating Eidolon deploys was one of the first automated deploys we built on Artsy’s iOS team. Now, based on Eidolon’s successful deploy process, all our iOS deploys are automated.</p>
 
-<p>Automating Eidolon deploys was one of the first automated deploys we built on Artsy's iOS team. Now, based on Eidolon's successful deploy process, all our iOS deploys are automated.</p>
+<p>We’ve learned a few lessons.</p>
 
-<p>We've learned a few lessons.</p>
-
-<p>First, running deploys locally is <em>so 2015</em>. Our more modern deploy processes run on continuous integration servers like Circle CI. This poses some problems around securing certificates necessary to deploy, maybe we'll cover that in a future blog post.</p>
+<p>First, running deploys locally is <em>so 2015</em>. Our more modern deploy processes run on continuous integration servers like Circle CI. This poses some problems around securing certificates necessary to deploy, maybe we’ll cover that in a future blog post.</p>
 
 <p>We deploy on CI based on pushes to a specific branch, and we run our deploy script only if the unit tests pass. This is a huge incentive to keep CI green.</p>
 
-<p>On other iOS projects, we sometimes deploy more than once a day, so we use <code>Year.Month.Day.Hour</code> as the build number format, which is unique enough to do one deploy per hour. This is good enough for now.</p>
+<p>On other iOS projects, we sometimes deploy more than once a day, so we use <code class="language-plaintext highlighter-rouge">Year.Month.Day.Hour</code> as the build number format, which is unique enough to do one deploy per hour. This is good enough for now.</p>
 
-<p>One thing I really wish I'd done when I set up automated deploys is to document things a little better. To be honest, that's part of the motivation to write this blog post (better late than never!).</p>
+<p>One thing I really wish I’d done when I set up automated deploys is to document things a little better. To be honest, that’s part of the motivation to write this blog post (better late than never!).</p>
 
-<a name="Conclusion"></a>
-<h2>Conclusion</h2>
+<h2 id="conclusion">Conclusion</h2>
 
 <p>Overall, automating deploys for Eidolon has been a huge win. The other night, we had an emergency at an auction: the Eidolon app was no longer working and we needed a new deploy.</p>
 
-<blockquote class="twitter-tweet" data-lang="en"><p lang="en" dir="ltr">Guess who’s got two thumbs and forgot that their enterprise distribution certificates expire in September.<br><br>👍this guy👍</p>&mdash; Ash vs NSThread (@ashfurrow) <a href="https://twitter.com/ashfurrow/status/784548214527627266">October 8, 2016</a></blockquote>
+<blockquote class="twitter-tweet" data-lang="en"><p lang="en" dir="ltr">Guess who’s got two thumbs and forgot that their enterprise distribution certificates expire in September.<br /><br />👍this guy👍</p>&mdash; Ash vs NSThread (@ashfurrow) <a href="https://twitter.com/ashfurrow/status/784548214527627266">October 8, 2016</a></blockquote>
+<script async="" src="//platform.twitter.com/widgets.js" charset="utf-8"></script>
 
-
-<p> <script async src="//platform.twitter.com/widgets.js" charset="utf-8"></script></p>
-
-<p>From the time the team let me know about the problem to the time they had a fresh deploy with a new certificate, less than twenty minutes had passed. I issued one command and watched it do all the work for me. If I had to manually follow a set of arcane steps I hadn't done in a long time, our team might not have had the new build in time.</p>
+<p>From the time the team let me know about the problem to the time they had a fresh deploy with a new certificate, less than twenty minutes had passed. I issued one command and watched it do all the work for me. If I had to manually follow a set of arcane steps I hadn’t done in a long time, our team might not have had the new build in time.</p>
 </div>
     
 
-    
-      <p class="meta-author">
-        
-  
-
+    <p class="meta-author">
+      
 
 
 
@@ -479,9 +390,9 @@
 
 
 
-      </p>
-      <p class="meta-categories">
-        Categories: 
+    </p>
+    <p class="meta-categories">
+      Categories: 
 
 <span class="categories">
   
@@ -490,20 +401,19 @@
 </span>
 
 
-      </p>
-      
-
-      
-
-      <p class="meta-paginate">
-        
-          <a class="previous" href="/blog/2016/09/22/professional-development-at-artsy-engineering/" title="Previous Post: Professional Development at Artsy Engineering">&laquo; Professional Development at Artsy Engineering</a>
-        
-        
-          <a class="next" href="/blog/2016/10/14/Accessing-the-Source-Code-from-your-Simulator/" title="next Post: Accessing the app's Source Code from your Simulator">Accessing the app's Source Code from your Simulator &raquo;</a>
-        
-      </p>
+    </p>
     
+
+    
+
+    <p class="meta-paginate">
+      
+        <a class="previous" href="/blog/2016/09/22/professional-development-at-artsy-engineering/" title="Previous Post: Professional Development at Artsy Engineering">&laquo; Professional Development at Artsy Engineering</a>
+      
+      
+        <a class="next" href="/blog/2016/10/14/Accessing-the-Source-Code-from-your-Simulator/" title="next Post: Accessing the app's Source Code from your Simulator">Accessing the app's Source Code from your Simulator &raquo;</a>
+      
+    </p>
   </div>
 
 

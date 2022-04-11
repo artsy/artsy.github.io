@@ -14,8 +14,6 @@
 
     
 
-
-
   
     
       
@@ -25,7 +23,7 @@
         
           Presenters and Memoization: Moving Logic out of Templates
         
-    ...">
+      ...">
   
 
   <!-- http://t.co/dKP3o1e -->
@@ -129,9 +127,7 @@
       <div>
   <article class="hentry" role="article">
 
-    
-<div class="article-container-single ">
-
+    <div class="article-container-single ">
 
   
     <div class="meta-container">
@@ -144,8 +140,6 @@
         
         <time datetime="2014-03-18">Mar 18, 2014</time>
           <p class="meta-author">
-  
-
 
 
   
@@ -170,140 +164,93 @@
 
   <div class="content-container">
     
-      <div class="entry-content"><p>When dealing with rendering data for an email, one frequently has to make many database calls to assemble the required data. This can be slow, and depending on how you structure the code that is assembling the data vs rendering the data in a template, it's very easy to be making repeated calls, which can significantly slow down your process. Additionally, whether you are using <a href="http://haml.info/">Haml</a>, <a href="http://mustache.github.io/">Mustache</a>, <a href="http://jade-lang.com/">Jade</a>, or any other templating language, embedding too much logic in the template can making things hard to maintain (especially if some logic lives in the template and some elsewhere in your domain code). Of course some logic in the template (a conditional: should I render this section?, or loops: render this hash of data) is necessary, but I like to keep as much out of there as possible. It's easier to optimize, debug and maintain that logic elsewhere, and also writing complex logic in <a href="https://www.ruby-lang.org">Ruby</a> is much more fun than in a templating language!</p>
+      <div class="entry-content"><p>When dealing with rendering data for an email, one frequently has to make many database calls to assemble the required data. This can be slow, and depending on how you structure the code that is assembling the data vs rendering the data in a template, it’s very easy to be making repeated calls, which can significantly slow down your process. Additionally, whether you are using <a href="http://haml.info/">Haml</a>, <a href="http://mustache.github.io/">Mustache</a>, <a href="http://jade-lang.com/">Jade</a>, or any other templating language, embedding too much logic in the template can making things hard to maintain (especially if some logic lives in the template and some elsewhere in your domain code). Of course some logic in the template (a conditional: should I render this section?, or loops: render this hash of data) is necessary, but I like to keep as much out of there as possible. It’s easier to optimize, debug and maintain that logic elsewhere, and also writing complex logic in <a href="https://www.ruby-lang.org">Ruby</a> is much more fun than in a templating language!</p>
 
-<p>In this article I'll present what I've been doing to keep my templates relatively logic-free, and how I make sure I don't repeat any heavy database calls in assembling my data.</p>
+<p>In this article I’ll present what I’ve been doing to keep my templates relatively logic-free, and how I make sure I don’t repeat any heavy database calls in assembling my data.</p>
 
 <!-- more -->
 
+<h2 id="the-setup---presenters-and-memoization">The Setup - Presenters and Memoization</h2>
 
-<a name="The.Setup.-.Presenters.and.Memoization"></a>
-<h2>The Setup - Presenters and Memoization</h2>
-
-<p>First, I'd like to introduce the Presenter pattern, and how this can help clean up your templates. Here are a couple of links about using presenters with <a href="http://rubyonrails.org/">Rails</a> that I've found useful:</p>
+<p>First, I’d like to introduce the Presenter pattern, and how this can help clean up your templates. Here are a couple of links about using presenters with <a href="http://rubyonrails.org/">Rails</a> that I’ve found useful:</p>
 
 <ul>
-<li><a href="http://blog.jayfields.com/2007/03/rails-presenter-pattern.html">Jay Fields' Guide to Presenters</a></li>
-<li><a href="http://www.slideshare.net/mdesjardins/presenters-in-rails">Mike Desjardins' Slideshare Presentation</a></li>
+  <li><a href="http://blog.jayfields.com/2007/03/rails-presenter-pattern.html">Jay Fields’ Guide to Presenters</a></li>
+  <li><a href="http://www.slideshare.net/mdesjardins/presenters-in-rails">Mike Desjardins’ Slideshare Presentation</a></li>
 </ul>
-
 
 <p>Consider the following screenshot of a section of a weekly email that we send our users:</p>
 
 <p><img src="/images/2014-03-18-presenters-and-memoization-moving-logic-out-of-templates/recently_added.png" alt="Example of Recently Added Works" /></p>
 
-<p>This section shows works that have been added that week by artists that you follow. That's clearly going to involve some database calls, and potentially heavy ones at that. Now we'd like to accomplish two things here: we want to make sure that we only make these calls once (no matter what we wind up doing with the data later), and we also would like to make sure that any code or logic that is making these calls and doing any data manipulation is not being done directly in our templates. Keeping this kind of logic out of your template will make it easier to debug, maintain and write.</p>
+<p>This section shows works that have been added that week by artists that you follow. That’s clearly going to involve some database calls, and potentially heavy ones at that. Now we’d like to accomplish two things here: we want to make sure that we only make these calls once (no matter what we wind up doing with the data later), and we also would like to make sure that any code or logic that is making these calls and doing any data manipulation is not being done directly in our templates. Keeping this kind of logic out of your template will make it easier to debug, maintain and write.</p>
 
-<p>Let's start by creating a Module to hold the various logic required for this email:</p>
+<p>Let’s start by creating a Module to hold the various logic required for this email:</p>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">WeeklyEmailPresenter</span>
-</span><span class='line'>  <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="n">user</span><span class="p">)</span>
-</span><span class='line'>    <span class="vi">@user</span> <span class="o">=</span> <span class="n">user</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure>
-
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">class</span> <span class="nc">WeeklyEmailPresenter</span>
+  <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="n">user</span><span class="p">)</span>
+    <span class="vi">@user</span> <span class="o">=</span> <span class="n">user</span>
+  <span class="k">end</span>
+<span class="k">end</span>
+</code></pre></div></div>
 
 <p>Ok, so far so good. In our mail template rendering/calling code, we can now say:</p>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="vi">@presenter</span> <span class="o">=</span> <span class="no">WeeklyEmailPresenter</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="n">user</span><span class="p">)</span>
-</span></code></pre></td></tr></table></div></figure>
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="vi">@presenter</span> <span class="o">=</span> <span class="no">WeeklyEmailPresenter</span><span class="p">.</span><span class="nf">new</span><span class="p">(</span><span class="n">user</span><span class="p">)</span>
+</code></pre></div></div>
 
+<p>This will allow us to refer to methods in this class in our mail template. So now let’s add a method that will query our database and return a list of artists that this user should be notified about:</p>
 
-<p>This will allow us to refer to methods in this class in our mail template. So now let's add a method that will query our database and return a list of artists that this user should be notified about:</p>
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">class</span> <span class="nc">WeeklyEmailPresenter</span>
+  <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="n">user</span><span class="p">)</span>
+    <span class="vi">@user</span> <span class="o">=</span> <span class="n">user</span>
+  <span class="k">end</span>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">WeeklyEmailPresenter</span>
-</span><span class='line'>  <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="n">user</span><span class="p">)</span>
-</span><span class='line'>    <span class="vi">@user</span> <span class="o">=</span> <span class="n">user</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="k">def</span> <span class="nf">recently_added_works</span>
-</span><span class='line'>    <span class="c1"># Some really heavy database query</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure>
-
+  <span class="k">def</span> <span class="nf">recently_added_works</span>
+    <span class="c1"># Some really heavy database query</span>
+  <span class="k">end</span>
+<span class="k">end</span>
+</code></pre></div></div>
 
 <p>Ok, that was easy. In our HAML template, we can now do:</p>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-</pre></td><td class='code'><pre><code class='haml'><span class='line'><span class="p">-</span><span class="k">if</span> <span class="vi">@presenter</span><span class="o">.</span><span class="n">recently_added_works</span> <span class="o">&amp;&amp;</span> <span class="vi">@presenter</span><span class="o">.</span><span class="n">recently_added_works</span><span class="o">.</span><span class="n">any?</span>
-</span><span class='line'>  <span class="nt">%table</span>
-</span><span class='line'>    <span class="nt">%tr</span>
-</span><span class='line'>      <span class="nt">%td</span>
-</span><span class='line'>        <span class="p">-</span><span class="vi">@presenter</span><span class="o">.</span><span class="n">recently_added_works</span><span class="o">.</span><span class="n">each</span> <span class="k">do</span> <span class="o">|</span><span class="n">artists</span><span class="o">|</span>
-</span><span class='line'>          &lt;!-- markup to render each artist with recently added works --&gt;
-</span></code></pre></td></tr></table></div></figure>
+<div class="language-haml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">-</span><span class="k">if</span> <span class="vi">@presenter</span><span class="p">.</span><span class="nf">recently_added_works</span> <span class="o">&amp;&amp;</span> <span class="vi">@presenter</span><span class="p">.</span><span class="nf">recently_added_works</span><span class="p">.</span><span class="nf">any?</span>
+  <span class="nt">%table</span>
+    <span class="nt">%tr</span>
+      <span class="nt">%td</span>
+        <span class="p">-</span><span class="vi">@presenter</span><span class="p">.</span><span class="nf">recently_added_works</span><span class="p">.</span><span class="nf">each</span> <span class="k">do</span> <span class="o">|</span><span class="n">artists</span><span class="o">|</span>
+          <span class="c">&lt;!-- markup to render each artist with recently added works --&gt;</span>
+</code></pre></div></div>
 
+<p>However, take a look at how many times we’ve referred to <code class="language-plaintext highlighter-rouge">@presenter.recently_added_works</code> - 3 times already! And we’ll most likely refer to it more elsewhere (perhaps when deriving a subject line, or showing a total count somewhere, etc.). Depending on how you’ve implemented the method <code class="language-plaintext highlighter-rouge">recently_added_works</code>, you may be re-querying the database every time it’s referred to! Clearly that’s a lot of wasted resources. So, let’s look at an easy change that will guarantee we only ever perform the work to assemble this data once. We memoize it:</p>
 
-<p>However, take a look at how many times we've referred to <code>@presenter.recently_added_works</code> - 3 times already! And we'll most likely refer to it more elsewhere (perhaps when deriving a subject line, or showing a total count somewhere, etc.). Depending on how you've implemented the method <code>recently_added_works</code>, you may be re-querying the database every time it's referred to! Clearly that's a lot of wasted resources. So, let's look at an easy change that will guarantee we only ever perform the work to assemble this data once. We memoize it:</p>
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">class</span> <span class="nc">WeeklyEmailPresenter</span>
+  <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="n">user</span><span class="p">)</span>
+    <span class="vi">@user</span> <span class="o">=</span> <span class="n">user</span>
+  <span class="k">end</span>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">WeeklyEmailPresenter</span>
-</span><span class='line'>  <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="n">user</span><span class="p">)</span>
-</span><span class='line'>    <span class="vi">@user</span> <span class="o">=</span> <span class="n">user</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="k">def</span> <span class="nf">recently_added_works</span>
-</span><span class='line'>    <span class="vi">@recently_added_works</span> <span class="o">||=</span> <span class="n">build_recently_added_works</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="kp">private</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="k">def</span> <span class="nf">build_recently_added_works</span>
-</span><span class='line'>    <span class="c1"># Code to do database lookups</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure>
+  <span class="k">def</span> <span class="nf">recently_added_works</span>
+    <span class="vi">@recently_added_works</span> <span class="o">||=</span> <span class="n">build_recently_added_works</span>
+  <span class="k">end</span>
 
+  <span class="kp">private</span>
 
-<p>All we're doing is moving the actual code that's doing the heavy lifting into a <code>private</code> method (for convention, I like to prefix the name with <code>build_</code>). The public method that we refer to elsewhere in our presenter and template simply calls the appropriate <code>private</code> method. Through using an instance variable combined with conditional assignment, we guarantee that the <code>build_</code> method (our heavy and slow workhorse method) will only be called once, no matter how many times we refer to the public method.</p>
+  <span class="k">def</span> <span class="nf">build_recently_added_works</span>
+    <span class="c1"># Code to do database lookups</span>
+  <span class="k">end</span>
+<span class="k">end</span>
+</code></pre></div></div>
 
-<p>That's it! To summarize, use instance variables in your public methods which is what your templates and other code will use. Those public methods should call private <code>build_</code> methods which actually do all the heavy lifting. This way, you get to easily move logic away from a template and into its own module, and can guarantee that you're not repeating any long-running database queries or other slow data processing.</p>
+<p>All we’re doing is moving the actual code that’s doing the heavy lifting into a <code class="language-plaintext highlighter-rouge">private</code> method (for convention, I like to prefix the name with <code class="language-plaintext highlighter-rouge">build_</code>). The public method that we refer to elsewhere in our presenter and template simply calls the appropriate <code class="language-plaintext highlighter-rouge">private</code> method. Through using an instance variable combined with conditional assignment, we guarantee that the <code class="language-plaintext highlighter-rouge">build_</code> method (our heavy and slow workhorse method) will only be called once, no matter how many times we refer to the public method.</p>
 
-<p>Hopefully you've found this a useful pattern to follow, please leave any feedback in the comments and <a href="https://github.com/artsy">follow us on Github</a>!</p>
+<p>That’s it! To summarize, use instance variables in your public methods which is what your templates and other code will use. Those public methods should call private <code class="language-plaintext highlighter-rouge">build_</code> methods which actually do all the heavy lifting. This way, you get to easily move logic away from a template and into its own module, and can guarantee that you’re not repeating any long-running database queries or other slow data processing.</p>
+
+<p>Hopefully you’ve found this a useful pattern to follow, please leave any feedback in the comments and <a href="https://github.com/artsy">follow us on Github</a>!</p>
 </div>
     
 
-    
-      <p class="meta-author">
-        
-  
-
+    <p class="meta-author">
+      
 
 
 
@@ -340,39 +287,38 @@
 
 
 
-      </p>
-      <p class="meta-categories">
-        Categories: 
+    </p>
+    <p class="meta-categories">
+      Categories: 
 
 <span class="categories">
   
-    <a class='category' href='/blog/categories/rails/'>rails</a>, <a class='category' href='/blog/categories/ruby/'>ruby</a>
+    <a class='category' href='/blog/categories/rails/'>Rails</a>, <a class='category' href='/blog/categories/ruby/'>Ruby</a>
   
 </span>
 
 
-      </p>
-      
-
-      
-        <hr/>
-        <section class="comments">
-          <h1>Comments</h1>
-          <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
-</div>
-        </section>
-        <hr/>
-      
-
-      <p class="meta-paginate">
-        
-          <a class="previous" href="/blog/2014/03/17/ruby-helper-to-group-artworks-into-a-pinterest-style-layout-for-email/" title="Previous Post: Ruby Helper to Group Artworks into a Pinterest-style Layout for Email">&laquo; Ruby Helper to Group Artworks into a Pinterest-style Layout for Email</a>
-        
-        
-          <a class="next" href="/blog/2014/04/02/refactoring-infrastructure/" title="next Post: Refactoring Infrastructure">Refactoring Infrastructure &raquo;</a>
-        
-      </p>
+    </p>
     
+
+    
+      <hr/>
+      <section class="comments">
+        <h1>Comments</h1>
+        <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</div>
+      </section>
+      <hr/>
+    
+
+    <p class="meta-paginate">
+      
+        <a class="previous" href="/blog/2014/03/17/ruby-helper-to-group-artworks-into-a-pinterest-style-layout-for-email/" title="Previous Post: Ruby Helper to Group Artworks into a Pinterest-style Layout for Email">&laquo; Ruby Helper to Group Artworks into a Pinterest-style Layout for Email</a>
+      
+      
+        <a class="next" href="/blog/2014/04/02/refactoring-infrastructure/" title="next Post: Refactoring Infrastructure">Refactoring Infrastructure &raquo;</a>
+      
+    </p>
   </div>
 
 

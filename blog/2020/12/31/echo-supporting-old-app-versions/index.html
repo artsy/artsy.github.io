@@ -92,69 +92,62 @@
         </header>
 
         <article class='post'>
-          <p><a href="https://artsy.github.io/blog/2020/03/02/ios-deploys-super-weird-totally-normal/">In, a recent blog post</a>, I discussed a fundamental difference between web and iOS deployments. Web software is deployed to servers that are under your control, while iOS software is deployed to users' devices that you have <em>no</em> control over. This distinction really changes how you think about the code that you ship, because that code could be running indefinitely on devices that never get updated.</p>
+          <p><a href="https://artsy.github.io/blog/2020/03/02/ios-deploys-super-weird-totally-normal/">In, a recent blog post</a>, I discussed a fundamental difference between web and iOS deployments. Web software is deployed to servers that are under your control, while iOS software is deployed to users’ devices that you have <em>no</em> control over. This distinction really changes how you think about the code that you ship, because that code could be running indefinitely on devices that never get updated.</p>
 
-<p>The previous post focused on this distinction through the lens of accidentally shipping (and then fixing) a bug. This focus on bugs is important, but focusing <em>only</em> on bugs left me unable to articulate an important, nuanced distinction between hosting code and shipping app binaries. So let's dive in.</p>
+<p>The previous post focused on this distinction through the lens of accidentally shipping (and then fixing) a bug. This focus on bugs is important, but focusing <em>only</em> on bugs left me unable to articulate an important, nuanced distinction between hosting code and shipping app binaries. So let’s dive in.</p>
 
 <!-- more -->
 
-
 <p>Software, ideally, is made up of more than just bugs; it has working code, too! Just like with (accidentally) shipping bugs, you need to be aware that the working code you ship is <em>also</em> going to be running indefinitely. That puts pressure on developers to make sure that the code in their apps will continue to function correctly, even as (for example) the web APIs that the apps rely on get updated over time.</p>
 
-<a name="A.Case.Study"></a>
-<h2>A Case Study</h2>
+<h2 id="a-case-study">A Case Study</h2>
 
-<p>Artsy's iOS app relies on a services we call "<a href="https://github.com/artsy/echo">Echo</a>" to serve remote configuration. This lets Artsy do things like selectively disable features (for example, to make non-backwards-compatible API changes), provide changes to URL-routing (to match corresponding changes to web URLs), or even to <em>require</em> users on older versions of the app to update (which we have never had to do). Echo has helped Artsy meet its business goals and building this remote configuration for the app was a great idea.</p>
+<p>Artsy’s iOS app relies on a services we call “<a href="https://github.com/artsy/echo">Echo</a>” to serve remote configuration. This lets Artsy do things like selectively disable features (for example, to make non-backwards-compatible API changes), provide changes to URL-routing (to match corresponding changes to web URLs), or even to <em>require</em> users on older versions of the app to update (which we have never had to do). Echo has helped Artsy meet its business goals and building this remote configuration for the app was a great idea.</p>
 
-<p>However... Echo was built as a general-purpose remote-configuration-as-a-service, in anticipation of being used by other apps. That use never materialized. It had a web portal and a database and an API, all to only ever serve a single JSON response to the app. That's fine, sometimes engineers build things that don't end up getting used widely as we expected. Echo did one thing, and it did it really well. It ran on a Hobby Dyno on Heroku without incident for years.</p>
+<p>However… Echo was built as a general-purpose remote-configuration-as-a-service, in anticipation of being used by other apps. That use never materialized. It had a web portal and a database and an API, all to only ever serve a single JSON response to the app. That’s fine, sometimes engineers build things that don’t end up getting used widely as we expected. Echo did one thing, and it did it really well. It ran on a Hobby Dyno on Heroku without incident for years.</p>
 
-<p>If you think about what I've discussed so far in this post, you may realize that the app <em>depends</em> on Echo. If Echo changes in some non-backwards-compatible way, then the app could break. For example, if Echo happened to stop working entirely, then the app could stop working too.</p>
+<p>If you think about what I’ve discussed so far in this post, you may realize that the app <em>depends</em> on Echo. If Echo changes in some non-backwards-compatible way, then the app could break. For example, if Echo happened to stop working entirely, then the app could stop working too.</p>
 
 <p>The Echo service went without being deployed for several years. It worked, so why update it? The problem was that at some point, its major dependencies got yanked, so we could no longer build it locally or even deploy it at all. Yikes. I asked a web colleague for help and our conclusion was that it would take more effort to get Echo working with its existing code than it would be to rebuild the whole thing. Double yikes. And finally, Echo was running on the <a href="https://devcenter.heroku.com/articles/cedar-14-stack">Cedar-14 Heroku stack</a>, which was already at end-of-life and had stopped receiving security updates. Triple yikes.</p>
 
 <p>(I have to note here that most of services at Artsy are deployed almost constantly – Echo was an odd one out. Echo never needed any updates, so it never needed to be deployed. However, we should have been keeping its dependencies up to date and deploying it regularly, which would have uncovered its problems sooner when they were still easily fixed. Anyway!)</p>
 
-<p>So we have a service, Echo, that we can't develop, and can't deploy, and isn't getting security updates from our cloud provider. And the app depends on it. Since Echo had always been a bit over-engineered for what it ended up being, I wondered what the minimal replacement could be. My plan was to replace the Echo server with an S3 bucket, an Artsy-controlled CNAME DNS record, and a small shell script that runs automatically on CI.</p>
+<p>So we have a service, Echo, that we can’t develop, and can’t deploy, and isn’t getting security updates from our cloud provider. And the app depends on it. Since Echo had always been a bit over-engineered for what it ended up being, I wondered what the minimal replacement could be. My plan was to replace the Echo server with an S3 bucket, an Artsy-controlled CNAME DNS record, and a small shell script that runs automatically on CI.</p>
 
-<p>Seriously! <a href="https://github.com/artsy/echo/pull/39">It worked</a>! I made a proof-of-concept and then another engineer, <a href="https://github.com/pvinis">Pavlos</a>, finished building the new infrastructure. Changes to the app's configuration are now done via GitHub pull requests (<a href="https://github.com/artsy/echo/pull/63">here is an example PR</a>), which we can track over time (unlike the old web interface).</p>
+<p>Seriously! <a href="https://github.com/artsy/echo/pull/39">It worked</a>! I made a proof-of-concept and then another engineer, <a href="https://github.com/pvinis">Pavlos</a>, finished building the new infrastructure. Changes to the app’s configuration are now done via GitHub pull requests (<a href="https://github.com/artsy/echo/pull/63">here is an example PR</a>), which we can track over time (unlike the old web interface).</p>
 
-<p>I can't stress enough how much worry I had had about Echo's degrading status and the app's dependency on it. But! Everything about the change to S3 went smoothly.</p>
+<p>I can’t stress enough how much worry I had had about Echo’s degrading status and the app’s dependency on it. But! Everything about the change to S3 went smoothly.</p>
 
-<p>Okay, so new versions of app are now referring to the S3 bucket instead of the old Echo API. Great! But what about the older versions of the app that are still out there? They're still hitting the Echo API as intended, right?</p>
+<p>Okay, so new versions of app are now referring to the S3 bucket instead of the old Echo API. Great! But what about the older versions of the app that are still out there? They’re still hitting the Echo API as intended, right?</p>
 
-<a name="The.Problem"></a>
-<h2>The Problem</h2>
+<h2 id="the-problem">The Problem</h2>
 
-<p>Echo's API was still functioning, albeit on an EOL stack that we couldn't make any changes to. Since we can't rely on Heroku continuing to run the Echo API indefinitely, what could we do? Well, the easiest way to fix this would be to change Echo's Artsy-controlled CNAME record to point from the old Cedar-14 Heroku app to a new server app, which could pretend to be the old API for the sake of older app versions.</p>
+<p>Echo’s API was still functioning, albeit on an EOL stack that we couldn’t make any changes to. Since we can’t rely on Heroku continuing to run the Echo API indefinitely, what could we do? Well, the easiest way to fix this would be to change Echo’s Artsy-controlled CNAME record to point from the old Cedar-14 Heroku app to a new server app, which could pretend to be the old API for the sake of older app versions.</p>
 
 <p>This leads me to one of the most scary lines of code in the entire Artsy iOS codebase. See if you can spot the problem.</p>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-</pre></td><td class='code'><pre><code class='objc'><span class='line'><span class="bp">NSURL</span> <span class="o">*</span><span class="n">url</span> <span class="o">=</span> <span class="p">[[</span><span class="bp">NSURL</span> <span class="n">alloc</span><span class="p">]</span> <span class="nl">initWithString</span><span class="p">:</span><span class="s">@&quot;https://echo-api-production.herokuapp.com/&quot;</span><span class="p">];</span>
-</span></code></pre></td></tr></table></div></figure>
+<div class="language-objc highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">NSURL</span> <span class="o">*</span><span class="n">url</span> <span class="o">=</span> <span class="p">[[</span><span class="n">NSURL</span> <span class="nf">alloc</span><span class="p">]</span> <span class="nf">initWithString</span><span class="p">:</span><span class="s">@"https://echo-api-production.herokuapp.com/"</span><span class="p">];</span>
+</code></pre></div></div>
 
-
-<p>For whatever reason, we never created an Artsy-controlled CNAME DNS record for Echo. We were just hitting the bare Heroku URL directly. That means that there are <em>seven years'</em> worth of Artsy app versions out there that <em>need</em> to be able to continue hitting <em>that specific</em> Heroku URL.</p>
+<p>For whatever reason, we never created an Artsy-controlled CNAME DNS record for Echo. We were just hitting the bare Heroku URL directly. That means that there are <em>seven years’</em> worth of Artsy app versions out there that <em>need</em> to be able to continue hitting <em>that specific</em> Heroku URL.</p>
 
 <p>😬</p>
 
-<p>This is what I meant earlier about how you need to think about properly-working code differently when you develop software that runs on someone else's hardware. If this was a server, this whole problem of old-code-hitting-outdated-APIs wouldn't exist. But because we ship apps as binaries that get ran on someone <em>else's</em> hardware, we need to be aware of this kind of issue.</p>
+<p>This is what I meant earlier about how you need to think about properly-working code differently when you develop software that runs on someone else’s hardware. If this was a server, this whole problem of old-code-hitting-outdated-APIs wouldn’t exist. But because we ship apps as binaries that get ran on someone <em>else’s</em> hardware, we need to be aware of this kind of issue.</p>
 
-<p>That URL was fine when the code was written and it worked as intended for years. No one could have predicted, when it was added, that it would cause us headaches much later. Nor could we have anticipated that the Echo server's codebase would end up in such a state.</p>
+<p>That URL was fine when the code was written and it worked as intended for years. No one could have predicted, when it was added, that it would cause us headaches much later. Nor could we have anticipated that the Echo server’s codebase would end up in such a state.</p>
 
-<a name="The.Solution"></a>
-<h2>The Solution</h2>
+<h2 id="the-solution">The Solution</h2>
 
-<p>This is the part of the blog post where I get to be a hero (at least in my head). The Heroku app running Echo was on Cedar-14 and while we couldn't make any changes to its code, we <em>could</em> replace the code entirely. This would give us a new server running at the old URL. So I wrote up a small Express server to proxy HEAD and GET API requests from old iOS app versions to return the response body and headers that were expected. <a href="https://github.com/artsy/echo/pull/59#">The work is here</a> if you're curious. The nice thing about Heroku, at least, is that if this had gone horribly wrong we still could have reverted back to the Cedar-14 app while we figured out our next steps.</p>
+<p>This is the part of the blog post where I get to be a hero (at least in my head). The Heroku app running Echo was on Cedar-14 and while we couldn’t make any changes to its code, we <em>could</em> replace the code entirely. This would give us a new server running at the old URL. So I wrote up a small Express server to proxy HEAD and GET API requests from old iOS app versions to return the response body and headers that were expected. <a href="https://github.com/artsy/echo/pull/59#">The work is here</a> if you’re curious. The nice thing about Heroku, at least, is that if this had gone horribly wrong we still could have reverted back to the Cedar-14 app while we figured out our next steps.</p>
 
-<p>We will still need to keep this Heroku app running, indefinitely, which isn't ideal. Perhaps Artsy's migration to Kubernetes will never be <em>quite</em> 100% complete, but that's a small price to pay for keeping users of our app happy.</p>
+<p>We will still need to keep this Heroku app running, indefinitely, which isn’t ideal. Perhaps Artsy’s migration to Kubernetes will never be <em>quite</em> 100% complete, but that’s a small price to pay for keeping users of our app happy.</p>
 
-<a name="Conclusion"></a>
-<h2>Conclusion</h2>
+<h2 id="conclusion">Conclusion</h2>
 
-<p>It's not just bugs that you need to be aware of <em>accidentally</em> shipping in your app binaries. You have to think about how the code that's running <em>as intended today</em>, because it will continue to run for the foreseeable future. This means adding checks for non-200 response codes from APIs, being careful about third-party APIs, and thinking carefully about everything you ship. Apps are more than just their code; apps are everything that their code depends on, too.</p>
+<p>It’s not just bugs that you need to be aware of <em>accidentally</em> shipping in your app binaries. You have to think about how the code that’s running <em>as intended today</em>, because it will continue to run for the foreseeable future. This means adding checks for non-200 response codes from APIs, being careful about third-party APIs, and thinking carefully about everything you ship. Apps are more than just their code; apps are everything that their code depends on, too.</p>
 
-<p>This is a lesson that I've been teaching engineers for a long time, but it's only with our recent Echo changes that I've come to understand, at a deeper level, what it means to take ownership of code. Yes, the bugs, and of course, the happy little accidents, but also the mundane interconnected dependencies that make software systems so complex. And, if I'm being honest, that make software systems so much fun to work on, too.</p>
+<p>This is a lesson that I’ve been teaching engineers for a long time, but it’s only with our recent Echo changes that I’ve come to understand, at a deeper level, what it means to take ownership of code. Yes, the bugs, and of course, the happy little accidents, but also the mundane interconnected dependencies that make software systems so complex. And, if I’m being honest, that make software systems so much fun to work on, too.</p>
 
         </article>
 
@@ -177,7 +170,7 @@
 
           <section>
             <h4>Author</h4>
-            <p> <a href="/author/ash"/>Ash Furrow</a></p>
+            <p> <a href="/author/ash">Ash Furrow</a></p>
             <p></a></p>
           </section>
 
@@ -203,7 +196,7 @@
               <li><a href='http://artsy.github.io/blog/archives/'>Archives</a></li>
               <li><a href='http://artsy.github.io/search/'>Search</a></li>
               <li><a href='https://github.com/artsy/artsy.github.io'>Code on GitHub</a></li>
-              <li><a href='https://github.com/artsy/artsy.github.io/edit/source/_posts/2020-12-31-echo-supporting-old-app-versions.markdown'>Fix typoes in this post</a></li>
+              <li><a href='https://github.com/artsy/artsy.github.io/edit/source/_posts/2020-12-31-echo-supporting-old-app-versions.markdown'>Fix typos in this post</a></li>
             </ul>
           </section>
 

@@ -14,8 +14,6 @@
 
     
 
-
-
   
     
       
@@ -24,7 +22,7 @@
         
         
           How to Run RSpec Test Suites in Parallel with JenkinsCI Build Flow
-    ...">
+      ...">
   
 
   <!-- http://t.co/dKP3o1e -->
@@ -128,9 +126,7 @@
       <div>
   <article class="hentry" role="article">
 
-    
-<div class="article-container-single ">
-
+    <div class="article-container-single ">
 
   
     <div class="meta-container">
@@ -143,8 +139,6 @@
         
         <time datetime="2012-10-09">Oct 9, 2012</time>
           <p class="meta-author">
-  
-
 
 
   
@@ -173,119 +167,89 @@
 
 <p>To solve this, we have parallelized parts of the process with existing tools, and can turn a build around in just under an hour. This post will dive into our <a href="http://jenkins-ci.org/">Jenkins</a> build flow setup.</p>
 
-<p>To keep things simple, we're going to only build the <code>master</code> branch. When a change is committed on <code>master</code> we're going to push <code>master</code> to a <code>master-ci</code> branch and trigger a distributed build on <code>master-ci</code>. Once all the parts have finished, we'll complete the build by pushing <code>master-ci</code> to <code>master-succeeded</code> and notify the dev team of success or failure.</p>
+<p>To keep things simple, we’re going to only build the <code class="language-plaintext highlighter-rouge">master</code> branch. When a change is committed on <code class="language-plaintext highlighter-rouge">master</code> we’re going to push <code class="language-plaintext highlighter-rouge">master</code> to a <code class="language-plaintext highlighter-rouge">master-ci</code> branch and trigger a distributed build on <code class="language-plaintext highlighter-rouge">master-ci</code>. Once all the parts have finished, we’ll complete the build by pushing <code class="language-plaintext highlighter-rouge">master-ci</code> to <code class="language-plaintext highlighter-rouge">master-succeeded</code> and notify the dev team of success or failure.</p>
 
-<p>Here's a diagram of what's going on.</p>
+<p>Here’s a diagram of what’s going on.</p>
 
-<p><img src="/images/2012-10-09-how-to-run-rspec-test-suites-in-parallel-with-jenkins-ci-build-flow/master-ci.png"></p>
+<p><img src="/images/2012-10-09-how-to-run-rspec-test-suites-in-parallel-with-jenkins-ci-build-flow/master-ci.png" /></p>
 
 <!-- more -->
 
+<h2 id="plugins">Plugins</h2>
 
-<a name="Plugins"></a>
-<h2>Plugins</h2>
-
-<p>Install the <a href="https://wiki.jenkins-ci.org/display/JENKINS/Build+Flow+Plugin">Build Flow</a> and the <a href="https://wiki.jenkins-ci.org/display/JENKINS/Parameterized+Trigger+Plugin">Parameterized Trigger</a> plugin. Grant <code>Anonymous</code> job read permissions in Jenkins system configuration (see <a href="https://issues.jenkins-ci.org/browse/JENKINS-14027">JENKINS-14027</a>).</p>
+<p>Install the <a href="https://wiki.jenkins-ci.org/display/JENKINS/Build+Flow+Plugin">Build Flow</a> and the <a href="https://wiki.jenkins-ci.org/display/JENKINS/Parameterized+Trigger+Plugin">Parameterized Trigger</a> plugin. Grant <code class="language-plaintext highlighter-rouge">Anonymous</code> job read permissions in Jenkins system configuration (see <a href="https://issues.jenkins-ci.org/browse/JENKINS-14027">JENKINS-14027</a>).</p>
 
 <p>Create the following Jenkins jobs.</p>
 
-<a name="master-prequel"></a>
-<h2>master-prequel</h2>
+<h2 id="master-prequel">master-prequel</h2>
 
 <p>A free-style job that connects to the SCM, in our case Git.</p>
 
 <ul>
-<li>Set SCM repository URL to your Git repo, eg. <code>git@github.com:spline/reticulator.git</code></li>
-<li>Change the default branch specifier from <code>**</code> to <code>master</code>. We'll be pushing a <code>master-ci</code> branch, which could, in turn, cause more builds if you don't do this.</li>
-<li>Add a post-build action to build another project. Trigger the <code>master</code> project if the build succeeds.</li>
+  <li>Set SCM repository URL to your Git repo, eg. <code class="language-plaintext highlighter-rouge">git@github.com:spline/reticulator.git</code></li>
+  <li>Change the default branch specifier from <code class="language-plaintext highlighter-rouge">**</code> to <code class="language-plaintext highlighter-rouge">master</code>. We’ll be pushing a <code class="language-plaintext highlighter-rouge">master-ci</code> branch, which could, in turn, cause more builds if you don’t do this.</li>
+  <li>Add a post-build action to build another project. Trigger the <code class="language-plaintext highlighter-rouge">master</code> project if the build succeeds.</li>
 </ul>
 
+<h2 id="master">master</h2>
 
-<a name="master"></a>
-<h2>master</h2>
+<p>This is a build-flow job. We’ll describe the individual tasks that the flow invokes further. The flow DSL looks as follows.</p>
 
-<p>This is a build-flow job. We'll describe the individual tasks that the flow invokes further. The flow DSL looks as follows.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">build</span><span class="p">(</span><span class="s2">&quot;master-ci-init&quot;</span><span class="p">)</span>
-</span><span class='line'><span class="n">parallel</span> <span class="p">(</span>
-</span><span class='line'> <span class="p">{</span> <span class="n">build</span><span class="p">(</span><span class="s2">&quot;master-ci-task&quot;</span><span class="p">,</span> <span class="ss">tasks</span><span class="p">:</span> <span class="s2">&quot;spec:suite:models:ci&quot;</span><span class="p">)</span> <span class="p">},</span>
-</span><span class='line'> <span class="p">{</span> <span class="n">build</span><span class="p">(</span><span class="s2">&quot;master-ci-task&quot;</span><span class="p">,</span> <span class="ss">tasks</span><span class="p">:</span> <span class="s2">&quot;spec:suite:api:ci&quot;</span><span class="p">)</span> <span class="p">},</span>
-</span><span class='line'> <span class="p">{</span> <span class="n">build</span><span class="p">(</span><span class="s2">&quot;master-ci-task&quot;</span><span class="p">,</span> <span class="ss">tasks</span><span class="p">:</span> <span class="s2">&quot;spec:suite:integration:ci&quot;</span><span class="p">)</span> <span class="p">}</span>
-</span><span class='line'><span class="p">)</span>
-</span><span class='line'><span class="n">build</span><span class="p">(</span><span class="s2">&quot;master-ci-succeeded&quot;</span><span class="p">)</span>
-</span></code></pre></td></tr></table></div></figure>
-
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">build</span><span class="p">(</span><span class="s2">"master-ci-init"</span><span class="p">)</span>
+<span class="n">parallel</span> <span class="p">(</span>
+ <span class="p">{</span> <span class="n">build</span><span class="p">(</span><span class="s2">"master-ci-task"</span><span class="p">,</span> <span class="ss">tasks: </span><span class="s2">"spec:suite:models:ci"</span><span class="p">)</span> <span class="p">},</span>
+ <span class="p">{</span> <span class="n">build</span><span class="p">(</span><span class="s2">"master-ci-task"</span><span class="p">,</span> <span class="ss">tasks: </span><span class="s2">"spec:suite:api:ci"</span><span class="p">)</span> <span class="p">},</span>
+ <span class="p">{</span> <span class="n">build</span><span class="p">(</span><span class="s2">"master-ci-task"</span><span class="p">,</span> <span class="ss">tasks: </span><span class="s2">"spec:suite:integration:ci"</span><span class="p">)</span> <span class="p">}</span>
+<span class="p">)</span>
+<span class="n">build</span><span class="p">(</span><span class="s2">"master-ci-succeeded"</span><span class="p">)</span>
+</code></pre></div></div>
 
 <p>This is a good place to add an e-mail notification post-build action for every unstable build.</p>
 
-<a name="master-ci-init"></a>
-<h2>master-ci-init</h2>
+<h2 id="master-ci-init">master-ci-init</h2>
 
-<p>A free-style job that creates the <code>master-ci</code> branch from master. It needs to be connected to your SCM and executes the following shell script.</p>
+<p>A free-style job that creates the <code class="language-plaintext highlighter-rouge">master-ci</code> branch from master. It needs to be connected to your SCM and executes the following shell script.</p>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="c">#!/bin/bash</span>
-</span><span class='line'>git checkout <span class="nv">$GIT_BRANCH</span>
-</span><span class='line'>git push origin -f <span class="nv">$GIT_BRANCH</span>:<span class="nv">$GIT_BRANCH</span><span class="se">\-</span>ci
-</span></code></pre></td></tr></table></div></figure>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">#!/bin/bash</span>
+git checkout <span class="nv">$GIT_BRANCH</span>
+git push origin <span class="nt">-f</span> <span class="nv">$GIT_BRANCH</span>:<span class="nv">$GIT_BRANCH</span><span class="se">\-</span>ci
+</code></pre></div></div>
 
+<p>Note that we cannot combine this task with <code class="language-plaintext highlighter-rouge">master-prequel</code>, because we have to make sure the branch creation runs once under the entire flow, while <code class="language-plaintext highlighter-rouge">master-prequel</code> can be run multiple times, once per check-in. Otherwise the <code class="language-plaintext highlighter-rouge">master-ci</code> branch could get updated before a <code class="language-plaintext highlighter-rouge">master-ci-task</code> runs from a previous flow execution.</p>
 
-<p>Note that we cannot combine this task with <code>master-prequel</code>, because we have to make sure the branch creation runs once under the entire flow, while <code>master-prequel</code> can be run multiple times, once per check-in. Otherwise the <code>master-ci</code> branch could get updated before a <code>master-ci-task</code> runs from a previous flow execution.</p>
+<h2 id="master-ci-task">master-ci-task</h2>
 
-<a name="master-ci-task"></a>
-<h2>master-ci-task</h2>
+<p>A parameterized build that accepts a <code class="language-plaintext highlighter-rouge">tasks</code> parameter that the flow will pass in.</p>
 
-<p>A parameterized build that accepts a <code>tasks</code> parameter that the flow will pass in.</p>
+<p>Change the default branch specifier to <code class="language-plaintext highlighter-rouge">master-ci</code> and execute the following shell script.</p>
 
-<p>Change the default branch specifier to <code>master-ci</code> and execute the following shell script.</p>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">#!/bin/bash</span>
+bundle <span class="nb">install
+</span>bundle <span class="nb">exec </span>rake <span class="nv">$tasks</span>
+</code></pre></div></div>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="c">#!/bin/bash</span>
-</span><span class='line'>bundle install
-</span><span class='line'>bundle <span class="nb">exec </span>rake <span class="nv">$tasks</span>
-</span></code></pre></td></tr></table></div></figure>
+<p>This example runs <code class="language-plaintext highlighter-rouge">rake $tasks</code>, which we define to be various test suites in our flow DSL. Our test suite setup is described in <a href="/blog/2012/05/15/how-to-organize-over-3000-rspec-specs-and-retry-test-failures/">this post</a>. Your mileage may vary.</p>
 
+<h2 id="master-ci-succeeded">master-ci-succeeded</h2>
 
-<p>This example runs <code>rake $tasks</code>, which we define to be various test suites in our flow DSL. Our test suite setup is described in <a href="/blog/2012/05/15/how-to-organize-over-3000-rspec-specs-and-retry-test-failures/">this post</a>. Your mileage may vary.</p>
+<p>This is an optional step. We use this free-style job to tag <code class="language-plaintext highlighter-rouge">master-ci</code> as <code class="language-plaintext highlighter-rouge">master-succeeded</code> with the following shell script.</p>
 
-<a name="master-ci-succeeded"></a>
-<h2>master-ci-succeeded</h2>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">#!/bin/bash</span>
+git checkout <span class="nv">$GIT_BRANCH</span>
+git push origin <span class="nt">-f</span> <span class="nv">$GIT_BRANCH</span>:<span class="k">${</span><span class="nv">GIT_BRANCH</span><span class="p">/%-ci/</span><span class="k">}</span><span class="nt">-succeeded</span>
+</code></pre></div></div>
 
-<p>This is an optional step. We use this free-style job to tag <code>master-ci</code> as <code>master-succeeded</code> with the following shell script.</p>
+<p>Our deployment to production will pickup the <code class="language-plaintext highlighter-rouge">master-succeeded</code> branch when it’s time.</p>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="c">#!/bin/bash</span>
-</span><span class='line'>git checkout <span class="nv">$GIT_BRANCH</span>
-</span><span class='line'>git push origin -f <span class="nv">$GIT_BRANCH</span>:<span class="k">${</span><span class="nv">GIT_BRANCH</span><span class="p">/%-ci/</span><span class="k">}</span>-succeeded
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>Our deployment to production will pickup the <code>master-succeeded</code> branch when it's time.</p>
-
-<a name="Improvements."></a>
-<h2>Improvements?</h2>
+<h2 id="improvements">Improvements?</h2>
 
 <p>I see a few possible improvements here that might require a bit of work.</p>
 
 <ul>
-<li>The ability to split an RSpec suite up across an arbitrary number N sub-jobs and M executors would create an optimal parallel split based on the resources available.</li>
-<li>Passing the value of <code>GIT_BRANCH</code> and <code>GIT_COMMIT</code> across these jobs would enable building any branch and eliminate the need for <code>master-ci-init</code>.</li>
-<li>Build flow could support SCM polling the same way as free-style jobs, avoiding the need for <code>master-prequel</code>. We weren't able to get a stable notification of changes from Github with the Jenkins Github plugin.</li>
+  <li>The ability to split an RSpec suite up across an arbitrary number N sub-jobs and M executors would create an optimal parallel split based on the resources available.</li>
+  <li>Passing the value of <code class="language-plaintext highlighter-rouge">GIT_BRANCH</code> and <code class="language-plaintext highlighter-rouge">GIT_COMMIT</code> across these jobs would enable building any branch and eliminate the need for <code class="language-plaintext highlighter-rouge">master-ci-init</code>.</li>
+  <li>Build flow could support SCM polling the same way as free-style jobs, avoiding the need for <code class="language-plaintext highlighter-rouge">master-prequel</code>. We weren’t able to get a stable notification of changes from Github with the Jenkins Github plugin.</li>
 </ul>
-
 
 <p>Please suggest further improvements in the comments below!</p>
 
@@ -293,11 +257,8 @@
 </div>
     
 
-    
-      <p class="meta-author">
-        
-  
-
+    <p class="meta-author">
+      
 
 
 
@@ -338,39 +299,38 @@
 
 
 
-      </p>
-      <p class="meta-categories">
-        Categories: 
+    </p>
+    <p class="meta-categories">
+      Categories: 
 
 <span class="categories">
   
-    <a class='category' href='/blog/categories/continuous-integration/'>continuous integration</a>, <a class='category' href='/blog/categories/rspec/'>rspec</a>, <a class='category' href='/blog/categories/testing/'>testing</a>
+    <a class='category' href='/blog/categories/continuous-integration/'>Continuous Integration</a>, <a class='category' href='/blog/categories/rspec/'>RSpec</a>, <a class='category' href='/blog/categories/testing/'>Testing</a>
   
 </span>
 
 
-      </p>
-      
-
-      
-        <hr/>
-        <section class="comments">
-          <h1>Comments</h1>
-          <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
-</div>
-        </section>
-        <hr/>
-      
-
-      <p class="meta-paginate">
-        
-          <a class="previous" href="/blog/2012/09/13/on-grid-thumbnails/" title="Previous Post: On Grid Thumbnails">&laquo; On Grid Thumbnails</a>
-        
-        
-          <a class="next" href="/blog/2012/10/10/artsy-technology-stack/" title="next Post: Artsy's Technology Stack">Artsy's Technology Stack &raquo;</a>
-        
-      </p>
+    </p>
     
+
+    
+      <hr/>
+      <section class="comments">
+        <h1>Comments</h1>
+        <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</div>
+      </section>
+      <hr/>
+    
+
+    <p class="meta-paginate">
+      
+        <a class="previous" href="/blog/2012/09/13/on-grid-thumbnails/" title="Previous Post: On Grid Thumbnails">&laquo; On Grid Thumbnails</a>
+      
+      
+        <a class="next" href="/blog/2012/10/10/artsy-technology-stack/" title="next Post: Artsy's Technology Stack">Artsy's Technology Stack &raquo;</a>
+      
+    </p>
   </div>
 
 

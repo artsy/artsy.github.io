@@ -14,8 +14,6 @@
 
     
 
-
-
   
     
       
@@ -26,7 +24,7 @@
           Adding API Docs with Grape and Swagger
         
         Jun 21, 2013
-  ...">
+    ...">
   
 
   <!-- http://t.co/dKP3o1e -->
@@ -130,9 +128,7 @@
       <div>
   <article class="hentry" role="article">
 
-    
-<div class="article-container-single ">
-
+    <div class="article-container-single ">
 
   
     <div class="meta-container">
@@ -145,8 +141,6 @@
         
         <time datetime="2013-06-21">Jun 21, 2013</time>
           <p class="meta-author">
-  
-
 
 
   
@@ -171,159 +165,97 @@
 
   <div class="content-container">
     
-      <div class="entry-content"><p>The Artsy website, Partner CMS, mobile tools, and all our hackathon experiments are built on top of a core API. We've put a lot of effort into documenting it internally. But developers don't want to have to grok through code. With <a href="https://github.com/intridea/grape">Grape</a> and <a href="https://developers.helloreverb.com/swagger">Swagger</a>, adding an API explorer and exposing the API documentation has never been easier.</p>
+      <div class="entry-content"><p>The Artsy website, Partner CMS, mobile tools, and all our hackathon experiments are built on top of a core API. We’ve put a lot of effort into documenting it internally. But developers don’t want to have to grok through code. With <a href="https://github.com/intridea/grape">Grape</a> and <a href="https://developers.helloreverb.com/swagger">Swagger</a>, adding an API explorer and exposing the API documentation has never been easier.</p>
 
 <p><img src="/images/2013-06-21-adding-api-documentation-with-grape-swagger/swagger-ui.png" /></p>
 
 <!-- more -->
 
+<h3 id="cross-origin-requests">Cross Origin Requests</h3>
 
-<a name="Cross.Origin.Requests"></a>
-<h3>Cross Origin Requests</h3>
+<p>You don’t need to include the API explorer into your application. Instead, enable Cross-Origin Resource Sharing (CORS) with <a href="https://github.com/cyu/rack-cors">rack-cors</a>.</p>
 
-<p>You don't need to include the API explorer into your application. Instead, enable Cross-Origin Resource Sharing (CORS) with <a href="https://github.com/cyu/rack-cors">rack-cors</a>.</p>
+<p>``` ruby Gemfile
+gem “rack-cors”</p>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+``` ruby app.rb
+use Rack::Cors do
+  allow do
+    origins '*'
+    resource '*', headers: :any, methods: :get
+  end
+end
+</code></pre></div></div>
 
-<figure class='code'><figcaption><span>Gemfile</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">gem</span> <span class="s2">&quot;rack-cors&quot;</span>
-</span></code></pre></td></tr></table></div></figure>
+<p>Your application will now respond to <code class="language-plaintext highlighter-rouge">OPTIONS</code> and <code class="language-plaintext highlighter-rouge">GET</code> requests with CORS headers. It’s also important to verify that errors still contain CORS headers, as shown in these RSpec tests.</p>
 
+<p>``` ruby spec/cors_spec.rb
+context “CORS” do
+  it “supports options” do
+    options “/”, {}, {
+      “HTTP_ORIGIN” =&gt; “http://cors.example.com”,
+      “HTTP_ACCESS_CONTROL_REQUEST_HEADERS” =&gt; “Origin, Accept, Content-Type”,
+      “HTTP_ACCESS_CONTROL_REQUEST_METHOD” =&gt; “GET”
+    }
+    last_response.status.should == 200
+    last_response.headers[‘Access-Control-Allow-Origin’].should == “http://cors.example.com”
+    last_response.headers[‘Access-Control-Expose-Headers’].should == “”
+  end
+  it “includes Access-Control-Allow-Origin in the response” do
+    get “/”, {}, “HTTP_ORIGIN” =&gt; “http://cors.example.com”
+    last_response.status.should == 200
+    last_response.headers[‘Access-Control-Allow-Origin’].should == “http://cors.example.com”
+  end
+  it “includes Access-Control-Allow-Origin in errors” do
+    get “/invalid”, {}, “HTTP_ORIGIN” =&gt; “http://cors.example.com”
+    last_response.status.should == 404
+    last_response.headers[‘Access-Control-Allow-Origin’].should == “http://cors.example.com”
+  end
+end</p>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+### Grape-Swagger
 
+There's a gem called [grape-swagger](https://github.com/tim-vandecasteele/grape-swagger) that exposes Swagger-compatible documentation from any Grape API with a one-liner, `add_swagger_documentation`.
 
+``` ruby api.rb
+module Acme
+  class API &lt; Grape::API
+    format :json
 
-<figure class='code'><figcaption><span>app.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">use</span> <span class="no">Rack</span><span class="o">::</span><span class="no">Cors</span> <span class="k">do</span>
-</span><span class='line'>  <span class="n">allow</span> <span class="k">do</span>
-</span><span class='line'>    <span class="n">origins</span> <span class="s1">&#39;*&#39;</span>
-</span><span class='line'>    <span class="n">resource</span> <span class="s1">&#39;*&#39;</span><span class="p">,</span> <span class="ss">headers</span><span class="p">:</span> <span class="ss">:any</span><span class="p">,</span> <span class="nb">methods</span><span class="p">:</span> <span class="ss">:get</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure>
+    desc "This is the root of our API."
+    get "/" do
 
+    end
 
-<p>Your application will now respond to <code>OPTIONS</code> and <code>GET</code> requests with CORS headers. It's also important to verify that errors still contain CORS headers, as shown in these RSpec tests.</p>
+    add_swagger_documentation api_version: 'v1'
+  end
+end
+</code></pre></div></div>
 
-<figure class='code'><figcaption><span>spec/cors_spec.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-<span class='line-number'>19</span>
-<span class='line-number'>20</span>
-<span class='line-number'>21</span>
-<span class='line-number'>22</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">context</span> <span class="s2">&quot;CORS&quot;</span> <span class="k">do</span>
-</span><span class='line'>  <span class="n">it</span> <span class="s2">&quot;supports options&quot;</span> <span class="k">do</span>
-</span><span class='line'>    <span class="n">options</span> <span class="s2">&quot;/&quot;</span><span class="p">,</span> <span class="p">{},</span> <span class="p">{</span>
-</span><span class='line'>      <span class="s2">&quot;HTTP_ORIGIN&quot;</span> <span class="o">=&gt;</span> <span class="s2">&quot;http://cors.example.com&quot;</span><span class="p">,</span>
-</span><span class='line'>      <span class="s2">&quot;HTTP_ACCESS_CONTROL_REQUEST_HEADERS&quot;</span> <span class="o">=&gt;</span> <span class="s2">&quot;Origin, Accept, Content-Type&quot;</span><span class="p">,</span>
-</span><span class='line'>      <span class="s2">&quot;HTTP_ACCESS_CONTROL_REQUEST_METHOD&quot;</span> <span class="o">=&gt;</span> <span class="s2">&quot;GET&quot;</span>
-</span><span class='line'>    <span class="p">}</span>
-</span><span class='line'>    <span class="n">last_response</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">should</span> <span class="o">==</span> <span class="mi">200</span>
-</span><span class='line'>    <span class="n">last_response</span><span class="o">.</span><span class="n">headers</span><span class="o">[</span><span class="s1">&#39;Access-Control-Allow-Origin&#39;</span><span class="o">].</span><span class="n">should</span> <span class="o">==</span> <span class="s2">&quot;http://cors.example.com&quot;</span>
-</span><span class='line'>    <span class="n">last_response</span><span class="o">.</span><span class="n">headers</span><span class="o">[</span><span class="s1">&#39;Access-Control-Expose-Headers&#39;</span><span class="o">].</span><span class="n">should</span> <span class="o">==</span> <span class="s2">&quot;&quot;</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'>  <span class="n">it</span> <span class="s2">&quot;includes Access-Control-Allow-Origin in the response&quot;</span> <span class="k">do</span>
-</span><span class='line'>    <span class="n">get</span> <span class="s2">&quot;/&quot;</span><span class="p">,</span> <span class="p">{},</span> <span class="s2">&quot;HTTP_ORIGIN&quot;</span> <span class="o">=&gt;</span> <span class="s2">&quot;http://cors.example.com&quot;</span>
-</span><span class='line'>    <span class="n">last_response</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">should</span> <span class="o">==</span> <span class="mi">200</span>
-</span><span class='line'>    <span class="n">last_response</span><span class="o">.</span><span class="n">headers</span><span class="o">[</span><span class="s1">&#39;Access-Control-Allow-Origin&#39;</span><span class="o">].</span><span class="n">should</span> <span class="o">==</span> <span class="s2">&quot;http://cors.example.com&quot;</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'>  <span class="n">it</span> <span class="s2">&quot;includes Access-Control-Allow-Origin in errors&quot;</span> <span class="k">do</span>
-</span><span class='line'>    <span class="n">get</span> <span class="s2">&quot;/invalid&quot;</span><span class="p">,</span> <span class="p">{},</span> <span class="s2">&quot;HTTP_ORIGIN&quot;</span> <span class="o">=&gt;</span> <span class="s2">&quot;http://cors.example.com&quot;</span>
-</span><span class='line'>    <span class="n">last_response</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">should</span> <span class="o">==</span> <span class="mi">404</span>
-</span><span class='line'>    <span class="n">last_response</span><span class="o">.</span><span class="n">headers</span><span class="o">[</span><span class="s1">&#39;Access-Control-Allow-Origin&#39;</span><span class="o">].</span><span class="n">should</span> <span class="o">==</span> <span class="s2">&quot;http://cors.example.com&quot;</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure>
+<p><code class="language-plaintext highlighter-rouge">ruby spec/documentation_spec.rb
+it "swagger documentation" do
+  get "/api/swagger_doc"
+  last_response.status.should == 200
+  json_response = JSON.parse(last_response.body)
+  json_response["apiVersion"].should == "v1"
+  json_response["apis"].size.should &gt; 0
+end
+</code></p>
 
-
-<a name="Grape-Swagger"></a>
-<h3>Grape-Swagger</h3>
-
-<p>There's a gem called <a href="https://github.com/tim-vandecasteele/grape-swagger">grape-swagger</a> that exposes Swagger-compatible documentation from any Grape API with a one-liner, <code>add_swagger_documentation</code>.</p>
-
-<figure class='code'><figcaption><span>api.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">module</span> <span class="nn">Acme</span>
-</span><span class='line'>  <span class="k">class</span> <span class="nc">API</span> <span class="o">&lt;</span> <span class="no">Grape</span><span class="o">::</span><span class="no">API</span>
-</span><span class='line'>    <span class="nb">format</span> <span class="ss">:json</span>
-</span><span class='line'>
-</span><span class='line'>    <span class="n">desc</span> <span class="s2">&quot;This is the root of our API.&quot;</span>
-</span><span class='line'>    <span class="n">get</span> <span class="s2">&quot;/&quot;</span> <span class="k">do</span>
-</span><span class='line'>
-</span><span class='line'>    <span class="k">end</span>
-</span><span class='line'>
-</span><span class='line'>    <span class="n">add_swagger_documentation</span> <span class="ss">api_version</span><span class="p">:</span> <span class="s1">&#39;v1&#39;</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-
-
-<figure class='code'><figcaption><span>spec/documentation_spec.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">it</span> <span class="s2">&quot;swagger documentation&quot;</span> <span class="k">do</span>
-</span><span class='line'>  <span class="n">get</span> <span class="s2">&quot;/api/swagger_doc&quot;</span>
-</span><span class='line'>  <span class="n">last_response</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">should</span> <span class="o">==</span> <span class="mi">200</span>
-</span><span class='line'>  <span class="n">json_response</span> <span class="o">=</span> <span class="no">JSON</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">last_response</span><span class="o">.</span><span class="n">body</span><span class="p">)</span>
-</span><span class='line'>  <span class="n">json_response</span><span class="o">[</span><span class="s2">&quot;apiVersion&quot;</span><span class="o">].</span><span class="n">should</span> <span class="o">==</span> <span class="s2">&quot;v1&quot;</span>
-</span><span class='line'>  <span class="n">json_response</span><span class="o">[</span><span class="s2">&quot;apis&quot;</span><span class="o">].</span><span class="n">size</span><span class="o">.</span><span class="n">should</span> <span class="o">&gt;</span> <span class="mi">0</span>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<a name="Swagger.UI"></a>
-<h3>Swagger UI</h3>
+<h3 id="swagger-ui">Swagger UI</h3>
 
 <p>Use the <a href="http://petstore.swagger.wordnik.com">Swagger Petstore</a>, start your application, enter <em>http://localhost:9292/api/swagger_doc</em> and explore your API!</p>
 
 <p><img src="/images/2013-06-21-adding-api-documentation-with-grape-swagger/swagger-ping.png" /></p>
 
-<a name="Working.Sample"></a>
-<h3>Working Sample</h3>
+<h3 id="working-sample">Working Sample</h3>
 
 <p>You can find a working sample in <a href="https://github.com/dblock/grape-on-rack">this demo application</a>, added in <a href="https://github.com/dblock/grape-on-rack/commit/004670804472812322b089fcf6a40b33d68c699c">this commit</a>.</p>
 </div>
     
 
-    
-      <p class="meta-author">
-        
-  
-
+    <p class="meta-author">
+      
 
 
 
@@ -364,39 +296,38 @@
 
 
 
-      </p>
-      <p class="meta-categories">
-        Categories: 
+    </p>
+    <p class="meta-categories">
+      Categories: 
 
 <span class="categories">
   
-    <a class='category' href='/blog/categories/grape/'>grape</a>, <a class='category' href='/blog/categories/mongoid/'>mongoid</a>, <a class='category' href='/blog/categories/swagger/'>swagger</a>
+    <a class='category' href='/blog/categories/grape/'>Grape</a>, <a class='category' href='/blog/categories/mongoid/'>Mongoid</a>, <a class='category' href='/blog/categories/swagger/'>Swagger</a>
   
 </span>
 
 
-      </p>
-      
-
-      
-        <hr/>
-        <section class="comments">
-          <h1>Comments</h1>
-          <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
-</div>
-        </section>
-        <hr/>
-      
-
-      <p class="meta-paginate">
-        
-          <a class="previous" href="/blog/2013/06/14/writing-headless-backbone-tests-with-node-dot-js/" title="Previous Post: Writing Headless Backbone Tests With Node.js">&laquo; Writing Headless Backbone Tests With Node.js</a>
-        
-        
-          <a class="next" href="/blog/2013/06/23/normalizing-gmail-email-addresses-with-canonical-emails/" title="next Post: Normalizing GMail E-Mail Addresses with CanonicalEmails">Normalizing GMail E-Mail Addresses with CanonicalEmails &raquo;</a>
-        
-      </p>
+    </p>
     
+
+    
+      <hr/>
+      <section class="comments">
+        <h1>Comments</h1>
+        <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</div>
+      </section>
+      <hr/>
+    
+
+    <p class="meta-paginate">
+      
+        <a class="previous" href="/blog/2013/06/14/writing-headless-backbone-tests-with-node-dot-js/" title="Previous Post: Writing Headless Backbone Tests With Node.js">&laquo; Writing Headless Backbone Tests With Node.js</a>
+      
+      
+        <a class="next" href="/blog/2013/06/23/normalizing-gmail-email-addresses-with-canonical-emails/" title="next Post: Normalizing GMail E-Mail Addresses with CanonicalEmails">Normalizing GMail E-Mail Addresses with CanonicalEmails &raquo;</a>
+      
+    </p>
   </div>
 
 

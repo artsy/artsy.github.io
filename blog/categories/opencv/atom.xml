@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
 
-  <title><![CDATA[Category: opencv | Artsy Engineering]]></title>
+  <title><![CDATA[Category: OpenCV | Artsy Engineering]]></title>
   <link href="https://artsy.github.io/blog/categories/opencv/atom.xml" rel="self"/>
   <link href="https://artsy.github.io/"/>
-  <updated>2022-04-05T17:05:17+00:00</updated>
+  <updated>2022-04-11T22:55:41+00:00</updated>
   <id>https://artsy.github.io/</id>
   <author>
     <name><![CDATA[]]></name>
@@ -18,15 +18,13 @@
     <link href="https://artsy.github.io/blog/2014/09/24/using-pattern-recognition-to-automatically-crop-framed-art/"/>
     <updated>2014-09-24T10:28:00+00:00</updated>
     <id>https://artsy.github.io/blog/2014/09/24/using-pattern-recognition-to-automatically-crop-framed-art</id>
-    <content type="html"><![CDATA[<a name="Introduction"></a>
-<h2>Introduction</h2>
+    <content type="html"><![CDATA[<h2 id="introduction">Introduction</h2>
 
-<p>The <a href="https://artsy.net/imamuseum">Indianapolis Museum of Art</a> (IMA) recently shared thousands of high-resolution images from its permanent collection with Artsy, including 5,000 images that were in an un-cropped state. These images contain color swatches, frames, and diverse backgrounds, as shown below. The clutter in these images made them inappropriate to display to end users, and invited an approach to automatically crop the images. This post explores some fully automated techniques to locate the piece of art within each photo. If you're eager to jump straight to the code that worked best, you'll find the implementation of the 'Rectangular Contour Search' section <a href="https://gist.github.com/ilyakava/b2dbca43991d6c668dbb">here</a>.</p>
+<p>The <a href="https://artsy.net/imamuseum">Indianapolis Museum of Art</a> (IMA) recently shared thousands of high-resolution images from its permanent collection with Artsy, including 5,000 images that were in an un-cropped state. These images contain color swatches, frames, and diverse backgrounds, as shown below. The clutter in these images made them inappropriate to display to end users, and invited an approach to automatically crop the images. This post explores some fully automated techniques to locate the piece of art within each photo. If you’re eager to jump straight to the code that worked best, you’ll find the implementation of the ‘Rectangular Contour Search’ section <a href="https://gist.github.com/ilyakava/b2dbca43991d6c668dbb">here</a>.</p>
 
 <p><img src="http://f.cl.ly/items/2C0e2X1G1R1i1z1Y0M1B/banner.png" alt="All of these images are open access. For reference, the accession numbers/names. 45-115.tif 45-9-v01.tif 54-4.tif 76-166-1-12b.tif 14-57.tif" /></p>
 
 <!-- more -->
-
 
 <p><em>Some samples from the IMA image dataset. The bold green shape indicates the best cropping choice found, and the thin yellow shapes are the alternative cropping choices.</em></p>
 
@@ -36,154 +34,136 @@
 
 <p><em>Cropping choices within a Josef Albers painting. Copyright The Josef and Anni Albers Foundation / Artists Rights Society (ARS), New York</em></p>
 
-<a name="Background"></a>
-<h2>Background</h2>
+<h2 id="background">Background</h2>
 
 <p>What follows is a summary of some useful background knowledge for interpreting the output of common image transformations. Included are the corresponding commands in python that rely on the <a href="http://docs.opencv.org/master/">OpenCV</a> library which we used in this project.</p>
 
-<a name="Blur.Transformations"></a>
-<h3>Blur Transformations</h3>
+<h3 id="blur-transformations">Blur Transformations</h3>
 
-<a name="Gaussian.Blur"></a>
-<h4><a href="http://docs.opencv.org/master/modules/imgproc/doc/filtering.html?highlight=gaussianblur#cv2.GaussianBlur">Gaussian Blur</a></h4>
+<h4 id="gaussian-blur"><a href="http://docs.opencv.org/master/modules/imgproc/doc/filtering.html?highlight=gaussianblur#cv2.GaussianBlur">Gaussian Blur</a></h4>
 
 <p><em>Gaussian Smoothing</em> is a technique for reducing noise in an image by averaging each pixel with its surrounding pixels. To perform Gaussian Smoothing, an image is <em>convolved</em> with a square <em>filter matrix</em> (with an odd number of dimensions to ensure symmetry) whose values (<em>weights</em>) are defined by a Gaussian distribution with some standard deviation \(\sigma\). The filter matrix is also called a <em>kernel</em> in the context of convolution. Shown below is a \(3\times3\) kernel with a \(\sigma\) of 0:</p>
 
-<p>$$\frac{1}{16}\begin{bmatrix}1 &amp; 2 &amp; 1
-\\\
+<p>[\frac{1}{16}\begin{bmatrix}1 &amp; 2 &amp; 1
+\\<br />
 2 &amp; 4 &amp; 2
-\\\
-1 &amp; 2 &amp; 1  \end{bmatrix}$$</p>
+\\<br />
+1 &amp; 2 &amp; 1  \end{bmatrix}]</p>
 
 <p>Convolution is a matrix multiplication technique commonly used in image processing. An interpretation of convolution is that it is a technique to decompose one matrix (an output matrix) into a sum of shifted and scaled impulse functions (input matrix convolved with the kernel). The mechanics of convolution are beyond the scope of this post, and can be found <a href="http://www.songho.ca/dsp/convolution/convolution2d_example.html">here</a> and described more generally <a href="http://www.songho.ca/dsp/convolution/convolution.html#convolution_2d">here</a>.</p>
 
 <p>The intended effect of Gaussian blur for our purposes is to disturb smaller boundaries and edges more than larger ones.</p>
 
-<pre><code class="python">blur = cv2.GaussianBlur(src = bw, ksize = (3,3), sigma = 0)
-# to see the 3 by 3 filter matrix that the image bw is convolved with above:
-cv2.getGaussianKernel(ksize = 3, sigma = 0) * cv2.getGaussianKernel(3, 0).T
-</code></pre>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">blur</span> <span class="o">=</span> <span class="n">cv2</span><span class="p">.</span><span class="n">GaussianBlur</span><span class="p">(</span><span class="n">src</span> <span class="o">=</span> <span class="n">bw</span><span class="p">,</span> <span class="n">ksize</span> <span class="o">=</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span><span class="mi">3</span><span class="p">),</span> <span class="n">sigma</span> <span class="o">=</span> <span class="mi">0</span><span class="p">)</span>
+<span class="c1"># to see the 3 by 3 filter matrix that the image bw is convolved with above:
+</span><span class="n">cv2</span><span class="p">.</span><span class="n">getGaussianKernel</span><span class="p">(</span><span class="n">ksize</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span> <span class="n">sigma</span> <span class="o">=</span> <span class="mi">0</span><span class="p">)</span> <span class="o">*</span> <span class="n">cv2</span><span class="p">.</span><span class="n">getGaussianKernel</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">0</span><span class="p">).</span><span class="n">T</span>
+</code></pre></div></div>
 
-<a name="Median.Blur.Filter"></a>
-<h4><a href="http://docs.opencv.org/master/modules/imgproc/doc/filtering.html?highlight=medianblur#cv2.medianBlur">Median Blur Filter</a></h4>
+<h4 id="median-blur-filter"><a href="http://docs.opencv.org/master/modules/imgproc/doc/filtering.html?highlight=medianblur#cv2.medianBlur">Median Blur Filter</a></h4>
 
 <p>The <em>Median Filter</em> is a technique where each pixel in an image is replaced by the median valued pixel within a square neighborhood around that pixel, making it a non-linear noise reduction technique. Median filters do not blur edges, but they do damage thin lines and corners.</p>
 
-<pre><code class="python"># uses the median in a 7 by 7 neighborhood to reassign each pixel
-cv2.medianBlur(img, ksize = 7)
-</code></pre>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1"># uses the median in a 7 by 7 neighborhood to reassign each pixel
+</span><span class="n">cv2</span><span class="p">.</span><span class="n">medianBlur</span><span class="p">(</span><span class="n">img</span><span class="p">,</span> <span class="n">ksize</span> <span class="o">=</span> <span class="mi">7</span><span class="p">)</span>
+</code></pre></div></div>
 
-<a name="Edges"></a>
-<h3>Edges</h3>
+<h3 id="edges">Edges</h3>
 
 <p>Edges in an image are defined to be where brightness changes abruptly. Edge detection is performed with 2D derivatives called gradients, either by finding maximums in first order gradients, or inflection points in second order gradients. Derivatives are usually continuous functions, but the gradients we will look at approximate the derivative at discrete points throughout the image by comparing each pixel to its neighborhood of pixels to establish a gradient vector (which points in the direction of maximum brightness change).</p>
 
-<a name="Sobel.Filter"></a>
-<h4><a href="http://docs.opencv.org/master/modules/imgproc/doc/filtering.html?highlight=sobel#cv2.Sobel">Sobel Filter</a></h4>
+<h4 id="sobel-filter"><a href="http://docs.opencv.org/master/modules/imgproc/doc/filtering.html?highlight=sobel#cv2.Sobel">Sobel Filter</a></h4>
 
 <p>The <em>Sobel Filter</em> is an approximation to the first order gradient of an image. Using two orthogonal \(3\times3\) convolution matrices which each approximate a partial derivative of an image (in the x and y directions), it is possible to merge the results of the two convolutions to approximate the gradient of an image. The two relevant kernels to approximate the x and y direction gradient magnitudes are:</p>
 
-<p>$$
-\begin{bmatrix}1 &amp; 2 &amp; 1
-\\\
+<p>[\begin{bmatrix}1 &amp; 2 &amp; 1
+\\<br />
 0 &amp; 0 &amp; 0
-\\\
+\\<br />
 -1 &amp; -2 &amp; -1  \end{bmatrix}
-\ and\
+\ and<br />
 \begin{bmatrix}1 &amp; 0 &amp; 1
-\\\
+\\<br />
 2 &amp; 0 &amp; 2
-\\\
-1 &amp; 0 &amp; 1  \end{bmatrix}
-$$</p>
+\\<br />
+1 &amp; 0 &amp; 1  \end{bmatrix}]</p>
 
 <p>The variation in weights within the two kernels has the effect of incorporating smoothing, and is helpful for grayscale images where edge transitions are several pixels wide and where points along an edge might be slightly separated.</p>
 
-<pre><code class="python"># uses the above two partial derivatives
-sobelx = cv2.Sobel(bw, cv2.CV_16S, 1, 0, ksize=3)
-sobely = cv2.Sobel(bw, cv2.CV_16S, 0, 1, ksize=3)
-abs_gradientx = cv2.convertScaleAbs(sobelx)
-abs_gradienty = cv2.convertScaleAbs(sobely)
-# combine the two in equal proportions
-total_gradient = cv2.addWeighted(abs_gradientx, 0.5, abs_gradienty, 0.5, 0)
-</code></pre>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1"># uses the above two partial derivatives
+</span><span class="n">sobelx</span> <span class="o">=</span> <span class="n">cv2</span><span class="p">.</span><span class="n">Sobel</span><span class="p">(</span><span class="n">bw</span><span class="p">,</span> <span class="n">cv2</span><span class="p">.</span><span class="n">CV_16S</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">ksize</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+<span class="n">sobely</span> <span class="o">=</span> <span class="n">cv2</span><span class="p">.</span><span class="n">Sobel</span><span class="p">(</span><span class="n">bw</span><span class="p">,</span> <span class="n">cv2</span><span class="p">.</span><span class="n">CV_16S</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">ksize</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+<span class="n">abs_gradientx</span> <span class="o">=</span> <span class="n">cv2</span><span class="p">.</span><span class="n">convertScaleAbs</span><span class="p">(</span><span class="n">sobelx</span><span class="p">)</span>
+<span class="n">abs_gradienty</span> <span class="o">=</span> <span class="n">cv2</span><span class="p">.</span><span class="n">convertScaleAbs</span><span class="p">(</span><span class="n">sobely</span><span class="p">)</span>
+<span class="c1"># combine the two in equal proportions
+</span><span class="n">total_gradient</span> <span class="o">=</span> <span class="n">cv2</span><span class="p">.</span><span class="n">addWeighted</span><span class="p">(</span><span class="n">abs_gradientx</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="n">abs_gradienty</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+</code></pre></div></div>
 
-<a name="Canny.Edges"></a>
-<h4><a href="http://docs.opencv.org/master/modules/imgproc/doc/feature_detection.html?highlight=canny#cv2.Canny">Canny Edges</a></h4>
+<h4 id="canny-edges"><a href="http://docs.opencv.org/master/modules/imgproc/doc/feature_detection.html?highlight=canny#cv2.Canny">Canny Edges</a></h4>
 
 <p>The Canny edge detector is a multi-stage process that combines the first and second order gradients in a way that optimizes:</p>
 
 <ol>
-<li>Detection - missing few edges (thanks to sensitivity of 2nd order gradient)</li>
-<li>Localization - precision of edges detected (thanks to precision of 2nd order gradient)</li>
-<li>Single Responses - 1 edge detected per real edge (thanks to suppressing non-maxima values)</li>
+  <li>Detection - missing few edges (thanks to sensitivity of 2nd order gradient)</li>
+  <li>Localization - precision of edges detected (thanks to precision of 2nd order gradient)</li>
+  <li>Single Responses - 1 edge detected per real edge (thanks to suppressing non-maxima values)</li>
 </ol>
-
 
 <p>A full description of this technique can be found <a href="http://en.wikipedia.org/wiki/Canny_edge_detector#Stages_of_the_Canny_algorithm">here</a>. The aspect of it that interests us here is its use of <em>hysteresis thresholding</em> that helps the continuity of edges. This is a process where in order to ensure the continuity of edge contours, the first order gradient is taken over two thresholds and then recombined. A high threshold is used for finding edge points with precision, and then a low threshold for connecting edge points to each other.</p>
 
-<pre><code class="python"># apertureSize argument is the size of the filter for derivative approximation
-cv2.Canny(bw, threshold1 = 0, threshold2 = 50, apertureSize = 3)
-</code></pre>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1"># apertureSize argument is the size of the filter for derivative approximation
+</span><span class="n">cv2</span><span class="p">.</span><span class="n">Canny</span><span class="p">(</span><span class="n">bw</span><span class="p">,</span> <span class="n">threshold1</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="n">threshold2</span> <span class="o">=</span> <span class="mi">50</span><span class="p">,</span> <span class="n">apertureSize</span> <span class="o">=</span> <span class="mi">3</span><span class="p">)</span>
+</code></pre></div></div>
 
-<a name="Hough.Lines"></a>
-<h4><a href="http://docs.opencv.org/master/modules/imgproc/doc/feature_detection.html?highlight=hough#cv2.HoughLines">Hough Lines</a></h4>
+<h4 id="hough-lines"><a href="http://docs.opencv.org/master/modules/imgproc/doc/feature_detection.html?highlight=hough#cv2.HoughLines">Hough Lines</a></h4>
 
 <p>The Hough Transform tries to find lines in an image explainable by the linear equation \(y=mx + b\). A more convenient way of expressing this equation on an image plane is with: \(d=xcos(\theta) + ysin(\theta)\) where a point \((x,y)\) is explained by the normal distance from the origin to the line (\(d\)) and the angle between that normal line and the x axis (\(\theta\)). To search for lines, we:</p>
 
 <ol>
-<li>Decide on a resolution for \(d\) and \(\theta\) that we are interested in.
-
-<ul>
-<li>We know that: \(-image\ diagonal \leq d \leq image\ diagonal\), and \(-90 \leq \theta \leq 90\) in degrees.</li>
-<li>We choose a resolution that breaks up each of these continuous ranges into small enough discrete chunks, so that there are a total of \(d^{n}\) normal distances we will be interested in for each of \(\theta^{n}\) total angles.</li>
-</ul>
-</li>
-<li>We use this decision to create a matrix \(H\) called the Hough Space Accumulator that is \(H \epsilon \mathbb{R}^{d^{n} \times \theta^{n}}\).</li>
-<li>For each edge point in our image:
-
-<ul>
-<li>increment \(H\) at every \(d\) and \(\theta\) pair that creates a line passing through that point</li>
-</ul>
-</li>
-<li>Pick the pairs of \(d\) and \(\theta\) that have an accumulator value in \(H\) above a certain threshold.</li>
+  <li>Decide on a resolution for \(d\) and \(\theta\) that we are interested in.
+    <ul>
+      <li>We know that: \(-image\ diagonal \leq d \leq image\ diagonal\), and \(-90 \leq \theta \leq 90\) in degrees.</li>
+      <li>We choose a resolution that breaks up each of these continuous ranges into small enough discrete chunks, so that there are a total of \(d^{n}\) normal distances we will be interested in for each of \(\theta^{n}\) total angles.</li>
+    </ul>
+  </li>
+  <li>We use this decision to create a matrix \(H\) called the Hough Space Accumulator that is \(H \epsilon \mathbb{R}^{d^{n} \times \theta^{n}}\).</li>
+  <li>For each edge point in our image:
+    <ul>
+      <li>increment \(H\) at every \(d\) and \(\theta\) pair that creates a line passing through that point</li>
+    </ul>
+  </li>
+  <li>Pick the pairs of \(d\) and \(\theta\) that have an accumulator value in \(H\) above a certain threshold.</li>
 </ol>
-
 
 <p><img src="http://f.cl.ly/items/0K08010j1Q20070C2h0U/hough_by_hand.png" alt="The code used to generate this plot can be found [here](https://gist.github.com/ilyakava/c2ef8aed4ad510ee3987)." /></p>
 
 <p><em>We search for Hough lines on a binary image. In this case we chose the top 22 lines to draw on the final image, their (\(d\), \(\theta\)) pairs are circled in blue on the accumulator matrix. The code used to generate this plot can be found in full <a href="https://gist.github.com/ilyakava/c2ef8aed4ad510ee3987">here</a>.</em></p>
 
-<pre><code class="python">cv2.HoughLinesP(edges, rho = 1, theta = math.pi / 180, threshold = 70, minLineLength = 100, maxLineGap = 10)
-</code></pre>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">cv2</span><span class="p">.</span><span class="n">HoughLinesP</span><span class="p">(</span><span class="n">edges</span><span class="p">,</span> <span class="n">rho</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span> <span class="n">theta</span> <span class="o">=</span> <span class="n">math</span><span class="p">.</span><span class="n">pi</span> <span class="o">/</span> <span class="mi">180</span><span class="p">,</span> <span class="n">threshold</span> <span class="o">=</span> <span class="mi">70</span><span class="p">,</span> <span class="n">minLineLength</span> <span class="o">=</span> <span class="mi">100</span><span class="p">,</span> <span class="n">maxLineGap</span> <span class="o">=</span> <span class="mi">10</span><span class="p">)</span>
+</code></pre></div></div>
 
-<a name="Contour.Search"></a>
-<h3><a href="http://docs.opencv.org/master/modules/imgproc/doc/structural_analysis_and_shape_descriptors.html?highlight=findcontours#cv2.findContours">Contour Search</a></h3>
+<h3 id="contour-search"><a href="http://docs.opencv.org/master/modules/imgproc/doc/structural_analysis_and_shape_descriptors.html?highlight=findcontours#cv2.findContours">Contour Search</a></h3>
 
 <p>The contour search we used is a <a href="http://stackoverflow.com/questions/10427474/what-is-the-algorithm-that-opencv-use-for-finding-contours">border following technique for binary images</a>. It was developed to extract the hierarchical topology of a binary image, but that information is discarded in our use.</p>
 
-<pre><code class="python">contours, hierarchy = cv2.findContours(bin_img, mode = cv2.RETR_LIST, method = cv2.CHAIN_APPROX_SIMPLE)
-</code></pre>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">contours</span><span class="p">,</span> <span class="n">hierarchy</span> <span class="o">=</span> <span class="n">cv2</span><span class="p">.</span><span class="n">findContours</span><span class="p">(</span><span class="n">bin_img</span><span class="p">,</span> <span class="n">mode</span> <span class="o">=</span> <span class="n">cv2</span><span class="p">.</span><span class="n">RETR_LIST</span><span class="p">,</span> <span class="n">method</span> <span class="o">=</span> <span class="n">cv2</span><span class="p">.</span><span class="n">CHAIN_APPROX_SIMPLE</span><span class="p">)</span>
+</code></pre></div></div>
 
-<a name="Experimental.Evaluation"></a>
-<h2>Experimental Evaluation</h2>
+<h2 id="experimental-evaluation">Experimental Evaluation</h2>
 
 <p>We used the powerful open source image processing library, <a href="http://opencv.org">OpenCV</a>, with python for our experiments. We operated on images with 400 pixels as their largest dimension. This decision was made in the interest of quick image transformations, but we confirmed later that there were no significant improvements in artwork border detection with larger images.</p>
 
-<a name="Hough.Lines"></a>
-<h3>Hough Lines</h3>
+<h3 id="hough-lines-1">Hough Lines</h3>
 
 <p>An early attempt at detecting artwork borders consisted of the following steps:</p>
 
 <ul>
-<li>Gaussian blur</li>
-<li>Combine x and y Sobel Filters (w/ scaling)</li>
-<li>Gaussian blur</li>
-<li>Canny edge detection</li>
-<li>Finding Hough lines</li>
-<li>Extrapolating the intersection of the Hough lines to get corners</li>
+  <li>Gaussian blur</li>
+  <li>Combine x and y Sobel Filters (w/ scaling)</li>
+  <li>Gaussian blur</li>
+  <li>Canny edge detection</li>
+  <li>Finding Hough lines</li>
+  <li>Extrapolating the intersection of the Hough lines to get corners</li>
 </ul>
-
 
 <p>The choice of the Sobel filter was motivated by the great number of artwork images with light and gradual transitions between the artworks and their surrounding mattes, as well as between the paper artworks and their backgrounds. The smoothing in the Sobel filter makes it an edge detector well equipped for gradual borders. The Gaussian blur was used to minimize the interfering details within the artworks. The Canny edge detector was then used to fill in discontinuities in the borders. Finally, Hough lines were found, in the hopes that the most prominent lines would be along the edges of the artwork.</p>
 
@@ -201,39 +181,34 @@ cv2.Canny(bw, threshold1 = 0, threshold2 = 50, apertureSize = 3)
 
 <p>Tweaking preprocessing effects also greatly varied the performance across the dataset in a non-generalized way. A tweak that would improve performance in one set of images would inhibit finding the correct Hough lines in another set.</p>
 
-<a name="Rectangular.Contour.Search"></a>
-<h3>Rectangular Contour Search</h3>
+<h3 id="rectangular-contour-search">Rectangular Contour Search</h3>
 
 <p>We went a different direction and instead decided to take advantage of a more specific feature within our dataset. We started searching for rectangular closed contours with the following strategy:</p>
 
 <ul>
-<li>Preprocessing the image to minimize non-target edges
-
-<ul>
-<li>Dilation</li>
-<li>Median Blur Filter</li>
-<li>Shrinking and enlarging</li>
+  <li>Preprocessing the image to minimize non-target edges
+    <ul>
+      <li>Dilation</li>
+      <li>Median Blur Filter</li>
+      <li>Shrinking and enlarging</li>
+    </ul>
+  </li>
+  <li>Canny edge detection with dilation</li>
+  <li>Searching for contours along the edges</li>
+  <li>Throwing out all contours not fulfilling the constraints:
+    <ul>
+      <li>exactly 4 points</li>
+      <li>right angles (5 degree tolerance)</li>
+    </ul>
+  </li>
+  <li>Picking the best of the remaining contours, that minimizes a combination of:
+    <ul>
+      <li>Shape distortion</li>
+      <li>Proportion of the image’s surface area</li>
+      <li>Displacement of the shape from the center of the image</li>
+    </ul>
+  </li>
 </ul>
-</li>
-<li>Canny edge detection with dilation</li>
-<li>Searching for contours along the edges</li>
-<li>Throwing out all contours not fulfilling the constraints:
-
-<ul>
-<li>exactly 4 points</li>
-<li>right angles (5 degree tolerance)</li>
-</ul>
-</li>
-<li>Picking the best of the remaining contours, that minimizes a combination of:
-
-<ul>
-<li>Shape distortion</li>
-<li>Proportion of the image's surface area</li>
-<li>Displacement of the shape from the center of the image</li>
-</ul>
-</li>
-</ul>
-
 
 <p><img src="http://f.cl.ly/items/0L2t2z2h3w3O130C2T0s/flow.png" alt="The Rectangular Contour Search workflow stages in pictures. The code used to generate this figure can be found [here](https://gist.github.com/ilyakava/b2dbca43991d6c668dbb). Open Access, accession number/filename: 2008-364b_v01.tif" /></p>
 
@@ -247,49 +222,42 @@ cv2.Canny(bw, threshold1 = 0, threshold2 = 50, apertureSize = 3)
 
 <p>The code we used is available in full <a href="https://gist.github.com/ilyakava/b2dbca43991d6c668dbb">here</a>. See the images in this project, as well as others for the <a href="https://artsy.net/imamuseum">Indianapolis Museum of Art on Artsy</a>.</p>
 
-<a name="Previous.Work"></a>
-<h2>Previous Work</h2>
+<h2 id="previous-work">Previous Work</h2>
 
 <p>Below is a quick survey of some similar previous work that helped us during research.</p>
 
 <ul>
-<li>High contrast sheet of paper localization:
-
-<ul>
-<li><a href="http://stackoverflow.com/a/14368605/2256243">mmgp's answer</a> incorporated using a median filter, then a morphological gradient (good for strong edges), thresholding (guided by Otsu), and then isolating the correct shape by comparing the area of the convex hull containing the shape and the area of its bounding box (01/16/2013).</li>
-<li><a href="http://stackoverflow.com/a/8863060/2256243">karlphillip's answer</a> incorporated using a median filter, Canny edges with dilation, finding all contours, and finally outputing the largest such rectangle (01/14/2012).</li>
-</ul>
-</li>
-<li>Subtle drawn square in a photo localization:
-
-<ul>
-<li><a href="http://stackoverflow.com/a/7732392/2256243">karlphillip's answer</a> incorporated dilating the image, using medianBlur, downscaling and upscaling the image, and then continuing the same way as with his <a href="http://stackoverflow.com/a/8863060/2256243">Sheet of paper localization answer</a> (10/11/2011).</li>
-</ul>
-</li>
-<li>Obvious but partially blocked square localization:
-
-<ul>
-<li><a href="http://stackoverflow.com/a/10535042/2256243">karlphillip's answer</a> used thresholding, and the find squares and bounding box functions (05/10/2012).</li>
-<li><a href="http://stackoverflow.com/a/10535042/2256243">mevatron's answer</a> used thresholding, Gaussian blur, Canny, and a sensitive search for many Hough lines (05/10/2012).</li>
-</ul>
-</li>
-<li>Receipt Localization:
-
-<ul>
-<li><a href="http://stackoverflow.com/a/6555842/2256243">Martin Foot's answer</a> used the Median Filter, Hough transform, drawing lines across the entire image and filtering out lines that are close to each other, or have few other lines that are nearly parallel to them (06/02/2011).</li>
-<li><a href="http://stackoverflow.com/a/6644246/2256243">Daniel Crowley's answer</a> suggested using Low canny restraints, and searching for the largest closed contour (06/02/2011).</li>
-<li><a href="http://stackoverflow.com/a/6644246/2256243">Vanuan's answer</a> used Gaussian blur, dilation, Canny edges, finding contours, and simplified the contours to polygons (09/20/2013).</li>
-</ul>
-</li>
-<li>Correcting the perspective of a white card on dark surface. A <a href="http://opencv-code.com/tutorials/automatic-perspective-correction-for-quadrilateral-objects/">tutorial</a> on Hough Lines.</li>
-<li>An in depth <a href="http://nabinsharma.wordpress.com/2012/12/26/linear-hough-transform-using-python/">tutorial</a> of Hough Lines with python code.</li>
+  <li>High contrast sheet of paper localization:
+    <ul>
+      <li><a href="http://stackoverflow.com/a/14368605/2256243">mmgp’s answer</a> incorporated using a median filter, then a morphological gradient (good for strong edges), thresholding (guided by Otsu), and then isolating the correct shape by comparing the area of the convex hull containing the shape and the area of its bounding box (01/16/2013).</li>
+      <li><a href="http://stackoverflow.com/a/8863060/2256243">karlphillip’s answer</a> incorporated using a median filter, Canny edges with dilation, finding all contours, and finally outputing the largest such rectangle (01/14/2012).</li>
+    </ul>
+  </li>
+  <li>Subtle drawn square in a photo localization:
+    <ul>
+      <li><a href="http://stackoverflow.com/a/7732392/2256243">karlphillip’s answer</a> incorporated dilating the image, using medianBlur, downscaling and upscaling the image, and then continuing the same way as with his <a href="http://stackoverflow.com/a/8863060/2256243">Sheet of paper localization answer</a> (10/11/2011).</li>
+    </ul>
+  </li>
+  <li>Obvious but partially blocked square localization:
+    <ul>
+      <li><a href="http://stackoverflow.com/a/10535042/2256243">karlphillip’s answer</a> used thresholding, and the find squares and bounding box functions (05/10/2012).</li>
+      <li><a href="http://stackoverflow.com/a/10535042/2256243">mevatron’s answer</a> used thresholding, Gaussian blur, Canny, and a sensitive search for many Hough lines (05/10/2012).</li>
+    </ul>
+  </li>
+  <li>Receipt Localization:
+    <ul>
+      <li><a href="http://stackoverflow.com/a/6555842/2256243">Martin Foot’s answer</a> used the Median Filter, Hough transform, drawing lines across the entire image and filtering out lines that are close to each other, or have few other lines that are nearly parallel to them (06/02/2011).</li>
+      <li><a href="http://stackoverflow.com/a/6644246/2256243">Daniel Crowley’s answer</a> suggested using Low canny restraints, and searching for the largest closed contour (06/02/2011).</li>
+      <li><a href="http://stackoverflow.com/a/6644246/2256243">Vanuan’s answer</a> used Gaussian blur, dilation, Canny edges, finding contours, and simplified the contours to polygons (09/20/2013).</li>
+    </ul>
+  </li>
+  <li>Correcting the perspective of a white card on dark surface. A <a href="http://opencv-code.com/tutorials/automatic-perspective-correction-for-quadrilateral-objects/">tutorial</a> on Hough Lines.</li>
+  <li>An in depth <a href="http://nabinsharma.wordpress.com/2012/12/26/linear-hough-transform-using-python/">tutorial</a> of Hough Lines with python code.</li>
 </ul>
 
+<h2 id="references">References</h2>
 
-<a name="References"></a>
-<h2>References</h2>
-
-<p><a href="http://www.amazon.com/Practical-Introduction-Computer-Wiley-IS-Technology/dp/1118848454">Kenneth Daweson-Howe's textbook</a> is the source of most of the knowledge in the Background section, as well as the excellent <a href="http://docs.opencv.org/master/">opencv documentation</a> which often included tutorials.</p>
+<p><a href="http://www.amazon.com/Practical-Introduction-Computer-Wiley-IS-Technology/dp/1118848454">Kenneth Daweson-Howe’s textbook</a> is the source of most of the knowledge in the Background section, as well as the excellent <a href="http://docs.opencv.org/master/">opencv documentation</a> which often included tutorials.</p>
 ]]></content>
   </entry>
   
