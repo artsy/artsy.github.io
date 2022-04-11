@@ -23,7 +23,7 @@ We use GraphQL as an API middle-layer. It acts as an intermediate layer between 
 
 As a client, you [send](https://github.com/artsy/eigen/blob/dac7c80b66b600f9a45aaae6095544fe420f0bbc/Artsy/Networking/ARRouter.m#L1011) a "[JSON-shaped query](http://graphql.org/docs/getting-started/#queries)" structure, which is hierarchical and easy to read:
 
-```graphql
+```json
 {
   artwork(id: "kimber-berry-as-close-to-magic-as-you-can-get") {
     id
