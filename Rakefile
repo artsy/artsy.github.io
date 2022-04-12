@@ -116,13 +116,11 @@ task :deploy do
     puts `git pull origin main`
 
     puts 'Creating a commit for the deploy.'
-
-    puts `git ls-files --deleted -z | xargs -0 git rm;`
-    puts `git add .`
+    puts `git add --all`
     puts `git commit -m "[skip ci] Deploy"`
 
     puts 'Pushing to github.'
-    puts `git push --quiet > /dev/null 2>&1`
+    puts `git push`
   end
 end
 
