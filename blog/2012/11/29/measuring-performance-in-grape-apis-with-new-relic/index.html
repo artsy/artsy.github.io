@@ -14,8 +14,6 @@
 
     
 
-
-
   
     
       
@@ -25,7 +23,7 @@
         
           Measuring Performance in Grape APIs with NewRelic RPM
         
-        ...">
+        No...">
   
 
   <!-- http://t.co/dKP3o1e -->
@@ -129,9 +127,7 @@
       <div>
   <article class="hentry" role="article">
 
-    
-<div class="article-container-single ">
-
+    <div class="article-container-single ">
 
   
     <div class="meta-container">
@@ -144,8 +140,6 @@
         
         <time datetime="2012-11-29">Nov 29, 2012</time>
           <p class="meta-author">
-  
-
 
 
   
@@ -170,110 +164,79 @@
 
   <div class="content-container">
     
-      <div class="entry-content"><p>Knowing how well your API performs in real time is essential to any successful project. That's because you can't fix what you can't measure.</p>
+      <div class="entry-content"><p>Knowing how well your API performs in real time is essential to any successful project. That’s because you can’t fix what you can’t measure.</p>
 
 <p>We use and heavily contribute to <a href="http://github.com/intridea/grape">Grape</a>, a Ruby API DSL. Grape is a Rack middleware and we have been reporting API performance data to <a href="http://newrelic.com/">NewRelic</a> with code from <a href="http://code.dblock.org/new-relic-performance-instrumentation-with-grape-api">my older blog post</a>.</p>
 
-<p>It's time to improve the reporting implementation and address performance monitoring in both development and production environments. Here's what a single API request breakdown is going to look like.</p>
+<p>It’s time to improve the reporting implementation and address performance monitoring in both development and production environments. Here’s what a single API request breakdown is going to look like.</p>
 
-<p><img src="/images/2012-11-29-measuring-performance-in-grape-apis-with-new-relic/transaction-detail.png"></p>
+<p><img src="/images/2012-11-29-measuring-performance-in-grape-apis-with-new-relic/transaction-detail.png" /></p>
 
 <!-- more -->
 
+<h2 id="newrelic-rpm">NewRelic RPM</h2>
 
-<a name="NewRelic.RPM"></a>
-<h2>NewRelic RPM</h2>
+<p>The first step is to add the <code class="language-plaintext highlighter-rouge">newrelic_rpm</code> gem to Gemfile, which implements the actual realtime performance reporting to NewRelic. We also use <a href="https://github.com/mongoid/mongoid">Mongoid</a> and the <a href="https://github.com/mongoid/moped">Moped</a> MongoDB Ruby driver, which can be instrumented with <code class="language-plaintext highlighter-rouge">newrelic_moped</code>.</p>
 
-<p>The first step is to add the <code>newrelic_rpm</code> gem to Gemfile, which implements the actual realtime performance reporting to NewRelic. We also use <a href="https://github.com/mongoid/mongoid">Mongoid</a> and the <a href="https://github.com/mongoid/moped">Moped</a> MongoDB Ruby driver, which can be instrumented with <code>newrelic_moped</code>.</p>
+<p>``` ruby Gemfile
+gem “newrelic_moped”, “0.0.3”
+gem “newrelic_rpm”, “3.3.3”</p>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+You will need `config/newrelic.yml` in your application. Ours can be found in [this gist](https://gist.github.com/4170458) and works well both locally and on Heroku.
 
-<figure class='code'><figcaption><span>Gemfile</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">gem</span> <span class="s2">&quot;newrelic_moped&quot;</span><span class="p">,</span> <span class="s2">&quot;0.0.3&quot;</span>
-</span><span class='line'><span class="n">gem</span> <span class="s2">&quot;newrelic_rpm&quot;</span><span class="p">,</span> <span class="s2">&quot;3.3.3&quot;</span>
-</span></code></pre></td></tr></table></div></figure>
+Instrumenting Grape
+-------------------
 
+In the past we used [NewRelic::Agent::Instrumentation::API](https://gist.github.com/1233422), which works for any generic Rack middleware. This would report all API calls to NewRelic, but would treat requests to */api/artist/andy-warhol* and */api/artist/wassily-kandinsky* as unrelated. That is because the instrumenter is a Rack middleware that wraps Grape requests *before* they reach Grape. The only information available is the request URL, and not the actual API route that is going to be matched when the request is processed.
 
-<p>You will need <code>config/newrelic.yml</code> in your application. Ours can be found in <a href="https://gist.github.com/4170458">this gist</a> and works well both locally and on Heroku.</p>
+We want both requests to */api/artist/andy-warhol* and */api/artist/wassily-kandinsky* to be treated as */api/artist/:id*. Lets insert a middleware inside Grape itself, once the URL has been matched to a route.
 
-<a name="Instrumenting.Grape"></a>
-<h2>Instrumenting Grape</h2>
+``` ruby api.rb
+class API &lt;&lt; Grape::API
+  use ApiNewRelicInstrumenter
+  ...
+end
+</code></pre></div></div>
 
-<p>In the past we used <a href="https://gist.github.com/1233422">NewRelic::Agent::Instrumentation::API</a>, which works for any generic Rack middleware. This would report all API calls to NewRelic, but would treat requests to <em>/api/artist/andy-warhol</em> and <em>/api/artist/wassily-kandinsky</em> as unrelated. That is because the instrumenter is a Rack middleware that wraps Grape requests <em>before</em> they reach Grape. The only information available is the request URL, and not the actual API route that is going to be matched when the request is processed.</p>
+<p>The new instrumenter has access to the current API endpoint via <code class="language-plaintext highlighter-rouge">env['api.endpoint']</code> and reports data via NewRelic’s <code class="language-plaintext highlighter-rouge">ControllerInstrumentation</code>.</p>
 
-<p>We want both requests to <em>/api/artist/andy-warhol</em> and <em>/api/artist/wassily-kandinsky</em> to be treated as <em>/api/artist/:id</em>. Lets insert a middleware inside Grape itself, once the URL has been matched to a route.</p>
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">class</span> <span class="nc">ApiNewRelicInstrumenter</span> <span class="o">&lt;</span> <span class="no">Grape</span><span class="o">::</span><span class="no">Middleware</span><span class="o">::</span><span class="no">Base</span>
+  <span class="kp">include</span> <span class="no">NewRelic</span><span class="o">::</span><span class="no">Agent</span><span class="o">::</span><span class="no">Instrumentation</span><span class="o">::</span><span class="no">ControllerInstrumentation</span>
 
-<figure class='code'><figcaption><span>api.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">API</span> <span class="o">&lt;&lt;</span> <span class="no">Grape</span><span class="o">::</span><span class="no">API</span>
-</span><span class='line'>  <span class="n">use</span> <span class="no">ApiNewRelicInstrumenter</span>
-</span><span class='line'>  <span class="o">.</span><span class="n">.</span><span class="o">.</span>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure>
+  <span class="k">def</span> <span class="nf">call</span><span class="p">(</span><span class="n">env</span><span class="p">)</span>
+    <span class="n">trace_options</span> <span class="o">=</span> <span class="p">{</span>
+      <span class="ss">category: :rack</span><span class="p">,</span>
+      <span class="ss">path: </span><span class="n">env</span><span class="p">[</span><span class="s1">'api.endpoint'</span><span class="p">].</span><span class="nf">routes</span><span class="p">.</span><span class="nf">first</span><span class="p">.</span><span class="nf">route_path</span><span class="p">,</span>
+      <span class="ss">request: </span><span class="n">request</span><span class="p">,</span>
+      <span class="o">...</span>
+    <span class="p">}</span>
 
+    <span class="n">perform_action_with_newrelic_trace</span><span class="p">(</span><span class="n">trace_options</span><span class="p">)</span> <span class="k">do</span>
+      <span class="k">yield</span>
+    <span class="k">end</span>
 
-<p>The new instrumenter has access to the current API endpoint via <code>env['api.endpoint']</code> and reports data via NewRelic's <code>ControllerInstrumentation</code>.</p>
+  <span class="k">end</span>
+<span class="k">end</span>
+</code></pre></div></div>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">ApiNewRelicInstrumenter</span> <span class="o">&lt;</span> <span class="no">Grape</span><span class="o">::</span><span class="no">Middleware</span><span class="o">::</span><span class="no">Base</span>
-</span><span class='line'>  <span class="kp">include</span> <span class="no">NewRelic</span><span class="o">::</span><span class="no">Agent</span><span class="o">::</span><span class="no">Instrumentation</span><span class="o">::</span><span class="no">ControllerInstrumentation</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="k">def</span> <span class="nf">call</span><span class="p">(</span><span class="n">env</span><span class="p">)</span>
-</span><span class='line'>    <span class="n">trace_options</span> <span class="o">=</span> <span class="p">{</span>
-</span><span class='line'>      <span class="ss">category</span><span class="p">:</span> <span class="ss">:rack</span><span class="p">,</span>
-</span><span class='line'>      <span class="ss">path</span><span class="p">:</span> <span class="n">env</span><span class="o">[</span><span class="s1">&#39;api.endpoint&#39;</span><span class="o">].</span><span class="n">routes</span><span class="o">.</span><span class="n">first</span><span class="o">.</span><span class="n">route_path</span><span class="p">,</span>
-</span><span class='line'>      <span class="ss">request</span><span class="p">:</span> <span class="n">request</span><span class="p">,</span>
-</span><span class='line'>      <span class="o">.</span><span class="n">.</span><span class="o">.</span>
-</span><span class='line'>    <span class="p">}</span>
-</span><span class='line'>
-</span><span class='line'>    <span class="n">perform_action_with_newrelic_trace</span><span class="p">(</span><span class="n">trace_options</span><span class="p">)</span> <span class="k">do</span>
-</span><span class='line'>      <span class="k">yield</span>
-</span><span class='line'>    <span class="k">end</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure>
+<p>The complete code for <code class="language-plaintext highlighter-rouge">ApiNewRelicInstrumenter</code> can be found in <a href="https://gist.github.com/4170469">this gist</a>. It supports enabling and disabling performance reporting by setting <code class="language-plaintext highlighter-rouge">NEW_RELIC_ID</code> and works around NewRelic’s method name limitations (these cannot contain slashes).</p>
 
+<h2 id="development-environment">Development Environment</h2>
 
-<p>The complete code for <code>ApiNewRelicInstrumenter</code> can be found in <a href="https://gist.github.com/4170469">this gist</a>. It supports enabling and disabling performance reporting by setting <code>NEW_RELIC_ID</code> and works around NewRelic's method name limitations (these cannot contain slashes).</p>
+<p>You can now see NewRelic performance data in development mode, too. If you mount Grape inside Rails run <code class="language-plaintext highlighter-rouge">NEW_RELIC_ID=foo rails s</code>. Navigate to <em>http://localhost:3000/newrelic</em> to see your local traces.</p>
 
-<a name="Development.Environment"></a>
-<h2>Development Environment</h2>
+<p><img src="/images/2012-11-29-measuring-performance-in-grape-apis-with-new-relic/developer-mode.png" /></p>
 
-<p>You can now see NewRelic performance data in development mode, too. If you mount Grape inside Rails run <code>NEW_RELIC_ID=foo rails s</code>. Navigate to <em>http://localhost:3000/newrelic</em> to see your local traces.</p>
+<p>Drill into an individual request to find several detailed breakdowns of how time was spent, including specific MongoDB queries (under “SQL”, naturally).</p>
 
-<p><img src="/images/2012-11-29-measuring-performance-in-grape-apis-with-new-relic/developer-mode.png"></p>
+<p><img src="/images/2012-11-29-measuring-performance-in-grape-apis-with-new-relic/sql-detail.png" /></p>
 
-<p>Drill into an individual request to find several detailed breakdowns of how time was spent, including specific MongoDB queries (under "SQL", naturally).</p>
-
-<p><img src="/images/2012-11-29-measuring-performance-in-grape-apis-with-new-relic/sql-detail.png"></p>
-
-<p>NewRelic is a commercial product, but you can run development mode for free! Note that enabling this will triple your local Rails boot time: we enable development mode by setting <code>development_mode: &lt;%= !!ENV['NEW_RELIC_ID'] %&gt;</code> in <a href="https://gist.github.com/4170458">newrelic.rpm</a>.</p>
+<p>NewRelic is a commercial product, but you can run development mode for free! Note that enabling this will triple your local Rails boot time: we enable development mode by setting <code class="language-plaintext highlighter-rouge">development_mode: &lt;%= !!ENV['NEW_RELIC_ID'] %&gt;</code> in <a href="https://gist.github.com/4170458">newrelic.rpm</a>.</p>
 </div>
     
 
-    
-      <p class="meta-author">
-        
-  
-
+    <p class="meta-author">
+      
 
 
 
@@ -314,39 +277,38 @@
 
 
 
-      </p>
-      <p class="meta-categories">
-        Categories: 
+    </p>
+    <p class="meta-categories">
+      Categories: 
 
 <span class="categories">
   
-    <a class='category' href='/blog/categories/grape/'>grape</a>, <a class='category' href='/blog/categories/heroku/'>heroku</a>, <a class='category' href='/blog/categories/newrelic/'>newrelic</a>, <a class='category' href='/blog/categories/performance/'>performance</a>, <a class='category' href='/blog/categories/ruby/'>ruby</a>
+    <a class='category' href='/blog/categories/grape/'>Grape</a>, <a class='category' href='/blog/categories/heroku/'>Heroku</a>, <a class='category' href='/blog/categories/newrelic/'>NewRelic</a>, <a class='category' href='/blog/categories/performance/'>performance</a>, <a class='category' href='/blog/categories/ruby/'>ruby</a>
   
 </span>
 
 
-      </p>
-      
-
-      
-        <hr/>
-        <section class="comments">
-          <h1>Comments</h1>
-          <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
-</div>
-        </section>
-        <hr/>
-      
-
-      <p class="meta-paginate">
-        
-          <a class="previous" href="/blog/2012/11/22/friendly-urls-with-mongoid-slug/" title="Previous Post: Friendly URLs with Mongoid::Slug">&laquo; Friendly URLs with Mongoid::Slug</a>
-        
-        
-          <a class="next" href="/blog/2012/12/13/beat-heroku-60-seconds-application-boot-timeout-with-a-proxy/" title="next Post: Beat Heroku's 60 Seconds Application Boot Timeout with a Proxy">Beat Heroku's 60 Seconds Application Boot Timeout with a Proxy &raquo;</a>
-        
-      </p>
+    </p>
     
+
+    
+      <hr/>
+      <section class="comments">
+        <h1>Comments</h1>
+        <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</div>
+      </section>
+      <hr/>
+    
+
+    <p class="meta-paginate">
+      
+        <a class="previous" href="/blog/2012/11/22/friendly-urls-with-mongoid-slug/" title="Previous Post: Friendly URLs with Mongoid::Slug">&laquo; Friendly URLs with Mongoid::Slug</a>
+      
+      
+        <a class="next" href="/blog/2012/12/13/beat-heroku-60-seconds-application-boot-timeout-with-a-proxy/" title="next Post: Beat Heroku's 60 Seconds Application Boot Timeout with a Proxy">Beat Heroku's 60 Seconds Application Boot Timeout with a Proxy &raquo;</a>
+      
+    </p>
   </div>
 
 

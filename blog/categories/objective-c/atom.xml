@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
 
-  <title><![CDATA[Category: objective c | Artsy Engineering]]></title>
+  <title><![CDATA[Category: Objective C | Artsy Engineering]]></title>
   <link href="https://artsy.github.io/blog/categories/objective-c/atom.xml" rel="self"/>
   <link href="https://artsy.github.io/"/>
-  <updated>2022-04-12T15:26:26+00:00</updated>
+  <updated>2022-04-12T22:23:19+00:00</updated>
   <id>https://artsy.github.io/</id>
   <author>
     <name><![CDATA[]]></name>
@@ -27,20 +27,17 @@ crash reports, but I was unable to reproduce by just using the application.</p>
 <p>It will cover the following topics:</p>
 
 <ul>
-<li>Narrow down the breakpoint to the method invocation where the crash occurs.</li>
-<li>Locate the exact instruction that causes the crash.</li>
-<li>Look at the implementation of the method where the crash occurs.</li>
-<li>Simulate the crash.</li>
+  <li>Narrow down the breakpoint to the method invocation where the crash occurs.</li>
+  <li>Locate the exact instruction that causes the crash.</li>
+  <li>Look at the implementation of the method where the crash occurs.</li>
+  <li>Simulate the crash.</li>
 </ul>
-
 
 <!-- more -->
 
+<h3 id="the-crash-report">The crash report</h3>
 
-<a name="The.crash.report"></a>
-<h3>The crash report</h3>
-
-<pre><code>Hardware Model:  iPhone5,2
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Hardware Model:  iPhone5,2
 OS Version:      iPhone OS 8.1.2 (12B440)
 
 Exception Type:  SIGSEGV
@@ -54,21 +51,20 @@ Thread 0 Crashed:
 [SNIP]
 7   Artsy                                0x00107087 -[ARArtworkView setUpCallbacks] + 1238
 [SNIP]
-</code></pre>
+</code></pre></div></div>
 
 <p><em>This crash report was shortened for clarity sake, you can find the full report
 <a href="https://gist.github.com/alloy/cfaab5b754fdd2c551e0">here</a>.</em></p>
 
 <p>Now, this might not be the toughest nut to crack –if you’ve been doing UIKit development for a while, you may already
-know that <code>UIScrollView</code> does not weakify it’s <code>delegate</code>– but instead of just going by experience and making some
+know that <code class="language-plaintext highlighter-rouge">UIScrollView</code> does not weakify it’s <code class="language-plaintext highlighter-rouge">delegate</code>– but instead of just going by experience and making some
 changes, let’s see if we can’t figure out exactly what’s happening, for the sake of reproducing and confidently making
 the right fix.</p>
 
 <p>The lines near the top of the stack trace tell me that it’s probably a message being sent to some garbage memory, i.e.
 a released object, so that’s where I want to be poking around.</p>
 
-<a name="Getting.at.often.called.locations"></a>
-<h3>Getting at often called locations</h3>
+<h3 id="getting-at-often-called-locations">Getting at often called locations</h3>
 
 <p>So I want to get at the 2nd frame in the stack, but that method and the one at the 3rd frame get invoked <em>a lot</em> while
 navigating to the view I want to debug. There’s many ways to do this, but the simple approach I often take in these
@@ -78,29 +74,28 @@ then keep refining the breakpoints every time I hit one.</p>
 <p>In this case that starts off with a breakpoint in
 <a href="https://github.com/artsy/eigen/blob/1.7.0/Artsy/Classes/Views/ARArtworkView.m#L85">our code</a>:</p>
 
-<pre><code>(lldb) b -[ARArtworkView setUpCallbacks]
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>(lldb) b -[ARArtworkView setUpCallbacks]
 Breakpoint 1: where = Artsy`-[ARArtworkView setUpCallbacks] + 19 at ARArtworkView.m:101, address = 0x000000010e722853
-</code></pre>
+</code></pre></div></div>
 
 <p>With that set I then navigate to the view I want to get at and, once the breakpoint is hit, set the breakpoint for a
 frame that’s even closer to the location I want to get at:</p>
 
-<pre><code>Process 74926 stopped
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Process 74926 stopped
 * thread #1: tid = 0x1b5faf, 0x000000010e722853 Artsy`-[ARArtworkView setUpCallbacks](self=0x00007fc99c95b230, _cmd=0x000000010eb60e58) + 19 at ARArtworkView.m:101, queue = 'com.apple.main-thread', stop reason = breakpoint 1.1
     frame #0: 0x000000010e722853 Artsy`-[ARArtworkView setUpCallbacks](self=0x00007fc99c95b230, _cmd=0x000000010eb60e58) + 19 at ARArtworkView.m:101
 
 (lldb) b -[UIScrollView _offsetForCenterOfPossibleZoomView:withIncomingBoundsSize:]
 Breakpoint 2: where = UIKit`-[UIScrollView _offsetForCenterOfPossibleZoomView:withIncomingBoundsSize:], address = 0x00000001105c1fb7
-</code></pre>
+</code></pre></div></div>
 
 <p>And finally I repeat the process and set the breakpoint that I <em>really</em> want to get to:</p>
 
-<pre><code>(lldb) b -[UIScrollView _getDelegateZoomView]
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>(lldb) b -[UIScrollView _getDelegateZoomView]
 Breakpoint 3: where = UIKit`-[UIScrollView _getDelegateZoomView], address = 0x00000001105bf8cd
-</code></pre>
+</code></pre></div></div>
 
-<a name="Locating.the.instruction.that.crashes.by.looking.at.the.real..em.on-device..em..framework..iPhoneOS.SDK."></a>
-<h3>Locating the instruction that crashes by looking at the real <em>on-device</em> framework (iPhoneOS SDK)</h3>
+<h3 id="locating-the-instruction-that-crashes-by-looking-at-the-real-on-device-framework-iphoneos-sdk">Locating the instruction that crashes by looking at the real <em>on-device</em> framework (iPhoneOS SDK)</h3>
 
 <p>By this point, I’m left with the realization that I don’t have a device running iOS 8.1.x anymore –the above was all on
 the simulator– and thus jumping through the code in a debugger on a device is not going to be reliable. Instead, I’m
@@ -110,84 +105,81 @@ highly suggest you go and buy <strong>right now</strong>, it’s ridiculously ch
 <p>To be able to do so, though, I first had to get a copy of UIKit for one of the devices of which we received crash logs.</p>
 
 <ul>
-<li><p><strong>Firmware decryption keys</strong>: keys for many variants are listed
+  <li>
+    <p><strong>Firmware decryption keys</strong>: keys for many variants are listed
 <a href="https://www.theiphonewiki.com/wiki/Firmware_Keys">here</a>. If the model you need is not listed you’ll have to manually
-figure out the key, which is beyond the scope of this article.</p></li>
-<li><p><strong>Download firmware</strong>: you can find links for all variants on
+figure out the key, which is beyond the scope of this article.</p>
+  </li>
+  <li>
+    <p><strong>Download firmware</strong>: you can find links for all variants on
 <a href="https://www.theiphonewiki.com/wiki/Firmware">this page</a>. I chose iOS 8.1.2 for the 2nd revision of the iPhone 5
 (iPhone 5,2), because the keys to decrypt that are known and it’s one of the devices and OS versions for which we had
-received crash reports.</p></li>
-<li><p><strong>Decrypt image</strong>: there are a bunch of tools that allow you to decrypt firmware images, which are listed
+received crash reports.</p>
+  </li>
+  <li>
+    <p><strong>Decrypt image</strong>: there are a bunch of tools that allow you to decrypt firmware images, which are listed
 <a href="https://www.theiphonewiki.com/wiki/Category:Decryption">here</a>. I’m using
-<a href="https://www.theiphonewiki.com/wiki/Dmg_(command">xpwn’s ‘dmg’ tool</a>) which you can get from
+<a href="https://www.theiphonewiki.com/wiki/Dmg_(command)">xpwn’s ‘dmg’ tool</a> which you can get from
 <a href="https://github.com/planetbeing/xpwn/tree/master/dmg">planetbeing’s GitHub repo</a>. Once you’ve got the key from
 <a href="https://www.theiphonewiki.com/wiki/Firmware_Keys">here</a>, or have otherwise manually figured it out, you can decrypt
-the disk image like so:</p></li>
+the disk image like so:</p>
+  </li>
 </ul>
 
-
-<pre><code>$ unzip -d iPhone5,2_8.1.2 iPhone5,2_8.1.2_12B440_Restore.ipsw
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ unzip -d iPhone5,2_8.1.2 iPhone5,2_8.1.2_12B440_Restore.ipsw
 $ cd iPhone5,2_8.1.2
 $ /path/to/xpwn/dmg/dmg extract 058-09875-017.dmg decrypted.dmg -k 02e89744a7143b9bac48fd1adc32a8ed6bcf74d428d0861d790153accb96a413e1c3b8d8
-</code></pre>
+</code></pre></div></div>
 
 <ul>
-<li><strong>Extract UIKit from shared DYLD cache</strong>: for performance reasons, Apple decided to create one big cache that
+  <li><strong>Extract UIKit from shared DYLD cache</strong>: for performance reasons, Apple decided to create one big cache that
 contains all of the commonly used frameworks, including UIKit. To get just UIKit, you’ll need to use any of the tools
 listed <a href="http://iphonedevwiki.net/index.php/Dyld_shared_cache#Cache_extraction">here</a>, I used
 <a href="https://github.com/kennytm/Miscellaneous/downloads">dyld_decache</a>:</li>
 </ul>
 
-
-<pre><code>$ open decrypted.dmg
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ open decrypted.dmg
 $ /path/to/dyld_decache-v0.1c -o Extracted -f UIKit /Volumes/SUOkemoTaos12B440.N42OS/System/Library/Caches/com.apple.dyld/dyld_shared_cache_armv7s
 $ ls -l Extracted/System/Library/Frameworks/UIKit.framework/UIKit
 -rw-r--r--  1 eloy  staff  12142776 Aug  1 10:50 Extracted/System/Library/Frameworks/UIKit.framework/UIKit
-</code></pre>
+</code></pre></div></div>
 
 <p>With that out of the way, I can finally load that up in Hopper and look at the instruction. I can get the offset of
 the instruction from the stack frame, specifically the ‘66’ in
-<code>-[UIScrollView _getDelegateZoomView] + 66</code>. This means that the instruction’s address is that of the function it is
-located in <em>plus</em> 66, which, as you can see in the below screenshot, is halfway through the <code>objc_msgSend</code> call:</p>
+<code class="language-plaintext highlighter-rouge">-[UIScrollView _getDelegateZoomView] + 66</code>. This means that the instruction’s address is that of the function it is
+located in <em>plus</em> 66, which, as you can see in the below screenshot, is halfway through the <code class="language-plaintext highlighter-rouge">objc_msgSend</code> call:</p>
 
-<p></div></div>
-<a href='/images/2015-07-30-Notorious-BUG-1/Hopper-Disassembled.png'>
-  <img src="/images/2015-07-30-Notorious-BUG-1/Hopper-Disassembled.png" alt="The assembly of the <code>-[UIScrollView _getDelegateZoomView]</code> method." style="">
-</a>
-<div class='meta-container'><header>&nbsp;</header></div><div class='content-container'><div class='entry-content'>
-</p>
+<p><a href="/images/2015-07-30-Notorious-BUG-1/Hopper-Disassembled.png">
+  <img src="/images/2015-07-30-Notorious-BUG-1/Hopper-Disassembled.png" alt="The assembly of the `-[UIScrollView _getDelegateZoomView]` method." style="" />
+</a></p>
 
 <p>If you want to get into the details of what these instructions are doing, I suggest you read up on a blog post such as
 <a href="https://www.mikeash.com/pyblog/friday-qa-2011-12-30-disassembling-the-assembly-part-3-arm-edition.html">this article by Mike Ash</a>.
 The important part here is that you can easily see that it’s all related to sending the following message to the scroll
 view’s delegate:</p>
 
-<pre><code>[delegate respondsToSelector:@selector(viewForZoomingInScrollView:)]
-</code></pre>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>[delegate respondsToSelector:@selector(viewForZoomingInScrollView:)]
+</code></pre></div></div>
 
 <p>Hopper can give us (pseudo) decompiled code for this method, which looks like the following:</p>
 
-<p></div></div>
-<a href='/images/2015-07-30-Notorious-BUG-1/Hopper-Decompiled.png'>
-  <img src="/images/2015-07-30-Notorious-BUG-1/Hopper-Decompiled.png" alt="The pseudo-code of the <code>-[UIScrollView _getDelegateZoomView]</code> method." style="">
-</a>
-<div class='meta-container'><header>&nbsp;</header></div><div class='content-container'><div class='entry-content'>
-</p>
+<p><a href="/images/2015-07-30-Notorious-BUG-1/Hopper-Decompiled.png">
+  <img src="/images/2015-07-30-Notorious-BUG-1/Hopper-Decompiled.png" alt="The pseudo-code of the `-[UIScrollView _getDelegateZoomView]` method." style="" />
+</a></p>
 
-<p>Based on that, it’s clear to see that that’s what happens and so it’s the delegate that points to garbage, <code>0x10</code> in
+<p>Based on that, it’s clear to see that that’s what happens and so it’s the delegate that points to garbage, <code class="language-plaintext highlighter-rouge">0x10</code> in
 this crash report to be specific.</p>
 
-<a name="Simulating.the.crash"></a>
-<h3>Simulating the crash</h3>
+<h3 id="simulating-the-crash">Simulating the crash</h3>
 
 <p>Now that I know what’s happening, it’s time to simulate the crash on the Simulator so that I can confidently make the
 fix for what I think is going wrong.</p>
 
 <p>Based on the above, I now know that, on the Simulator, this crash would occur around the 16th instruction, which is
-where the <code>-respondsToSelector:</code> message gets sent, so I’ll jump to just before it, but <em>after</em> where the <code>delegate</code>
+where the <code class="language-plaintext highlighter-rouge">-respondsToSelector:</code> message gets sent, so I’ll jump to just before it, but <em>after</em> where the <code class="language-plaintext highlighter-rouge">delegate</code>
 variable would get set:</p>
 
-<pre><code>(lldb) disassemble --frame
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>(lldb) disassemble --frame
 UIKit`-[UIScrollView _getDelegateZoomView]:
 -&gt; 0x1105bf8cd:  pushq  %rbp
    0x1105bf8ce:  movq   %rsp, %rbp
@@ -217,23 +209,23 @@ UIKit`-[UIScrollView _getDelegateZoomView] + 44:
    0x1105bf900:  movq   0xd02df9(%rip), %rsi      ; "respondsToSelector:"
    0x1105bf907:  callq  *0xac2783(%rip)           ; (void *)0x0000000111fe1000: objc_msgSend
    0x1105bf90d:  xorl   %ebx, %ebx
-</code></pre>
+</code></pre></div></div>
 
-<p>At this instruction, the object to which the message will be sent has been assigned to the <code>$rdi</code> register, which in my
+<p>At this instruction, the object to which the message will be sent has been assigned to the <code class="language-plaintext highlighter-rouge">$rdi</code> register, which in my
 case is still the expected and valid object:</p>
 
-<pre><code>(lldb) po $rdi
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>(lldb) po $rdi
 &lt;ARArtworkViewController: 0x7fc99c9681d0&gt;
-</code></pre>
+</code></pre></div></div>
 
 <p>At this point I can just override the register with the garbage shown in the crash report:</p>
 
-<pre><code>(lldb) register write rdi 0x10
-</code></pre>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>(lldb) register write rdi 0x10
+</code></pre></div></div>
 
 <p>And finally continue execution and let the crashing occur:</p>
 
-<pre><code>(lldb) bt
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>(lldb) bt
 * thread #1: tid = 0x1b5faf, 0x0000000111fe1005 libobjc.A.dylib`objc_msgSend + 5, queue = 'com.apple.main-thread', stop reason = EXC_BAD_ACCESS (code=1, address=0x10)
   * frame #0: 0x0000000111fe1005 libobjc.A.dylib`objc_msgSend + 5
     frame #1: 0x00000001105bf90d UIKit`-[UIScrollView _getDelegateZoomView] + 64
@@ -241,15 +233,14 @@ case is still the expected and valid object:</p>
 [SNIP]
     frame #7: 0x000000010e722853 Artsy`-[ARArtworkView setUpCallbacks] + 19
 [SNIP]
-</code></pre>
+</code></pre></div></div>
 
 <p>💥</p>
 
 <p>Perfect, an exact replica of the crash report, so now I know with confidence that the problem is that the
-<code>ARArtworkViewController</code> is released by the time that method is called.</p>
+<code class="language-plaintext highlighter-rouge">ARArtworkViewController</code> is released by the time that method is called.</p>
 
-<a name="Closing.thoughts"></a>
-<h3>Closing thoughts</h3>
+<h3 id="closing-thoughts">Closing thoughts</h3>
 
 <p>The fix for this crash is simple and not really interesting for this post, as it’s all about the steps I took to arrive
 there. I think these are way more interesting, as you can apply some/all of these in many different situations.</p>
@@ -265,7 +256,7 @@ alive at that time, which was <a href="https://github.com/artsy/eigen/commit/8db
     <link href="https://artsy.github.io/blog/2012/09/13/on-grid-thumbnails/"/>
     <updated>2012-09-13T16:40:00+00:00</updated>
     <id>https://artsy.github.io/blog/2012/09/13/on-grid-thumbnails</id>
-    <content type="html"><![CDATA[<p><img src="/images/2012-09-13-on-grid-thumbnails/grid.jpg"></p>
+    <content type="html"><![CDATA[<p><img src="/images/2012-09-13-on-grid-thumbnails/grid.jpg" /></p>
 
 <p>Artsy Folio, our free iPad app for Gallery Partners, had been in the App Store for a couple of weeks before the iPad with a Retina display was announced. This had been something we expected internally and felt the application would be ready. We had all our image assets available in <em>@2x</em> versions and an image pipeline that would take scaling into account. With that in mind, we changed our artwork grid view to show a double resolution image. Finally, once we were happy that it worked fine on the simulator, we sent the build off to Apple for review.</p>
 
@@ -273,48 +264,47 @@ alive at that time, which was <a href="https://github.com/artsy/eigen/commit/8db
 
 <!--more-->
 
+<p>Scrolling the grid view was slow. Extremely slow. The reason why wasn’t obvious initially, but thanks to digging around using <a href="http://developer.apple.com/library/mac/#documentation/DeveloperTools/Conceptual/InstrumentsUserGuide/Introduction/Introduction.html">Instruments</a>, we saw that a great deal of time was spent in Apple’s image processing libraries. This was a strong hint that the problem involved taking the file and getting it to the screen.</p>
 
-<p>Scrolling the grid view was slow. Extremely slow. The reason why wasn't obvious initially, but thanks to digging around using <a href="http://developer.apple.com/library/mac/#documentation/DeveloperTools/Conceptual/InstrumentsUserGuide/Introduction/Introduction.html">Instruments</a>, we saw that a great deal of time was spent in Apple's image processing libraries. This was a strong hint that the problem involved taking the file and getting it to the screen.</p>
+<p>In our naiveté, Folio was originally using <code class="language-plaintext highlighter-rouge">UIImage</code>’s <code class="language-plaintext highlighter-rouge">initWithContentsOfFile:</code> to load (without caching) a jpg from the file system. Once the file was loaded into memory, we displayed it onscreen in an <code class="language-plaintext highlighter-rouge">UIImageView.</code> This was fast enough to deal with our small thumbnails of <em>240x240</em> but the moment that you start asking it to pull 3 or 4 <em>480x480</em> jpg files off the filesystem, decompress them and then put them on the screen, you’re not going to have a smooth scroll.</p>
 
-<p>In our naiveté, Folio was originally using <code>UIImage</code>'s <code>initWithContentsOfFile:</code> to load (without caching) a jpg from the file system. Once the file was loaded into memory, we displayed it onscreen in an <code>UIImageView.</code> This was fast enough to deal with our small thumbnails of <em>240x240</em> but the moment that you start asking it to pull 3 or 4 <em>480x480</em> jpg files off the filesystem, decompress them and then put them on the screen, you're not going to have a smooth scroll.</p>
+<p><img src="/images/2012-09-13-on-grid-thumbnails/thumbnails.jpg" /></p>
 
-<p><img src="/images/2012-09-13-on-grid-thumbnails/thumbnails.jpg"></p>
+<p>As we knew that we were looking at an issue with getting images from a file, it made sense to start looking at ways to move image processing off the main thread. This Stack Overflow thread on <a href="http://stackoverflow.com/questions/1815476/cgimage-uiimage-lazily-loading-on-ui-thread-causes-stutter">UIImage lazy loading</a> proved to be an essential start to dealing with our issue. We needed a thread-safe way to get the contents of a file and to pass them through once the images had been decoded. What we needed was <a href="https://gist.github.com/3715588">initImmediateLoadWithContentsOfFile</a>, a thread-safe way to go from a filepath to a <code class="language-plaintext highlighter-rouge">UIImage</code>.</p>
 
-<p>As we knew that we were looking at an issue with getting images from a file, it made sense to start looking at ways to move image processing off the main thread. This Stack Overflow thread on <a href="http://stackoverflow.com/questions/1815476/cgimage-uiimage-lazily-loading-on-ui-thread-causes-stutter">UIImage lazy loading</a> proved to be an essential start to dealing with our issue. We needed a thread-safe way to get the contents of a file and to pass them through once the images had been decoded. What we needed was <a href="https://gist.github.com/3715588">initImmediateLoadWithContentsOfFile</a>, a thread-safe way to go from a filepath to a <code>UIImage</code>.</p>
+<p>Now that we had a way to get an image that was safe to go on a background thread, we gave our grid an <code class="language-plaintext highlighter-rouge">NSOperationQueue</code> and created a method to kick off a <code class="language-plaintext highlighter-rouge">NSInvocationOperation</code> with our the cell we’re looking at and the address it needs to load the thumbnail.</p>
 
-<p>Now that we had a way to get an image that was safe to go on a background thread, we gave our grid an <code>NSOperationQueue</code> and created a method to kick off a <code>NSInvocationOperation</code> with our the cell we're looking at and the address it needs to load the thumbnail.</p>
+<div class="language-objc highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="nf">setImageAsyncAtPath</span><span class="p">:(</span><span class="n">NSString</span> <span class="o">*</span><span class="p">)</span><span class="nv">imageAddress</span> <span class="nf">forGridCell</span><span class="p">:(</span><span class="n">ARImageGridViewCell</span> <span class="o">*</span><span class="p">)</span><span class="nv">cell</span> <span class="p">{</span>
+    <span class="n">NSDictionary</span> <span class="o">*</span><span class="n">operationOptions</span> <span class="o">=</span> <span class="p">@{</span><span class="s">@"address"</span><span class="o">:</span> <span class="n">imageAddress</span><span class="p">,</span> <span class="s">@"cell"</span><span class="o">:</span> <span class="n">cell</span><span class="p">};</span>
+    <span class="n">NSInvocationOperation</span> <span class="o">*</span><span class="n">operation</span> <span class="o">=</span> <span class="p">[[</span><span class="n">NSInvocationOperation</span> <span class="nf">alloc</span><span class="p">]</span> <span class="nf">initWithTarget</span><span class="p">:</span><span class="n">self</span> <span class="nf">selector</span><span class="p">:</span><span class="k">@selector</span><span class="p">(</span><span class="n">asyncLoadImage</span><span class="o">:</span><span class="p">)</span> <span class="n">object</span><span class="o">:</span><span class="n">operationOptions</span><span class="p">];</span>
 
-<pre><code class="objc">- (void)setImageAsyncAtPath:(NSString *)imageAddress forGridCell:(ARImageGridViewCell *)cell {
-    NSDictionary *operationOptions = @{@"address": imageAddress, @"cell": cell};
-    NSInvocationOperation *operation = [[NSInvocationOperation alloc] initWithTarget:self selector:@selector(asyncLoadImage:) object:operationOptions];
+    <span class="p">[</span><span class="n">_operationQueue</span> <span class="nf">addOperation</span><span class="p">:</span><span class="n">operation</span><span class="p">];</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
-    [_operationQueue addOperation:operation];
-}
-</code></pre>
+<p>When we had the simplest implementation of <code class="language-plaintext highlighter-rouge">asyncLoadImage</code> we found that scrolling would sometimes result in grid cells displaying the wrong image. It turned out that in the time it took to decode the jpg,  the cell had already been reused for a different artwork. This one totally caught us off guard!</p>
 
-<p>When we had the simplest implementation of <code>asyncLoadImage</code> we found that scrolling would sometimes result in grid cells displaying the wrong image. It turned out that in the time it took to decode the jpg,  the cell had already been reused for a different artwork. This one totally caught us off guard!</p>
+<div class="language-objc highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="nf">asyncLoadImage</span><span class="p">:(</span><span class="n">NSDictionary</span> <span class="o">*</span><span class="p">)</span><span class="nv">options</span> <span class="p">{</span>
+    <span class="k">@autoreleasepool</span> <span class="p">{</span>
+        <span class="n">NSString</span> <span class="o">*</span><span class="n">address</span> <span class="o">=</span> <span class="n">options</span><span class="p">[</span><span class="s">@"address"</span><span class="p">];</span>
+        <span class="n">ARImageGridViewCell</span> <span class="o">*</span><span class="n">cell</span> <span class="o">=</span> <span class="n">options</span><span class="p">[</span><span class="s">@"cell"</span><span class="p">];</span>
 
-<pre><code class="objc">- (void)asyncLoadImage:(NSDictionary *)options {
-    @autoreleasepool {
-        NSString *address = options[@"address"];
-        ARImageGridViewCell *cell = options[@"cell"];
+        <span class="c1">// don't load if it's on a different cell</span>
+        <span class="k">if</span> <span class="p">([</span><span class="n">cell</span><span class="p">.</span><span class="n">imagePath</span> <span class="nf">isEqualToString</span><span class="p">:</span><span class="n">address</span><span class="p">])</span> <span class="p">{</span>
+            <span class="n">UIImage</span> <span class="o">*</span><span class="n">thumbnail</span> <span class="o">=</span> <span class="p">[[</span><span class="n">UIImage</span> <span class="nf">alloc</span><span class="p">]</span> <span class="nf">initImmediateLoadWithContentsOfFile</span><span class="p">:</span><span class="n">address</span><span class="p">];</span>
 
-        // don't load if it's on a different cell
-        if ([cell.imagePath isEqualToString:address]) {
-            UIImage *thumbnail = [[UIImage alloc] initImmediateLoadWithContentsOfFile:address];
+            <span class="c1">// double check that during the decoding the cell's not been re-used</span>
+            <span class="k">if</span> <span class="p">([</span><span class="n">cell</span><span class="p">.</span><span class="n">imagePath</span> <span class="nf">isEqualToString</span><span class="p">:</span><span class="n">address</span><span class="p">]</span> <span class="o">&amp;&amp;</span> <span class="n">thumbnail</span><span class="p">)</span> <span class="p">{</span>
+                <span class="p">[</span><span class="n">cell</span> <span class="nf">performSelectorOnMainThread</span><span class="p">:</span><span class="k">@selector</span><span class="p">(</span><span class="nf">setImage</span><span class="p">:)</span> <span class="n">withObject</span><span class="o">:</span><span class="n">thumbnail</span> <span class="n">waitUntilDone</span><span class="o">:</span><span class="nb">NO</span><span class="p">];</span>
+            <span class="p">}</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
-            // double check that during the decoding the cell's not been re-used
-            if ([cell.imagePath isEqualToString:address] &amp;&amp; thumbnail) {
-                [cell performSelectorOnMainThread:@selector(setImage:) withObject:thumbnail waitUntilDone:NO];
-            }
-        }
-    }
-}
-</code></pre>
+<p>This meant we could have our UI thread dealing with scrolling, whilst <a href="https://developer.apple.com/technologies/mac/core.html">Grand Central Dispatch</a> would deal with ensuring the image processing was done asynchronously and as fast as possible.However, this still wasn’t enough. We were finding if you scrolled fast enough, you could still see images pop in after the grid cell was visible. For this, we actually went back to the beginning, and made our image pipeline create a <em>120x120</em> thumbnail for each artwork that we use <code class="language-plaintext highlighter-rouge">initImmediateLoadWithContentsOfFile</code> to load on the UI thread. This is fast enough to smoothly scroll, and is replaced by the higher resolution image practically instantly.</p>
 
-<p>This meant we could have our UI thread dealing with scrolling, whilst <a href="https://developer.apple.com/technologies/mac/core.html">Grand Central Dispatch</a> would deal with ensuring the image processing was done asynchronously and as fast as possible.However, this still wasn't enough. We were finding if you scrolled fast enough, you could still see images pop in after the grid cell was visible. For this, we actually went back to the beginning, and made our image pipeline create a <em>120x120</em> thumbnail for each artwork that we use <code>initImmediateLoadWithContentsOfFile</code> to load on the UI thread. This is fast enough to smoothly scroll, and is replaced by the higher resolution image practically instantly.</p>
-
-<p><img src="/images/2012-09-13-on-grid-thumbnails/hover-thumbnails.jpg"></p>
+<p><img src="/images/2012-09-13-on-grid-thumbnails/hover-thumbnails.jpg" /></p>
 
 <p>The rest of the story is pretty straightforward. We wrapped all this up within a few days and got out a version of Folio for the Retina iPad, I ended up doing a talk about the issues involved in doing this in <a href="http://lsx.co/lsxcafe/">Leeds LSxCafé</a>, and you got a blog post out of it.</p>
 ]]></content>
@@ -325,57 +315,49 @@ alive at that time, which was <a href="https://github.com/artsy/eigen/commit/8db
     <link href="https://artsy.github.io/blog/2012/08/14/on-objective-c-code-standards/"/>
     <updated>2012-08-14T14:23:00+00:00</updated>
     <id>https://artsy.github.io/blog/2012/08/14/on-objective-c-code-standards</id>
-    <content type="html"><![CDATA[<p>With the release of Xcode 4.4 I've taken a look back at our existing code standards and tried to come up with something that is cleaner and more elegant. Here are a few of the ideas I've been using to modernize the codebase.</p>
+    <content type="html"><![CDATA[<p>With the release of Xcode 4.4 I’ve taken a look back at our existing code standards and tried to come up with something that is cleaner and more elegant. Here are a few of the ideas I’ve been using to modernize the codebase.</p>
 
-<a name="Remove.private.method.declarations.and.use.class.extensions.to.add.ivars."></a>
-<h3>Remove private method declarations and use class extensions to add ivars.</h3>
+<h3 id="remove-private-method-declarations-and-use-class-extensions-to-add-ivars">Remove private method declarations and use class extensions to add ivars.</h3>
 
-<p>First to get chopped by the deletion button are private method declarations. After Xcode 4.2 came out we took to using the class extension feature to add private method declarations at the top of implementation files. This was a nice way of keeping private methods out of the header files. Now that the compiler will check for pre-existing method signatures within the same object there's no need to define their interfaces.</p>
+<p>First to get chopped by the deletion button are private method declarations. After Xcode 4.2 came out we took to using the class extension feature to add private method declarations at the top of implementation files. This was a nice way of keeping private methods out of the header files. Now that the compiler will check for pre-existing method signatures within the same object there’s no need to define their interfaces.</p>
 
 <!--more-->
 
+<p>Occasionally it’s necessary for subclass to know about private methods defined by its superclass, so we use a shared category to let them know what they respond to. Like Apple, we also quit using <code class="language-plaintext highlighter-rouge">@private</code> in header files.</p>
 
-<p>Occasionally it's necessary for subclass to know about private methods defined by its superclass, so we use a shared category to let them know what they respond to. Like Apple, we also quit using <code>@private</code> in header files.</p>
+<p>Ivars now should go in class extensions, and be prefixed by an underscore. Apple advises that you don’t use method names with underscores but encourage underscored variable names. This also can free up method parameters from having ugly names such as anArtwork or aString.</p>
 
-<p>Ivars now should go in class extensions, and be prefixed by an underscore. Apple advises that you don't use method names with underscores but encourage underscored variable names. This also can free up method parameters from having ugly names such as anArtwork or aString.</p>
+<h3 id="use-object-literals-when-possible">Use object literals when possible.</h3>
 
-<a name="Use.object.literals.when.possible."></a>
-<h3>Use object literals when possible.</h3>
+<p>Object literals are ways of adding syntacitcal sugar to the Objective-C language, they let you access keys and values easily on <code class="language-plaintext highlighter-rouge">NSDictionary</code>s and objects in <code class="language-plaintext highlighter-rouge">NSArray</code>s. There’s no reason to not be using them if you’re supporting iOS 4 and above. It’s simple a matter of <code class="language-plaintext highlighter-rouge">_artworks[2]</code> vs <code class="language-plaintext highlighter-rouge">[_artworks objectAtIndex:2]</code>.</p>
 
-<p>Object literals are ways of adding syntacitcal sugar to the Objective-C language, they let you access keys and values easily on <code>NSDictionary</code>s and objects in <code>NSArray</code>s. There's no reason to not be using them if you're supporting iOS 4 and above. It's simple a matter of <code>_artworks[2]</code> vs <code>[_artworks objectAtIndex:2]</code>.</p>
+<h3 id="dot-syntax-is-ok-for-non-properties">Dot syntax is OK for non-properties.</h3>
 
-<a name="Dot.syntax.is.OK.for.non-properties."></a>
-<h3>Dot syntax is OK for non-properties.</h3>
+<p>OK so, I admit it. I whined when properties came out. It was back in 2007 and the Objective-C was ranked 40th in the world, it’s now ranked <a href="http://www.tiobe.com/index.php/paperinfo/tpci/Objective-C.html">3nd most popular programming language.</a> Within timeframe, my opinion on the subject of properties changed also.</p>
 
-<p>OK so, I admit it. I whined when properties came out. It was back in 2007 and the Objective-C was ranked 40th in the world, it's now ranked <a href="http://www.tiobe.com/index.php/paperinfo/tpci/Objective-C.html">3nd most popular programming language.</a> Within timeframe, my opinion on the subject of properties changed also.</p>
+<p>Originally when properties came out they exclusively were given the right to use dot notation on objects. This makes sense as they were created to provide public access to ivars which normally you can only access internally using the dot notation. With Xcode 4.3, that also changed. Now, if a method doesn’t have any arguments it can be called using dot notation. I’m in favour of using this. For me a good rule of thumb has been if a method returns something, dot notation is OK. For example, <code class="language-plaintext highlighter-rouge">_artworksArray.count</code> is fine whilst <code class="language-plaintext highlighter-rouge">_parsingOperation.stop</code> isn’t.</p>
 
-<p>Originally when properties came out they exclusively were given the right to use dot notation on objects. This makes sense as they were created to provide public access to ivars which normally you can only access internally using the dot notation. With Xcode 4.3, that also changed. Now, if a method doesn't have any arguments it can be called using dot notation. I'm in favour of using this. For me a good rule of thumb has been if a method returns something, dot notation is OK. For example, <code>_artworksArray.count</code> is fine whilst <code>_parsingOperation.stop</code> isn't.</p>
-
-<a name="Keep.external.code.out.of.your.project."></a>
-<h3>Keep external code out of your project.</h3>
+<h3 id="keep-external-code-out-of-your-project">Keep external code out of your project.</h3>
 
 <p>External, or vendored code should be kept out of the main body of your code. You can use CocoaPods to keep all that code in check and up-to-date. CocoaPods is a project that aims to be what bundler does for ruby projects, or npm for node. It will deal with your dependancies whilst you can concentrate on your own code. It will create a seperate Xcode project that handles all you dependancies leaving your project only as your own code.</p>
 
-<a name="Use.umbrella.imports."></a>
-<h3>Use umbrella imports.</h3>
+<h3 id="use-umbrella-imports">Use umbrella imports.</h3>
 
-<p>To try and keep the amount of noise we have at the top of our implementation files we have started to reduce the number of <code>#import "ARModel.h"</code> lines we use. By creating a <code>Models.h</code> file and having that include all the models it means we can still have a look through the <code>#imports</code> at the top to get an idea of the connections between the objects as that will only show the important imports. These can optionally be moved into your precompiled header files.</p>
+<p>To try and keep the amount of noise we have at the top of our implementation files we have started to reduce the number of <code class="language-plaintext highlighter-rouge">#import "ARModel.h"</code> lines we use. By creating a <code class="language-plaintext highlighter-rouge">Models.h</code> file and having that include all the models it means we can still have a look through the <code class="language-plaintext highlighter-rouge">#imports</code> at the top to get an idea of the connections between the objects as that will only show the important imports. These can optionally be moved into your precompiled header files.</p>
 
-<a name="Keep.your.code.clean."></a>
-<h3>Keep your code clean.</h3>
+<h3 id="keep-your-code-clean">Keep your code clean.</h3>
 
-<p>Whitespace can and does slowly accumulate at the line-endings of your code. You should make sure that the new preference for automatically trimming whitespace is turned on in the text editing section of Xcode's preferences.</p>
+<p>Whitespace can and does slowly accumulate at the line-endings of your code. You should make sure that the new preference for automatically trimming whitespace is turned on in the text editing section of Xcode’s preferences.</p>
 
-<a name="IBOutlets.should.probably.go.in.your.class.extensions."></a>
-<h3>IBOutlets should probably go in your class extensions.</h3>
+<h3 id="iboutlets-should-probably-go-in-your-class-extensions">IBOutlets should probably go in your class extensions.</h3>
 
-<p>With modern versions of Xcode, it doesn't matter that your IBOutlets are defined in places other than in headers. As Objective-C developers, we've come a long way from having to repeatedly drag a .h from Xcode to Interface Builder, so maybe it's time to rethink the idea that our interface outlets should be publicly accessible. My opinion is that a controller's views are for the most part a private affair and that if you want to expose their functionality you do it through custom methods in the controller. There are some downsides to this, in that  initially you have to change to the implementation file when using hybrid view when connecting them.</p>
+<p>With modern versions of Xcode, it doesn’t matter that your IBOutlets are defined in places other than in headers. As Objective-C developers, we’ve come a long way from having to repeatedly drag a .h from Xcode to Interface Builder, so maybe it’s time to rethink the idea that our interface outlets should be publicly accessible. My opinion is that a controller’s views are for the most part a private affair and that if you want to expose their functionality you do it through custom methods in the controller. There are some downsides to this, in that  initially you have to change to the implementation file when using hybrid view when connecting them.</p>
 
 <p>These decisions have come from internal discussions and from watching many WWDC sessions on the topic. We highly recommend watching the following <a href="https://developer.apple.com/wwdc/">WWDC sessions</a>.</p>
 
-<p>  <a href="https://developer.apple.com/videos/wwdc/2011/">WWDC 2011</a>: 105 Polishing Your App, 112 Writing Easy To Change Code and 322 - Objective-C Advancements in Depth.</p>
+<p><a href="https://developer.apple.com/videos/wwdc/2011/">WWDC 2011</a>: 105 Polishing Your App, 112 Writing Easy To Change Code and 322 - Objective-C Advancements in Depth.</p>
 
-<p>  <a href="https://developer.apple.com/videos/wwdc/2012/">WWDC 2012</a>: 405 Modern Objective-C and 413 Migrating to Modern Objective-C</p>
+<p><a href="https://developer.apple.com/videos/wwdc/2012/">WWDC 2012</a>: 405 Modern Objective-C and 413 Migrating to Modern Objective-C</p>
 ]]></content>
   </entry>
   

@@ -14,8 +14,6 @@
 
     
 
-
-
   
     
       
@@ -25,7 +23,7 @@
         
           Beyond Heroku: "Satellite" Delayed Job Workers on EC2
         
-        ...">
+        Ja...">
   
 
   <!-- http://t.co/dKP3o1e -->
@@ -129,9 +127,7 @@
       <div>
   <article class="hentry" role="article">
 
-    
-<div class="article-container-single ">
-
+    <div class="article-container-single ">
 
   
     <div class="meta-container">
@@ -144,8 +140,6 @@
         
         <time datetime="2012-01-31">Jan 31, 2012</time>
           <p class="meta-author">
-  
-
 
 
   
@@ -172,491 +166,285 @@
     
       <div class="entry-content"><p>[TL;DR: To supplement Heroku-managed app servers, we launched custom EC2 instances to host Delayed Job worker processes. See the <a href="https://github.com/joeyAghion/satellite_setup">satellite_setup github repo</a> for rake tasks and Chef recipes that make it easy.]</p>
 
-<p><a href="http://artsy.net">Artsy</a> engineers are big users and abusers of <a href="http://heroku.com">Heroku</a>. It's a neat abstraction of server resources, so we were conflicted when parts of our application started to bump into Heroku's limitations. While we weren't eager to start managing additional infrastructure, we found that--with a few good tools--we could migrate some components away from Heroku without fragmenting the codebase or over-complicating our development environments.</p>
+<p><a href="http://artsy.net">Artsy</a> engineers are big users and abusers of <a href="http://heroku.com">Heroku</a>. It’s a neat abstraction of server resources, so we were conflicted when parts of our application started to bump into Heroku’s limitations. While we weren’t eager to start managing additional infrastructure, we found that–with a few good tools–we could migrate some components away from Heroku without fragmenting the codebase or over-complicating our development environments.</p>
 
-<p>There are a number of reasons your app might need to go beyond Heroku. It might rely on a locally installed tool (not possible on Heroku's locked-down servers), or require heavy file-system usage (limited to <code>tmp/</code> and <code>log/</code>, and not permanent or shared). In our case, the culprit was Heroku's 512 MB RAM limit--reasonable for most web processes, but quickly exceeded by the image-processing tasks of our <a href="https://github.com/collectiveidea/delayed_job">delayed_job</a> workers. We considered building a specialized image-processing service, but decided instead to supplement our web apps with a custom <a href="http://aws.amazon.com/ec2/">EC2</a> instance dedicated to processing background tasks. We call these servers "satellites."</p>
+<p>There are a number of reasons your app might need to go beyond Heroku. It might rely on a locally installed tool (not possible on Heroku’s locked-down servers), or require heavy file-system usage (limited to <code class="language-plaintext highlighter-rouge">tmp/</code> and <code class="language-plaintext highlighter-rouge">log/</code>, and not permanent or shared). In our case, the culprit was Heroku’s 512 MB RAM limit–reasonable for most web processes, but quickly exceeded by the image-processing tasks of our <a href="https://github.com/collectiveidea/delayed_job">delayed_job</a> workers. We considered building a specialized image-processing service, but decided instead to supplement our web apps with a custom <a href="http://aws.amazon.com/ec2/">EC2</a> instance dedicated to processing background tasks. We call these servers “satellites.”</p>
 
-<p>We'll walk through the pertinent sections here, but you can find Rake tasks that correspond with these scripts, plus all of the necessary cookbooks, in the <a href="https://github.com/joeyAghion/satellite_setup">satellite_setup github repo</a>. Now, on to the code!</p>
+<p>We’ll walk through the pertinent sections here, but you can find Rake tasks that correspond with these scripts, plus all of the necessary cookbooks, in the <a href="https://github.com/joeyAghion/satellite_setup">satellite_setup github repo</a>. Now, on to the code!</p>
 
-<p>First, generate a key-pair from <a href="https://console.aws.amazon.com/ec2/home?#s=KeyPairs">Amazon's AWS Management Console</a>. Then we'll use <a href="http://fog.io">Fog</a> to spawn the EC2 instance.</p>
+<p>First, generate a key-pair from <a href="https://console.aws.amazon.com/ec2/home?#s=KeyPairs">Amazon’s AWS Management Console</a>. Then we’ll use <a href="http://fog.io">Fog</a> to spawn the EC2 instance.</p>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-<span class='line-number'>19</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="nb">require</span> <span class="s1">&#39;fog&#39;</span>
-</span><span class='line'>
-</span><span class='line'><span class="c1"># Update these values according to your environment...</span>
-</span><span class='line'><span class="no">S3_ACCESS_KEY_ID</span> <span class="o">=</span> <span class="s1">&#39;XXXXXXXXXXXXXXXXXXXX&#39;</span>
-</span><span class='line'><span class="no">S3_SECRET_ACCESS_KEY</span> <span class="o">=</span> <span class="s1">&#39;xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx&#39;</span>
-</span><span class='line'><span class="no">KEY_NAME</span> <span class="o">=</span> <span class="s1">&#39;satellite_keypair&#39;</span>
-</span><span class='line'><span class="no">KEY_PATH</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">#{</span><span class="no">ENV</span><span class="o">[</span><span class="s1">&#39;HOME&#39;</span><span class="o">]</span><span class="si">}</span><span class="s2">/.ssh/</span><span class="si">#{</span><span class="no">KEY_NAME</span><span class="si">}</span><span class="s2">.pem&quot;</span>
-</span><span class='line'><span class="no">IMAGE_ID</span> <span class="o">=</span> <span class="s1">&#39;ami-c162a9a8&#39;</span>  <span class="c1"># 64-bit Ubuntu 11.10</span>
-</span><span class='line'><span class="no">FLAVOR_ID</span> <span class="o">=</span> <span class="s1">&#39;m1.large&#39;</span>
-</span><span class='line'>
-</span><span class='line'><span class="n">connection</span> <span class="o">=</span> <span class="no">Fog</span><span class="o">::</span><span class="no">Compute</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="ss">provider</span><span class="p">:</span> <span class="s1">&#39;AWS&#39;</span><span class="p">,</span>
-</span><span class='line'>  <span class="ss">aws_access_key_id</span><span class="p">:</span> <span class="no">S3_ACCESS_KEY_ID</span><span class="p">,</span>
-</span><span class='line'>  <span class="ss">aws_secret_access_key</span><span class="p">:</span> <span class="no">S3_SECRET_ACCESS_KEY</span><span class="p">)</span>
-</span><span class='line'>
-</span><span class='line'><span class="n">server</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="n">servers</span><span class="o">.</span><span class="n">bootstrap</span><span class="p">(</span>
-</span><span class='line'>  <span class="ss">key_name</span><span class="p">:</span> <span class="no">KEY_NAME</span><span class="p">,</span>
-</span><span class='line'>  <span class="ss">private_key_path</span><span class="p">:</span> <span class="no">KEY_PATH</span><span class="p">,</span>
-</span><span class='line'>  <span class="ss">image_id</span><span class="p">:</span> <span class="no">IMAGE_ID</span><span class="p">,</span>
-</span><span class='line'>  <span class="ss">flavor_id</span><span class="p">:</span> <span class="no">FLAVOR_ID</span><span class="p">)</span>
-</span></code></pre></td></tr></table></div></figure>
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">require</span> <span class="s1">'fog'</span>
 
+<span class="c1"># Update these values according to your environment...</span>
+<span class="no">S3_ACCESS_KEY_ID</span> <span class="o">=</span> <span class="s1">'XXXXXXXXXXXXXXXXXXXX'</span>
+<span class="no">S3_SECRET_ACCESS_KEY</span> <span class="o">=</span> <span class="s1">'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'</span>
+<span class="no">KEY_NAME</span> <span class="o">=</span> <span class="s1">'satellite_keypair'</span>
+<span class="no">KEY_PATH</span> <span class="o">=</span> <span class="s2">"</span><span class="si">#{</span><span class="no">ENV</span><span class="p">[</span><span class="s1">'HOME'</span><span class="p">]</span><span class="si">}</span><span class="s2">/.ssh/</span><span class="si">#{</span><span class="no">KEY_NAME</span><span class="si">}</span><span class="s2">.pem"</span>
+<span class="no">IMAGE_ID</span> <span class="o">=</span> <span class="s1">'ami-c162a9a8'</span>  <span class="c1"># 64-bit Ubuntu 11.10</span>
+<span class="no">FLAVOR_ID</span> <span class="o">=</span> <span class="s1">'m1.large'</span>
 
-<p>Next, we'll do some basic server prep and install our preferred Ruby version.<!-- more --> We'll again use Fog, this time to SSH into the new instance and run the following commands:</p>
+<span class="n">connection</span> <span class="o">=</span> <span class="no">Fog</span><span class="o">::</span><span class="no">Compute</span><span class="p">.</span><span class="nf">new</span><span class="p">(</span><span class="ss">provider: </span><span class="s1">'AWS'</span><span class="p">,</span>
+  <span class="ss">aws_access_key_id: </span><span class="no">S3_ACCESS_KEY_ID</span><span class="p">,</span>
+  <span class="ss">aws_secret_access_key: </span><span class="no">S3_SECRET_ACCESS_KEY</span><span class="p">)</span>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="o">[</span> <span class="sx">%{sudo sh -c &quot;grep &#39;^[^#].*us-east-1\.ec2&#39; /etc/apt/sources.list | sed &#39;s/us-east-1\.ec2/us/g&#39; &gt; /etc/apt/sources.list.d/better.list&quot;}</span><span class="p">,</span>
-</span><span class='line'>  <span class="sx">%{sudo apt-get update; sudo apt-get install -y make gcc rsync curl zlib1g-dev libssl-dev libreadline-dev libreadline5}</span><span class="p">,</span>
-</span><span class='line'>  <span class="sx">%{mkdir -p /tmp/bootstrap}</span><span class="p">,</span>
-</span><span class='line'>  <span class="sx">%{cd /tmp/bootstrap &amp;&amp; curl -L &#39;ftp://ftp.ruby-lang.org/pub/ruby/1.9/ruby-1.9.2-p290.tar.gz&#39; | tar xvzf - &amp;&amp; cd ruby-1.9.2-p290 &amp;&amp; ./configure &amp;&amp; make &amp;&amp; sudo make install}</span><span class="p">,</span>
-</span><span class='line'>  <span class="sx">%{cd /tmp/bootstrap &amp;&amp; curl -L &#39;http://production.cf.rubygems.org/rubygems/rubygems-1.6.2.tgz&#39; | tar xvzf - &amp;&amp; cd rubygems* &amp;&amp; sudo ruby setup.rb --no-ri --no-rdoc}</span><span class="p">,</span>
-</span><span class='line'>  <span class="sx">%{sudo gem install rdoc chef ohai --no-ri --no-rdoc --source http://gems.rubyforge.org}</span>
-</span><span class='line'><span class="o">].</span><span class="n">each</span> <span class="k">do</span> <span class="o">|</span><span class="n">command</span><span class="o">|</span>
-</span><span class='line'>  <span class="n">server</span><span class="o">.</span><span class="n">ssh</span> <span class="n">command</span>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure>
+<span class="n">server</span> <span class="o">=</span> <span class="n">connection</span><span class="p">.</span><span class="nf">servers</span><span class="p">.</span><span class="nf">bootstrap</span><span class="p">(</span>
+  <span class="ss">key_name: </span><span class="no">KEY_NAME</span><span class="p">,</span>
+  <span class="ss">private_key_path: </span><span class="no">KEY_PATH</span><span class="p">,</span>
+  <span class="ss">image_id: </span><span class="no">IMAGE_ID</span><span class="p">,</span>
+  <span class="ss">flavor_id: </span><span class="no">FLAVOR_ID</span><span class="p">)</span>
+</code></pre></div></div>
 
+<p>Next, we’ll do some basic server prep and install our preferred Ruby version.<!-- more --> We’ll again use Fog, this time to SSH into the new instance and run the following commands:</p>
 
-<p>The first command replaces some broken links in the AMI's <code>/etc/apt/sources.list</code>, so that the later package installation commands have a chance. We then install a few necessary packages, download and install Ruby 1.9.2 from source, and install RubyGems. Finally, we install <a href="http://www.opscode.com/chef/">Chef</a> so we can let <code>chef-solo</code> drive the remainder of the configuration (and manage it going forward).</p>
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">[</span> <span class="sx">%{sudo sh -c "grep '^[^#].*us-east-1\.ec2' /etc/apt/sources.list | sed 's/us-east-1\.ec2/us/g' &gt; /etc/apt/sources.list.d/better.list"}</span><span class="p">,</span>
+  <span class="sx">%{sudo apt-get update; sudo apt-get install -y make gcc rsync curl zlib1g-dev libssl-dev libreadline-dev libreadline5}</span><span class="p">,</span>
+  <span class="sx">%{mkdir -p /tmp/bootstrap}</span><span class="p">,</span>
+  <span class="sx">%{cd /tmp/bootstrap &amp;&amp; curl -L 'ftp://ftp.ruby-lang.org/pub/ruby/1.9/ruby-1.9.2-p290.tar.gz' | tar xvzf - &amp;&amp; cd ruby-1.9.2-p290 &amp;&amp; ./configure &amp;&amp; make &amp;&amp; sudo make install}</span><span class="p">,</span>
+  <span class="sx">%{cd /tmp/bootstrap &amp;&amp; curl -L 'http://production.cf.rubygems.org/rubygems/rubygems-1.6.2.tgz' | tar xvzf - &amp;&amp; cd rubygems* &amp;&amp; sudo ruby setup.rb --no-ri --no-rdoc}</span><span class="p">,</span>
+  <span class="sx">%{sudo gem install rdoc chef ohai --no-ri --no-rdoc --source http://gems.rubyforge.org}</span>
+<span class="p">].</span><span class="nf">each</span> <span class="k">do</span> <span class="o">|</span><span class="n">command</span><span class="o">|</span>
+  <span class="n">server</span><span class="p">.</span><span class="nf">ssh</span> <span class="n">command</span>
+<span class="k">end</span>
+</code></pre></div></div>
 
-<p>Chef deserves a few blog posts of its own, but know that it provides a platform-independent DSL for specifying an environment's configuration. <a href="http://www.opscode.com">Opscode</a> supplies a deep set of related tools, but for our purposes, <code>chef-solo</code>--which applies a local set of configuration "cookbooks" to an individual server--will be plenty. These lines copy our local cookbooks folder (originally in <code>config/satellite</code>) up to a temporary location on the server, then execute the <code>chef-solo</code> command via SSH:</p>
+<p>The first command replaces some broken links in the AMI’s <code class="language-plaintext highlighter-rouge">/etc/apt/sources.list</code>, so that the later package installation commands have a chance. We then install a few necessary packages, download and install Ruby 1.9.2 from source, and install RubyGems. Finally, we install <a href="http://www.opscode.com/chef/">Chef</a> so we can let <code class="language-plaintext highlighter-rouge">chef-solo</code> drive the remainder of the configuration (and manage it going forward).</p>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="nb">system</span> <span class="s2">&quot;rsync -rlP --rsh=</span><span class="se">\&quot;</span><span class="s2">ssh -i </span><span class="si">#{</span><span class="no">KEY_PATH</span><span class="si">}</span><span class="se">\&quot;</span><span class="s2"> --delete --exclude &#39;.*&#39; ./config/satellite ubuntu@</span><span class="si">#{</span><span class="n">server</span><span class="o">.</span><span class="n">dns_name</span><span class="si">}</span><span class="s2">:/tmp/chef/&quot;</span>
-</span><span class='line'><span class="n">server</span><span class="o">.</span><span class="n">ssh</span> <span class="s2">&quot;cd /tmp/chef/satellite; RAILS_ENV=staging sudo -H -E chef-solo -c solo.rb -j configure.json -l info&quot;</span>
-</span></code></pre></td></tr></table></div></figure>
+<p>Chef deserves a few blog posts of its own, but know that it provides a platform-independent DSL for specifying an environment’s configuration. <a href="http://www.opscode.com">Opscode</a> supplies a deep set of related tools, but for our purposes, <code class="language-plaintext highlighter-rouge">chef-solo</code>–which applies a local set of configuration “cookbooks” to an individual server–will be plenty. These lines copy our local cookbooks folder (originally in <code class="language-plaintext highlighter-rouge">config/satellite</code>) up to a temporary location on the server, then execute the <code class="language-plaintext highlighter-rouge">chef-solo</code> command via SSH:</p>
 
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">system</span> <span class="s2">"rsync -rlP --rsh=</span><span class="se">\"</span><span class="s2">ssh -i </span><span class="si">#{</span><span class="no">KEY_PATH</span><span class="si">}</span><span class="se">\"</span><span class="s2"> --delete --exclude '.*' ./config/satellite ubuntu@</span><span class="si">#{</span><span class="n">server</span><span class="p">.</span><span class="nf">dns_name</span><span class="si">}</span><span class="s2">:/tmp/chef/"</span>
+<span class="n">server</span><span class="p">.</span><span class="nf">ssh</span> <span class="s2">"cd /tmp/chef/satellite; RAILS_ENV=staging sudo -H -E chef-solo -c solo.rb -j configure.json -l info"</span>
+</code></pre></div></div>
 
-<p>The first file referenced in that command simply declares where cookbooks will be found. In our case, they're stored alongside <code>solo.rb</code> in the temporary directory.</p>
+<p>The first file referenced in that command simply declares where cookbooks will be found. In our case, they’re stored alongside <code class="language-plaintext highlighter-rouge">solo.rb</code> in the temporary directory.</p>
 
-<figure class='code'><figcaption><span>config/satellite/solo.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">cookbook_path</span> <span class="no">File</span><span class="o">.</span><span class="n">expand_path</span><span class="p">(</span><span class="no">File</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="no">File</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="bp">__FILE__</span><span class="p">),</span> <span class="s2">&quot;cookbooks&quot;</span><span class="p">))</span>
-</span></code></pre></td></tr></table></div></figure>
+<p>```ruby config/satellite/solo.rb
+cookbook_path File.expand_path(File.join(File.dirname(<strong>FILE</strong>), “cookbooks”))</p>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+The next file, `configure.json`, specifies that Chef should apply the `configure` recipe found in the `example_app` cookbook.
 
+```javascript config/satellite/configure.json
+{"recipes": ["example_app::configure"]}
+</code></pre></div></div>
 
-<p>The next file, <code>configure.json</code>, specifies that Chef should apply the <code>configure</code> recipe found in the <code>example_app</code> cookbook.</p>
+<p>Finally, let’s look at the <code class="language-plaintext highlighter-rouge">example_app::configure</code> recipe. First it will make sure necessary packages and gems are installed. These, of course, might be different for your app.</p>
 
-<figure class='code'><figcaption><span>config/satellite/configure.json</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-</pre></td><td class='code'><pre><code class='javascript'><span class='line'><span class="p">{</span><span class="s2">&quot;recipes&quot;</span><span class="o">:</span> <span class="p">[</span><span class="s2">&quot;example_app::configure&quot;</span><span class="p">]}</span>
-</span></code></pre></td></tr></table></div></figure>
+<p>```ruby config/satellite/cookbooks/example_app/recipes/configure.rb
+[ ‘build-essential’,
+  ‘binutils-doc’,
+  ‘autoconf’,
+  ‘flex’,
+  ‘bison’,
+  ‘openssl’,
+  ‘libreadline5’,
+  ‘libreadline-dev’,
+  ‘git-core’,
+  ‘zlib1g’,
+  ‘zlib1g-dev’,
+  ‘libssl-dev’,
+  ‘libxml2-dev’,
+  ‘autoconf’,
+  ‘libxslt-dev’,
+  ‘imagemagick’,
+  ‘libmagick9-dev’
+].each do |pkg|
+  package(pkg)
+end</p>
 
+<p>gem_package ‘bundler’ do
+  version ‘1.0.10’
+end</p>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+Next, it will ensure that a user and group (named for `example_app`) are created and configured:
 
-<p>Finally, let's look at the <code>example_app::configure</code> recipe. First it will make sure necessary packages and gems are installed. These, of course, might be different for your app.</p>
+``` ruby config/satellite/cookbooks/example_app/recipes/configure.rb (cont'd)
+group 'example_app'
 
-<figure class='code'><figcaption><span>config/satellite/cookbooks/example_app/recipes/configure.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-<span class='line-number'>19</span>
-<span class='line-number'>20</span>
-<span class='line-number'>21</span>
-<span class='line-number'>22</span>
-<span class='line-number'>23</span>
-<span class='line-number'>24</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="o">[</span> <span class="s1">&#39;build-essential&#39;</span><span class="p">,</span>
-</span><span class='line'>  <span class="s1">&#39;binutils-doc&#39;</span><span class="p">,</span>
-</span><span class='line'>  <span class="s1">&#39;autoconf&#39;</span><span class="p">,</span>
-</span><span class='line'>  <span class="s1">&#39;flex&#39;</span><span class="p">,</span>
-</span><span class='line'>  <span class="s1">&#39;bison&#39;</span><span class="p">,</span>
-</span><span class='line'>  <span class="s1">&#39;openssl&#39;</span><span class="p">,</span>
-</span><span class='line'>  <span class="s1">&#39;libreadline5&#39;</span><span class="p">,</span>
-</span><span class='line'>  <span class="s1">&#39;libreadline-dev&#39;</span><span class="p">,</span>
-</span><span class='line'>  <span class="s1">&#39;git-core&#39;</span><span class="p">,</span>
-</span><span class='line'>  <span class="s1">&#39;zlib1g&#39;</span><span class="p">,</span>
-</span><span class='line'>  <span class="s1">&#39;zlib1g-dev&#39;</span><span class="p">,</span>
-</span><span class='line'>  <span class="s1">&#39;libssl-dev&#39;</span><span class="p">,</span>
-</span><span class='line'>  <span class="s1">&#39;libxml2-dev&#39;</span><span class="p">,</span>
-</span><span class='line'>  <span class="s1">&#39;autoconf&#39;</span><span class="p">,</span>
-</span><span class='line'>  <span class="s1">&#39;libxslt-dev&#39;</span><span class="p">,</span>
-</span><span class='line'>  <span class="s1">&#39;imagemagick&#39;</span><span class="p">,</span>
-</span><span class='line'>  <span class="s1">&#39;libmagick9-dev&#39;</span>
-</span><span class='line'><span class="o">].</span><span class="n">each</span> <span class="k">do</span> <span class="o">|</span><span class="n">pkg</span><span class="o">|</span>
-</span><span class='line'>  <span class="n">package</span><span class="p">(</span><span class="n">pkg</span><span class="p">)</span>
-</span><span class='line'><span class="k">end</span>
-</span><span class='line'>
-</span><span class='line'><span class="n">gem_package</span> <span class="s1">&#39;bundler&#39;</span> <span class="k">do</span>
-</span><span class='line'>  <span class="n">version</span> <span class="s1">&#39;1.0.10&#39;</span>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure>
+user 'example_app' do
+  gid 'example_app'
+  home '/home/example_app'
+  shell '/bin/bash'
+  supports :manage_home =&gt; true
+end
 
+directory '/home/example_app/.ssh' do
+  owner 'example_app'
+  group 'example_app'
+  mode 0700
+end
 
-<p>Next, it will ensure that a user and group (named for <code>example_app</code>) are created and configured:</p>
+# Ensure example_app can sudo
+cookbook_file '/etc/sudoers.d/example_app' do
+  mode 0440
+end
 
-<figure class='code'><figcaption><span>config/satellite/cookbooks/example_app/recipes/configure.rb (cont'd)</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-<span class='line-number'>19</span>
-<span class='line-number'>20</span>
-<span class='line-number'>21</span>
-<span class='line-number'>22</span>
-<span class='line-number'>23</span>
-<span class='line-number'>24</span>
-<span class='line-number'>25</span>
-<span class='line-number'>26</span>
-<span class='line-number'>27</span>
-<span class='line-number'>28</span>
-<span class='line-number'>29</span>
-<span class='line-number'>30</span>
-<span class='line-number'>31</span>
-<span class='line-number'>32</span>
-<span class='line-number'>33</span>
-<span class='line-number'>34</span>
-<span class='line-number'>35</span>
-<span class='line-number'>36</span>
-<span class='line-number'>37</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">group</span> <span class="s1">&#39;example_app&#39;</span>
-</span><span class='line'>
-</span><span class='line'><span class="n">user</span> <span class="s1">&#39;example_app&#39;</span> <span class="k">do</span>
-</span><span class='line'>  <span class="n">gid</span> <span class="s1">&#39;example_app&#39;</span>
-</span><span class='line'>  <span class="n">home</span> <span class="s1">&#39;/home/example_app&#39;</span>
-</span><span class='line'>  <span class="n">shell</span> <span class="s1">&#39;/bin/bash&#39;</span>
-</span><span class='line'>  <span class="n">supports</span> <span class="ss">:manage_home</span> <span class="o">=&gt;</span> <span class="kp">true</span>
-</span><span class='line'><span class="k">end</span>
-</span><span class='line'>
-</span><span class='line'><span class="n">directory</span> <span class="s1">&#39;/home/example_app/.ssh&#39;</span> <span class="k">do</span>
-</span><span class='line'>  <span class="n">owner</span> <span class="s1">&#39;example_app&#39;</span>
-</span><span class='line'>  <span class="n">group</span> <span class="s1">&#39;example_app&#39;</span>
-</span><span class='line'>  <span class="n">mode</span> <span class="mo">0700</span>
-</span><span class='line'><span class="k">end</span>
-</span><span class='line'>
-</span><span class='line'><span class="c1"># Ensure example_app can sudo</span>
-</span><span class='line'><span class="n">cookbook_file</span> <span class="s1">&#39;/etc/sudoers.d/example_app&#39;</span> <span class="k">do</span>
-</span><span class='line'>  <span class="n">mode</span> <span class="mo">0440</span>
-</span><span class='line'><span class="k">end</span>
-</span><span class='line'>
-</span><span class='line'><span class="o">[</span> <span class="s1">&#39;authorized_keys&#39;</span><span class="p">,</span>  <span class="c1"># place the keys you want to authorize for SSH in this file</span>
-</span><span class='line'>  <span class="s1">&#39;id_dsa&#39;</span><span class="p">,</span>  <span class="c1"># a new private key file, authorized to pull from your git repo</span>
-</span><span class='line'>   <span class="s1">&#39;config&#39;</span>  <span class="c1"># avoid prompt when pulling from github</span>
-</span><span class='line'><span class="o">].</span><span class="n">each</span> <span class="k">do</span> <span class="o">|</span><span class="n">config_file</span><span class="o">|</span>
-</span><span class='line'>  <span class="n">cookbook_file</span> <span class="s2">&quot;/home/example_app/.ssh/</span><span class="si">#{</span><span class="n">config_file</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">do</span>
-</span><span class='line'>    <span class="n">owner</span> <span class="s1">&#39;example_app&#39;</span>
-</span><span class='line'>    <span class="n">group</span> <span class="s1">&#39;example_app&#39;</span>
-</span><span class='line'>    <span class="n">mode</span> <span class="mo">0600</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'><span class="k">end</span>
-</span><span class='line'>
-</span><span class='line'><span class="c1"># Allow other developers to SSH as primary ubuntu account as well.</span>
-</span><span class='line'><span class="n">cookbook_file</span> <span class="s2">&quot;/home/ubuntu/.ssh/authorized_keys&quot;</span> <span class="k">do</span>
-</span><span class='line'>  <span class="n">owner</span> <span class="s1">&#39;ubuntu&#39;</span>
-</span><span class='line'>  <span class="n">group</span> <span class="s1">&#39;ubuntu&#39;</span>
-</span><span class='line'>  <span class="n">mode</span> <span class="mo">0600</span>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure>
+[ 'authorized_keys',  # place the keys you want to authorize for SSH in this file
+  'id_dsa',  # a new private key file, authorized to pull from your git repo
+   'config'  # avoid prompt when pulling from github
+].each do |config_file|
+  cookbook_file "/home/example_app/.ssh/#{config_file}" do
+    owner 'example_app'
+    group 'example_app'
+    mode 0600
+  end
+end
 
+# Allow other developers to SSH as primary ubuntu account as well.
+cookbook_file "/home/ubuntu/.ssh/authorized_keys" do
+  owner 'ubuntu'
+  group 'ubuntu'
+  mode 0600
+end
+</code></pre></div></div>
 
 <p>Next, it creates supporting directories.</p>
 
-<figure class='code'><figcaption><span>config/satellite/cookbooks/example_app/recipes/configure.rb (cont'd)</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="o">[</span> <span class="s1">&#39;/app&#39;</span><span class="p">,</span>
-</span><span class='line'>  <span class="s1">&#39;/app/example_app&#39;</span><span class="p">,</span>
-</span><span class='line'>  <span class="s1">&#39;/app/example_app/shared&#39;</span><span class="p">,</span>
-</span><span class='line'>  <span class="s1">&#39;/app/example_app/shared/log&#39;</span><span class="p">,</span>
-</span><span class='line'>  <span class="s1">&#39;/app/example_app/shared/pids&#39;</span><span class="p">,</span>
-</span><span class='line'>  <span class="s1">&#39;/app/example_app/shared/config&#39;</span>
-</span><span class='line'><span class="o">].</span><span class="n">each</span> <span class="k">do</span> <span class="o">|</span><span class="n">dir</span><span class="o">|</span>
-</span><span class='line'>  <span class="n">directory</span> <span class="n">dir</span> <span class="k">do</span>
-</span><span class='line'>    <span class="n">owner</span> <span class="s1">&#39;example_app&#39;</span>
-</span><span class='line'>    <span class="n">group</span> <span class="s1">&#39;example_app&#39;</span>
-</span><span class='line'>    <span class="n">mode</span> <span class="mo">0755</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure>
+<p>``` ruby config/satellite/cookbooks/example_app/recipes/configure.rb (cont’d)
+[ ‘/app’,
+  ‘/app/example_app’,
+  ‘/app/example_app/shared’,
+  ‘/app/example_app/shared/log’,
+  ‘/app/example_app/shared/pids’,
+  ‘/app/example_app/shared/config’
+].each do |dir|
+  directory dir do
+    owner ‘example_app’
+    group ‘example_app’
+    mode 0755
+  end
+end</p>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+We rely heavily on the [New Relic](http://newrelic.com/) plug-in, and want to enable it in our custom environment as well. Heroku usually takes care of injecting a `newrelic.yml` configuration file into our app servers, so we'll have to replicate that in our custom environment. Depending on what plug-ins you've enabled (e.g., [Sendgrid](http://sendgrid.com)), you might need to replicate other configuration files or initializers.
 
+``` ruby config/satellite/cookbooks/example_app/recipes/configure.rb (cont'd)
+cookbook_file "/app/example_app/shared/config/newrelic.yml" do
+  owner 'example_app'
+  group 'example_app'
+  mode 0755
+end
+</code></pre></div></div>
 
-<p>We rely heavily on the <a href="http://newrelic.com/">New Relic</a> plug-in, and want to enable it in our custom environment as well. Heroku usually takes care of injecting a <code>newrelic.yml</code> configuration file into our app servers, so we'll have to replicate that in our custom environment. Depending on what plug-ins you've enabled (e.g., <a href="http://sendgrid.com">Sendgrid</a>), you might need to replicate other configuration files or initializers.</p>
+<p><a href="http://mmonit.com/monit/">Monit</a> is a great tool for starting, managing, and monitoring long-running processes. It can be configured with all sorts of thresholds and alerting. (We’ve included only a simple configuration in the <a href="https://github.com/joeyAghion/satellite_setup">github repo</a> for now.) Let’s include the <code class="language-plaintext highlighter-rouge">monit</code> recipe, to ensure that monit is installed and running, and then add the necessary configuration for monit to start and monitor our delayed_job worker process.</p>
 
-<figure class='code'><figcaption><span>config/satellite/cookbooks/example_app/recipes/configure.rb (cont'd)</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">cookbook_file</span> <span class="s2">&quot;/app/example_app/shared/config/newrelic.yml&quot;</span> <span class="k">do</span>
-</span><span class='line'>  <span class="n">owner</span> <span class="s1">&#39;example_app&#39;</span>
-</span><span class='line'>  <span class="n">group</span> <span class="s1">&#39;example_app&#39;</span>
-</span><span class='line'>  <span class="n">mode</span> <span class="mo">0755</span>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure>
+<p>``` ruby config/satellite/cookbooks/example_app/recipes/configure.rb (cont’d)
+include_recipe ‘monit’
+monitrc ‘delayed_job’, {}, :immediately</p>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+To keep disk space from becoming a problem, we'll automatically rotate all of the logs in our app's shared `log/` directory.
 
+``` ruby config/satellite/cookbooks/example_app/recipes/configure.rb (cont'd)
+logrotate_app "example_app" do
+  path "/app/example_app/shared/log/*.log"
+  frequency "daily"
+  rotate 30
+end
 
-<p><a href="http://mmonit.com/monit/">Monit</a> is a great tool for starting, managing, and monitoring long-running processes. It can be configured with all sorts of thresholds and alerting. (We've included only a simple configuration in the <a href="https://github.com/joeyAghion/satellite_setup">github repo</a> for now.) Let's include the <code>monit</code> recipe, to ensure that monit is installed and running, and then add the necessary configuration for monit to start and monitor our delayed_job worker process.</p>
+include_recipe 'example_app::deploy'
+</code></pre></div></div>
 
-<figure class='code'><figcaption><span>config/satellite/cookbooks/example_app/recipes/configure.rb (cont'd)</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">include_recipe</span> <span class="s1">&#39;monit&#39;</span>
-</span><span class='line'><span class="n">monitrc</span> <span class="s1">&#39;delayed_job&#39;</span><span class="p">,</span> <span class="p">{},</span> <span class="ss">:immediately</span>
-</span></code></pre></td></tr></table></div></figure>
+<p>That last line loads up the neighboring <code class="language-plaintext highlighter-rouge">deploy.rb</code> recipe, which is responsible for checking out the appropriate version of the codebase to the server and [re]starting the delayed_job worker:</p>
 
+<p>```ruby config/satellite/cookbooks/example_app/deploy.rb
+deploy “/app/example_app” do</p>
 
-<p>To keep disk space from becoming a problem, we'll automatically rotate all of the logs in our app's shared <code>log/</code> directory.</p>
+<p>repo “git@github.com:my_org/example_app.git”  # update this!
+  branch node[‘rails_env’]  # assumes a branch named for this RAILS_ENV (e.g., staging, production)
+  shallow_clone true
+  environment node[‘rails_env’]
+  symlinks ‘pids’ =&gt; ‘tmp/pids’, ‘log’ =&gt; ‘log’, ‘config/newrelic.yml’ =&gt; ‘config/newrelic.yml’
+  before_restart do
+    current_release = release_path
+    execute(“bundle install –without development test”) do
+      cwd current_release
+      user ‘example_app’
+      group ‘example_app’
+      environment ‘HOME’ =&gt; ‘/home/example_app’
+    end
+  end
+  restart_command { execute “monit restart delayed_job” }
+  user ‘example_app’
+  group ‘example_app’</p>
 
-<figure class='code'><figcaption><span>config/satellite/cookbooks/example_app/recipes/configure.rb (cont'd)</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">logrotate_app</span> <span class="s2">&quot;example_app&quot;</span> <span class="k">do</span>
-</span><span class='line'>  <span class="n">path</span> <span class="s2">&quot;/app/example_app/shared/log/*.log&quot;</span>
-</span><span class='line'>  <span class="n">frequency</span> <span class="s2">&quot;daily&quot;</span>
-</span><span class='line'>  <span class="n">rotate</span> <span class="mi">30</span>
-</span><span class='line'><span class="k">end</span>
-</span><span class='line'>
-</span><span class='line'><span class="n">include_recipe</span> <span class="s1">&#39;example_app::deploy&#39;</span>
-</span></code></pre></td></tr></table></div></figure>
+<p>end</p>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+The `deploy` Chef command creates a new timestamped directory under `/app/example_app/releases` and cleans up any older release directories, leaving the most recent 5 (much in the style of [Capistrano](https://github.com/capistrano/capistrano)). It also symlinks necessary directories and files and restarts the delayed_job worker.
 
+Did you notice how we ensure that Heroku and the satellite use the same version of the codebase? We've formalized `staging` and `production` branches and update them with the commits we intend to deploy. Of course, we can't simply `git push heroku master` anymore. Instead, we push to the appropriate branch, then push that to heroku and re-run the satellite's `deploy` recipe. Here, we've wrapped the process up into a single `deploy:[staging|production]` rake task. (The precise branches might vary depending on your development workflow.)
 
-<p>That last line loads up the neighboring <code>deploy.rb</code> recipe, which is responsible for checking out the appropriate version of the codebase to the server and [re]starting the delayed_job worker:</p>
+``` ruby lib/tasks/deploy.rake
+namespace :deploy do
+  desc 'Merge master into a staging branch and deploy it to example_app-staging.'
+  task :staging =&gt; 'git:tag:staging' do
+    puts `git push git@heroku.com:example_app-staging.git origin/staging:master`
+    ENV['RAILS_ENV'] = 'staging'
+    task('satellite:deploy').invoke
+  end
 
-<figure class='code'><figcaption><span>config/satellite/cookbooks/example_app/deploy.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-<span class='line-number'>19</span>
-<span class='line-number'>20</span>
-<span class='line-number'>21</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">deploy</span> <span class="s2">&quot;/app/example_app&quot;</span> <span class="k">do</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="n">repo</span> <span class="s2">&quot;git@github.com:my_org/example_app.git&quot;</span>  <span class="c1"># update this!</span>
-</span><span class='line'>  <span class="n">branch</span> <span class="n">node</span><span class="o">[</span><span class="s1">&#39;rails_env&#39;</span><span class="o">]</span>  <span class="c1"># assumes a branch named for this RAILS_ENV (e.g., staging, production)</span>
-</span><span class='line'>  <span class="n">shallow_clone</span> <span class="kp">true</span>
-</span><span class='line'>  <span class="n">environment</span> <span class="n">node</span><span class="o">[</span><span class="s1">&#39;rails_env&#39;</span><span class="o">]</span>
-</span><span class='line'>  <span class="n">symlinks</span> <span class="s1">&#39;pids&#39;</span> <span class="o">=&gt;</span> <span class="s1">&#39;tmp/pids&#39;</span><span class="p">,</span> <span class="s1">&#39;log&#39;</span> <span class="o">=&gt;</span> <span class="s1">&#39;log&#39;</span><span class="p">,</span> <span class="s1">&#39;config/newrelic.yml&#39;</span> <span class="o">=&gt;</span> <span class="s1">&#39;config/newrelic.yml&#39;</span>
-</span><span class='line'>  <span class="n">before_restart</span> <span class="k">do</span>
-</span><span class='line'>    <span class="n">current_release</span> <span class="o">=</span> <span class="n">release_path</span>
-</span><span class='line'>    <span class="n">execute</span><span class="p">(</span><span class="s2">&quot;bundle install --without development test&quot;</span><span class="p">)</span> <span class="k">do</span>
-</span><span class='line'>      <span class="n">cwd</span> <span class="n">current_release</span>
-</span><span class='line'>      <span class="n">user</span> <span class="s1">&#39;example_app&#39;</span>
-</span><span class='line'>      <span class="n">group</span> <span class="s1">&#39;example_app&#39;</span>
-</span><span class='line'>      <span class="n">environment</span> <span class="s1">&#39;HOME&#39;</span> <span class="o">=&gt;</span> <span class="s1">&#39;/home/example_app&#39;</span>
-</span><span class='line'>    <span class="k">end</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'>  <span class="n">restart_command</span> <span class="p">{</span> <span class="n">execute</span> <span class="s2">&quot;monit restart delayed_job&quot;</span> <span class="p">}</span>
-</span><span class='line'>  <span class="n">user</span> <span class="s1">&#39;example_app&#39;</span>
-</span><span class='line'>  <span class="n">group</span> <span class="s1">&#39;example_app&#39;</span>
-</span><span class='line'>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure>
+  desc 'Merge staging into a production branch and deploy it to example_app-production.'
+  task :production =&gt; 'git:tag:production' do
+    puts `git push git@heroku.com:example_app-production.git origin/production:master`
+    ENV['RAILS_ENV'] = 'production'
+    task('satellite:deploy').invoke
+  end
+end
 
+namespace :git do
+  task :tag, [:from, :to] =&gt; :confirm_clean do |t, args|
+    raise "Must specify 'from' and 'to' branches" unless args[:from] &amp;&amp; args[:to]
+    `git fetch`
+    `git branch -f #{args[:to]} origin/#{args[:to]}`
+    `git checkout #{args[:to]}`
+    `git reset --hard origin/#{args[:from]}`
+    puts "Updating #{args[:to]} with these commits:"
+    puts `git log origin/#{args[:to]}..#{args[:to]} --format=format:"%h  %s  (%an)"`
+    `git push -f origin #{args[:to]}`
+    `git checkout master`
+    `git branch -D #{args[:to]}`
+  end
 
-<p>The <code>deploy</code> Chef command creates a new timestamped directory under <code>/app/example_app/releases</code> and cleans up any older release directories, leaving the most recent 5 (much in the style of <a href="https://github.com/capistrano/capistrano">Capistrano</a>). It also symlinks necessary directories and files and restarts the delayed_job worker.</p>
+  task :confirm_clean do
+    raise "Must have clean working directory" unless `git status` =~ /working directory clean/
+  end
 
-<p>Did you notice how we ensure that Heroku and the satellite use the same version of the codebase? We've formalized <code>staging</code> and <code>production</code> branches and update them with the commits we intend to deploy. Of course, we can't simply <code>git push heroku master</code> anymore. Instead, we push to the appropriate branch, then push that to heroku and re-run the satellite's <code>deploy</code> recipe. Here, we've wrapped the process up into a single <code>deploy:[staging|production]</code> rake task. (The precise branches might vary depending on your development workflow.)</p>
+  namespace :tag do
+    task :staging do
+      task('git:tag').invoke('master',  'staging')
+    end
+    task :production do
+      task('git:tag').invoke('staging', 'production')
+    end
+  end
+end
+</code></pre></div></div>
 
-<figure class='code'><figcaption><span>lib/tasks/deploy.rake</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-<span class='line-number'>19</span>
-<span class='line-number'>20</span>
-<span class='line-number'>21</span>
-<span class='line-number'>22</span>
-<span class='line-number'>23</span>
-<span class='line-number'>24</span>
-<span class='line-number'>25</span>
-<span class='line-number'>26</span>
-<span class='line-number'>27</span>
-<span class='line-number'>28</span>
-<span class='line-number'>29</span>
-<span class='line-number'>30</span>
-<span class='line-number'>31</span>
-<span class='line-number'>32</span>
-<span class='line-number'>33</span>
-<span class='line-number'>34</span>
-<span class='line-number'>35</span>
-<span class='line-number'>36</span>
-<span class='line-number'>37</span>
-<span class='line-number'>38</span>
-<span class='line-number'>39</span>
-<span class='line-number'>40</span>
-<span class='line-number'>41</span>
-<span class='line-number'>42</span>
-<span class='line-number'>43</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">namespace</span> <span class="ss">:deploy</span> <span class="k">do</span>
-</span><span class='line'>  <span class="n">desc</span> <span class="s1">&#39;Merge master into a staging branch and deploy it to example_app-staging.&#39;</span>
-</span><span class='line'>  <span class="n">task</span> <span class="ss">:staging</span> <span class="o">=&gt;</span> <span class="s1">&#39;git:tag:staging&#39;</span> <span class="k">do</span>
-</span><span class='line'>    <span class="nb">puts</span> <span class="sb">`git push git@heroku.com:example_app-staging.git origin/staging:master`</span>
-</span><span class='line'>    <span class="no">ENV</span><span class="o">[</span><span class="s1">&#39;RAILS_ENV&#39;</span><span class="o">]</span> <span class="o">=</span> <span class="s1">&#39;staging&#39;</span>
-</span><span class='line'>    <span class="n">task</span><span class="p">(</span><span class="s1">&#39;satellite:deploy&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">invoke</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="n">desc</span> <span class="s1">&#39;Merge staging into a production branch and deploy it to example_app-production.&#39;</span>
-</span><span class='line'>  <span class="n">task</span> <span class="ss">:production</span> <span class="o">=&gt;</span> <span class="s1">&#39;git:tag:production&#39;</span> <span class="k">do</span>
-</span><span class='line'>    <span class="nb">puts</span> <span class="sb">`git push git@heroku.com:example_app-production.git origin/production:master`</span>
-</span><span class='line'>    <span class="no">ENV</span><span class="o">[</span><span class="s1">&#39;RAILS_ENV&#39;</span><span class="o">]</span> <span class="o">=</span> <span class="s1">&#39;production&#39;</span>
-</span><span class='line'>    <span class="n">task</span><span class="p">(</span><span class="s1">&#39;satellite:deploy&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">invoke</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'><span class="k">end</span>
-</span><span class='line'>
-</span><span class='line'><span class="n">namespace</span> <span class="ss">:git</span> <span class="k">do</span>
-</span><span class='line'>  <span class="n">task</span> <span class="ss">:tag</span><span class="p">,</span> <span class="o">[</span><span class="ss">:from</span><span class="p">,</span> <span class="ss">:to</span><span class="o">]</span> <span class="o">=&gt;</span> <span class="ss">:confirm_clean</span> <span class="k">do</span> <span class="o">|</span><span class="n">t</span><span class="p">,</span> <span class="n">args</span><span class="o">|</span>
-</span><span class='line'>    <span class="k">raise</span> <span class="s2">&quot;Must specify &#39;from&#39; and &#39;to&#39; branches&quot;</span> <span class="k">unless</span> <span class="n">args</span><span class="o">[</span><span class="ss">:from</span><span class="o">]</span> <span class="o">&amp;&amp;</span> <span class="n">args</span><span class="o">[</span><span class="ss">:to</span><span class="o">]</span>
-</span><span class='line'>    <span class="sb">`git fetch`</span>
-</span><span class='line'>    <span class="sb">`git branch -f </span><span class="si">#{</span><span class="n">args</span><span class="o">[</span><span class="ss">:to</span><span class="o">]</span><span class="si">}</span><span class="sb"> origin/</span><span class="si">#{</span><span class="n">args</span><span class="o">[</span><span class="ss">:to</span><span class="o">]</span><span class="si">}</span><span class="sb">`</span>
-</span><span class='line'>    <span class="sb">`git checkout </span><span class="si">#{</span><span class="n">args</span><span class="o">[</span><span class="ss">:to</span><span class="o">]</span><span class="si">}</span><span class="sb">`</span>
-</span><span class='line'>    <span class="sb">`git reset --hard origin/</span><span class="si">#{</span><span class="n">args</span><span class="o">[</span><span class="ss">:from</span><span class="o">]</span><span class="si">}</span><span class="sb">`</span>
-</span><span class='line'>    <span class="nb">puts</span> <span class="s2">&quot;Updating </span><span class="si">#{</span><span class="n">args</span><span class="o">[</span><span class="ss">:to</span><span class="o">]</span><span class="si">}</span><span class="s2"> with these commits:&quot;</span>
-</span><span class='line'>    <span class="nb">puts</span> <span class="sb">`git log origin/</span><span class="si">#{</span><span class="n">args</span><span class="o">[</span><span class="ss">:to</span><span class="o">]</span><span class="si">}</span><span class="sb">..</span><span class="si">#{</span><span class="n">args</span><span class="o">[</span><span class="ss">:to</span><span class="o">]</span><span class="si">}</span><span class="sb"> --format=format:&quot;%h  %s  (%an)&quot;`</span>
-</span><span class='line'>    <span class="sb">`git push -f origin </span><span class="si">#{</span><span class="n">args</span><span class="o">[</span><span class="ss">:to</span><span class="o">]</span><span class="si">}</span><span class="sb">`</span>
-</span><span class='line'>    <span class="sb">`git checkout master`</span>
-</span><span class='line'>    <span class="sb">`git branch -D </span><span class="si">#{</span><span class="n">args</span><span class="o">[</span><span class="ss">:to</span><span class="o">]</span><span class="si">}</span><span class="sb">`</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="n">task</span> <span class="ss">:confirm_clean</span> <span class="k">do</span>
-</span><span class='line'>    <span class="k">raise</span> <span class="s2">&quot;Must have clean working directory&quot;</span> <span class="k">unless</span> <span class="sb">`git status`</span> <span class="o">=~</span> <span class="sr">/working directory clean/</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="n">namespace</span> <span class="ss">:tag</span> <span class="k">do</span>
-</span><span class='line'>    <span class="n">task</span> <span class="ss">:staging</span> <span class="k">do</span>
-</span><span class='line'>      <span class="n">task</span><span class="p">(</span><span class="s1">&#39;git:tag&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">invoke</span><span class="p">(</span><span class="s1">&#39;master&#39;</span><span class="p">,</span>  <span class="s1">&#39;staging&#39;</span><span class="p">)</span>
-</span><span class='line'>    <span class="k">end</span>
-</span><span class='line'>    <span class="n">task</span> <span class="ss">:production</span> <span class="k">do</span>
-</span><span class='line'>      <span class="n">task</span><span class="p">(</span><span class="s1">&#39;git:tag&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">invoke</span><span class="p">(</span><span class="s1">&#39;staging&#39;</span><span class="p">,</span> <span class="s1">&#39;production&#39;</span><span class="p">)</span>
-</span><span class='line'>    <span class="k">end</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure>
+<p>Our satellite requires access to some of the same environment variables as our Heroku web apps (such as a database host or mail server credentials). To keep these synchronized, we rely on a <code class="language-plaintext highlighter-rouge">config/heroku.yml</code> file. (This duplication is an obvious hazard and deserves improvement, but we’ve actually found it convenient to have these locally for easy access from Rake tasks, etc.)</p>
 
+<p>In the <a href="https://github.com/joeyAghion/satellite_setup">satellite_setup</a> github repo, we’ve simplified this set-up into a few tasks that we use on an ongoing basis:</p>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>rake satellite:spawn <span class="nv">RAILS_ENV</span><span class="o">=</span>staging
+<span class="nv">$ </span>rake satellite:configure <span class="nv">RAILS_ENV</span><span class="o">=</span>staging
+<span class="nv">$ </span>rake satellite:info <span class="nv">RAILS_ENV</span><span class="o">=</span>staging
+	1 satellite server<span class="o">(</span>s<span class="o">)</span>
+		state: running <span class="o">(</span>1<span class="o">)</span>
+			i-f4583196	staging	ec2-170-179-113-159.compute-1.amazonaws.com	2012-01-03 14:48:11 UTC
+<span class="nv">$ </span>rake satellite:deploy <span class="nv">RAILS_ENV</span><span class="o">=</span>staging
+<span class="nv">$ </span>rake satellite:destroy <span class="nv">RAILS_ENV</span><span class="o">=</span>staging
+</code></pre></div></div>
 
-<p>Our satellite requires access to some of the same environment variables as our Heroku web apps (such as a database host or mail server credentials). To keep these synchronized, we rely on a <code>config/heroku.yml</code> file. (This duplication is an obvious hazard and deserves improvement, but we've actually found it convenient to have these locally for easy access from Rake tasks, etc.)</p>
-
-<p>In the <a href="https://github.com/joeyAghion/satellite_setup">satellite_setup</a> github repo, we've simplified this set-up into a few tasks that we use on an ongoing basis:</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nv">$ </span>rake satellite:spawn <span class="nv">RAILS_ENV</span><span class="o">=</span>staging
-</span><span class='line'><span class="nv">$ </span>rake satellite:configure <span class="nv">RAILS_ENV</span><span class="o">=</span>staging
-</span><span class='line'><span class="nv">$ </span>rake satellite:info <span class="nv">RAILS_ENV</span><span class="o">=</span>staging
-</span><span class='line'>  <span class="m">1</span> satellite server<span class="o">(</span>s<span class="o">)</span>
-</span><span class='line'>      state: running <span class="o">(</span>1<span class="o">)</span>
-</span><span class='line'>          i-f4583196  staging ec2-170-179-113-159.compute-1.amazonaws.com 2012-01-03 14:48:11 UTC
-</span><span class='line'><span class="nv">$ </span>rake satellite:deploy <span class="nv">RAILS_ENV</span><span class="o">=</span>staging
-</span><span class='line'><span class="nv">$ </span>rake satellite:destroy <span class="nv">RAILS_ENV</span><span class="o">=</span>staging
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>This arrangement has worked for us so far. Satellite servers cost a little more, but can benefit from arbitrary customization and are served out of the same data-centers as our Heroku-based web apps and S3 storage. Since the same app is running transparently in 2 different environments, our developers' workflow has hardly needed modification. In fact, the portability enforced by Heroku's design (elaborated in <a href="http://12factor.net">The Twelve-Factor App</a>) made this transition relatively straightforward.</p>
+<p>This arrangement has worked for us so far. Satellite servers cost a little more, but can benefit from arbitrary customization and are served out of the same data-centers as our Heroku-based web apps and S3 storage. Since the same app is running transparently in 2 different environments, our developers’ workflow has hardly needed modification. In fact, the portability enforced by Heroku’s design (elaborated in <a href="http://12factor.net">The Twelve-Factor App</a>) made this transition relatively straightforward.</p>
 
 <p>Some worthy enhancements might be:</p>
 
 <ul>
-<li>Improving monitoring and notifications</li>
-<li>Extending the recipes to manage multiple parallel workers</li>
-<li>Using Chef attributes to replace uses of <code>example_app</code> with a parameter</li>
-<li>Cleaning up the duplication of Heroku configuration values in <code>heroku.yml</code></li>
+  <li>Improving monitoring and notifications</li>
+  <li>Extending the recipes to manage multiple parallel workers</li>
+  <li>Using Chef attributes to replace uses of <code class="language-plaintext highlighter-rouge">example_app</code> with a parameter</li>
+  <li>Cleaning up the duplication of Heroku configuration values in <code class="language-plaintext highlighter-rouge">heroku.yml</code></li>
 </ul>
-
 </div>
     
 
-    
-      <p class="meta-author">
-        
-  
-
+    <p class="meta-author">
+      
 
 
 
@@ -697,39 +485,38 @@
 
 
 
-      </p>
-      <p class="meta-categories">
-        Categories: 
+    </p>
+    <p class="meta-categories">
+      Categories: 
 
 <span class="categories">
   
-    <a class='category' href='/blog/categories/chef/'>chef</a>, <a class='category' href='/blog/categories/ec2/'>ec2</a>, <a class='category' href='/blog/categories/fog/'>fog</a>, <a class='category' href='/blog/categories/heroku/'>heroku</a>
+    <a class='category' href='/blog/categories/chef/'>Chef</a>, <a class='category' href='/blog/categories/ec2/'>EC2</a>, <a class='category' href='/blog/categories/fog/'>Fog</a>, <a class='category' href='/blog/categories/heroku/'>Heroku</a>
   
 </span>
 
 
-      </p>
-      
-
-      
-        <hr/>
-        <section class="comments">
-          <h1>Comments</h1>
-          <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
-</div>
-        </section>
-        <hr/>
-      
-
-      <p class="meta-paginate">
-        
-          <a class="previous" href="/blog/2012/01/31/delaying-carrierwave-image-processing/" title="Previous Post: Delaying CarrierWave Image Processing">&laquo; Delaying CarrierWave Image Processing</a>
-        
-        
-          <a class="next" href="/blog/2012/02/03/reliably-testing-asynchronous-ui-w-slash-rspec-and-capybara/" title="next Post: Reliably Testing Asynchronous UI w/ RSpec and Capybara">Reliably Testing Asynchronous UI w/ RSpec and Capybara &raquo;</a>
-        
-      </p>
+    </p>
     
+
+    
+      <hr/>
+      <section class="comments">
+        <h1>Comments</h1>
+        <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</div>
+      </section>
+      <hr/>
+    
+
+    <p class="meta-paginate">
+      
+        <a class="previous" href="/blog/2012/01/31/delaying-carrierwave-image-processing/" title="Previous Post: Delaying CarrierWave Image Processing">&laquo; Delaying CarrierWave Image Processing</a>
+      
+      
+        <a class="next" href="/blog/2012/02/03/reliably-testing-asynchronous-ui-w-slash-rspec-and-capybara/" title="next Post: Reliably Testing Asynchronous UI w/ RSpec and Capybara">Reliably Testing Asynchronous UI w/ RSpec and Capybara &raquo;</a>
+      
+    </p>
   </div>
 
 

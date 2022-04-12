@@ -4,7 +4,7 @@
   <title><![CDATA[Category: env-vars | Artsy Engineering]]></title>
   <link href="https://artsy.github.io/blog/categories/env-vars/atom.xml" rel="self"/>
   <link href="https://artsy.github.io/"/>
-  <updated>2022-04-12T15:26:26+00:00</updated>
+  <updated>2022-04-12T22:23:19+00:00</updated>
   <id>https://artsy.github.io/</id>
   <author>
     <name><![CDATA[]]></name>
@@ -18,72 +18,70 @@
     <link href="https://artsy.github.io/blog/2018/09/10/Dockerhub-Stamping-Commits/"/>
     <updated>2018-09-10T00:00:00+00:00</updated>
     <id>https://artsy.github.io/blog/2018/09/10/Dockerhub-Stamping-Commits</id>
-    <content type="html"><![CDATA[<p>For what feels like the last 3-6 months, I've been trying to figure out how to know what the commit is for the
+    <content type="html"><![CDATA[<p>For what feels like the last 3-6 months, I’ve been trying to figure out how to know what the commit is for the
 Docker runtime in Peril. Roughly: every master commit on Peril triggers a Docker image on Docker Hub for the
-environment in which JavaScript is running. There's a lag between creating the commit, having the image ready on
-Docker Hub, and Peril using the new image. There's also space for these automated systems to go wrong, so I'd like
+environment in which JavaScript is running. There’s a lag between creating the commit, having the image ready on
+Docker Hub, and Peril using the new image. There’s also space for these automated systems to go wrong, so I’d like
 to be able to be certain in logging.</p>
 
-<p>I've thrown a lot of commits and time every few weeks at this, so now that I've figured it out, I'll give you an
+<p>I’ve thrown a lot of commits and time every few weeks at this, so now that I’ve figured it out, I’ll give you an
 idea of what I needed to do to make it work in a micro-post.</p>
 
 <!-- more -->
 
+<p><strong>Step 1:</strong> You need a custom build step, to do this, you need to create a file <code class="language-plaintext highlighter-rouge">hooks/build</code> in your repo:</p>
 
-<p><strong>Step 1:</strong> You need a custom build step, to do this, you need to create a file <code>hooks/build</code> in your repo:</p>
+<div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">#!/usr/bin/env sh</span>
 
-<pre><code class="sh">#!/usr/bin/env sh
+<span class="c"># This is so we can get the commit into the build log of a Dangerfile runner</span>
+<span class="c"># These come from https://docs.docker.com/docker-cloud/builds/advanced/</span>
 
-# This is so we can get the commit into the build log of a Dangerfile runner
-# These come from https://docs.docker.com/docker-cloud/builds/advanced/
+<span class="c"># For debugging all env vars</span>
+<span class="c"># printenv</span>
 
-# For debugging all env vars
-# printenv
+<span class="c">#  Convert the location "/Dockerfile" to "Dockerfile"</span>
+<span class="nv">FILE</span><span class="o">=</span><span class="si">$(</span><span class="nb">echo</span> <span class="nt">-n</span> <span class="nv">$BUILD_PATH</span> | <span class="nb">tail</span> <span class="nt">-c</span> +2<span class="si">)</span>
 
-#  Convert the location "/Dockerfile" to "Dockerfile"
-FILE=$(echo -n $BUILD_PATH | tail -c +2)
+<span class="k">if</span> <span class="o">[</span> <span class="nt">-z</span> <span class="s2">"</span><span class="k">${</span><span class="nv">DOCKER_TAG</span><span class="k">}</span><span class="s2">"</span> <span class="o">]</span><span class="p">;</span> <span class="k">then
+  </span>docker build <span class="nt">--build-arg</span><span class="o">=</span><span class="nv">COMMIT</span><span class="o">=</span><span class="si">$(</span>git rev-parse <span class="nt">--short</span> HEAD<span class="si">)</span> <span class="nt">--build-arg</span><span class="o">=</span><span class="nv">BRANCH</span><span class="o">=</span><span class="nv">$SOURCE_BRANCH</span> <span class="nt">-t</span> <span class="nv">$IMAGE_NAME</span> <span class="nt">-f</span> <span class="nv">$FILE</span> <span class="nb">.</span>
+<span class="k">else
+  </span>docker build <span class="nt">--build-arg</span><span class="o">=</span><span class="nv">COMMIT</span><span class="o">=</span><span class="si">$(</span>git rev-parse <span class="nt">--short</span> HEAD<span class="si">)</span> <span class="nt">--build-arg</span><span class="o">=</span><span class="nv">BRANCH</span><span class="o">=</span><span class="nv">$DOCKER_TAG</span> <span class="nt">-t</span> <span class="nv">$IMAGE_NAME</span> <span class="nt">-f</span> <span class="nv">$FILE</span> <span class="nb">.</span>
+<span class="k">fi</span>
+</code></pre></div></div>
 
-if [ -z "${DOCKER_TAG}" ]; then
-  docker build --build-arg=COMMIT=$(git rev-parse --short HEAD) --build-arg=BRANCH=$SOURCE_BRANCH -t $IMAGE_NAME -f $FILE .
-else
-  docker build --build-arg=COMMIT=$(git rev-parse --short HEAD) --build-arg=BRANCH=$DOCKER_TAG -t $IMAGE_NAME -f $FILE .
-fi
-</code></pre>
-
-<p>There's a list of examples in <a href="https://github.com/thibaultdelor/testAutobuildHooks">this repo</a> - though the build
-one is too simple for our needs here. If you need something that's not there, then remove the comment marker before
-<code>printenv</code> to the script to see
+<p>There’s a list of examples in <a href="https://github.com/thibaultdelor/testAutobuildHooks">this repo</a> - though the build
+one is too simple for our needs here. If you need something that’s not there, then remove the comment marker before
+<code class="language-plaintext highlighter-rouge">printenv</code> to the script to see
 <a href="https://github.com/danger/peril/commit/61f447d13476fee9fa0686225ff3ca76d416088f">what env vars</a> are available
-(<a href="https://hub.docker.com/r/dangersystems/peril/builds/benoxzftncgdsmwugr9bpjn/">here's an example build</a>).</p>
+(<a href="https://hub.docker.com/r/dangersystems/peril/builds/benoxzftncgdsmwugr9bpjn/">here’s an example build</a>).</p>
 
-<p><strong>Step 2:</strong> Edit your <code>Dockerfile</code> to take the additional arguments <code>COMMIT</code> and <code>BRANCH</code> from <code>ARG</code>.</p>
+<p><strong>Step 2:</strong> Edit your <code class="language-plaintext highlighter-rouge">Dockerfile</code> to take the additional arguments <code class="language-plaintext highlighter-rouge">COMMIT</code> and <code class="language-plaintext highlighter-rouge">BRANCH</code> from <code class="language-plaintext highlighter-rouge">ARG</code>.</p>
 
-<pre><code class="diff">MAINTAINER Orta Therox
-+ ARG BRANCH="master"
+<div class="language-diff highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">MAINTAINER Orta Therox
+</span><span class="gi">+ ARG BRANCH="master"
 + ARG COMMIT=""
 + LABEL branch=${BRANCH}
 + LABEL commit=${COMMIT}
-
+</span>
 ADD . /app
-WORKDIR /app
-
+<span class="p">WORKDIR /app
+</span>
 + # Now set it as an env var
-+ ENV COMMIT_SHA=${COMMIT}
+<span class="gi">+ ENV COMMIT_SHA=${COMMIT}
 + ENV COMMIT_BRANCH=${BRANCH}
-</code></pre>
+</span></code></pre></div></div>
 
 <p>Err, that should be everything. I mean, I did call it a micro-post. Trying to implement this has broken the Peril
-runner a bunch of times on staging, so I'm mainly just helping out other docker newbies.</p>
+runner a bunch of times on staging, so I’m mainly just helping out other docker newbies.</p>
 
 <p>Some links that helped me get there:</p>
 
 <ul>
-<li><a href="https://github.com/docker/hub-feedback/issues/600">Add git commit hash to ENV</a></li>
-<li><a href="https://github.com/docker/hub-feedback/issues/508#issuecomment-243968310">Feature request: Build args on docker hub</a></li>
-<li><a href="https://github.com/elasticdog/tiddlywiki-docker/commit/993c7e9e8d5207d110270458f0f18839656ca126">Inject Git source commit metadata into the image</a></li>
-<li><a href="https://docs.docker.com/docker-hub/github/">Configure automated builds from GitHub</a></li>
+  <li><a href="https://github.com/docker/hub-feedback/issues/600">Add git commit hash to ENV</a></li>
+  <li><a href="https://github.com/docker/hub-feedback/issues/508#issuecomment-243968310">Feature request: Build args on docker hub</a></li>
+  <li><a href="https://github.com/elasticdog/tiddlywiki-docker/commit/993c7e9e8d5207d110270458f0f18839656ca126">Inject Git source commit metadata into the image</a></li>
+  <li><a href="https://docs.docker.com/docker-hub/github/">Configure automated builds from GitHub</a></li>
 </ul>
-
 
 <p>Remember folks, Ash says you should <a href="https://ashfurrow.com/blog/contemporaneous-blogging/">write as you learn</a>, so
 write up those small wins.</p>

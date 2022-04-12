@@ -14,8 +14,6 @@
 
     
 
-
-
   
     
       
@@ -25,7 +23,7 @@
         
           How to Monitor 503s and Timeout Requests on Heroku
         
-        Nov...">
+        Nov 1...">
   
 
   <!-- http://t.co/dKP3o1e -->
@@ -129,9 +127,7 @@
       <div>
   <article class="hentry" role="article">
 
-    
-<div class="article-container-single ">
-
+    <div class="article-container-single ">
 
   
     <div class="meta-container">
@@ -144,8 +140,6 @@
         
         <time datetime="2012-11-15">Nov 15, 2012</time>
           <p class="meta-author">
-  
-
 
 
   
@@ -170,129 +164,88 @@
 
   <div class="content-container">
     
-      <div class="entry-content"><p>We have recently started hitting an unusually high number of "503: Service Unavailable" errors with one of our applications on Heroku. What are these? How can we monitor their quantity and frequency? What's the fix?</p>
+      <div class="entry-content"><p>We have recently started hitting an unusually high number of “503: Service Unavailable” errors with one of our applications on Heroku. What are these? How can we monitor their quantity and frequency? What’s the fix?</p>
 
-<p><img src="/images/2012-11-15-how-to-monitor-503s-and-timeout-on-heroku/503-error.png"></p>
+<p><img src="/images/2012-11-15-how-to-monitor-503s-and-timeout-on-heroku/503-error.png" /></p>
 
 <!-- more -->
 
+<h2 id="what-does-503-mean">What does 503 mean?</h2>
 
-<a name="What.does.503.mean."></a>
-<h2>What does 503 mean?</h2>
+<p>A 503 error means “Service Unavailable”. Heroku returns a 503 error when an HTTP request times out between the Heroku routing mesh and your application, including when the application failed to boot. This timeout limit is set to 30 seconds, as <a href="https://devcenter.heroku.com/articles/request-timeout">documented by Heroku</a>, and shows up in the logs as follows.</p>
 
-<p>A 503 error means "Service Unavailable". Heroku returns a 503 error when an HTTP request times out between the Heroku routing mesh and your application, including when the application failed to boot. This timeout limit is set to 30 seconds, as <a href="https://devcenter.heroku.com/articles/request-timeout">documented by Heroku</a>, and shows up in the logs as follows.</p>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Nov 14 12:10:50 production heroku/router:
+ Error H12 (Request timeout) -&gt; GET artsy.net/api/spline
+ dyno=web.11 queue= wait= service=30000ms status=503 bytes=0
+</code></pre></div></div>
 
-<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-</pre></td><td class='code'><pre><code class=''><span class='line'>Nov 14 12:10:50 production heroku/router:
-</span><span class='line'> Error H12 (Request timeout) -&gt; GET artsy.net/api/spline
-</span><span class='line'> dyno=web.11 queue= wait= service=30000ms status=503 bytes=0</span></code></pre></td></tr></table></div></figure>
+<p>This usually means that the application could not process the request fast enough, and in very rare cases, that there’s an infrastructure problem with Heroku itself. A 504 error which means “Gateway Timeout” would have probably been a more appropriate choice. Either way, the root cause could be something as simple as trying to run a very long database query or do too much work that doesn’t fit in a 30 seconds window. It could also involve an external service that didn’t respond quickly enough. Your mileage may vary.</p>
 
+<h2 id="monitoring-503s">Monitoring 503s</h2>
 
-<p>This usually means that the application could not process the request fast enough, and in very rare cases, that there's an infrastructure problem with Heroku itself. A 504 error which means "Gateway Timeout" would have probably been a more appropriate choice. Either way, the root cause could be something as simple as trying to run a very long database query or do too much work that doesn't fit in a 30 seconds window. It could also involve an external service that didn't respond quickly enough. Your mileage may vary.</p>
-
-<a name="Monitoring.503s"></a>
-<h2>Monitoring 503s</h2>
-
-<p>503 errors don't happen within your application, they are reported by the routing mesh. They will not appear in internal monitoring systems attached to your app, including <a href="http://newrelic.com/">NewRelic</a>.</p>
+<p>503 errors don’t happen within your application, they are reported by the routing mesh. They will not appear in internal monitoring systems attached to your app, including <a href="http://newrelic.com/">NewRelic</a>.</p>
 
 <p>We get the frequency of 503s by sending our Heroku logs to <a href="https://papertrailapp.com/">Papertrail</a> and using their <a href="http://help.papertrailapp.com/kb/how-it-works/alerts">alerts feature</a> to push the number of 503s to <a href="http://www.geckoboard.com/">Geckoboard</a>. You can send these to <a href="http://graphite.wikidot.com/">Graphite</a> or any other monitoring system in the same manner.</p>
 
 <p>This is what it looks like:</p>
 
-<p><img src="/images/2012-11-15-how-to-monitor-503s-and-timeout-on-heroku/503-geckoboard.png"></p>
+<p><img src="/images/2012-11-15-how-to-monitor-503s-and-timeout-on-heroku/503-geckoboard.png" /></p>
 
-<a name="Aborting.Requests"></a>
-<h2>Aborting Requests</h2>
+<h2 id="aborting-requests">Aborting Requests</h2>
 
-<p>When Heroku reports a 503 status code, it just gives up. Your application continues executing the request though, often to completion, which may take forever. In the meantime, Heroku will send a new request to the dyno that's still busy, and get a new 503. This is known as a "stuck" dyno.</p>
+<p>When Heroku reports a 503 status code, it just gives up. Your application continues executing the request though, often to completion, which may take forever. In the meantime, Heroku will send a new request to the dyno that’s still busy, and get a new 503. This is known as a “stuck” dyno.</p>
 
-<p>To prevent dynos from being stuck you must abort the request within the 30 second period. This can be accomplished with the <a href="https://github.com/kch/rack-timeout">rack-timeout</a> gem and setting <code>Rack::Timeout.timeout = 29</code> in an initializer (or a smaller value within which you want to guarantee a response). The gem automatically inserts itself into a Rails application, but you will need to manually mount it in other Rack apps, such as those using <a href="https://github.com/intridea/grape">Grape</a>.</p>
+<p>To prevent dynos from being stuck you must abort the request within the 30 second period. This can be accomplished with the <a href="https://github.com/kch/rack-timeout">rack-timeout</a> gem and setting <code class="language-plaintext highlighter-rouge">Rack::Timeout.timeout = 29</code> in an initializer (or a smaller value within which you want to guarantee a response). The gem automatically inserts itself into a Rails application, but you will need to manually mount it in other Rack apps, such as those using <a href="https://github.com/intridea/grape">Grape</a>.</p>
 
-<figure class='code'><figcaption><span>api.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">Api</span> <span class="o">&lt;</span> <span class="no">Grape</span><span class="o">::</span><span class="no">API</span>
-</span><span class='line'>  <span class="n">use</span> <span class="no">Rack</span><span class="o">::</span><span class="no">Timeout</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="n">desc</span> <span class="s2">&quot;Returns a reticulated spline.&quot;</span>
-</span><span class='line'>  <span class="n">get</span> <span class="s2">&quot;spline/:id&quot;</span>
-</span><span class='line'>    <span class="no">Spline</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="n">params</span><span class="o">[</span><span class="ss">:id</span><span class="o">]</span><span class="p">)</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure>
+<p>``` ruby api.rb
+class Api &lt; Grape::API
+  use Rack::Timeout</p>
 
+<p>desc “Returns a reticulated spline.”
+  get “spline/:id”
+    Spline.find(params[:id])
+  end
+end</p>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+Because your application is now getting a timeout exception, you can also report it in NewRelic. The following works in Grape.
 
-<p>Because your application is now getting a timeout exception, you can also report it in NewRelic. The following works in Grape.</p>
+``` ruby
+rescue_from Timeout::Error, :backtrace =&gt; true do |e|
+  NewRelic::Agent.instance.error_collector.notice_error e,
+    uri: request.path,
+    referer: request.referer,
+    request_params: request.params
+  rack_response({
+    :type =&gt; "timeout_error",
+    :message =&gt; "The request timed out."
+  }.to_json, 503)
+end
+</code></pre></div></div>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">rescue_from</span> <span class="no">Timeout</span><span class="o">::</span><span class="no">Error</span><span class="p">,</span> <span class="ss">:backtrace</span> <span class="o">=&gt;</span> <span class="kp">true</span> <span class="k">do</span> <span class="o">|</span><span class="n">e</span><span class="o">|</span>
-</span><span class='line'>  <span class="no">NewRelic</span><span class="o">::</span><span class="no">Agent</span><span class="o">.</span><span class="n">instance</span><span class="o">.</span><span class="n">error_collector</span><span class="o">.</span><span class="n">notice_error</span> <span class="n">e</span><span class="p">,</span>
-</span><span class='line'>    <span class="ss">uri</span><span class="p">:</span> <span class="n">request</span><span class="o">.</span><span class="n">path</span><span class="p">,</span>
-</span><span class='line'>    <span class="ss">referer</span><span class="p">:</span> <span class="n">request</span><span class="o">.</span><span class="n">referer</span><span class="p">,</span>
-</span><span class='line'>    <span class="ss">request_params</span><span class="p">:</span> <span class="n">request</span><span class="o">.</span><span class="n">params</span>
-</span><span class='line'>  <span class="n">rack_response</span><span class="p">({</span>
-</span><span class='line'>    <span class="ss">:type</span> <span class="o">=&gt;</span> <span class="s2">&quot;timeout_error&quot;</span><span class="p">,</span>
-</span><span class='line'>    <span class="ss">:message</span> <span class="o">=&gt;</span> <span class="s2">&quot;The request timed out.&quot;</span>
-</span><span class='line'>  <span class="p">}</span><span class="o">.</span><span class="n">to_json</span><span class="p">,</span> <span class="mi">503</span><span class="p">)</span>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure>
+<p>Don’t forget to write a test!</p>
 
+<p>``` ruby api_spec.rb
+require ‘spec_helper’</p>
 
-<p>Don't forget to write a test!</p>
+<p>describe Api do
+  it “times out after Rack::Timeout.timeout” do
+    Rack::Timeout.stub(:timeout).and_return(1)
+    Spline.stub(:find) { sleep 3 }
+    get “/spline/1”
+    response.status.should == 503
+    response.body.should == ‘{“type”:”timeout_error”,”message”:”The request timed out.”}’
+  end
+end
+```</p>
 
-<figure class='code'><figcaption><span>api_spec.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="nb">require</span> <span class="s1">&#39;spec_helper&#39;</span>
-</span><span class='line'>
-</span><span class='line'><span class="n">describe</span> <span class="no">Api</span> <span class="k">do</span>
-</span><span class='line'>  <span class="n">it</span> <span class="s2">&quot;times out after Rack::Timeout.timeout&quot;</span> <span class="k">do</span>
-</span><span class='line'>    <span class="no">Rack</span><span class="o">::</span><span class="no">Timeout</span><span class="o">.</span><span class="n">stub</span><span class="p">(</span><span class="ss">:timeout</span><span class="p">)</span><span class="o">.</span><span class="n">and_return</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
-</span><span class='line'>    <span class="no">Spline</span><span class="o">.</span><span class="n">stub</span><span class="p">(</span><span class="ss">:find</span><span class="p">)</span> <span class="p">{</span> <span class="nb">sleep</span> <span class="mi">3</span> <span class="p">}</span>
-</span><span class='line'>    <span class="n">get</span> <span class="s2">&quot;/spline/1&quot;</span>
-</span><span class='line'>    <span class="n">response</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">should</span> <span class="o">==</span> <span class="mi">503</span>
-</span><span class='line'>    <span class="n">response</span><span class="o">.</span><span class="n">body</span><span class="o">.</span><span class="n">should</span> <span class="o">==</span> <span class="s1">&#39;{&quot;type&quot;:&quot;timeout_error&quot;,&quot;message&quot;:&quot;The request timed out.&quot;}&#39;</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure>
+<h2 id="fixing-timeouts">Fixing Timeouts</h2>
 
-
-<a name="Fixing.Timeouts"></a>
-<h2>Fixing Timeouts</h2>
-
-<p>The root causes of timeouts are specific to your application. Our general approach for long running requests is to offload the request processing into a delayed job or background process and "cook" data in a way that makes it readily available to API endpoints. You can read more about this and related aspects of our system architecture in <a href="/blog/2012/10/10/artsy-technology-stack/">this earlier blog post</a>.</p>
+<p>The root causes of timeouts are specific to your application. Our general approach for long running requests is to offload the request processing into a delayed job or background process and “cook” data in a way that makes it readily available to API endpoints. You can read more about this and related aspects of our system architecture in <a href="/blog/2012/10/10/artsy-technology-stack/">this earlier blog post</a>.</p>
 </div>
     
 
-    
-      <p class="meta-author">
-        
-  
-
+    <p class="meta-author">
+      
 
 
 
@@ -333,39 +286,38 @@
 
 
 
-      </p>
-      <p class="meta-categories">
-        Categories: 
+    </p>
+    <p class="meta-categories">
+      Categories: 
 
 <span class="categories">
   
-    <a class='category' href='/blog/categories/grape/'>grape</a>, <a class='category' href='/blog/categories/heroku/'>heroku</a>, <a class='category' href='/blog/categories/rack/'>rack</a>
+    <a class='category' href='/blog/categories/grape/'>Grape</a>, <a class='category' href='/blog/categories/heroku/'>Heroku</a>, <a class='category' href='/blog/categories/rack/'>Rack</a>
   
 </span>
 
 
-      </p>
-      
-
-      
-        <hr/>
-        <section class="comments">
-          <h1>Comments</h1>
-          <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
-</div>
-        </section>
-        <hr/>
-      
-
-      <p class="meta-paginate">
-        
-          <a class="previous" href="/blog/2012/10/18/the-perils-of-ios-user-agent-sniffing/" title="Previous Post: The perils of iOS user agent strings">&laquo; The perils of iOS user agent strings</a>
-        
-        
-          <a class="next" href="/blog/2012/11/22/friendly-urls-with-mongoid-slug/" title="next Post: Friendly URLs with Mongoid::Slug">Friendly URLs with Mongoid::Slug &raquo;</a>
-        
-      </p>
+    </p>
     
+
+    
+      <hr/>
+      <section class="comments">
+        <h1>Comments</h1>
+        <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</div>
+      </section>
+      <hr/>
+    
+
+    <p class="meta-paginate">
+      
+        <a class="previous" href="/blog/2012/10/18/the-perils-of-ios-user-agent-sniffing/" title="Previous Post: The perils of iOS user agent strings">&laquo; The perils of iOS user agent strings</a>
+      
+      
+        <a class="next" href="/blog/2012/11/22/friendly-urls-with-mongoid-slug/" title="next Post: Friendly URLs with Mongoid::Slug">Friendly URLs with Mongoid::Slug &raquo;</a>
+      
+    </p>
   </div>
 
 

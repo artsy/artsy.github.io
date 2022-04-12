@@ -14,8 +14,6 @@
 
     
 
-
-
   
     
       
@@ -26,7 +24,8 @@
           Detecting trends using Forgetsy
         
         Mar 17, 2014
-         ...">
+          
+...">
   
 
   <!-- http://t.co/dKP3o1e -->
@@ -130,9 +129,7 @@
       <div>
   <article class="hentry" role="article">
 
-    
-<div class="article-container-single ">
-
+    <div class="article-container-single ">
 
   
     <div class="meta-container">
@@ -145,8 +142,6 @@
         
         <time datetime="2014-03-17">Mar 17, 2014</time>
           <p class="meta-author">
-  
-
 
 
   
@@ -175,19 +170,17 @@
 
 <p>As part of our partnership with <a href="https://www.thearmoryshow.com/">The New York Armory Show</a> this year, we installed a number of terminals throughout the fair. These screens used our own real-time data to display an ever shifting set of trending artworks, artists, and booths, to the attendees.</p>
 
-<p>Out of this work, we've open-sourced <a href="https://github.com/cavvia/forgetsy">Forgetsy</a>, a lightweight Ruby trending library. Put simply, Forgetsy implements data structures that forget. Loosely based on Bit.ly's <a href="http://word.bitly.com/post/41284219720/forget-table">Forget Table</a> concept, Forgetsy uses decaying counters to track temporal trends in categorical distributions.</p>
+<p>Out of this work, we’ve open-sourced <a href="https://github.com/cavvia/forgetsy">Forgetsy</a>, a lightweight Ruby trending library. Put simply, Forgetsy implements data structures that forget. Loosely based on Bit.ly’s <a href="http://word.bitly.com/post/41284219720/forget-table">Forget Table</a> concept, Forgetsy uses decaying counters to track temporal trends in categorical distributions.</p>
 
 <!-- more -->
 
+<h2 id="anatomy-of-a-trend">Anatomy of a Trend</h2>
 
-<a name="Anatomy.of.a.Trend"></a>
-<h2>Anatomy of a Trend</h2>
-
-<p>To clarify the term 'trend', let's take this graph of cumulative artist searches over time as an example.</p>
+<p>To clarify the term ‘trend’, let’s take this graph of cumulative artist searches over time as an example.</p>
 
 <p><img src="/images/2014-03-17-detecting-trends-with-forgetsy/searches.png" alt="Artist Search Graphs" /></p>
 
-<p>On the left-hand side, we see a steepening gradient (denoted by the dashed lines) for Banksy during his residency in New York (Oct 2013), but in contrast a linear rise in searches for Warhol over the same period. We define a 'trend' as this rise in the <em>rate</em> of observations of a particular event over a time period, which we'll call τ.</p>
+<p>On the left-hand side, we see a steepening gradient (denoted by the dashed lines) for Banksy during his residency in New York (Oct 2013), but in contrast a linear rise in searches for Warhol over the same period. We define a ‘trend’ as this rise in the <em>rate</em> of observations of a particular event over a time period, which we’ll call τ.</p>
 
 <p>In Forgetsy, trends are encapsulated by a construct named <em>delta</em>. A <em>delta</em> consists of two sets of counters, each of which implements <a href="https://en.wikipedia.org/wiki/Exponential_decay">exponential decay</a> of the following form.</p>
 
@@ -195,78 +188,59 @@
 
 <p>Where the inverse of the decay rate (λ) is the lifetime of an observation in the set, τ. By normalising one set by a set with half the decay rate (or double the lifetime), we obtain a trending score for each category in a distribution. This score expresses the change in the rate of observations of a category over the lifetime of the set, as a proportion in the range [0,1].</p>
 
-<p>Forgetsy removes the need for manually sliding time windows or explicitly maintaining rolling counts, as observations naturally decay away over time. It's designed for heavy writes and sparse reads, as it implements decay at read time. Each set is implemented as a <a href="http://redis.io/">redis</a> sorted set, and keys are scrubbed when a count is decayed to near zero, providing storage efficiency.</p>
+<p>Forgetsy removes the need for manually sliding time windows or explicitly maintaining rolling counts, as observations naturally decay away over time. It’s designed for heavy writes and sparse reads, as it implements decay at read time. Each set is implemented as a <a href="http://redis.io/">redis</a> sorted set, and keys are scrubbed when a count is decayed to near zero, providing storage efficiency.</p>
 
 <p>As a result, Forgetsy handles distributions with up to around 10<sup>6</sup> active categories, receiving hundreds of writes per second, without much fuss.</p>
 
-<a name="Usage"></a>
-<h2>Usage</h2>
+<h2 id="usage">Usage</h2>
 
 <p>Take a social network in which users can follow each other. You want to track trending users. You construct a delta with a one week lifetime, to capture trends in your follows data over one week periods:</p>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">follows_delta</span> <span class="o">=</span> <span class="no">Forgetsy</span><span class="o">::</span><span class="no">Delta</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">&#39;user_follows&#39;</span><span class="p">,</span> <span class="ss">t</span><span class="p">:</span> <span class="mi">1</span><span class="o">.</span><span class="n">week</span><span class="p">)</span>
-</span></code></pre></td></tr></table></div></figure>
-
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">follows_delta</span> <span class="o">=</span> <span class="no">Forgetsy</span><span class="o">::</span><span class="no">Delta</span><span class="p">.</span><span class="nf">create</span><span class="p">(</span><span class="s1">'user_follows'</span><span class="p">,</span> <span class="ss">t: </span><span class="mi">1</span><span class="p">.</span><span class="nf">week</span><span class="p">)</span>
+</code></pre></div></div>
 
 <p>The delta consists of two sets of counters indexed by category identifiers. In this example, the identifiers will be user ids. One set decays over the mean lifetime specified by τ, and another set decays over double the lifetime.</p>
 
 <p>You can now add observations to the delta, in the form of follow events. Each time a user follows another, you increment the followed user id. You can also do this retrospectively:</p>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">follows_delta</span><span class="o">.</span><span class="n">incr</span><span class="p">(</span><span class="s1">&#39;UserFoo&#39;</span><span class="p">,</span> <span class="ss">date</span><span class="p">:</span> <span class="mi">2</span><span class="o">.</span><span class="n">weeks</span><span class="o">.</span><span class="n">ago</span><span class="p">)</span>
-</span><span class='line'><span class="n">follows_delta</span><span class="o">.</span><span class="n">incr</span><span class="p">(</span><span class="s1">&#39;UserBar&#39;</span><span class="p">,</span> <span class="ss">date</span><span class="p">:</span> <span class="mi">10</span><span class="o">.</span><span class="n">days</span><span class="o">.</span><span class="n">ago</span><span class="p">)</span>
-</span><span class='line'><span class="n">follows_delta</span><span class="o">.</span><span class="n">incr</span><span class="p">(</span><span class="s1">&#39;UserBar&#39;</span><span class="p">,</span> <span class="ss">date</span><span class="p">:</span> <span class="mi">1</span><span class="o">.</span><span class="n">week</span><span class="o">.</span><span class="n">ago</span><span class="p">)</span>
-</span><span class='line'><span class="o">.</span><span class="n">.</span><span class="o">.</span>
-</span></code></pre></td></tr></table></div></figure>
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">follows_delta</span><span class="p">.</span><span class="nf">incr</span><span class="p">(</span><span class="s1">'UserFoo'</span><span class="p">,</span> <span class="ss">date: </span><span class="mi">2</span><span class="p">.</span><span class="nf">weeks</span><span class="p">.</span><span class="nf">ago</span><span class="p">)</span>
+<span class="n">follows_delta</span><span class="p">.</span><span class="nf">incr</span><span class="p">(</span><span class="s1">'UserBar'</span><span class="p">,</span> <span class="ss">date: </span><span class="mi">10</span><span class="p">.</span><span class="nf">days</span><span class="p">.</span><span class="nf">ago</span><span class="p">)</span>
+<span class="n">follows_delta</span><span class="p">.</span><span class="nf">incr</span><span class="p">(</span><span class="s1">'UserBar'</span><span class="p">,</span> <span class="ss">date: </span><span class="mi">1</span><span class="p">.</span><span class="nf">week</span><span class="p">.</span><span class="nf">ago</span><span class="p">)</span>
+<span class="o">...</span>
+</code></pre></div></div>
 
+<p>Providing an explicit date is useful if you are processing data asynchronously. You can also use the <code class="language-plaintext highlighter-rouge">incr_by</code> option to increment a counter in batches. You can now consult your follows delta to find your top trending users:</p>
 
-<p>Providing an explicit date is useful if you are processing data asynchronously. You can also use the <code>incr_by</code> option to increment a counter in batches. You can now consult your follows delta to find your top trending users:</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="nb">puts</span> <span class="n">follows_delta</span><span class="o">.</span><span class="n">fetch</span>
-</span></code></pre></td></tr></table></div></figure>
-
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">puts</span> <span class="n">follows_delta</span><span class="p">.</span><span class="nf">fetch</span>
+</code></pre></div></div>
 
 <p>Will print:</p>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="p">{</span> <span class="s1">&#39;UserFoo&#39;</span> <span class="o">=&gt;</span> <span class="mi">0</span><span class="o">.</span><span class="mi">789</span><span class="p">,</span> <span class="s1">&#39;UserBar&#39;</span> <span class="o">=&gt;</span> <span class="mi">0</span><span class="o">.</span><span class="mi">367</span> <span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
-
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span> <span class="s1">'UserFoo'</span> <span class="o">=&gt;</span> <span class="mf">0.789</span><span class="p">,</span> <span class="s1">'UserBar'</span> <span class="o">=&gt;</span> <span class="mf">0.367</span> <span class="p">}</span>
+</code></pre></div></div>
 
 <p>Each user is given a dimensionless score in the range [0,1] corresponding to the normalised follows delta over the time period. This expresses the proportion of follows gained by the user over the last week compared to double that lifetime.</p>
 
-<p>Optionally fetch the top <em>n</em> users, or an individual user's trending score:</p>
+<p>Optionally fetch the top <em>n</em> users, or an individual user’s trending score:</p>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">follows_delta</span><span class="o">.</span><span class="n">fetch</span><span class="p">(</span><span class="ss">n</span><span class="p">:</span> <span class="mi">20</span><span class="p">)</span>
-</span><span class='line'><span class="n">follows_delta</span><span class="o">.</span><span class="n">fetch</span><span class="p">(</span><span class="ss">bin</span><span class="p">:</span> <span class="s1">&#39;UserFoo&#39;</span><span class="p">)</span>
-</span></code></pre></td></tr></table></div></figure>
-
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">follows_delta</span><span class="p">.</span><span class="nf">fetch</span><span class="p">(</span><span class="ss">n: </span><span class="mi">20</span><span class="p">)</span>
+<span class="n">follows_delta</span><span class="p">.</span><span class="nf">fetch</span><span class="p">(</span><span class="ss">bin: </span><span class="s1">'UserFoo'</span><span class="p">)</span>
+</code></pre></div></div>
 
 <p>For more information on usage, check out the <a href="https://github.com/cavvia/forgetsy">github project</a> page.</p>
 
-<a name="In.the.Wild"></a>
-<h2>In the Wild</h2>
+<h2 id="in-the-wild">In the Wild</h2>
 
-<p>In practice, we use linear, weighted combinations of deltas to produce trending scores for any given domain, such as artists. Forgetsy doesn't provide a server, but we send events to an rpc service that updates the deltas in a streamed manner. These events might include artist follows, artwork favorites, auction lot sales or individual page views.</p>
+<p>In practice, we use linear, weighted combinations of deltas to produce trending scores for any given domain, such as artists. Forgetsy doesn’t provide a server, but we send events to an rpc service that updates the deltas in a streamed manner. These events might include artist follows, artwork favorites, auction lot sales or individual page views.</p>
 
-<p>One requirement we have is lifetime flexibility. Forgetsy lets us stipulate the trending period τ on a delta by delta basis. This allows us to lower the lifetime significantly in a fair context, in which we track trends over just a few hours, contrasted with a general art market context, in which we're interested in trends over weeks and months.</p>
+<p>One requirement we have is lifetime flexibility. Forgetsy lets us stipulate the trending period τ on a delta by delta basis. This allows us to lower the lifetime significantly in a fair context, in which we track trends over just a few hours, contrasted with a general art market context, in which we’re interested in trends over weeks and months.</p>
 
 <p>In summary, the delta structures provided by Forgetsy provide you with a simple, scalable, transparent base for a trending algorithm that can be tuned to suit the specific dynamics of the domain in question.</p>
 </div>
     
 
-    
-      <p class="meta-author">
-        
-  
-
+    <p class="meta-author">
+      
 
 
 
@@ -307,39 +281,38 @@
 
 
 
-      </p>
-      <p class="meta-categories">
-        Categories: 
+    </p>
+    <p class="meta-categories">
+      Categories: 
 
 <span class="categories">
   
-    <a class='category' href='/blog/categories/data/'>data</a>, <a class='category' href='/blog/categories/redis/'>redis</a>, <a class='category' href='/blog/categories/ruby/'>ruby</a>
+    <a class='category' href='/blog/categories/data/'>Data</a>, <a class='category' href='/blog/categories/redis/'>Redis</a>, <a class='category' href='/blog/categories/ruby/'>Ruby</a>
   
 </span>
 
 
-      </p>
-      
-
-      
-        <hr/>
-        <section class="comments">
-          <h1>Comments</h1>
-          <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
-</div>
-        </section>
-        <hr/>
-      
-
-      <p class="meta-paginate">
-        
-          <a class="previous" href="/blog/2014/01/30/isolating-spurious-and-nondeterministic-tests/" title="Previous Post: Isolating Spurious and Nondeterministic Tests">&laquo; Isolating Spurious and Nondeterministic Tests</a>
-        
-        
-          <a class="next" href="/blog/2014/03/17/some-tips-for-email-layout-and-responsiveness/" title="next Post: Some Tips for Email Layout and Responsiveness">Some Tips for Email Layout and Responsiveness &raquo;</a>
-        
-      </p>
+    </p>
     
+
+    
+      <hr/>
+      <section class="comments">
+        <h1>Comments</h1>
+        <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</div>
+      </section>
+      <hr/>
+    
+
+    <p class="meta-paginate">
+      
+        <a class="previous" href="/blog/2014/01/30/isolating-spurious-and-nondeterministic-tests/" title="Previous Post: Isolating Spurious and Nondeterministic Tests">&laquo; Isolating Spurious and Nondeterministic Tests</a>
+      
+      
+        <a class="next" href="/blog/2014/03/17/some-tips-for-email-layout-and-responsiveness/" title="next Post: Some Tips for Email Layout and Responsiveness">Some Tips for Email Layout and Responsiveness &raquo;</a>
+      
+    </p>
   </div>
 
 

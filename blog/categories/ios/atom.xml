@@ -4,7 +4,7 @@
   <title><![CDATA[Category: ios | Artsy Engineering]]></title>
   <link href="https://artsy.github.io/blog/categories/ios/atom.xml" rel="self"/>
   <link href="https://artsy.github.io/"/>
-  <updated>2022-04-12T15:26:26+00:00</updated>
+  <updated>2022-04-12T22:23:19+00:00</updated>
   <id>https://artsy.github.io/</id>
   <author>
     <name><![CDATA[]]></name>
@@ -18,67 +18,62 @@
     <link href="https://artsy.github.io/blog/2020/12/31/echo-supporting-old-app-versions/"/>
     <updated>2020-12-31T00:00:00+00:00</updated>
     <id>https://artsy.github.io/blog/2020/12/31/echo-supporting-old-app-versions</id>
-    <content type="html"><![CDATA[<p><a href="https://artsy.github.io/blog/2020/03/02/ios-deploys-super-weird-totally-normal/">In, a recent blog post</a>, I discussed a fundamental difference between web and iOS deployments. Web software is deployed to servers that are under your control, while iOS software is deployed to users' devices that you have <em>no</em> control over. This distinction really changes how you think about the code that you ship, because that code could be running indefinitely on devices that never get updated.</p>
+    <content type="html"><![CDATA[<p><a href="https://artsy.github.io/blog/2020/03/02/ios-deploys-super-weird-totally-normal/">In, a recent blog post</a>, I discussed a fundamental difference between web and iOS deployments. Web software is deployed to servers that are under your control, while iOS software is deployed to users’ devices that you have <em>no</em> control over. This distinction really changes how you think about the code that you ship, because that code could be running indefinitely on devices that never get updated.</p>
 
-<p>The previous post focused on this distinction through the lens of accidentally shipping (and then fixing) a bug. This focus on bugs is important, but focusing <em>only</em> on bugs left me unable to articulate an important, nuanced distinction between hosting code and shipping app binaries. So let's dive in.</p>
+<p>The previous post focused on this distinction through the lens of accidentally shipping (and then fixing) a bug. This focus on bugs is important, but focusing <em>only</em> on bugs left me unable to articulate an important, nuanced distinction between hosting code and shipping app binaries. So let’s dive in.</p>
 
 <!-- more -->
 
-
 <p>Software, ideally, is made up of more than just bugs; it has working code, too! Just like with (accidentally) shipping bugs, you need to be aware that the working code you ship is <em>also</em> going to be running indefinitely. That puts pressure on developers to make sure that the code in their apps will continue to function correctly, even as (for example) the web APIs that the apps rely on get updated over time.</p>
 
-<a name="A.Case.Study"></a>
-<h2>A Case Study</h2>
+<h2 id="a-case-study">A Case Study</h2>
 
-<p>Artsy's iOS app relies on a services we call "<a href="https://github.com/artsy/echo">Echo</a>" to serve remote configuration. This lets Artsy do things like selectively disable features (for example, to make non-backwards-compatible API changes), provide changes to URL-routing (to match corresponding changes to web URLs), or even to <em>require</em> users on older versions of the app to update (which we have never had to do). Echo has helped Artsy meet its business goals and building this remote configuration for the app was a great idea.</p>
+<p>Artsy’s iOS app relies on a services we call “<a href="https://github.com/artsy/echo">Echo</a>” to serve remote configuration. This lets Artsy do things like selectively disable features (for example, to make non-backwards-compatible API changes), provide changes to URL-routing (to match corresponding changes to web URLs), or even to <em>require</em> users on older versions of the app to update (which we have never had to do). Echo has helped Artsy meet its business goals and building this remote configuration for the app was a great idea.</p>
 
-<p>However... Echo was built as a general-purpose remote-configuration-as-a-service, in anticipation of being used by other apps. That use never materialized. It had a web portal and a database and an API, all to only ever serve a single JSON response to the app. That's fine, sometimes engineers build things that don't end up getting used widely as we expected. Echo did one thing, and it did it really well. It ran on a Hobby Dyno on Heroku without incident for years.</p>
+<p>However… Echo was built as a general-purpose remote-configuration-as-a-service, in anticipation of being used by other apps. That use never materialized. It had a web portal and a database and an API, all to only ever serve a single JSON response to the app. That’s fine, sometimes engineers build things that don’t end up getting used widely as we expected. Echo did one thing, and it did it really well. It ran on a Hobby Dyno on Heroku without incident for years.</p>
 
-<p>If you think about what I've discussed so far in this post, you may realize that the app <em>depends</em> on Echo. If Echo changes in some non-backwards-compatible way, then the app could break. For example, if Echo happened to stop working entirely, then the app could stop working too.</p>
+<p>If you think about what I’ve discussed so far in this post, you may realize that the app <em>depends</em> on Echo. If Echo changes in some non-backwards-compatible way, then the app could break. For example, if Echo happened to stop working entirely, then the app could stop working too.</p>
 
 <p>The Echo service went without being deployed for several years. It worked, so why update it? The problem was that at some point, its major dependencies got yanked, so we could no longer build it locally or even deploy it at all. Yikes. I asked a web colleague for help and our conclusion was that it would take more effort to get Echo working with its existing code than it would be to rebuild the whole thing. Double yikes. And finally, Echo was running on the <a href="https://devcenter.heroku.com/articles/cedar-14-stack">Cedar-14 Heroku stack</a>, which was already at end-of-life and had stopped receiving security updates. Triple yikes.</p>
 
 <p>(I have to note here that most of services at Artsy are deployed almost constantly – Echo was an odd one out. Echo never needed any updates, so it never needed to be deployed. However, we should have been keeping its dependencies up to date and deploying it regularly, which would have uncovered its problems sooner when they were still easily fixed. Anyway!)</p>
 
-<p>So we have a service, Echo, that we can't develop, and can't deploy, and isn't getting security updates from our cloud provider. And the app depends on it. Since Echo had always been a bit over-engineered for what it ended up being, I wondered what the minimal replacement could be. My plan was to replace the Echo server with an S3 bucket, an Artsy-controlled CNAME DNS record, and a small shell script that runs automatically on CI.</p>
+<p>So we have a service, Echo, that we can’t develop, and can’t deploy, and isn’t getting security updates from our cloud provider. And the app depends on it. Since Echo had always been a bit over-engineered for what it ended up being, I wondered what the minimal replacement could be. My plan was to replace the Echo server with an S3 bucket, an Artsy-controlled CNAME DNS record, and a small shell script that runs automatically on CI.</p>
 
-<p>Seriously! <a href="https://github.com/artsy/echo/pull/39">It worked</a>! I made a proof-of-concept and then another engineer, <a href="https://github.com/pvinis">Pavlos</a>, finished building the new infrastructure. Changes to the app's configuration are now done via GitHub pull requests (<a href="https://github.com/artsy/echo/pull/63">here is an example PR</a>), which we can track over time (unlike the old web interface).</p>
+<p>Seriously! <a href="https://github.com/artsy/echo/pull/39">It worked</a>! I made a proof-of-concept and then another engineer, <a href="https://github.com/pvinis">Pavlos</a>, finished building the new infrastructure. Changes to the app’s configuration are now done via GitHub pull requests (<a href="https://github.com/artsy/echo/pull/63">here is an example PR</a>), which we can track over time (unlike the old web interface).</p>
 
-<p>I can't stress enough how much worry I had had about Echo's degrading status and the app's dependency on it. But! Everything about the change to S3 went smoothly.</p>
+<p>I can’t stress enough how much worry I had had about Echo’s degrading status and the app’s dependency on it. But! Everything about the change to S3 went smoothly.</p>
 
-<p>Okay, so new versions of app are now referring to the S3 bucket instead of the old Echo API. Great! But what about the older versions of the app that are still out there? They're still hitting the Echo API as intended, right?</p>
+<p>Okay, so new versions of app are now referring to the S3 bucket instead of the old Echo API. Great! But what about the older versions of the app that are still out there? They’re still hitting the Echo API as intended, right?</p>
 
-<a name="The.Problem"></a>
-<h2>The Problem</h2>
+<h2 id="the-problem">The Problem</h2>
 
-<p>Echo's API was still functioning, albeit on an EOL stack that we couldn't make any changes to. Since we can't rely on Heroku continuing to run the Echo API indefinitely, what could we do? Well, the easiest way to fix this would be to change Echo's Artsy-controlled CNAME record to point from the old Cedar-14 Heroku app to a new server app, which could pretend to be the old API for the sake of older app versions.</p>
+<p>Echo’s API was still functioning, albeit on an EOL stack that we couldn’t make any changes to. Since we can’t rely on Heroku continuing to run the Echo API indefinitely, what could we do? Well, the easiest way to fix this would be to change Echo’s Artsy-controlled CNAME record to point from the old Cedar-14 Heroku app to a new server app, which could pretend to be the old API for the sake of older app versions.</p>
 
 <p>This leads me to one of the most scary lines of code in the entire Artsy iOS codebase. See if you can spot the problem.</p>
 
-<pre><code class="objc">NSURL *url = [[NSURL alloc] initWithString:@"https://echo-api-production.herokuapp.com/"];
-</code></pre>
+<div class="language-objc highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">NSURL</span> <span class="o">*</span><span class="n">url</span> <span class="o">=</span> <span class="p">[[</span><span class="n">NSURL</span> <span class="nf">alloc</span><span class="p">]</span> <span class="nf">initWithString</span><span class="p">:</span><span class="s">@"https://echo-api-production.herokuapp.com/"</span><span class="p">];</span>
+</code></pre></div></div>
 
-<p>For whatever reason, we never created an Artsy-controlled CNAME DNS record for Echo. We were just hitting the bare Heroku URL directly. That means that there are <em>seven years'</em> worth of Artsy app versions out there that <em>need</em> to be able to continue hitting <em>that specific</em> Heroku URL.</p>
+<p>For whatever reason, we never created an Artsy-controlled CNAME DNS record for Echo. We were just hitting the bare Heroku URL directly. That means that there are <em>seven years’</em> worth of Artsy app versions out there that <em>need</em> to be able to continue hitting <em>that specific</em> Heroku URL.</p>
 
 <p>😬</p>
 
-<p>This is what I meant earlier about how you need to think about properly-working code differently when you develop software that runs on someone else's hardware. If this was a server, this whole problem of old-code-hitting-outdated-APIs wouldn't exist. But because we ship apps as binaries that get ran on someone <em>else's</em> hardware, we need to be aware of this kind of issue.</p>
+<p>This is what I meant earlier about how you need to think about properly-working code differently when you develop software that runs on someone else’s hardware. If this was a server, this whole problem of old-code-hitting-outdated-APIs wouldn’t exist. But because we ship apps as binaries that get ran on someone <em>else’s</em> hardware, we need to be aware of this kind of issue.</p>
 
-<p>That URL was fine when the code was written and it worked as intended for years. No one could have predicted, when it was added, that it would cause us headaches much later. Nor could we have anticipated that the Echo server's codebase would end up in such a state.</p>
+<p>That URL was fine when the code was written and it worked as intended for years. No one could have predicted, when it was added, that it would cause us headaches much later. Nor could we have anticipated that the Echo server’s codebase would end up in such a state.</p>
 
-<a name="The.Solution"></a>
-<h2>The Solution</h2>
+<h2 id="the-solution">The Solution</h2>
 
-<p>This is the part of the blog post where I get to be a hero (at least in my head). The Heroku app running Echo was on Cedar-14 and while we couldn't make any changes to its code, we <em>could</em> replace the code entirely. This would give us a new server running at the old URL. So I wrote up a small Express server to proxy HEAD and GET API requests from old iOS app versions to return the response body and headers that were expected. <a href="https://github.com/artsy/echo/pull/59#">The work is here</a> if you're curious. The nice thing about Heroku, at least, is that if this had gone horribly wrong we still could have reverted back to the Cedar-14 app while we figured out our next steps.</p>
+<p>This is the part of the blog post where I get to be a hero (at least in my head). The Heroku app running Echo was on Cedar-14 and while we couldn’t make any changes to its code, we <em>could</em> replace the code entirely. This would give us a new server running at the old URL. So I wrote up a small Express server to proxy HEAD and GET API requests from old iOS app versions to return the response body and headers that were expected. <a href="https://github.com/artsy/echo/pull/59#">The work is here</a> if you’re curious. The nice thing about Heroku, at least, is that if this had gone horribly wrong we still could have reverted back to the Cedar-14 app while we figured out our next steps.</p>
 
-<p>We will still need to keep this Heroku app running, indefinitely, which isn't ideal. Perhaps Artsy's migration to Kubernetes will never be <em>quite</em> 100% complete, but that's a small price to pay for keeping users of our app happy.</p>
+<p>We will still need to keep this Heroku app running, indefinitely, which isn’t ideal. Perhaps Artsy’s migration to Kubernetes will never be <em>quite</em> 100% complete, but that’s a small price to pay for keeping users of our app happy.</p>
 
-<a name="Conclusion"></a>
-<h2>Conclusion</h2>
+<h2 id="conclusion">Conclusion</h2>
 
-<p>It's not just bugs that you need to be aware of <em>accidentally</em> shipping in your app binaries. You have to think about how the code that's running <em>as intended today</em>, because it will continue to run for the foreseeable future. This means adding checks for non-200 response codes from APIs, being careful about third-party APIs, and thinking carefully about everything you ship. Apps are more than just their code; apps are everything that their code depends on, too.</p>
+<p>It’s not just bugs that you need to be aware of <em>accidentally</em> shipping in your app binaries. You have to think about how the code that’s running <em>as intended today</em>, because it will continue to run for the foreseeable future. This means adding checks for non-200 response codes from APIs, being careful about third-party APIs, and thinking carefully about everything you ship. Apps are more than just their code; apps are everything that their code depends on, too.</p>
 
-<p>This is a lesson that I've been teaching engineers for a long time, but it's only with our recent Echo changes that I've come to understand, at a deeper level, what it means to take ownership of code. Yes, the bugs, and of course, the happy little accidents, but also the mundane interconnected dependencies that make software systems so complex. And, if I'm being honest, that make software systems so much fun to work on, too.</p>
+<p>This is a lesson that I’ve been teaching engineers for a long time, but it’s only with our recent Echo changes that I’ve come to understand, at a deeper level, what it means to take ownership of code. Yes, the bugs, and of course, the happy little accidents, but also the mundane interconnected dependencies that make software systems so complex. And, if I’m being honest, that make software systems so much fun to work on, too.</p>
 ]]></content>
   </entry>
   
@@ -87,26 +82,25 @@
     <link href="https://artsy.github.io/blog/2020/09/29/becoming-mobile-first-at-artsy/"/>
     <updated>2020-09-29T00:00:00+00:00</updated>
     <id>https://artsy.github.io/blog/2020/09/29/becoming-mobile-first-at-artsy</id>
-    <content type="html"><![CDATA[<p>It was a Wednesday, mid-summer 2019. I don't know which Wednesday specifically, but I know that it was <em>a</em>
-Wednesday because I was attending Artsy's weekly all-hands meeting. Two hundred colleagues were also there (many
+    <content type="html"><![CDATA[<p>It was a Wednesday, mid-summer 2019. I don’t know which Wednesday specifically, but I know that it was <em>a</em>
+Wednesday because I was attending Artsy’s weekly all-hands meeting. Two hundred colleagues were also there (many
 dialing in remotely) and we were all listening to
-<a href="https://files.artsy.net/documents/artsy-names-new-ceo.pdf">Artsy's new CEO</a> talk about the company's direction.
+<a href="https://files.artsy.net/documents/artsy-names-new-ceo.pdf">Artsy’s new CEO</a> talk about the company’s direction.
 Mike Steib had only been around for a few months at that point, getting to know the business. He was talking about
 the product direction, and I was listening intently.</p>
 
-<p>With Artsy's iOS app, I knew there were only really two directions we could go. As I listened, I reflected on how
+<p>With Artsy’s iOS app, I knew there were only really two directions we could go. As I listened, I reflected on how
 we had gotten here.</p>
 
 <!-- more -->
 
+<p>When I joined Artsy in 2014, I joined the Mobile Team. It was an amazing team. While we were called the “mobile”
+team, we only worked on Artsy’s iOS apps and not the mobile website.</p>
 
-<p>When I joined Artsy in 2014, I joined the Mobile Team. It was an amazing team. While we were called the "mobile"
-team, we only worked on Artsy's iOS apps and not the mobile website.</p>
-
-<p>By 2016, Artsy Engineering had grown to the size that having only a "mobile team" and a "web team" was no longer
+<p>By 2016, Artsy Engineering had grown to the size that having only a “mobile team” and a “web team” was no longer
 working well. We dissolved both teams and distributed the engineers into
 <a href="https://artsy.github.io/blog/2016/03/28/artsy-engineering-organization-stack/">new product teams</a>, focused on
-vertical aspects of Artsy's business. Auctions. Partner Success. Editorial. And so on. The idea was that each team
+vertical aspects of Artsy’s business. Auctions. Partner Success. Editorial. And so on. The idea was that each team
 would have total autonomy over building products to support their slice of the business, and each would have the
 engineering and design resources to build new features across both our web and iOS canvases.</p>
 
@@ -116,42 +110,41 @@ our iOS software holistically. The app had become a series of silos – each sil
 distinct from each other. Often each silo was written in distinct programming languages (we had also started
 adopting React Native).</p>
 
-<p>New iOS technologies had been created by Apple, but our teams weren't taking full advantage of them. We would
-update to support the latest versions of Xcode and iOS in the free time between other tickets. It wasn't ideal. Of
+<p>New iOS technologies had been created by Apple, but our teams weren’t taking full advantage of them. We would
+update to support the latest versions of Xcode and iOS in the free time between other tickets. It wasn’t ideal. Of
 the <a href="https://github.com/artsy/mobile">five original members of the Mobile Team</a>, everyone else had moved on except
 me.</p>
 
 <p>As a product, the app was languishing.</p>
 
-<p>Yet despite this, it was also hugely popular among our users and very important to Artsy's business. Art collectors
+<p>Yet despite this, it was also hugely popular among our users and very important to Artsy’s business. Art collectors
 love our app! It gets a large percentage of our total sessions. Also, users place an outsized number of auction
 bids and artwork inquiries using our app relative to the number of sessions on our website. In fact, the highest
 value artwork transaction <em>ever</em> to take place on Artsy was made on an iPad, running software that I helped build.
-I'm still pretty proud of that.</p>
+I’m still pretty proud of that.</p>
 
 <p>So, Wednesday all-hands. I stood there, not sure of what would happen next. I could see Artsy either making a
 massive investment in the app, or I could see Artsy cutting its losses and focusing on the software that we already
 knew how to build. Which direction we took largely depended on this new CEO, who was now standing in front of us
-all and describing the direction Artsy's product would take next.</p>
+all and describing the direction Artsy’s product would take next.</p>
 
-<a name="The.Dream"></a>
-<h2>The Dream</h2>
+<h2 id="the-dream">The Dream</h2>
 
 <p>Mike said something that caused a lot of raised eyebrows in the crowd. People were excited. <em>I</em> was excited.
-Artsy's product organization would shift to adopt a "mobile-first strategy."</p>
+Artsy’s product organization would shift to adopt a “mobile-first strategy.”</p>
 
-<p>Someone asked "does this mean the app will reach feature parity with Artsy's website?"</p>
+<p>Someone asked “does this mean the app will reach feature parity with Artsy’s website?”</p>
 
-<p>Mike responded: "No. It means that features are going to launch <em>first</em> on the app. If anything, it's the <em>website</em>
-that will be catching up <em>to the app</em>."</p>
+<p>Mike responded: “No. It means that features are going to launch <em>first</em> on the app. If anything, it’s the <em>website</em>
+that will be catching up <em>to the app</em>.”</p>
 
-<p>I was kind of blown away! I mean, this had been the spirit of our original re-org in 2016, but that hadn't really
+<p>I was kind of blown away! I mean, this had been the spirit of our original re-org in 2016, but that hadn’t really
 materialized. The app had continued to trail the website. At most, only one product team was ever building new
 features for the app (usually which ever team I happened to be on). Shifting to this mobile-first strategy would be
 a <em>massive</em> undertaking, but I was keen.</p>
 
-<p>In August, an email landed in my inbox from Artsy's head of software. He wanted to spin up a new team to focus on
-the app: the team would be responsible for supporting Artsy's new mobile-first product strategy. He wanted to know
+<p>In August, an email landed in my inbox from Artsy’s head of software. He wanted to spin up a new team to focus on
+the app: the team would be responsible for supporting Artsy’s new mobile-first product strategy. He wanted to know
 what I thought, and he wanted to know if I was interested in leading the team.</p>
 
 <p>Honestly, it was a dream come true.</p>
@@ -164,19 +157,18 @@ how Artsy grew from <em>sometimes</em> having <em>a</em> team working on the app
 
 <p><img src="/images/2020-09-29-becoming-mobile-first-at-artsy/faq.png" alt="Another screenshot of the RFC for creating the Mobile Experience team, describing frequently asked questions" /></p>
 
-<a name="Getting.Our.Bearings"></a>
-<h2>Getting Our Bearings</h2>
+<h2 id="getting-our-bearings">Getting Our Bearings</h2>
 
 <p>When Artsy created its new Mobile Experience team, we were already resource-constrained and so the new team would
 need to be nimble. We had three full-time engineers (myself as tech lead, and two others), assisted by a designer,
 product manager, and data analyst, who would each be spending only half their work time on the Mobile Experience
-team. We needed to be scrappy. I'm really proud of the work that that early team accomplished, and I look back
+team. We needed to be scrappy. I’m really proud of the work that that early team accomplished, and I look back
 fondly on those first few months working with Sam, Joanna, David, Kieran, and Ani.</p>
 
 <p>The first thing we did was define our own mandate. What was this team responsible for? What was it <em>not</em>
-responsible for? "Mobile Experience" is pretty vague, and we had to answer a lot of upfront questions. Would we be
-responsible for <em>all</em> of Artsy's iOS software? No, just the main collector app. Would we be responsible for Artsy's
-mobile website? No, that's too far-reaching. What about Android? Well, yes, eventually...</p>
+responsible for? “Mobile Experience” is pretty vague, and we had to answer a lot of upfront questions. Would we be
+responsible for <em>all</em> of Artsy’s iOS software? No, just the main collector app. Would we be responsible for Artsy’s
+mobile website? No, that’s too far-reaching. What about Android? Well, yes, eventually…</p>
 
 <p>After we decided on our mandate, the next step was to get really familiar with the existing app. We storyboarded
 out all the existing screens and their connections to one another.</p>
@@ -187,46 +179,45 @@ out all the existing screens and their connections to one another.</p>
 
 <p>No one on our team had complete knowledge of every screen in the app, not even me, so exploring it together was a
 great way to uncover what needed immediate attention. One example was our partner page, which displayed information
-to our users about Artsy's partners: galleries, museums, auction houses, etc. We learned that the app actually used
-an ancient web view, and it didn't even show the partner's <em>artworks</em>. The artworks! Probably the most important
+to our users about Artsy’s partners: galleries, museums, auction houses, etc. We learned that the app actually used
+an ancient web view, and it didn’t even show the partner’s <em>artworks</em>. The artworks! Probably the most important
 thing for it to do!</p>
 
 <p><img src="/images/2020-09-29-becoming-mobile-first-at-artsy/old_partner.png" alt="Screenshot of a presentation showing the old partner page" /></p>
 
 <p><img src="/images/2020-09-29-becoming-mobile-first-at-artsy/new_partner.png" alt="Screenshot of a presentation showing the new partner page, which looks much nicer" /></p>
 
-<p>This is where "being scrappy" started to take root. Usually when developing new features, Artsy designers iterate
+<p>This is where “being scrappy” started to take root. Usually when developing new features, Artsy designers iterate
 on a design before we plan on execution, then we implement, test, and deploy. The nice part of replacing something
-that was <em>obviously broken</em> was that we didn't feel beholden to this usual process; whatever we built would be
+that was <em>obviously broken</em> was that we didn’t feel beholden to this usual process; whatever we built would be
 better than what we had. One engineer and our designer started the new partner page with a quick pencil sketch,
-using the app's existing UI abstractions to design something that we could quickly build. Once we had a prototype,
+using the app’s existing UI abstractions to design something that we could quickly build. Once we had a prototype,
 the engineer and designer iterated. The whole project took only about three weeks.</p>
 
-<a name="Early.Wins"></a>
-<h2>Early Wins</h2>
+<h2 id="early-wins">Early Wins</h2>
 
 <p>Learning about the app itself was critical, but equally important was learning about how our users <em>used</em> the app.
 We scheduled user interviews and, in the mean time, looked into our anonymized user analytics. Our data analyst
 found a few representative sessions and we walked through each action that a user took. One big lesson here was how
-much our app users relied on the app's search feature, which was still written in Objective-C and hadn't been
+much our app users relied on the app’s search feature, which was still written in Objective-C and hadn’t been
 updated in a long time. We found that users would often search for the same query several times in the same
-session. For example, users would search for "banksy", wander off exploring some art, and then return to search for
-"bansky" again. And again. And again.</p>
+session. For example, users would search for “banksy”, wander off exploring some art, and then return to search for
+“bansky” again. And again. And again.</p>
 
-<p>Our search implementation didn't show users their own recent searches, which would have greatly reduced the amount
+<p>Our search implementation didn’t show users their own recent searches, which would have greatly reduced the amount
 of friction users experienced while exploring the art world in the app. Our other engineer took point working with
-our designer to migrate the app's search to React Native. We also added some other features to our search page,
+our designer to migrate the app’s search to React Native. We also added some other features to our search page,
 like adding entity subtitles so users would know if the result they were tapping on was an artwork, and artist, a
-gallery, and so on. The whole project took about a month to complete, and we have continued to iterate on the app's
+gallery, and so on. The whole project took about a month to complete, and we have continued to iterate on the app’s
 search.</p>
 
 <p><img src="/images/2020-09-29-becoming-mobile-first-at-artsy/new_search.png" alt="Screenshot of a presentation showing the new search" /></p>
 
-<p>In early conversations with company leadership, the Mobile Experience team settled on an... interesting strategy to
-what we would prioritize. Our mission was "to make the app not suck." This might seem harsh! But it came from a
+<p>In early conversations with company leadership, the Mobile Experience team settled on an… interesting strategy to
+what we would prioritize. Our mission was “to make the app not suck.” This might seem harsh! But it came from a
 place of caring. We knew how much better the app could be and we were motivated to make that a reality. In the
-spring of 2020, the team felt like we had reached a point where the app no longer "sucked" – our goal now was "to
-make the app amazing."</p>
+spring of 2020, the team felt like we had reached a point where the app no longer “sucked” – our goal now was “to
+make the app amazing.”</p>
 
 <p>During 2020, we made a lot of changes to the app. We had built a new home page, a profile tab for users, granular
 push notification settings, Sign In with Apple, and more.</p>
@@ -239,17 +230,16 @@ liaisons complementing our new partner page, or sales people complementing our r
 people had gotten so used to the app not moving much at all that this sudden high velocity of development was as
 exciting for them as it was for us.</p>
 
-<a name="Setting.Up.Others.To.Succeed"></a>
-<h2>Setting Up Others To Succeed</h2>
+<h2 id="setting-up-others-to-succeed">Setting Up Others To Succeed</h2>
 
-<p>Artsy's goal for the Mobile Experience team was explicitly <em>not</em> to centralize all our iOS feature development, and
+<p>Artsy’s goal for the Mobile Experience team was explicitly <em>not</em> to centralize all our iOS feature development, and
 so our mandate included much more that just working on iOS software ourselves. We wanted to sit between a typical
-product team and a "platform" team, to provide infrastructure and assistance so any team at Artsy could develop
+product team and a “platform” team, to provide infrastructure and assistance so any team at Artsy could develop
 their own iOS feature. This was a big challenge, and required work at the individual and team levels.</p>
 
 <p>The first step was apparent before we even created the Mobile Experience team. Artsy Engineering runs skills
 surveys every six months, and we knew that building iOS software in React Native was something Artsy engineers
-weren't really familiar with, but that they really wanted to learn more about. I worked with the Engineering team's
+weren’t really familiar with, but that they really wanted to learn more about. I worked with the Engineering team’s
 Peer Learning Working Group to design a curriculum – big shout out to Christina and Adam for their help here!</p>
 
 <p><a href="https://artsy.github.io/blog/2019/12/03/ios-learning-group/">The iOS Learning Group took four weeks to deliver four lessons</a>.
@@ -259,18 +249,17 @@ educator, developing new skills around curriculum design and delivery. After the
 positively to the experience and we have integrated lessons learned from the iOS Learning Group into subsequent
 peer learning groups.</p>
 
-<a name="Aligning.Product.Releases"></a>
-<h2>Aligning Product Releases</h2>
+<h2 id="aligning-product-releases">Aligning Product Releases</h2>
 
 <p>Now that engineers had a solid grasp of how to build software in our application, we could re-align our product
-development process around iOS. I can't speak to the design side of this, but from a product perspective the most
+development process around iOS. I can’t speak to the design side of this, but from a product perspective the most
 critical milestone was defining a regular 2-week app release cadence. Let me explain.</p>
 
 <p>Prior to the Mobile Experience team, we released the app pretty irregularly. We would release whenever we had
 something big to release, basically. There are two major flaws with that approach. The first problem is that since
 each release was bigger, each release was scarier. No one really felt confident releasing app updates. The second
 problem was that large pieces of work tended to get coupled together. This came to a head last summer when we were
-blocked from releasing an redesigned artwork view because we were waiting for a major overhaul to Artsy's GraphQL
+blocked from releasing an redesigned artwork view because we were waiting for a major overhaul to Artsy’s GraphQL
 API to be completed. Without guidance or structure, different teams were building big projects and both had their
 changes in our default branch – it was a bit chaotic.</p>
 
@@ -278,17 +267,15 @@ changes in our default branch – it was a bit chaotic.</p>
 mobile apps:
 <a href="https://artsy.github.io/blog/2020/03/02/ios-deploys-super-weird-totally-normal/">deploying iOS software is weird</a>.
 Engineers, designers, and product managers at Artsy are used to being able to quickly and cheaply deploy software
-to the <em>web</em>, not the App Store. iOS software is deployed to our user's hardware, not to servers we control, which
+to the <em>web</em>, not the App Store. iOS software is deployed to our user’s hardware, not to servers we control, which
 introduces the possibility that users might not upgrade. Software we shipped years ago is still being run today –
-we have the analytics to prove it. Not to mention that every app update has to go through Apple's App Store review
+we have the analytics to prove it. Not to mention that every app update has to go through Apple’s App Store review
 process. Getting our product team aligned on a release schedule might also help us get aligned on the weirdness of
 deploying iOS software.</p>
 
 <center>
-<blockquote class="twitter-tweet"><p lang="en" dir="ltr">iOS developers! I have a question for you. I hear a lot about teams releasing app updates on a 2-week cadence, to increase user confidence/App Store ranking/team morale/etc.<br><br>Have any teams shared their experiences with this? Bonus points for any quantitative data. Thanks!! 🤗</p>&mdash; Ash Furrow (@ashfurrow) <a href="https://twitter.com/ashfurrow/status/1184845989510811649?ref_src=twsrc%5Etfw">October 17, 2019</a></blockquote> <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+<blockquote class="twitter-tweet"><p lang="en" dir="ltr">iOS developers! I have a question for you. I hear a lot about teams releasing app updates on a 2-week cadence, to increase user confidence/App Store ranking/team morale/etc.<br /><br />Have any teams shared their experiences with this? Bonus points for any quantitative data. Thanks!! 🤗</p>&mdash; Ash Furrow (@ashfurrow) <a href="https://twitter.com/ashfurrow/status/1184845989510811649?ref_src=twsrc%5Etfw">October 17, 2019</a></blockquote> <script async="" src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
 </center>
-
-
 <p><br /></p>
 
 <p>As the Mobile Experience team formed, I reached out to other mobile teams to find out about how they structured
@@ -302,27 +289,25 @@ Store.</p>
 
 <p><img src="/images/2020-09-29-becoming-mobile-first-at-artsy/cadence.png" alt="Calendar describing our cadence on an example sprint" /></p>
 
-<a name="Making.Deploys.Not.Scary"></a>
-<h2>Making Deploys Not Scary</h2>
+<h2 id="making-deploys-not-scary">Making Deploys Not Scary</h2>
 
 <p>To further help teams get into the habit of developing and releasing iOS software often, we created nightly betas.
 We also adopted a clever idea from our web colleagues: deploy blocks. In case of a technical reason to not release
 a beta, we create a block and the CI job that deploys the beta would fail with a descriptive message. This reduced
-a lot of chatter in Slack where engineers would ask "could I make a new beta?" Instead, engineers usually just wait
+a lot of chatter in Slack where engineers would ask “could I make a new beta?” Instead, engineers usually just wait
 for the nightly beta. And if they get impatient, they now default to action (their beta deploy will fail if we set
 up a block).</p>
 
 <p>All of this was automated through <a href="https://fastlane.tools">fastlane</a> on our CI provider. We had been using fastlane
 for a long time at Artsy, but the Mobile Experience team took the time to share knowledge of how it worked. Any
-engineer at Artsy can now make a beta (<code>make deploy</code>) or promote the latest beta to an App Store submission
-(<code>make promote_beta_to_submission</code>).</p>
+engineer at Artsy can now make a beta (<code class="language-plaintext highlighter-rouge">make deploy</code>) or promote the latest beta to an App Store submission
+(<code class="language-plaintext highlighter-rouge">make promote_beta_to_submission</code>).</p>
 
 <p>We deploy more often and, consequently, each deploy is less scary. And everyone is aware of the need to hide
 in-progress work behind feature flags. At this point, updates to our app are mundane, predictable, and boring. Just
 the way we like them.</p>
 
-<a name="Being.Generous.With.Our.Time"></a>
-<h2>Being Generous With Our Time</h2>
+<h2 id="being-generous-with-our-time">Being Generous With Our Time</h2>
 
 <p>Our QA and deploy process touches on something I want to go into more detail about, which is how the Mobile
 Experience team helped support other product teams. I described earlier how Mobile Experience sits somewhere
@@ -334,9 +319,9 @@ developers, and the needs of our platform.</p>
 
 <p>I would encourage engineers from other teams to ask us for help, which led to a lot of pairing sessions. To be
 honest, I think it probably interfered with our productivity, but it was worth it. A half hour of my time spent
-pairing with a colleague might save them three hours of banging their head against Xcode. But it's not the time
-saved that I care about, it's the head-banging. I want engineers at Artsy to feel empowered to build their own iOS
-software, and that's only going to happen if they feel comfortable and supported.</p>
+pairing with a colleague might save them three hours of banging their head against Xcode. But it’s not the time
+saved that I care about, it’s the head-banging. I want engineers at Artsy to feel empowered to build their own iOS
+software, and that’s only going to happen if they feel comfortable and supported.</p>
 
 <p>When the Galleries team kicked off their ambitious Viewing Rooms project, we helped them get started by lending an
 engineer to them for a few sprints. When they ran into problems, we were generous with our time by pairing with
@@ -347,11 +332,11 @@ release.</p>
 
 <p>Speaking of Developer Experience, we took a keen interest in standardizing our best practices and modernizing the
 codebase. We
-<a href="https://github.com/artsy/eigen/blob/dc81bbc9cd33d51d10054a6c57e61a1bd0ee3e75/docs/preferred_practices.md">documented how we wanted the app's codebase to look</a>
+<a href="https://github.com/artsy/eigen/blob/dc81bbc9cd33d51d10054a6c57e61a1bd0ee3e75/docs/preferred_practices.md">documented how we wanted the app’s codebase to look</a>
 and set up
 <a href="https://github.com/artsy/eigen/blob/dc81bbc9cd33d51d10054a6c57e61a1bd0ee3e75/tslint-rules/useWrappedComponentsRule.js">processes like lint rules</a>
 to encourage developers to follow our best practices. We also invited any engineer at Artsy to join our
-twice-weekly Knowledge Share meetings (I'll discuss these in-depth shortly). We looked for bottle necks in the
+twice-weekly Knowledge Share meetings (I’ll discuss these in-depth shortly). We looked for bottle necks in the
 development process and found many problems, which we addressed.
 <a href="https://github.com/artsy/eigen/pull/3022">We combined the Native iOS and React Native repositories</a> (which had
 historically been separated). <a href="https://github.com/artsy/eigen/pull/3105">We overhauled the CI configuration</a> to
@@ -362,80 +347,76 @@ you need a stick.)</p>
 
 <p>The React Native community has grown a lot since 2016. If Artsy were to begin our adoption of React Native today,
 we would be really well-supported by a community that has defined best practices, documented standard approaches to
-problems, and a consolidated opinion on what a React Native codebase should "feel" like. None of that existed in
-2016, and our early architectural decisions don't really reflect contemporary best practices. We continue working
-to bring our codebase closer to resembling a fresh project created with <code>react-native init</code>.</p>
+problems, and a consolidated opinion on what a React Native codebase should “feel” like. None of that existed in
+2016, and our early architectural decisions don’t really reflect contemporary best practices. We continue working
+to bring our codebase closer to resembling a fresh project created with <code class="language-plaintext highlighter-rouge">react-native init</code>.</p>
 
-<p>I'm extraordinarily happy with how things have shaped up, and in the direction we continue to move. This is all an
+<p>I’m extraordinarily happy with how things have shaped up, and in the direction we continue to move. This is all an
 ongoing process, and should remain an ongoing process. For example, engineers were still facing a bottleneck with
-core parts of our app's routing logic that were in Objective-C, so we recently
+core parts of our app’s routing logic that were in Objective-C, so we recently
 <a href="https://github.com/artsy/eigen/pull/3771">moved all routing to TypeScript</a>. Not only does moving code out of
 Objective-C make it easier for everyone to build, but it also ladders up to a cross-platform Artsy app.</p>
 
 <p>We still have older practices in the app that we want to migrate away from, like testing with Enzyme. But overall,
 things are looking good!</p>
 
-<iframe width="100%" height="400" src="https://www.youtube.com/embed/IEn2_WSKFHw" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+<iframe width="100%" height="400" src="https://www.youtube.com/embed/IEn2_WSKFHw" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen=""></iframe>
 
-
-<a name="Knowledge.Shares"></a>
-<h2>Knowledge Shares</h2>
+<h2 id="knowledge-shares">Knowledge Shares</h2>
 
 <p>We achieved most of these big, infrastructural changes in meetings called <em>Knowledge Shares</em>, which I mentioned
 earlier. I should write a dedicated blog post on these (update: <a href="/blog/2020/12/09/share-your-knowledge/">I did write one</a>), but in short: Knowledge Shares are a <em>structured</em> time to
-facilitate <em>unstructured learning</em>. Anyone can bring a topic to Knowledge Share, from a ticket that they're stuck
+facilitate <em>unstructured learning</em>. Anyone can bring a topic to Knowledge Share, from a ticket that they’re stuck
 on to an idea they have to a neat trick they recently learned. We set aside these two hours a week to discuss
-whatever the team wants, and we don't only invite engineers.</p>
+whatever the team wants, and we don’t only invite engineers.</p>
 
 <p>New feature designs, product roadmaps, and data analyses are often brought up by our non-engineering colleagues; we
-discuss these at the beginning of the meetings to make sure everyone's time is respected. Throughout the week,
+discuss these at the beginning of the meetings to make sure everyone’s time is respected. Throughout the week,
 someone will raise a question in Slack. Before we had Knowledge Share meetings, we might schedule a dedicated
-half-hour meeting to discussing this question. But instead, we now say "alright let's chat about this at tomorrow's
-KS." Usually the discussion lasts a lot less than a half hour, so we save time and needless context-switching.</p>
+half-hour meeting to discussing this question. But instead, we now say “alright let’s chat about this at tomorrow’s
+KS.” Usually the discussion lasts a lot less than a half hour, so we save time and needless context-switching.</p>
 
 <p>Knowledge Shares are also a manifestation of my philosophy of tech leadership, which is this: none of us have built
-an Artsy before, so instead of optimizing for building an Artsy, let's optimize for <em>learning</em> how to build an
-Artsy. The best Artsy we can build. And as a natural byproduct, an Artsy gets built. But it's the <em>learning</em> that
+an Artsy before, so instead of optimizing for building an Artsy, let’s optimize for <em>learning</em> how to build an
+Artsy. The best Artsy we can build. And as a natural byproduct, an Artsy gets built. But it’s the <em>learning</em> that
 is treated as the paramount goal.</p>
 
 <p>Like I said, I owe you a whole blog post on Knowledge Share meetings. I hope I have conveyed how important these
-scheduled "structured unstructured learning" times have been for us.</p>
+scheduled “structured unstructured learning” times have been for us.</p>
 
-<a name="The.Results"></a>
-<h2>The Results</h2>
+<h2 id="the-results">The Results</h2>
 
-<p>So where does that leave us? It's been a year and change, where are we now? Well I'm happy to say that we've made a
-huge impact. We've gone from only having (at most) one product team writing iOS software at a time to having nearly
+<p>So where does that leave us? It’s been a year and change, where are we now? Well I’m happy to say that we’ve made a
+huge impact. We’ve gone from only having (at most) one product team writing iOS software at a time to having nearly
 <em>every</em> product team building iOS software. Artsy is through the woods of its transition to a mobile-first product
 strategy. We still have a ways to go, but it feels like we have finally realized the dream we had in 2016 where
-every team is fully equipped and empowered to deliver on their own business goals, across all of Artsy's canvasses.</p>
+every team is fully equipped and empowered to deliver on their own business goals, across all of Artsy’s canvasses.</p>
 
-<p>Our App Store ranking has shot through the roof – not surprising considering our "make it not suck" and then "make
-it amazing" approach. Artsy's iOS app rating now sits at a stout 4.7.</p>
+<p>Our App Store ranking has shot through the roof – not surprising considering our “make it not suck” and then “make
+it amazing” approach. Artsy’s iOS app rating now sits at a stout 4.7.</p>
 
 <p><img src="/images/2020-09-29-becoming-mobile-first-at-artsy/ratings.png" alt="Screenshot of a graph showing an increasing average App Store rating" /></p>
 
-<p>We've also started tracking our iOS developer experience within Artsy. We know exactly where we still need work
+<p>We’ve also started tracking our iOS developer experience within Artsy. We know exactly where we still need work
 because we ask our engineers where they need support.</p>
 
-<p>It's taken a mammoth effort, and there's so much more that I could talk about, but this blog post is long enough
-already! Looking at the work we've done, the ways we've done it, and the results of our effort... I feel ecstatic.</p>
+<p>It’s taken a mammoth effort, and there’s so much more that I could talk about, but this blog post is long enough
+already! Looking at the work we’ve done, the ways we’ve done it, and the results of our effort… I feel ecstatic.</p>
 
-<a name="Next.Steps"></a>
-<h2>Next Steps</h2>
+<h2 id="next-steps">Next Steps</h2>
 
-<p>All that said, Artsy's product team is currently embarking on another reorganization. With so much technical and
-product debt paid off, Artsy has evolved past the need for a dedicated Mobile Experience team. It's bittersweet,
-but I'm proud to say that the new Collector Experience team is about to be born. Our team will continue to own the
-mobile platform, including its holistic user experience and day-to-day developer experience, but we'll have an
+<p>All that said, Artsy’s product team is currently embarking on another reorganization. With so much technical and
+product debt paid off, Artsy has evolved past the need for a dedicated Mobile Experience team. It’s bittersweet,
+but I’m proud to say that the new Collector Experience team is about to be born. Our team will continue to own the
+mobile platform, including its holistic user experience and day-to-day developer experience, but we’ll have an
 expanded mandate. That mandate includes a cross-platform Artsy app that will work for collectors on Android as well
 as iOS.</p>
 
 <p>The Mobile Experience team has grown, too. Since we started last year with just a few engineers and limited product
 support, we now boast a full roster of engineers and product support. I want to thank everyone on the team,
 currently: David, Sam, Brian, Mike, Brittney, Pavlos, and Mounir. You have made the past year an incredibly
-rewarding experience for me as I learn the ropes of technical leadership. I'm so proud of what we've built together
-and I'm excited for what the new Collector Experience team is going to do next!</p>
+rewarding experience for me as I learn the ropes of technical leadership. I’m so proud of what we’ve built together
+and I’m excited for what the new Collector Experience team is going to do next!</p>
 ]]></content>
   </entry>
   
@@ -457,12 +438,10 @@ know Xcode and CocoaPods.</p>
 
 <!-- more -->
 
+<h2 id="a-release-case-study">A Release Case Study</h2>
 
-<a name="A.Release.Case.Study"></a>
-<h2>A Release Case Study</h2>
-
-<p>We're going to use a case study to frame today's discussion. Artsy's Mobile Experience team recently got a ticket
-from our Platform team. The nature of the ticket itself doesn't matter, but it involved a change we were making to
+<p>We’re going to use a case study to frame today’s discussion. Artsy’s Mobile Experience team recently got a ticket
+from our Platform team. The nature of the ticket itself doesn’t matter, but it involved a change we were making to
 our API. I fixed the bug and submitted a pull request, which quickly got merged. We tested the bug fix in our next
 beta deploy, and everything looked fine. Great so far.</p>
 
@@ -470,99 +449,96 @@ beta deploy, and everything looked fine. Great so far.</p>
 the following week. But our back-end team wanted to quickly deploy that API change, which would require the app bug
 fix to get released to users <em>first</em>.</p>
 
-<p>So... what to do?</p>
+<p>So… what to do?</p>
 
 <p>Do we release off-cadence? Or do we push back on our Platform team and ask them to hold off until the scheduled
 release?</p>
 
-<p>Let's actually pause for a moment and consider one of the assumptions we made above. If you're a web engineer, the
+<p>Let’s actually pause for a moment and consider one of the assumptions we made above. If you’re a web engineer, the
 idea of releasing only every two weeks might seem pretty strange! I mean, why not release continuously? For
-example, Artsy's website gets deployed to our staging environment after every merged pull request, and staging then
-gets promoted to production several times a day. This process is generally referred to as "continuous delivery",
-and <a href="https://www.thoughtworks.com/insights/blog/case-continuous-delivery">it has a lot of advantages</a>. That's why
-it's so common among web engineering teams. So why not use continuous delivery on iOS apps?</p>
+example, Artsy’s website gets deployed to our staging environment after every merged pull request, and staging then
+gets promoted to production several times a day. This process is generally referred to as “continuous delivery”,
+and <a href="https://www.thoughtworks.com/insights/blog/case-continuous-delivery">it has a lot of advantages</a>. That’s why
+it’s so common among web engineering teams. So why not use continuous delivery on iOS apps?</p>
 
-<a name="The.Executable.Problem"></a>
-<h2>The Executable Problem</h2>
+<h2 id="the-executable-problem">The Executable Problem</h2>
 
-<p>There are two reasons we can't use continuous delivery on iOS. First, continuous delivery is only really possible
+<p>There are two reasons we can’t use continuous delivery on iOS. First, continuous delivery is only really possible
 when you control where the software gets executed (or, in the case of web front-ends, where the client-side code
 gets served from). Artsy controls our own servers, so we can deliver web software continuously. The next time a
-user makes a web request, they'll get the updated code. However, the Artsy iOS app runs on our users' devices,
-instead. We can't push out updates to users' iPhones or iPads in the same way we can push updates to our servers.</p>
+user makes a web request, they’ll get the updated code. However, the Artsy iOS app runs on our users’ devices,
+instead. We can’t push out updates to users’ iPhones or iPads in the same way we can push updates to our servers.</p>
 
-<p>iOS apps are binary executables that are distributed through Apple's App Store, and updates to apps have to be
+<p>iOS apps are binary executables that are distributed through Apple’s App Store, and updates to apps have to be
 pulled down by devices. Even if <em>most</em> users have automatic updates turned on, those updates are typically
-installed overnight. Consequently, there's quite a lag between when we deploy an iOS update and when users run the
-code. While it only takes about a week for 80% of our users to update to the latest version, there's a very long
+installed overnight. Consequently, there’s quite a lag between when we deploy an iOS update and when users run the
+code. While it only takes about a week for 80% of our users to update to the latest version, there’s a very long
 tail after that.</p>
 
 <p><img src="/images/2020-03-02-ios-deploys-super-weird-totally-normal/graph.png" alt="Graph of in-use versions of Artsy's app, illustrating both the quick adoption of new updates by most users and the long tail of old versions that are never updated" /></p>
 
-<p>iOS software is executed in an environment that we don't control, that we can't push updates to, and most
-importantly, that we can't roll back deploys on. If we ship a version of our app with a bug, but then ship an
+<p>iOS software is executed in an environment that we don’t control, that we can’t push updates to, and most
+importantly, that we can’t roll back deploys on. If we ship a version of our app with a bug, but then ship an
 updated version with a fix right away, there is absolutely no guarantee that users will install that update.
 <em>Ever</em>. That means that <em>every</em> deploy we make to our iOS software requires a lot of confidence in that code. In
 contrast, rolling back a web deploy is quite painless. If we ship a bug to the web, no problem: just roll back the
 deploy, fix the bug, and re-deploy with the fix.</p>
 
-<p>(Note: some readers might be wondering why we don't take advantage of over-the-air updates to our React Native
+<p>(Note: some readers might be wondering why we don’t take advantage of over-the-air updates to our React Native
 JavaScript bundle. This is definitely possible, but our app is brownfield with some native code and some React
-Native code and we haven't yet built out the infrastructure for this. As more and more code shifts to React Native,
+Native code and we haven’t yet built out the infrastructure for this. As more and more code shifts to React Native,
 we plan to investigate OTA updates to JavaScript bundles.)</p>
 
-<a name="Apple.s.Platform..Apple.s.Rules"></a>
-<h2>Apple's Platform, Apple's Rules</h2>
+<h2 id="apples-platform-apples-rules">Apple’s Platform, Apple’s Rules</h2>
 
 <p>The second reason to deploy iOS software on a schedule, rather than with continuous delivery, depends on the App
 Store review process. This is another big difference that takes web engineers a while to get used to. Whenever we
-ship a version of our iOS app, we ship it to Apple for review, and then Apple ships it to our users. I'm not going
+ship a version of our iOS app, we ship it to Apple for review, and then Apple ships it to our users. I’m not going
 to debate the utility of Apple as an intermediary – the fact is that they own the iOS platform and these are the
-rules they have chosen. If you want to ship iOS software, then you have to abide by Apple's rules.</p>
+rules they have chosen. If you want to ship iOS software, then you have to abide by Apple’s rules.</p>
 
-<p>App Store review isn't exactly QA. I mean, if we were to ship an app update and it crashes upon launch, Apple isn't
-likely to approve that update. But if we have a small bug buried somewhere in the app, we can't expect Apple to
+<p>App Store review isn’t exactly QA. I mean, if we were to ship an app update and it crashes upon launch, Apple isn’t
+likely to approve that update. But if we have a small bug buried somewhere in the app, we can’t expect Apple to
 find it. Apple is only testing for adherence to their
 <a href="https://developer.apple.com/app-store/review/guidelines/">App Store Review Guidelines</a>. Apple is looking for
 things like: is the app trying to steal user data? Is the app displaying objectionable material, given its age
-rating? Is the app's description and App Store metadata correct? That kind of stuff.</p>
+rating? Is the app’s description and App Store metadata correct? That kind of stuff.</p>
 
 <p>So not only do iOS software developers need a lot of confidence in every deploy, but they also need to abide by
-Apple's guidelines.</p>
+Apple’s guidelines.</p>
 
-<p>Alright. Let's return to the case study from earlier.</p>
+<p>Alright. Let’s return to the case study from earlier.</p>
 
-<a name="Case.Study.Resolution"></a>
-<h2>Case Study Resolution</h2>
+<h2 id="case-study-resolution">Case Study Resolution</h2>
 
 <p>We had a bug fix in our app, and getting it deployed was blocking an important change to our back-end API. First,
-we had to consider that some users simply wouldn't get the update. We had to ask ourselves if this would block the
+we had to consider that some users simply wouldn’t get the update. We had to ask ourselves if this would block the
 back-end change entirely – through open discussions with the team, we decided to move forward. Second, we had to
 consider the other work that had been merged since our last release. Were we confident in deploying that work
 as-is? And what amount of QA would need to be done to ship those changes as well?</p>
 
 <p>That last point is really interesting because there was actually another option. Rather than deploy the app based
-off the current <code>master</code> branch (with the bug fix <em>and</em> other work included), we did something a bit clever.
+off the current <code class="language-plaintext highlighter-rouge">master</code> branch (with the bug fix <em>and</em> other work included), we did something a bit clever.
 <a href="https://fastlane.tools">fastlane</a>, the tool we use to automate our iOS deploys, will tag each commit that we
-submit to the App Store. So rather than deploy the current <code>master</code> branch, which would require very rigorous QA,
+submit to the App Store. So rather than deploy the current <code class="language-plaintext highlighter-rouge">master</code> branch, which would require very rigorous QA,
 we checked out the previous release tag. We then used
-<a href="https://www.atlassian.com/git/tutorials/cherry-pick"><code>git cherry-pick</code></a> to apply <em>only</em> the bug fix changes, and
+<a href="https://www.atlassian.com/git/tutorials/cherry-pick"><code class="language-plaintext highlighter-rouge">git cherry-pick</code></a> to apply <em>only</em> the bug fix changes, and
 deployed from there.</p>
 
 <p><img src="/images/2020-03-02-ios-deploys-super-weird-totally-normal/slack.png" alt="Screenshot from Slack where I detailed my plan to cherry-pick the commits" /></p>
 
 <p>This isolated the changes we were making to the app and minimized the amount of QA we needed to feel confident in
-our release. Even still, we ran through our usual QA script. As I hope I've demonstrated above, it's always better
+our release. Even still, we ran through our usual QA script. As I hope I’ve demonstrated above, it’s always better
 to be safe than be sorry when it comes to deploying iOS software.</p>
 
-<p>This <code>git cherry-pick</code> approach has its own trade-offs, but it is very effective in the right circumstance. It's an
-approach I've only had to use a few times during my time at Artsy, but it's a good approach to be familiar with.
+<p>This <code class="language-plaintext highlighter-rouge">git cherry-pick</code> approach has its own trade-offs, but it is very effective in the right circumstance. It’s an
+approach I’ve only had to use a few times during my time at Artsy, but it’s a good approach to be familiar with.
 This situation also highlights a benefit of automating iOS deploys: we know <em>exactly</em> which commit each version of
-our app is running, making it easy to <code>git cherry-pick</code> with confidence.</p>
+our app is running, making it easy to <code class="language-plaintext highlighter-rouge">git cherry-pick</code> with confidence.</p>
 
-<p>I hope I've illustrated how iOS software is a bit different from web software, both inherently and incidentally.
+<p>I hope I’ve illustrated how iOS software is a bit different from web software, both inherently and incidentally.
 Many of these same quirks apply to Android deploys as well. Mobile software feels closer to software sold in
-shrink-wrapped boxes than it does to Docker images shipped to Kubernetes clusters. And that's okay. Different
+shrink-wrapped boxes than it does to Docker images shipped to Kubernetes clusters. And that’s okay. Different
 platforms will always have different constraints. Hopefully by understanding these constraints, mobile and web
 engineers can gain a greater empathy for one another and, ideally, share ideas and solutions so we can all learn
 and grown together.</p>
@@ -574,40 +550,39 @@ and grown together.</p>
     <link href="https://artsy.github.io/blog/2020/01/15/ios-logout-button-at-last/"/>
     <updated>2020-01-15T00:00:00+00:00</updated>
     <id>https://artsy.github.io/blog/2020/01/15/ios-logout-button-at-last</id>
-    <content type="html"><![CDATA[<p>In 2013, Artsy shipped the first version of our iOS app. Typical for an early-day startup, the app was a "minimum
-viable product" (with a big emphasis on "minimum"). One of the features that didn't make the cut was something you
+    <content type="html"><![CDATA[<p>In 2013, Artsy shipped the first version of our iOS app. Typical for an early-day startup, the app was a “minimum
+viable product” (with a big emphasis on “minimum”). One of the features that didn’t make the cut was something you
 expect to see in most apps: a log out button.</p>
 
 <p>When I joined Artsy a year later, there was still no log out button. And there would be no log out button for
 another six years, until today.</p>
 
-<p>I want to talk about this quirk of our app, from both product and technical perspectives. Why wasn't this already
+<p>I want to talk about this quirk of our app, from both product and technical perspectives. Why wasn’t this already
 in our app? Why was it so difficult to build? These are interesting questions, and their answers shed light on how
 products mature over time. I also want to talk about how we finally managed to prioritize this kinda weird feature
-request (spoilers: it was our company-wide hackathon). Let's go!</p>
+request (spoilers: it was our company-wide hackathon). Let’s go!</p>
 
 <!-- more -->
 
-
-<p>When I say that our app doesn't have a log out button, that's a bit of a fib: it <em>does</em> have a log out button... in
-the admin-only debug menu. The reason why this isn't a user-facing feature is that the final step of this
-admin-only log out feature is a call to <code>exit(0)</code>, effectively crashing the app. That's <em>one</em> way to make sure that
-user-specific state doesn't pollute your app's runtime, but of course it would be ridiculous for a user-facing log
+<p>When I say that our app doesn’t have a log out button, that’s a bit of a fib: it <em>does</em> have a log out button… in
+the admin-only debug menu. The reason why this isn’t a user-facing feature is that the final step of this
+admin-only log out feature is a call to <code class="language-plaintext highlighter-rouge">exit(0)</code>, effectively crashing the app. That’s <em>one</em> way to make sure that
+user-specific state doesn’t pollute your app’s runtime, but of course it would be ridiculous for a user-facing log
 out button to crash the app. The only other way to log out was to uninstall the app, which is <em>not</em> something we
 want to encourage users to do.</p>
 
-<p>So Artsy staff could log out of the app, but our normal users couldn't. This quirk was acceptable in the early days
+<p>So Artsy staff could log out of the app, but our normal users couldn’t. This quirk was acceptable in the early days
 of our app, but as the years wore on, it became less of a quirk and more of a product limitation. Even three months
-after creating our new Mobile Experience team, we hadn't yet prioritized this feature. Let's
+after creating our new Mobile Experience team, we hadn’t yet prioritized this feature. Let’s
 <a href="https://en.wikipedia.org/wiki/Five_whys">dive into this question</a> a little bit.</p>
 
-<p>The log out button hadn't been prioritized. <strong>Why?</strong> To be honest, we had – and still have – a lot of work to do to
-improve the app (<a href="http://artsy.net/jobs">we're hiring, by the way</a>). Among the high-impact work we've been
+<p>The log out button hadn’t been prioritized. <strong>Why?</strong> To be honest, we had – and still have – a lot of work to do to
+improve the app (<a href="http://artsy.net/jobs">we’re hiring, by the way</a>). Among the high-impact work we’ve been
 shipping, the log out button simply never made the cut. <strong>Why?</strong> It turns out be quite complicated to implement a
 log out button in our app. <strong>Why?</strong> To answer that, we need to step back and think about software development and
 requirements gathering, generally.</p>
 
-<p>Experienced software developers will tell you that it's far, far easier to build a piece of software with a feature
+<p>Experienced software developers will tell you that it’s far, far easier to build a piece of software with a feature
 in mind <em>from the start</em> than it is to take an existing piece of software and add something to it that it was never
 intended to do. For our app, logging out was something it was never intended to do, and so adding it was
 technically difficult. <strong>Why?</strong></p>
@@ -623,21 +598,21 @@ across <em>two</em> pieces of software, further complexifying the work to add a 
 Native codebase had always assumed a logged-in user. Adding support for this later on was too difficult (indeed,
 our solution was to
 <a href="https://github.com/artsy/emission/pull/2027/files#diff-0cc174f9197fd0b06ecbd2eaa0247833R1020">invalidate the entire React Native runtime upon log out</a>).
-This wasn't a limitation of React Native, but rather it was a limitation of how we chose to organize our code. If
-we'd added a log out button earlier in the product lifetime, it wouldn't have been so difficult. The longer we
+This wasn’t a limitation of React Native, but rather it was a limitation of how we chose to organize our code. If
+we’d added a log out button earlier in the product lifetime, it wouldn’t have been so difficult. The longer we
 waited, the more and more code we wrote that implicitly relied upon our existing limitations.</p>
 
 <p>In this way, the <em>absence</em> of a feature had gained its own inertia. The missing feature became a present absence,
-and I think there's more to think about there – maybe for another blog post.</p>
+and I think there’s more to think about there – maybe for another blog post.</p>
 
-<p>So what we had was a difficult technical problem that wasn't <em>that</em> high of priority and didn't have an obvious
-solution. Our product team wasn't feeling the pain, but our colleagues who interface more directly with our users
+<p>So what we had was a difficult technical problem that wasn’t <em>that</em> high of priority and didn’t have an obvious
+solution. Our product team wasn’t feeling the pain, but our colleagues who interface more directly with our users
 <em>were</em> feeling it.</p>
 
 <p>Artsy kicked off 2020 with a company-wide Hackathon. We run these events roughly once a year, and they provide a
-great opportunity for engineers and non-engineers to work together to build something over a few days. Maybe it's a
-brand-new piece of software to help us do our jobs better. Maybe it's a new zine to collect our favourite artworks
-from the site? And maybe, just maybe, it's a long-neglected user feature that never made the cut in prioritization
+great opportunity for engineers and non-engineers to work together to build something over a few days. Maybe it’s a
+brand-new piece of software to help us do our jobs better. Maybe it’s a new zine to collect our favourite artworks
+from the site? And maybe, just maybe, it’s a long-neglected user feature that never made the cut in prioritization
 meetings.</p>
 
 <p>Among all the ideas that Artsy staff submitted for the Hackathon, the Artsy iOS Log Out button received the third
@@ -647,56 +622,54 @@ most votes.</p>
 
 <p>I sat down with another Mobile Experience engineer, Brian, and the people who submitted the Hackathon idea. If we
 were going to build this, it was worth doing right, so we asked questions and learned more about why users need a
-log out button at all. I'll spare you the details, but it suffices to say that I learned a lot.</p>
+log out button at all. I’ll spare you the details, but it suffices to say that I learned a lot.</p>
 
 <p>Brian and I worked on the feature, digging into the internals of our app and the interop between native and React
-Native code. Our solution wasn't necessarily the "best" solution, but it worked within the assumptions that the app
-has already made. Here's roughly the plan we set out with.</p>
+Native code. Our solution wasn’t necessarily the “best” solution, but it worked within the assumptions that the app
+has already made. Here’s roughly the plan we set out with.</p>
 
 <p>On the React Native side of the app, build a settings screen with the log out button:</p>
 
 <ul>
-<li>When the user taps the button, post a notification through <code>NSNotificationCenter</code>.</li>
-<li>Also, show the user who they are logged in <em>as</em> on this screen.</li>
+  <li>When the user taps the button, post a notification through <code class="language-plaintext highlighter-rouge">NSNotificationCenter</code>.</li>
+  <li>Also, show the user who they are logged in <em>as</em> on this screen.</li>
 </ul>
 
-
-<p>On the native side of the app, listen for the notification and take the following steps when it's fired:</p>
+<p>On the native side of the app, listen for the notification and take the following steps when it’s fired:</p>
 
 <ol>
-<li>Tear down the React Native bridge (invalidate it and release it).</li>
-<li>Tear down the native user interface (set singleton instance to <code>nil</code>).</li>
-<li>Get a fresh unauthenticated API token.</li>
-<li>Use the token to show the sign in/up flow (set the window's <code>rootViewController</code> property).</li>
+  <li>Tear down the React Native bridge (invalidate it and release it).</li>
+  <li>Tear down the native user interface (set singleton instance to <code class="language-plaintext highlighter-rouge">nil</code>).</li>
+  <li>Get a fresh unauthenticated API token.</li>
+  <li>Use the token to show the sign in/up flow (set the window’s <code class="language-plaintext highlighter-rouge">rootViewController</code> property).</li>
 </ol>
 
-
-<p>Invalidating the React Native bridge is quite a dramatic action to take, but it's effective. We chose this solution
+<p>Invalidating the React Native bridge is quite a dramatic action to take, but it’s effective. We chose this solution
 because it allows our React Native code to continue assuming that the user ID and access token never change (during
 its lifetime, anyway).</p>
 
 <p>We had a few other items to follow-up on, mostly reference cycles that were holding onto invalid singleton
-instances in-memory. Here's the log out button in action:</p>
+instances in-memory. Here’s the log out button in action:</p>
 
 <p><img src="/images/2020-01-15-ios-logout-button-at-last/logout.png" alt="Screenshot of our new log out button!" /></p>
 
-<p>We learned a tonne about the React Native bridge, the existing architecture of our app, and how we'd like to see
+<p>We learned a tonne about the React Native bridge, the existing architecture of our app, and how we’d like to see
 that mature going forward.</p>
 
 <p>I said earlier that the longer we waited, the harder it was to build this log out button because more and more of
 our existing code relied upon assumptions that the log out button would break. Now that we <em>do</em> have a log out
 button, <em>new code we write needs to take it into account</em>. The assumptions coders can make about this codebase are
-shifting over time – this is an experience that I never appreciated while working on minimum viable products. I'm
-trying to lean into these shifts and use them to drive further modernizations in our codebase. For instance, I'm
+shifting over time – this is an experience that I never appreciated while working on minimum viable products. I’m
+trying to lean into these shifts and use them to drive further modernizations in our codebase. For instance, I’m
 already thinking ahead to how everything will work once our sign in/up flow is moved from Objective-C to React
 Native (since the user ID and access token <em>will</em> need to be mutable state).</p>
 
-<p>In case you're curious, all our iOS code is open source. The work to add a log out button is totally open source in
+<p>In case you’re curious, all our iOS code is open source. The work to add a log out button is totally open source in
 <a href="https://github.com/artsy/emission/pull/2027">these</a> <a href="https://github.com/artsy/eigen/pull/2977">two</a> pull requests.</p>
 
-<p>Any organization structure will lead to features falling through cracks. It just happens, it's the nature of
-structured organizations. What we've learned at Artsy is that Hackathons (and cross-team collaboration in general)
-are effective "escape hatches" for important-but-not-urgent work to get prioritized. They help our colleagues in
+<p>Any organization structure will lead to features falling through cracks. It just happens, it’s the nature of
+structured organizations. What we’ve learned at Artsy is that Hackathons (and cross-team collaboration in general)
+are effective “escape hatches” for important-but-not-urgent work to get prioritized. They help our colleagues in
 Engineering and other teams get to know each other, get to know our business, and find out what kind of features
 our users need – even less-than-glamorous features, like a log out button.</p>
 ]]></content>
@@ -710,29 +683,27 @@ our users need – even less-than-glamorous features, like a log out button.</p>
     <content type="html"><![CDATA[<p>Regular readers of our blog might be familiar with <a href="https://www.cultureamp.com">Culture Amp</a>, a tool Artsy uses to
 collect anonymous feedback and take action on cultural issues (we most recently discussed the tool
 <a href="https://artsy.github.io/blog/2019/04/19/having-a-coffee-with-every-engineer/">in this blog post</a>). At a
-company-wide level, Culture Amp has helped guide everything from Artsy's evolving culture, to our physical work
-spaces, to our support for remote work. At an engineering-team level, we've also been using Culture Amp to guide
+company-wide level, Culture Amp has helped guide everything from Artsy’s evolving culture, to our physical work
+spaces, to our support for remote work. At an engineering-team level, we’ve also been using Culture Amp to guide
 our choices in technology, documentation, and training.</p>
 
-<p>In this blog post I'll be detailing a recent learning course we ran to share knowledge about how Artsy builds iOS
+<p>In this blog post I’ll be detailing a recent learning course we ran to share knowledge about how Artsy builds iOS
 software for our entire engineering team.</p>
 
 <!-- more -->
 
-
-<p>Let's start at the beginning. Earlier this year, Artsy Engineering ran a survey through Culture Amp to get answers
+<p>Let’s start at the beginning. Earlier this year, Artsy Engineering ran a survey through Culture Amp to get answers
 to the following questions:</p>
 
 <ol>
-<li>What is our team's opinion on our current technology choices?</li>
-<li>What is our team's familiarity with or preparedness for our current technology?</li>
-<li>Where are the areas of strength and opportunities for both learning and teaching?</li>
+  <li>What is our team’s opinion on our current technology choices?</li>
+  <li>What is our team’s familiarity with or preparedness for our current technology?</li>
+  <li>Where are the areas of strength and opportunities for both learning and teaching?</li>
 </ol>
-
 
 <p>There are a lot of things we learned from this survey, and among them was a desire for engineers to better
 understand how to build iOS software at Artsy. With a nudge (and support!) from our <em>Peer Learning Working Group</em>,
-I set out to create a learning plan. I wasn't starting from scratch – we already ran a few learning groups on
+I set out to create a learning plan. I wasn’t starting from scratch – we already ran a few learning groups on
 topics ranging from Scala fundamentals to React Hooks. We used the lessons learned from <em>those</em> experiences to
 define and deliver a learning plan.</p>
 
@@ -742,32 +713,31 @@ them up front was important, to give learners a sense of what to expect; previou
 inconsistent schedules, which led to intermittent attendance. I also asked each Tech Lead to make sure at least one
 engineer from their team attended.</p>
 
-<p>Next was the actual curriculum. In the spirit of "proudly discovered elsewhere", we actually looked at using
+<p>Next was the actual curriculum. In the spirit of “proudly discovered elsewhere”, we actually looked at using
 existing learning resources that someone else had already developed. However, since
 <a href="https://artsy.github.io/series/react-native-at-artsy/">our iOS stack is a bit unique</a> and I was keen to keep
 honing my own skills as a technical educator, we decided to make our own. With the help of our Peer Learning
 Working Group, we set learning objectives for the five sessions. Here was the original plan:</p>
 
 <ul>
-<li><strong>Week 1</strong>: This week, we will cover how iOS software is developed, QA'd, and deployed. By the end of this
+  <li><strong>Week 1</strong>: This week, we will cover how iOS software is developed, QA’d, and deployed. By the end of this
 session, all participants should be able to pull the latest code from <a href="https://github.com/artsy/eigen">Eigen</a>
 (our native iOS repo) and <a href="https://github.com/artsy/emission">Emission</a> (our React Native repo), see their work
 in an iOS simulator, and link the two projects together.</li>
-<li><strong>Week 2</strong>: This week, we will cover what makes React Native distinct from React on the web, as well as how Artsy
+  <li><strong>Week 2</strong>: This week, we will cover what makes React Native distinct from React on the web, as well as how Artsy
 leverages shared infrastructure (such as our design-system, <a href="https://github.com/artsy/palette">Palette</a>) to make
 it easier for engineers to work in either one.</li>
-<li><strong>Week 3</strong>: This week, we will cover how to create a new view controller. View controllers are the main unit of
-composition for native iOS apps, and we integrate our "Scene" React components <em>as</em> view controllers. This
+  <li><strong>Week 3</strong>: This week, we will cover how to create a new view controller. View controllers are the main unit of
+composition for native iOS apps, and we integrate our “Scene” React components <em>as</em> view controllers. This
 includes routing between view controller, from both native Objective-C and React Native code.</li>
-<li><strong>Week 4</strong>: This week, we will create our own React component to fit within the new view controller from Week 3.
+  <li><strong>Week 4</strong>: This week, we will create our own React component to fit within the new view controller from Week 3.
 This will be a Relay container, fetching data from our GraphQL API,
 <a href="https://github.com/artsy/metaphysics">Metaphysics</a>. We will cover how to fetch data, how to <em>re</em>-fetch data, as
 well as how Eigen and Emission integrate together to provide client-side API response caches (both Relay and
 others).</li>
-<li><strong>Week 5</strong>: This is the final week. Participants are asked to bring an iOS bug from their product team's backlog
+  <li><strong>Week 5</strong>: This is the final week. Participants are asked to bring an iOS bug from their product team’s backlog
 that they would like to fix. Pairing is encouraged.</li>
 </ul>
-
 
 <p>Things mostly went to plan. I made sure to provide the learning resources at least a day or two ahead of each
 session; this let me respond to feedback from the previous week, and also gave learners a chance to review
@@ -775,7 +745,7 @@ materials ahead of time.</p>
 
 <p>Every session was recorded for anyone who missed it. We had a shared Slack channel set up for questions, so
 engineers could help each other. I also made sure to provide weekly office hours: this was space for people who
-missed sessions to catch up, or to just dig into concepts in more detail. I'll return to the topic of office hours
+missed sessions to catch up, or to just dig into concepts in more detail. I’ll return to the topic of office hours
 later in this post.</p>
 
 <p>Around the time of the learning group, I was reading
@@ -785,20 +755,19 @@ I was developing and delivering this curriculum. Here are a few lessons that I l
 helpful while teaching engineers at Artsy about how we build iOS software:</p>
 
 <ul>
-<li>If someone tries to do something themselves <em>before</em> being told how to do it, the attempt will strengthen their
+  <li>If someone tries to do something themselves <em>before</em> being told how to do it, the attempt will strengthen their
 understanding of the underlying concept. To put this into practice, I would often ask learners questions that I
-didn't expect they could answer yet, and the resulting discussion was always worthwhile.</li>
-<li>Interleaving different concepts together helps learners form connections between those concepts. This was
+didn’t expect they could answer yet, and the resulting discussion was always worthwhile.</li>
+  <li>Interleaving different concepts together helps learners form connections between those concepts. This was
 especially important, since a big motivator for using React Native at Artsy was to share skills between web and
 iOS codebases. As an example of putting this into practice, I interleaved a discussion of
 <a href="https://relay.dev">Relay</a> into our curriculum; I hoped to show learners both a new perspective of Relay, as well
 as show them how familiar writing React Native code was to writing React web code.</li>
-<li>Allowing for some forgetting to take place before reviewing concepts will
-<a href="https://njcideas.wordpress.com/2017/09/22/the-cognitive-science-of-studying-massed-practice-vs-spaced-practice/">help strengthen learner's understanding</a>.
+  <li>Allowing for some forgetting to take place before reviewing concepts will
+<a href="https://njcideas.wordpress.com/2017/09/22/the-cognitive-science-of-studying-massed-practice-vs-spaced-practice/">help strengthen learner’s understanding</a>.
 To put this into practice, I would return to topics from a few weeks ago to cement their understanding with
 learners.</li>
 </ul>
-
 
 <p>I had to push through some discomfort as an educator, too. Each session ended with homework questions, which we
 reviewed at the top of the next session. I would ask each question and then just sit there, in awkward silence,
@@ -813,30 +782,29 @@ principle.</p>
 <p>We learned quite a lot from delivering this curriculum – lessons we can apply to our next learning group:</p>
 
 <ul>
-<li>Learners appreciated the weekly schedule set upfront, affirming what we learned from previous learning groups.</li>
-<li>Learners appreciated having access to the materials ahead of time.</li>
-<li>Learners appreciated having the sessions recorded, to be reviewed later (or watched, in case they missed the
+  <li>Learners appreciated the weekly schedule set upfront, affirming what we learned from previous learning groups.</li>
+  <li>Learners appreciated having access to the materials ahead of time.</li>
+  <li>Learners appreciated having the sessions recorded, to be reviewed later (or watched, in case they missed the
 session).</li>
-<li>Learners appreciated having office hours available; even though the office hours weren't well-attended, learners
+  <li>Learners appreciated having office hours available; even though the office hours weren’t well-attended, learners
 appreciated having access to them if they needed to.</li>
-<li>Learners even appreciated the awkward silences while I waited for an answer to my questions. (One survey
-respondent described it as "like pulling teeth, but helpful.")</li>
-<li>Learners are varied in how they want to learn. Some liked going through things together. Some thought we went too
+  <li>Learners even appreciated the awkward silences while I waited for an answer to my questions. (One survey
+respondent described it as “like pulling teeth, but helpful.”)</li>
+  <li>Learners are varied in how they want to learn. Some liked going through things together. Some thought we went too
 slow. Still others thought we should expect learners to do more work ahead of class.</li>
 </ul>
-
 
 <p>This last point is worth expanding upon. While everyone learns differently, there is a distinction between what
 <em>feels</em> effective and what <em>is</em> effective. I tried to structure the course so that it was accessible to as many
 types of learners as possible: some like to review materials ahead of time, some like to have them on hand during
 the session, etc. Some are in-person, others are remote, still others are reviewing the recording. I could write
 another blog post about learning styles, but for now it suffices to say that I aimed for <em>inclusion</em> of as many
-different learners as possible while also recognizing that I can't make everyone happy.</p>
+different learners as possible while also recognizing that I can’t make everyone happy.</p>
 
-<p>As I enter a new chapter of my own career, leading Artsy's new Mobile Experience team, it was helpful to return to
+<p>As I enter a new chapter of my own career, leading Artsy’s new Mobile Experience team, it was helpful to return to
 some fundamentals; to get familiar with technology choices that we made years ago
 (<a href="https://ashfurrow.com/blog/swift-vs-react-native-feels/">choices which I originally resisted</a>); and to learn from
-learners' perspectives as beginners. The future of iOS software at Artsy is very bright, and now every product team
+learners’ perspectives as beginners. The future of iOS software at Artsy is very bright, and now every product team
 is more prepared than ever to deliver user experiences that are of a quality worthy of art.</p>
 ]]></content>
   </entry>
