@@ -1,7 +1,6 @@
 source "https://rubygems.org"
 
 gem 'rake'
-gem 'compass'
 gem 'jekyll'
 gem 'octopress-hooks'
 gem 'kramdown-parser-gfm'
