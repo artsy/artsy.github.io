@@ -14,6 +14,8 @@
 
     
 
+
+
   
     
       
@@ -25,8 +27,6 @@
         
         Aug 16, 2012
           
-
-
   
 
 ...">
@@ -133,7 +133,9 @@
       <div>
   <article class="hentry" role="article">
 
-    <div class="article-container-single ">
+    
+<div class="article-container-single ">
+
 
   
     <div class="meta-container">
@@ -146,6 +148,8 @@
         
         <time datetime="2012-08-16">Aug 16, 2012</time>
           <p class="meta-author">
+  
+
 
 
   
@@ -170,111 +174,180 @@
 
   <div class="content-container">
     
-      <div class="entry-content"><p>A mean bug made it into our production environment. It wasn’t caught by our extensive test suite and caused thousands of emails to be sent to a handful of people. The root cause was an unfortunate combination of <a href="https://github.com/plataformatec/devise">Devise</a>, <a href="https://github.com/collectiveidea/delayed_job">DelayedJob</a> and, of course, our own code. It was an easy fix, but nobody ever wants this to happen again.</p>
+      <div class="entry-content"><p>A mean bug made it into our production environment. It wasn't caught by our extensive test suite and caused thousands of emails to be sent to a handful of people. The root cause was an unfortunate combination of <a href="https://github.com/plataformatec/devise">Devise</a>, <a href="https://github.com/collectiveidea/delayed_job">DelayedJob</a> and, of course, our own code. It was an easy fix, but nobody ever wants this to happen again.</p>
 
-<p>tl;dr DelayedJob says it’s possible to set <code class="language-plaintext highlighter-rouge">Delayed::Worker.delay_jobs = false</code> for your tests. Don’t do it.</p>
+<p>tl;dr DelayedJob says it's possible to set <code>Delayed::Worker.delay_jobs = false</code> for your tests. Don't do it.</p>
 
 <!-- more -->
 
-<p>Consider the following <code class="language-plaintext highlighter-rouge">User</code> model that implements various Devise strategies which support some kind of notification.</p>
 
-<p>``` ruby app/models/user.rb
-class User
-  include Mongoid::Document</p>
+<p>Consider the following <code>User</code> model that implements various Devise strategies which support some kind of notification.</p>
 
-<p>devise :database_authenticatable, :registerable, …</p>
+<figure class='code'><figcaption><span>app/models/user.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">User</span>
+</span><span class='line'>  <span class="kp">include</span> <span class="no">Mongoid</span><span class="o">::</span><span class="no">Document</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="n">devise</span> <span class="ss">:database_authenticatable</span><span class="p">,</span> <span class="ss">:registerable</span><span class="p">,</span> <span class="o">.</span><span class="n">.</span><span class="o">.</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="n">field</span> <span class="ss">:notified_at</span><span class="p">,</span> <span class="ss">type</span><span class="p">:</span> <span class="no">DateTime</span>
+</span><span class='line'>  <span class="n">after_save</span> <span class="ss">:notify!</span><span class="p">,</span> <span class="ss">:if</span> <span class="o">=&gt;</span> <span class="ss">:notify?</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">notify!</span>
+</span><span class='line'>    <span class="k">super</span>
+</span><span class='line'>    <span class="n">update_attributes!</span><span class="p">({</span> <span class="ss">notified_at</span><span class="p">:</span> <span class="no">Time</span><span class="o">.</span><span class="n">now</span><span class="o">.</span><span class="n">utc</span> <span class="p">})</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
 
-<p>field :notified_at, type: DateTime
-  after_save :notify!, :if =&gt; :notify?</p>
 
-<p>def notify!
-    super
-    update_attributes!({ notified_at: Time.now.utc })
-  end
-end</p>
+<p>We are overriding a black box <code>notify!</code> method and updating an attribute with a timestamp of the last notification.</p>
 
-<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>We are overriding a black box `notify!` method and updating an attribute with a timestamp of the last notification.
+<p>Let's write a test.</p>
 
-Let's write a test.
+<figure class='code'><figcaption><span>spec/models/user_spec.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">describe</span> <span class="no">User</span> <span class="k">do</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="n">subject</span> <span class="p">{</span> <span class="no">User</span><span class="o">.</span><span class="n">new</span> <span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="n">context</span> <span class="s2">&quot;notification&quot;</span> <span class="k">do</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="n">it</span> <span class="s2">&quot;sends one email&quot;</span> <span class="k">do</span>
+</span><span class='line'>      <span class="n">expect</span> <span class="p">{</span>
+</span><span class='line'>        <span class="n">subject</span><span class="o">.</span><span class="n">notify!</span>
+</span><span class='line'>      <span class="p">}</span><span class="o">.</span><span class="n">to</span> <span class="n">change</span><span class="p">(</span><span class="no">ActionMailer</span><span class="o">::</span><span class="no">Base</span><span class="o">.</span><span class="n">deliveries</span><span class="p">,</span> <span class="ss">:count</span><span class="p">)</span><span class="o">.</span><span class="n">by</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+</span><span class='line'>    <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="n">it</span> <span class="s2">&quot;updates notified_at&quot;</span> <span class="k">do</span>
+</span><span class='line'>      <span class="n">expect</span> <span class="p">{</span>
+</span><span class='line'>        <span class="n">subject</span><span class="o">.</span><span class="n">notify!</span>
+</span><span class='line'>      <span class="p">}</span><span class="o">.</span><span class="n">to</span> <span class="n">change</span><span class="p">(</span><span class="n">subject</span><span class="p">,</span> <span class="ss">:notified_at</span><span class="p">)</span>
+</span><span class='line'>    <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
 
-``` ruby spec/models/user_spec.rb
-describe User do
 
-  subject { User.new }
+<p>All green. But once this code hit production, <code>notify!</code> was called in an infinite loop. How is that possible?</p>
 
-  context "notification" do
+<p>The call to <code>notify!</code> is delayed using DelayedJob in production and is not delayed in test. It does not work under DelayedJob and will create as many delayed notifications as it possibly can until it runs out of stack space.</p>
 
-    it "sends one email" do
-      expect {
-        subject.notify!
-      }.to change(ActionMailer::Base.deliveries, :count).by(1)
-    end
+<p>As a common pattern in Devise, the implementation of <code>notify!</code> relies on an instance variable to signal that a notification has been sent. Setting the instance variable avoids sending the notification twice for multiple calls to <code>save!</code>. Our <code>after_save</code> callback invokes <code>update_attributes!</code>, which causes another <code>notify!</code> call unless <code>notify?</code> returns <code>false</code>. In a test, the call to <code>super</code> inside <code>notify!</code> will execute the notification (setting the instance variable), but will create a delayed job in production (without setting it).</p>
 
-    it "updates notified_at" do
-      expect {
-        subject.notify!
-      }.to change(subject, :notified_at)
-    end
+<p>We'll start by bringing our tests closer to a real production environment by leaving <code>Delayed::Worker.delay_jobs = true</code> and making sure our problem is reproduced with a spec. We could call <code>Delayed::Worker.new.work_off</code> for every test that needs to execute a delayed job, but that would be rather tedious. A better approach may be to register an observer that will execute a delayed job every time one is created. This is similar to a production environment where having enough delayed workers almost guarantees a job is picked up immediately after being scheduled.</p>
 
-  end
+<figure class='code'><figcaption><span>config/initializers/delayed_job_observer.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">DelayedJobObserver</span> <span class="o">&lt;</span> <span class="no">Mongoid</span><span class="o">::</span><span class="no">Observer</span>
+</span><span class='line'>  <span class="n">observe</span> <span class="no">Delayed</span><span class="o">::</span><span class="no">Job</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">class</span> <span class="o">&lt;&lt;</span> <span class="nb">self</span>
+</span><span class='line'>    <span class="kp">attr_accessor</span> <span class="ss">:runs</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">after_create</span><span class="p">(</span><span class="n">delayed_job</span><span class="p">)</span>
+</span><span class='line'>    <span class="n">delayed_job</span><span class="o">.</span><span class="n">invoke_job</span>
+</span><span class='line'>    <span class="no">DelayedJobObserver</span><span class="o">.</span><span class="n">runs</span> <span class="o">+=</span> <span class="mi">1</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'><span class="no">DelayedJobObserver</span><span class="o">.</span><span class="n">runs</span> <span class="o">=</span> <span class="mi">0</span>
+</span></code></pre></td></tr></table></div></figure>
 
-end
-</code></pre></div></div>
 
-<p>All green. But once this code hit production, <code class="language-plaintext highlighter-rouge">notify!</code> was called in an infinite loop. How is that possible?</p>
+<p>The complete code, which handles a few more cases, including enabling and disabling the observer, and counting successful runs and errors can be found in <a href="https://gist.github.com/3370052">this gist</a>. Please help us improve it.</p>
 
-<p>The call to <code class="language-plaintext highlighter-rouge">notify!</code> is delayed using DelayedJob in production and is not delayed in test. It does not work under DelayedJob and will create as many delayed notifications as it possibly can until it runs out of stack space.</p>
+<p>We can now test our notification without compromising on the delayed nature of the job and add a test making sure we create a single delayed job from a call to <code>notify!</code>.</p>
 
-<p>As a common pattern in Devise, the implementation of <code class="language-plaintext highlighter-rouge">notify!</code> relies on an instance variable to signal that a notification has been sent. Setting the instance variable avoids sending the notification twice for multiple calls to <code class="language-plaintext highlighter-rouge">save!</code>. Our <code class="language-plaintext highlighter-rouge">after_save</code> callback invokes <code class="language-plaintext highlighter-rouge">update_attributes!</code>, which causes another <code class="language-plaintext highlighter-rouge">notify!</code> call unless <code class="language-plaintext highlighter-rouge">notify?</code> returns <code class="language-plaintext highlighter-rouge">false</code>. In a test, the call to <code class="language-plaintext highlighter-rouge">super</code> inside <code class="language-plaintext highlighter-rouge">notify!</code> will execute the notification (setting the instance variable), but will create a delayed job in production (without setting it).</p>
+<figure class='code'><figcaption><span>spec/models/user_spec.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">describe</span> <span class="no">User</span> <span class="k">do</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="n">subject</span> <span class="p">{</span> <span class="no">User</span><span class="o">.</span><span class="n">new</span> <span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="n">context</span> <span class="s2">&quot;notification&quot;</span> <span class="k">do</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="n">it</span> <span class="s2">&quot;creates one delayed job&quot;</span> <span class="k">do</span>
+</span><span class='line'>      <span class="n">expect</span> <span class="p">{</span>
+</span><span class='line'>        <span class="n">subject</span><span class="o">.</span><span class="n">notify!</span>
+</span><span class='line'>      <span class="p">}</span><span class="o">.</span><span class="n">to</span> <span class="n">change</span><span class="p">(</span><span class="no">DelayedJobObserver</span><span class="p">,</span> <span class="ss">:runs</span><span class="p">)</span><span class="o">.</span><span class="n">by</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+</span><span class='line'>    <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
 
-<p>We’ll start by bringing our tests closer to a real production environment by leaving <code class="language-plaintext highlighter-rouge">Delayed::Worker.delay_jobs = true</code> and making sure our problem is reproduced with a spec. We could call <code class="language-plaintext highlighter-rouge">Delayed::Worker.new.work_off</code> for every test that needs to execute a delayed job, but that would be rather tedious. A better approach may be to register an observer that will execute a delayed job every time one is created. This is similar to a production environment where having enough delayed workers almost guarantees a job is picked up immediately after being scheduled.</p>
 
-<p>``` ruby config/initializers/delayed_job_observer.rb
-class DelayedJobObserver &lt; Mongoid::Observer
-  observe Delayed::Job</p>
+<p>This test will also run for a long time before failing with a stack overflow error. Our fix was not to call <code>notify!</code> from an <code>after_save</code> callback.</p>
 
-<p>class « self
-    attr_accessor :runs
-  end</p>
-
-<p>def after_create(delayed_job)
-    delayed_job.invoke_job
-    DelayedJobObserver.runs += 1
-  end
-end</p>
-
-<p>DelayedJobObserver.runs = 0</p>
-<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
-The complete code, which handles a few more cases, including enabling and disabling the observer, and counting successful runs and errors can be found in [this gist](https://gist.github.com/3370052). Please help us improve it.
-
-We can now test our notification without compromising on the delayed nature of the job and add a test making sure we create a single delayed job from a call to `notify!`.
-
-``` ruby spec/models/user_spec.rb
-describe User do
-
-  subject { User.new }
-
-  context "notification" do
-
-    it "creates one delayed job" do
-      expect {
-        subject.notify!
-      }.to change(DelayedJobObserver, :runs).by(1)
-    end
-
-  end
-
-end
-</code></pre></div></div>
-
-<p>This test will also run for a long time before failing with a stack overflow error. Our fix was not to call <code class="language-plaintext highlighter-rouge">notify!</code> from an <code class="language-plaintext highlighter-rouge">after_save</code> callback.</p>
-
-<p>We’ve suggested that immediate execution using an observer becomes a feature in DelayedJob in <a href="https://github.com/collectiveidea/delayed_job/issues/423">#423</a>. Please add your comments.</p>
+<p>We've suggested that immediate execution using an observer becomes a feature in DelayedJob in <a href="https://github.com/collectiveidea/delayed_job/issues/423">#423</a>. Please add your comments.</p>
 </div>
     
 
-    <p class="meta-author">
-      
+    
+      <p class="meta-author">
+        
+  
+
 
 
 
@@ -315,38 +388,39 @@ end
 
 
 
-    </p>
-    <p class="meta-categories">
-      Categories: 
+      </p>
+      <p class="meta-categories">
+        Categories: 
 
 <span class="categories">
   
-    <a class='category' href='/blog/categories/delayedjob/'>DelayedJob</a>, <a class='category' href='/blog/categories/rspec/'>RSpec</a>, <a class='category' href='/blog/categories/testing/'>Testing</a>
+    <a class='category' href='/blog/categories/delayedjob/'>delayedjob</a>, <a class='category' href='/blog/categories/rspec/'>rspec</a>, <a class='category' href='/blog/categories/testing/'>testing</a>
   
 </span>
 
 
-    </p>
-    
+      </p>
+      
 
-    
-      <hr/>
-      <section class="comments">
-        <h1>Comments</h1>
-        <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+      
+        <hr/>
+        <section class="comments">
+          <h1>Comments</h1>
+          <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
 </div>
-      </section>
-      <hr/>
-    
+        </section>
+        <hr/>
+      
 
-    <p class="meta-paginate">
-      
-        <a class="previous" href="/blog/2012/08/14/on-objective-c-code-standards/" title="Previous Post: On Our Objective-C Code Standards">&laquo; On Our Objective-C Code Standards</a>
-      
-      
-        <a class="next" href="/blog/2012/09/12/how-artsy-builds-experiments-labs-and-easter-eggs/" title="next Post: How Artsy Builds Labs, Experiments and Easter Eggs">How Artsy Builds Labs, Experiments and Easter Eggs &raquo;</a>
-      
-    </p>
+      <p class="meta-paginate">
+        
+          <a class="previous" href="/blog/2012/08/14/on-objective-c-code-standards/" title="Previous Post: On Our Objective-C Code Standards">&laquo; On Our Objective-C Code Standards</a>
+        
+        
+          <a class="next" href="/blog/2012/09/12/how-artsy-builds-experiments-labs-and-easter-eggs/" title="next Post: How Artsy Builds Labs, Experiments and Easter Eggs">How Artsy Builds Labs, Experiments and Easter Eggs &raquo;</a>
+        
+      </p>
+    
   </div>
 
 

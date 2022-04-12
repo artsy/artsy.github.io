@@ -4,7 +4,7 @@
   <title><![CDATA[Category: redis | Artsy Engineering]]></title>
   <link href="https://artsy.github.io/blog/categories/redis/atom.xml" rel="self"/>
   <link href="https://artsy.github.io/"/>
-  <updated>2022-04-12T00:53:51+00:00</updated>
+  <updated>2022-04-12T00:57:35+00:00</updated>
   <id>https://artsy.github.io/</id>
   <author>
     <name><![CDATA[]]></name>
@@ -21,18 +21,20 @@
     <content type="html"><![CDATA[<p>I recently encountered a problem where client-side data (returned from a Relay query) became out of sync after a
 user interaction. How can we make sure our data is consistent while maintaining a single source of truth? This post
 explores why a developer might want to update client-side data locally, the basics of Relay and its store, and how
-to delete records in the store when you’re not using a mutation.</p>
+to delete records in the store when you're not using a mutation.</p>
 
-<h2 id="relay-x-artsy-x-me">Relay x Artsy x Me</h2>
+<a name="Relay.x.Artsy.x.Me"></a>
+<h2>Relay x Artsy x Me</h2>
 
 <p><a href="https://relay.dev/">Relay</a> is a GraphQL client library maintained by Facebook engineers and enables rapid client-side data
-fetching in React applications. <a href="https://artsy.github.io/blog/2019/04/10/omakase-relay/">Artsy’s adoption of Relay</a> coincided with our move
+fetching in React applications. <a href="https://artsy.github.io/blog/2019/04/10/omakase-relay/">Artsy's adoption of Relay</a> coincided with our move
 toward using React Native for our mobile work around 2016. I joined Artsy as an engineer in November of 2020 (after
 <a href="https://medium.com/swlh/how-losing-my-job-helped-me-find-my-way-back-8c8f86552acc">transitioning to engineering from a non-technical role at the
 company</a>.) When I joined, I was about a year into React development
 and completely new to Relay.</p>
 
 <!-- more -->
+
 
 <p>I work on the Partner Experience (PX) team at Artsy. We build and maintain software used by our gallery and auction
 house partners to sell artwork on Artsy. Although Relay is not new to Artsy, it’s relatively new to our team’s main
@@ -44,7 +46,8 @@ into HAML views—our way of incrementally converting the codebase to our new st
 GraphQL layer of our stack, which we call Metaphysics.) In addition to performance and other benefits, colocating a
 component with its data requirements creates a pretty seamless developer experience.</p>
 
-<h2 id="building-an-artwork-checklist">Building an Artwork Checklist</h2>
+<a name="Building.an.Artwork.Checklist"></a>
+<h2>Building an Artwork Checklist</h2>
 
 <p>On the PX team, we recently launched a checklist feature aimed at empowering our gallery partners to be more
 self-sufficient and find the greatest success possible on Artsy. The checklist prompts galleries to add specific
@@ -54,70 +57,73 @@ top-selling artist) that are missing key pieces of metadata. The checklist promp
 metadata. Users also have the ability to click a button to “snooze” works, which removes them from the list for the
 day.</p>
 
-<figure class="illustration">
-    <img src="https://user-images.githubusercontent.com/9466631/114630150-28886200-9c77-11eb-9f04-461101496ee0.png" />
-</figure>
+<p><figure class="illustration">
+    <img src="https://user-images.githubusercontent.com/9466631/114630150-28886200-9c77-11eb-9f04-461101496ee0.png">
+</figure></p>
 
 <p>The feature makes use of <a href="https://redis.io/">Redis</a>, a key-value store used for in-memory cache, to store two lists:</p>
 
 <ol>
-  <li><code class="language-plaintext highlighter-rouge">includeIDs</code> to store the five artworks in the list, so users see a consistent list of artworks whenever they
+<li><code>includeIDs</code> to store the five artworks in the list, so users see a consistent list of artworks whenever they
 log in and load the page</li>
-  <li><code class="language-plaintext highlighter-rouge">excludeIDs</code> or “snoozed” IDs which Redis will store for 24 hours and ensure the user does not see</li>
+<li><code>excludeIDs</code> or “snoozed” IDs which Redis will store for 24 hours and ensure the user does not see</li>
 </ol>
 
+
 <p>When a user presses the “snooze” button, the ID for the artwork is added to the snoozed list in Redis. The list of
-<code class="language-plaintext highlighter-rouge">includeIDs</code> and the list of <code class="language-plaintext highlighter-rouge">excludeIDs</code> are passed down from Rails controllers to our HAML views and then passed
-as props into our React <code class="language-plaintext highlighter-rouge">HomePageChecklist</code> app. In our Checklist component, we use both the <code class="language-plaintext highlighter-rouge">includeIDs</code> and the
-<code class="language-plaintext highlighter-rouge">excludeIDs</code> as arguments passed to our Relay query to determine what is returned from Metaphysics (Artsy’s GraphQL
+<code>includeIDs</code> and the list of <code>excludeIDs</code> are passed down from Rails controllers to our HAML views and then passed
+as props into our React <code>HomePageChecklist</code> app. In our Checklist component, we use both the <code>includeIDs</code> and the
+<code>excludeIDs</code> as arguments passed to our Relay query to determine what is returned from Metaphysics (Artsy's GraphQL
 layer).</p>
 
-<div class="language-js highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nx">fragment</span> <span class="nx">ArtworksMissingMetadata_partner</span> <span class="nx">on</span> <span class="nx">Partner</span>
-  <span class="p">@</span><span class="nd">argumentDefinitions</span><span class="p">(</span>
-    <span class="nx">first</span><span class="p">:</span> <span class="p">{</span> <span class="nl">type</span><span class="p">:</span> <span class="dl">"</span><span class="s2">Int</span><span class="dl">"</span><span class="p">,</span> <span class="nx">defaultValue</span><span class="p">:</span> <span class="mi">5</span> <span class="p">}</span>
-    <span class="nl">after</span><span class="p">:</span> <span class="p">{</span> <span class="na">type</span><span class="p">:</span> <span class="dl">"</span><span class="s2">String</span><span class="dl">"</span> <span class="p">}</span>
-    <span class="nl">includeIDs</span><span class="p">:</span> <span class="p">{</span> <span class="na">type</span><span class="p">:</span> <span class="dl">"</span><span class="s2">[String!]</span><span class="dl">"</span> <span class="p">}</span>
-    <span class="nl">excludeIDs</span><span class="p">:</span> <span class="p">{</span> <span class="na">type</span><span class="p">:</span> <span class="dl">"</span><span class="s2">[String!]</span><span class="dl">"</span> <span class="p">}</span>
-  <span class="p">)</span> <span class="p">{</span>
-    <span class="nx">id</span>
-    <span class="nx">artworksConnection</span><span class="p">(</span>
-      <span class="nx">first</span><span class="p">:</span> <span class="nx">$first</span>
-      <span class="nx">after</span><span class="p">:</span> <span class="nx">$after</span>
-      <span class="nx">includeIDs</span><span class="p">:</span> <span class="nx">$includeIDs</span>
-      <span class="nx">excludeIDs</span><span class="p">:</span> <span class="nx">$excludeIDs</span>
-    <span class="p">)</span> <span class="p">@</span><span class="nd">connection</span><span class="p">(</span><span class="nx">key</span><span class="p">:</span> <span class="dl">"</span><span class="s2">ArtworksMissingMetadata_partner_artworksConnection</span><span class="dl">"</span><span class="p">,</span> <span class="nx">filters</span><span class="p">:</span> <span class="p">[])</span> <span class="p">{</span>
-      <span class="nx">edges</span> <span class="p">{</span>
-        <span class="nx">node</span> <span class="p">{</span>
-          <span class="p">...</span><span class="nx">ArtworksMissingMetadataItem_artwork</span>
-        <span class="p">}</span>
-      <span class="p">}</span>
-    <span class="p">}</span>
-  <span class="p">}</span>
-</code></pre></div></div>
+<pre><code class="js">fragment ArtworksMissingMetadata_partner on Partner
+  @argumentDefinitions(
+    first: { type: "Int", defaultValue: 5 }
+    after: { type: "String" }
+    includeIDs: { type: "[String!]" }
+    excludeIDs: { type: "[String!]" }
+  ) {
+    id
+    artworksConnection(
+      first: $first
+      after: $after
+      includeIDs: $includeIDs
+      excludeIDs: $excludeIDs
+    ) @connection(key: "ArtworksMissingMetadata_partner_artworksConnection", filters: []) {
+      edges {
+        node {
+          ...ArtworksMissingMetadataItem_artwork
+        }
+      }
+    }
+  }
+</code></pre>
 
-<h2 id="problem-how-to-change-the-data-displayed-when-a-user-interacts-with-the-page">Problem: How to Change the Data Displayed When a User Interacts with the Page</h2>
+<a name="Problem:.How.to.Change.the.Data.Displayed.When.a.User.Interacts.with.the.Page"></a>
+<h2>Problem: How to Change the Data Displayed When a User Interacts with the Page</h2>
 
 <p>The problem we were running into occurs when the user presses “snooze” on an item. We successfully update Redis
 with the new snoozed item, but the UI still renders the item on the page. (This is because the response from Relay
-becomes stale.) If the user refreshes the page, the list is correct: The up-to-date Redis <code class="language-plaintext highlighter-rouge">excludeIDS</code> list will be
+becomes stale.) If the user refreshes the page, the list is correct: The up-to-date Redis <code>excludeIDS</code> list will be
 passed into our component and used in the Relay query. But without refreshing the page, we need to make sure that
 the list in the UI updates when the user snoozes an item.</p>
 
 <p>The initial fix was to use a local state variable to keep track of which items were snoozed. We defined the following variable in the parent
 React component that renders the list:</p>
 
-<div class="language-js highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">const</span> <span class="p">[</span><span class="nx">localSnoozedItems</span><span class="p">,</span> <span class="nx">setLocalSnoozedItems</span><span class="p">]</span> <span class="o">=</span> <span class="nx">useState</span><span class="p">([])</span>
-</code></pre></div></div>
+<pre><code class="js">const [localSnoozedItems, setLocalSnoozedItems] = useState([])
+</code></pre>
 
-<p>We passed <code class="language-plaintext highlighter-rouge">localSnoozedItems </code> and <code class="language-plaintext highlighter-rouge">setLocalSnoozedItems</code> down to each of the children items. When the “snooze”
-button was pressed on an item, the <code class="language-plaintext highlighter-rouge">localSnoozedItems</code> in the parent was updated with the complete list of snoozed
-items. The parent then controls which items get rendered. We used the <code class="language-plaintext highlighter-rouge">localSnoozedItems</code> list to filter the connection
-returned from our Relay query (which remember, is already filtered based on our Redis <code class="language-plaintext highlighter-rouge">excludeIDs</code> from Redis.)</p>
+<p>We passed <code>localSnoozedItems</code> and <code>setLocalSnoozedItems</code> down to each of the children items. When the “snooze”
+button was pressed on an item, the <code>localSnoozedItems</code> in the parent was updated with the complete list of snoozed
+items. The parent then controls which items get rendered. We used the <code>localSnoozedItems</code> list to filter the connection
+returned from our Relay query (which remember, is already filtered based on our Redis <code>excludeIDs</code> from Redis.)</p>
 
 <p>This worked, but it definitely did not feel great to have two sources of truth for snoozing: The Redis key and the
 local state variable.</p>
 
-<h2 id="solution-deleting-a-record-from-the-relay-store">Solution: Deleting a Record From the Relay Store</h2>
+<a name="Solution:.Deleting.a.Record.From.the.Relay.Store"></a>
+<h2>Solution: Deleting a Record From the Relay Store</h2>
 
 <p>Cue the <a href="https://relay.dev/docs/api-reference/store/">RelayModernStore</a>! I learned that Relay keeps track of the GraphQL
 data returned by each query in a store on the client. Each record in the store has a unique ID, and the store can be
@@ -126,85 +132,169 @@ changed, added to, and deleted from. There are a couple of helpful blog posts (l
 <a href="https://medium.com/entria/wrangling-the-client-store-with-the-relay-modern-updater-function-5c32149a71ac">this</a>) that explain the store and how to
 interact with it.</p>
 
-<p>In most of the Relay documentation, blog posts, and Artsy’s uses cases, the store is accessed through an <code class="language-plaintext highlighter-rouge">updater</code>
+<p>In most of the Relay documentation, blog posts, and Artsy’s uses cases, the store is accessed through an <code>updater</code>
 function via <a href="https://relay.dev/docs/guided-tour/updating-data/graphql-mutations/">mutations</a>. <a href="https://relay.dev/docs/guided-tour/updating-data/graphql-mutations/#updater-functions">Updater functions</a>
 that return the store in the first argument can optionally be added to Relay mutations. Inside that function, you can access
 the store to modify the records you need.</p>
 
-<p>Here’s an example:</p>
+<p>Here's an example:</p>
 
-<div class="language-js highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nx">commitMutation</span><span class="p">(</span><span class="nx">defaultEnvironment</span><span class="p">,</span> <span class="p">{</span>
-  <span class="na">mutation</span><span class="p">:</span> <span class="nx">graphql</span><span class="s2">`
+<pre><code class="js">commitMutation(defaultEnvironment, {
+  mutation: graphql`
     mutation SomeMutation {
       ...
     }
-  `</span><span class="p">,</span>
-  <span class="na">updater</span><span class="p">:</span> <span class="p">(</span><span class="nx">store</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span>
-    <span class="c1">// Do something with the store</span>
-  <span class="p">},</span>
-<span class="p">})</span>
-</code></pre></div></div>
+  `,
+  updater: (store) =&gt; {
+    // Do something with the store
+  },
+})
+</code></pre>
 
 <p>In my use case, I was not using a Relay mutation because I did not need to modify anything on the server. Since
-Redis is keeping track of our <code class="language-plaintext highlighter-rouge">excludeIDs</code> for us, any round trip to the server will be up-to-date. We just need to
+Redis is keeping track of our <code>excludeIDs</code> for us, any round trip to the server will be up-to-date. We just need to
 modify our local data store.</p>
 
 <p>Relay provides a <a href="https://relay.dev/docs/guided-tour/updating-data/local-data-updates/">separate API method to make local updates</a> to the Relay
-store: <code class="language-plaintext highlighter-rouge">commitLocalUpdate</code>. <code class="language-plaintext highlighter-rouge">commitLocalUpdate</code> takes two arguments: the first is the Relay environment, which you
-can easily access from the parent Relay fragment or refetch container. The second is an <code class="language-plaintext highlighter-rouge">updater</code> callback function
+store: <code>commitLocalUpdate</code>. <code>commitLocalUpdate</code> takes two arguments: the first is the Relay environment, which you
+can easily access from the parent Relay fragment or refetch container. The second is an <code>updater</code> callback function
 that returns the store in the first argument. We now have access to the store!</p>
 
-<h2 id="deleting-a-connection-node-with-connectionhandler">Deleting a Connection Node with ConnectionHandler</h2>
+<a name="Deleting.a.Connection.Node.with.ConnectionHandler"></a>
+<h2>Deleting a Connection Node with ConnectionHandler</h2>
 
 <p>My main hurdle during this journey was finding an appropriate way to hook into the store for our specific use case—when we do
 not require an update to server data.</p>
 
-<p>But to close us out: Let’s finish the job and delete the item from the connection in the store.</p>
+<p>But to close us out: Let's finish the job and delete the item from the connection in the store.</p>
 
-<p>When an item is snoozed, we call <code class="language-plaintext highlighter-rouge">commitLocalUpdate</code>, pass in the Relay environment, and then pass in the <code class="language-plaintext highlighter-rouge">updater</code>
+<p>When an item is snoozed, we call <code>commitLocalUpdate</code>, pass in the Relay environment, and then pass in the <code>updater</code>
 function. Once we have access to the store, our goal is to delete this particular item from the
-<code class="language-plaintext highlighter-rouge">artworksConnection</code>, which is the GraphQL object returned by our original Relay query.</p>
+<code>artworksConnection</code>, which is the GraphQL object returned by our original Relay query.</p>
 
 <p>Because we are dealing with connections, we want to use the <a href="https://relay.dev/docs/api-reference/store/#connectionhandler">ConnectionHandler
-API</a> provided by Relay. <code class="language-plaintext highlighter-rouge">ConnectionHandler.getConnection</code> takes in the
-connection’s parent record (which we can find using the GraphQL ID added as a field on our query for the
+API</a> provided by Relay. <code>ConnectionHandler.getConnection</code> takes in the
+connection's parent record (which we can find using the GraphQL ID added as a field on our query for the
 connection) as the first argument and the connection key which can be provided through <a href="https://www.prisma.io/blog/relay-moderns-connection-directive-1ecd8322f5c8">Relay’s @connection
 directive</a>.</p>
 
-<p>Once we have the connection, we will use <code class="language-plaintext highlighter-rouge">ConnectionHandler.deleteNode</code> which takes the connection as the first
+<p>Once we have the connection, we will use <code>ConnectionHandler.deleteNode</code> which takes the connection as the first
 argument and the id to be deleted, which we can also easily access using the GraphQL ID added as a field to the
 query for the item.</p>
 
-<p>Bonus: Because <code class="language-plaintext highlighter-rouge">commitLocalUpdate</code> works anywhere in Relay land, we got to perform this deletion exactly where the
-“snooze” action is happening: in the child item component. (In our previous solution, we had to manage the state of
-the children from their parent component, which wasn’t as intuitive.)</p>
+<p>Bonus: Because <code>commitLocalUpdate</code> works anywhere in Relay land, we got to perform this deletion exactly where the
+"snooze" action is happening: in the child item component. (In our previous solution, we had to manage the state of
+the children from their parent component, which wasn't as intuitive.)</p>
 
-<div class="language-js highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="p">{</span> <span class="nx">commitLocalUpdate</span> <span class="p">}</span> <span class="k">from</span> <span class="dl">"</span><span class="s2">relay-runtime</span><span class="dl">"</span>
+<pre><code class="js">import { commitLocalUpdate } from "relay-runtime"
 
-<span class="nx">commitLocalUpdate</span><span class="p">(</span><span class="nx">relay</span><span class="p">.</span><span class="nx">environment</span><span class="p">,</span> <span class="p">(</span><span class="nx">store</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span>
-  <span class="kd">const</span> <span class="nx">parentRecord</span> <span class="o">=</span> <span class="nx">store</span><span class="p">.</span><span class="kd">get</span><span class="p">(</span><span class="nx">parentID</span><span class="p">)</span>
+commitLocalUpdate(relay.environment, (store) =&gt; {
+  const parentRecord = store.get(parentID)
 
-  <span class="k">if</span> <span class="p">(</span><span class="nx">parentRecord</span><span class="p">)</span> <span class="p">{</span>
-    <span class="kd">const</span> <span class="nx">artworksConnection</span> <span class="o">=</span> <span class="nx">ConnectionHandler</span><span class="p">.</span><span class="nx">getConnection</span><span class="p">(</span>
-      <span class="nx">parentRecord</span><span class="p">,</span>
-      <span class="dl">"</span><span class="s2">ArtworksMissingMetadata_partner_artworksConnection</span><span class="dl">"</span>
-    <span class="p">)</span>
-    <span class="k">if</span> <span class="p">(</span><span class="nx">artworksConnection</span><span class="p">)</span> <span class="p">{</span>
-      <span class="nx">ConnectionHandler</span><span class="p">.</span><span class="nx">deleteNode</span><span class="p">(</span><span class="nx">artworksConnection</span><span class="p">,</span> <span class="nx">id</span><span class="p">)</span>
-    <span class="p">}</span>
-  <span class="p">}</span>
-<span class="p">})</span>
-</code></pre></div></div>
+  if (parentRecord) {
+    const artworksConnection = ConnectionHandler.getConnection(
+      parentRecord,
+      "ArtworksMissingMetadata_partner_artworksConnection"
+    )
+    if (artworksConnection) {
+      ConnectionHandler.deleteNode(artworksConnection, id)
+    }
+  }
+})
+</code></pre>
 
-<h2 id="key-takeaways">Key Takeaways</h2>
+<a name="Key.Takeaways"></a>
+<h2>Key Takeaways</h2>
 
 <ol>
-  <li>Relay is great because it colocates a component with its data requirements.</li>
-  <li>The Relay store allows us to access and modify data that we are using on the client.</li>
-  <li><code class="language-plaintext highlighter-rouge">commitLocalUpdate</code> provides us access to the store if we just need to modify local data and aren’t using a
+<li>Relay is great because it colocates a component with its data requirements.</li>
+<li>The Relay store allows us to access and modify data that we are using on the client.</li>
+<li><code>commitLocalUpdate</code> provides us access to the store if we just need to modify local data and aren’t using a
 mutation to update server-side data.</li>
 </ol>
 
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Detecting trends using Forgetsy]]></title>
+    <link href="https://artsy.github.io/blog/2014/03/17/detecting-trends-with-forgetsy/"/>
+    <updated>2014-03-17T11:32:00+00:00</updated>
+    <id>https://artsy.github.io/blog/2014/03/17/detecting-trends-with-forgetsy</id>
+    <content type="html"><![CDATA[<p><img src="/images/2014-03-17-detecting-trends-with-forgetsy/monolith.jpg" alt="Armory Trending Screen" /></p>
+
+<p>As part of our partnership with <a href="https://www.thearmoryshow.com/">The New York Armory Show</a> this year, we installed a number of terminals throughout the fair. These screens used our own real-time data to display an ever shifting set of trending artworks, artists, and booths, to the attendees.</p>
+
+<p>Out of this work, we've open-sourced <a href="https://github.com/cavvia/forgetsy">Forgetsy</a>, a lightweight Ruby trending library. Put simply, Forgetsy implements data structures that forget. Loosely based on Bit.ly's <a href="http://word.bitly.com/post/41284219720/forget-table">Forget Table</a> concept, Forgetsy uses decaying counters to track temporal trends in categorical distributions.</p>
+
+<!-- more -->
+
+
+<a name="Anatomy.of.a.Trend"></a>
+<h2>Anatomy of a Trend</h2>
+
+<p>To clarify the term 'trend', let's take this graph of cumulative artist searches over time as an example.</p>
+
+<p><img src="/images/2014-03-17-detecting-trends-with-forgetsy/searches.png" alt="Artist Search Graphs" /></p>
+
+<p>On the left-hand side, we see a steepening gradient (denoted by the dashed lines) for Banksy during his residency in New York (Oct 2013), but in contrast a linear rise in searches for Warhol over the same period. We define a 'trend' as this rise in the <em>rate</em> of observations of a particular event over a time period, which we'll call τ.</p>
+
+<p>In Forgetsy, trends are encapsulated by a construct named <em>delta</em>. A <em>delta</em> consists of two sets of counters, each of which implements <a href="https://en.wikipedia.org/wiki/Exponential_decay">exponential decay</a> of the following form.</p>
+
+<p><img src="http://latex.codecogs.com/gif.latex?X_t_1%3DX_t_0%5Ctimes%7Be%5E%7B-%5Clambda%5Ctimes%7Bt%7D%7D%7D" alt="Exponential Decay" /></p>
+
+<p>Where the inverse of the decay rate (λ) is the lifetime of an observation in the set, τ. By normalising one set by a set with half the decay rate (or double the lifetime), we obtain a trending score for each category in a distribution. This score expresses the change in the rate of observations of a category over the lifetime of the set, as a proportion in the range [0,1].</p>
+
+<p>Forgetsy removes the need for manually sliding time windows or explicitly maintaining rolling counts, as observations naturally decay away over time. It's designed for heavy writes and sparse reads, as it implements decay at read time. Each set is implemented as a <a href="http://redis.io/">redis</a> sorted set, and keys are scrubbed when a count is decayed to near zero, providing storage efficiency.</p>
+
+<p>As a result, Forgetsy handles distributions with up to around 10<sup>6</sup> active categories, receiving hundreds of writes per second, without much fuss.</p>
+
+<a name="Usage"></a>
+<h2>Usage</h2>
+
+<p>Take a social network in which users can follow each other. You want to track trending users. You construct a delta with a one week lifetime, to capture trends in your follows data over one week periods:</p>
+
+<pre><code class="ruby">follows_delta = Forgetsy::Delta.create('user_follows', t: 1.week)
+</code></pre>
+
+<p>The delta consists of two sets of counters indexed by category identifiers. In this example, the identifiers will be user ids. One set decays over the mean lifetime specified by τ, and another set decays over double the lifetime.</p>
+
+<p>You can now add observations to the delta, in the form of follow events. Each time a user follows another, you increment the followed user id. You can also do this retrospectively:</p>
+
+<pre><code class="ruby">follows_delta.incr('UserFoo', date: 2.weeks.ago)
+follows_delta.incr('UserBar', date: 10.days.ago)
+follows_delta.incr('UserBar', date: 1.week.ago)
+...
+</code></pre>
+
+<p>Providing an explicit date is useful if you are processing data asynchronously. You can also use the <code>incr_by</code> option to increment a counter in batches. You can now consult your follows delta to find your top trending users:</p>
+
+<pre><code class="ruby">puts follows_delta.fetch
+</code></pre>
+
+<p>Will print:</p>
+
+<pre><code class="ruby">{ 'UserFoo' =&gt; 0.789, 'UserBar' =&gt; 0.367 }
+</code></pre>
+
+<p>Each user is given a dimensionless score in the range [0,1] corresponding to the normalised follows delta over the time period. This expresses the proportion of follows gained by the user over the last week compared to double that lifetime.</p>
+
+<p>Optionally fetch the top <em>n</em> users, or an individual user's trending score:</p>
+
+<pre><code class="ruby">follows_delta.fetch(n: 20)
+follows_delta.fetch(bin: 'UserFoo')
+</code></pre>
+
+<p>For more information on usage, check out the <a href="https://github.com/cavvia/forgetsy">github project</a> page.</p>
+
+<a name="In.the.Wild"></a>
+<h2>In the Wild</h2>
+
+<p>In practice, we use linear, weighted combinations of deltas to produce trending scores for any given domain, such as artists. Forgetsy doesn't provide a server, but we send events to an rpc service that updates the deltas in a streamed manner. These events might include artist follows, artwork favorites, auction lot sales or individual page views.</p>
+
+<p>One requirement we have is lifetime flexibility. Forgetsy lets us stipulate the trending period τ on a delta by delta basis. This allows us to lower the lifetime significantly in a fair context, in which we track trends over just a few hours, contrasted with a general art market context, in which we're interested in trends over weeks and months.</p>
+
+<p>In summary, the delta structures provided by Forgetsy provide you with a simple, scalable, transparent base for a trending algorithm that can be tuned to suit the specific dynamics of the domain in question.</p>
 ]]></content>
   </entry>
   

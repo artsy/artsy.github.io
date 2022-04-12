@@ -14,6 +14,8 @@
 
     
 
+
+
   
     
       
@@ -24,8 +26,7 @@
           Splitting up a large test suite
         
         Sep 24, 2015
-          
-...">
+         ...">
   
 
   <!-- http://t.co/dKP3o1e -->
@@ -129,7 +130,9 @@
       <div>
   <article class="hentry" role="article">
 
-    <div class="article-container-single ">
+    
+<div class="article-container-single ">
+
 
   
     <div class="meta-container">
@@ -142,6 +145,8 @@
         
         <time datetime="2015-09-24">Sep 24, 2015</time>
           <p class="meta-author">
+  
+
 
 
   
@@ -166,44 +171,72 @@
 
   <div class="content-container">
     
-      <div class="entry-content"><p>A while back, we wrote about <a href="/blog/2012/10/09/how-to-run-rspec-test-suites-in-parallel-with-jenkins-ci-build-flow/">How to Run RSpec Test Suites in Parallel with Jenkins CI Build Flow</a>. A version of that still handles our largest test suite, but over time the initial division of specs became unbalanced. We ended up with some tasks that took twice as long as others. Even worse, in an attempt to rebalance task times, we ended up with awkward file patterns like <code class="language-plaintext highlighter-rouge">'spec/api/**/[a-m]*_spec.rb'</code>.</p>
+      <div class="entry-content"><p>A while back, we wrote about <a href="/blog/2012/10/09/how-to-run-rspec-test-suites-in-parallel-with-jenkins-ci-build-flow/">How to Run RSpec Test Suites in Parallel with Jenkins CI Build Flow</a>. A version of that still handles our largest test suite, but over time the initial division of specs became unbalanced. We ended up with some tasks that took twice as long as others. Even worse, in an attempt to rebalance task times, we ended up with awkward file patterns like <code>'spec/api/**/[a-m]*_spec.rb'</code>.</p>
 
-<p>To keep our parallel spec tasks approximately equal in size and to support arbitrary concurrency, we’ve added a new <code class="language-plaintext highlighter-rouge">spec:sliced</code> task:</p>
+<p>To keep our parallel spec tasks approximately equal in size and to support arbitrary concurrency, we've added a new <code>spec:sliced</code> task:</p>
 
 <!-- more -->
 
-<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">namespace</span> <span class="ss">:spec</span> <span class="k">do</span>
-  <span class="n">task</span> <span class="ss">:set_up_spec_files</span> <span class="k">do</span>
-    <span class="n">spec_files</span> <span class="o">=</span> <span class="no">Dir</span><span class="p">[</span><span class="s1">'spec/**/*_spec.rb'</span><span class="p">]</span>
-    <span class="vi">@spec_file_digests</span> <span class="o">=</span> <span class="no">Hash</span><span class="p">[</span><span class="n">spec_files</span><span class="p">.</span><span class="nf">map</span> <span class="p">{</span> <span class="o">|</span><span class="n">f</span><span class="o">|</span> <span class="p">[</span><span class="n">f</span><span class="p">,</span> <span class="no">Zlib</span><span class="p">.</span><span class="nf">crc32</span><span class="p">(</span><span class="n">f</span><span class="p">)]</span> <span class="p">}]</span>
-  <span class="k">end</span>
 
-  <span class="no">RSpec</span><span class="o">::</span><span class="no">Core</span><span class="o">::</span><span class="no">RakeTask</span><span class="p">.</span><span class="nf">new</span><span class="p">(</span><span class="ss">:sliced</span><span class="p">,</span> <span class="p">[</span><span class="ss">:index</span><span class="p">,</span> <span class="ss">:concurrency</span><span class="p">]</span> <span class="o">=&gt;</span> <span class="ss">:set_up_spec_files</span><span class="p">)</span> <span class="k">do</span> <span class="o">|</span><span class="n">t</span><span class="p">,</span> <span class="n">args</span><span class="o">|</span>
-    <span class="n">index</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="ss">:index</span><span class="p">].</span><span class="nf">to_i</span>
-    <span class="n">concurrency</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="ss">:concurrency</span><span class="p">].</span><span class="nf">to_i</span>
-    <span class="n">t</span><span class="p">.</span><span class="nf">pattern</span> <span class="o">=</span> <span class="vi">@spec_file_digests</span><span class="p">.</span><span class="nf">select</span> <span class="p">{</span> <span class="o">|</span><span class="n">f</span><span class="p">,</span> <span class="n">d</span><span class="o">|</span> <span class="n">d</span> <span class="o">%</span> <span class="n">concurrency</span> <span class="o">==</span> <span class="n">index</span> <span class="p">}.</span><span class="nf">keys</span>
-  <span class="k">end</span>
-<span class="k">end</span>
-</code></pre></div></div>
 
-<p>As you can see, the <code class="language-plaintext highlighter-rouge">set_up_spec_files</code> helper task builds a hash of spec file paths and corresponding checksums. When we invoke the <code class="language-plaintext highlighter-rouge">sliced</code> task with <code class="language-plaintext highlighter-rouge">index</code> and <code class="language-plaintext highlighter-rouge">concurrency</code> values (e.g., <code class="language-plaintext highlighter-rouge">0</code> and <code class="language-plaintext highlighter-rouge">5</code>), only the spec files with checksums equal to <code class="language-plaintext highlighter-rouge">0</code> when mod-ed by <code class="language-plaintext highlighter-rouge">5</code> are run. Thus, the Jenkins build flow would look like:</p>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">parallel</span> <span class="o">(</span>
-  <span class="o">{</span><span class="n">build</span><span class="o">(</span><span class="s">"master-ci-task"</span><span class="o">,</span> <span class="nl">tasks:</span> <span class="s">"spec:sliced[0,5]"</span><span class="o">)},</span>
-  <span class="o">{</span><span class="n">build</span><span class="o">(</span><span class="s">"master-ci-task"</span><span class="o">,</span> <span class="nl">tasks:</span> <span class="s">"spec:sliced[1,5]"</span><span class="o">)},</span>
-  <span class="o">{</span><span class="n">build</span><span class="o">(</span><span class="s">"master-ci-task"</span><span class="o">,</span> <span class="nl">tasks:</span> <span class="s">"spec:sliced[2,5]"</span><span class="o">)},</span>
-  <span class="o">{</span><span class="n">build</span><span class="o">(</span><span class="s">"master-ci-task"</span><span class="o">,</span> <span class="nl">tasks:</span> <span class="s">"spec:sliced[3,5]"</span><span class="o">)},</span>
-  <span class="o">{</span><span class="n">build</span><span class="o">(</span><span class="s">"master-ci-task"</span><span class="o">,</span> <span class="nl">tasks:</span> <span class="s">"spec:sliced[4,5]"</span><span class="o">)}</span>
-<span class="o">)</span>
-<span class="n">build</span><span class="o">(</span><span class="s">"master-ci-succeeded"</span><span class="o">)</span>
-</code></pre></div></div>
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">namespace</span> <span class="ss">:spec</span> <span class="k">do</span>
+</span><span class='line'>  <span class="n">task</span> <span class="ss">:set_up_spec_files</span> <span class="k">do</span>
+</span><span class='line'>    <span class="n">spec_files</span> <span class="o">=</span> <span class="no">Dir</span><span class="o">[</span><span class="s1">&#39;spec/**/*_spec.rb&#39;</span><span class="o">]</span>
+</span><span class='line'>    <span class="vi">@spec_file_digests</span> <span class="o">=</span> <span class="no">Hash</span><span class="o">[</span><span class="n">spec_files</span><span class="o">.</span><span class="n">map</span> <span class="p">{</span> <span class="o">|</span><span class="n">f</span><span class="o">|</span> <span class="o">[</span><span class="n">f</span><span class="p">,</span> <span class="no">Zlib</span><span class="o">.</span><span class="n">crc32</span><span class="p">(</span><span class="n">f</span><span class="p">)</span><span class="o">]</span> <span class="p">}</span><span class="o">]</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="no">RSpec</span><span class="o">::</span><span class="no">Core</span><span class="o">::</span><span class="no">RakeTask</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="ss">:sliced</span><span class="p">,</span> <span class="o">[</span><span class="ss">:index</span><span class="p">,</span> <span class="ss">:concurrency</span><span class="o">]</span> <span class="o">=&gt;</span> <span class="ss">:set_up_spec_files</span><span class="p">)</span> <span class="k">do</span> <span class="o">|</span><span class="n">t</span><span class="p">,</span> <span class="n">args</span><span class="o">|</span>
+</span><span class='line'>    <span class="n">index</span> <span class="o">=</span> <span class="n">args</span><span class="o">[</span><span class="ss">:index</span><span class="o">].</span><span class="n">to_i</span>
+</span><span class='line'>    <span class="n">concurrency</span> <span class="o">=</span> <span class="n">args</span><span class="o">[</span><span class="ss">:concurrency</span><span class="o">].</span><span class="n">to_i</span>
+</span><span class='line'>    <span class="n">t</span><span class="o">.</span><span class="n">pattern</span> <span class="o">=</span> <span class="vi">@spec_file_digests</span><span class="o">.</span><span class="n">select</span> <span class="p">{</span> <span class="o">|</span><span class="n">f</span><span class="p">,</span> <span class="n">d</span><span class="o">|</span> <span class="n">d</span> <span class="o">%</span> <span class="n">concurrency</span> <span class="o">==</span> <span class="n">index</span> <span class="p">}</span><span class="o">.</span><span class="n">keys</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>As you can see, the <code>set_up_spec_files</code> helper task builds a hash of spec file paths and corresponding checksums. When we invoke the <code>sliced</code> task with <code>index</code> and <code>concurrency</code> values (e.g., <code>0</code> and <code>5</code>), only the spec files with checksums equal to <code>0</code> when mod-ed by <code>5</code> are run. Thus, the Jenkins build flow would look like:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class='java'><span class='line'><span class="n">parallel</span> <span class="o">(</span>
+</span><span class='line'>  <span class="o">{</span><span class="n">build</span><span class="o">(</span><span class="s">&quot;master-ci-task&quot;</span><span class="o">,</span> <span class="nl">tasks:</span> <span class="s">&quot;spec:sliced[0,5]&quot;</span><span class="o">)},</span>
+</span><span class='line'>  <span class="o">{</span><span class="n">build</span><span class="o">(</span><span class="s">&quot;master-ci-task&quot;</span><span class="o">,</span> <span class="nl">tasks:</span> <span class="s">&quot;spec:sliced[1,5]&quot;</span><span class="o">)},</span>
+</span><span class='line'>  <span class="o">{</span><span class="n">build</span><span class="o">(</span><span class="s">&quot;master-ci-task&quot;</span><span class="o">,</span> <span class="nl">tasks:</span> <span class="s">&quot;spec:sliced[2,5]&quot;</span><span class="o">)},</span>
+</span><span class='line'>  <span class="o">{</span><span class="n">build</span><span class="o">(</span><span class="s">&quot;master-ci-task&quot;</span><span class="o">,</span> <span class="nl">tasks:</span> <span class="s">&quot;spec:sliced[3,5]&quot;</span><span class="o">)},</span>
+</span><span class='line'>  <span class="o">{</span><span class="n">build</span><span class="o">(</span><span class="s">&quot;master-ci-task&quot;</span><span class="o">,</span> <span class="nl">tasks:</span> <span class="s">&quot;spec:sliced[4,5]&quot;</span><span class="o">)}</span>
+</span><span class='line'><span class="o">)</span>
+</span><span class='line'><span class="n">build</span><span class="o">(</span><span class="s">&quot;master-ci-succeeded&quot;</span><span class="o">)</span>
+</span></code></pre></td></tr></table></div></figure>
+
 
 <p>Now, spec times <em>might</em> continue to be unbalanced despite files being split up approximately evenly. (For a more thorough approach based on recording spec times, see <a href="https://github.com/ArturT/knapsack">knapsack</a>.) However, this little bit of randomness was a big improvement over our previous approach, and promises to scale in a uniform manner.</p>
 </div>
     
 
-    <p class="meta-author">
-      
+    
+      <p class="meta-author">
+        
+  
+
 
 
 
@@ -244,38 +277,39 @@
 
 
 
-    </p>
-    <p class="meta-categories">
-      Categories: 
+      </p>
+      <p class="meta-categories">
+        Categories: 
 
 <span class="categories">
   
-    <a class='category' href='/blog/categories/continuous-integration/'>Continuous Integration</a>, <a class='category' href='/blog/categories/rspec/'>Rspec</a>, <a class='category' href='/blog/categories/ruby/'>Ruby</a>, <a class='category' href='/blog/categories/testing/'>testing</a>
+    <a class='category' href='/blog/categories/continuous-integration/'>continuous integration</a>, <a class='category' href='/blog/categories/rspec/'>rspec</a>, <a class='category' href='/blog/categories/ruby/'>ruby</a>, <a class='category' href='/blog/categories/testing/'>testing</a>
   
 </span>
 
 
-    </p>
-    
+      </p>
+      
 
-    
-      <hr/>
-      <section class="comments">
-        <h1>Comments</h1>
-        <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+      
+        <hr/>
+        <section class="comments">
+          <h1>Comments</h1>
+          <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
 </div>
-      </section>
-      <hr/>
-    
+        </section>
+        <hr/>
+      
 
-    <p class="meta-paginate">
-      
-        <a class="previous" href="/blog/2015/09/24/mvvm-in-swift/" title="Previous Post: MVVM in Swift">&laquo; MVVM in Swift</a>
-      
-      
-        <a class="next" href="/blog/2015/09/30/Work-Offline-More/" title="next Post: Work Offline More">Work Offline More &raquo;</a>
-      
-    </p>
+      <p class="meta-paginate">
+        
+          <a class="previous" href="/blog/2015/09/24/mvvm-in-swift/" title="Previous Post: MVVM in Swift">&laquo; MVVM in Swift</a>
+        
+        
+          <a class="next" href="/blog/2015/09/30/Work-Offline-More/" title="next Post: Work Offline More">Work Offline More &raquo;</a>
+        
+      </p>
+    
   </div>
 
 

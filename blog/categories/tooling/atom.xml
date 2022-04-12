@@ -4,7 +4,7 @@
   <title><![CDATA[Category: tooling | Artsy Engineering]]></title>
   <link href="https://artsy.github.io/blog/categories/tooling/atom.xml" rel="self"/>
   <link href="https://artsy.github.io/"/>
-  <updated>2022-04-12T00:53:51+00:00</updated>
+  <updated>2022-04-12T00:57:35+00:00</updated>
   <id>https://artsy.github.io/</id>
   <author>
     <name><![CDATA[]]></name>
@@ -21,18 +21,20 @@
     <content type="html"><![CDATA[<p>I recently encountered a problem where client-side data (returned from a Relay query) became out of sync after a
 user interaction. How can we make sure our data is consistent while maintaining a single source of truth? This post
 explores why a developer might want to update client-side data locally, the basics of Relay and its store, and how
-to delete records in the store when you’re not using a mutation.</p>
+to delete records in the store when you're not using a mutation.</p>
 
-<h2 id="relay-x-artsy-x-me">Relay x Artsy x Me</h2>
+<a name="Relay.x.Artsy.x.Me"></a>
+<h2>Relay x Artsy x Me</h2>
 
 <p><a href="https://relay.dev/">Relay</a> is a GraphQL client library maintained by Facebook engineers and enables rapid client-side data
-fetching in React applications. <a href="https://artsy.github.io/blog/2019/04/10/omakase-relay/">Artsy’s adoption of Relay</a> coincided with our move
+fetching in React applications. <a href="https://artsy.github.io/blog/2019/04/10/omakase-relay/">Artsy's adoption of Relay</a> coincided with our move
 toward using React Native for our mobile work around 2016. I joined Artsy as an engineer in November of 2020 (after
 <a href="https://medium.com/swlh/how-losing-my-job-helped-me-find-my-way-back-8c8f86552acc">transitioning to engineering from a non-technical role at the
 company</a>.) When I joined, I was about a year into React development
 and completely new to Relay.</p>
 
 <!-- more -->
+
 
 <p>I work on the Partner Experience (PX) team at Artsy. We build and maintain software used by our gallery and auction
 house partners to sell artwork on Artsy. Although Relay is not new to Artsy, it’s relatively new to our team’s main
@@ -44,7 +46,8 @@ into HAML views—our way of incrementally converting the codebase to our new st
 GraphQL layer of our stack, which we call Metaphysics.) In addition to performance and other benefits, colocating a
 component with its data requirements creates a pretty seamless developer experience.</p>
 
-<h2 id="building-an-artwork-checklist">Building an Artwork Checklist</h2>
+<a name="Building.an.Artwork.Checklist"></a>
+<h2>Building an Artwork Checklist</h2>
 
 <p>On the PX team, we recently launched a checklist feature aimed at empowering our gallery partners to be more
 self-sufficient and find the greatest success possible on Artsy. The checklist prompts galleries to add specific
@@ -54,70 +57,73 @@ top-selling artist) that are missing key pieces of metadata. The checklist promp
 metadata. Users also have the ability to click a button to “snooze” works, which removes them from the list for the
 day.</p>
 
-<figure class="illustration">
-    <img src="https://user-images.githubusercontent.com/9466631/114630150-28886200-9c77-11eb-9f04-461101496ee0.png" />
-</figure>
+<p><figure class="illustration">
+    <img src="https://user-images.githubusercontent.com/9466631/114630150-28886200-9c77-11eb-9f04-461101496ee0.png">
+</figure></p>
 
 <p>The feature makes use of <a href="https://redis.io/">Redis</a>, a key-value store used for in-memory cache, to store two lists:</p>
 
 <ol>
-  <li><code class="language-plaintext highlighter-rouge">includeIDs</code> to store the five artworks in the list, so users see a consistent list of artworks whenever they
+<li><code>includeIDs</code> to store the five artworks in the list, so users see a consistent list of artworks whenever they
 log in and load the page</li>
-  <li><code class="language-plaintext highlighter-rouge">excludeIDs</code> or “snoozed” IDs which Redis will store for 24 hours and ensure the user does not see</li>
+<li><code>excludeIDs</code> or “snoozed” IDs which Redis will store for 24 hours and ensure the user does not see</li>
 </ol>
 
+
 <p>When a user presses the “snooze” button, the ID for the artwork is added to the snoozed list in Redis. The list of
-<code class="language-plaintext highlighter-rouge">includeIDs</code> and the list of <code class="language-plaintext highlighter-rouge">excludeIDs</code> are passed down from Rails controllers to our HAML views and then passed
-as props into our React <code class="language-plaintext highlighter-rouge">HomePageChecklist</code> app. In our Checklist component, we use both the <code class="language-plaintext highlighter-rouge">includeIDs</code> and the
-<code class="language-plaintext highlighter-rouge">excludeIDs</code> as arguments passed to our Relay query to determine what is returned from Metaphysics (Artsy’s GraphQL
+<code>includeIDs</code> and the list of <code>excludeIDs</code> are passed down from Rails controllers to our HAML views and then passed
+as props into our React <code>HomePageChecklist</code> app. In our Checklist component, we use both the <code>includeIDs</code> and the
+<code>excludeIDs</code> as arguments passed to our Relay query to determine what is returned from Metaphysics (Artsy's GraphQL
 layer).</p>
 
-<div class="language-js highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nx">fragment</span> <span class="nx">ArtworksMissingMetadata_partner</span> <span class="nx">on</span> <span class="nx">Partner</span>
-  <span class="p">@</span><span class="nd">argumentDefinitions</span><span class="p">(</span>
-    <span class="nx">first</span><span class="p">:</span> <span class="p">{</span> <span class="nl">type</span><span class="p">:</span> <span class="dl">"</span><span class="s2">Int</span><span class="dl">"</span><span class="p">,</span> <span class="nx">defaultValue</span><span class="p">:</span> <span class="mi">5</span> <span class="p">}</span>
-    <span class="nl">after</span><span class="p">:</span> <span class="p">{</span> <span class="na">type</span><span class="p">:</span> <span class="dl">"</span><span class="s2">String</span><span class="dl">"</span> <span class="p">}</span>
-    <span class="nl">includeIDs</span><span class="p">:</span> <span class="p">{</span> <span class="na">type</span><span class="p">:</span> <span class="dl">"</span><span class="s2">[String!]</span><span class="dl">"</span> <span class="p">}</span>
-    <span class="nl">excludeIDs</span><span class="p">:</span> <span class="p">{</span> <span class="na">type</span><span class="p">:</span> <span class="dl">"</span><span class="s2">[String!]</span><span class="dl">"</span> <span class="p">}</span>
-  <span class="p">)</span> <span class="p">{</span>
-    <span class="nx">id</span>
-    <span class="nx">artworksConnection</span><span class="p">(</span>
-      <span class="nx">first</span><span class="p">:</span> <span class="nx">$first</span>
-      <span class="nx">after</span><span class="p">:</span> <span class="nx">$after</span>
-      <span class="nx">includeIDs</span><span class="p">:</span> <span class="nx">$includeIDs</span>
-      <span class="nx">excludeIDs</span><span class="p">:</span> <span class="nx">$excludeIDs</span>
-    <span class="p">)</span> <span class="p">@</span><span class="nd">connection</span><span class="p">(</span><span class="nx">key</span><span class="p">:</span> <span class="dl">"</span><span class="s2">ArtworksMissingMetadata_partner_artworksConnection</span><span class="dl">"</span><span class="p">,</span> <span class="nx">filters</span><span class="p">:</span> <span class="p">[])</span> <span class="p">{</span>
-      <span class="nx">edges</span> <span class="p">{</span>
-        <span class="nx">node</span> <span class="p">{</span>
-          <span class="p">...</span><span class="nx">ArtworksMissingMetadataItem_artwork</span>
-        <span class="p">}</span>
-      <span class="p">}</span>
-    <span class="p">}</span>
-  <span class="p">}</span>
-</code></pre></div></div>
+<pre><code class="js">fragment ArtworksMissingMetadata_partner on Partner
+  @argumentDefinitions(
+    first: { type: "Int", defaultValue: 5 }
+    after: { type: "String" }
+    includeIDs: { type: "[String!]" }
+    excludeIDs: { type: "[String!]" }
+  ) {
+    id
+    artworksConnection(
+      first: $first
+      after: $after
+      includeIDs: $includeIDs
+      excludeIDs: $excludeIDs
+    ) @connection(key: "ArtworksMissingMetadata_partner_artworksConnection", filters: []) {
+      edges {
+        node {
+          ...ArtworksMissingMetadataItem_artwork
+        }
+      }
+    }
+  }
+</code></pre>
 
-<h2 id="problem-how-to-change-the-data-displayed-when-a-user-interacts-with-the-page">Problem: How to Change the Data Displayed When a User Interacts with the Page</h2>
+<a name="Problem:.How.to.Change.the.Data.Displayed.When.a.User.Interacts.with.the.Page"></a>
+<h2>Problem: How to Change the Data Displayed When a User Interacts with the Page</h2>
 
 <p>The problem we were running into occurs when the user presses “snooze” on an item. We successfully update Redis
 with the new snoozed item, but the UI still renders the item on the page. (This is because the response from Relay
-becomes stale.) If the user refreshes the page, the list is correct: The up-to-date Redis <code class="language-plaintext highlighter-rouge">excludeIDS</code> list will be
+becomes stale.) If the user refreshes the page, the list is correct: The up-to-date Redis <code>excludeIDS</code> list will be
 passed into our component and used in the Relay query. But without refreshing the page, we need to make sure that
 the list in the UI updates when the user snoozes an item.</p>
 
 <p>The initial fix was to use a local state variable to keep track of which items were snoozed. We defined the following variable in the parent
 React component that renders the list:</p>
 
-<div class="language-js highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">const</span> <span class="p">[</span><span class="nx">localSnoozedItems</span><span class="p">,</span> <span class="nx">setLocalSnoozedItems</span><span class="p">]</span> <span class="o">=</span> <span class="nx">useState</span><span class="p">([])</span>
-</code></pre></div></div>
+<pre><code class="js">const [localSnoozedItems, setLocalSnoozedItems] = useState([])
+</code></pre>
 
-<p>We passed <code class="language-plaintext highlighter-rouge">localSnoozedItems </code> and <code class="language-plaintext highlighter-rouge">setLocalSnoozedItems</code> down to each of the children items. When the “snooze”
-button was pressed on an item, the <code class="language-plaintext highlighter-rouge">localSnoozedItems</code> in the parent was updated with the complete list of snoozed
-items. The parent then controls which items get rendered. We used the <code class="language-plaintext highlighter-rouge">localSnoozedItems</code> list to filter the connection
-returned from our Relay query (which remember, is already filtered based on our Redis <code class="language-plaintext highlighter-rouge">excludeIDs</code> from Redis.)</p>
+<p>We passed <code>localSnoozedItems</code> and <code>setLocalSnoozedItems</code> down to each of the children items. When the “snooze”
+button was pressed on an item, the <code>localSnoozedItems</code> in the parent was updated with the complete list of snoozed
+items. The parent then controls which items get rendered. We used the <code>localSnoozedItems</code> list to filter the connection
+returned from our Relay query (which remember, is already filtered based on our Redis <code>excludeIDs</code> from Redis.)</p>
 
 <p>This worked, but it definitely did not feel great to have two sources of truth for snoozing: The Redis key and the
 local state variable.</p>
 
-<h2 id="solution-deleting-a-record-from-the-relay-store">Solution: Deleting a Record From the Relay Store</h2>
+<a name="Solution:.Deleting.a.Record.From.the.Relay.Store"></a>
+<h2>Solution: Deleting a Record From the Relay Store</h2>
 
 <p>Cue the <a href="https://relay.dev/docs/api-reference/store/">RelayModernStore</a>! I learned that Relay keeps track of the GraphQL
 data returned by each query in a store on the client. Each record in the store has a unique ID, and the store can be
@@ -126,82 +132,84 @@ changed, added to, and deleted from. There are a couple of helpful blog posts (l
 <a href="https://medium.com/entria/wrangling-the-client-store-with-the-relay-modern-updater-function-5c32149a71ac">this</a>) that explain the store and how to
 interact with it.</p>
 
-<p>In most of the Relay documentation, blog posts, and Artsy’s uses cases, the store is accessed through an <code class="language-plaintext highlighter-rouge">updater</code>
+<p>In most of the Relay documentation, blog posts, and Artsy’s uses cases, the store is accessed through an <code>updater</code>
 function via <a href="https://relay.dev/docs/guided-tour/updating-data/graphql-mutations/">mutations</a>. <a href="https://relay.dev/docs/guided-tour/updating-data/graphql-mutations/#updater-functions">Updater functions</a>
 that return the store in the first argument can optionally be added to Relay mutations. Inside that function, you can access
 the store to modify the records you need.</p>
 
-<p>Here’s an example:</p>
+<p>Here's an example:</p>
 
-<div class="language-js highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nx">commitMutation</span><span class="p">(</span><span class="nx">defaultEnvironment</span><span class="p">,</span> <span class="p">{</span>
-  <span class="na">mutation</span><span class="p">:</span> <span class="nx">graphql</span><span class="s2">`
+<pre><code class="js">commitMutation(defaultEnvironment, {
+  mutation: graphql`
     mutation SomeMutation {
       ...
     }
-  `</span><span class="p">,</span>
-  <span class="na">updater</span><span class="p">:</span> <span class="p">(</span><span class="nx">store</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span>
-    <span class="c1">// Do something with the store</span>
-  <span class="p">},</span>
-<span class="p">})</span>
-</code></pre></div></div>
+  `,
+  updater: (store) =&gt; {
+    // Do something with the store
+  },
+})
+</code></pre>
 
 <p>In my use case, I was not using a Relay mutation because I did not need to modify anything on the server. Since
-Redis is keeping track of our <code class="language-plaintext highlighter-rouge">excludeIDs</code> for us, any round trip to the server will be up-to-date. We just need to
+Redis is keeping track of our <code>excludeIDs</code> for us, any round trip to the server will be up-to-date. We just need to
 modify our local data store.</p>
 
 <p>Relay provides a <a href="https://relay.dev/docs/guided-tour/updating-data/local-data-updates/">separate API method to make local updates</a> to the Relay
-store: <code class="language-plaintext highlighter-rouge">commitLocalUpdate</code>. <code class="language-plaintext highlighter-rouge">commitLocalUpdate</code> takes two arguments: the first is the Relay environment, which you
-can easily access from the parent Relay fragment or refetch container. The second is an <code class="language-plaintext highlighter-rouge">updater</code> callback function
+store: <code>commitLocalUpdate</code>. <code>commitLocalUpdate</code> takes two arguments: the first is the Relay environment, which you
+can easily access from the parent Relay fragment or refetch container. The second is an <code>updater</code> callback function
 that returns the store in the first argument. We now have access to the store!</p>
 
-<h2 id="deleting-a-connection-node-with-connectionhandler">Deleting a Connection Node with ConnectionHandler</h2>
+<a name="Deleting.a.Connection.Node.with.ConnectionHandler"></a>
+<h2>Deleting a Connection Node with ConnectionHandler</h2>
 
 <p>My main hurdle during this journey was finding an appropriate way to hook into the store for our specific use case—when we do
 not require an update to server data.</p>
 
-<p>But to close us out: Let’s finish the job and delete the item from the connection in the store.</p>
+<p>But to close us out: Let's finish the job and delete the item from the connection in the store.</p>
 
-<p>When an item is snoozed, we call <code class="language-plaintext highlighter-rouge">commitLocalUpdate</code>, pass in the Relay environment, and then pass in the <code class="language-plaintext highlighter-rouge">updater</code>
+<p>When an item is snoozed, we call <code>commitLocalUpdate</code>, pass in the Relay environment, and then pass in the <code>updater</code>
 function. Once we have access to the store, our goal is to delete this particular item from the
-<code class="language-plaintext highlighter-rouge">artworksConnection</code>, which is the GraphQL object returned by our original Relay query.</p>
+<code>artworksConnection</code>, which is the GraphQL object returned by our original Relay query.</p>
 
 <p>Because we are dealing with connections, we want to use the <a href="https://relay.dev/docs/api-reference/store/#connectionhandler">ConnectionHandler
-API</a> provided by Relay. <code class="language-plaintext highlighter-rouge">ConnectionHandler.getConnection</code> takes in the
-connection’s parent record (which we can find using the GraphQL ID added as a field on our query for the
+API</a> provided by Relay. <code>ConnectionHandler.getConnection</code> takes in the
+connection's parent record (which we can find using the GraphQL ID added as a field on our query for the
 connection) as the first argument and the connection key which can be provided through <a href="https://www.prisma.io/blog/relay-moderns-connection-directive-1ecd8322f5c8">Relay’s @connection
 directive</a>.</p>
 
-<p>Once we have the connection, we will use <code class="language-plaintext highlighter-rouge">ConnectionHandler.deleteNode</code> which takes the connection as the first
+<p>Once we have the connection, we will use <code>ConnectionHandler.deleteNode</code> which takes the connection as the first
 argument and the id to be deleted, which we can also easily access using the GraphQL ID added as a field to the
 query for the item.</p>
 
-<p>Bonus: Because <code class="language-plaintext highlighter-rouge">commitLocalUpdate</code> works anywhere in Relay land, we got to perform this deletion exactly where the
-“snooze” action is happening: in the child item component. (In our previous solution, we had to manage the state of
-the children from their parent component, which wasn’t as intuitive.)</p>
+<p>Bonus: Because <code>commitLocalUpdate</code> works anywhere in Relay land, we got to perform this deletion exactly where the
+"snooze" action is happening: in the child item component. (In our previous solution, we had to manage the state of
+the children from their parent component, which wasn't as intuitive.)</p>
 
-<div class="language-js highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="p">{</span> <span class="nx">commitLocalUpdate</span> <span class="p">}</span> <span class="k">from</span> <span class="dl">"</span><span class="s2">relay-runtime</span><span class="dl">"</span>
+<pre><code class="js">import { commitLocalUpdate } from "relay-runtime"
 
-<span class="nx">commitLocalUpdate</span><span class="p">(</span><span class="nx">relay</span><span class="p">.</span><span class="nx">environment</span><span class="p">,</span> <span class="p">(</span><span class="nx">store</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span>
-  <span class="kd">const</span> <span class="nx">parentRecord</span> <span class="o">=</span> <span class="nx">store</span><span class="p">.</span><span class="kd">get</span><span class="p">(</span><span class="nx">parentID</span><span class="p">)</span>
+commitLocalUpdate(relay.environment, (store) =&gt; {
+  const parentRecord = store.get(parentID)
 
-  <span class="k">if</span> <span class="p">(</span><span class="nx">parentRecord</span><span class="p">)</span> <span class="p">{</span>
-    <span class="kd">const</span> <span class="nx">artworksConnection</span> <span class="o">=</span> <span class="nx">ConnectionHandler</span><span class="p">.</span><span class="nx">getConnection</span><span class="p">(</span>
-      <span class="nx">parentRecord</span><span class="p">,</span>
-      <span class="dl">"</span><span class="s2">ArtworksMissingMetadata_partner_artworksConnection</span><span class="dl">"</span>
-    <span class="p">)</span>
-    <span class="k">if</span> <span class="p">(</span><span class="nx">artworksConnection</span><span class="p">)</span> <span class="p">{</span>
-      <span class="nx">ConnectionHandler</span><span class="p">.</span><span class="nx">deleteNode</span><span class="p">(</span><span class="nx">artworksConnection</span><span class="p">,</span> <span class="nx">id</span><span class="p">)</span>
-    <span class="p">}</span>
-  <span class="p">}</span>
-<span class="p">})</span>
-</code></pre></div></div>
+  if (parentRecord) {
+    const artworksConnection = ConnectionHandler.getConnection(
+      parentRecord,
+      "ArtworksMissingMetadata_partner_artworksConnection"
+    )
+    if (artworksConnection) {
+      ConnectionHandler.deleteNode(artworksConnection, id)
+    }
+  }
+})
+</code></pre>
 
-<h2 id="key-takeaways">Key Takeaways</h2>
+<a name="Key.Takeaways"></a>
+<h2>Key Takeaways</h2>
 
 <ol>
-  <li>Relay is great because it colocates a component with its data requirements.</li>
-  <li>The Relay store allows us to access and modify data that we are using on the client.</li>
-  <li><code class="language-plaintext highlighter-rouge">commitLocalUpdate</code> provides us access to the store if we just need to modify local data and aren’t using a
+<li>Relay is great because it colocates a component with its data requirements.</li>
+<li>The Relay store allows us to access and modify data that we are using on the client.</li>
+<li><code>commitLocalUpdate</code> provides us access to the store if we just need to modify local data and aren’t using a
 mutation to update server-side data.</li>
 </ol>
 
@@ -213,25 +221,26 @@ mutation to update server-side data.</li>
     <link href="https://artsy.github.io/blog/2020/09/29/becoming-mobile-first-at-artsy/"/>
     <updated>2020-09-29T00:00:00+00:00</updated>
     <id>https://artsy.github.io/blog/2020/09/29/becoming-mobile-first-at-artsy</id>
-    <content type="html"><![CDATA[<p>It was a Wednesday, mid-summer 2019. I don’t know which Wednesday specifically, but I know that it was <em>a</em>
-Wednesday because I was attending Artsy’s weekly all-hands meeting. Two hundred colleagues were also there (many
+    <content type="html"><![CDATA[<p>It was a Wednesday, mid-summer 2019. I don't know which Wednesday specifically, but I know that it was <em>a</em>
+Wednesday because I was attending Artsy's weekly all-hands meeting. Two hundred colleagues were also there (many
 dialing in remotely) and we were all listening to
-<a href="https://files.artsy.net/documents/artsy-names-new-ceo.pdf">Artsy’s new CEO</a> talk about the company’s direction.
+<a href="https://files.artsy.net/documents/artsy-names-new-ceo.pdf">Artsy's new CEO</a> talk about the company's direction.
 Mike Steib had only been around for a few months at that point, getting to know the business. He was talking about
 the product direction, and I was listening intently.</p>
 
-<p>With Artsy’s iOS app, I knew there were only really two directions we could go. As I listened, I reflected on how
+<p>With Artsy's iOS app, I knew there were only really two directions we could go. As I listened, I reflected on how
 we had gotten here.</p>
 
 <!-- more -->
 
-<p>When I joined Artsy in 2014, I joined the Mobile Team. It was an amazing team. While we were called the “mobile”
-team, we only worked on Artsy’s iOS apps and not the mobile website.</p>
 
-<p>By 2016, Artsy Engineering had grown to the size that having only a “mobile team” and a “web team” was no longer
+<p>When I joined Artsy in 2014, I joined the Mobile Team. It was an amazing team. While we were called the "mobile"
+team, we only worked on Artsy's iOS apps and not the mobile website.</p>
+
+<p>By 2016, Artsy Engineering had grown to the size that having only a "mobile team" and a "web team" was no longer
 working well. We dissolved both teams and distributed the engineers into
 <a href="https://artsy.github.io/blog/2016/03/28/artsy-engineering-organization-stack/">new product teams</a>, focused on
-vertical aspects of Artsy’s business. Auctions. Partner Success. Editorial. And so on. The idea was that each team
+vertical aspects of Artsy's business. Auctions. Partner Success. Editorial. And so on. The idea was that each team
 would have total autonomy over building products to support their slice of the business, and each would have the
 engineering and design resources to build new features across both our web and iOS canvases.</p>
 
@@ -241,41 +250,42 @@ our iOS software holistically. The app had become a series of silos – each sil
 distinct from each other. Often each silo was written in distinct programming languages (we had also started
 adopting React Native).</p>
 
-<p>New iOS technologies had been created by Apple, but our teams weren’t taking full advantage of them. We would
-update to support the latest versions of Xcode and iOS in the free time between other tickets. It wasn’t ideal. Of
+<p>New iOS technologies had been created by Apple, but our teams weren't taking full advantage of them. We would
+update to support the latest versions of Xcode and iOS in the free time between other tickets. It wasn't ideal. Of
 the <a href="https://github.com/artsy/mobile">five original members of the Mobile Team</a>, everyone else had moved on except
 me.</p>
 
 <p>As a product, the app was languishing.</p>
 
-<p>Yet despite this, it was also hugely popular among our users and very important to Artsy’s business. Art collectors
+<p>Yet despite this, it was also hugely popular among our users and very important to Artsy's business. Art collectors
 love our app! It gets a large percentage of our total sessions. Also, users place an outsized number of auction
 bids and artwork inquiries using our app relative to the number of sessions on our website. In fact, the highest
 value artwork transaction <em>ever</em> to take place on Artsy was made on an iPad, running software that I helped build.
-I’m still pretty proud of that.</p>
+I'm still pretty proud of that.</p>
 
 <p>So, Wednesday all-hands. I stood there, not sure of what would happen next. I could see Artsy either making a
 massive investment in the app, or I could see Artsy cutting its losses and focusing on the software that we already
 knew how to build. Which direction we took largely depended on this new CEO, who was now standing in front of us
-all and describing the direction Artsy’s product would take next.</p>
+all and describing the direction Artsy's product would take next.</p>
 
-<h2 id="the-dream">The Dream</h2>
+<a name="The.Dream"></a>
+<h2>The Dream</h2>
 
 <p>Mike said something that caused a lot of raised eyebrows in the crowd. People were excited. <em>I</em> was excited.
-Artsy’s product organization would shift to adopt a “mobile-first strategy.”</p>
+Artsy's product organization would shift to adopt a "mobile-first strategy."</p>
 
-<p>Someone asked “does this mean the app will reach feature parity with Artsy’s website?”</p>
+<p>Someone asked "does this mean the app will reach feature parity with Artsy's website?"</p>
 
-<p>Mike responded: “No. It means that features are going to launch <em>first</em> on the app. If anything, it’s the <em>website</em>
-that will be catching up <em>to the app</em>.”</p>
+<p>Mike responded: "No. It means that features are going to launch <em>first</em> on the app. If anything, it's the <em>website</em>
+that will be catching up <em>to the app</em>."</p>
 
-<p>I was kind of blown away! I mean, this had been the spirit of our original re-org in 2016, but that hadn’t really
+<p>I was kind of blown away! I mean, this had been the spirit of our original re-org in 2016, but that hadn't really
 materialized. The app had continued to trail the website. At most, only one product team was ever building new
 features for the app (usually which ever team I happened to be on). Shifting to this mobile-first strategy would be
 a <em>massive</em> undertaking, but I was keen.</p>
 
-<p>In August, an email landed in my inbox from Artsy’s head of software. He wanted to spin up a new team to focus on
-the app: the team would be responsible for supporting Artsy’s new mobile-first product strategy. He wanted to know
+<p>In August, an email landed in my inbox from Artsy's head of software. He wanted to spin up a new team to focus on
+the app: the team would be responsible for supporting Artsy's new mobile-first product strategy. He wanted to know
 what I thought, and he wanted to know if I was interested in leading the team.</p>
 
 <p>Honestly, it was a dream come true.</p>
@@ -288,18 +298,19 @@ how Artsy grew from <em>sometimes</em> having <em>a</em> team working on the app
 
 <p><img src="/images/2020-09-29-becoming-mobile-first-at-artsy/faq.png" alt="Another screenshot of the RFC for creating the Mobile Experience team, describing frequently asked questions" /></p>
 
-<h2 id="getting-our-bearings">Getting Our Bearings</h2>
+<a name="Getting.Our.Bearings"></a>
+<h2>Getting Our Bearings</h2>
 
 <p>When Artsy created its new Mobile Experience team, we were already resource-constrained and so the new team would
 need to be nimble. We had three full-time engineers (myself as tech lead, and two others), assisted by a designer,
 product manager, and data analyst, who would each be spending only half their work time on the Mobile Experience
-team. We needed to be scrappy. I’m really proud of the work that that early team accomplished, and I look back
+team. We needed to be scrappy. I'm really proud of the work that that early team accomplished, and I look back
 fondly on those first few months working with Sam, Joanna, David, Kieran, and Ani.</p>
 
 <p>The first thing we did was define our own mandate. What was this team responsible for? What was it <em>not</em>
-responsible for? “Mobile Experience” is pretty vague, and we had to answer a lot of upfront questions. Would we be
-responsible for <em>all</em> of Artsy’s iOS software? No, just the main collector app. Would we be responsible for Artsy’s
-mobile website? No, that’s too far-reaching. What about Android? Well, yes, eventually…</p>
+responsible for? "Mobile Experience" is pretty vague, and we had to answer a lot of upfront questions. Would we be
+responsible for <em>all</em> of Artsy's iOS software? No, just the main collector app. Would we be responsible for Artsy's
+mobile website? No, that's too far-reaching. What about Android? Well, yes, eventually...</p>
 
 <p>After we decided on our mandate, the next step was to get really familiar with the existing app. We storyboarded
 out all the existing screens and their connections to one another.</p>
@@ -310,45 +321,46 @@ out all the existing screens and their connections to one another.</p>
 
 <p>No one on our team had complete knowledge of every screen in the app, not even me, so exploring it together was a
 great way to uncover what needed immediate attention. One example was our partner page, which displayed information
-to our users about Artsy’s partners: galleries, museums, auction houses, etc. We learned that the app actually used
-an ancient web view, and it didn’t even show the partner’s <em>artworks</em>. The artworks! Probably the most important
+to our users about Artsy's partners: galleries, museums, auction houses, etc. We learned that the app actually used
+an ancient web view, and it didn't even show the partner's <em>artworks</em>. The artworks! Probably the most important
 thing for it to do!</p>
 
 <p><img src="/images/2020-09-29-becoming-mobile-first-at-artsy/old_partner.png" alt="Screenshot of a presentation showing the old partner page" /></p>
 
 <p><img src="/images/2020-09-29-becoming-mobile-first-at-artsy/new_partner.png" alt="Screenshot of a presentation showing the new partner page, which looks much nicer" /></p>
 
-<p>This is where “being scrappy” started to take root. Usually when developing new features, Artsy designers iterate
+<p>This is where "being scrappy" started to take root. Usually when developing new features, Artsy designers iterate
 on a design before we plan on execution, then we implement, test, and deploy. The nice part of replacing something
-that was <em>obviously broken</em> was that we didn’t feel beholden to this usual process; whatever we built would be
+that was <em>obviously broken</em> was that we didn't feel beholden to this usual process; whatever we built would be
 better than what we had. One engineer and our designer started the new partner page with a quick pencil sketch,
-using the app’s existing UI abstractions to design something that we could quickly build. Once we had a prototype,
+using the app's existing UI abstractions to design something that we could quickly build. Once we had a prototype,
 the engineer and designer iterated. The whole project took only about three weeks.</p>
 
-<h2 id="early-wins">Early Wins</h2>
+<a name="Early.Wins"></a>
+<h2>Early Wins</h2>
 
 <p>Learning about the app itself was critical, but equally important was learning about how our users <em>used</em> the app.
 We scheduled user interviews and, in the mean time, looked into our anonymized user analytics. Our data analyst
 found a few representative sessions and we walked through each action that a user took. One big lesson here was how
-much our app users relied on the app’s search feature, which was still written in Objective-C and hadn’t been
+much our app users relied on the app's search feature, which was still written in Objective-C and hadn't been
 updated in a long time. We found that users would often search for the same query several times in the same
-session. For example, users would search for “banksy”, wander off exploring some art, and then return to search for
-“bansky” again. And again. And again.</p>
+session. For example, users would search for "banksy", wander off exploring some art, and then return to search for
+"bansky" again. And again. And again.</p>
 
-<p>Our search implementation didn’t show users their own recent searches, which would have greatly reduced the amount
+<p>Our search implementation didn't show users their own recent searches, which would have greatly reduced the amount
 of friction users experienced while exploring the art world in the app. Our other engineer took point working with
-our designer to migrate the app’s search to React Native. We also added some other features to our search page,
+our designer to migrate the app's search to React Native. We also added some other features to our search page,
 like adding entity subtitles so users would know if the result they were tapping on was an artwork, and artist, a
-gallery, and so on. The whole project took about a month to complete, and we have continued to iterate on the app’s
+gallery, and so on. The whole project took about a month to complete, and we have continued to iterate on the app's
 search.</p>
 
 <p><img src="/images/2020-09-29-becoming-mobile-first-at-artsy/new_search.png" alt="Screenshot of a presentation showing the new search" /></p>
 
-<p>In early conversations with company leadership, the Mobile Experience team settled on an… interesting strategy to
-what we would prioritize. Our mission was “to make the app not suck.” This might seem harsh! But it came from a
+<p>In early conversations with company leadership, the Mobile Experience team settled on an... interesting strategy to
+what we would prioritize. Our mission was "to make the app not suck." This might seem harsh! But it came from a
 place of caring. We knew how much better the app could be and we were motivated to make that a reality. In the
-spring of 2020, the team felt like we had reached a point where the app no longer “sucked” – our goal now was “to
-make the app amazing.”</p>
+spring of 2020, the team felt like we had reached a point where the app no longer "sucked" – our goal now was "to
+make the app amazing."</p>
 
 <p>During 2020, we made a lot of changes to the app. We had built a new home page, a profile tab for users, granular
 push notification settings, Sign In with Apple, and more.</p>
@@ -361,16 +373,17 @@ liaisons complementing our new partner page, or sales people complementing our r
 people had gotten so used to the app not moving much at all that this sudden high velocity of development was as
 exciting for them as it was for us.</p>
 
-<h2 id="setting-up-others-to-succeed">Setting Up Others To Succeed</h2>
+<a name="Setting.Up.Others.To.Succeed"></a>
+<h2>Setting Up Others To Succeed</h2>
 
-<p>Artsy’s goal for the Mobile Experience team was explicitly <em>not</em> to centralize all our iOS feature development, and
+<p>Artsy's goal for the Mobile Experience team was explicitly <em>not</em> to centralize all our iOS feature development, and
 so our mandate included much more that just working on iOS software ourselves. We wanted to sit between a typical
-product team and a “platform” team, to provide infrastructure and assistance so any team at Artsy could develop
+product team and a "platform" team, to provide infrastructure and assistance so any team at Artsy could develop
 their own iOS feature. This was a big challenge, and required work at the individual and team levels.</p>
 
 <p>The first step was apparent before we even created the Mobile Experience team. Artsy Engineering runs skills
 surveys every six months, and we knew that building iOS software in React Native was something Artsy engineers
-weren’t really familiar with, but that they really wanted to learn more about. I worked with the Engineering team’s
+weren't really familiar with, but that they really wanted to learn more about. I worked with the Engineering team's
 Peer Learning Working Group to design a curriculum – big shout out to Christina and Adam for their help here!</p>
 
 <p><a href="https://artsy.github.io/blog/2019/12/03/ios-learning-group/">The iOS Learning Group took four weeks to deliver four lessons</a>.
@@ -380,17 +393,18 @@ educator, developing new skills around curriculum design and delivery. After the
 positively to the experience and we have integrated lessons learned from the iOS Learning Group into subsequent
 peer learning groups.</p>
 
-<h2 id="aligning-product-releases">Aligning Product Releases</h2>
+<a name="Aligning.Product.Releases"></a>
+<h2>Aligning Product Releases</h2>
 
 <p>Now that engineers had a solid grasp of how to build software in our application, we could re-align our product
-development process around iOS. I can’t speak to the design side of this, but from a product perspective the most
+development process around iOS. I can't speak to the design side of this, but from a product perspective the most
 critical milestone was defining a regular 2-week app release cadence. Let me explain.</p>
 
 <p>Prior to the Mobile Experience team, we released the app pretty irregularly. We would release whenever we had
 something big to release, basically. There are two major flaws with that approach. The first problem is that since
 each release was bigger, each release was scarier. No one really felt confident releasing app updates. The second
 problem was that large pieces of work tended to get coupled together. This came to a head last summer when we were
-blocked from releasing an redesigned artwork view because we were waiting for a major overhaul to Artsy’s GraphQL
+blocked from releasing an redesigned artwork view because we were waiting for a major overhaul to Artsy's GraphQL
 API to be completed. Without guidance or structure, different teams were building big projects and both had their
 changes in our default branch – it was a bit chaotic.</p>
 
@@ -398,15 +412,17 @@ changes in our default branch – it was a bit chaotic.</p>
 mobile apps:
 <a href="https://artsy.github.io/blog/2020/03/02/ios-deploys-super-weird-totally-normal/">deploying iOS software is weird</a>.
 Engineers, designers, and product managers at Artsy are used to being able to quickly and cheaply deploy software
-to the <em>web</em>, not the App Store. iOS software is deployed to our user’s hardware, not to servers we control, which
+to the <em>web</em>, not the App Store. iOS software is deployed to our user's hardware, not to servers we control, which
 introduces the possibility that users might not upgrade. Software we shipped years ago is still being run today –
-we have the analytics to prove it. Not to mention that every app update has to go through Apple’s App Store review
+we have the analytics to prove it. Not to mention that every app update has to go through Apple's App Store review
 process. Getting our product team aligned on a release schedule might also help us get aligned on the weirdness of
 deploying iOS software.</p>
 
 <center>
-<blockquote class="twitter-tweet"><p lang="en" dir="ltr">iOS developers! I have a question for you. I hear a lot about teams releasing app updates on a 2-week cadence, to increase user confidence/App Store ranking/team morale/etc.<br /><br />Have any teams shared their experiences with this? Bonus points for any quantitative data. Thanks!! 🤗</p>&mdash; Ash Furrow (@ashfurrow) <a href="https://twitter.com/ashfurrow/status/1184845989510811649?ref_src=twsrc%5Etfw">October 17, 2019</a></blockquote> <script async="" src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+<blockquote class="twitter-tweet"><p lang="en" dir="ltr">iOS developers! I have a question for you. I hear a lot about teams releasing app updates on a 2-week cadence, to increase user confidence/App Store ranking/team morale/etc.<br><br>Have any teams shared their experiences with this? Bonus points for any quantitative data. Thanks!! 🤗</p>&mdash; Ash Furrow (@ashfurrow) <a href="https://twitter.com/ashfurrow/status/1184845989510811649?ref_src=twsrc%5Etfw">October 17, 2019</a></blockquote> <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
 </center>
+
+
 <p><br /></p>
 
 <p>As the Mobile Experience team formed, I reached out to other mobile teams to find out about how they structured
@@ -420,25 +436,27 @@ Store.</p>
 
 <p><img src="/images/2020-09-29-becoming-mobile-first-at-artsy/cadence.png" alt="Calendar describing our cadence on an example sprint" /></p>
 
-<h2 id="making-deploys-not-scary">Making Deploys Not Scary</h2>
+<a name="Making.Deploys.Not.Scary"></a>
+<h2>Making Deploys Not Scary</h2>
 
 <p>To further help teams get into the habit of developing and releasing iOS software often, we created nightly betas.
 We also adopted a clever idea from our web colleagues: deploy blocks. In case of a technical reason to not release
 a beta, we create a block and the CI job that deploys the beta would fail with a descriptive message. This reduced
-a lot of chatter in Slack where engineers would ask “could I make a new beta?” Instead, engineers usually just wait
+a lot of chatter in Slack where engineers would ask "could I make a new beta?" Instead, engineers usually just wait
 for the nightly beta. And if they get impatient, they now default to action (their beta deploy will fail if we set
 up a block).</p>
 
 <p>All of this was automated through <a href="https://fastlane.tools">fastlane</a> on our CI provider. We had been using fastlane
 for a long time at Artsy, but the Mobile Experience team took the time to share knowledge of how it worked. Any
-engineer at Artsy can now make a beta (<code class="language-plaintext highlighter-rouge">make deploy</code>) or promote the latest beta to an App Store submission
-(<code class="language-plaintext highlighter-rouge">make promote_beta_to_submission</code>).</p>
+engineer at Artsy can now make a beta (<code>make deploy</code>) or promote the latest beta to an App Store submission
+(<code>make promote_beta_to_submission</code>).</p>
 
 <p>We deploy more often and, consequently, each deploy is less scary. And everyone is aware of the need to hide
 in-progress work behind feature flags. At this point, updates to our app are mundane, predictable, and boring. Just
 the way we like them.</p>
 
-<h2 id="being-generous-with-our-time">Being Generous With Our Time</h2>
+<a name="Being.Generous.With.Our.Time"></a>
+<h2>Being Generous With Our Time</h2>
 
 <p>Our QA and deploy process touches on something I want to go into more detail about, which is how the Mobile
 Experience team helped support other product teams. I described earlier how Mobile Experience sits somewhere
@@ -450,9 +468,9 @@ developers, and the needs of our platform.</p>
 
 <p>I would encourage engineers from other teams to ask us for help, which led to a lot of pairing sessions. To be
 honest, I think it probably interfered with our productivity, but it was worth it. A half hour of my time spent
-pairing with a colleague might save them three hours of banging their head against Xcode. But it’s not the time
-saved that I care about, it’s the head-banging. I want engineers at Artsy to feel empowered to build their own iOS
-software, and that’s only going to happen if they feel comfortable and supported.</p>
+pairing with a colleague might save them three hours of banging their head against Xcode. But it's not the time
+saved that I care about, it's the head-banging. I want engineers at Artsy to feel empowered to build their own iOS
+software, and that's only going to happen if they feel comfortable and supported.</p>
 
 <p>When the Galleries team kicked off their ambitious Viewing Rooms project, we helped them get started by lending an
 engineer to them for a few sprints. When they ran into problems, we were generous with our time by pairing with
@@ -463,11 +481,11 @@ release.</p>
 
 <p>Speaking of Developer Experience, we took a keen interest in standardizing our best practices and modernizing the
 codebase. We
-<a href="https://github.com/artsy/eigen/blob/dc81bbc9cd33d51d10054a6c57e61a1bd0ee3e75/docs/preferred_practices.md">documented how we wanted the app’s codebase to look</a>
+<a href="https://github.com/artsy/eigen/blob/dc81bbc9cd33d51d10054a6c57e61a1bd0ee3e75/docs/preferred_practices.md">documented how we wanted the app's codebase to look</a>
 and set up
 <a href="https://github.com/artsy/eigen/blob/dc81bbc9cd33d51d10054a6c57e61a1bd0ee3e75/tslint-rules/useWrappedComponentsRule.js">processes like lint rules</a>
 to encourage developers to follow our best practices. We also invited any engineer at Artsy to join our
-twice-weekly Knowledge Share meetings (I’ll discuss these in-depth shortly). We looked for bottle necks in the
+twice-weekly Knowledge Share meetings (I'll discuss these in-depth shortly). We looked for bottle necks in the
 development process and found many problems, which we addressed.
 <a href="https://github.com/artsy/eigen/pull/3022">We combined the Native iOS and React Native repositories</a> (which had
 historically been separated). <a href="https://github.com/artsy/eigen/pull/3105">We overhauled the CI configuration</a> to
@@ -478,76 +496,80 @@ you need a stick.)</p>
 
 <p>The React Native community has grown a lot since 2016. If Artsy were to begin our adoption of React Native today,
 we would be really well-supported by a community that has defined best practices, documented standard approaches to
-problems, and a consolidated opinion on what a React Native codebase should “feel” like. None of that existed in
-2016, and our early architectural decisions don’t really reflect contemporary best practices. We continue working
-to bring our codebase closer to resembling a fresh project created with <code class="language-plaintext highlighter-rouge">react-native init</code>.</p>
+problems, and a consolidated opinion on what a React Native codebase should "feel" like. None of that existed in
+2016, and our early architectural decisions don't really reflect contemporary best practices. We continue working
+to bring our codebase closer to resembling a fresh project created with <code>react-native init</code>.</p>
 
-<p>I’m extraordinarily happy with how things have shaped up, and in the direction we continue to move. This is all an
+<p>I'm extraordinarily happy with how things have shaped up, and in the direction we continue to move. This is all an
 ongoing process, and should remain an ongoing process. For example, engineers were still facing a bottleneck with
-core parts of our app’s routing logic that were in Objective-C, so we recently
+core parts of our app's routing logic that were in Objective-C, so we recently
 <a href="https://github.com/artsy/eigen/pull/3771">moved all routing to TypeScript</a>. Not only does moving code out of
 Objective-C make it easier for everyone to build, but it also ladders up to a cross-platform Artsy app.</p>
 
 <p>We still have older practices in the app that we want to migrate away from, like testing with Enzyme. But overall,
 things are looking good!</p>
 
-<iframe width="100%" height="400" src="https://www.youtube.com/embed/IEn2_WSKFHw" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen=""></iframe>
+<iframe width="100%" height="400" src="https://www.youtube.com/embed/IEn2_WSKFHw" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 
-<h2 id="knowledge-shares">Knowledge Shares</h2>
+
+<a name="Knowledge.Shares"></a>
+<h2>Knowledge Shares</h2>
 
 <p>We achieved most of these big, infrastructural changes in meetings called <em>Knowledge Shares</em>, which I mentioned
 earlier. I should write a dedicated blog post on these (update: <a href="/blog/2020/12/09/share-your-knowledge/">I did write one</a>), but in short: Knowledge Shares are a <em>structured</em> time to
-facilitate <em>unstructured learning</em>. Anyone can bring a topic to Knowledge Share, from a ticket that they’re stuck
+facilitate <em>unstructured learning</em>. Anyone can bring a topic to Knowledge Share, from a ticket that they're stuck
 on to an idea they have to a neat trick they recently learned. We set aside these two hours a week to discuss
-whatever the team wants, and we don’t only invite engineers.</p>
+whatever the team wants, and we don't only invite engineers.</p>
 
 <p>New feature designs, product roadmaps, and data analyses are often brought up by our non-engineering colleagues; we
-discuss these at the beginning of the meetings to make sure everyone’s time is respected. Throughout the week,
+discuss these at the beginning of the meetings to make sure everyone's time is respected. Throughout the week,
 someone will raise a question in Slack. Before we had Knowledge Share meetings, we might schedule a dedicated
-half-hour meeting to discussing this question. But instead, we now say “alright let’s chat about this at tomorrow’s
-KS.” Usually the discussion lasts a lot less than a half hour, so we save time and needless context-switching.</p>
+half-hour meeting to discussing this question. But instead, we now say "alright let's chat about this at tomorrow's
+KS." Usually the discussion lasts a lot less than a half hour, so we save time and needless context-switching.</p>
 
 <p>Knowledge Shares are also a manifestation of my philosophy of tech leadership, which is this: none of us have built
-an Artsy before, so instead of optimizing for building an Artsy, let’s optimize for <em>learning</em> how to build an
-Artsy. The best Artsy we can build. And as a natural byproduct, an Artsy gets built. But it’s the <em>learning</em> that
+an Artsy before, so instead of optimizing for building an Artsy, let's optimize for <em>learning</em> how to build an
+Artsy. The best Artsy we can build. And as a natural byproduct, an Artsy gets built. But it's the <em>learning</em> that
 is treated as the paramount goal.</p>
 
 <p>Like I said, I owe you a whole blog post on Knowledge Share meetings. I hope I have conveyed how important these
-scheduled “structured unstructured learning” times have been for us.</p>
+scheduled "structured unstructured learning" times have been for us.</p>
 
-<h2 id="the-results">The Results</h2>
+<a name="The.Results"></a>
+<h2>The Results</h2>
 
-<p>So where does that leave us? It’s been a year and change, where are we now? Well I’m happy to say that we’ve made a
-huge impact. We’ve gone from only having (at most) one product team writing iOS software at a time to having nearly
+<p>So where does that leave us? It's been a year and change, where are we now? Well I'm happy to say that we've made a
+huge impact. We've gone from only having (at most) one product team writing iOS software at a time to having nearly
 <em>every</em> product team building iOS software. Artsy is through the woods of its transition to a mobile-first product
 strategy. We still have a ways to go, but it feels like we have finally realized the dream we had in 2016 where
-every team is fully equipped and empowered to deliver on their own business goals, across all of Artsy’s canvasses.</p>
+every team is fully equipped and empowered to deliver on their own business goals, across all of Artsy's canvasses.</p>
 
-<p>Our App Store ranking has shot through the roof – not surprising considering our “make it not suck” and then “make
-it amazing” approach. Artsy’s iOS app rating now sits at a stout 4.7.</p>
+<p>Our App Store ranking has shot through the roof – not surprising considering our "make it not suck" and then "make
+it amazing" approach. Artsy's iOS app rating now sits at a stout 4.7.</p>
 
 <p><img src="/images/2020-09-29-becoming-mobile-first-at-artsy/ratings.png" alt="Screenshot of a graph showing an increasing average App Store rating" /></p>
 
-<p>We’ve also started tracking our iOS developer experience within Artsy. We know exactly where we still need work
+<p>We've also started tracking our iOS developer experience within Artsy. We know exactly where we still need work
 because we ask our engineers where they need support.</p>
 
-<p>It’s taken a mammoth effort, and there’s so much more that I could talk about, but this blog post is long enough
-already! Looking at the work we’ve done, the ways we’ve done it, and the results of our effort… I feel ecstatic.</p>
+<p>It's taken a mammoth effort, and there's so much more that I could talk about, but this blog post is long enough
+already! Looking at the work we've done, the ways we've done it, and the results of our effort... I feel ecstatic.</p>
 
-<h2 id="next-steps">Next Steps</h2>
+<a name="Next.Steps"></a>
+<h2>Next Steps</h2>
 
-<p>All that said, Artsy’s product team is currently embarking on another reorganization. With so much technical and
-product debt paid off, Artsy has evolved past the need for a dedicated Mobile Experience team. It’s bittersweet,
-but I’m proud to say that the new Collector Experience team is about to be born. Our team will continue to own the
-mobile platform, including its holistic user experience and day-to-day developer experience, but we’ll have an
+<p>All that said, Artsy's product team is currently embarking on another reorganization. With so much technical and
+product debt paid off, Artsy has evolved past the need for a dedicated Mobile Experience team. It's bittersweet,
+but I'm proud to say that the new Collector Experience team is about to be born. Our team will continue to own the
+mobile platform, including its holistic user experience and day-to-day developer experience, but we'll have an
 expanded mandate. That mandate includes a cross-platform Artsy app that will work for collectors on Android as well
 as iOS.</p>
 
 <p>The Mobile Experience team has grown, too. Since we started last year with just a few engineers and limited product
 support, we now boast a full roster of engineers and product support. I want to thank everyone on the team,
 currently: David, Sam, Brian, Mike, Brittney, Pavlos, and Mounir. You have made the past year an incredibly
-rewarding experience for me as I learn the ropes of technical leadership. I’m so proud of what we’ve built together
-and I’m excited for what the new Collector Experience team is going to do next!</p>
+rewarding experience for me as I learn the ropes of technical leadership. I'm so proud of what we've built together
+and I'm excited for what the new Collector Experience team is going to do next!</p>
 ]]></content>
   </entry>
   
@@ -556,7 +578,7 @@ and I’m excited for what the new Collector Experience team is going to do next
     <link href="https://artsy.github.io/blog/2019/01/30/why-we-run-our-blog/"/>
     <updated>2019-01-30T00:00:00+00:00</updated>
     <id>https://artsy.github.io/blog/2019/01/30/why-we-run-our-blog</id>
-    <content type="html"><![CDATA[<p>This blog just passed the 7 year mark from our initial <a href="/blog/2012/01/05/hello-world/">“Hello World”</a> post. We’ve always built and hosted our
+    <content type="html"><![CDATA[<p>This blog just passed the 7 year mark from our initial <a href="/blog/2012/01/05/hello-world/">"Hello World"</a> post. We've always built and hosted our
 own blog, initially <a href="/blog/2012/01/18/octopress-and-jekyll/">using OctoPress</a> but eventually migrating to just plain old Jekyll.</p>
 
 <p>Artsy uses 3 separate editorial platforms now, we built our own for <a href="https://www.artsy.net/articles">Artsy Magazine</a>, use Medium for our <a href="https://www.artsy.net/life-at-artsy">Life
@@ -564,193 +586,214 @@ at Artsy blog</a> and Jekyll for the engineering blog. There was a healthy debat
 to one, or two systems, but I had pretty strong opinions on migrating the engineering blog to Medium and nipped
 that in the bud pretty quickly.</p>
 
-<p>With <a href="https://m.signalvnoise.com/signal-v-noise-exits-medium/">Signal vs Noise</a> being a high profile of a example of migrating to Medium and back again, I thought it’s
+<p>With <a href="https://m.signalvnoise.com/signal-v-noise-exits-medium/">Signal vs Noise</a> being a high profile of a example of migrating to Medium and back again, I thought it's
 worth taking the time to examine our reasoning for doing it ourselves.</p>
 
 <!-- more -->
 
-<h2 id="dependencies">Dependencies</h2>
+
+<a name="Dependencies"></a>
+<h2>Dependencies</h2>
 
 <p>In programming, the process of creation rely on you depending on others. That ranges from operating systems, to
 system dependencies like SQLite or VSCode to app level dependencies from CocoaPods/Node/Whatever. For this blog,
-that we rely on GitHub’s static site hosting, RubyGems + Bundler and Jekyll. Luckily for us, there are powerful
+that we rely on GitHub's static site hosting, RubyGems + Bundler and Jekyll. Luckily for us, there are powerful
 incentives for those projects to continue long into the future.</p>
 
-<p>That’s not even too much of a worry either:</p>
+<p>That's not even too much of a worry either:</p>
 
 <ul>
-  <li>If GitHub pages stop being a priority, we can switch Netlify or plain S3 in an hour (we already ship to netlify
+<li>If GitHub pages stop being a priority, we can switch Netlify or plain S3 in an hour (we already ship to netlify
 for post draft previews)</li>
-  <li>If RubyGems or Jekyll goes down, we can switch to another static site builder in another language,</li>
+<li>If RubyGems or Jekyll goes down, we can switch to another static site builder in another language,</li>
 </ul>
 
-<p>Because the code is some markdown, some HTML and CSS - that’s all portable to whatever we want.</p>
 
-<p>We call the process of making sure you understand and vet the full stack your dependencies <a href="https://github.com/artsy/README/blob/master/culture/engineering-principles.md#own-your-dependencies">“Owning your
-Dependencies”</a>, and in this case we’re sitting on a long-lived and mature set of dependencies.</p>
+<p>Because the code is some markdown, some HTML and CSS - that's all portable to whatever we want.</p>
 
-<p>To switch from our mature set of dependencies to a start-up which still hasn’t found out how it can make money
+<p>We call the process of making sure you understand and vet the full stack your dependencies <a href="https://github.com/artsy/README/blob/master/culture/engineering-principles.md#own-your-dependencies">"Owning your
+Dependencies"</a>, and in this case we're sitting on a long-lived and mature set of dependencies.</p>
+
+<p>To switch from our mature set of dependencies to a start-up which still hasn't found out how it can make money
 greatly increases the long-term risks.</p>
 
-<p>Medium is totally incentivized to get your post in front of as many people as possible, and that’s awesome.
-However, as a business they’ve not found a way to be profitable, and have taken a lot of <a href="https://www.crunchbase.com/organization/medium">VC cash</a> which
-eventually needs to be paid back. (Artsy has too, so yeah, that’s kinda hypocritical, but we’re not aiming to
-disrupt &amp; replace the existing “writing online” market we’re <a href="https://www.theverge.com/2017/7/18/15983712/artsy-fine-art-galleries-online-auction-sales">augmenting</a> the existing Art Industry.)</p>
+<p>Medium is totally incentivized to get your post in front of as many people as possible, and that's awesome.
+However, as a business they've not found a way to be profitable, and have taken a lot of <a href="https://www.crunchbase.com/organization/medium">VC cash</a> which
+eventually needs to be paid back. (Artsy has too, so yeah, that's kinda hypocritical, but we're not aiming to
+disrupt &amp; replace the existing "writing online" market we're <a href="https://www.theverge.com/2017/7/18/15983712/artsy-fine-art-galleries-online-auction-sales">augmenting</a> the existing Art Industry.)</p>
 
 <p>When newspapers like <a href="https://www.forbes.com/sites/theodorecasey/2017/08/14/why-medium-doesnt-matter-anymore/#1fea7cdf49ad">Forbes</a> and <a href="https://www.bloomberg.com/opinion/articles/2017-01-05/why-medium-failed-to-disrupt-the-media">Bloomberg</a> are worried about the Medium business model, then
-it doesn’t look great for the longevity of your companies blog. For example, today Medium <a href="https://write.as/blog/ending-our-medium-integration">removed the developer
+it doesn't look great for the longevity of your companies blog. For example, today Medium <a href="https://write.as/blog/ending-our-medium-integration">removed the developer
 API</a> for your posts. Folks who used Medium to make money have <a href="http://www.niemanlab.org/2018/05/medium-abruptly-cancels-the-membership-programs-of-its-21-remaining-publisher-partners/">found themselves surprised</a> time
 and time again when that changes.</p>
 
-<p>It’s important to note here that I think a lot of this churn is reasonable, they are a start-up and that is
+<p>It's important to note here that I think a lot of this churn is reasonable, they are a start-up and that is
 literally what start-ups do. Start-ups iterate through business plan ideas until they find one that scales in a way
-that they want and that process takes time. It’s when that ambiguity about what a company does or doesn’t do with
-your writing which makes it a dependency which doesn’t pay its weight.</p>
+that they want and that process takes time. It's when that ambiguity about what a company does or doesn't do with
+your writing which makes it a dependency which doesn't pay its weight.</p>
 
-<h2 id="branding">#branding</h2>
+<a name="L.branding"></a>
+<h2>#branding</h2>
 
-<p><a href="/images/hosting-our-own-blog/1.png" style="">
-  <img src="/images/hosting-our-own-blog/1.png" alt="Screenshots" style="" />
-</a></p>
+<p></article>
+<a href='/images/hosting-our-own-blog/1.png' style="">
+  <img src="/images/hosting-our-own-blog/1.png" alt="Screenshots" style="">
+</a>
+<article class="post">
+</p>
 
 <p>I consider our blog, and the rest of the site, to be the canonical representation of the Artsy Engineering team
-online. We’ve carefully grown an Artsy Engineering aesthetic around it.</p>
+online. We've carefully grown an Artsy Engineering aesthetic around it.</p>
 
-<p>In contrast, had we chosen to host on Medium, we’d get a few templates and a highlight color. For example, check
+<p>In contrast, had we chosen to host on Medium, we'd get a few templates and a highlight color. For example, check
 out: <a href="https://medium.com/airbnb-engineering">AirBnB</a>, <a href="https://medium.com/harrys-engineering">Harrys</a>,
 <a href="https://medium.com/@Pinterest_Engineering">Pintrest</a>, <a href="https://medium.com/vimeo-engineering-blog">Vimeo</a> or
-<a href="https://eng.lyft.com">Lyft</a>’s pages.</p>
+<a href="https://eng.lyft.com">Lyft</a>'s pages.</p>
 
-<p>Not memorable at all, because you can’t really work with the design constraints to do anything creative other than
+<p>Not memorable at all, because you can't really work with the design constraints to do anything creative other than
 a banner image and a color.</p>
 
 <p>These constrains become worse on a post page, where you completely lose any sense of connection with the company,
-and the team the moment someone scrolls an inch until the footer. Your team’s writing becomes just “a medium post”
-at that point. You’ve got limited options for attaching images, and no ability to use HTML/JS to showcase
+and the team the moment someone scrolls an inch until the footer. Your team's writing becomes just "a medium post"
+at that point. You've got limited options for attaching images, and no ability to use HTML/JS to showcase
 <a href="/blog/2017/07/06/React-Native-for-iOS-devs/#React">problems</a> <a href="/blog/2018/03/18/ar/">interactively</a> or explore <a href="http://artsy.github.io/blog/2019/01/23/artsy-engineering-hiring/">new post styles</a>.</p>
 
-<p>These aren’t blockers in any way, most of our posts don’t do that - but the constraints mean you will never think
+<p>These aren't blockers in any way, most of our posts don't do that - but the constraints mean you will never think
 to try and explain something outside of those constraints.</p>
 
 <p>Then at the bottom of your post, readers are redirected to other posts from other teams. For example, when I opened
-a post on Vimeo’s announcement of <a href="https://medium.com/vimeo-engineering-blog/announcing-psalm-v3-76ec78e312ce">Psalm v3</a> (a cool looking PHP dev tool), there were three recommended
+a post on Vimeo's announcement of <a href="https://medium.com/vimeo-engineering-blog/announcing-psalm-v3-76ec78e312ce">Psalm v3</a> (a cool looking PHP dev tool), there were three recommended
 posts: one was about missiles being fired in Syria, another was a beginners guide to PHP and then a third was how
-to set up Docker to work with a PHP framework. They’re not that related, maybe they all have the keyword of PHP
+to set up Docker to work with a PHP framework. They're not that related, maybe they all have the keyword of PHP
 behind the scenes?</p>
 
-<p><a href="/images/hosting-our-own-blog/3.jpg" style="">
-  <img src="/images/hosting-our-own-blog/3.jpg" alt="Artsy x React Native" style="" />
-</a></p>
+<p></article>
+<a href='/images/hosting-our-own-blog/3.jpg' style="">
+  <img src="/images/hosting-our-own-blog/3.jpg" alt="Artsy x React Native" style="">
+</a>
+<article class="post">
+</p>
 
 <p>Writing takes a lot of time, and provides so much value. It should be presented as <a href="https://github.com/artsy/README/blob/cb73cb/culture/what-is-artsy.md#quality-worthy-of-art">quality worthy of art</a>.
-By using to a generic platform for your writing, you’re trading that simplicity for building your team’s online
+By using to a generic platform for your writing, you're trading that simplicity for building your team's online
 presence.</p>
 
-<h2 id="breaking-the-sandbox">Breaking the Sandbox</h2>
+<a name="Breaking.the.Sandbox"></a>
+<h2>Breaking the Sandbox</h2>
 
-<p>We’ve grown to need to showcase quite a few different types of posts:</p>
-
-<ul>
-  <li>Small posts that with only a few paragraphs</li>
-  <li>Long-form posts that take forever to read</li>
-  <li>Long-form interview style posts for many contributors</li>
-  <li>Sequential posts, in the form of a series</li>
-  <li>YouTube embed posts</li>
-  <li>Announcements</li>
-  <li>Guest Posts</li>
-</ul>
-
-<p>None of these need to be treated the same, and since we created the blog, we’ve added:</p>
+<p>We've grown to need to showcase quite a few different types of posts:</p>
 
 <ul>
-  <li>Category pages - <a href="/blog/categories/graphql/">GraphQL</a></li>
-  <li>Author pages - <a href="/author/orta/">mine</a></li>
-  <li>Site series - <a href="/series/react-native-at-artsy/">React Native at Artsy</a></li>
-  <li><a href="https://github.com/artsy/artsy.github.io/tree/9f65b5/_layouts">4 separate post layouts</a></li>
-  <li>Multi-author posts - <a href="/blog/2018/10/19/pair-programming/">Pair Programming</a></li>
-  <li><a href="/blog/2017/07/15/Comments-are-on/">GitHub Issue Powered Comments</a></li>
-  <li>Real-time <a href="https://github.com/artsy/artsy.github.io/pull/332">search</a> on our static pages</li>
+<li>Small posts that with only a few paragraphs</li>
+<li>Long-form posts that take forever to read</li>
+<li>Long-form interview style posts for many contributors</li>
+<li>Sequential posts, in the form of a series</li>
+<li>YouTube embed posts</li>
+<li>Announcements</li>
+<li>Guest Posts</li>
 </ul>
 
-<p>When we’ve wanted to add a new feature to the blog to fit a particular post, we added the feature. This gave us the
-chance to not constrain ourselves in ideas. For example, we’ve explored <a href="https://github.com/artsy/artsy.github.io/issues/355#issuecomment-315605280">building a podcast</a> into our blog
-treating it as a first class feature in ways that no-one would ever build if it was a platform. Or we’re interested
+
+<p>None of these need to be treated the same, and since we created the blog, we've added:</p>
+
+<ul>
+<li>Category pages - <a href="/blog/categories/graphql/">GraphQL</a></li>
+<li>Author pages - <a href="/author/orta/">mine</a></li>
+<li>Site series - <a href="/series/react-native-at-artsy/">React Native at Artsy</a></li>
+<li><a href="https://github.com/artsy/artsy.github.io/tree/9f65b5/_layouts">4 separate post layouts</a></li>
+<li>Multi-author posts - <a href="/blog/2018/10/19/pair-programming/">Pair Programming</a></li>
+<li><a href="/blog/2017/07/15/Comments-are-on/">GitHub Issue Powered Comments</a></li>
+<li>Real-time <a href="https://github.com/artsy/artsy.github.io/pull/332">search</a> on our static pages</li>
+</ul>
+
+
+<p>When we've wanted to add a new feature to the blog to fit a particular post, we added the feature. This gave us the
+chance to not constrain ourselves in ideas. For example, we've explored <a href="https://github.com/artsy/artsy.github.io/issues/355#issuecomment-315605280">building a podcast</a> into our blog
+treating it as a first class feature in ways that no-one would ever build if it was a platform. Or we're interested
 in making a way to highlight useful links for the</p>
 
 <p>All of those features were made by people whose background was iOS development, which gave us the chance to expand
 the horizons of our engineers knowledge.</p>
 
-<h2 id="blog-as-code">Blog as Code</h2>
+<a name="Blog.as.Code"></a>
+<h2>Blog as Code</h2>
 
-<p>Because our <a href="https://github.com/artsy/artsy.github.io/tree/9f65b5/_posts">blog posts</a> are markdown in a <a href="https://github.com/artsy/artsy.github.io">GitHub repo</a>, we don’t treat a review for a blog post any
+<p>Because our <a href="https://github.com/artsy/artsy.github.io/tree/9f65b5/_posts">blog posts</a> are markdown in a <a href="https://github.com/artsy/artsy.github.io">GitHub repo</a>, we don't treat a review for a blog post any
 different than a normal pull request for code. It means our <a href="https://github.com/artsy/README/blob/master/culture/peril.md">company Peril rules</a> will run, and all of
 engineering has the ability to contribute to the review process.</p>
 
-<p>Having a static site in a GitHub repo means we don’t have to special case our writing in comparison to every-day
+<p>Having a static site in a GitHub repo means we don't have to special case our writing in comparison to every-day
 work.</p>
 
-<h2 id="call-to-action">Call to Action</h2>
+<a name="Call.to.Action"></a>
+<h2>Call to Action</h2>
 
 <p>Using Medium is a very reasonable call if you are just trying to get some writing out and online as fast as
 possible. If you want to be scrappy and announce something - do it. If you want to do something more serious
 though, you should really consider owning your engineering blog and identity. Giving that away to Medium in
-exchange for hosting your content and getting more eyeballs isn’t a great trade.</p>
+exchange for hosting your content and getting more eyeballs isn't a great trade.</p>
 
-<p>There aren’t many shortcuts for getting folks to visit your blog, and relying on Mediums’ recommendations or SEO
-isn’t a good path compared to say Twitter adverts or just writing interesting stuff and letting folks know via a
+<p>There aren't many shortcuts for getting folks to visit your blog, and relying on Mediums' recommendations or SEO
+isn't a good path compared to say Twitter adverts or just writing interesting stuff and letting folks know via a
 mailing list.</p>
 
-<p>If self-hosting is an issue, Medium is not the only payer in eco-system, <a href="https://wordpress.com">Wordpress</a>’s company
-<a href="https://automattic.com">Automattic</a> has been profitable for years and hosts all sorts of really big blogs. It’s not going anywhere,
+<p>If self-hosting is an issue, Medium is not the only payer in eco-system, <a href="https://wordpress.com">Wordpress</a>'s company
+<a href="https://automattic.com">Automattic</a> has been profitable for years and hosts all sorts of really big blogs. It's not going anywhere,
 and you have the ability to customize it to your style and use a whole massive marketplace of plugins (free and
-paid for) - it’s a really great choice.</p>
+paid for) - it's a really great choice.</p>
 
-<p>However, it’s really worth noting how low the barrier to entry it is now to create a blog using a static site
+<p>However, it's really worth noting how low the barrier to entry it is now to create a blog using a static site
 generator:</p>
 
 <ul>
-  <li><a href="https://jekyllrb.com">Jekyll</a> - Ruby, the default for GitHub pages and lowest barrier to entry.</li>
+<li><a href="https://jekyllrb.com">Jekyll</a> - Ruby, the default for GitHub pages and lowest barrier to entry.</li>
 </ul>
 
-<div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code>gem <span class="nb">install </span>jekyll bundler
+
+<pre><code class="sh">gem install jekyll bundler
 jekyll new myblog
-<span class="nb">cd </span>myblog
-bundle <span class="nb">exec </span>jekyll serve
-</code></pre></div></div>
+cd myblog
+bundle exec jekyll serve
+</code></pre>
 
 <ul>
-  <li><a href="https://www.gatsbyjs.org">Gatsby</a> - JS, the project we regularly consider moving our blog to. JS folks have such a great focus on
+<li><a href="https://www.gatsbyjs.org">Gatsby</a> - JS, the project we regularly consider moving our blog to. JS folks have such a great focus on
 developer experience, and the abstraction of having an in-direction layer for your content via an internal
 GraphQL API for your static site is a very, very smart abstraction which will take them a long way.</li>
 </ul>
 
-<div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code>npx gatsby new myblog https://github.com/gatsbyjs/gatsby-starter-blog
-<span class="nb">cd </span>myblog
+
+<pre><code class="sh">npx gatsby new myblog https://github.com/gatsbyjs/gatsby-starter-blog
+cd myblog
 yarn dev
-</code></pre></div></div>
+</code></pre>
 
 <ul>
-  <li><a href="https://gohugo.io">Hugo</a> - Go, looks pretty reasonable if you have strong opinions against the others somehow</li>
+<li><a href="https://gohugo.io">Hugo</a> - Go, looks pretty reasonable if you have strong opinions against the others somehow</li>
 </ul>
 
-<div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code>brew <span class="nb">install </span>hugo
+
+<pre><code class="sh">brew install hugo
 hugo new site myblog
-<span class="nb">cd </span>myblog
+cd myblog
 
 git init
 git submodule add https://github.com/budparr/gohugo-theme-ananke.git themes/ananke
-<span class="nb">echo</span> <span class="s1">'theme = "ananke"'</span> <span class="o">&gt;&gt;</span> config.toml
+echo 'theme = "ananke"' &gt;&gt; config.toml
 
 hugo new posts/my-first-post.md
-hugo server <span class="nt">-D</span>
-</code></pre></div></div>
+hugo server -D
+</code></pre>
 
 <p>All of these come with some sort of theme or templating support so getting started could probably take about an
 hour to get a static site up and running using a host like <a href="https://pages.github.com">GitHub Pages</a>, <a href="https://www.netlify.com">Netlify</a> or <a href="https://zeit.co/now">Now</a>.
 All three of these you can set up automatic hosting from GitHub in about 10-15m.</p>
 
 <!-- prettier-ignore-start -->
+
+
 <!-- prettier-ignore-end -->
+
 ]]></content>
   </entry>
   
@@ -760,63 +803,65 @@ All three of these you can set up automatic hosting from GitHub in about 10-15m.
     <updated>2018-08-24T00:00:00+00:00</updated>
     <id>https://artsy.github.io/blog/2018/08/24/How-to-debug-jest-tests</id>
     <content type="html"><![CDATA[<p>Hey there! My name is Anson and I work on the Platform team at Artsy. Recently, we faced an issue where a certain
-<a href="https://github.com/airbnb/enzyme">Enzyme</a> test we wrote using mock tracking was failing, but we couldn’t figure
+<a href="https://github.com/airbnb/enzyme">Enzyme</a> test we wrote using mock tracking was failing, but we couldn't figure
 out why. Luckily, with some help from <a href="/author/orta">Orta</a> and some clever thinking, we figured out what was going
 on.</p>
 
 <!-- more -->
 
+
 <p>We thought it was an issue with the mock testing library we had written. We tried to fix the problem by sprinkling
-<code class="language-plaintext highlighter-rouge">console.log</code> calls throughout the test, but it was still hard to figure out what was going on, especially without
+<code>console.log</code> calls throughout the test, but it was still hard to figure out what was going on, especially without
 knowing how to peek into the properties of certain objects.</p>
 
 <p>Instead, <a href="/author/orta">Orta</a> suggested we used the Chrome Node DevTools. Since the Enzyme test is run via
-<code class="language-plaintext highlighter-rouge">yarn jest</code>, yarn is acting as a frontend for running the Enzyme test with Node. This means that we can use the
+<code>yarn jest</code>, yarn is acting as a frontend for running the Enzyme test with Node. This means that we can use the
 Chrome Node DevTools as a debugger to run the Enzyme test. This was super useful since the one thing we needed was
 to be able to peek inside certain objects to see what they looked like and how they were failing. It was a much
 faster, more methodical way to approach debugging this test. Here are the steps we took:</p>
 
 <ul>
-  <li>First, insert a new line in your test where you think it might be failing and type <code class="language-plaintext highlighter-rouge">debugger</code>. This will serve as
+<li>First, insert a new line in your test where you think it might be failing and type <code>debugger</code>. This will serve as
 a break point for the debugger to stop at.</li>
-  <li>Open up Chrome and type in the address bar : <code class="language-plaintext highlighter-rouge">chrome://inspect</code></li>
-  <li>Click on “Open dedicated DevTools for Node”</li>
-  <li>In your terminal, instead of typing <code class="language-plaintext highlighter-rouge">yarn jest &lt;path_to_test&gt;</code>, type this:</li>
+<li>Open up Chrome and type in the address bar : <code>chrome://inspect</code></li>
+<li>Click on "Open dedicated DevTools for Node"</li>
+<li>In your terminal, instead of typing <code>yarn jest &lt;path_to_test&gt;</code>, type this:</li>
 </ul>
 
-<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>node <span class="nt">--inspect</span> node_modules/.bin/jest <span class="nt">--runInBand</span> &lt;path_to_test&gt;
-</code></pre></div></div>
 
-<p>Or you can add it to your <code class="language-plaintext highlighter-rouge">package.json</code> as a script:</p>
+<pre><code class="bash">node --inspect node_modules/.bin/jest --runInBand &lt;path_to_test&gt;
+</code></pre>
 
-<div class="language-diff highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  {
+<p>Or you can add it to your <code>package.json</code> as a script:</p>
+
+<pre><code class="diff">  {
     "scripts" : {
-<span class="gi">+    "test:debug": "node --inspect node_modules/.bin/jest --runInBand",
-</span>    }
++    "test:debug": "node --inspect node_modules/.bin/jest --runInBand",
+    }
   }
-</code></pre></div></div>
+</code></pre>
 
-<p>Which you can then run as <code class="language-plaintext highlighter-rouge">yarn test:debug &lt;path_to_test&gt;</code>.</p>
+<p>Which you can then run as <code>yarn test:debug &lt;path_to_test&gt;</code>.</p>
 
 <p>Voila! Your test should now be running in the Chrome debugger. And you get your handy console to poke around all
 sorts of stuff!</p>
 
-<p>You also have the option of using this with Jest’s <code class="language-plaintext highlighter-rouge">--watch</code> mode in order easily re-run tests, after changes to
+<p>You also have the option of using this with Jest's <code>--watch</code> mode in order easily re-run tests, after changes to
 app or test code.</p>
 
-<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>node <span class="nt">--inspect</span> node_modules/.bin/jest <span class="nt">--watch</span> <span class="nt">--runInBand</span> &lt;path_to_test&gt;
-</code></pre></div></div>
+<pre><code class="bash">node --inspect node_modules/.bin/jest --watch --runInBand &lt;path_to_test&gt;
+</code></pre>
 
 <p>Now simply hit Enter in the terminal running your Jest process anytime you want to re-run your currently selected
-specs. You’ll be dropped right back into the Chrome debugger.</p>
+specs. You'll be dropped right back into the Chrome debugger.</p>
 
-<p>You might be wondering how this fixed our tests. Well, turns out that we missed a <code class="language-plaintext highlighter-rouge">jest.unmock()</code> call at the top
+<p>You might be wondering how this fixed our tests. Well, turns out that we missed a <code>jest.unmock()</code> call at the top
 of the test file. <em>Facepalm.</em> To prevent this from biting other developers in the future, <a href="/author/orta">Orta</a>
 whipped up a <a href="https://github.com/artsy/reaction/pull/1174">pull request</a> to add a rule in our TypeScript linter,
 check it out!</p>
 
 <p>Either way, in the future, this will probably be my first step in debugging non-obvious issues in tests, if only to
-eliminate possible sources of the issues. I’m glad I was able to learn with <a href="/author/orta">Orta</a> about a methodical
+eliminate possible sources of the issues. I'm glad I was able to learn with <a href="/author/orta">Orta</a> about a methodical
 way to debug test failures. Hope this helps, and happy hacking!</p>
 ]]></content>
   </entry>
@@ -830,36 +875,38 @@ way to debug test failures. Hope this helps, and happy hacking!</p>
 In the last 2 years, most of my work at Artsy (and in the OSS world) has been less about longer-term building of
 hard things, but working on many smaller tasks across a lot of different areas.</p>
 
-<p>Somehow, during this period I managed to end up in the top of “most active” <a href="https://gist.github.com/paulmillr/2657075">GitHub members</a>, I feel like a
+<p>Somehow, during this period I managed to end up in the top of "most active" <a href="https://gist.github.com/paulmillr/2657075">GitHub members</a>, I feel like a
 lot of this is due to doing <a href="http://artsy.github.io/series/open-source-by-default/">Open Source by Default</a> at Artsy and second to being good at context switching. I
 want to try and talk though some of my techniques for handling context switching, as well as a bit of philosophy
 around adopting and owning your tools.</p>
 
 <!-- more -->
 
-<h2 id="shallow-and-wide-work">Shallow and Wide Work</h2>
+
+<a name="Shallow.and.Wide.Work"></a>
+<h2>Shallow and Wide Work</h2>
 
 <p>I want to encourage as many people as possible to work on fun, deep-flow projects at Artsy. One of the most
-successful ways of achieving this, that I’ve found, is to spend most of my time working on shallower tasks. An
+successful ways of achieving this, that I've found, is to spend most of my time working on shallower tasks. An
 example from my last few weeks is hiring. The communication aspects require dozens of emails and internal updates
-that can’t be scheduled into safe blocks. <em>(<a href="https://www.artsy.net/jobs#engineering">Totally related BTW, we’re hiring</a>.)</em></p>
+that can't be scheduled into safe blocks. <em>(<a href="https://www.artsy.net/jobs#engineering">Totally related BTW, we're hiring</a>.)</em></p>
 
 <p>For programming work I have a few techniques for trying to accomplish a lot of shallow tasks across many repos.</p>
 
 <p>Start off by making yourself accountable to someone. For my OSS, this tends to either be <a href="https://github.com/orta/cocoapods-fix-react-native#contributing-back">setting expectations</a>
 in README or using <a href="https://github.com/danger/danger-js/blob/master/VISION.md#danger-for-js">a VISION</a> file. For Artsy work we have product managers and engineers who own the
-projects I’m contributing to. For this blog post, it’s my <a href="http://artsy.github.io/author/chris/">buddy Chris</a>.</p>
+projects I'm contributing to. For this blog post, it's my <a href="http://artsy.github.io/author/chris/">buddy Chris</a>.</p>
 
 <p>I would then strive to get <em>anything</em> out, this could be a work-in-progress PR or via declaratively via
 <a href="https://tom.preston-werner.com/2010/08/23/readme-driven-development.html">README-driven-development</a>. Part of this is because you might end up being dragged off into something else,
-and another is that you’re less likely to grok the domain better than your reviewers. Whilst not every change is an
+and another is that you're less likely to grok the domain better than your reviewers. Whilst not every change is an
 improvement, every improvement adds up - even in small increments.</p>
 
 <p>One way to instantly get rich domain knowledge is by pairing with someone who is more involved. This is a perfect
 way to understand how decisions were made and provides great insight into how someone works on a project. While
 pairing, you might also find additional ways to improve the daily workflow for someone else too!</p>
 
-<p>Trying to have a shallow and wide understanding of many systems means accepting that you can’t know the finer
+<p>Trying to have a shallow and wide understanding of many systems means accepting that you can't know the finer
 details about how everything works. You want to know when really big interesting things are happening, but most work
 should be iterative and less relevant to external folk like you.</p>
 
@@ -869,80 +916,78 @@ down in the useful discussion.</p>
 <p>Techniques for this are:</p>
 
 <ul>
-  <li>
-    <p>Making a custom stream of updates and not being too concerned about reading every single one of them. For Artsy,
-with many contributors and contexts - I create slack channels like: <code class="language-plaintext highlighter-rouge">#front-end-ios-notifs</code>,
-<code class="language-plaintext highlighter-rouge">#front-end-web-notifs</code>, <code class="language-plaintext highlighter-rouge">#orta-misc-notifs</code> and business specific ones like <code class="language-plaintext highlighter-rouge">#consignments-notifs</code> that contain
+<li><p>Making a custom stream of updates and not being too concerned about reading every single one of them. For Artsy,
+with many contributors and contexts - I create slack channels like: <code>#front-end-ios-notifs</code>,
+<code>#front-end-web-notifs</code>, <code>#orta-misc-notifs</code> and business specific ones like <code>#consignments-notifs</code> that contain
 PR or Issue information creation from GitHub but nothing with more details. I do the same but smaller for Danger
-and CocoaPods.</p>
-  </li>
-  <li>
-    <p>I set <a href="https://get.slack.help/hc/en-us/articles/201398467-Set-up-keyword-notifications">Slack keywords</a> to key GitHub repo names, or internal facing app names that I care about. This
-means I don’t have to monitor every channel.</p>
-  </li>
-  <li>
-    <p>I don’t read my email. All 13,489 of them right now. I read the subjects and decide if it’s worth reading. Every
-few months I declare inbox zero so others are less distracted by the number.</p>
-  </li>
+and CocoaPods.</p></li>
+<li><p>I set <a href="https://get.slack.help/hc/en-us/articles/201398467-Set-up-keyword-notifications">Slack keywords</a> to key GitHub repo names, or internal facing app names that I care about. This
+means I don't have to monitor every channel.</p></li>
+<li><p>I don't read my email. All 13,489 of them right now. I read the subjects and decide if it's worth reading. Every
+few months I declare inbox zero so others are less distracted by the number.</p></li>
 </ul>
+
 
 <p>The tricky thing with this sort of work is trying not to be a blocker for someone else. A lot of this is about being
 cautious about what you strive to help with, and about finding ways to boost others asynchronously. Am I good at
-this? Sometimes. It’s easier in OSS thanks to the the limited liability clauses, but in work-work that can be hard.</p>
+this? Sometimes. It's easier in OSS thanks to the the limited liability clauses, but in work-work that can be hard.</p>
 
 <p>When my contributions are larger and I know the domain well, for example in a front-end JavaScript project, I am
-willing to take longer than I’d like to ensure that it is reference level quality. A recent example came up in a
+willing to take longer than I'd like to ensure that it is reference level quality. A recent example came up in a
 retrospective last month when an engineering team at Artsy said that one of <a href="https://github.com/artsy/emission/tree/master/src/lib/Components/Consignments">my projects</a> was a key
 reference for testing and React Native form handling for them. Pulling off this can definitely take longer than
-expected, but if you’re not going to be the one maintaining it then holding yourself to a higher standard is worth
+expected, but if you're not going to be the one maintaining it then holding yourself to a higher standard is worth
 it.</p>
 
-<h2 id="deep-automation">Deep Automation</h2>
+<a name="Deep.Automation"></a>
+<h2>Deep Automation</h2>
 
 <p>Remove as much ambiguity as possible for discussion. Project tools like <a href="https://prettier.io">prettier</a> really help focus code review
 away from the petty formatting issues. Linters like <a href="https://github.com/palantir/tslint">tslint</a>, <a href="https://eslint.org">eslint</a> and <a href="https://www.github.com/bbatsov/rubocop">rubocop</a> remove another series of
 discussion points. When you find yourself surprised by a cultural rule for a codebase, add <a href="https://danger.systems">a danger</a> rule
-so you and others have it codified. Use tools like <a href="https://github.com/typicode/husky">husky</a> and <a href="https://github.com/okonet/lint-staged">lint-staged</a> to get that feedback when you’re
+so you and others have it codified. Use tools like <a href="https://github.com/typicode/husky">husky</a> and <a href="https://github.com/okonet/lint-staged">lint-staged</a> to get that feedback when you're
 still in a development context. Danger can even run as a <a href="http://danger.systems/js/tutorials/fast-feedback.html">git-hook/husky task</a> too, so that feedback
 can be <em>blazing</em> too.</p>
 
 <p>You can automate via tools, sure, but you can also encourage independent work via documentation.(TO DO: saves your
-time, but isn’t “automation”) If something is confusing enough that, as an outsider, you don’t get it without
-asking, you should start adding documentation. I can’t tell you what that looks like because it’s different
-per-project, but at least try to make it so the next person doesn’t need to ask.</p>
+time, but isn't "automation") If something is confusing enough that, as an outsider, you don't get it without
+asking, you should start adding documentation. I can't tell you what that looks like because it's different
+per-project, but at least try to make it so the next person doesn't need to ask.</p>
 
-<p>I strive to use my time on a project to encourage more consolidation, in the case of front-end that’s moving closer
+<p>I strive to use my time on a project to encourage more consolidation, in the case of front-end that's moving closer
 to <a href="https://www.youtube.com/watch?v=1Z3loALSVQM">the Artsy omakase</a>. In the case of servers that could be encouraging new APIs to use GraphQL, or to adopt
 some of our newer ideas about schema management.</p>
 
-<h2 id="impact-per-keystroke">Impact per Keystroke</h2>
+<a name="Impact.per.Keystroke"></a>
+<h2>Impact per Keystroke</h2>
 
-<p>I’m a firm believer in customising your environment. Does that suck for pair programming? Yes. Can we deal with it?
-Yes. I’m gong to assume you’re on a Mac. An out of the box Mac comes with some solid developer tools, and Apple are
+<p>I'm a firm believer in customising your environment. Does that suck for pair programming? Yes. Can we deal with it?
+Yes. I'm gong to assume you're on a Mac. An out of the box Mac comes with some solid developer tools, and Apple are
 good at <a href="http://artsy.github.io/blog/2017/02/05/Retrospective-Swift-at-Artsy/#Developer.Experience">taking</a> some of the communities good ideas and giving it to everyone.</p>
 
-<p>However, there’s definitely space for independent apps. Here’s a list of apps broken into genres. You should be
-running at least one from each genre, and have it’s features deeply committed to memory. The ones in bold are what I
+<p>However, there's definitely space for independent apps. Here's a list of apps broken into genres. You should be
+running at least one from each genre, and have it's features deeply committed to memory. The ones in bold are what I
 use.</p>
 
 <ul>
-  <li>Window Management: <a href="https://manytricks.com/moom/"><strong>Moom</strong></a>, <a href="http://magnet.crowdcafe.com">Magnet</a>,
+<li>Window Management: <a href="https://manytricks.com/moom/"><strong>Moom</strong></a>, <a href="http://magnet.crowdcafe.com">Magnet</a>,
 <a href="https://www.spectacleapp.com">Spectacles</a>, <a href="http://mizage.com/divvy/">Divvy</a></li>
-  <li>Effective Keyboard Shortcuts: <a href="https://shortcatapp.com"><strong>Shortcat</strong></a>, <a href="https://keytty.com">Keytty</a>,
+<li>Effective Keyboard Shortcuts: <a href="https://shortcatapp.com"><strong>Shortcat</strong></a>, <a href="https://keytty.com">Keytty</a>,
 <a href="https://vimium.github.io">Vimium</a>/<a href="https://github.com/guyht/vimari"><strong>Vimari</strong></a></li>
-  <li>Clipboard Manager: <a href="https://www.alfredapp.com"><strong>Alfred</strong></a>, <a href="https://tapbots.com/pastebot/">Pastebot</a>,
+<li>Clipboard Manager: <a href="https://www.alfredapp.com"><strong>Alfred</strong></a>, <a href="https://tapbots.com/pastebot/">Pastebot</a>,
 <a href="http://www.keyboardmaestro.com/main/">Keyboard Meastro</a></li>
-  <li>Recently changed files: <a href="http://www.ironicsoftware.com/fresh/"><strong>Fresh</strong></a>,
+<li>Recently changed files: <a href="http://www.ironicsoftware.com/fresh/"><strong>Fresh</strong></a>,
 <a href="http://www.ironicsoftware.com/fresh/"><strong>Alfred</strong></a></li>
-  <li>Text Snippets: <a href="https://www.alfredapp.com"><strong>Alfred</strong></a>, <a href="https://textexpander.com/">TextExpander</a>, macOS System
+<li>Text Snippets: <a href="https://www.alfredapp.com"><strong>Alfred</strong></a>, <a href="https://textexpander.com/">TextExpander</a>, macOS System
 Settings</li>
-  <li>Terminal: <a href="https://iterm2.com"><strong>iTerm 2</strong></a>, <a href="https://hyper.is">Hyper</a></li>
-  <li>Learning Keyboard Shortcuts: <a href="https://www.mediaatelier.com/CheatSheet/"><strong>CheatSheet</strong></a></li>
-  <li>Shell: <a href="https://github.com/robbyrussell/oh-my-zsh">Oh my ZSH</a>, <strong><a href="http://fishshell.com">Fish</a> +
+<li>Terminal: <a href="https://iterm2.com"><strong>iTerm 2</strong></a>, <a href="https://hyper.is">Hyper</a></li>
+<li>Learning Keyboard Shortcuts: <a href="https://www.mediaatelier.com/CheatSheet/"><strong>CheatSheet</strong></a></li>
+<li>Shell: <a href="https://github.com/robbyrussell/oh-my-zsh">Oh my ZSH</a>, <strong><a href="http://fishshell.com">Fish</a> +
 <a href="https://fisherman.github.io">Fisherman</a></strong></li>
-  <li><em>Simple</em> Note Taking: <a href="http://brettterpstra.com/projects/nvalt/"><strong>nvalt</strong></a>,
+<li><em>Simple</em> Note Taking: <a href="http://brettterpstra.com/projects/nvalt/"><strong>nvalt</strong></a>,
 <a href="https://culturedcode.com/things/"><strong>Things</strong></a>, Notes.app, <a href="https://evernote.com">Evernote</a></li>
 </ul>
+
 
 <p>Use native apps by default, they are better for your time. Native apps will usually conform to the <a href="https://developer.apple.com/design/human-interface-guidelines/macos/overview/themes/">Human Interface
 Guidelines</a>, which means logical shortcuts and great accessibility support. This is good because tools like
@@ -950,98 +995,103 @@ Guidelines</a>, which means logical shortcuts and great accessibility support. T
 
 <p>Electron-y apps made the most sense when there is a big
 <a href="https://unix.stackexchange.com/questions/137820/whats-the-difference-of-the-userland-vs-the-kernel">user-land</a>
-customization scene. So, basically if there’s a community around extending the app (<a href="https://hyper.is">Hyper</a> is a
+customization scene. So, basically if there's a community around extending the app (<a href="https://hyper.is">Hyper</a> is a
 reasonable example, <a href="https://code.visualstudio.com">Visual Studio Code</a> and <a href="https://atom.io">Atom</a> are the best
 example) then Electron apps make sense.</p>
 
 <p>Some highlights for non-native apps are <a href="https://mailplaneapp.com">Mailplane</a> and
 <a href="https://code.visualstudio.com">Visual Studio Code</a>.</p>
 
-<p>Every second you’re at a computer you should be feeling like it’s 1-2-3 hotkeys away from whatever you want to do
+<p>Every second you're at a computer you should be feeling like it's 1-2-3 hotkeys away from whatever you want to do
 next. For example:</p>
 
 <ul>
-  <li>Your terminal should be a <a href="https://www.youtube.com/watch?v=ETskRNFeuGM">single keypress away</a></li>
-  <li><a href="https://github.com/orta/keyboard_shortcuts#using-a-mac">Learn the keys for OS X</a> so you can jump/delete words</li>
-  <li><a href="https://www.youtube.com/watch?v=4CRbJwOctMo">Resize/move windows with modal commands</a></li>
-  <li><a href="https://www.neat.io/bee/">Making a new Jira ticket with a hotkey</a></li>
-  <li><a href="/images/context-switching/sketch.mov">Open any recent file per-app</a></li>
-  <li><a href="https://krausefx.com/blog/use-custom-shortcuts-for-every-application">Use a shortcut for every Mac app you use regularly</a></li>
+<li>Your terminal should be a <a href="https://www.youtube.com/watch?v=ETskRNFeuGM">single keypress away</a></li>
+<li><a href="https://github.com/orta/keyboard_shortcuts#using-a-mac">Learn the keys for OS X</a> so you can jump/delete words</li>
+<li><a href="https://www.youtube.com/watch?v=4CRbJwOctMo">Resize/move windows with modal commands</a></li>
+<li><a href="https://www.neat.io/bee/">Making a new Jira ticket with a hotkey</a></li>
+<li><a href="/images/context-switching/sketch.mov">Open any recent file per-app</a></li>
+<li><a href="https://krausefx.com/blog/use-custom-shortcuts-for-every-application">Use a shortcut for every Mac app you use regularly</a></li>
 </ul>
 
-<p>App-wise there’s always more all of us can do, but constant improvement is key to getting there.</p>
 
-<p>I think it’s worth stressing here that I believe in paying for my tools. I want to support independent devs, and my
+<p>App-wise there's always more all of us can do, but constant improvement is key to getting there.</p>
+
+<p>I think it's worth stressing here that I believe in paying for my tools. I want to support independent devs, and my
 time is worth orders of magnitude more than the cost of entry for this software. There may be similar versions of
-what I noted above for free, they could be open source too - but I’d rather have more people working on our tools
+what I noted above for free, they could be open source too - but I'd rather have more people working on our tools
 full-time than people doing it in their spare-time.</p>
 
-<h2 id="terminal-context-switching">Terminal Context Switching</h2>
+<a name="Terminal.Context.Switching"></a>
+<h2>Terminal Context Switching</h2>
 
-<p>macOS’s UNIX underpinnings mean that a lot of common GUI activities have a CLI counter-part. To handle regular
-context switching in the terminal you’ll need to customise the shell to give you information as you arrive in a new
+<p>macOS's UNIX underpinnings mean that a lot of common GUI activities have a CLI counter-part. To handle regular
+context switching in the terminal you'll need to customise the shell to give you information as you arrive in a new
 context. Things that I find useful in a shell are:</p>
 
 <ul>
-  <li>What folder am I in?</li>
-  <li>Is it a git repo?</li>
-  <li>What branch am I on, or are there existing changes?</li>
-  <li>Did the last command fail?</li>
-  <li>Sometimes, what version of node/ruby is setup for this project?</li>
+<li>What folder am I in?</li>
+<li>Is it a git repo?</li>
+<li>What branch am I on, or are there existing changes?</li>
+<li>Did the last command fail?</li>
+<li>Sometimes, what version of node/ruby is setup for this project?</li>
 </ul>
 
-<p>I think it’s also really useful to be able to jump between many development folders, you can use
+
+<p>I think it's also really useful to be able to jump between many development folders, you can use
 <a href="https://github.com/rupa/z"><strong>z</strong></a>, <a href="https://github.com/wting/autojump">j</a> or
 <a href="https://github.com/iridakos/goto">goto</a> for this. Or set up some custom
 <a href="https://shapeshed.com/unix-alias/">aliases</a> for the most common folders.</p>
 
-<p>As you’ll be spending a good chunk of time, it’s worth feeling comfortable that you know a few of the flags for
-<code class="language-plaintext highlighter-rouge">cd</code>, <code class="language-plaintext highlighter-rouge">ls</code>, <code class="language-plaintext highlighter-rouge">mkdir</code>, <code class="language-plaintext highlighter-rouge">rm</code>, <code class="language-plaintext highlighter-rouge">cat</code>, <code class="language-plaintext highlighter-rouge">touch</code> and <code class="language-plaintext highlighter-rouge">grep</code>. Ideally, you have tab completion set up, and
+<p>As you'll be spending a good chunk of time, it's worth feeling comfortable that you know a few of the flags for
+<code>cd</code>, <code>ls</code>, <code>mkdir</code>, <code>rm</code>, <code>cat</code>, <code>touch</code> and <code>grep</code>. Ideally, you have tab completion set up, and
 <a href="https://stackoverflow.com/questions/6205157/iterm-2-how-to-set-keyboard-shortcuts-to-jump-to-beginning-end-of-line#10485061">natural keybindings</a>
 set up in your terminal input.</p>
 
-<h2 id="regular-re-tooling">Regular Re-tooling</h2>
+<a name="Regular.Re-tooling"></a>
+<h2>Regular Re-tooling</h2>
 
-<p>Take the time every few years to re-think your previous decisions, I try to start from scratch every 2-3 years, I’m
-writing this on a MacBook that’s a week old and I’ve still not installed something from all of the above categories.
-It’s a good time to re-evaluate your software priorities as your personal/professional aims/responsibilities change.</p>
+<p>Take the time every few years to re-think your previous decisions, I try to start from scratch every 2-3 years, I'm
+writing this on a MacBook that's a week old and I've still not installed something from all of the above categories.
+It's a good time to re-evaluate your software priorities as your personal/professional aims/responsibilities change.</p>
 
 <p>A pattern I aim to strive for with tools is:</p>
 
 <ul>
-  <li>Start with overkill to learn what you need.</li>
-  <li>Migrate to smaller and simpler once you know what you want.</li>
+<li>Start with overkill to learn what you need.</li>
+<li>Migrate to smaller and simpler once you know what you want.</li>
 </ul>
 
-<h2 id="small-and-often">Small and Often</h2>
 
-<p>It’s not a very traditional way to work as a programmer, but it fits my personality type and can really rack up the
+<a name="Small.and.Often"></a>
+<h2>Small and Often</h2>
+
+<p>It's not a very traditional way to work as a programmer, but it fits my personality type and can really rack up the
 commits and contributions across the board. Being able to quickly jump contexts makes a lot more sense in the node
 ecosystem - where the boundaries between projects can be as small as per-function.</p>
 
-<p>Working this way can make it really hard to monitor what you’ve done on a regular basis, a technique I’ve used to
+<p>Working this way can make it really hard to monitor what you've done on a regular basis, a technique I've used to
 stay on top of is <a href="https://github.com/kamranahmedse/git-standup">git-standup</a> and a dev folder structure that corresponds to <a href="https://twitter.com/orta/status/1028764128310185984">areas of work</a>. For
-example, here’s what a week roughly looks like on a slow week for Danger/Peril for me:</p>
+example, here's what a week roughly looks like on a slow week for Danger/Peril for me:</p>
 
-<div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code>~/dev/projects/danger
-❯ git standup <span class="nt">-m</span> 7 <span class="nt">-d</span> 7
+<pre><code class="sh">~/dev/projects/danger
+❯ git standup -m 7 -d 7
 /Users/orta/dev/projects/danger/hazmat/peril
-c1d6893 - Update danger <span class="o">(</span>2 days ago<span class="o">)</span> &lt;Orta Therox&gt;
+c1d6893 - Update danger (2 days ago) &lt;Orta Therox&gt;
 /Users/orta/dev/projects/danger/danger-js
-a90d74c - Version bump, and peril fix <span class="o">(</span>2 days ago<span class="o">)</span> &lt;Orta Therox&gt;
-f4836a1 - Version bump <span class="o">(</span>2 days ago<span class="o">)</span> &lt;Orta Therox&gt;
-fbbcc1c - Adds a create/update label <span class="k">function </span>to the github utils func <span class="o">(</span>2 days ago<span class="o">)</span> &lt;Orta Therox&gt;
-702e51d - More dep updates <span class="o">(</span>4 days ago<span class="o">)</span> &lt;Orta Therox&gt;
-</code></pre></div></div>
+a90d74c - Version bump, and peril fix (2 days ago) &lt;Orta Therox&gt;
+f4836a1 - Version bump (2 days ago) &lt;Orta Therox&gt;
+fbbcc1c - Adds a create/update label function to the github utils func (2 days ago) &lt;Orta Therox&gt;
+702e51d - More dep updates (4 days ago) &lt;Orta Therox&gt;
+</code></pre>
 
-<p>Working this way requires trust from others that you’re doing things that are valuable, which can be tricky when
-your responses to “what did you get up to yesterday” end up being a bit ephemeral. Tools like <code class="language-plaintext highlighter-rouge">git-standup</code> help on
-the code front, and <a href="https://www.rescuetime.com">RescueTime</a> can help you understand how much time you’ve spent in greenhouse.</p>
+<p>Working this way requires trust from others that you're doing things that are valuable, which can be tricky when
+your responses to "what did you get up to yesterday" end up being a bit ephemeral. Tools like <code>git-standup</code> help on
+the code front, and <a href="https://www.rescuetime.com">RescueTime</a> can help you understand how much time you've spent in greenhouse.</p>
 
-<p>It’s your time, you should use it fastly.</p>
+<p>It's your time, you should use it fastly.</p>
 
-<p>Do you have any useful ideas for speeding up context switching? I’m open to improvements.</p>
-
+<p>Do you have any useful ideas for speeding up context switching? I'm open to improvements.</p>
 ]]></content>
   </entry>
   

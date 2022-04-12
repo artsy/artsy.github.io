@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
 
-  <title><![CDATA[Category: Mobile | Artsy Engineering]]></title>
+  <title><![CDATA[Category: mobile | Artsy Engineering]]></title>
   <link href="https://artsy.github.io/blog/categories/mobile/atom.xml" rel="self"/>
   <link href="https://artsy.github.io/"/>
-  <updated>2022-04-12T00:53:51+00:00</updated>
+  <updated>2022-04-12T00:57:35+00:00</updated>
   <id>https://artsy.github.io/</id>
   <author>
     <name><![CDATA[]]></name>
@@ -14,216 +14,948 @@
 
   
   <entry>
-    <title type="html"><![CDATA[React Native at Artsy]]></title>
-    <link href="https://artsy.github.io/blog/2016/08/15/React-Native-at-Artsy/"/>
-    <updated>2016-08-15T21:17:00+00:00</updated>
-    <id>https://artsy.github.io/blog/2016/08/15/React-Native-at-Artsy</id>
-    <content type="html"><![CDATA[<center>
-<img src="/images/react-native/artsy_react_logo.svg" style="width:300px;" />
-</center>
+    <title type="html"><![CDATA[Echoes From the Past: Supporting Old App Versions]]></title>
+    <link href="https://artsy.github.io/blog/2020/12/31/echo-supporting-old-app-versions/"/>
+    <updated>2020-12-31T00:00:00+00:00</updated>
+    <id>https://artsy.github.io/blog/2020/12/31/echo-supporting-old-app-versions</id>
+    <content type="html"><![CDATA[<p><a href="https://artsy.github.io/blog/2020/03/02/ios-deploys-super-weird-totally-normal/">In, a recent blog post</a>, I discussed a fundamental difference between web and iOS deployments. Web software is deployed to servers that are under your control, while iOS software is deployed to users' devices that you have <em>no</em> control over. This distinction really changes how you think about the code that you ship, because that code could be running indefinitely on devices that never get updated.</p>
 
-<p>As <a href="https://github.com/artsy/eigen">the Artsy iOS app</a> grew larger, we started hitting pain
-points:</p>
-
-<ul>
-  <li>We want to support other future platforms such as Android without creating more teams.</li>
-  <li>We want different business teams to work on the app without disrupting each other.</li>
-  <li>We want our architecture to evolve in order to increase programmer efficiency.</li>
-</ul>
-
-<p>It took us <a href="https://github.com/artsy/mobile/issues/22">about a year</a> to start resolving these issues. 
-Ideally, we wanted to find a solution to our architectural issues that would also improve the user 
-experience. Notably we wanted more efficient networking, due to mobile device constraints.</p>
-
-<p>It would have been an easy leap to start using Swift and, as a matter of fact, we do use Swift in parts of
-our flagship application and entirely in <a href="http://artsy.github.io/blog/2014/11/13/eidolon-retrospective/">2 other apps</a>.</p>
-
-<p>However, while Swift is a great language, it’s also just that: <em>another</em> language. It does not do much in terms of new
-paradigms that solved our architectural needs, it does not help in terms of cross-platform - as most of our code is
-building views and thus very framework specific, and it did not really offer anything in terms of more efficient network
-data fetching.</p>
-
-<p>We’ve seen that the web teams integrate React in their projects with really great results. We’ve been
-<a href="https://github.com/artsy/mobile/issues/22">paying attention</a> to React Native since it came out; the solutions provided
-by the React ecosystem ticked all of our boxes.</p>
-
-<p>Six months ago we took the plunge, and last month we formalized that this is the direction we want to go.</p>
+<p>The previous post focused on this distinction through the lens of accidentally shipping (and then fixing) a bug. This focus on bugs is important, but focusing <em>only</em> on bugs left me unable to articulate an important, nuanced distinction between hosting code and shipping app binaries. So let's dive in.</p>
 
 <!-- more -->
 
-<h1 id="cons">Cons</h1>
 
-<p>So you decided to read the full post and the first thing you got confronted with is a list of cons… <em>boo</em>. Let’s just get
-these out of the way first, it will only get better afterwards.</p>
+<p>Software, ideally, is made up of more than just bugs; it has working code, too! Just like with (accidentally) shipping bugs, you need to be aware that the working code you ship is <em>also</em> going to be running indefinitely. That puts pressure on developers to make sure that the code in their apps will continue to function correctly, even as (for example) the web APIs that the apps rely on get updated over time.</p>
+
+<a name="A.Case.Study"></a>
+<h2>A Case Study</h2>
+
+<p>Artsy's iOS app relies on a services we call "<a href="https://github.com/artsy/echo">Echo</a>" to serve remote configuration. This lets Artsy do things like selectively disable features (for example, to make non-backwards-compatible API changes), provide changes to URL-routing (to match corresponding changes to web URLs), or even to <em>require</em> users on older versions of the app to update (which we have never had to do). Echo has helped Artsy meet its business goals and building this remote configuration for the app was a great idea.</p>
+
+<p>However... Echo was built as a general-purpose remote-configuration-as-a-service, in anticipation of being used by other apps. That use never materialized. It had a web portal and a database and an API, all to only ever serve a single JSON response to the app. That's fine, sometimes engineers build things that don't end up getting used widely as we expected. Echo did one thing, and it did it really well. It ran on a Hobby Dyno on Heroku without incident for years.</p>
+
+<p>If you think about what I've discussed so far in this post, you may realize that the app <em>depends</em> on Echo. If Echo changes in some non-backwards-compatible way, then the app could break. For example, if Echo happened to stop working entirely, then the app could stop working too.</p>
+
+<p>The Echo service went without being deployed for several years. It worked, so why update it? The problem was that at some point, its major dependencies got yanked, so we could no longer build it locally or even deploy it at all. Yikes. I asked a web colleague for help and our conclusion was that it would take more effort to get Echo working with its existing code than it would be to rebuild the whole thing. Double yikes. And finally, Echo was running on the <a href="https://devcenter.heroku.com/articles/cedar-14-stack">Cedar-14 Heroku stack</a>, which was already at end-of-life and had stopped receiving security updates. Triple yikes.</p>
+
+<p>(I have to note here that most of services at Artsy are deployed almost constantly – Echo was an odd one out. Echo never needed any updates, so it never needed to be deployed. However, we should have been keeping its dependencies up to date and deploying it regularly, which would have uncovered its problems sooner when they were still easily fixed. Anyway!)</p>
+
+<p>So we have a service, Echo, that we can't develop, and can't deploy, and isn't getting security updates from our cloud provider. And the app depends on it. Since Echo had always been a bit over-engineered for what it ended up being, I wondered what the minimal replacement could be. My plan was to replace the Echo server with an S3 bucket, an Artsy-controlled CNAME DNS record, and a small shell script that runs automatically on CI.</p>
+
+<p>Seriously! <a href="https://github.com/artsy/echo/pull/39">It worked</a>! I made a proof-of-concept and then another engineer, <a href="https://github.com/pvinis">Pavlos</a>, finished building the new infrastructure. Changes to the app's configuration are now done via GitHub pull requests (<a href="https://github.com/artsy/echo/pull/63">here is an example PR</a>), which we can track over time (unlike the old web interface).</p>
+
+<p>I can't stress enough how much worry I had had about Echo's degrading status and the app's dependency on it. But! Everything about the change to S3 went smoothly.</p>
+
+<p>Okay, so new versions of app are now referring to the S3 bucket instead of the old Echo API. Great! But what about the older versions of the app that are still out there? They're still hitting the Echo API as intended, right?</p>
+
+<a name="The.Problem"></a>
+<h2>The Problem</h2>
+
+<p>Echo's API was still functioning, albeit on an EOL stack that we couldn't make any changes to. Since we can't rely on Heroku continuing to run the Echo API indefinitely, what could we do? Well, the easiest way to fix this would be to change Echo's Artsy-controlled CNAME record to point from the old Cedar-14 Heroku app to a new server app, which could pretend to be the old API for the sake of older app versions.</p>
+
+<p>This leads me to one of the most scary lines of code in the entire Artsy iOS codebase. See if you can spot the problem.</p>
+
+<pre><code class="objc">NSURL *url = [[NSURL alloc] initWithString:@"https://echo-api-production.herokuapp.com/"];
+</code></pre>
+
+<p>For whatever reason, we never created an Artsy-controlled CNAME DNS record for Echo. We were just hitting the bare Heroku URL directly. That means that there are <em>seven years'</em> worth of Artsy app versions out there that <em>need</em> to be able to continue hitting <em>that specific</em> Heroku URL.</p>
+
+<p>😬</p>
+
+<p>This is what I meant earlier about how you need to think about properly-working code differently when you develop software that runs on someone else's hardware. If this was a server, this whole problem of old-code-hitting-outdated-APIs wouldn't exist. But because we ship apps as binaries that get ran on someone <em>else's</em> hardware, we need to be aware of this kind of issue.</p>
+
+<p>That URL was fine when the code was written and it worked as intended for years. No one could have predicted, when it was added, that it would cause us headaches much later. Nor could we have anticipated that the Echo server's codebase would end up in such a state.</p>
+
+<a name="The.Solution"></a>
+<h2>The Solution</h2>
+
+<p>This is the part of the blog post where I get to be a hero (at least in my head). The Heroku app running Echo was on Cedar-14 and while we couldn't make any changes to its code, we <em>could</em> replace the code entirely. This would give us a new server running at the old URL. So I wrote up a small Express server to proxy HEAD and GET API requests from old iOS app versions to return the response body and headers that were expected. <a href="https://github.com/artsy/echo/pull/59#">The work is here</a> if you're curious. The nice thing about Heroku, at least, is that if this had gone horribly wrong we still could have reverted back to the Cedar-14 app while we figured out our next steps.</p>
+
+<p>We will still need to keep this Heroku app running, indefinitely, which isn't ideal. Perhaps Artsy's migration to Kubernetes will never be <em>quite</em> 100% complete, but that's a small price to pay for keeping users of our app happy.</p>
+
+<a name="Conclusion"></a>
+<h2>Conclusion</h2>
+
+<p>It's not just bugs that you need to be aware of <em>accidentally</em> shipping in your app binaries. You have to think about how the code that's running <em>as intended today</em>, because it will continue to run for the foreseeable future. This means adding checks for non-200 response codes from APIs, being careful about third-party APIs, and thinking carefully about everything you ship. Apps are more than just their code; apps are everything that their code depends on, too.</p>
+
+<p>This is a lesson that I've been teaching engineers for a long time, but it's only with our recent Echo changes that I've come to understand, at a deeper level, what it means to take ownership of code. Yes, the bugs, and of course, the happy little accidents, but also the mundane interconnected dependencies that make software systems so complex. And, if I'm being honest, that make software systems so much fun to work on, too.</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Becoming Mobile First]]></title>
+    <link href="https://artsy.github.io/blog/2020/09/29/becoming-mobile-first-at-artsy/"/>
+    <updated>2020-09-29T00:00:00+00:00</updated>
+    <id>https://artsy.github.io/blog/2020/09/29/becoming-mobile-first-at-artsy</id>
+    <content type="html"><![CDATA[<p>It was a Wednesday, mid-summer 2019. I don't know which Wednesday specifically, but I know that it was <em>a</em>
+Wednesday because I was attending Artsy's weekly all-hands meeting. Two hundred colleagues were also there (many
+dialing in remotely) and we were all listening to
+<a href="https://files.artsy.net/documents/artsy-names-new-ceo.pdf">Artsy's new CEO</a> talk about the company's direction.
+Mike Steib had only been around for a few months at that point, getting to know the business. He was talking about
+the product direction, and I was listening intently.</p>
+
+<p>With Artsy's iOS app, I knew there were only really two directions we could go. As I listened, I reflected on how
+we had gotten here.</p>
+
+<!-- more -->
+
+
+<p>When I joined Artsy in 2014, I joined the Mobile Team. It was an amazing team. While we were called the "mobile"
+team, we only worked on Artsy's iOS apps and not the mobile website.</p>
+
+<p>By 2016, Artsy Engineering had grown to the size that having only a "mobile team" and a "web team" was no longer
+working well. We dissolved both teams and distributed the engineers into
+<a href="https://artsy.github.io/blog/2016/03/28/artsy-engineering-organization-stack/">new product teams</a>, focused on
+vertical aspects of Artsy's business. Auctions. Partner Success. Editorial. And so on. The idea was that each team
+would have total autonomy over building products to support their slice of the business, and each would have the
+engineering and design resources to build new features across both our web and iOS canvases.</p>
+
+<p>That structure worked well, and continues to work well today (we have continued re-organizing ourselves into new
+teams to better meet business goals). But once we dissolved the mobile team, there was no longer anyone looking at
+our iOS software holistically. The app had become a series of silos – each silo was internally consistent, but
+distinct from each other. Often each silo was written in distinct programming languages (we had also started
+adopting React Native).</p>
+
+<p>New iOS technologies had been created by Apple, but our teams weren't taking full advantage of them. We would
+update to support the latest versions of Xcode and iOS in the free time between other tickets. It wasn't ideal. Of
+the <a href="https://github.com/artsy/mobile">five original members of the Mobile Team</a>, everyone else had moved on except
+me.</p>
+
+<p>As a product, the app was languishing.</p>
+
+<p>Yet despite this, it was also hugely popular among our users and very important to Artsy's business. Art collectors
+love our app! It gets a large percentage of our total sessions. Also, users place an outsized number of auction
+bids and artwork inquiries using our app relative to the number of sessions on our website. In fact, the highest
+value artwork transaction <em>ever</em> to take place on Artsy was made on an iPad, running software that I helped build.
+I'm still pretty proud of that.</p>
+
+<p>So, Wednesday all-hands. I stood there, not sure of what would happen next. I could see Artsy either making a
+massive investment in the app, or I could see Artsy cutting its losses and focusing on the software that we already
+knew how to build. Which direction we took largely depended on this new CEO, who was now standing in front of us
+all and describing the direction Artsy's product would take next.</p>
+
+<a name="The.Dream"></a>
+<h2>The Dream</h2>
+
+<p>Mike said something that caused a lot of raised eyebrows in the crowd. People were excited. <em>I</em> was excited.
+Artsy's product organization would shift to adopt a "mobile-first strategy."</p>
+
+<p>Someone asked "does this mean the app will reach feature parity with Artsy's website?"</p>
+
+<p>Mike responded: "No. It means that features are going to launch <em>first</em> on the app. If anything, it's the <em>website</em>
+that will be catching up <em>to the app</em>."</p>
+
+<p>I was kind of blown away! I mean, this had been the spirit of our original re-org in 2016, but that hadn't really
+materialized. The app had continued to trail the website. At most, only one product team was ever building new
+features for the app (usually which ever team I happened to be on). Shifting to this mobile-first strategy would be
+a <em>massive</em> undertaking, but I was keen.</p>
+
+<p>In August, an email landed in my inbox from Artsy's head of software. He wanted to spin up a new team to focus on
+the app: the team would be responsible for supporting Artsy's new mobile-first product strategy. He wanted to know
+what I thought, and he wanted to know if I was interested in leading the team.</p>
+
+<p>Honestly, it was a dream come true.</p>
+
+<p><img src="/images/2020-09-29-becoming-mobile-first-at-artsy/rfc.png" alt="Screenshot of the RFC for creating the Mobile Experience team" /></p>
+
+<p>Here we are, a year later. This is the story of how Artsy created its Mobile Experience team. How we recovered a
+languishing iOS app. How engineers helped shift the product organization to a mobile-first product strategy. And
+how Artsy grew from <em>sometimes</em> having <em>a</em> team working on the app, to usually having <em>every</em> team working on it.</p>
+
+<p><img src="/images/2020-09-29-becoming-mobile-first-at-artsy/faq.png" alt="Another screenshot of the RFC for creating the Mobile Experience team, describing frequently asked questions" /></p>
+
+<a name="Getting.Our.Bearings"></a>
+<h2>Getting Our Bearings</h2>
+
+<p>When Artsy created its new Mobile Experience team, we were already resource-constrained and so the new team would
+need to be nimble. We had three full-time engineers (myself as tech lead, and two others), assisted by a designer,
+product manager, and data analyst, who would each be spending only half their work time on the Mobile Experience
+team. We needed to be scrappy. I'm really proud of the work that that early team accomplished, and I look back
+fondly on those first few months working with Sam, Joanna, David, Kieran, and Ani.</p>
+
+<p>The first thing we did was define our own mandate. What was this team responsible for? What was it <em>not</em>
+responsible for? "Mobile Experience" is pretty vague, and we had to answer a lot of upfront questions. Would we be
+responsible for <em>all</em> of Artsy's iOS software? No, just the main collector app. Would we be responsible for Artsy's
+mobile website? No, that's too far-reaching. What about Android? Well, yes, eventually...</p>
+
+<p>After we decided on our mandate, the next step was to get really familiar with the existing app. We storyboarded
+out all the existing screens and their connections to one another.</p>
+
+<p><img src="/images/2020-09-29-becoming-mobile-first-at-artsy/walkthrough.png" alt="Screenshot of all the screens in our app laid out to discuss" /></p>
+
+<p><img src="/images/2020-09-29-becoming-mobile-first-at-artsy/brainstorm.png" alt="Screenshot of a brainstorm for app ideas" /></p>
+
+<p>No one on our team had complete knowledge of every screen in the app, not even me, so exploring it together was a
+great way to uncover what needed immediate attention. One example was our partner page, which displayed information
+to our users about Artsy's partners: galleries, museums, auction houses, etc. We learned that the app actually used
+an ancient web view, and it didn't even show the partner's <em>artworks</em>. The artworks! Probably the most important
+thing for it to do!</p>
+
+<p><img src="/images/2020-09-29-becoming-mobile-first-at-artsy/old_partner.png" alt="Screenshot of a presentation showing the old partner page" /></p>
+
+<p><img src="/images/2020-09-29-becoming-mobile-first-at-artsy/new_partner.png" alt="Screenshot of a presentation showing the new partner page, which looks much nicer" /></p>
+
+<p>This is where "being scrappy" started to take root. Usually when developing new features, Artsy designers iterate
+on a design before we plan on execution, then we implement, test, and deploy. The nice part of replacing something
+that was <em>obviously broken</em> was that we didn't feel beholden to this usual process; whatever we built would be
+better than what we had. One engineer and our designer started the new partner page with a quick pencil sketch,
+using the app's existing UI abstractions to design something that we could quickly build. Once we had a prototype,
+the engineer and designer iterated. The whole project took only about three weeks.</p>
+
+<a name="Early.Wins"></a>
+<h2>Early Wins</h2>
+
+<p>Learning about the app itself was critical, but equally important was learning about how our users <em>used</em> the app.
+We scheduled user interviews and, in the mean time, looked into our anonymized user analytics. Our data analyst
+found a few representative sessions and we walked through each action that a user took. One big lesson here was how
+much our app users relied on the app's search feature, which was still written in Objective-C and hadn't been
+updated in a long time. We found that users would often search for the same query several times in the same
+session. For example, users would search for "banksy", wander off exploring some art, and then return to search for
+"bansky" again. And again. And again.</p>
+
+<p>Our search implementation didn't show users their own recent searches, which would have greatly reduced the amount
+of friction users experienced while exploring the art world in the app. Our other engineer took point working with
+our designer to migrate the app's search to React Native. We also added some other features to our search page,
+like adding entity subtitles so users would know if the result they were tapping on was an artwork, and artist, a
+gallery, and so on. The whole project took about a month to complete, and we have continued to iterate on the app's
+search.</p>
+
+<p><img src="/images/2020-09-29-becoming-mobile-first-at-artsy/new_search.png" alt="Screenshot of a presentation showing the new search" /></p>
+
+<p>In early conversations with company leadership, the Mobile Experience team settled on an... interesting strategy to
+what we would prioritize. Our mission was "to make the app not suck." This might seem harsh! But it came from a
+place of caring. We knew how much better the app could be and we were motivated to make that a reality. In the
+spring of 2020, the team felt like we had reached a point where the app no longer "sucked" – our goal now was "to
+make the app amazing."</p>
+
+<p>During 2020, we made a lot of changes to the app. We had built a new home page, a profile tab for users, granular
+push notification settings, Sign In with Apple, and more.</p>
+
+<p><img src="/images/2020-09-29-becoming-mobile-first-at-artsy/new_home.png" alt="Screenshot of a presentation showing the new home page" /></p>
+
+<p>It was really exciting to show off our progress to the rest of the company at our monthly Demo Day, especially in
+those early months. The product team makes up only a quarter of our company and it was really cool to hear gallery
+liaisons complementing our new partner page, or sales people complementing our refreshed home feed. I think that
+people had gotten so used to the app not moving much at all that this sudden high velocity of development was as
+exciting for them as it was for us.</p>
+
+<a name="Setting.Up.Others.To.Succeed"></a>
+<h2>Setting Up Others To Succeed</h2>
+
+<p>Artsy's goal for the Mobile Experience team was explicitly <em>not</em> to centralize all our iOS feature development, and
+so our mandate included much more that just working on iOS software ourselves. We wanted to sit between a typical
+product team and a "platform" team, to provide infrastructure and assistance so any team at Artsy could develop
+their own iOS feature. This was a big challenge, and required work at the individual and team levels.</p>
+
+<p>The first step was apparent before we even created the Mobile Experience team. Artsy Engineering runs skills
+surveys every six months, and we knew that building iOS software in React Native was something Artsy engineers
+weren't really familiar with, but that they really wanted to learn more about. I worked with the Engineering team's
+Peer Learning Working Group to design a curriculum – big shout out to Christina and Adam for their help here!</p>
+
+<p><a href="https://artsy.github.io/blog/2019/12/03/ios-learning-group/">The iOS Learning Group took four weeks to deliver four lessons</a>.
+The learners were mostly web engineers, so I emphasized the familiar parts of writing React Native software. I also
+provided weekly office hours for learners to get assistance with homework. I even stretched my wings as an
+educator, developing new skills around curriculum design and delivery. After the course, learners responded
+positively to the experience and we have integrated lessons learned from the iOS Learning Group into subsequent
+peer learning groups.</p>
+
+<a name="Aligning.Product.Releases"></a>
+<h2>Aligning Product Releases</h2>
+
+<p>Now that engineers had a solid grasp of how to build software in our application, we could re-align our product
+development process around iOS. I can't speak to the design side of this, but from a product perspective the most
+critical milestone was defining a regular 2-week app release cadence. Let me explain.</p>
+
+<p>Prior to the Mobile Experience team, we released the app pretty irregularly. We would release whenever we had
+something big to release, basically. There are two major flaws with that approach. The first problem is that since
+each release was bigger, each release was scarier. No one really felt confident releasing app updates. The second
+problem was that large pieces of work tended to get coupled together. This came to a head last summer when we were
+blocked from releasing an redesigned artwork view because we were waiting for a major overhaul to Artsy's GraphQL
+API to be completed. Without guidance or structure, different teams were building big projects and both had their
+changes in our default branch – it was a bit chaotic.</p>
+
+<p>These two problems are incidental to how we worked at Artsy but there is another, inherent problem to developing
+mobile apps:
+<a href="https://artsy.github.io/blog/2020/03/02/ios-deploys-super-weird-totally-normal/">deploying iOS software is weird</a>.
+Engineers, designers, and product managers at Artsy are used to being able to quickly and cheaply deploy software
+to the <em>web</em>, not the App Store. iOS software is deployed to our user's hardware, not to servers we control, which
+introduces the possibility that users might not upgrade. Software we shipped years ago is still being run today –
+we have the analytics to prove it. Not to mention that every app update has to go through Apple's App Store review
+process. Getting our product team aligned on a release schedule might also help us get aligned on the weirdness of
+deploying iOS software.</p>
+
+<center>
+<blockquote class="twitter-tweet"><p lang="en" dir="ltr">iOS developers! I have a question for you. I hear a lot about teams releasing app updates on a 2-week cadence, to increase user confidence/App Store ranking/team morale/etc.<br><br>Have any teams shared their experiences with this? Bonus points for any quantitative data. Thanks!! 🤗</p>&mdash; Ash Furrow (@ashfurrow) <a href="https://twitter.com/ashfurrow/status/1184845989510811649?ref_src=twsrc%5Etfw">October 17, 2019</a></blockquote> <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+</center>
+
+
+<p><br /></p>
+
+<p>As the Mobile Experience team formed, I reached out to other mobile teams to find out about how they structured
+regular releases. <a href="https://twitter.com/Cform">Matt Greenwell</a> from BuzzFeed was really helpful in particular,
+outlining their experience of the pros and cons of a regular release cadence. We implemented a two-week release
+cadence so that all product teams could align their own feature development and testing around this predictable
+structure. We also created documentation for teams to hide their in-progress work behind feature flags. And
+finally, we refined our app QA process; teams would QA their own features and bug fixes while the Mobile Experience
+team would used a QA script to test the app <em>generally</em>, every other Monday, before submitting an update to the App
+Store.</p>
+
+<p><img src="/images/2020-09-29-becoming-mobile-first-at-artsy/cadence.png" alt="Calendar describing our cadence on an example sprint" /></p>
+
+<a name="Making.Deploys.Not.Scary"></a>
+<h2>Making Deploys Not Scary</h2>
+
+<p>To further help teams get into the habit of developing and releasing iOS software often, we created nightly betas.
+We also adopted a clever idea from our web colleagues: deploy blocks. In case of a technical reason to not release
+a beta, we create a block and the CI job that deploys the beta would fail with a descriptive message. This reduced
+a lot of chatter in Slack where engineers would ask "could I make a new beta?" Instead, engineers usually just wait
+for the nightly beta. And if they get impatient, they now default to action (their beta deploy will fail if we set
+up a block).</p>
+
+<p>All of this was automated through <a href="https://fastlane.tools">fastlane</a> on our CI provider. We had been using fastlane
+for a long time at Artsy, but the Mobile Experience team took the time to share knowledge of how it worked. Any
+engineer at Artsy can now make a beta (<code>make deploy</code>) or promote the latest beta to an App Store submission
+(<code>make promote_beta_to_submission</code>).</p>
+
+<p>We deploy more often and, consequently, each deploy is less scary. And everyone is aware of the need to hide
+in-progress work behind feature flags. At this point, updates to our app are mundane, predictable, and boring. Just
+the way we like them.</p>
+
+<a name="Being.Generous.With.Our.Time"></a>
+<h2>Being Generous With Our Time</h2>
+
+<p>Our QA and deploy process touches on something I want to go into more detail about, which is how the Mobile
+Experience team helped support other product teams. I described earlier how Mobile Experience sits somewhere
+between a normal product team and a platform team, and we leveraged that to our advantage. It would have been easy
+to become primarily a supportive team, and leave feature development up to others. However, that would leave us
+unaware of how day-to-day development <em>feels</em> in the app. We own the platform, and that includes the developer
+experience. By sitting in this ambiguous in-between state, we stayed aware of both the needs of everyday
+developers, and the needs of our platform.</p>
+
+<p>I would encourage engineers from other teams to ask us for help, which led to a lot of pairing sessions. To be
+honest, I think it probably interfered with our productivity, but it was worth it. A half hour of my time spent
+pairing with a colleague might save them three hours of banging their head against Xcode. But it's not the time
+saved that I care about, it's the head-banging. I want engineers at Artsy to feel empowered to build their own iOS
+software, and that's only going to happen if they feel comfortable and supported.</p>
+
+<p>When the Galleries team kicked off their ambitious Viewing Rooms project, we helped them get started by lending an
+engineer to them for a few sprints. When they ran into problems, we were generous with our time by pairing with
+them. When they were nearing completion, we helped them test the new feature. This all culminated in a smooth
+release.</p>
+
+<p><img src="/images/2020-09-29-becoming-mobile-first-at-artsy/new_loader.png" alt="Screenshot of a presentation showing the new home page's new loading indicator" /></p>
+
+<p>Speaking of Developer Experience, we took a keen interest in standardizing our best practices and modernizing the
+codebase. We
+<a href="https://github.com/artsy/eigen/blob/dc81bbc9cd33d51d10054a6c57e61a1bd0ee3e75/docs/preferred_practices.md">documented how we wanted the app's codebase to look</a>
+and set up
+<a href="https://github.com/artsy/eigen/blob/dc81bbc9cd33d51d10054a6c57e61a1bd0ee3e75/tslint-rules/useWrappedComponentsRule.js">processes like lint rules</a>
+to encourage developers to follow our best practices. We also invited any engineer at Artsy to join our
+twice-weekly Knowledge Share meetings (I'll discuss these in-depth shortly). We looked for bottle necks in the
+development process and found many problems, which we addressed.
+<a href="https://github.com/artsy/eigen/pull/3022">We combined the Native iOS and React Native repositories</a> (which had
+historically been separated). <a href="https://github.com/artsy/eigen/pull/3105">We overhauled the CI configuration</a> to
+leverage heavy caching – average build times dropped from fifteen minutes to less than five.
+<a href="https://github.com/artsy/eigen/pull/3210">And we adopted stricter TypeScript compiler settings</a> so that engineers
+would be forced to deal with nullability and other causes of bugs. (Hey, sometimes you need a carrot and sometimes
+you need a stick.)</p>
+
+<p>The React Native community has grown a lot since 2016. If Artsy were to begin our adoption of React Native today,
+we would be really well-supported by a community that has defined best practices, documented standard approaches to
+problems, and a consolidated opinion on what a React Native codebase should "feel" like. None of that existed in
+2016, and our early architectural decisions don't really reflect contemporary best practices. We continue working
+to bring our codebase closer to resembling a fresh project created with <code>react-native init</code>.</p>
+
+<p>I'm extraordinarily happy with how things have shaped up, and in the direction we continue to move. This is all an
+ongoing process, and should remain an ongoing process. For example, engineers were still facing a bottleneck with
+core parts of our app's routing logic that were in Objective-C, so we recently
+<a href="https://github.com/artsy/eigen/pull/3771">moved all routing to TypeScript</a>. Not only does moving code out of
+Objective-C make it easier for everyone to build, but it also ladders up to a cross-platform Artsy app.</p>
+
+<p>We still have older practices in the app that we want to migrate away from, like testing with Enzyme. But overall,
+things are looking good!</p>
+
+<iframe width="100%" height="400" src="https://www.youtube.com/embed/IEn2_WSKFHw" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
+
+<a name="Knowledge.Shares"></a>
+<h2>Knowledge Shares</h2>
+
+<p>We achieved most of these big, infrastructural changes in meetings called <em>Knowledge Shares</em>, which I mentioned
+earlier. I should write a dedicated blog post on these (update: <a href="/blog/2020/12/09/share-your-knowledge/">I did write one</a>), but in short: Knowledge Shares are a <em>structured</em> time to
+facilitate <em>unstructured learning</em>. Anyone can bring a topic to Knowledge Share, from a ticket that they're stuck
+on to an idea they have to a neat trick they recently learned. We set aside these two hours a week to discuss
+whatever the team wants, and we don't only invite engineers.</p>
+
+<p>New feature designs, product roadmaps, and data analyses are often brought up by our non-engineering colleagues; we
+discuss these at the beginning of the meetings to make sure everyone's time is respected. Throughout the week,
+someone will raise a question in Slack. Before we had Knowledge Share meetings, we might schedule a dedicated
+half-hour meeting to discussing this question. But instead, we now say "alright let's chat about this at tomorrow's
+KS." Usually the discussion lasts a lot less than a half hour, so we save time and needless context-switching.</p>
+
+<p>Knowledge Shares are also a manifestation of my philosophy of tech leadership, which is this: none of us have built
+an Artsy before, so instead of optimizing for building an Artsy, let's optimize for <em>learning</em> how to build an
+Artsy. The best Artsy we can build. And as a natural byproduct, an Artsy gets built. But it's the <em>learning</em> that
+is treated as the paramount goal.</p>
+
+<p>Like I said, I owe you a whole blog post on Knowledge Share meetings. I hope I have conveyed how important these
+scheduled "structured unstructured learning" times have been for us.</p>
+
+<a name="The.Results"></a>
+<h2>The Results</h2>
+
+<p>So where does that leave us? It's been a year and change, where are we now? Well I'm happy to say that we've made a
+huge impact. We've gone from only having (at most) one product team writing iOS software at a time to having nearly
+<em>every</em> product team building iOS software. Artsy is through the woods of its transition to a mobile-first product
+strategy. We still have a ways to go, but it feels like we have finally realized the dream we had in 2016 where
+every team is fully equipped and empowered to deliver on their own business goals, across all of Artsy's canvasses.</p>
+
+<p>Our App Store ranking has shot through the roof – not surprising considering our "make it not suck" and then "make
+it amazing" approach. Artsy's iOS app rating now sits at a stout 4.7.</p>
+
+<p><img src="/images/2020-09-29-becoming-mobile-first-at-artsy/ratings.png" alt="Screenshot of a graph showing an increasing average App Store rating" /></p>
+
+<p>We've also started tracking our iOS developer experience within Artsy. We know exactly where we still need work
+because we ask our engineers where they need support.</p>
+
+<p>It's taken a mammoth effort, and there's so much more that I could talk about, but this blog post is long enough
+already! Looking at the work we've done, the ways we've done it, and the results of our effort... I feel ecstatic.</p>
+
+<a name="Next.Steps"></a>
+<h2>Next Steps</h2>
+
+<p>All that said, Artsy's product team is currently embarking on another reorganization. With so much technical and
+product debt paid off, Artsy has evolved past the need for a dedicated Mobile Experience team. It's bittersweet,
+but I'm proud to say that the new Collector Experience team is about to be born. Our team will continue to own the
+mobile platform, including its holistic user experience and day-to-day developer experience, but we'll have an
+expanded mandate. That mandate includes a cross-platform Artsy app that will work for collectors on Android as well
+as iOS.</p>
+
+<p>The Mobile Experience team has grown, too. Since we started last year with just a few engineers and limited product
+support, we now boast a full roster of engineers and product support. I want to thank everyone on the team,
+currently: David, Sam, Brian, Mike, Brittney, Pavlos, and Mounir. You have made the past year an incredibly
+rewarding experience for me as I learn the ropes of technical leadership. I'm so proud of what we've built together
+and I'm excited for what the new Collector Experience team is going to do next!</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Deploying your app on a weekly basis via fastlane + Travis CI]]></title>
+    <link href="https://artsy.github.io/blog/2017/07/31/fastlane-travis-weekly-deploys/"/>
+    <updated>2017-07-31T00:00:00+00:00</updated>
+    <id>https://artsy.github.io/blog/2017/07/31/fastlane-travis-weekly-deploys</id>
+    <content type="html"><![CDATA[<p>We have a few apps now, but one of them isn't really used by anyone other than developers. This is <a href="https://github.com/artsy/emission/tree/master/Example">our React Native host app</a>. We built our React Native components <a href="/blog/2016/08/24/On-Emission/">as a library</a> to be consumed by our other apps. Our development environment for these components is a unique app that acts as a host for the React Native components. It's effectively a long tableview.</p>
+
+<p>This app is often updated for developers, but never deployed to beta users inside Artsy. So I automated it. Using Travis CI and fastlane. This post covers how I got that set up.</p>
+
+<!-- more -->
+
+
+
+
+<center>
+  <img src="/images/fastlane-weekly/screenshot.png" width=300>
+</center>
+
+
+<p>As the JavaScript is continuously deployed, the native side of the app rarely gets a deploy. In order to ensure an up-to-date version of the app, I used the <a href="https://docs.travis-ci.com/user/cron-jobs/">scheduler</a> now available in Travis CI, and Circle CI. This is a perfect use-case for one-off tasks like uploading an app to Apple's Testflight on a weekly basis.</p>
+
+<p>I wanted this to exist outside of our current CI environment for two reasons:</p>
 
 <ul>
-  <li>
-    <p>Dependencies, dependencies, dependencies, both in libraries and tooling. Once you open this can, you’ll have worms
-<em>everywhere</em> in no time; 593 packages to be exactly, at the time of writing, for a new React Native project. Good luck
-maintaining that.</p>
-
-    <p>Having created <a href="https://cocoapods.org">a dependency manager</a>, I’m not afraid of some dependencies and don’t subscribe
-to NIH, but the JavaScript community has gone <em>way</em> overboard for my taste. If, like me, you subscribe to the idea
-that dependencies are <em>part</em> of your application and you want to be able to know what packages are being pulled in so
-you can maintain them, then you probably won’t like this aspect very much either.</p>
-
-    <p>I’m not quite sure yet how I feel about this in the long run and what we can do about it, short of trying to get the
-maintainers of the packages we directly depend on to accept changes that simplify their dependency graphs.</p>
-  </li>
-  <li>
-    <p>As is often the case, error reporting does not always receive the attention it should get. With the amount of tools
-and libs that make up the full stack you need to work with, this lack in attention to failure resolution can quickly
-cascade into deep rabbit holes.</p>
-  </li>
-  <li>
-    <p>React Native is still very young and fast moving. If you don’t like living on the edge (i.e. lots of updating and
-dealing with breaking changes) nor have an interest in shaping an unfinished framework, this currently is not for you.</p>
-  </li>
-  <li>
-    <p>All Facebook open-source code is made to solve the problems that Facebook has first, thus with young projects you may
-well need to put in a bunch of time to make it work for your problem set. React Native provides a lot of basic view
-building blocks, but you do lose a lot that you would get with UIKit for free, e.g. <code class="language-plaintext highlighter-rouge">UICollectionView</code>.</p>
-
-    <p>However, it is important to note that this is only a heads-up for those that might think they can solve any problem
-out-of-the-box; in terms of open-source code I prefer code used in production over other code <em>any</em> day.</p>
-  </li>
-  <li>
-    <p>There are currently many more people trying to get help, with often arguably simple questions in the context of iOS
-development, compared to those willing to spend time on answering questions. Most forums I’ve seen suffer from the
-tragedy of the commons problem, which can be a real problem if you have incidental framework specific questions, but
-jumping to React Native probably is a complete disaster if you know very little about iOS development yet.</p>
-
-    <p>If you’re not already knowledgeable about iOS development, are not motivated to put in the time to learn about the
-platform specific details, and think making rich iOS applications with React Native will be a breeze, you’ll
-<a href="http://www.dwotd.nl/2008/06/443-van-een-kouwe-kermis-thuiskomen.html">come home from a very cold fair</a> indeed.</p>
-
-    <p>While you can definitely make applications that way, in my experience those often end up not feeling like proper 
-citizens of the platform they inhibit.</p>
-  </li>
-  <li>
-    <p>Due to React Natives immaturity, you will not be able to find nuanced post-mortems on the subject. The project
-is only at the beginning of the <a href="https://en.wikipedia.org/wiki/Hype_cycle">hype cycle</a>, meaning there is a lot 
-to gain in writing about how great it is, but less incentive to discuss where it doesn’t work out well.</p>
-  </li>
+<li>Our CI is already <a href="https://github.com/artsy/emission/pull/263">using AppHub</a> to deploy the JavaScript parts of our React Native on a per-commit basis. It's complicated enough as it is, without adding a lot more process.</li>
+<li>Our CI is currently running on Linux boxes, and so everything is fast and stable. Deploying using the main repo would force us to use macOS which would slow down our processes.</li>
 </ul>
 
-<h1 id="pros-why-we-wanted-to-use-react-native">Pros, why we wanted to use React Native</h1>
+
+<p>The downside of this choice is that the process of uploading is not inside the main repo, and can go out of sync with the main app.</p>
+
+<a name="Setup"></a>
+<h2>Setup</h2>
+
+<p>I created a new repo, and added the <a href="https://github.com/artsy/emission-nebula/commit/4d18a11629e097c71b9a375465c754abf45f62d6">usual LICENSE and README</a>, then started <a href="https://github.com/artsy/emission-nebula/pull/1">working on a PR</a> that added the initial support for CI to run. Here are the general steps I needed to make work:</p>
 
 <ul>
-  <li>From <a href="https://facebook.github.io/react/">the React website</a>:
-    <blockquote>
-      <p>React will efficiently update and render just the right components when your data changes.
-Build encapsulated components that manage their own state, then compose them to make complex UIs.</p>
-    </blockquote>
-
-    <p>The functional model that React introduces that allows you to reason about the state of your views in much simpler
-ways has for us been a welcome change that should make it much easier to write decoupled code going forward.</p>
-
-    <p>I’m by no means a functional programming purist, nor do I really care for being one. I found the React/React Native
-communities to be very welcome to functional enthusiasts and pragmatists alike, a healthy mix that I find leads to
-more productive outcomes.</p>
-  </li>
-  <li>Relay. From <a href="https://facebook.github.io/relay/">its website</a>:
-    <blockquote>
-      <p>Queries live next to the views that rely on them, so you can easily reason about your app.
-Relay aggregates queries into efficient network requests to fetch only what you need.</p>
-    </blockquote>
-
-    <p>The clarity this brings to the view codebase - coupled with its smart caching, networking is just ground-breaking. 
-No more multiple levels of model code in your application that you need to trace, just a single file with
-<a href="https://github.com/artsy/emission/blob/a2e4dbdb/lib/components/artist/header.js#L87">the view component</a> <em>and</em>
-<a href="https://github.com/artsy/emission/blob/a2e4dbdb/lib/components/artist/header.js#L143-L144">the data it needs</a>. Neat.</p>
-
-    <p>We do still have ‘view models’, however, those now pretty much all live in
-<a href="http://artsy.github.io/blog/2016/06/19/graphql-for-mobile/">our GraphQL service</a>. The added benefit here is that we
-share that model logic with Artsy’s other (web) clients.</p>
-  </li>
-  <li>
-    <p>“Learn once, write anywhere.” is the neo-cross-platform slogan deployed by React, which is a play on the tried
-“Write once, run anywhere.” slogan of yesteryear. The difference being that you can use the same paradigms to create
-products on various platforms, rather than pure code-reuse.</p>
-
-    <p>While we haven’t put this to the test yet at Artsy, we do plan to team up people across platforms to implement single
-features on each respective platform, rather than having multiple people implement the same feature <em>on their own</em>.
-The hope is that this will lead to better understanding of features and thus the implementations thereof, while still
-taking each platform’s unique nature into account. The added benefit would be that people learn to understand and
-appreciate those unique platform traits, thus making them more well-rounded engineers.</p>
-
-    <p>In the long run, we hope to extend this way of working as we start work on a React Native Android client.</p>
-  </li>
-  <li>
-    <p>While Auto Layout is a great step up from manual frame calculation, most of our views don’t need the granularity that
-Auto Layout offers. React Native ditches Auto Layout and instead uses
-<a href="https://en.wikipedia.org/wiki/CSS_Flex_Box_Layout">flexbox</a> for its layout. While my head has never been able to
-fully wrap around classic CSS, I find that flexbox is an abstraction that nicely fits most of our needs.</p>
-
-    <p>I can definitely imagine situations in which more granularity would be required, however, in those cases we can always
-decide to ‘drop down’ to native view code, so I don’t really worry too much about that.</p>
-  </li>
-  <li>
-    <p>Layout calculations are performed on a background thread, the so-called ‘shadow’ thread. This can make a big
-difference when e.g. scrolling through a large complex list view.</p>
-
-    <p>Granted, you <em>can</em> do this with <code class="language-plaintext highlighter-rouge">UIView</code>, but the pattern is not as ingrained in UIKit thus usually leading to more holistic
-replacements such as <a href="http://asyncdisplaykit.org">AsyncDisplayKit</a>.</p>
-  </li>
-  <li>
-    <p>Great separation of declarative view layout (JS, single-threaded) and technical details (native code, multi-threaded).
-Because of the hard constraint of having a JS/native bridge, there really is no way to take shortcuts (e.g. spaghetti
-code) that in the long run would only lead to technical debt. Constraints are great.</p>
-  </li>
-  <li>
-    <p>Because there’s very little code that needs to be compiled and how the isolated component nature of React makes it
-it very easy to reload code in-process, development velocity lies much higher than with your typical native UIKit-based
-development.</p>
-  </li>
-  <li>
-    <p>While, as mentioned above, there are definitely issues with the tooling and libs, on the flip-side it is all
-open-source software and you <em>can</em> (officially) dive in and figure it out, unlike e.g. Xcode and UIKit. (Granted, you
-still need to deal with these when using React Native, but it can be kept to a minimal surface.)</p>
-  </li>
-  <li>Because React Native is still young, fast moving, and open-source, this is a great time to help shape the framework
-you’d <em>want</em> to use.</li>
+<li>Downloading and setting up the application.</li>
+<li>Ensuring signing will work.</li>
+<li>Creating the build and shipping it to Testflight.</li>
+<li>Notifications that it passed or succeeded.</li>
 </ul>
 
-<h1 id="things-we-learned">Things we learned</h1>
+
+<p>Finally I needed to document the process, which is what you're reading.</p>
+
+<a name="Downloading.and.setting.up.the.application"></a>
+<h2>Downloading and setting up the application</h2>
+
+<p>My initial thoughts were to use a submodule, but that option provides little advantage over cloning the repo itself so it's done inline. Our dependencies for the app live in Rubygems (fastlane/CocoaPods), NPM (React Native) and CocoaPods (Artsy Mobile code), so I use the <code>before_install</code> and <code>before_script</code> section of the <code>.travis.yml</code> to set up our dependencies:</p>
+
+<pre><code class="yml"># Use a Mac build please
+language: objective-c
+osx_image: xcode8.2
+
+# Ensure that fastlane is at the latest version
+before_install:
+- bundle update
+
+# Let fastlane set up the other dependency managers
+before_script:
+- bundle exec fastlane setup
+
+# Separate fastlane lanes so that they can be individually
+# tested one by one during development
+script:
+- bundle exec fastlane validate_env_vars
+- bundle exec fastlane ci_deploy
+</code></pre>
+
+<p>Note the <code>- bundle update</code>. As fastlane works against unofficial iTunes connect which is always changing, it's safer to always use the most recent release.</p>
+
+<a name="Ensuring.signing.will.work."></a>
+<h2>Ensuring signing will work.</h2>
+
+<p>This one is a bit tricker, luckily I've already set up one of our apps to use <a href="/blog/2017/04/05/what-is-fastlane-match/">fastlane match</a> and I can re-use that infrastructure. As it is a private repo, Travis did not have access to clone the repo. I fixed this by creating an access token for a user with read-only access to our match-codesigning repo, then exposed this as a private environment variable in CI which the Matchfile uses. E.g.</p>
+
+<pre><code class="ruby">git_url "https://#{ENV['GITHUB_SUBMODULES_USER']}@github.com/artsy/mobile_fastlane_match"
+
+# Instead of 
+# git_url "https://github.com/artsy/mobile_fastlane_match"
+</code></pre>
+
+<p>This is one of the highlights on fastlane's choice in building a DSL that which sits above a real programming language, you give users a lot of flexibility.</p>
+
+<p>Next up, I added a fastlane lane for code signing, and keychain setup. This just calls two setup functions.</p>
+
+<pre><code class="ruby">lane :setup_signing do
+  setup_travis
+
+  match(type: 'appstore')
+end
+</code></pre>
+
+<a name="Creating.the.build.and.shipping.it.to.Testflight"></a>
+<h2>Creating the build and shipping it to Testflight</h2>
+
+<p>This is handled by <a href="https://github.com/fastlane/fastlane/tree/master/gym">fastlane gym</a> at the start of the main lane.</p>
+
+<pre><code class="ruby"># The main job for fastlane in this repo, you can run this on your computer
+# You can run it via `bundle exec fastlane ship`
+lane :ship do
+  # We were having issues with building an a few folders deep.
+  # The /Pods bit is because we can rely on it being there, see
+  # this link: https://docs.fastlane.tools/advanced/#directory-behavior
+  #
+  Dir.chdir('../emission/Example/Pods') do
+    gym workspace: 'Emission.xcworkspace',
+        configuration: 'Deploy',
+        scheme: 'Emission'
+  end
+
+  # [...]
+end
+</code></pre>
+
+<p>It uses a scheme for deploys, which prioritises using AppHub over a local React Native server. Gym handles a lot of CLI ugliness for us, and works well.</p>
+
+<p>Sending the app to Testflight involves a a few lines:</p>
+
+<pre><code class="ruby"># Get the last 10 lines of the CHANGELOG for Testflight
+changelog = '../emission/CHANGELOG.md'
+upcoming_release_notes = File.read(changelog).split("\n### ").first
+
+# Ship to testflight
+pilot(changelog: upcoming_release_notes)
+</code></pre>
+
+<p>This lets the deploy process figure out what the latest release version is, and how many builds have shipped for that version. Then those can be used to set the build version and create a tag associated with it.</p>
+
+<p><a href="https://github.com/fastlane/fastlane/tree/master/pilot">fastlane pilot</a> is used to send off the compiled build to Testflight.</p>
+
+<a name="Keeping.track.of.deploys"></a>
+<h2>Keeping track of deploys</h2>
+
+<p>I don't know when we'll need it today, but it's always good to be able to go back and see what code lines up to every release. To do this I have a few lines of Ruby that creates a tag inside the original Emission repo.</p>
+
+<pre><code class="ruby"># Do a tag, we use a http git remote so we can have push access
+# as the default remote for travis is read-only. This needs to be
+# inside the emission repo, instead of our own.
+Dir.chdir('../emission/Example/') do
+  tag = "deploy-#{latest_version}-#{build_version}"
+  add_git_tag(key: tag)
+
+  if ENV['GITHUB_SUBMODULES_USER']
+    writable_remote = "https://#{ENV['GITHUB_SUBMODULES_USER']}@github.com/artsy/emission.git"
+    sh "git remote add http #{writable_remote}"
+  else
+    sh 'git remote add http https://github.com/artsy/emission.git'
+  end
+  push_git_tags(remote: 'http')
+end
+</code></pre>
+
+<a name="Notifications.that.it.passed.or.succeeded."></a>
+<h2>Notifications that it passed or succeeded.</h2>
+
+<p>This was easy, I created a new slack inbound web-hook and added that as an environment variable. Then when a build passes we post a notification that there is a new version for everyone in Slack, if the lane fails then it will also post to slack. To ensure we keep on top of it, during development this was commented out.</p>
+
+<pre><code class="ruby"># If the weekly task fails, then ship a message
+error do |_, exception|
+   slack message: "Error Deploying Emission: #{exception}",
+         success: false,
+         payload: { Output: exception.error_info.to_s }
+end
+</code></pre>
+
+<p>That wraps up setting up the CI. Once you've confirmed everything has worked, you can add the scheduler inside Travis and expect to see a slack notification in a week.</p>
+
+<p>By the end of the process, our <code>Fastfile</code> looked like:</p>
+
+<pre><code class="ruby"># This is documented in the Artsy Blog: 
+# http://artsy.github.io/blog/2017/07/31/fastlane-travis-weekly-deploys/
+lane :setup do
+  Dir.chdir('..') do
+    sh 'rm -rf emission' if Dir.exist? 'Emission'
+    sh 'git clone https://github.com/artsy/emission.git'
+    Dir.chdir('emission') do
+      sh '. ~/.nvm/nvm.sh &amp;&amp; nvm use &amp;&amp; npm install yarn --global &amp;&amp; yarn install'
+    end
+
+    Dir.chdir('emission/Example') do
+      sh 'pod repo update'
+      sh 'pod install'
+    end
+    stamp_plist
+  end
+end
+
+# Lets the CI run a bunch of jobs, and share ENV vars between them
+lane :ci_deploy do
+  setup_signing
+  stamp_plist
+  ship
+end
+
+# The main job for fastlane in this repo, you can run this on your computer
+# You can run it via `bundle exec fastlane ship`
+lane :ship do
+  # We were having issues with building an a few folders deep.
+  # The /Pods bit is because we can rely on it being there, see
+  # this link: https://docs.fastlane.tools/advanced/#directory-behavior
+  #
+  Dir.chdir('../emission/Example/Pods') do
+    gym(workspace: 'Emission.xcworkspace',
+        configuration: 'Deploy',
+        scheme: 'Emission')
+  end
+
+  # Get the last 10 lines of the CHANGELOG for Testflight
+  changelog = '../emission/CHANGELOG.md'
+  upcoming_release_notes = File.read(changelog).split("\n### ").first
+
+  # Ship to testflight
+  pilot(changelog: upcoming_release_notes)
+
+  # Log into iTunes connect, get the latest version of the app we shipped, and how many builds we've sent
+  Spaceship::Tunes.login(ENV['FASTLANE_USERNAME'], ENV['FASTLANE_PASSWORD'])
+  app = Spaceship::Tunes::Application.find('net.artsy.Emission')
+  latest_version = app.build_trains.keys.sort.last
+  train = app.build_trains[latest_version]
+  build_version = train.builds.count + 1
+
+  # Do a tag, we use a http git remote so we can have push access
+  # as the default remote for travis is read-only. This needs to be
+  # inside the emission repo, instead of our own.
+  Dir.chdir('../emission/Example/') do
+    tag = "deploy-#{latest_version}-#{build_version}"
+    add_git_tag(key: tag)
+
+    if ENV['GITHUB_SUBMODULES_USER']
+      writable_remote = "https://#{ENV['GITHUB_SUBMODULES_USER']}@github.com/artsy/emission.git"
+      sh "git remote add http #{writable_remote}"
+    else
+      sh 'git remote add http https://github.com/artsy/emission.git'
+    end
+
+    push_git_tags(remote: 'http')
+  end
+
+  slack message: 'There is a new Emission beta available on Testflight.',
+        payload: {
+          'Version' =&gt; latest_version,
+          "What's new" =&gt; upcoming_release_notes
+        },
+        default_payloads: []
+end
+
+# In case you need to update the signing profiles for this app
+lane :update_signing do
+  match(type: 'appstore')
+end
+
+# Used by CI, will not sneakily update (the CI only has read-only access to the repo anyway)
+lane :setup_signing do
+  setup_travis
+  match(type: 'appstore')
+end
+
+# Minor plist modifications
+lane :stamp_plist do
+  plist = 'emission/Example/Emission/Info.plist'
+
+  # Increment build number to current date
+  build_number = Time.new.strftime('%Y.%m.%d.%H')
+  `/usr/libexec/PlistBuddy -c "Set CFBundleVersion #{build_number}" "#{plist}"`
+end
+
+# Mainly so we don't forget to include these vars in the future
+lane :validate_env_vars do
+  unless ENV['FASTLANE_USERNAME'] &amp;&amp; ENV['FASTLANE_PASSWORD'] &amp;&amp; ENV['MATCH_PASSWORD']
+    raise 'You need to set FASTLANE_USERNAME, FASTLANE_PASSWORD and MATCH_PASSWORD in your environment'
+  end
+
+  unless ENV['SLACK_URL']
+    raise "You need to set SLACK_URL (#{ENV['SLACK_URL']}) in your environment."
+  end
+end
+
+# If the weekly task fails, then ship a message, a success would also send
+error do |_, exception|
+  slack(message: "Error Deploying Emission: #{exception}",
+        success: false,
+        payload: { Output: exception.error_info.to_s })
+end
+</code></pre>
+
+<p>Automatically deploying is a good pattern for encouraging more deploys of an app which has only been deployed once. It's a pattern we could also move to in some of our other apps too, if it feels good. If you're interested in if something has changed since this post was authored, the repo is here: https://github.com/artsy/emission-nebula so you can read out the Fastfile and we'll answer questions you have inside GitHub issues on it.</p>
+
+<p>The most annoying part about building deployment changes are that an iteration takes ~20 minutes, so make sure you also have another (easily interrupted) task to do at the same time.</p>
+
+<p>The second most annoying is that it took months to eventually get this right - so I owe Felix Krause a big thanks for sitting down and pairing with me, we figuring out that <code>xcodebuild</code> can create empty archive issues when you run projects that have the xcproject/xcworkspace a few levels deep.</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[What is fastlane match?]]></title>
+    <link href="https://artsy.github.io/blog/2017/04/05/what-is-fastlane-match/"/>
+    <updated>2017-04-05T12:17:00+00:00</updated>
+    <id>https://artsy.github.io/blog/2017/04/05/what-is-fastlane-match</id>
+    <content type="html"><![CDATA[<p>Like anyone working on a non-trivial app in the iOS world who values their time, we use fastlane. <a href="https://fastlane.tools">fastlane</a> is a suite
+of tools that makes it much simpler to automate the very manual processes provided by Apple for deployment.</p>
+
+<p>We've adopted it in a relatively piece-meal manner in different projects, converting custom in-house code to something
+provided by the gem.  Over time we found what pieces of the suite work for us. <a href="https://github.com/artsy/energy/pull/266">I've adopted another today</a>: <a href="https://github.com/fastlane/fastlane/tree/master/match">match</a>.</p>
+
+<p>match automates setting up your iOS projects for code signing. One of the most arduous orthogonal tasks which every dev team learns and then forgets.</p>
+
+<p>In using match, we have given away a bit of control with code signing, and so this post is going to dig into; what we used
+to have, and how it works now with match instead.</p>
+
+<!-- more -->
+
+
+<p>When match came out, I knew this was a 🌟 idea.</p>
 
 <ul>
-  <li>
-    <p>When we started out with React Native, I didn’t want to have to re-write our application in order to take advantage of
-the technology. To address this I worked within our existing application structure. We consider the App to 
-<a href="https://artsy.github.io/blog/2015/08/24/Cocoa-Architecture-Hybrid-Apps/">be a browser</a> of native and web view controllers. So, 
-we added routes <a href="http://artsy.github.io/blog/2015/08/19/Cocoa-Architecture-Switchboard-Pattern/">to our SwitchBoard</a> for 
-view controllers which are created in React Native. To the rest of the app, there is no difference between a Swift view controller, 
-or one with React Native inside.</p>
-  </li>
-  <li>
-    <p>All of the React Native code is kept in a completely separate repo, <a href="https://github.com/artsy/emission">Emission</a>, which
-when deployed generates a minified version of the JavaScript. This means to build the Artsy iOS app you do not need to have
-a JavaScript development environment.</p>
-  </li>
-  <li>
-    <p>We reused a lot of our existing native views, starting with loading indicators and native switch views.</p>
-  </li>
-  <li>
-    <p>We used new native classes to improve integration, for example the <code class="language-plaintext highlighter-rouge">&lt;OpaqueImageView&gt;</code> 
-<a href="https://github.com/artsy/emission/blob/master/lib/components/opaque_image_view.js">component</a> is a 
-<a href="https://github.com/artsy/emission/tree/master/Pod/Classes/OpaqueImageViewComponent">native</a> <code class="language-plaintext highlighter-rouge">UIImageView</code>
-subclass that works with our application-wide <a href="https://cocoapods.org/pods/SDWebImage">SDWebImage</a> image cache.</p>
-  </li>
+<li>Automatically generate the right certificates and keys for your different apps and environments.</li>
+<li>Take all your developer certificates and keys, move them to a central place accessible via private git repos.</li>
+<li>Encrypt all your certs and keys, the team just needs to share one password.</li>
+<li>Migrate all of those keys on both the developer's and CI's computers.</li>
 </ul>
 
-<h1 id="conclusion">Conclusion</h1>
 
-<p>To really shine with React Native, you need native experience. JavaScript has not eaten everything yet. However, 
-you don’t need a team of native experts. For example, we expect to be able to get quite far with Android support based on 
-our work in React Native, but to make it amazing, we will need someone with history and context in the space.</p>
+<p>You can now have a consistent signing setup between how you work, and how your CI runs. After understanding this, I migrated
+Artsy's app store apps to deploy via <a href="https://circleci.com">Circle CI</a>. We initially gave match a shot, but ended up having issues with supporting
+multiple apps. So, I replicated the core ideas in match into our Fastfile. It looked like this:</p>
 
-<p>This frees up our engineers to widen their <a href="https://artsy.github.io/blog/2016/01/30/iOS-Junior-Interviews/">T-shaped skills</a>, 
-and to help remove the idea that the mobile team has to be a completely separate team with foreign tools and ideas.</p>
+<pre><code class="ruby">lane :setup_for_app_store do
+  app_name = "eigen"
+  signing_root = "signing"
 
-<p>This is only the tip of the iceberg for our writings about React Native. Follow <a href="https://twitter.com/ArtsyOpenSource">@ArtsyOpenSource</a>
-to stay up to date.</p>
+  `git clone https://github.com/artsy/mobile_code_signing.git #{signing_root}`
+
+  # prints out the codesigning identities
+  system "security find-identity -v -p codesigning"
+
+  # Install the iOS distribution certificate, -A
+  system "security import #{signing_root}/ios_distribution.cer  -k ~/Library/Keychains/login.keychain -A"
+
+  # Move our provisioning profile in
+  profile_path = File.expand_path("~") + "/Library/MobileDevice/Provisioning Profiles/"
+  destination = profile_path + "/" + app_name + ".mobileprovision"
+  profile = Dir.glob(signing_root + "/profiles/" + app_name + "/*").first
+
+  # Ensure folder exists
+  unless File.directory?(profile_path)
+    FileUtils.mkdir_p(profile_path)
+  end
+
+  # Migrate it in
+  FileUtils.copy profile, destination
+  puts "Installed Profile"
+
+  # Install the key
+  key = Dir.glob(signing_root + "/keys/" + app_name + "/*").first
+  system "security import #{key} -k ~/Library/Keychains/login.keychain -P #{ENV['MATCH_PASSWORD']}  -A "
+
+  # prints out the codesigning identities
+  system "security find-identity -v -p codesigning"
+
+  # Clean-up
+  `rm -rf #{signing_root}`
+end
+</code></pre>
+
+<p>Pretty neat, huh? It handles the centralization and migration of certificates. The trade-off against match is:</p>
+
+<ul>
+<li>We continue to maintain our own certificates, keys and provisioning profiles.</li>
+<li>There is no easy way to update these.</li>
+<li>There is tooling which makes it easy to see the state of all the code signing process.</li>
+</ul>
+
+
+<p>A year later, on a project which gets no-where near as much developer attention, I discovered that we had got multiple
+parts of the certs, keys and profiles wrong when updating our central repo. So, for <a href="http://folio.artsy.net">this project</a>, I have switched to use match.</p>
+
+<hr />
+
+<a name="So.how.does.it.work.now."></a>
+<h1>So how does it work now?</h1>
+
+<p>First, I ran <code>bundle exec fastlane appstore</code> and <code>bundle exec fastlane dev</code>.</p>
+
+<p>This creates the certificates, keys and profiles on iTunes connect and gives you output similar to this:</p>
+
+<pre><code class="sh">
++-----------------------+------------------------------------------------+
+|                        Summary for match 2.25.0                        |
++-----------------------+------------------------------------------------+
+| readonly              | true                                           |
+| git_url               | https://github.com/artsy/mobile_fastlane_match |
+| type                  | appstore                                       |
+| git_branch            | master                                         |
+| app_identifier        | sy.art.folio                                   |
+| username              | it@artsymail.com                               |
+| keychain_name         | login.keychain                                 |
+| team_id               | 23KMWZ572J                                     |
+| team_name             | Art.sy Inc.                                    |
+| verbose               | false                                          |
+| force                 | false                                          |
+| skip_confirmation     | false                                          |
+| shallow_clone         | false                                          |
+| force_for_new_devices | false                                          |
+| skip_docs             | false                                          |
+| platform              | ios                                            |
++-----------------------+------------------------------------------------+
+
++-------------------+-----------------------------------------------+
+|                       Installed Certificate                       |
++-------------------+-----------------------------------------------+
+| User ID           | 23KMWZ572J                                    |
+| Common Name       | iPhone Distribution: Art.sy Inc. (23KMWZ572J) |
+| Organisation Unit | 23KMWZ572J                                    |
+| Organisation      | Art.sy Inc.                                   |
+| Country           | US                                            |
+| Start Datetime    | Apr  4 13:59:06 2017 GMT                      |
+| End Datetime      | Apr  4 13:59:06 2018 GMT                      |
++-------------------+-----------------------------------------------+
+
++---------------------+-----------------------------------------+-------------------------------------------------------------------------------------------------------------+
+|                                                                       Installed Provisioning Profile                                                                        |
++---------------------+-----------------------------------------+-------------------------------------------------------------------------------------------------------------+
+| Parameter           | Environment Variable                    | Value                                                                                                       |
++---------------------+-----------------------------------------+-------------------------------------------------------------------------------------------------------------+
+| App Identifier      |                                         | sy.art.folio                                                                                                |
+| Type                |                                         | appstore                                                                                                    |
+| Platform            |                                         | ios                                                                                                         |
+| Profile UUID        | sigh_sy.art.folio_appstore              | b045df0f-a691-4b7a-ac34-8349a3684030                                                                        |
+| Profile Name        | sigh_sy.art.folio_appstore_profile-name | match AppStore sy.art.folio                                                                                 |
+| Profile Path        | sigh_sy.art.folio_appstore_profile-path | /Users/orta/Library/MobileDevice/Provisioning Profiles/b045df0f-a691-4b7a-ac34-8349a3684030.mobileprovision |
+| Development Team ID | sigh_sy.art.folio_appstore_team-id      | 23KMWZ572J                                                                                                  |
++---------------------+-----------------------------------------+-------------------------------------------------------------------------------------------------------------+
+</code></pre>
+
+<p>Which at a glimpse gives a lot of the most useful information about how all the pieces come together. The new repo looks like this:</p>
+
+<pre><code class="sh">$ tree mobile_fastlane_match
+
+├── README.md
+├── certs
+│   ├── development
+│   │   ├── P4K6FACAUD.cer
+│   │   └── P4K6FACAUD.p12
+│   └── distribution
+│       ├── N5BMJ28RQ2.cer
+│       └── N5BMJ28RQ2.p12
+├── match_version.txt
+└── profiles
+    ├── appstore
+    │   └── AppStore_sy.art.folio.mobileprovision
+    └── development
+        └── Development_sy.art.folio.mobileprovision
+</code></pre>
+
+<a name="So..what.is.Match.doing.here."></a>
+<h2>So, what is Match doing here?</h2>
+
+<ol>
+<li><p>match creates a new key (the <code>*.p12</code>) - normally you would generate one of these through Keychain, and the entire team would
+to share this. We keep ours in team <a href="http://1password.com">1Password</a>. It needs to be used consistently when request certificates from Apple
+though the "Request a Certificate from a Certificate Authority" part of getting your certs set up.</p></li>
+<li><p>Using <a href="https://github.com/fastlane/fastlane/tree/master/cert">cert</a>: match will use this key <a href="https://github.com/fastlane/fastlane/blob/14dea61e4c81bf9be13bb86c09aa225c6e572618/cert/lib/cert/runner.rb#L141">to create a signing request</a> for you.</p></li>
+<li><p>Using <a href="https://github.com/fastlane/fastlane/tree/master/cert">cert</a>: match will generate a certificate for <a href="https://github.com/fastlane/fastlane/blob/14dea61e4c81bf9be13bb86c09aa225c6e572618/cert/lib/cert/runner.rb#L79">development or distribution</a> for you.</p></li>
+<li><p>Using <a href="https://github.com/fastlane/fastlane/tree/master/cert">cert</a>: match will <a href="https://github.com/fastlane/fastlane/blob/14dea61e4c81bf9be13bb86c09aa225c6e572618/match/lib/match/runner.rb#L133">generate a Provisioning Profile</a> using your certificate and data pulled from your Xcode Project.
+In my case, for development and distribution.</p>
+
+<p>These profiles are tied directly to one app and the certificate in step 3. For development, all devices in the dev center are also added.</p></li>
+<li><p>These files are then installed in their various methods.</p></li>
+<li><p>These files are then moved into your git repo, a commit is made for you, then pushed and the repo is removed from your computer.</p></li>
+</ol>
+
+
+<p>This process is nice, because this ^ is a lot of work. I only had to run a command.</p>
+
+<p>It would take at about 30 minutes to do this if I knew exactly what I wanted through the web interface + Keychain.</p>
+
+<p>We currently need to do this for every app. This works fine for the app where we are deploying multiple betas a month,
+but for one when we're deploying <em>maybe</em> a beta once a month or two (<em>eek! sorry...</em>) then it feels like every time you've come
+back to do some work, the world has shifted a bit.</p>
+
+<p>We do lose the fact that we know someone has specifically set everything up to work right at some point, but given how
+Xcode updates, <a href="http://stackoverflow.com/questions/4057241/iphone-what-is-a-wwdr-intermediate-certificate">WWDR updates</a> and certificate expirations tend to crop up - it can be frustrating to maintain.</p>
+
+<p>So would I move <a href="https://github.com/artsy/eigen">Eigen</a> to match? Maybe, next time something breaks. Till then I think new apps, and less-often updated
+apps should use match.</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Xcode 8 Manual Codesigning with Fastlane]]></title>
+    <link href="https://artsy.github.io/blog/2017/01/13/xcode-8-fastlane-codesigning/"/>
+    <updated>2017-01-13T14:00:00+00:00</updated>
+    <id>https://artsy.github.io/blog/2017/01/13/xcode-8-fastlane-codesigning</id>
+    <content type="html"><![CDATA[<p>New year, new deploy process! Late last year our mobile team completed the update to Swift 3 (and thus, the update to Xcode 8). The latest version of Apple's IDE includes a lovely feature: automating provisioning profile management! (Note: not sarcasm, the feature is really nice. Check out the <a href="https://developer.apple.com/videos/play/wwdc2016/401/">WWDC video</a> for an in-depth exploration.)</p>
+
+<p><img src="/images/2017-01-13-xcode-8-fastlane-codesigning/xcode-screenshot.png" alt="Automatic code signing settings" /></p>
+
+<p>However, when I went to make our first <a href="http://artsy.github.io/blog/2015/12/15/Automating-Testflight-Deploys/">automated deploy</a> today, things didn't work; I got a somewhat cryptic error about code signing.</p>
+
+<!-- more -->
+
+
+<blockquote><p>Code signing is required for product type 'Application' in SDK 'iOS 10.1'</p></blockquote>
+
+<p>Code signing was failing for our project. Hmm. First step in fixing a bug is always to reproduce it, which I could do locally. I started looking into the code that manages our deploys' signing process and got lost. My colleague Orta was kind enough to give me a hand.</p>
+
+<p>Some background: the Fastlane suite of tools includes <a href="https://github.com/fastlane/fastlane/tree/master/match">Match</a>, which manages your signing certificates and provisioning profiles in a private GitHub repository. We don't use match due to complications with our multiple apps, but we use <a href="https://github.com/artsy/eigen/blob/608f60860165dd9b3c376da00492a3cb36bf5214/fastlane/Fastfile#L95-L130">very similar logic</a> to clone the repo, extract the certificate and profile, and install the keys on CI.</p>
+
+<p>So what wasn't working?</p>
+
+<p>Well it turns out that Xcode's fancy new automatic code signing was incompatible with our manual process of specifying certificates and profiles. The easy solution would be to simply disable that setting, but that would be a shame: the new automatic code signing makes developing on devices way easier and we didn't want to sacrifice that for the sake of our deploys.</p>
+
+<p>So we went looking and luckily found <a href="https://github.com/artsy/eigen/pull/2104">the solution</a>. We amended our codesigning setup with the <a href="https://docs.fastlane.tools/actions/#update_project_provisioning">update_project_provisioning</a> and <a href="https://docs.fastlane.tools/actions/#update_project_team">update_project_team</a> Fastlane actions, and the <a href="https://github.com/hjanuschka/fastlane-plugin-update_project_codesigning">update_project_codesigning plugin</a>. Basically, we disable the automatic signing feature and then manually set the provisioning profile to the one we cloned from our private GitHub repo.</p>
+
+<p>So remember folks, if you're ever asked to sacrifice ease of development for the sake of getting computers to behave, there's probably a better way.</p>
 ]]></content>
   </entry>
   

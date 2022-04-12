@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
 
-  <title><![CDATA[Category: Backbone.js | Artsy Engineering]]></title>
+  <title><![CDATA[Category: backbone.js | Artsy Engineering]]></title>
   <link href="https://artsy.github.io/blog/categories/backbone-js/atom.xml" rel="self"/>
   <link href="https://artsy.github.io/"/>
-  <updated>2022-04-12T00:53:51+00:00</updated>
+  <updated>2022-04-12T00:57:35+00:00</updated>
   <id>https://artsy.github.io/</id>
   <author>
     <name><![CDATA[]]></name>
@@ -18,268 +18,282 @@
     <link href="https://artsy.github.io/blog/2013/06/14/writing-headless-backbone-tests-with-node-dot-js/"/>
     <updated>2013-06-14T17:48:00+00:00</updated>
     <id>https://artsy.github.io/blog/2013/06/14/writing-headless-backbone-tests-with-node-dot-js</id>
-    <content type="html"><![CDATA[<h2 id="tldr">TL;DR</h2>
+    <content type="html"><![CDATA[<a name="TL.DR"></a>
+<h2>TL;DR</h2>
 
 <p>Write fast, headless, tests for Backbone using Node.js. See this project as an example  <a href="https://github.com/craigspaeth/backbone-headless-testing">https://github.com/craigspaeth/backbone-headless-testing</a>.</p>
 
-<h2 id="a-brief-history">A Brief History</h2>
+<a name="A.Brief.History"></a>
+<h2>A Brief History</h2>
 
-<p>Artsy is mostly a thick client <a href="http://backbonejs.org/">Backbone</a> app that sits on <a href="http://rubyonrails.org/">Rails</a> and largely depends on <a href="http://jnicklas.github.io/capybara/">Capybara</a> (<a href="http://docs.seleniumhq.org/">Selenium</a> backed bot that clicks around Firefox) for testing it’s javascript. This leads to some seriously brittle and slow integration tests. <a href="http://artsy.github.io/blog/2012/02/03/reliably-testing-asynchronous-ui-w-slash-rspec-and-capybara/">Despite being able to wrangle Capybara</a> to do most of our client-side testing, we knew there must be a better way.</p>
+<p>Artsy is mostly a thick client <a href="http://backbonejs.org/">Backbone</a> app that sits on <a href="http://rubyonrails.org/">Rails</a> and largely depends on <a href="http://jnicklas.github.io/capybara/">Capybara</a> (<a href="http://docs.seleniumhq.org/">Selenium</a> backed bot that clicks around Firefox) for testing it's javascript. This leads to some seriously brittle and slow integration tests. <a href="http://artsy.github.io/blog/2012/02/03/reliably-testing-asynchronous-ui-w-slash-rspec-and-capybara/">Despite being able to wrangle Capybara</a> to do most of our client-side testing, we knew there must be a better way.</p>
 
 <p>When building a CMS app for our gallery partners to manage their Artsy inventory, we built a new Backbone app on top of <a href="http://nodejs.org/">node.js</a>. The result was a headless test suite that runs around 60 times faster.</p>
 
-<p>Let’s take a look at how it’s done.</p>
+<p>Let's take a look at how it's done.</p>
 
 <!-- more -->
 
-<h2 id="setting-up-the-environment">Setting Up The Environment</h2>
+
+<a name="Setting.Up.The.Environment"></a>
+<h2>Setting Up The Environment</h2>
 
 <p>The trick to testing client-side code in node.js is creating an environment that mimics the browser. <a href="https://github.com/tmpvar/jsdom">Jsdom</a> does just that by bringing a pure javascript implementation of the DOM to node.js.</p>
 
-<div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nx">jsdom</span><span class="p">.</span><span class="nx">env</span><span class="p">({</span>
-  <span class="na">html</span><span class="p">:</span> <span class="dl">"</span><span class="s2">&lt;html&gt;&lt;body&gt;&lt;/body&gt;&lt;/html&gt;</span><span class="dl">"</span><span class="p">,</span>
-  <span class="na">done</span><span class="p">:</span> <span class="kd">function</span><span class="p">(</span><span class="nx">errs</span><span class="p">,</span> <span class="nb">window</span><span class="p">)</span> <span class="p">{</span>
-    <span class="nb">global</span><span class="p">.</span><span class="nb">window</span> <span class="o">=</span> <span class="nb">window</span><span class="p">;</span>
-    <span class="c1">// ...</span>
-    <span class="nx">callback</span><span class="p">();</span>
-  <span class="p">}</span>
-<span class="p">});</span>
-</code></pre></div></div>
+<pre><code class="javascript">jsdom.env({
+  html: "&lt;html&gt;&lt;body&gt;&lt;/body&gt;&lt;/html&gt;",
+  done: function(errs, window) {
+    global.window = window;
+    // ...
+    callback();
+  }
+});
+</code></pre>
 
-<p>At this point we’ve globally exposed the <code class="language-plaintext highlighter-rouge">window</code> object of our jsdom browser. However the DOM isn’t the only global dependency in most of our client-side code. We’ll also need to expose our common libraries like Backbone, Underscore, and jQuery.</p>
+<p>At this point we've globally exposed the <code>window</code> object of our jsdom browser. However the DOM isn't the only global dependency in most of our client-side code. We'll also need to expose our common libraries like Backbone, Underscore, and jQuery.</p>
 
-<div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">global</span><span class="p">.</span><span class="nb">window</span> <span class="o">=</span> <span class="nb">window</span><span class="p">;</span>
-<span class="nb">global</span><span class="p">.</span><span class="nx">Backbone</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="dl">'</span><span class="s1">../app/javascripts/vendor/backbone.js</span><span class="dl">'</span><span class="p">);</span>
-<span class="nb">global</span><span class="p">.</span><span class="nx">Underscore</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="dl">'</span><span class="s1">../app/javascripts/vendor/underscore.js</span><span class="dl">'</span><span class="p">);</span>
-<span class="nb">global</span><span class="p">.</span><span class="nx">jQuery</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="dl">'</span><span class="s1">../app/javascripts/vendor/jQuery.js</span><span class="dl">'</span><span class="p">);</span>
-</code></pre></div></div>
+<pre><code class="javascript">global.window = window;
+global.Backbone = require('../app/javascripts/vendor/backbone.js');
+global.Underscore = require('../app/javascripts/vendor/underscore.js');
+global.jQuery = require('../app/javascripts/vendor/jQuery.js');
+</code></pre>
 
-<p>We can simply require Backbone, Underscore, and jQuery like any node module because they follow <a href="http://wiki.CommonJS.org/wiki/Modules/1.1.1">CommonJS</a> convention. However not all libraries are CommonJS compatible, and in this case you might have to expose their attachment to <code class="language-plaintext highlighter-rouge">window</code>.</p>
+<p>We can simply require Backbone, Underscore, and jQuery like any node module because they follow <a href="http://wiki.CommonJS.org/wiki/Modules/1.1.1">CommonJS</a> convention. However not all libraries are CommonJS compatible, and in this case you might have to expose their attachment to <code>window</code>.</p>
 
-<div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">global</span><span class="p">.</span><span class="nb">window</span> <span class="o">=</span> <span class="nb">window</span><span class="p">;</span>
-<span class="nx">require</span><span class="p">(</span><span class="dl">'</span><span class="s1">../app/javascripts/vendor/zepto.js</span><span class="dl">'</span><span class="p">);</span>
-<span class="nb">global</span><span class="p">.</span><span class="nx">Zepto</span> <span class="o">=</span> <span class="nb">window</span><span class="p">.</span><span class="nx">Zepto</span><span class="p">;</span>
-</code></pre></div></div>
+<pre><code class="javascript">global.window = window;
+require('../app/javascripts/vendor/zepto.js');
+global.Zepto = window.Zepto;
+</code></pre>
 
-<p>Finally you probably have a namespace like <code class="language-plaintext highlighter-rouge">App</code> which your components attach to.</p>
+<p>Finally you probably have a namespace like <code>App</code> which your components attach to.</p>
 
-<div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">global</span><span class="p">.</span><span class="nb">window</span> <span class="o">=</span> <span class="nb">window</span><span class="p">;</span>
-<span class="c1">// Libraries</span>
-<span class="nb">global</span><span class="p">.</span><span class="nx">Backbone</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="dl">'</span><span class="s1">../app/javascripts/vendor/backbone.js</span><span class="dl">'</span><span class="p">);</span>
-<span class="nb">global</span><span class="p">.</span><span class="nx">Underscore</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="dl">'</span><span class="s1">../app/javascripts/vendor/underscore.js</span><span class="dl">'</span><span class="p">);</span>
-<span class="nb">global</span><span class="p">.</span><span class="nx">jQuery</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="dl">'</span><span class="s1">../app/javascripts/vendor/jQuery.js</span><span class="dl">'</span><span class="p">);</span>
-<span class="c1">// Namespace</span>
-<span class="nb">global</span><span class="p">.</span><span class="nx">App</span> <span class="o">=</span> <span class="p">{};</span>
-<span class="c1">// We're ready to test some Backbone components</span>
-</code></pre></div></div>
+<pre><code class="javascript">global.window = window;
+// Libraries
+global.Backbone = require('../app/javascripts/vendor/backbone.js');
+global.Underscore = require('../app/javascripts/vendor/underscore.js');
+global.jQuery = require('../app/javascripts/vendor/jQuery.js');
+// Namespace
+global.App = {};
+// We're ready to test some Backbone components
+</code></pre>
 
 <p>Try to keep global dependencies to a minimum. This reduces setup/teardown, increases modularity, and makes it easier to test your code.</p>
 
-<p>For example, instead of attaching a view to <code class="language-plaintext highlighter-rouge">App</code> it might be better to pass that view in to the options of another so you can call <code class="language-plaintext highlighter-rouge">this.options.header.doSomething()</code>.</p>
+<p>For example, instead of attaching a view to <code>App</code> it might be better to pass that view in to the options of another so you can call <code>this.options.header.doSomething()</code>.</p>
 
-<h2 id="unit-testing-models">Unit Testing Models</h2>
+<a name="Unit.Testing.Models"></a>
+<h2>Unit Testing Models</h2>
 
-<p>Because all good javascript guides are based off Todo apps, let’s pretend we’re testing a Todo model.</p>
+<p>Because all good javascript guides are based off Todo apps, let's pretend we're testing a Todo model.</p>
 
-<div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nx">App</span><span class="p">.</span><span class="nx">Todo</span> <span class="o">=</span> <span class="nx">Backbone</span><span class="p">.</span><span class="nx">Models</span><span class="p">.</span><span class="nx">extend</span><span class="p">({</span>
+<pre><code class="javascript">App.Todo = Backbone.Models.extend({
 
-  <span class="na">urlRoot</span><span class="p">:</span> <span class="dl">'</span><span class="s1">/api/todo</span><span class="dl">'</span><span class="p">,</span>
+  urlRoot: '/api/todo',
 
-  <span class="na">complete</span><span class="p">:</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
-    <span class="kd">var</span> <span class="nb">self</span> <span class="o">=</span> <span class="k">this</span><span class="p">;</span>
-    <span class="nx">$</span><span class="p">.</span><span class="nx">ajax</span><span class="p">({</span>
-      <span class="na">url</span><span class="p">:</span> <span class="dl">'</span><span class="s1">/api/todos/</span><span class="dl">'</span> <span class="o">+</span> <span class="k">this</span><span class="p">.</span><span class="kd">get</span><span class="p">(</span><span class="dl">'</span><span class="s1">id</span><span class="dl">'</span><span class="p">)</span> <span class="o">+</span> <span class="dl">'</span><span class="s1">/complete</span><span class="dl">'</span><span class="p">,</span>
-      <span class="na">type</span><span class="p">:</span> <span class="dl">'</span><span class="s1">PUT</span><span class="dl">'</span><span class="p">,</span>
-      <span class="na">success</span><span class="p">:</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span> <span class="nb">self</span><span class="p">.</span><span class="kd">set</span><span class="p">({</span> <span class="na">completed</span><span class="p">:</span> <span class="kc">true</span> <span class="p">});</span> <span class="p">}</span>
-    <span class="p">});</span>
-  <span class="p">}</span>
-<span class="p">});</span>
-</code></pre></div></div>
+  complete: function() {
+    var self = this;
+    $.ajax({
+      url: '/api/todos/' + this.get('id') + '/complete',
+      type: 'PUT',
+      success: function() { self.set({ completed: true }); }
+    });
+  }
+});
+</code></pre>
 
-<p>Let’s test that <code class="language-plaintext highlighter-rouge">#complete</code> makes the proper API PUT and <code class="language-plaintext highlighter-rouge">completed</code> is updated to true. After we setup our jsdom environment we need to stub <code class="language-plaintext highlighter-rouge">$.ajax</code> using <a href="http://sinonjs.org/docs/#stubs">sinon</a> as we won’t be sending XHRs in node.</p>
+<p>Let's test that <code>#complete</code> makes the proper API PUT and <code>completed</code> is updated to true. After we setup our jsdom environment we need to stub <code>$.ajax</code> using <a href="http://sinonjs.org/docs/#stubs">sinon</a> as we won't be sending XHRs in node.</p>
 
-<div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nx">before</span><span class="p">(</span><span class="kd">function</span><span class="p">(</span><span class="nx">done</span><span class="p">)</span> <span class="p">{</span>
-  <span class="nx">jsdom</span><span class="p">.</span><span class="nx">env</span><span class="p">({</span>
-    <span class="na">html</span><span class="p">:</span> <span class="dl">"</span><span class="s2">&lt;html&gt;&lt;body&gt;&lt;/body&gt;&lt;/html&gt;</span><span class="dl">"</span><span class="p">,</span>
-    <span class="na">done</span><span class="p">:</span> <span class="kd">function</span><span class="p">(</span><span class="nx">errs</span><span class="p">,</span> <span class="nb">window</span><span class="p">)</span> <span class="p">{</span>
-      <span class="nb">global</span><span class="p">.</span><span class="nx">$</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="dl">'</span><span class="s1">../../app/javascripts/vendor/jquery.js</span><span class="dl">'</span><span class="p">);</span>
-      <span class="c1">//...</span>
-    <span class="p">}</span>
-  <span class="p">});</span>
-<span class="p">});</span>
+<pre><code class="javascript">before(function(done) {
+  jsdom.env({
+    html: "&lt;html&gt;&lt;body&gt;&lt;/body&gt;&lt;/html&gt;",
+    done: function(errs, window) {
+      global.$ = require('../../app/javascripts/vendor/jquery.js');
+      //...
+    }
+  });
+});
 
-<span class="nx">beforeEach</span><span class="p">(</span><span class="kd">function</span><span class="p">(</span><span class="nx">done</span><span class="p">)</span> <span class="p">{</span>
-  <span class="nx">ajaxStub</span> <span class="o">=</span> <span class="nx">sinon</span><span class="p">.</span><span class="nx">stub</span><span class="p">(</span><span class="nx">$</span><span class="p">,</span> <span class="dl">'</span><span class="s1">ajax</span><span class="dl">'</span><span class="p">);</span>
-  <span class="nx">todo</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">App</span><span class="p">.</span><span class="nx">Todo</span><span class="p">({</span> <span class="na">title</span><span class="p">:</span> <span class="dl">'</span><span class="s1">Feed the cat</span><span class="dl">'</span><span class="p">,</span> <span class="na">id</span><span class="p">:</span> <span class="dl">'</span><span class="s1">feed-the-cat</span><span class="dl">'</span> <span class="p">});</span>
-<span class="p">});</span>
-</code></pre></div></div>
+beforeEach(function(done) {
+  ajaxStub = sinon.stub($, 'ajax');
+  todo = new App.Todo({ title: 'Feed the cat', id: 'feed-the-cat' });
+});
+</code></pre>
 
-<p>Now we can simply assert that <code class="language-plaintext highlighter-rouge">$.ajax</code> was called with the right params and completed changed.</p>
+<p>Now we can simply assert that <code>$.ajax</code> was called with the right params and completed changed.</p>
 
-<div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nx">it</span><span class="p">(</span><span class="dl">'</span><span class="s1">PUTs to the API</span><span class="dl">'</span><span class="p">,</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
-  <span class="nx">todo</span><span class="p">.</span><span class="nx">complete</span><span class="p">();</span>
-  <span class="nx">$</span><span class="p">.</span><span class="nx">ajax</span><span class="p">.</span><span class="nx">args</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">].</span><span class="nx">type</span><span class="p">.</span><span class="nx">should</span><span class="p">.</span><span class="nx">equal</span><span class="p">(</span><span class="dl">'</span><span class="s1">PUT</span><span class="dl">'</span><span class="p">);</span>
-  <span class="nx">$</span><span class="p">.</span><span class="nx">ajax</span><span class="p">.</span><span class="nx">args</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">].</span><span class="nx">url</span><span class="p">.</span><span class="nx">should</span>
-    <span class="p">.</span><span class="nx">equal</span><span class="p">(</span><span class="dl">'</span><span class="s1">/api/todos/feed-the-cat/complete</span><span class="dl">'</span><span class="p">);</span>
-<span class="p">});</span>
+<pre><code class="javascript">it('PUTs to the API', function() {
+  todo.complete();
+  $.ajax.args[0][0].type.should.equal('PUT');
+  $.ajax.args[0][0].url.should
+    .equal('/api/todos/feed-the-cat/complete');
+});
 
-<span class="nx">it</span><span class="p">(</span><span class="dl">'</span><span class="s1">updates the item to be completed</span><span class="dl">'</span><span class="p">,</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
-  <span class="nx">todo</span><span class="p">.</span><span class="kd">set</span><span class="p">(</span><span class="dl">'</span><span class="s1">completed</span><span class="dl">'</span><span class="p">,</span> <span class="kc">false</span><span class="p">);</span>
-  <span class="nx">$</span><span class="p">.</span><span class="nx">ajax</span><span class="p">.</span><span class="nx">args</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">].</span><span class="nx">success</span><span class="p">();</span>
-  <span class="nx">todo</span><span class="p">.</span><span class="kd">get</span><span class="p">(</span><span class="dl">'</span><span class="s1">completed</span><span class="dl">'</span><span class="p">).</span><span class="nx">should</span><span class="p">.</span><span class="nx">equal</span><span class="p">(</span><span class="kc">true</span><span class="p">);</span>
-<span class="p">});</span>
-</code></pre></div></div>
+it('updates the item to be completed', function() {
+  todo.set('completed', false);
+  $.ajax.args[0][0].success();
+  todo.get('completed').should.equal(true);
+});
+</code></pre>
 
-<h2 id="unit-testing-views">Unit Testing Views</h2>
+<a name="Unit.Testing.Views"></a>
+<h2>Unit Testing Views</h2>
 
-<p>Models are easy to unit test because they’re mostly self-contained javascript. However a Backbone view might expect some server-side rendered HTML, use client-side templates, communicate to other views, and so on. This makes it harder to test but manageable given our set up.</p>
+<p>Models are easy to unit test because they're mostly self-contained javascript. However a Backbone view might expect some server-side rendered HTML, use client-side templates, communicate to other views, and so on. This makes it harder to test but manageable given our set up.</p>
 
-<p>Let’s pretend we have a view that renders our todo list inside a server-side rendered element, and uses a client-side template to fill in the actual list items.</p>
+<p>Let's pretend we have a view that renders our todo list inside a server-side rendered element, and uses a client-side template to fill in the actual list items.</p>
 
 <p>Our DOM might look something like this:</p>
 
-<div class="language-html highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nt">&lt;div</span> <span class="na">id=</span><span class="s">'todos'</span><span class="nt">&gt;</span>
-  <span class="nt">&lt;h1&gt;</span>Things I need to do today<span class="nt">&lt;/h1&gt;</span>
-  <span class="nt">&lt;ul</span> <span class="na">class=</span><span class="s">'todos-list'</span><span class="nt">&gt;&lt;/ul&gt;</span>
-<span class="nt">&lt;/div&gt;</span>
-</code></pre></div></div>
+<p>``` html</p>
 
-<p>and our view might look something like this:</p>
+<div id='todos'>
+  <h1>Things I need to do today</h1>
+  <ul class='todos-list'></ul>
+</div>
 
-<div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nx">App</span><span class="p">.</span><span class="nx">TodosListView</span> <span class="o">=</span> <span class="nx">Backbone</span><span class="p">.</span><span class="nx">View</span><span class="p">.</span><span class="nx">extend</span><span class="p">({</span>
 
-  <span class="na">el</span><span class="p">:</span> <span class="dl">'</span><span class="s1">#todos</span><span class="dl">'</span><span class="p">,</span>
+<pre><code>
+and our view might look something like this:
+</code></pre>
 
-  <span class="na">template</span><span class="p">:</span> <span class="nx">JST</span><span class="p">[</span><span class="dl">'</span><span class="s1">todos/list_items</span><span class="dl">'</span><span class="p">],</span>
+<p>App.TodosListView = Backbone.View.extend({</p>
 
-  <span class="na">initialize</span><span class="p">:</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
-    <span class="k">this</span><span class="p">.</span><span class="nx">collection</span><span class="p">.</span><span class="nx">bind</span><span class="p">(</span><span class="dl">'</span><span class="s1">add remove</span><span class="dl">'</span><span class="p">,</span> <span class="k">this</span><span class="p">.</span><span class="nx">render</span><span class="p">);</span>
-  <span class="p">},</span>
+<p>  el: '#todos',</p>
 
-  <span class="na">render</span><span class="p">:</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
-    <span class="k">this</span><span class="p">.</span><span class="nx">$</span><span class="p">(</span><span class="dl">'</span><span class="s1">.todos-list</span><span class="dl">'</span><span class="p">)</span>
-      <span class="p">.</span><span class="nx">html</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">template</span><span class="p">({</span> <span class="na">todos</span><span class="p">:</span> <span class="k">this</span><span class="p">.</span><span class="nx">collection</span><span class="p">.</span><span class="nx">models</span> <span class="p">}));</span>
-  <span class="p">}</span>
-<span class="p">})</span>
-</code></pre></div></div>
+<p>  template: JST['todos/list_items'],</p>
 
-<p>We can render the server-side <code class="language-plaintext highlighter-rouge">#todos</code> element by compiling the express view into html and injecting it straight in jsdom with our globally exposed jQuery.</p>
+<p>  initialize: function() {
+    this.collection.bind('add remove', this.render);
+  },</p>
 
-<div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nx">filename</span> <span class="o">=</span> <span class="nx">path</span><span class="p">.</span><span class="nx">resolve</span><span class="p">(</span><span class="nx">__dirname</span><span class="p">,</span> <span class="dl">'</span><span class="s1">../app/views/index.jade</span><span class="dl">'</span><span class="p">);</span>
-<span class="nx">template</span> <span class="o">=</span> <span class="nx">fs</span><span class="p">.</span><span class="nx">readFileSync</span><span class="p">(</span><span class="nx">filename</span><span class="p">).</span><span class="nx">toString</span><span class="p">();</span>
-<span class="nx">html</span> <span class="o">=</span> <span class="nx">jade</span><span class="p">.</span><span class="nx">compile</span><span class="p">(</span><span class="nx">template</span><span class="p">,</span> <span class="p">{</span> <span class="na">filename</span><span class="p">:</span> <span class="nx">filename</span> <span class="p">})();</span>
-<span class="nx">$</span><span class="p">(</span><span class="dl">'</span><span class="s1">html</span><span class="dl">'</span><span class="p">).</span><span class="nx">html</span><span class="p">(</span><span class="nx">html</span><span class="p">);</span>
-</code></pre></div></div>
+<p>  render: function() {
+    this.$('.todos-list')
+      .html(this.template({ todos: this.collection.models }));
+  }
+})
+```</p>
 
-<p>Next we need to expose our client-side templates. In this case I’m assuming client-side templates are pre-compiled into functions namespaced under a global JST object like in the <a href="http://guides.rubyonrails.org/asset_pipeline.html">Rail’s asset pipeline</a> (if you’re looking for a node.js tool <a href="https://github.com/craigspaeth/nap">nap</a> is what Artsy uses).</p>
+<p>We can render the server-side <code>#todos</code> element by compiling the express view into html and injecting it straight in jsdom with our globally exposed jQuery.</p>
 
-<p>We need to mimic what the JST functions are expecting so that when calling <code class="language-plaintext highlighter-rouge">JST['foo/bar']({ foo: 'some-data' })</code> we get back a string of html.</p>
+<pre><code class="javascript">filename = path.resolve(__dirname, '../app/views/index.jade');
+template = fs.readFileSync(filename).toString();
+html = jade.compile(template, { filename: filename })();
+$('html').html(html);
+</code></pre>
 
-<div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">global</span><span class="p">.</span><span class="nx">JST</span> <span class="o">=</span> <span class="p">{};</span>
-<span class="kd">var</span> <span class="nx">filename</span> <span class="o">=</span> <span class="nx">path</span><span class="p">.</span><span class="nx">resolve</span><span class="p">(</span>
-  <span class="nx">__dirname</span><span class="p">,</span>
-  <span class="dl">'</span><span class="s1">../app/javascripts/templates/todos/list.jade</span><span class="dl">'</span>
-<span class="p">);</span>
-<span class="nx">JST</span><span class="p">[</span><span class="dl">'</span><span class="s1">todos/list</span><span class="dl">'</span><span class="p">]</span> <span class="o">=</span> <span class="nx">jade</span><span class="p">.</span><span class="nx">compile</span><span class="p">(</span>
-  <span class="nx">fs</span><span class="p">.</span><span class="nx">readFileSync</span><span class="p">(</span><span class="nx">filename</span><span class="p">).</span><span class="nx">toString</span><span class="p">(),</span>
-  <span class="p">{</span> <span class="na">filename</span><span class="p">:</span> <span class="nx">filename</span> <span class="p">}</span>
-<span class="p">);</span>
-</code></pre></div></div>
+<p>Next we need to expose our client-side templates. In this case I'm assuming client-side templates are pre-compiled into functions namespaced under a global JST object like in the <a href="http://guides.rubyonrails.org/asset_pipeline.html">Rail's asset pipeline</a> (if you're looking for a node.js tool <a href="https://github.com/craigspaeth/nap">nap</a> is what Artsy uses).</p>
 
-<p>With our server-side HTML injected and our client-side templates ready to use, all that’s needed is to require any other dependent Backbone components. This boilerplate can get pretty repetitive and would be good to wrap up into a helper.</p>
+<p>We need to mimic what the JST functions are expecting so that when calling <code>JST['foo/bar']({ foo: 'some-data' })</code> we get back a string of html.</p>
 
-<div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">var</span> <span class="nx">clientenv</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="dl">'</span><span class="s1">../helpers/clientenv</span><span class="dl">'</span><span class="p">);</span>
+<pre><code class="javascript">global.JST = {};
+var filename = path.resolve(
+  __dirname,
+  '../app/javascripts/templates/todos/list.jade'
+);
+JST['todos/list'] = jade.compile(
+  fs.readFileSync(filename).toString(),
+  { filename: filename }
+);
+</code></pre>
 
-<span class="nx">before</span><span class="p">(</span><span class="kd">function</span><span class="p">(</span><span class="nx">done</span><span class="p">)</span> <span class="p">{</span>
-  <span class="nx">clientenv</span><span class="p">.</span><span class="nx">setup</span><span class="p">(</span><span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
-    <span class="nb">global</span><span class="p">.</span><span class="nx">App</span><span class="p">.</span><span class="nx">Todo</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="dl">'</span><span class="s1">../app/javascripts/models/todo.js</span><span class="dl">'</span><span class="p">);</span>
-    <span class="nb">global</span><span class="p">.</span><span class="nx">App</span><span class="p">.</span><span class="nx">Todos</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="dl">'</span><span class="s1">../app/javascripts/collections/todos.js</span><span class="dl">'</span><span class="p">);</span>
-    <span class="nx">done</span><span class="p">();</span>
-  <span class="p">});</span>
-<span class="p">});</span>
+<p>With our server-side HTML injected and our client-side templates ready to use, all that's needed is to require any other dependent Backbone components. This boilerplate can get pretty repetitive and would be good to wrap up into a helper.</p>
 
-<span class="nx">beforeEach</span><span class="p">(</span><span class="kd">function</span><span class="p">(</span><span class="nx">done</span><span class="p">)</span> <span class="p">{</span>
-  <span class="kd">var</span> <span class="nx">templateFilename</span> <span class="o">=</span> <span class="nx">path</span><span class="p">.</span><span class="nx">resolve</span><span class="p">(</span>
-        <span class="nx">__dirname</span><span class="p">,</span>
-        <span class="dl">'</span><span class="s1">../../views/index.jade</span><span class="dl">'</span>
-      <span class="p">),</span>
-      <span class="nx">html</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="dl">'</span><span class="s1">jade</span><span class="dl">'</span><span class="p">).</span><span class="nx">compile</span><span class="p">(</span>
-        <span class="nx">fs</span><span class="p">.</span><span class="nx">readFileSync</span><span class="p">(</span><span class="nx">templateFilename</span><span class="p">).</span><span class="nx">toString</span><span class="p">(),</span>
-        <span class="p">{</span> <span class="na">filename</span><span class="p">:</span> <span class="nx">templateFilename</span> <span class="p">}</span>
-      <span class="p">)();</span>
-  <span class="nx">$</span><span class="p">(</span><span class="dl">'</span><span class="s1">html</span><span class="dl">'</span><span class="p">).</span><span class="nx">html</span><span class="p">(</span><span class="nx">html</span><span class="p">);</span>
-  <span class="nx">view</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">App</span><span class="p">.</span><span class="nx">TodosListView</span><span class="p">();</span>
-  <span class="nx">done</span><span class="p">();</span>
-<span class="p">});</span>
+<pre><code class="javascript">var clientenv = require('../helpers/clientenv');
 
-<span class="nx">it</span><span class="p">(</span><span class="dl">'</span><span class="s1">renders items as they are added</span><span class="dl">'</span><span class="p">,</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
-  <span class="nx">view</span><span class="p">.</span><span class="nx">collection</span><span class="p">.</span><span class="nx">add</span><span class="p">([</span>
-    <span class="k">new</span> <span class="nx">App</span><span class="p">.</span><span class="nx">Todo</span><span class="p">({</span> <span class="na">title</span><span class="p">:</span> <span class="dl">'</span><span class="s1">clean the kitchen</span><span class="dl">'</span> <span class="p">})</span>
-  <span class="p">]);</span>
-  <span class="nx">view</span><span class="p">.</span><span class="nx">$el</span><span class="p">.</span><span class="nx">html</span><span class="p">().</span><span class="nx">should</span><span class="p">.</span><span class="nx">include</span><span class="p">(</span><span class="dl">'</span><span class="s1">clean the kitchen</span><span class="dl">'</span><span class="p">);</span>
-<span class="p">});</span>
-</code></pre></div></div>
+before(function(done) {
+  clientenv.setup(function() {
+    global.App.Todo = require('../app/javascripts/models/todo.js');
+    global.App.Todos = require('../app/javascripts/collections/todos.js');
+    done();
+  });
+});
+
+beforeEach(function(done) {
+  var templateFilename = path.resolve(
+        __dirname,
+        '../../views/index.jade'
+      ),
+      html = require('jade').compile(
+        fs.readFileSync(templateFilename).toString(),
+        { filename: templateFilename }
+      )();
+  $('html').html(html);
+  view = new App.TodosListView();
+  done();
+});
+
+it('renders items as they are added', function() {
+  view.collection.add([
+    new App.Todo({ title: 'clean the kitchen' })
+  ]);
+  view.$el.html().should.include('clean the kitchen');
+});
+</code></pre>
 
 <p>With a little bit more work, testing views in node can be almost as easy as testing models.</p>
 
-<h2 id="integration-tests">Integration Tests</h2>
+<a name="Integration.Tests"></a>
+<h2>Integration Tests</h2>
 
-<p>Although I encourage writing way more unit test coverage as they’re faster and less brittle, it is necessary to have integration tests to cover longer scenarios. At Artsy we use some tricks to make integration testing less painful.</p>
+<p>Although I encourage writing way more unit test coverage as they're faster and less brittle, it is necessary to have integration tests to cover longer scenarios. At Artsy we use some tricks to make integration testing less painful.</p>
 
-<h3 id="stubbing-the-api-layer">Stubbing the API Layer</h3>
+<a name="Stubbing.the.API.Layer"></a>
+<h3>Stubbing the API Layer</h3>
 
-<p>In Artsy’s case we’re consuming a JSON API service that already has ample test coverage, so it makes sense to cut off integration at this point and stub our API responses.</p>
+<p>In Artsy's case we're consuming a JSON API service that already has ample test coverage, so it makes sense to cut off integration at this point and stub our API responses.</p>
 
-<p>To do this we can conditionally check which environment we’re running in and swap out the API to use a real API or an <a href="http://expressjs.com/">express</a> app serving a stubbed API.</p>
+<p>To do this we can conditionally check which environment we're running in and swap out the API to use a real API or an <a href="http://expressjs.com/">express</a> app serving a stubbed API.</p>
 
-<div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">if</span><span class="p">(</span><span class="nx">app</span><span class="p">.</span><span class="kd">get</span><span class="p">(</span><span class="dl">'</span><span class="s1">env</span><span class="dl">'</span><span class="p">)</span> <span class="o">==</span> <span class="dl">'</span><span class="s1">test</span><span class="dl">'</span><span class="p">)</span> <span class="p">{</span>
-  <span class="nx">app</span><span class="p">.</span><span class="kd">set</span><span class="p">(</span><span class="dl">'</span><span class="s1">api url</span><span class="dl">'</span><span class="p">,</span> <span class="dl">'</span><span class="s1">http://localhost:5000</span><span class="dl">'</span><span class="p">);</span>
-  <span class="c1">// Create a mock api server in your test helpers</span>
-  <span class="c1">// and run it on 5000 in a before block</span>
-<span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
-  <span class="nx">app</span><span class="p">.</span><span class="kd">set</span><span class="p">(</span><span class="dl">'</span><span class="s1">api url</span><span class="dl">'</span><span class="p">,</span> <span class="dl">'</span><span class="s1">http://api.my-app.com</span><span class="dl">'</span><span class="p">);</span>
-<span class="p">}</span>
-<span class="c1">// Bootstrap in your server-side view so the client app</span>
-<span class="c1">// knows where to point</span>
-<span class="nx">app</span><span class="p">.</span><span class="nx">locals</span><span class="p">.</span><span class="nx">API_URL_ROOT</span> <span class="o">=</span> <span class="nx">app</span><span class="p">.</span><span class="kd">get</span><span class="p">(</span><span class="dl">'</span><span class="s1">api url</span><span class="dl">'</span><span class="p">);</span>
-</code></pre></div></div>
+<pre><code class="javascript">if(app.get('env') == 'test') {
+  app.set('api url', 'http://localhost:5000');
+  // Create a mock api server in your test helpers
+  // and run it on 5000 in a before block
+} else {
+  app.set('api url', 'http://api.my-app.com');
+}
+// Bootstrap in your server-side view so the client app
+// knows where to point
+app.locals.API_URL_ROOT = app.get('api url');
+</code></pre>
 
-<p>If our API was hosted on the same server as our client app, or we’re proxying API calls because of lack of <a href="http://en.wikipedia.org/wiki/Cross-Origin_Resource_Sharing">CORS</a> support, this could be as easy as swapping out middleware.</p>
+<p>If our API was hosted on the same server as our client app, or we're proxying API calls because of lack of <a href="http://en.wikipedia.org/wiki/Cross-Origin_Resource_Sharing">CORS</a> support, this could be as easy as swapping out middleware.</p>
 
-<div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">if</span><span class="p">(</span><span class="nx">app</span><span class="p">.</span><span class="kd">get</span><span class="p">(</span><span class="dl">'</span><span class="s1">env</span><span class="dl">'</span><span class="p">)</span> <span class="o">==</span> <span class="dl">'</span><span class="s1">test</span><span class="dl">'</span><span class="p">)</span> <span class="p">{</span>
-  <span class="nx">app</span><span class="p">.</span><span class="nx">use</span><span class="p">(</span><span class="dl">'</span><span class="s1">/api</span><span class="dl">'</span><span class="p">,</span> <span class="nx">require</span><span class="p">(</span><span class="dl">'</span><span class="s1">./test/helpers/mock_api</span><span class="dl">'</span><span class="p">));</span>
-<span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
-  <span class="nx">app</span><span class="p">.</span><span class="nx">use</span><span class="p">(</span><span class="dl">'</span><span class="s1">/api</span><span class="dl">'</span><span class="p">,</span> <span class="nx">require</span><span class="p">(</span><span class="dl">'</span><span class="s1">./routes/api</span><span class="dl">'</span><span class="p">));</span>
-<span class="p">}</span>
-</code></pre></div></div>
+<pre><code class="javascript">if(app.get('env') == 'test') {
+  app.use('/api', require('./test/helpers/mock_api'));
+} else {
+  app.use('/api', require('./routes/api'));
+}
+</code></pre>
 
 <p>This speeds up integration tests and simplifies the stack by not populating a database or booting an API server.</p>
 
-<h3 id="headless-integration-tests-with-zombiejs">Headless Integration Tests with Zombie.js</h3>
+<a name="Headless.Integration.Tests.with.Zombie.js"></a>
+<h3>Headless Integration Tests with Zombie.js</h3>
 
-<p>Selenium has to actually boot up Firefox and poll the UI to wait for things to appear. This disconnect means extra seconds of “wait_util we’re sure” time.  <a href="http://zombie.labnotes.org/">Zombie.js</a> is backed by our friend jsdom and alleviates these issues by giving us a fast headless browser that we can programmatically access.</p>
+<p>Selenium has to actually boot up Firefox and poll the UI to wait for things to appear. This disconnect means extra seconds of "wait_util we're sure" time.  <a href="http://zombie.labnotes.org/">Zombie.js</a> is backed by our friend jsdom and alleviates these issues by giving us a fast headless browser that we can programmatically access.</p>
 
-<p>Of course the caveat to headless testing is that you can’t visually see how a test is actually failing. Using <code class="language-plaintext highlighter-rouge">{ debug: true }</code> in your options will spit every Zombie action to stdout. In most cases this is enough, but sometimes you need to go a step further and actually visualize what the test is doing.</p>
+<p>Of course the caveat to headless testing is that you can't visually see how a test is actually failing. Using <code>{ debug: true }</code> in your options will spit every Zombie action to stdout. In most cases this is enough, but sometimes you need to go a step further and actually visualize what the test is doing.</p>
 
-<p>A trick we use is to write tests using the browser’s <code class="language-plaintext highlighter-rouge">jQuery</code>. This is more familiar than Zombie’s DSL and lets you copy and paste test code directly in your browser’s console to see if it’s actually doing what you want.</p>
+<p>A trick we use is to write tests using the browser's <code>jQuery</code>. This is more familiar than Zombie's DSL and lets you copy and paste test code directly in your browser's console to see if it's actually doing what you want.</p>
 
 <p>.e.g</p>
 
-<div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nx">Browser</span><span class="p">.</span><span class="nx">visit</span><span class="p">(</span><span class="dl">'</span><span class="s1">http://localhost:5000</span><span class="dl">'</span><span class="p">,</span> <span class="kd">function</span><span class="p">(</span><span class="nx">err</span><span class="p">,</span> <span class="nx">browser</span><span class="p">)</span> <span class="p">{</span>
-  <span class="kd">var</span> <span class="nx">$</span> <span class="o">=</span> <span class="nx">browser</span><span class="p">.</span><span class="nb">window</span><span class="p">.</span><span class="nx">$</span><span class="p">;</span>
+<pre><code class="javascript">Browser.visit('http://localhost:5000', function(err, browser) {
+  var $ = browser.window.$;
 
-  <span class="c1">// From here we can run `NODE_ENV=test node app.js` and copy</span>
-  <span class="c1">// this code right into our browser's console.</span>
-  <span class="nx">$</span><span class="p">(</span><span class="dl">'</span><span class="s1">#add-todo</span><span class="dl">'</span><span class="p">).</span><span class="nx">val</span><span class="p">(</span><span class="dl">'</span><span class="s1">Foo</span><span class="dl">'</span><span class="p">).</span><span class="nx">change</span><span class="p">();</span>
-  <span class="p">});</span>
-<span class="p">}</span>
-</code></pre></div></div>
+  // From here we can run `NODE_ENV=test node app.js` and copy
+  // this code right into our browser's console.
+  $('#add-todo').val('Foo').change();
+  });
+}
+</code></pre>
 
-<h2 id="conclusion">Conclusion</h2>
+<a name="Conclusion"></a>
+<h2>Conclusion</h2>
 
 <p>Using these techniques has greatly increased productivity and developer happiness for testing client-side code. For an example implementation of this see <a href="https://github.com/craigspaeth/backbone-headless-testing">https://github.com/craigspaeth/backbone-headless-testing</a>.</p>
 
-<p>Looking forward, testing client-side code can be made even better by using a package manager that adds require functionality like <a href="https://github.com/substack/node-browserify">browserify</a>, <a href="https://github.com/component/component">component</a>, or <a href="http://requirejs.org/">require.js</a>. But I’ve gone far enough for now, maybe in another blog post (leave a comment if you’re interested).</p>
+<p>Looking forward, testing client-side code can be made even better by using a package manager that adds require functionality like <a href="https://github.com/substack/node-browserify">browserify</a>, <a href="https://github.com/component/component">component</a>, or <a href="http://requirejs.org/">require.js</a>. But I've gone far enough for now, maybe in another blog post (leave a comment if you're interested).</p>
 ]]></content>
   </entry>
   
@@ -292,79 +306,81 @@
 
 <p>Building this kind of one-page apps allows for clean separation between the presentation and API layers. The downside is that it will slow page render times - fetching data after page load means waiting for an AJAX request to complete before displaying anything.</p>
 
-<p>There’re many solutions to this problem, all involving some kind of server-side rendering. You could, for example, share views and JavaScript between client and server. This would be a major paradigm shift for a large application like ours and not something we could possibly maneuver in a short amount of time.</p>
+<p>There're many solutions to this problem, all involving some kind of server-side rendering. You could, for example, share views and JavaScript between client and server. This would be a major paradigm shift for a large application like ours and not something we could possibly maneuver in a short amount of time.</p>
 
 <p>Without changing the entire architecture of the system, how can we bootstrap JSON data server-side and avoid the data roundtrip on every page load?</p>
 
 <!-- more -->
 
-<h3 id="model-repository">Model Repository</h3>
 
-<p>First, we need to keep track of our objects on the client. We’ve implemented a simple data repository. It ensures that the same model is passed around instead of instantiating new models each time. This helps prevent unnecessary trips to the server, and makes sure events are bound to the same model instance.</p>
+<a name="Model.Repository"></a>
+<h3>Model Repository</h3>
 
-<div class="language-coffeescript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nx">App</span><span class="p">.</span><span class="na">Repository</span> <span class="o">=</span>
+<p>First, we need to keep track of our objects on the client. We've implemented a simple data repository. It ensures that the same model is passed around instead of instantiating new models each time. This helps prevent unnecessary trips to the server, and makes sure events are bound to the same model instance.</p>
 
-  <span class="c1"># Gets a model from the repository or fetches it from the server.</span>
-  <span class="na">getOrFetch</span><span class="o">:</span> <span class="p">(</span><span class="nx">id</span><span class="p">,</span> <span class="nx">options</span><span class="p">)</span> <span class="o">-&gt;</span>
-    <span class="nx">model</span> <span class="o">=</span> <span class="vi">@</span><span class="na">get</span><span class="p">(</span><span class="nx">id</span><span class="p">)</span>
-    <span class="k">if</span> <span class="nx">model</span><span class="o">?</span>
-      <span class="nx">options</span><span class="o">?</span><span class="p">.</span><span class="na">success</span><span class="o">?</span> <span class="nx">options</span><span class="p">,</span> <span class="nx">model</span>
-      <span class="nx">model</span>
-    <span class="k">else</span>
-      <span class="nx">model</span> <span class="o">=</span> <span class="k">new</span> <span class="vi">@</span><span class="na">model</span><span class="p">({</span> <span class="na">id</span><span class="o">:</span> <span class="nx">id</span> <span class="p">})</span>
-      <span class="nx">model</span><span class="p">.</span><span class="na">fetch</span> <span class="nx">options</span>
-      <span class="vi">@</span><span class="na">add</span> <span class="nx">model</span>
-    <span class="nx">model</span>
+<pre><code class="coffeescript">App.Repository =
 
-<span class="c1"># Function to extend a collection in to a repository</span>
-<span class="nx">App</span><span class="p">.</span><span class="na">Repository</span><span class="p">.</span><span class="na">extend</span> <span class="o">=</span> <span class="p">(</span><span class="nx">collectionClass</span><span class="p">)</span> <span class="o">-&gt;</span>
-  <span class="nx">collection</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">collectionClass</span>
-  <span class="nx">repository</span> <span class="o">=</span> <span class="nx">_</span><span class="p">.</span><span class="na">extend</span> <span class="nx">collection</span><span class="p">,</span> <span class="nx">App</span><span class="p">.</span><span class="na">Repository</span>
-  <span class="nx">repository</span><span class="p">.</span><span class="na">collectionClass</span> <span class="o">=</span> <span class="nx">collectionClass</span>
-  <span class="nx">repository</span>
-</code></pre></div></div>
+  # Gets a model from the repository or fetches it from the server.
+  getOrFetch: (id, options) -&gt;
+    model = @get(id)
+    if model?
+      options?.success? options, model
+      model
+    else
+      model = new @model({ id: id })
+      model.fetch options
+      @add model
+    model
+
+# Function to extend a collection in to a repository
+App.Repository.extend = (collectionClass) -&gt;
+  collection = new collectionClass
+  repository = _.extend collection, App.Repository
+  repository.collectionClass = collectionClass
+  repository
+</code></pre>
 
 <p>Objects of the same type are stored together in a repository collection.</p>
 
-<div class="language-coffeescript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">class</span> <span class="nx">App</span><span class="p">.</span><span class="na">Collections</span><span class="p">.</span><span class="na">Artists</span> <span class="k">extends</span> <span class="nx">Backbone</span><span class="p">.</span><span class="na">Collection</span>
+<pre><code class="coffeescript">class App.Collections.Artists extends Backbone.Collection
 
-  <span class="na">model</span><span class="o">:</span> <span class="nx">App</span><span class="p">.</span><span class="na">Models</span><span class="p">.</span><span class="na">Artist</span>
-  <span class="nx">App</span><span class="p">.</span><span class="na">Repositories</span><span class="p">.</span><span class="na">Artists</span> <span class="o">=</span> <span class="nx">App</span><span class="p">.</span><span class="na">Repository</span><span class="p">.</span><span class="na">extend</span> <span class="err">@</span>
+  model: App.Models.Artist
+  App.Repositories.Artists = App.Repository.extend @
+</code></pre>
 
-</code></pre></div></div>
-
-<h3 id="fetching-data">Fetching Data</h3>
+<a name="Fetching.Data"></a>
+<h3>Fetching Data</h3>
 
 <p>A view requires data before it can be rendered. For example, navigating to <a href="https://artsy.net/artist/hendrik-kerstens">artsy.net/artist/hendrik-kerstens</a> (a Dutch photographer who obsessively took pictures of his daughter in all kinds of artificial setups for 20 years) will call the following.</p>
 
-<div class="language-coffeescript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">class</span> <span class="nx">App</span><span class="p">.</span><span class="na">Views</span><span class="p">.</span><span class="na">ArtistView</span> <span class="k">extends</span> <span class="nx">Backbone</span><span class="p">.</span><span class="na">View</span>
+<pre><code class="coffeescript">class App.Views.ArtistView extends Backbone.View
 
-  <span class="na">render</span><span class="o">:</span> <span class="o">-&gt;</span>
+  render: -&gt;
 
-    <span class="nx">App</span><span class="p">.</span><span class="na">Repositories</span><span class="p">.</span><span class="na">Artists</span><span class="p">.</span><span class="na">getOrFetch</span> <span class="vi">@</span><span class="na">options</span><span class="p">.</span><span class="na">artistId</span><span class="p">,</span>
-      <span class="na">success</span><span class="o">:</span> <span class="p">(</span><span class="nx">artist</span><span class="p">)</span> <span class="o">=&gt;</span>
-        <span class="vi">@</span><span class="na">$el</span><span class="p">.</span><span class="na">html</span><span class="p">(</span><span class="nx">JST</span><span class="p">[</span><span class="s">'templates/artist/show'</span><span class="p">]({</span> <span class="na">artist</span><span class="o">:</span> <span class="nx">artist</span> <span class="p">}))</span>
+    App.Repositories.Artists.getOrFetch @options.artistId,
+      success: (artist) =&gt;
+        @$el.html(JST['templates/artist/show']({ artist: artist }))
+</code></pre>
 
-</code></pre></div></div>
+<a name="Bootstrapping.Data"></a>
+<h3>Bootstrapping Data</h3>
 
-<h3 id="bootstrapping-data">Bootstrapping Data</h3>
+<p>Since our implementation sits on top of a Rails app, we can now bootstrap the data in a server-side Rails view without any JavaScript code changes. The following example lives in <code>app/views/artists/_bootstrap.html.haml</code>.</p>
 
-<p>Since our implementation sits on top of a Rails app, we can now bootstrap the data in a server-side Rails view without any JavaScript code changes. The following example lives in <code class="language-plaintext highlighter-rouge">app/views/artists/_bootstrap.html.haml</code>.</p>
+<pre><code class="javascript">:javascript
+  var json = $.parseJSON("#{j @artist.to_json}")
+  App.Repositories.Artists.add(new App.Models.Artist(json));
+</code></pre>
 
-<div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">:</span><span class="nx">javascript</span>
-  <span class="kd">var</span> <span class="nx">json</span> <span class="o">=</span> <span class="nx">$</span><span class="p">.</span><span class="nx">parseJSON</span><span class="p">(</span><span class="dl">"</span><span class="s2">#{j @artist.to_json}</span><span class="dl">"</span><span class="p">)</span>
-  <span class="nx">App</span><span class="p">.</span><span class="nx">Repositories</span><span class="p">.</span><span class="nx">Artists</span><span class="p">.</span><span class="nx">add</span><span class="p">(</span><span class="k">new</span> <span class="nx">App</span><span class="p">.</span><span class="nx">Models</span><span class="p">.</span><span class="nx">Artist</span><span class="p">(</span><span class="nx">json</span><span class="p">));</span>
-</code></pre></div></div>
+<p>You must encode JSON data inside a Rails template, otherwise unicode characters like U+2028 become actual line-endings. This has been discussed <a href="http://stackoverflow.com/questions/2965293/javascript-parse-error-on-u2028-unicode-character">here</a> and <a href="http://stackoverflow.com/questions/9691611/print-valid-non-escaped-json-in-a-view-with-rails">here</a>. The <code>j</code> above is an alias for <code>escape_javascript</code>.</p>
 
-<p>You must encode JSON data inside a Rails template, otherwise unicode characters like U+2028 become actual line-endings. This has been discussed <a href="http://stackoverflow.com/questions/2965293/javascript-parse-error-on-u2028-unicode-character">here</a> and <a href="http://stackoverflow.com/questions/9691611/print-valid-non-escaped-json-in-a-view-with-rails">here</a>. The <code class="language-plaintext highlighter-rouge">j</code> above is an alias for <code class="language-plaintext highlighter-rouge">escape_javascript</code>.</p>
+<p>The Rails view layout calls <code>yield :javascript</code> and the <code>show.html.haml</code> template includes the bootstrapped data as a partial.</p>
 
-<p>The Rails view layout calls <code class="language-plaintext highlighter-rouge">yield :javascript</code> and the <code class="language-plaintext highlighter-rouge">show.html.haml</code> template includes the bootstrapped data as a partial.</p>
+<pre><code class="haml">= content_for :javascript do
+  = render partial: "artists/bootstrap"
+</code></pre>
 
-<div class="language-haml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">=</span> <span class="n">content_for</span> <span class="ss">:javascript</span> <span class="k">do</span>
-  <span class="p">=</span> <span class="n">render</span> <span class="ss">partial: </span><span class="s2">"artists/bootstrap"</span>
-</code></pre></div></div>
-
-<p>The generated HTML includes the escaped JSON representation of the artist, which will be parsed client-side when the page loads and inserted into <code class="language-plaintext highlighter-rouge">App.Repositories.Artists</code>. The <code class="language-plaintext highlighter-rouge">App.Views.ArtistView</code> will no longer need to fetch the data from the server with an AJAX call.</p>
+<p>The generated HTML includes the escaped JSON representation of the artist, which will be parsed client-side when the page loads and inserted into <code>App.Repositories.Artists</code>. The <code>App.Views.ArtistView</code> will no longer need to fetch the data from the server with an AJAX call.</p>
 ]]></content>
   </entry>
   
@@ -373,164 +389,187 @@
     <link href="https://artsy.github.io/blog/2012/06/25/replacing-hashbang-routes-with-pushstate/"/>
     <updated>2012-06-25T11:35:00+00:00</updated>
     <id>https://artsy.github.io/blog/2012/06/25/replacing-hashbang-routes-with-pushstate</id>
-    <content type="html"><![CDATA[<blockquote>
-  <p>The only constant is change, continuing change, inevitable change, that is the dominant factor in society
+    <content type="html"><![CDATA[<blockquote><p>The only constant is change, continuing change, inevitable change, that is the dominant factor in society
 [and web apps!] today. No sensible decision can be made any longer without taking into account not only
 the world as it is, but the world as it will be.</p>
 
-  <p>– Isaac Asimov</p>
-</blockquote>
+<p>&ndash; Isaac Asimov</p></blockquote>
 
-<h2 id="rip-">R.I.P #!</h2>
+<a name="R.I.P..."></a>
+<h2>R.I.P #!</h2>
 
-<p>It did not take us long to discover we shared the concerns of Twitter’s
+<p>It did not take us long to discover we shared the concerns of Twitter's
 <a href="http://danwebb.net/2011/5/28/it-is-about-the-hashbangs">Dan Webb on hashbang routes</a>,
-but it was almost a year before we were able to remove them from Artsy. Here’s how it went down.</p>
+but it was almost a year before we were able to remove them from Artsy. Here's how it went down.</p>
 
 <p>Artsy relies on the <a href="http://documentcloud.github.com/backbone/">Backbone.js</a> framework for our client application
 which offers a solid pushState routing scheme. This includes a seamless hashtag fallback for
-<a href="http://caniuse.com/#feat=history">browsers that don’t support the HTML5 History API</a> (looking at you IE 9).</p>
+<a href="http://caniuse.com/#feat=history">browsers that don't support the HTML5 History API</a> (looking at you IE 9).</p>
 
-<p>The pushState routing is optional, but <em>“the world as it should be”</em> suggests we say “Yes!” (or true) to pushState.</p>
-<div class="language-coffeescript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nx">Backbone</span><span class="p">.</span><span class="na">history</span><span class="p">.</span><span class="na">start</span><span class="p">({</span> <span class="na">pushState</span><span class="o">:</span> <span class="no">true</span> <span class="p">})</span>
-</code></pre></div></div>
+<p>The pushState routing is optional, but <em>"the world as it should be"</em> suggests we say "Yes!" (or true) to pushState.
+<code>coffeescript
+Backbone.history.start({ pushState: true })
+</code></p>
 
 <!-- more -->
 
-<h3 id="the-client">The Client</h3>
+
+<a name="The.Client"></a>
+<h3>The Client</h3>
 
 <p>At Artsy, we had left Backbone out of the loop for most of our internal linking. Our markup href attributes all
-began with ‘/#!’ and expected the browser’s default hash behavior to keep the page from refreshing. For a proper
-pushState scheme, the app’s internal linking should begin with an absolute route. Backbone.js defaults to ‘/’, but
-this is configurable.</p>
-<div class="language-coffeescript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1"># Optional root attribute defaults to '/'</span>
-<span class="nx">Backbone</span><span class="p">.</span><span class="na">history</span><span class="p">.</span><span class="na">start</span>
-  <span class="na">pushState</span><span class="o">:</span> <span class="no">true</span>
-  <span class="na">root</span><span class="o">:</span> <span class="s">"/specialized/client/"</span>
-</code></pre></div></div>
-<h4 id="internal-links">Internal Links</h4>
-<p>All internal links need to begin with your configured root (‘/’ for Artsy).
-Be sure to leave out your domain (<del>http://artsy.net</del>).</p>
-<div class="language-html highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nt">&lt;a</span> <span class="na">href=</span><span class="s">"/"</span><span class="nt">&gt;</span>Home<span class="nt">&lt;/a&gt;</span>
+began with '/#!' and expected the browser's default hash behavior to keep the page from refreshing. For a proper
+pushState scheme, the app's internal linking should begin with an absolute route. Backbone.js defaults to '/', but
+this is configurable.
+```coffeescript</p>
 
-<span class="nt">&lt;a</span> <span class="na">href=</span><span class="s">"/artwork/matthew-abbott-lobby-and-supercomputer"</span><span class="nt">&gt;</span>My Favorite Work<span class="nt">&lt;/a&gt;</span>
-</code></pre></div></div>
+<a name="Optional.root.attribute.defaults.to...."></a>
+<h1>Optional root attribute defaults to '/'</h1>
 
-<p>We now needed a global link handler that will leverage Backbone’s <code class="language-plaintext highlighter-rouge">navigate</code> method which takes
+<p>Backbone.history.start
+  pushState: true
+  root: "/specialized/client/"
+```</p>
+
+<a name="Internal.Links"></a>
+<h4>Internal Links</h4>
+
+<p>All internal links need to begin with your configured root ('/' for Artsy).
+Be sure to leave out your domain (<del>http://artsy.net</del>).
+```html
+<a href="/">Home</a></p>
+
+<p><a href="/artwork/matthew-abbott-lobby-and-supercomputer">My Favorite Work</a>
+```</p>
+
+<p>We now needed a global link handler that will leverage Backbone's <code>navigate</code> method which takes
 care of updating the URL and avoiding a page refresh or alternatively wiring up the hashtag fallback.
-Since we follow the convention of starting all <code class="language-plaintext highlighter-rouge">href</code> attributes with our application’s root, we
-can match on that in our selector to get all anchors whose link begins with our root, <code class="language-plaintext highlighter-rouge">a[href^='/']</code>.
+Since we follow the convention of starting all <code>href</code> attributes with our application's root, we
+can match on that in our selector to get all anchors whose link begins with our root, <code>a[href^='/']</code>.
 This link handler is a great place to ensure backward compatibility while #!s are removed from
 internal links.</p>
 
-<div class="language-coffeescript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1"># Globally capture clicks. If they are internal and not in the pass</span>
-<span class="c1"># through list, route them through Backbone's navigate method.</span>
-<span class="nx">$</span><span class="p">(</span><span class="nb">document</span><span class="p">).</span><span class="na">on</span> <span class="s">"click"</span><span class="p">,</span> <span class="s">"a[href^='/']"</span><span class="p">,</span> <span class="p">(</span><span class="nx">event</span><span class="p">)</span> <span class="o">-&gt;</span>
+<pre><code class="coffeescript"># Globally capture clicks. If they are internal and not in the pass
+# through list, route them through Backbone's navigate method.
+$(document).on "click", "a[href^='/']", (event) -&gt;
 
-  <span class="nx">href</span> <span class="o">=</span> <span class="nx">$</span><span class="p">(</span><span class="nx">event</span><span class="p">.</span><span class="na">currentTarget</span><span class="p">).</span><span class="na">attr</span><span class="p">(</span><span class="s">'href'</span><span class="p">)</span>
+  href = $(event.currentTarget).attr('href')
 
-  <span class="c1"># chain 'or's for other deny list routes</span>
-  <span class="nx">passThrough</span> <span class="o">=</span> <span class="nx">href</span><span class="p">.</span><span class="na">indexOf</span><span class="p">(</span><span class="s">'sign_out'</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">0</span>
+  # chain 'or's for other deny list routes
+  passThrough = href.indexOf('sign_out') &gt;= 0
 
-  <span class="c1"># Allow shift+click for new tabs, etc.</span>
-  <span class="k">if</span> <span class="o">!</span><span class="nx">passThrough</span> <span class="o">&amp;&amp;</span> <span class="o">!</span><span class="nx">event</span><span class="p">.</span><span class="na">altKey</span> <span class="o">&amp;&amp;</span> <span class="o">!</span><span class="nx">event</span><span class="p">.</span><span class="na">ctrlKey</span> <span class="o">&amp;&amp;</span> <span class="o">!</span><span class="nx">event</span><span class="p">.</span><span class="na">metaKey</span> <span class="o">&amp;&amp;</span> <span class="o">!</span><span class="nx">event</span><span class="p">.</span><span class="na">shiftKey</span>
-    <span class="nx">event</span><span class="p">.</span><span class="na">preventDefault</span><span class="p">()</span>
+  # Allow shift+click for new tabs, etc.
+  if !passThrough &amp;&amp; !event.altKey &amp;&amp; !event.ctrlKey &amp;&amp; !event.metaKey &amp;&amp; !event.shiftKey
+    event.preventDefault()
 
-    <span class="c1"># Remove leading slashes and hash bangs (backward compatablility)</span>
-    <span class="nx">url</span> <span class="o">=</span> <span class="nx">href</span><span class="p">.</span><span class="na">replace</span><span class="p">(</span><span class="sr">/^\//</span><span class="p">,</span><span class="s">''</span><span class="p">).</span><span class="na">replace</span><span class="p">(</span><span class="s">'</span><span class="se">\#\!\/</span><span class="s">'</span><span class="p">,</span><span class="s">''</span><span class="p">)</span>
+    # Remove leading slashes and hash bangs (backward compatablility)
+    url = href.replace(/^\//,'').replace('\#\!\/','')
 
-    <span class="c1"># Instruct Backbone to trigger routing events</span>
-    <span class="nx">App</span><span class="p">.</span><span class="na">router</span><span class="p">.</span><span class="na">navigate</span> <span class="nx">url</span><span class="p">,</span> <span class="p">{</span> <span class="na">trigger</span><span class="o">:</span> <span class="no">true</span> <span class="p">}</span>
+    # Instruct Backbone to trigger routing events
+    App.router.navigate url, { trigger: true }
 
-    <span class="k">return</span> <span class="no">false</span>
-</code></pre></div></div>
+    return false
+</code></pre>
+
 <p>Thank you TenFarms for the excellent write up on <a href="http://dev.tenfarms.com/posts/proper-link-handling">proper link handling for pushState enabled browsers</a>.</p>
 
-<h4 id="external-links">External Links</h4>
+<a name="External.Links"></a>
+<h4>External Links</h4>
+
 <p>The application will need a small check early in the initialization process to redirect external
-links still expecting the #! routing scheme.</p>
-<div class="language-coffeescript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1"># Our Backbone App namespace</span>
-<span class="nb">window</span><span class="p">.</span><span class="na">App</span> <span class="o">=</span>
-  <span class="c1"># Namespace Backbone components</span>
-  <span class="na">Models</span><span class="o">:</span> <span class="p">{}</span>
-  <span class="na">Collections</span><span class="o">:</span> <span class="p">{}</span>
-  <span class="na">Views</span><span class="o">:</span> <span class="p">{}</span>
-  <span class="na">redirectHashBang</span><span class="o">:</span> <span class="o">-&gt;</span>
-    <span class="nb">window</span><span class="p">.</span><span class="na">location</span> <span class="o">=</span> <span class="nb">window</span><span class="p">.</span><span class="na">location</span><span class="p">.</span><span class="na">hash</span><span class="p">.</span><span class="na">substring</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+links still expecting the #! routing scheme.
+```coffeescript</p>
 
-<span class="c1"># DOM is ready, are we routing a #!?</span>
-<span class="nx">$</span> <span class="o">-&gt;</span>
-  <span class="k">if</span> <span class="nb">window</span><span class="p">.</span><span class="na">location</span><span class="p">.</span><span class="na">hash</span><span class="p">.</span><span class="na">indexOf</span><span class="p">(</span><span class="s">'!'</span><span class="p">)</span> <span class="o">&gt;</span> <span class="o">-</span><span class="mi">1</span>
-    <span class="k">return</span> <span class="nx">App</span><span class="p">.</span><span class="na">redirectHashBang</span><span class="p">()</span>
-  <span class="c1"># else... continue on with initialization</span>
-</code></pre></div></div>
+<a name="Our.Backbone.App.namespace"></a>
+<h1>Our Backbone App namespace</h1>
 
-<h3 id="the-server">The Server</h3>
+<p>window.App =
+  # Namespace Backbone components
+  Models: {}
+  Collections: {}
+  Views: {}
+  redirectHashBang: ->
+    window.location = window.location.hash.substring(2)</p>
+
+<a name="DOM.is.ready..are.we.routing.a...."></a>
+<h1>DOM is ready, are we routing a #!?</h1>
+
+<p>$ ->
+  if window.location.hash.indexOf('!') > -1
+    return App.redirectHashBang()
+  # else... continue on with initialization
+```</p>
+
+<a name="The.Server"></a>
+<h3>The Server</h3>
 
 <p>Now that our app will receive requests to full URLs
-‘https://artsy.net/artwork/mattew-abbott-lobby-and-supercomputer’
-instead of ‘https://artsy.net/#!/artwork/mattew-abbott-lobby-and-supercomputer’,
+'https://artsy.net/artwork/mattew-abbott-lobby-and-supercomputer'
+instead of 'https://artsy.net/#!/artwork/mattew-abbott-lobby-and-supercomputer',
 we need to update our Rails setup.</p>
 
-<p>Below is an excerpt from our Rails application’s router.
-Note references to our home and artworks controllers. Both use a <code class="language-plaintext highlighter-rouge">before</code> filter
-to determine a user’s authentication state and serve a different layout, with
+<p>Below is an excerpt from our Rails application's router.
+Note references to our home and artworks controllers. Both use a <code>before</code> filter
+to determine a user's authentication state and serve a different layout, with
 unique assets or Backbone applications.</p>
 
 <p>Controllers related to specific models now have the opportunity to
 bootstrap associated JSON or mark up and we now get expected 404 (file not found)
 error behavior without extra work required by a hash routing scheme.</p>
 
-<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1"># Server - Rails</span>
-<span class="no">Application</span><span class="p">.</span><span class="nf">routes</span><span class="p">.</span><span class="nf">draw</span> <span class="k">do</span>
+<pre><code class="ruby"># Server - Rails
+Application.routes.draw do
 
-  <span class="n">root</span> <span class="ss">:to</span> <span class="o">=&gt;</span> <span class="s2">"home#index"</span>
+  root :to =&gt; "home#index"
 
-  <span class="c1"># Controller logic determines the layout and could bootstrap data</span>
-  <span class="n">resources</span> <span class="ss">:artworks</span><span class="p">,</span> <span class="ss">path: </span><span class="s2">"artwork"</span><span class="p">,</span> <span class="ss">only: :show</span>
+  # Controller logic determines the layout and could bootstrap data
+  resources :artworks, path: "artwork", only: :show
 
-  <span class="c1"># Plural to singular redirect - mistakes happen!</span>
-  <span class="n">get</span> <span class="s2">"/artworks/:id"</span> <span class="o">=&gt;</span> <span class="n">redirect</span><span class="p">(</span><span class="s1">'/artwork/%{id}'</span><span class="p">)</span>
+  # Plural to singular redirect - mistakes happen!
+  get "/artworks/:id" =&gt; redirect('/artwork/%{id}')
 
-  <span class="c1"># No match? Rails handles routing the 404 error.</span>
+  # No match? Rails handles routing the 404 error.
 
-<span class="k">end</span>
-</code></pre></div></div>
+end
+</code></pre>
 
 <p>An added bonus here is a near one to one mapping with the Rails and client routes.</p>
 
-<div class="language-coffeescript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1"># Backbone.js - Client</span>
-<span class="k">class</span> <span class="nx">App</span><span class="p">.</span><span class="na">Routers</span><span class="p">.</span><span class="na">Client</span> <span class="k">extends</span> <span class="nx">Backbone</span><span class="p">.</span><span class="na">Router</span>
+<pre><code class="coffeescript"># Backbone.js - Client
+class App.Routers.Client extends Backbone.Router
 
-  <span class="na">routes</span><span class="o">:</span>
-    <span class="s">''</span>            <span class="o">:</span> <span class="s">'home'</span>
-    <span class="s">'artwork/:id'</span> <span class="o">:</span> <span class="s">'artwork'</span>
-    <span class="s">'artworks/:id'</span><span class="o">:</span> <span class="s">'redirectToArtwork'</span>
-</code></pre></div></div>
+  routes:
+    ''            : 'home'
+    'artwork/:id' : 'artwork'
+    'artworks/:id': 'redirectToArtwork'
+</code></pre>
 
-<h2 id="urls-r-4-ever">URLs R 4 Ever</h2>
+<a name="URLs.R.4.Ever"></a>
+<h2>URLs R 4 Ever</h2>
 
-<p>Dan Webb’s assertion that <a href="http://danwebb.net/2011/5/28/it-is-about-the-hashbangs">URLs are forever</a> is correct,
-but so is Isaac Asimov’s statement on change. You can’t predict the future.
+<p>Dan Webb's assertion that <a href="http://danwebb.net/2011/5/28/it-is-about-the-hashbangs">URLs are forever</a> is correct,
+but so is Isaac Asimov's statement on change. You can't predict the future.
 You make decisions based on the best data you have at the time. We started our app with hashtag routing
 in early 2011 and added the ! around five months later (about the same time Dan Webb wrote his post).
-Had we started Artsy today, even six months ago, I’m confident we would have enabled Backbone’s pushState routing.
-There’s no need to look back. The future is here and its URLs are #! free!</p>
+Had we started Artsy today, even six months ago, I'm confident we would have enabled Backbone's pushState routing.
+There's no need to look back. The future is here and its URLs are #! free!</p>
 
-<h3 id="footnotes">Footnotes</h3>
+<a name="Footnotes"></a>
+<h3>Footnotes</h3>
 
 <ul>
-  <li><a href="http://documentcloud.github.com/backbone">Backbone.js</a></li>
-  <li><a href="https://developers.google.com/webmasters/ajax-crawling/docs/getting-started">Google offers #! to aid the crawlability of AJAX hash routed applications</a></li>
-  <li><a href="http://caniuse.com/#feat=history">Browser support for the HTML5 History API (aka pushState)</a></li>
-  <li><a href="http://www.adequatelygood.com/2011/2/Thoughts-on-the-Hashbang">Twitter advocates #!</a></li>
-  <li><a href="http://danwebb.net/2011/5/28/it-is-about-the-hashbangs">Dan Webb’s critique <em>It’s About the Hashbangs</em></a></li>
-  <li><a href="http://engineering.twitter.com/2012/05/improving-performance-on-twittercom.html">Twitter ditches #!</a></li>
+<li><a href="http://documentcloud.github.com/backbone">Backbone.js</a></li>
+<li><a href="https://developers.google.com/webmasters/ajax-crawling/docs/getting-started">Google offers #! to aid the crawlability of AJAX hash routed applications</a></li>
+<li><a href="http://caniuse.com/#feat=history">Browser support for the HTML5 History API (aka pushState)</a></li>
+<li><a href="http://www.adequatelygood.com/2011/2/Thoughts-on-the-Hashbang">Twitter advocates #!</a></li>
+<li><a href="http://danwebb.net/2011/5/28/it-is-about-the-hashbangs">Dan Webb's critique <em>It's About the Hashbangs</em></a></li>
+<li><a href="http://engineering.twitter.com/2012/05/improving-performance-on-twittercom.html">Twitter ditches #!</a></li>
 </ul>
+
 
 <hr />
 
-<p><em>Editor’s Note: This post has been updated as part of an effort to adopt more inclusive language across Artsy’s
+<p><em>Editor's Note: This post has been updated as part of an effort to adopt more inclusive language across Artsy's
 GitHub repositories and editorial content (<a href="https://github.com/artsy/README/issues/427">RFC</a>).</em></p>
 ]]></content>
   </entry>

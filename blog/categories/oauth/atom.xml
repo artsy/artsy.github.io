@@ -4,7 +4,7 @@
   <title><![CDATA[Category: oauth | Artsy Engineering]]></title>
   <link href="https://artsy.github.io/blog/categories/oauth/atom.xml" rel="self"/>
   <link href="https://artsy.github.io/"/>
-  <updated>2022-04-12T00:53:51+00:00</updated>
+  <updated>2022-04-12T00:57:35+00:00</updated>
   <id>https://artsy.github.io/</id>
   <author>
     <name><![CDATA[]]></name>
@@ -18,17 +18,17 @@
     <link href="https://artsy.github.io/blog/2018/11/28/artsy-auth/"/>
     <updated>2018-11-28T00:00:00+00:00</updated>
     <id>https://artsy.github.io/blog/2018/11/28/artsy-auth</id>
-    <content type="html"><![CDATA[<p>Hi! Let’s talk a little bit about user authentication. We’ll discuss it through the context of authentication
-within Artsy’s ecosystem of applications, but ideally the same concepts will translate into other systems as well.
+    <content type="html"><![CDATA[<p>Hi! Let's talk a little bit about user authentication. We'll discuss it through the context of authentication
+within Artsy's ecosystem of applications, but ideally the same concepts will translate into other systems as well.
 The goal here is to build an understanding of (1) what exactly authentication is, (2) how it works, and (3) how to
-use artsy’s specific infrastructure to delegate authentication for a new application to the existing ecosystem.</p>
+use artsy's specific infrastructure to delegate authentication for a new application to the existing ecosystem.</p>
 
 <p>There are two primary authentication flows that we use at Artsy. We support <em>user authentication</em> through
 <a href="https://oauth.net/2/">OAuth</a> to allow users to log into our applications by delegating authentication to Gravity,
 our primarily application API. Alternately, we support <em>app authentication</em> for those cases where an application
-will only be called by other applications. We don’t care about user authentication in this context, there’s no need
-to redirect to a login screen etc - we just need to establish permissions between services. In both cases you’ll be
-working with <a href="https://jwt.io/introduction/">JSON Web Tokens (JWTs)</a>, and the difference is how the token you’re
+will only be called by other applications. We don't care about user authentication in this context, there's no need
+to redirect to a login screen etc - we just need to establish permissions between services. In both cases you'll be
+working with <a href="https://jwt.io/introduction/">JSON Web Tokens (JWTs)</a>, and the difference is how the token you're
 looking at is generated.</p>
 
 <p>User authentication happens at login - when the user provides their credentials to our server, our server confirms
@@ -38,83 +38,87 @@ about that user.</p>
 <p>App authentication, by contrast, all gets done in advance. We create the token manually, and share it with whatever
 application we want to grant access to.</p>
 
-<p>In this document we’ll first develop an understanding of what OAuth is and how it works. Then we’ll examine the
-tokens we’re using to get a better sense of what kind of information we have to work with. Finally, we’ll go into
-how to set up authentication for users and for applications, building on the knowledge we’ve established.</p>
+<p>In this document we'll first develop an understanding of what OAuth is and how it works. Then we'll examine the
+tokens we're using to get a better sense of what kind of information we have to work with. Finally, we'll go into
+how to set up authentication for users and for applications, building on the knowledge we've established.</p>
 
 <!-- more -->
 
-<h3 id="oauth">OAuth</h3>
 
-<p>OAuth is a paradigm that allows one service to delegate authentication to another one. You’ve probably used this
-before, even if you don’t realize it. Whenever you use your
+<a name="OAuth"></a>
+<h3>OAuth</h3>
+
+<p>OAuth is a paradigm that allows one service to delegate authentication to another one. You've probably used this
+before, even if you don't realize it. Whenever you use your
 <a href="https://developer.twitter.com/en/docs/basics/authentication/overview/oauth.html">Twitter account to log in to Medium</a>,
 or your <a href="https://developers.facebook.com/docs/facebook-login/web/">Facebook account to log in to Tinder</a>, or
-whatever, you’re relying on delegated authentication. Medium doesn’t have to know much about who you are as long as
+whatever, you're relying on delegated authentication. Medium doesn't have to know much about who you are as long as
 they can trust Twitter to tell them, etc.</p>
 
-<p>We use a similar approach here at Artsy. We’ve got dozens of applications, some outward-facing, some internal only.
-If every single application had to handle its own authentication then we’d have user objects stored all over the
-place and we’d be constantly trying to figure out if User 123 on service A is the same person as User 321 on
+<p>We use a similar approach here at Artsy. We've got dozens of applications, some outward-facing, some internal only.
+If every single application had to handle its own authentication then we'd have user objects stored all over the
+place and we'd be constantly trying to figure out if User 123 on service A is the same person as User 321 on
 service B, etc, right? So instead we delegate authentication to a single core service which we call Gravity.
-Gravity is Artsy’s core API, and therefore is the canonical source of truth for user information.</p>
+Gravity is Artsy's core API, and therefore is the canonical source of truth for user information.</p>
 
 <p>So at a high level, OAuth works like this:</p>
 
 <ol>
-  <li>An HTTP request is sent to your server.</li>
-  <li>Your server checks for the presence of an <code class="language-plaintext highlighter-rouge">Authorization</code> HTTP header.</li>
-  <li>If it cannot find one, your server redirects the request to login through Gravity.</li>
-  <li>If the user logs in through Gravity, Gravity gathers a bunch of information about that user, cryptographically
-signs it, and gives it to the user to give your server by adding the token string to the user’s <code class="language-plaintext highlighter-rouge">Authorization</code>
+<li>An HTTP request is sent to your server.</li>
+<li>Your server checks for the presence of an <code>Authorization</code> HTTP header.</li>
+<li>If it cannot find one, your server redirects the request to login through Gravity.</li>
+<li>If the user logs in through Gravity, Gravity gathers a bunch of information about that user, cryptographically
+signs it, and gives it to the user to give your server by adding the token string to the user's <code>Authorization</code>
 header.</li>
-  <li>The user is then redirected back to your server, this time with the header that represents your access token.</li>
-  <li>Our access tokens are JWTs (they don’t have to be - OAuth works with a simpler payload if you want - but by
+<li>The user is then redirected back to your server, this time with the header that represents your access token.</li>
+<li>Our access tokens are JWTs (they don't have to be - OAuth works with a simpler payload if you want - but by
 using JWTs we are able to include additional information in the payload.) so we can verify the key by decrypting
 the signature in the JWT using a key that your server shares with Gravity.</li>
-  <li>If that private key works and the header is decrypted, you can trust the information inside the JWT</li>
+<li>If that private key works and the header is decrypted, you can trust the information inside the JWT</li>
 </ol>
 
-<p>There’s a slight difference in authenticating a <em>user</em> and authenticating a <em>trusted application</em>, as discussed
-above. If our incoming request was generated by another Artsy service then we don’t redirect anyone to gravity for
+
+<p>There's a slight difference in authenticating a <em>user</em> and authenticating a <em>trusted application</em>, as discussed
+above. If our incoming request was generated by another Artsy service then we don't redirect anyone to gravity for
 login - rather, we manually create the token in advance, and store it. Once this is set up, the above process exits
-after step 2. But for now, let’s continue looking at how user authentication works, because it’s important to
-understand the whole system. We’ll circle back to app authentication at the end.</p>
+after step 2. But for now, let's continue looking at how user authentication works, because it's important to
+understand the whole system. We'll circle back to app authentication at the end.</p>
 
 <p>So!</p>
 
 <p>Think about it this way: when the user is redirected to Gravity for login, Gravity gathers up a bunch of
-information about who this user is. What’s their user ID? What roles has their account been assigned? It lumps
+information about who this user is. What's their user ID? What roles has their account been assigned? It lumps
 these together to create a JWT, which is a short statement of identity verification. It sticks this JWT into the
-user’s headers - conceptually, think of this as a legal document or a letter of introduction - “The bearer of this
-document is User 123. Sincerely, Gravity.”</p>
+user's headers - conceptually, think of this as a legal document or a letter of introduction - "The bearer of this
+document is User 123. Sincerely, Gravity."</p>
 
-<p>In fact, with OAuth the full header looks like this: <code class="language-plaintext highlighter-rouge">Authorization: Bearer &lt;Signed JWT&gt;</code></p>
+<p>In fact, with OAuth the full header looks like this: <code>Authorization: Bearer &lt;Signed JWT&gt;</code></p>
 
-<p>So, what’s in that JWT? That’s a great question! First, let’s talk briefly about how encryption works just to make
-sure we’re all on the same page about how we sign JWTs. Then we’ll dig into our JWTs and how to use them to
+<p>So, what's in that JWT? That's a great question! First, let's talk briefly about how encryption works just to make
+sure we're all on the same page about how we sign JWTs. Then we'll dig into our JWTs and how to use them to
 provision access to parts of our applications.</p>
 
-<h4 id="shared-secret">Shared Secret</h4>
+<a name="Shared.Secret"></a>
+<h4>Shared Secret</h4>
 
 <p>This document is not a guide to encryption, but a basic understanding of private key encryption is helpful to
-understand how this stuff works. Let’s say you have some message <code class="language-plaintext highlighter-rouge">MSG</code> and you want to encrypt it. You can use some
-random secret key, let’s call it <code class="language-plaintext highlighter-rouge">ABC</code>, to encrypt your message. There are a number of ways to do this, let’s not
-worry about the implementation - assume that you have access to a function called <code class="language-plaintext highlighter-rouge">encrypt(message, secret)</code>. So if
-we want to encrypt our message, we can say <code class="language-plaintext highlighter-rouge">encrypt(MSG, ABC)</code> and we’ll get back a string of meaningless
-characters, let’s call it <code class="language-plaintext highlighter-rouge">ENC</code>. The key here is that there also exists a function <code class="language-plaintext highlighter-rouge">decrypt(encrypted, secret)</code>,
+understand how this stuff works. Let's say you have some message <code>MSG</code> and you want to encrypt it. You can use some
+random secret key, let's call it <code>ABC</code>, to encrypt your message. There are a number of ways to do this, let's not
+worry about the implementation - assume that you have access to a function called <code>encrypt(message, secret)</code>. So if
+we want to encrypt our message, we can say <code>encrypt(MSG, ABC)</code> and we'll get back a string of meaningless
+characters, let's call it <code>ENC</code>. The key here is that there also exists a function <code>decrypt(encrypted, secret)</code>,
 such that as long as the secret is the same will convert your encrypted string back into its original state.
-<code class="language-plaintext highlighter-rouge">decrypt(ENC, ABC) === MSG</code></p>
+<code>decrypt(ENC, ABC) === MSG</code></p>
 
 <p>This is basically how security works on much of the internet, with various twists that optimize for different
 things depending on what exactly is being secured and from whom. If you want to send a message out into the world
 but you only want a specific person to be able to read it, you can encrypt it with your secret and then share the
 secret with only those people that you want to allow to read your message.</p>
 
-<p>This is what’s going on with our <code class="language-plaintext highlighter-rouge">Authorization</code> token. Gravity generates a JWT which encodes some facts about the
+<p>This is what's going on with our <code>Authorization</code> token. Gravity generates a JWT which encodes some facts about the
 user or application under discussion. It then signs that JWT using a secret key, and attaches the signed token to
-the HTTP request using the <code class="language-plaintext highlighter-rouge">Authorization</code> header. You’ve got that same secret key in your application. This allows
-your app to verify the signature of the <code class="language-plaintext highlighter-rouge">Authorization</code> token and get at the JWT that it contains.</p>
+the HTTP request using the <code>Authorization</code> header. You've got that same secret key in your application. This allows
+your app to verify the signature of the <code>Authorization</code> token and get at the JWT that it contains.</p>
 
 <p>Note: the JWT itself is not encrypted. Anyone can copy the JWT string and drop it into a <a href="https://jwt.io">decoder</a>.
 Do not put anything sensitive into your JWT. Just put basic facts about the user. The encryption is just used to
@@ -122,12 +126,13 @@ sign it - you create an encrypted signature that can only be read by someone els
 This allows them to verify that the token was created by a trusted source - but the token payload is always
 visible.</p>
 
-<p>Let’s dig a little bit deeper into what exactly JWTs are and how they work.</p>
+<p>Let's dig a little bit deeper into what exactly JWTs are and how they work.</p>
 
-<h3 id="jwt-details">JWT Details</h3>
+<a name="JWT.Details"></a>
+<h3>JWT Details</h3>
 
 <p>A JWT (or JSON Web Token) has three components. Each is a base-64 encoded string containing some information. The
-first part is the header - when you decode this back into a standard string you’ll see that it just describes the
+first part is the header - when you decode this back into a standard string you'll see that it just describes the
 mechanisms whereby the token was generated, which allows a reader to decode it. The second is a small JSON object
 that stores information about some subject. It has a small set of pre-defined fields, some of which we use, as well
 as support for arbitrary custom fields. The third part is the signature - anyone who has the secret key can decode
@@ -135,177 +140,183 @@ the signature, which allows them to know for sure that the JWT was created by so
 key.</p>
 
 <p>Parts 1 and 3 are infrastructure - they tell a reader how to decode and verify the authenticity of a token. Part 2
-is the actual payload, where relevant information gets stored. We don’t really have to worry too much about 1 and
-3 - those parts get handled for us through the libraries we’re using. But let’s look a little closer at part 2.</p>
+is the actual payload, where relevant information gets stored. We don't really have to worry too much about 1 and
+3 - those parts get handled for us through the libraries we're using. But let's look a little closer at part 2.</p>
 
 <p>When Gravity generates a JWT for a user it
 <a href="https://github.com/artsy/gravity/blob/master/app/models/util/user_trust.rb#L29-L34">specifies four fields 🔒</a>:</p>
 
 <ol>
-  <li><code class="language-plaintext highlighter-rouge">sub</code> is part of the JWT spec and is short for <code class="language-plaintext highlighter-rouge">subject</code> - this encodes the subject of the token, in other words
-the user on whose behalf it’s been generated.</li>
-  <li><code class="language-plaintext highlighter-rouge">salt_hash</code> is a unique identifier for the given user with the given password within the gravity context.</li>
-  <li><code class="language-plaintext highlighter-rouge">roles</code> is a string representing a comma-delimited list of the roles that the user has within the Artsy
+<li><code>sub</code> is part of the JWT spec and is short for <code>subject</code> - this encodes the subject of the token, in other words
+the user on whose behalf it's been generated.</li>
+<li><code>salt_hash</code> is a unique identifier for the given user with the given password within the gravity context.</li>
+<li><code>roles</code> is a string representing a comma-delimited list of the roles that the user has within the Artsy
 authentication structure.</li>
-  <li><code class="language-plaintext highlighter-rouge">partner_ids</code> holds references to any Partner objects to which the user has access.</li>
+<li><code>partner_ids</code> holds references to any Partner objects to which the user has access.</li>
 </ol>
+
 
 <p>When Gravity generates a JWT for an application, on the other hand, it
 <a href="https://github.com/artsy/gravity/blob/master/app/models/util/application_trust.rb#L14">only specifies roles 🔒</a>.
 There is no subject - the fact that it was encoded using a secret relevant to our application is sufficient grounds
-to know that it’s about our application. Does that make sense? We don’t need to specify a subject because if it was
-generated for any other application we’d never be able to decrypt it. So we just need to know what roles this
+to know that it's about our application. Does that make sense? We don't need to specify a subject because if it was
+generated for any other application we'd never be able to decrypt it. So we just need to know what roles this
 application has been granted.</p>
 
 <p>So when we decode the JWT in our application we get either a token that represents a trusted user or a token that
 represents a trusted application. We need to know what to do with this JWT next, but before we do that we need to
 set up our shared secrets so that our new app can verify the authenticity of decoded tokens.</p>
 
-<p>Again, to reiterate: a JWT is not encrypted. It’s publicly readable. Do not put anything too sensitive into your
+<p>Again, to reiterate: a JWT is not encrypted. It's publicly readable. Do not put anything too sensitive into your
 JWTs.</p>
 
-<p>If you’d like to learn more about how Artsy thinks about and uses JWTs you can read
+<p>If you'd like to learn more about how Artsy thinks about and uses JWTs you can read
 <a href="http://artsy.github.io/blog/2016/10/26/jwt-artsy-journey/">this blog post</a></p>
 
-<h3 id="generating-secret-keys">Generating Secret Keys</h3>
+<a name="Generating.Secret.Keys"></a>
+<h3>Generating Secret Keys</h3>
 
 <p>So now we understand that our application is going to receive cryptographically signed JWTs from Gravity, and we
 know that in theory as long as we have the same secret string that Gravity is using we should be able to verify
 that these JWTs are trusted. But how do we share that secret?</p>
 
 <p>Through brute force banality: we copy the secret from Gravity into an environment variable in our application.
-First let’s talk about how to generate the secret string on the gravity side, then we’ll talk about how to set up
+First let's talk about how to generate the secret string on the gravity side, then we'll talk about how to set up
 the application to use it. Note that we can allow Users to access our application via the first step here, but if
 we want to allow access to trusted applications we need to use a second step, below.</p>
 
-<h4 id="create-a-clientapplication">Create a ClientApplication</h4>
+<a name="Create.a.ClientApplication"></a>
+<h4>Create a ClientApplication</h4>
 
-<p>The first thing we need to do is gain access to a Gravity console so that we can create a <code class="language-plaintext highlighter-rouge">ClientApplication</code>
+<p>The first thing we need to do is gain access to a Gravity console so that we can create a <code>ClientApplication</code>
 instance. Gravity keeps track of every application for which it handles authentication, and it models them as
-instances of the <code class="language-plaintext highlighter-rouge">ClientApplication</code> model. So if we’re creating something called fooapp, we would have to do
-something like this (this part of this essay is specific to Artsy’s implementation details):</p>
+instances of the <code>ClientApplication</code> model. So if we're creating something called fooapp, we would have to do
+something like this (this part of this essay is specific to Artsy's implementation details):</p>
 
-<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  <span class="err">$</span> <span class="n">hokusai</span> <span class="n">staging</span> <span class="n">run</span> <span class="o">--</span><span class="n">tty</span> <span class="s1">'rails c'</span>
-  <span class="n">gravity</span><span class="ss">:staging</span><span class="o">&gt;</span> <span class="n">ca</span> <span class="o">=</span> <span class="no">ClientApplication</span><span class="p">.</span><span class="nf">create!</span><span class="p">(</span><span class="ss">name: </span><span class="s1">'fooapp'</span><span class="p">,</span> <span class="ss">access_granted: </span><span class="kp">true</span><span class="p">,</span> <span class="ss">roles: </span><span class="p">[</span><span class="s1">'artsy'</span><span class="p">],</span> <span class="ss">redirect_urls: </span><span class="p">[</span><span class="s1">'http://localhost:5000'</span><span class="p">,</span><span class="s1">'https://fooapp-staging.artsy.net'</span><span class="p">])</span>
-  <span class="o">=&gt;</span> <span class="c1">#&lt;ClientApplication _id: 5bcf482dc95e4c0007bffeb7, created_at: 2018-10-23 16:11:25 UTC, updated_at: 2018-10-23 16:11:25 UTC, name: "fooapp", api_version: nil, app_id: "02a971b9401a317bf815", app_secret: "8b7d9b597428254f9305544b8cd4d710", internal_secret: "a111805fdfe2bb63b077ff65b71ebcd9", access_granted: true, redirect_urls: ["https://mydomain.artsy.net"], published_artworks_access_granted: false, roles: ["artsy"], user_id: nil&gt;</span>
-</code></pre></div></div>
+<pre><code class="ruby">  $ hokusai staging run --tty 'rails c'
+  gravity:staging&gt; ca = ClientApplication.create!(name: 'fooapp', access_granted: true, roles: ['artsy'], redirect_urls: ['http://localhost:5000','https://fooapp-staging.artsy.net'])
+  =&gt; #&lt;ClientApplication _id: 5bcf482dc95e4c0007bffeb7, created_at: 2018-10-23 16:11:25 UTC, updated_at: 2018-10-23 16:11:25 UTC, name: "fooapp", api_version: nil, app_id: "02a971b9401a317bf815", app_secret: "8b7d9b597428254f9305544b8cd4d710", internal_secret: "a111805fdfe2bb63b077ff65b71ebcd9", access_granted: true, redirect_urls: ["https://mydomain.artsy.net"], published_artworks_access_granted: false, roles: ["artsy"], user_id: nil&gt;
+</code></pre>
 
-<p>Real quick, we passed a few important arguments into that <code class="language-plaintext highlighter-rouge">create!</code> method - we named our ClientApplication, we
+<p>Real quick, we passed a few important arguments into that <code>create!</code> method - we named our ClientApplication, we
 specified that we want to enable access to it, we gave it a role and we set a few redirect_urls - these are OAuth
-specific arguments that allow Gravity to redirect the user back to our app after they’ve authenticated (step 5
+specific arguments that allow Gravity to redirect the user back to our app after they've authenticated (step 5
 above).</p>
 
 <p>(note we allow redirects to two urls, our staging instance and a local instance. A common workflow is to do local
 dev while pointing at the staging gravity instance - by allowing redirects to localhost in our ClientApplication
-we’re allowing Gravity to support developers running their application locally in development.)</p>
+we're allowing Gravity to support developers running their application locally in development.)</p>
 
-<p>Once this client application has been created it’s going to be used to generate a secret. There are two fields in
-the ClientApplication that we’re going to need - <code class="language-plaintext highlighter-rouge">app_id</code> and <code class="language-plaintext highlighter-rouge">app_secret</code>. These combine to create the secret key
+<p>Once this client application has been created it's going to be used to generate a secret. There are two fields in
+the ClientApplication that we're going to need - <code>app_id</code> and <code>app_secret</code>. These combine to create the secret key
 that Gravity is going to use to sign our JWT, so we need to make sure that our app has access to these two values.</p>
 
-<p>Go back to your app, open <code class="language-plaintext highlighter-rouge">_config.rb</code> and add the following:</p>
+<p>Go back to your app, open <code>_config.rb</code> and add the following:</p>
 
-<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  <span class="n">config</span><span class="p">.</span><span class="nf">app_id</span><span class="o">=</span><span class="no">ENV</span><span class="p">[</span><span class="s1">'APP_ID'</span><span class="p">]</span>
-  <span class="n">config</span><span class="p">.</span><span class="nf">app_secret</span><span class="o">=</span><span class="no">ENV</span><span class="p">[</span><span class="s1">'APP_SECRET'</span><span class="p">]</span>
-  <span class="n">config</span><span class="p">.</span><span class="nf">gravity_url</span><span class="o">=</span><span class="no">ENV</span><span class="p">[</span><span class="s1">'GRAVITY_URL'</span><span class="p">]</span>
-</code></pre></div></div>
+<pre><code class="ruby">  config.app_id=ENV['APP_ID']
+  config.app_secret=ENV['APP_SECRET']
+  config.gravity_url=ENV['GRAVITY_URL']
+</code></pre>
 
-<p>Then in your <code class="language-plaintext highlighter-rouge">.env</code> file (or however you’re managing environment variables) go ahead and set
-<code class="language-plaintext highlighter-rouge">APP_ID=02a971b9401a317bf815</code>, <code class="language-plaintext highlighter-rouge">APP_SECRET=8b7d9b597428254f9305544b8cd4d710</code> and
-<code class="language-plaintext highlighter-rouge">GRAVITY_URL=https://staging-api.artsy.net</code>. These values can now be accessed from <code class="language-plaintext highlighter-rouge">yourapp.config.app_id</code>,
-<code class="language-plaintext highlighter-rouge">yourapp.config.app_secret</code> and <code class="language-plaintext highlighter-rouge">yourapp.config.gravity_url</code> - we’re going to need these values to configure
+<p>Then in your <code>.env</code> file (or however you're managing environment variables) go ahead and set
+<code>APP_ID=02a971b9401a317bf815</code>, <code>APP_SECRET=8b7d9b597428254f9305544b8cd4d710</code> and
+<code>GRAVITY_URL=https://staging-api.artsy.net</code>. These values can now be accessed from <code>yourapp.config.app_id</code>,
+<code>yourapp.config.app_secret</code> and <code>yourapp.config.gravity_url</code> - we're going to need these values to configure
 ArtsyAuth in our new application.</p>
 
 <p>This is enough, then, to enable user authentication! If we want to create application authentication we need to
 take one more step.</p>
 
-<h4 id="create-a-jwt-for-application-trust">Create a JWT for Application Trust</h4>
+<a name="Create.a.JWT.for.Application.Trust"></a>
+<h4>Create a JWT for Application Trust</h4>
 
 <p>For users, JWTs are generated when they log in. But if we are trying to send HTTP requests from barapp to fooapp
-we’ve established that no login is going to take place - so how does barapp get the JWT it needs to authenticate
-against our fooapp? We’re going to create it manually and store it in barapp’s environment. Let’s go back to our
-Gravity console session - make sure <code class="language-plaintext highlighter-rouge">ca</code> is still defined. If you closed the session then before running the next
-code you should get a reference to that client application. <code class="language-plaintext highlighter-rouge">ca = ClientApplication.where(name: 'fooapp').first</code>
+we've established that no login is going to take place - so how does barapp get the JWT it needs to authenticate
+against our fooapp? We're going to create it manually and store it in barapp's environment. Let's go back to our
+Gravity console session - make sure <code>ca</code> is still defined. If you closed the session then before running the next
+code you should get a reference to that client application. <code>ca = ClientApplication.where(name: 'fooapp').first</code>
 should do it. Then:</p>
 
-<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  <span class="n">gravity</span><span class="ss">:staging</span><span class="o">&gt;</span> <span class="n">expires_in</span> <span class="o">=</span> <span class="mi">10</span><span class="p">.</span><span class="nf">years</span><span class="p">.</span><span class="nf">from_now</span>
-  <span class="n">gravity</span><span class="ss">:staging</span><span class="o">&gt;</span> <span class="n">token</span> <span class="o">=</span> <span class="no">ApplicationTrust</span><span class="p">.</span><span class="nf">create_for_token_authentication</span><span class="p">(</span><span class="n">ca</span><span class="p">,</span> <span class="ss">expires_in: </span><span class="n">expires_in</span><span class="p">)</span>
-</code></pre></div></div>
+<pre><code class="ruby">  gravity:staging&gt; expires_in = 10.years.from_now
+  gravity:staging&gt; token = ApplicationTrust.create_for_token_authentication(ca, expires_in: expires_in)
+</code></pre>
 
 <p>This should generate a long string that it dumps to the console. Congratulations - that string is your JWT. Any
-http request with the header <code class="language-plaintext highlighter-rouge">Authorization: Bearer &lt;JWT&gt;</code> will now be accepted by fooapp.</p>
+http request with the header <code>Authorization: Bearer &lt;JWT&gt;</code> will now be accepted by fooapp.</p>
 
-<p>So to use this JWT, we copy the string into barapp’s environment - often with a second environment variable for the
-specific host we want to connect to. So in barapp you’d have environment variables like <code class="language-plaintext highlighter-rouge">FOO_JWT=&lt;string&gt;</code> and
-<code class="language-plaintext highlighter-rouge">FOO_HOST=http://fooapp.artsy.net</code> or <code class="language-plaintext highlighter-rouge">FOO_HOST=http://fooapp-staging.artsy.net</code> or whatever. (We store the host as
+<p>So to use this JWT, we copy the string into barapp's environment - often with a second environment variable for the
+specific host we want to connect to. So in barapp you'd have environment variables like <code>FOO_JWT=&lt;string&gt;</code> and
+<code>FOO_HOST=http://fooapp.artsy.net</code> or <code>FOO_HOST=http://fooapp-staging.artsy.net</code> or whatever. (We store the host as
 an environment variable rather than having it in the code precisely so that we can target specific instances of the
 application depending on the desired context).</p>
 
-<p>Somewhere in barapp we’ll have a service that sends HTTP requests to fooapp - we just have to make sure that those
-requests have the authorization header with the correct signed token, and bam! We’re authenticated!</p>
+<p>Somewhere in barapp we'll have a service that sends HTTP requests to fooapp - we just have to make sure that those
+requests have the authorization header with the correct signed token, and bam! We're authenticated!</p>
 
-<p>So now it’s time to put it all together - we know how to generate tokens, we know how to attach them to requests as
+<p>So now it's time to put it all together - we know how to generate tokens, we know how to attach them to requests as
 authorization headers, and we know how to decrypt them locally in fooapp. So now what? What do we do with those
-tokens once we have them? That’s where a useful library called ArtsyAuth comes in, at least if you’re writing a
+tokens once we have them? That's where a useful library called ArtsyAuth comes in, at least if you're writing a
 Ruby on Rails application here at Artsy.</p>
 
-<h3 id="artsyauth">ArtsyAuth</h3>
+<a name="ArtsyAuth"></a>
+<h3>ArtsyAuth</h3>
 
-<p>We’ve seen now how OAuth uses JWTs and private-key encryption to allow one service to vouch for a user to another
-service. But that’s not quite enough - in our application, it’s nice that we now have user data that we trust, but
+<p>We've seen now how OAuth uses JWTs and private-key encryption to allow one service to vouch for a user to another
+service. But that's not quite enough - in our application, it's nice that we now have user data that we trust, but
 what do we do with it? How do we configure our application to allow trusted users? Come to think of it, where do we
 actually redirect unauthenticated users back to gravity to log in? OAuth is historically complex to set up
 correctly, but fortunately ArtsyAuth is here to help. It abstracts out most of the OAuth complexity for us,
-allowing us to focus on writing logic for what to do based on the JWT’s actual values.</p>
+allowing us to focus on writing logic for what to do based on the JWT's actual values.</p>
 
-<p>A simple ruby gem that handles all of this for you. Just <code class="language-plaintext highlighter-rouge">bundle add artsy-auth</code> and then create
-<code class="language-plaintext highlighter-rouge">config/initializers/artsy_auth.rb</code>. It should look something like this:</p>
+<p>A simple ruby gem that handles all of this for you. Just <code>bundle add artsy-auth</code> and then create
+<code>config/initializers/artsy_auth.rb</code>. It should look something like this:</p>
 
-<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  <span class="no">ArtsyAuth</span><span class="p">.</span><span class="nf">configure</span> <span class="k">do</span> <span class="o">|</span><span class="n">config</span><span class="o">|</span>
-    <span class="n">config</span><span class="p">.</span><span class="nf">artsy_api_url</span> <span class="o">=</span> <span class="no">Osmosis</span><span class="p">.</span><span class="nf">config</span><span class="p">.</span><span class="nf">gravity_url</span> <span class="c1"># required</span>
-    <span class="n">config</span><span class="p">.</span><span class="nf">application_id</span> <span class="o">=</span> <span class="no">Osmosis</span><span class="p">.</span><span class="nf">config</span><span class="p">.</span><span class="nf">app_id</span> <span class="c1"># required</span>
-    <span class="n">config</span><span class="p">.</span><span class="nf">application_secret</span> <span class="o">=</span> <span class="no">Osmosis</span><span class="p">.</span><span class="nf">config</span><span class="p">.</span><span class="nf">app_secret</span> <span class="c1"># required</span>
-  <span class="k">end</span>
-</code></pre></div></div>
+<pre><code class="ruby">  ArtsyAuth.configure do |config|
+    config.artsy_api_url = Osmosis.config.gravity_url # required
+    config.application_id = Osmosis.config.app_id # required
+    config.application_secret = Osmosis.config.app_secret # required
+  end
+</code></pre>
 
-<p>Then, you include it in your application controller –</p>
+<p>Then, you include it in your application controller --</p>
 
-<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">class</span> <span class="nc">ApplicationController</span> <span class="o">&lt;</span> <span class="no">ActionController</span><span class="o">::</span><span class="no">Base</span>
-  <span class="c1"># Prevent CSRF attacks by raising an exception.</span>
-  <span class="n">protect_from_forgery</span> <span class="ss">with: :exception</span>
+<pre><code class="ruby">class ApplicationController &lt; ActionController::Base
+  # Prevent CSRF attacks by raising an exception.
+  protect_from_forgery with: :exception
 
-  <span class="c1"># This will make sure calls to this controller have proper session data</span>
-  <span class="c1"># if they don't it will redirect them to oauth url and once authenticated</span>
-  <span class="c1"># on successful authentication we'll call authorized_artsy_token?</span>
-  <span class="kp">include</span> <span class="no">ArtsyAuth</span><span class="o">::</span><span class="no">Authenticated</span>
+  # This will make sure calls to this controller have proper session data
+  # if they don't it will redirect them to oauth url and once authenticated
+  # on successful authentication we'll call authorized_artsy_token?
+  include ArtsyAuth::Authenticated
 
-  <span class="k">def</span> <span class="nf">authorized_artsy_token?</span><span class="p">(</span><span class="n">token</span><span class="p">)</span>
-    <span class="no">ArtsyAuthHelper</span><span class="p">.</span><span class="nf">admin?</span> <span class="n">token</span>
-  <span class="k">end</span>
-<span class="k">end</span>
-</code></pre></div></div>
+  def authorized_artsy_token?(token)
+    ArtsyAuthHelper.admin? token
+  end
+end
+</code></pre>
 
-<p>At this point, all you have to do is implement <code class="language-plaintext highlighter-rouge">authorized_artsy_token?</code> in the controller for the view you’re
-trying to protect. In the example above, we’re delegating the logic to the ArtsyAuthHelper’s <code class="language-plaintext highlighter-rouge">.admin?</code> method
-(which checks for the ‘admin’ role in the JWT’s <code class="language-plaintext highlighter-rouge">roles</code> field), but this can do whatever we want. We get a token
+<p>At this point, all you have to do is implement <code>authorized_artsy_token?</code> in the controller for the view you're
+trying to protect. In the example above, we're delegating the logic to the ArtsyAuthHelper's <code>.admin?</code> method
+(which checks for the 'admin' role in the JWT's <code>roles</code> field), but this can do whatever we want. We get a token
 and we return a boolean. If we turn true, then the application can go about its way secure in the knowledge that
 the person using it is allowed to do so. If we return false we either get a 403 or a redirection to Gravity to
 assert our identity.</p>
 
 <p>You can see how rather than checking for the admin role we could, say, check for a specific partner ID - or we
-could restrict access to a specific subset of gravity users by manually checking the <code class="language-plaintext highlighter-rouge">sub</code> field against allowed
-ID’s. Whatever. The point is, we’ve set all of these things up to allow Gravity to tell us details about the entity
-making an incoming request. It’s still up to us to evaluate those details and provision access accordingly.</p>
+could restrict access to a specific subset of gravity users by manually checking the <code>sub</code> field against allowed
+ID's. Whatever. The point is, we've set all of these things up to allow Gravity to tell us details about the entity
+making an incoming request. It's still up to us to evaluate those details and provision access accordingly.</p>
 
-<h2 id="wrapping-up">Wrapping Up</h2>
+<a name="Wrapping.Up"></a>
+<h2>Wrapping Up</h2>
 
-<p>Ideally this document has explained how authentication works at Artsy. We’ve talked about how Gravity encodes user-
+<p>Ideally this document has explained how authentication works at Artsy. We've talked about how Gravity encodes user-
 and application-specific information into JWTs which it cryptographically signs. These JWTs get added to the
-<code class="language-plaintext highlighter-rouge">Authorization</code> header of requests that get sent to our protected service - for users, the JWTs are generated when
+<code>Authorization</code> header of requests that get sent to our protected service - for users, the JWTs are generated when
 they log in, and for trusted applications the JWTs are generated manually in advance, but either way requests end
 up with an Authorization token whose signature can only be verified by an application with access to the secrets
 used to sign it. We create a ClientApplication instance in Gravity specifically to get these secrets. Once we copy
-those secrets to our new application, our new application can decrypt the value of the <code class="language-plaintext highlighter-rouge">Authorization</code> header on
+those secrets to our new application, our new application can decrypt the value of the <code>Authorization</code> header on
 any incoming requests bearing a token generated in Gravity for our application. We then add some logic to our
 controller to determine which parts of the JWT we want to treat as salient for the purposes of access control.</p>
 ]]></content>

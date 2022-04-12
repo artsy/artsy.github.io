@@ -10,6 +10,7 @@ desc 'Builds the site locally'
 task :build do
   puts 'Building site.'
   sh 'PRODUCTION="YES" jekyll build --destination _gh-pages'
+  sh 'PRODUCTION="YES" jekyll build --destination _gh-pages'
 end
 
 namespace :podcast do
@@ -17,7 +18,7 @@ namespace :podcast do
   task :new_episode do
     require 'mp3info'
     require 'pathname'
-    require 'aws-sdk-s3'
+    require 'aws-sdk'
 
     mp3_path = ARGV.last
     file_name = File.basename(mp3_path)

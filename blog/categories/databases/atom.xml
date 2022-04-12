@@ -4,7 +4,7 @@
   <title><![CDATA[Category: databases | Artsy Engineering]]></title>
   <link href="https://artsy.github.io/blog/categories/databases/atom.xml" rel="self"/>
   <link href="https://artsy.github.io/"/>
-  <updated>2022-04-12T00:53:51+00:00</updated>
+  <updated>2022-04-12T00:57:35+00:00</updated>
   <id>https://artsy.github.io/</id>
   <author>
     <name><![CDATA[]]></name>
@@ -21,32 +21,33 @@
     <content type="html"><![CDATA[<p>Email! Electronic mail! What a concept! Like many companies, Artsy has built products on top of email, but this is
 a decision that (like many companies) Artsy periodically regrets. But overall, our email systems work well!</p>
 
-<p>But what about when it doesn’t? Well that’s what today’s blog post is about: what happens when things break and you
-don’t know why?</p>
+<p>But what about when it doesn't? Well that's what today's blog post is about: what happens when things break and you
+don't know why?</p>
 
 <!-- more -->
 
+
 <p>I have learned a lot
 <a href="https://artsy.github.io/blog/2018/05/30/my-first-week-on-call/">since my first on-call shift</a>, but going on call
-still gives me a little stage fright. As I start a shift, I’m on the look-out for things that might break, and soon
-after starting a recent on-call shift, “breaking” is exactly what things did.</p>
+still gives me a little stage fright. As I start a shift, I'm on the look-out for things that might break, and soon
+after starting a recent on-call shift, "breaking" is exactly what things did.</p>
 
 <p><img src="/images/2019-11-07-diagnosing-our-radiation-problems/alert.png" alt="Screenshot of Slack alert" /></p>
 
-<p>We got an automated alert on Slack that one of our email services, code-named “Radiation”, had really high response
+<p>We got an automated alert on Slack that one of our email services, code-named "Radiation", had really high response
 times. We <em>then</em> received an alert that too many requests to Radiation were failing completely. Yikes. The next
 twenty two hours was a deep dive into Heroku, New Relic, Rails, and PostgreSQL, all to isolate the problem and
 produce a solution.</p>
 
-<p>The nice thing about email, as a protocol, is that it’s based on a store-and-forward concept. That means that if a
+<p>The nice thing about email, as a protocol, is that it's based on a store-and-forward concept. That means that if a
 message delivery fails, email servers will try again later (typically with an exponential backoff). SendGrid, our
 email processor, has built their REST API around this same store-and-forward concept. While the Radiation server
-was unresponsive, SendGrid wouldn’t receive successful HTTP responses from the webhook deliveries, so it would
+was unresponsive, SendGrid wouldn't receive successful HTTP responses from the webhook deliveries, so it would
 attempt to re-deliver the failing emails later. Email deliveries would be delayed, but the emails themselves would
 not be dropped. We wasted no time addressing the problem, but we were also confident that once we fixed the issue,
 the data would be okay.</p>
 
-<p>After the alert, Ashkan (Radiation’s point-person) and I communicated with our colleagues (engineers and affected
+<p>After the alert, Ashkan (Radiation's point-person) and I communicated with our colleagues (engineers and affected
 non-engineers) about the problem. With the help of Chung-Yi, we began investigating the immediate problem (with a
 focus on <em>mitigating</em> it, rather than necessarily <em>fixing</em> it). Oh, we tried it all: spinning up more Heroku Dynos
 to handle requests, increasing concurrency on the individual Dynos, restarting Redis and PostgreSQL stores. Each
@@ -59,13 +60,13 @@ prize</em>: mitigation).</p>
 others to avoid expensive joins. Unfortunately, all this accomplished was extending the time after a Dyno reboot
 that things would work (before beginning to timeout again). Because
 <a href="https://artsy.github.io/blog/2017/05/30/database-encryption/">Artsy stores emails as encrypted-at-rest</a>, it was
-difficult to pinpoint which exact message could be causing the timeouts. And Radiation itself didn’t have much in
+difficult to pinpoint which exact message could be causing the timeouts. And Radiation itself didn't have much in
 the way of logging, which would normally help us debug the problem.</p>
 
 <p>It was frustrating to try to fix something but only manage to improve how long it took to break again. We had
-enhanced Radiation’s performance to the point where it was taking 10 minutes after a Dyno reboot to begin timing
+enhanced Radiation's performance to the point where it was taking 10 minutes after a Dyno reboot to begin timing
 out again, up from 30 seconds at the beginning of the incident. Despite an afternoon and evening spent trying to
-fix the problem, we were stuck. We decided that the best course of action was a good night’s sleep; we would ask
+fix the problem, we were stuck. We decided that the best course of action was a good night's sleep; we would ask
 for help in the morning.</p>
 
 <p>The next day, Ashkan and I got <em>up and atom</em> to address the problem. We brought my on-call partner Devon up to
@@ -84,32 +85,32 @@ the open source library <a href="https://github.com/thoughtbot/griddler">Griddle
 contained the problematic code, which was responsible for parsing email responses from threaded replies. So if an
 email body received by Radiation looks like this:</p>
 
-<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>This is the most recent reply in this email conversation.
+<pre><code>This is the most recent reply in this email conversation.
 
 On September 28th, 2019, Someone Else Wrote:
 
 [The rest of the email thread]
-</code></pre></div></div>
+</code></pre>
 
-<p>Then Griddler parses out the string “This is the most recent reply in this email conversation.” for Radiation to
+<p>Then Griddler parses out the string "This is the most recent reply in this email conversation." for Radiation to
 process. This is really important because some of the threads in Radiation are <em>thousands</em> of emails long. In fact,
-I learned that Radiation has Artsy’s largest production database.</p>
+I learned that Radiation has Artsy's largest production database.</p>
 
 <p>Griddler does this processing via regular expressions. Ashkan had the insight to look for existing issues from
 other Griddler users who ran into similar problems, and to our delight,
 <a href="https://github.com/thoughtbot/griddler/pull/310">we found a pull request</a> that appeared to address the <em>exact</em>
 issue that we were having.</p>
 
-<p>It turns out that emails with large amounts of repeated newline characters would totally stall Griddler’s regex.
-Heroku’s router would timeout any request after 30 seconds, but would leave the Ruby code churning on that regex.
+<p>It turns out that emails with large amounts of repeated newline characters would totally stall Griddler's regex.
+Heroku's router would timeout any request after 30 seconds, but would leave the Ruby code churning on that regex.
 That would leave the Rails server unable to respond to subsequent HTTP requests, causing more timeouts. And because
-of email’s store-and-forward nature, SendGrid would begin sending more problematic emails pretty quickly after any
+of email's store-and-forward nature, SendGrid would begin sending more problematic emails pretty quickly after any
 Radiation reboot. A small change to add a regex group was all that was necessary to fix the issue.</p>
 
-<p>Phew! We forked Griddler to Artsy’s GitHub organization and applied the change from the pull request. We were
+<p>Phew! We forked Griddler to Artsy's GitHub organization and applied the change from the pull request. We were
 concerned about security implications of using a different regex, but my
 <a href="https://artsy.github.io/blog/2018/02/06/apogee-technical-retrospective/">previous work in regular expressions</a>
-helped me vet the change. We pointed Radiation’s Gemfile to Artsy’s fork and deployed the change.</p>
+helped me vet the change. We pointed Radiation's Gemfile to Artsy's fork and deployed the change.</p>
 
 <p><img src="/images/2019-11-07-diagnosing-our-radiation-problems/heroku.png" alt="Screenshot of Heroku Dashboard, indicating a drop in load" /></p>
 
@@ -126,9 +127,7 @@ we are.</p>
 
 <p>Ashkan also followed up with peer feedback for Devon, Chung-Yi, and myself. In part, it read:</p>
 
-<blockquote>
-  <p>It’s rare and odd to say dealing with incident was fun, but with your help it actually was productive and fun.</p>
-</blockquote>
+<blockquote><p>It's rare and odd to say dealing with incident was fun, but with your help it actually was productive and fun.</p></blockquote>
 
 <p>Which, honestly? One of my proudest accomplishments at Artsy.</p>
 
