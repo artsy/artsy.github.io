@@ -58,7 +58,7 @@ module Jekyll
     def write_series_indexes
       series_posts = {}
 
-      series = posts.flat_map { |p| p.data["series"] }.compact.uniq
+      series = posts.docs.flat_map { |p| p.data["series"] }.compact.uniq
       series.each do |name|
         safe_name = name.gsub(/_|\P{Word}/, '-').gsub(/-{2,}/, '-').downcase
         path = File.join("series", safe_name)

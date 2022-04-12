@@ -15,4 +15,4 @@ Jump [to YouTube](https://www.youtube.com/watch?v=NErVWhEzIBM) for the video, or
 
 <!-- more -->
 
-{% youtube NErVWhEzIBM %}
+<iframe width="100%" height="400" src="https://www.youtube.com/embed/NErVWhEzIBM" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
