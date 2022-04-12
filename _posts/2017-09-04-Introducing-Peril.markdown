@@ -40,10 +40,6 @@ The guide covers the initial setup, but I'd like to cover the third part of our 
 The Artsy Peril settings are all on [artsy/artsy-danger][artsy-settings]. The Artsy Peril heroku instance has the ENV var
 `"DATABASE_JSON_FILE"` set to `"artsy/artsy-danger@peril.settings.json"`, so Peril will use [that file][settings_json] as the source of truth for all config. Here's what it is today:
 
-</article>
-<article class='split-desktop-only'>
-<div style='flex:1; display: block;'>
-
 ```json
 {
   "settings": {
@@ -71,19 +67,12 @@ The Artsy Peril settings are all on [artsy/artsy-danger][artsy-settings]. The Ar
 }
 ```
 
-</div>
-<div style='flex:1; display: block; padding:0 20px;'>
-
 <p><code>"settings":</code> These settings which conform to today's <a href='https://github.com/danger/peril/blob/752afeb37e3c1fdec512eb91687747d9a8a29337/source/db/index.ts#L26-L31'>GitHubInstallationSettings</a>, here's the <a href='https://github.com/danger/peril/blob/master/source/db/index.ts'>current version</a>. These are org-wide settings
 that require a new deploy of the server to re-create.</p>
 
 <p><code>"rules":</code> These are rules which are applied to every repo that Peril has access to. So in this case, every Pull Request in the org will make Peril run the Dangerfile at <code>"artsy/artsy-danger@org/all-prs.ts"</code>.</p>
 
 <p><code>"repos":</code> These are repo-specific overrides, so a Pull Request to artsy/reaction would trigger both the org-wide Dangerfile, and one on the reaction repo.</p>
-
-</div>
-</article>
-<article class='post'>
 
 ## Events
 

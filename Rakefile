@@ -9,8 +9,7 @@ end
 desc 'Builds the site locally'
 task :build do
   puts 'Building site.'
-  sh 'PRODUCTION="YES" jekyll build --destination _gh-pages'
-  sh 'PRODUCTION="YES" jekyll build --destination _gh-pages'
+  sh 'PRODUCTION="YES" bundle exec jekyll build --destination _gh-pages'
 end
 
 namespace :podcast do
@@ -18,7 +17,7 @@ namespace :podcast do
   task :new_episode do
     require 'mp3info'
     require 'pathname'
-    require 'aws-sdk'
+    require 'aws-sdk-s3'
 
     mp3_path = ARGV.last
     file_name = File.basename(mp3_path)
@@ -117,13 +116,11 @@ task :deploy do
     puts `git pull origin main`
 
     puts 'Creating a commit for the deploy.'
-
-    puts `git ls-files --deleted -z | xargs -0 git rm;`
-    puts `git add .`
+    puts `git add --all`
     puts `git commit -m "[skip ci] Deploy"`
 
     puts 'Pushing to github.'
-    puts `git push --quiet > /dev/null 2>&1`
+    puts `git push`
   end
 end
 
