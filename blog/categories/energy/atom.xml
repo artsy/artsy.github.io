@@ -4,7 +4,7 @@
   <title><![CDATA[Category: energy | Artsy Engineering]]></title>
   <link href="https://artsy.github.io/blog/categories/energy/atom.xml" rel="self"/>
   <link href="https://artsy.github.io/"/>
-  <updated>2022-04-11T23:15:43+00:00</updated>
+  <updated>2022-04-12T00:53:51+00:00</updated>
   <id>https://artsy.github.io/</id>
   <author>
     <name><![CDATA[]]></name>
@@ -21,123 +21,125 @@
     <content type="html"><![CDATA[<p>Like anyone working on a non-trivial app in the iOS world who values their time, we use fastlane. <a href="https://fastlane.tools">fastlane</a> is a suite
 of tools that makes it much simpler to automate the very manual processes provided by Apple for deployment.</p>
 
-<p>We've adopted it in a relatively piece-meal manner in different projects, converting custom in-house code to something
-provided by the gem.  Over time we found what pieces of the suite work for us. <a href="https://github.com/artsy/energy/pull/266">I've adopted another today</a>: <a href="https://github.com/fastlane/fastlane/tree/master/match">match</a>.</p>
+<p>We’ve adopted it in a relatively piece-meal manner in different projects, converting custom in-house code to something 
+provided by the gem.  Over time we found what pieces of the suite work for us. <a href="https://github.com/artsy/energy/pull/266">I’ve adopted another today</a>: <a href="https://github.com/fastlane/fastlane/tree/master/match">match</a>.</p>
 
 <p>match automates setting up your iOS projects for code signing. One of the most arduous orthogonal tasks which every dev team learns and then forgets.</p>
 
-<p>In using match, we have given away a bit of control with code signing, and so this post is going to dig into; what we used
+<p>In using match, we have given away a bit of control with code signing, and so this post is going to dig into; what we used 
 to have, and how it works now with match instead.</p>
 
 <!-- more -->
 
-
 <p>When match came out, I knew this was a 🌟 idea.</p>
 
 <ul>
-<li>Automatically generate the right certificates and keys for your different apps and environments.</li>
-<li>Take all your developer certificates and keys, move them to a central place accessible via private git repos.</li>
-<li>Encrypt all your certs and keys, the team just needs to share one password.</li>
-<li>Migrate all of those keys on both the developer's and CI's computers.</li>
+  <li>Automatically generate the right certificates and keys for your different apps and environments.</li>
+  <li>Take all your developer certificates and keys, move them to a central place accessible via private git repos.</li>
+  <li>Encrypt all your certs and keys, the team just needs to share one password.</li>
+  <li>Migrate all of those keys on both the developer’s and CI’s computers.</li>
 </ul>
 
-
 <p>You can now have a consistent signing setup between how you work, and how your CI runs. After understanding this, I migrated
-Artsy's app store apps to deploy via <a href="https://circleci.com">Circle CI</a>. We initially gave match a shot, but ended up having issues with supporting
+Artsy’s app store apps to deploy via <a href="https://circleci.com">Circle CI</a>. We initially gave match a shot, but ended up having issues with supporting 
 multiple apps. So, I replicated the core ideas in match into our Fastfile. It looked like this:</p>
 
-<pre><code class="ruby">lane :setup_for_app_store do
-  app_name = "eigen"
-  signing_root = "signing"
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">lane</span> <span class="ss">:setup_for_app_store</span> <span class="k">do</span>
+  <span class="n">app_name</span> <span class="o">=</span> <span class="s2">"eigen"</span>
+  <span class="n">signing_root</span> <span class="o">=</span> <span class="s2">"signing"</span>
 
-  `git clone https://github.com/artsy/mobile_code_signing.git #{signing_root}`
+  <span class="sb">`git clone https://github.com/artsy/mobile_code_signing.git </span><span class="si">#{</span><span class="n">signing_root</span><span class="si">}</span><span class="sb">`</span>
 
-  # prints out the codesigning identities
-  system "security find-identity -v -p codesigning"
+  <span class="c1"># prints out the codesigning identities</span>
+  <span class="nb">system</span> <span class="s2">"security find-identity -v -p codesigning"</span>
 
-  # Install the iOS distribution certificate, -A
-  system "security import #{signing_root}/ios_distribution.cer  -k ~/Library/Keychains/login.keychain -A"
+  <span class="c1"># Install the iOS distribution certificate, -A</span>
+  <span class="nb">system</span> <span class="s2">"security import </span><span class="si">#{</span><span class="n">signing_root</span><span class="si">}</span><span class="s2">/ios_distribution.cer  -k ~/Library/Keychains/login.keychain -A"</span>
 
-  # Move our provisioning profile in
-  profile_path = File.expand_path("~") + "/Library/MobileDevice/Provisioning Profiles/"
-  destination = profile_path + "/" + app_name + ".mobileprovision"
-  profile = Dir.glob(signing_root + "/profiles/" + app_name + "/*").first
+  <span class="c1"># Move our provisioning profile in</span>
+  <span class="n">profile_path</span> <span class="o">=</span> <span class="no">File</span><span class="p">.</span><span class="nf">expand_path</span><span class="p">(</span><span class="s2">"~"</span><span class="p">)</span> <span class="o">+</span> <span class="s2">"/Library/MobileDevice/Provisioning Profiles/"</span>
+  <span class="n">destination</span> <span class="o">=</span> <span class="n">profile_path</span> <span class="o">+</span> <span class="s2">"/"</span> <span class="o">+</span> <span class="n">app_name</span> <span class="o">+</span> <span class="s2">".mobileprovision"</span>
+  <span class="n">profile</span> <span class="o">=</span> <span class="no">Dir</span><span class="p">.</span><span class="nf">glob</span><span class="p">(</span><span class="n">signing_root</span> <span class="o">+</span> <span class="s2">"/profiles/"</span> <span class="o">+</span> <span class="n">app_name</span> <span class="o">+</span> <span class="s2">"/*"</span><span class="p">).</span><span class="nf">first</span>
 
-  # Ensure folder exists
-  unless File.directory?(profile_path)
-    FileUtils.mkdir_p(profile_path)
-  end
+  <span class="c1"># Ensure folder exists</span>
+  <span class="k">unless</span> <span class="no">File</span><span class="p">.</span><span class="nf">directory?</span><span class="p">(</span><span class="n">profile_path</span><span class="p">)</span>
+    <span class="no">FileUtils</span><span class="p">.</span><span class="nf">mkdir_p</span><span class="p">(</span><span class="n">profile_path</span><span class="p">)</span>
+  <span class="k">end</span>
 
-  # Migrate it in
-  FileUtils.copy profile, destination
-  puts "Installed Profile"
+  <span class="c1"># Migrate it in</span>
+  <span class="no">FileUtils</span><span class="p">.</span><span class="nf">copy</span> <span class="n">profile</span><span class="p">,</span> <span class="n">destination</span>
+  <span class="nb">puts</span> <span class="s2">"Installed Profile"</span>
 
-  # Install the key
-  key = Dir.glob(signing_root + "/keys/" + app_name + "/*").first
-  system "security import #{key} -k ~/Library/Keychains/login.keychain -P #{ENV['MATCH_PASSWORD']}  -A "
+  <span class="c1"># Install the key</span>
+  <span class="n">key</span> <span class="o">=</span> <span class="no">Dir</span><span class="p">.</span><span class="nf">glob</span><span class="p">(</span><span class="n">signing_root</span> <span class="o">+</span> <span class="s2">"/keys/"</span> <span class="o">+</span> <span class="n">app_name</span> <span class="o">+</span> <span class="s2">"/*"</span><span class="p">).</span><span class="nf">first</span>
+  <span class="nb">system</span> <span class="s2">"security import </span><span class="si">#{</span><span class="n">key</span><span class="si">}</span><span class="s2"> -k ~/Library/Keychains/login.keychain -P </span><span class="si">#{</span><span class="no">ENV</span><span class="p">[</span><span class="s1">'MATCH_PASSWORD'</span><span class="p">]</span><span class="si">}</span><span class="s2">  -A "</span>
 
-  # prints out the codesigning identities
-  system "security find-identity -v -p codesigning"
+  <span class="c1"># prints out the codesigning identities</span>
+  <span class="nb">system</span> <span class="s2">"security find-identity -v -p codesigning"</span>
 
-  # Clean-up
-  `rm -rf #{signing_root}`
-end
-</code></pre>
+  <span class="c1"># Clean-up</span>
+  <span class="sb">`rm -rf </span><span class="si">#{</span><span class="n">signing_root</span><span class="si">}</span><span class="sb">`</span>
+<span class="k">end</span>
+</code></pre></div></div>
 
 <p>Pretty neat, huh? It handles the centralization and migration of certificates. The trade-off against match is:</p>
 
 <ul>
-<li>We continue to maintain our own certificates, keys and provisioning profiles.</li>
-<li>There is no easy way to update these.</li>
-<li>There is tooling which makes it easy to see the state of all the code signing process.</li>
+  <li>We continue to maintain our own certificates, keys and provisioning profiles.</li>
+  <li>There is no easy way to update these.</li>
+  <li>There is tooling which makes it easy to see the state of all the code signing process.</li>
 </ul>
 
-
-<p>A year later, on a project which gets no-where near as much developer attention, I discovered that we had got multiple
+<p>A year later, on a project which gets no-where near as much developer attention, I discovered that we had got multiple 
 parts of the certs, keys and profiles wrong when updating our central repo. So, for <a href="http://folio.artsy.net">this project</a>, I have switched to use match.</p>
 
 <hr />
 
-<a name="So.how.does.it.work.now."></a>
-<h1>So how does it work now?</h1>
+<h1 id="so-how-does-it-work-now">So how does it work now?</h1>
 
-<p>First, I ran <code>bundle exec fastlane appstore</code> and <code>bundle exec fastlane dev</code>.</p>
+<p>First, I ran <code class="language-plaintext highlighter-rouge">bundle exec fastlane appstore</code> and <code class="language-plaintext highlighter-rouge">bundle exec fastlane dev</code>.</p>
 
 <p>This creates the certificates, keys and profiles on iTunes connect and gives you output similar to this:</p>
 
-<pre><code class="sh">
+<div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
 +-----------------------+------------------------------------------------+
-|                        Summary for match 2.25.0                        |
+|                        Summary <span class="k">for </span>match 2.25.0                        |
 +-----------------------+------------------------------------------------+
-| readonly              | true                                           |
+| <span class="nb">readonly</span>              | <span class="nb">true</span>                                           |
 | git_url               | https://github.com/artsy/mobile_fastlane_match |
-| type                  | appstore                                       |
+| <span class="nb">type</span>                  | appstore                                       |
 | git_branch            | master                                         |
 | app_identifier        | sy.art.folio                                   |
 | username              | it@artsymail.com                               |
 | keychain_name         | login.keychain                                 |
 | team_id               | 23KMWZ572J                                     |
 | team_name             | Art.sy Inc.                                    |
-| verbose               | false                                          |
-| force                 | false                                          |
-| skip_confirmation     | false                                          |
-| shallow_clone         | false                                          |
-| force_for_new_devices | false                                          |
-| skip_docs             | false                                          |
+| verbose               | <span class="nb">false</span>                                          |
+| force                 | <span class="nb">false</span>                                          |
+| skip_confirmation     | <span class="nb">false</span>                                          |
+| shallow_clone         | <span class="nb">false</span>                                          |
+| force_for_new_devices | <span class="nb">false</span>                                          |
+| skip_docs             | <span class="nb">false</span>                                          |
 | platform              | ios                                            |
 +-----------------------+------------------------------------------------+
+
+<span class="o">[</span>17:03:52]: Cloning remote git repo...
+<span class="o">[</span>17:03:54]: 🔓  Successfully decrypted certificates repo
+<span class="o">[</span>17:03:54]: Installing certificate...
 
 +-------------------+-----------------------------------------------+
 |                       Installed Certificate                       |
 +-------------------+-----------------------------------------------+
 | User ID           | 23KMWZ572J                                    |
-| Common Name       | iPhone Distribution: Art.sy Inc. (23KMWZ572J) |
+| Common Name       | iPhone Distribution: Art.sy Inc. <span class="o">(</span>23KMWZ572J<span class="o">)</span> |
 | Organisation Unit | 23KMWZ572J                                    |
 | Organisation      | Art.sy Inc.                                   |
 | Country           | US                                            |
 | Start Datetime    | Apr  4 13:59:06 2017 GMT                      |
 | End Datetime      | Apr  4 13:59:06 2018 GMT                      |
 +-------------------+-----------------------------------------------+
+
+<span class="o">[</span>17:03:56]: Installing provisioning profile...
 
 +---------------------+-----------------------------------------+-------------------------------------------------------------------------------------------------------------+
 |                                                                       Installed Provisioning Profile                                                                        |
@@ -152,11 +154,13 @@ parts of the certs, keys and profiles wrong when updating our central repo. So, 
 | Profile Path        | sigh_sy.art.folio_appstore_profile-path | /Users/orta/Library/MobileDevice/Provisioning Profiles/b045df0f-a691-4b7a-ac34-8349a3684030.mobileprovision |
 | Development Team ID | sigh_sy.art.folio_appstore_team-id      | 23KMWZ572J                                                                                                  |
 +---------------------+-----------------------------------------+-------------------------------------------------------------------------------------------------------------+
-</code></pre>
+
+<span class="o">[</span>17:03:56]: All required keys, certificates and provisioning profiles are installed 🙌
+</code></pre></div></div>
 
 <p>Which at a glimpse gives a lot of the most useful information about how all the pieces come together. The new repo looks like this:</p>
 
-<pre><code class="sh">$ tree mobile_fastlane_match
+<div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>tree mobile_fastlane_match
 
 ├── README.md
 ├── certs
@@ -172,39 +176,51 @@ parts of the certs, keys and profiles wrong when updating our central repo. So, 
     │   └── AppStore_sy.art.folio.mobileprovision
     └── development
         └── Development_sy.art.folio.mobileprovision
-</code></pre>
 
-<a name="So..what.is.Match.doing.here."></a>
-<h2>So, what is Match doing here?</h2>
+</code></pre></div></div>
+
+<h2 id="so-what-is-match-doing-here">So, what is Match doing here?</h2>
 
 <ol>
-<li><p>match creates a new key (the <code>*.p12</code>) - normally you would generate one of these through Keychain, and the entire team would
-to share this. We keep ours in team <a href="http://1password.com">1Password</a>. It needs to be used consistently when request certificates from Apple
-though the "Request a Certificate from a Certificate Authority" part of getting your certs set up.</p></li>
-<li><p>Using <a href="https://github.com/fastlane/fastlane/tree/master/cert">cert</a>: match will use this key <a href="https://github.com/fastlane/fastlane/blob/14dea61e4c81bf9be13bb86c09aa225c6e572618/cert/lib/cert/runner.rb#L141">to create a signing request</a> for you.</p></li>
-<li><p>Using <a href="https://github.com/fastlane/fastlane/tree/master/cert">cert</a>: match will generate a certificate for <a href="https://github.com/fastlane/fastlane/blob/14dea61e4c81bf9be13bb86c09aa225c6e572618/cert/lib/cert/runner.rb#L79">development or distribution</a> for you.</p></li>
-<li><p>Using <a href="https://github.com/fastlane/fastlane/tree/master/cert">cert</a>: match will <a href="https://github.com/fastlane/fastlane/blob/14dea61e4c81bf9be13bb86c09aa225c6e572618/match/lib/match/runner.rb#L133">generate a Provisioning Profile</a> using your certificate and data pulled from your Xcode Project.
+  <li>
+    <p>match creates a new key (the <code class="language-plaintext highlighter-rouge">*.p12</code>) - normally you would generate one of these through Keychain, and the entire team would 
+to share this. We keep ours in team <a href="http://1password.com">1Password</a>. It needs to be used consistently when request certificates from Apple 
+though the “Request a Certificate from a Certificate Authority” part of getting your certs set up.</p>
+  </li>
+  <li>
+    <p>Using <a href="https://github.com/fastlane/fastlane/tree/master/cert">cert</a>: match will use this key <a href="https://github.com/fastlane/fastlane/blob/14dea61e4c81bf9be13bb86c09aa225c6e572618/cert/lib/cert/runner.rb#L141">to create a signing request</a> for you.</p>
+  </li>
+  <li>
+    <p>Using <a href="https://github.com/fastlane/fastlane/tree/master/cert">cert</a>: match will generate a certificate for <a href="https://github.com/fastlane/fastlane/blob/14dea61e4c81bf9be13bb86c09aa225c6e572618/cert/lib/cert/runner.rb#L79">development or distribution</a> for you.</p>
+  </li>
+  <li>
+    <p>Using <a href="https://github.com/fastlane/fastlane/tree/master/cert">cert</a>: match will <a href="https://github.com/fastlane/fastlane/blob/14dea61e4c81bf9be13bb86c09aa225c6e572618/match/lib/match/runner.rb#L133">generate a Provisioning Profile</a> using your certificate and data pulled from your Xcode Project. 
 In my case, for development and distribution.</p>
 
-<p>These profiles are tied directly to one app and the certificate in step 3. For development, all devices in the dev center are also added.</p></li>
-<li><p>These files are then installed in their various methods.</p></li>
-<li><p>These files are then moved into your git repo, a commit is made for you, then pushed and the repo is removed from your computer.</p></li>
+    <p>These profiles are tied directly to one app and the certificate in step 3. For development, all devices in the dev center are also added.</p>
+  </li>
+  <li>
+    <p>These files are then installed in their various methods.</p>
+  </li>
+  <li>
+    <p>These files are then moved into your git repo, a commit is made for you, then pushed and the repo is removed from your computer.</p>
+  </li>
 </ol>
-
 
 <p>This process is nice, because this ^ is a lot of work. I only had to run a command.</p>
 
 <p>It would take at about 30 minutes to do this if I knew exactly what I wanted through the web interface + Keychain.</p>
 
-<p>We currently need to do this for every app. This works fine for the app where we are deploying multiple betas a month,
-but for one when we're deploying <em>maybe</em> a beta once a month or two (<em>eek! sorry...</em>) then it feels like every time you've come
+<p>We currently need to do this for every app. This works fine for the app where we are deploying multiple betas a month, 
+but for one when we’re deploying <em>maybe</em> a beta once a month or two (<em>eek! sorry…</em>) then it feels like every time you’ve come
 back to do some work, the world has shifted a bit.</p>
 
-<p>We do lose the fact that we know someone has specifically set everything up to work right at some point, but given how
+<p>We do lose the fact that we know someone has specifically set everything up to work right at some point, but given how 
 Xcode updates, <a href="http://stackoverflow.com/questions/4057241/iphone-what-is-a-wwdr-intermediate-certificate">WWDR updates</a> and certificate expirations tend to crop up - it can be frustrating to maintain.</p>
 
-<p>So would I move <a href="https://github.com/artsy/eigen">Eigen</a> to match? Maybe, next time something breaks. Till then I think new apps, and less-often updated
+<p>So would I move <a href="https://github.com/artsy/eigen">Eigen</a> to match? Maybe, next time something breaks. Till then I think new apps, and less-often updated 
 apps should use match.</p>
+
 ]]></content>
   </entry>
   
@@ -213,16 +229,15 @@ apps should use match.</p>
     <link href="https://artsy.github.io/blog/2016/02/12/Code-Review-Energy-Sync/"/>
     <updated>2016-02-12T12:09:00+00:00</updated>
     <id>https://artsy.github.io/blog/2016/02/12/Code-Review-Energy-Sync</id>
-    <content type="html"><![CDATA[<p>We are slowly trying to do high-level code-review views for all of our iOS apps. So far, we've covered <a href="/blog/2016/01/14/eidolon-code-review/">Eidolon</a> and <a href="/blog/2015/11/05/Emergence-Code-Review/">Emergence</a> and now <a href="/blog/2016/02/11/Code-Review-Energy/">Energy</a>. This is the second part of the Energy code review. The <a href="/blog/2016/02/11/Code-Review-Energy/">first part</a> covers the the critical codepaths that go from the App's launch to sending an email, which is the main use-case for the app. This video covers how Folio does sync between the Artsy API and the app.</p>
+    <content type="html"><![CDATA[<p>We are slowly trying to do high-level code-review views for all of our iOS apps. So far, we’ve covered <a href="/blog/2016/01/14/eidolon-code-review/">Eidolon</a> and <a href="/blog/2015/11/05/Emergence-Code-Review/">Emergence</a> and now <a href="/blog/2016/02/11/Code-Review-Energy/">Energy</a>. This is the second part of the Energy code review. The <a href="/blog/2016/02/11/Code-Review-Energy/">first part</a> covers the the critical codepaths that go from the App’s launch to sending an email, which is the main use-case for the app. This video covers how Folio does sync between the Artsy API and the app.</p>
 
-<p>Sync is a complex problem. This video covers our old techniques, how we changed them, the underlying abstractions we use now and how we can test each component individually. It's an hour long, and it's a little computer-sciencey. So I think people who have shipped some small apps would get a lot out of it.</p>
+<p>Sync is a complex problem. This video covers our old techniques, how we changed them, the underlying abstractions we use now and how we can test each component individually. It’s an hour long, and it’s a little computer-sciencey. So I think people who have shipped some small apps would get a lot out of it.</p>
 
 <p>Jump <a href="https://www.youtube.com/watch?v=05HaKChPe_g">to YouTube</a> for the video, or click more for a smaller inline preview.</p>
 
 <!-- more -->
 
-
-<p></div></div><iframe width='100%' height='600' src='https://www.youtube.com/embed/05HaKChPe_g ' frameborder='0' allowfullscreen></iframe><div class='meta-container'><header>&nbsp;</header></div><div class='content-container'><div class='entry-content'></p>
+<iframe width="100%" height="400" src="https://www.youtube.com/embed/05HaKChPe_g" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen=""></iframe>
 ]]></content>
   </entry>
   
@@ -231,16 +246,15 @@ apps should use match.</p>
     <link href="https://artsy.github.io/blog/2016/02/11/Code-Review-Energy/"/>
     <updated>2016-02-11T11:09:00+00:00</updated>
     <id>https://artsy.github.io/blog/2016/02/11/Code-Review-Energy</id>
-    <content type="html"><![CDATA[<p>We are slowly trying to do high-level code-review views for all of our iOS apps. So far, we've covered <a href="/blog/2016/01/14/eidolon-code-review/">Eidolon</a> and <a href="/blog/2015/11/05/Emergence-Code-Review/">Emergence</a>. Folio is an app that's shipped to the App Store in early 2012, it's used by our Partners to showcase their works offline, at fairs and on the go. If you want the full spiel, check out <a href="http://folio.artsy.net">this microsite</a>.</p>
+    <content type="html"><![CDATA[<p>We are slowly trying to do high-level code-review views for all of our iOS apps. So far, we’ve covered <a href="/blog/2016/01/14/eidolon-code-review/">Eidolon</a> and <a href="/blog/2015/11/05/Emergence-Code-Review/">Emergence</a>. Folio is an app that’s shipped to the App Store in early 2012, it’s used by our Partners to showcase their works offline, at fairs and on the go. If you want the full spiel, check out <a href="http://folio.artsy.net">this microsite</a>.</p>
 
-<p>This video talks through a lot of the critical codepaths that go from the App's launch to sending an email, which is the main use-case for the app. We have another video coming up which exclusively covers how Folio does sync between the Artsy API and the app.</p>
+<p>This video talks through a lot of the critical codepaths that go from the App’s launch to sending an email, which is the main use-case for the app. We have another video coming up which exclusively covers how Folio does sync between the Artsy API and the app.</p>
 
 <p>Jump <a href="https://www.youtube.com/watch?v=Xhd25hFzN4o">to YouTube</a> for the video, or click more for a smaller inline preview.</p>
 
 <!-- more -->
 
-
-<p></div></div><iframe width='100%' height='600' src='https://www.youtube.com/embed/Xhd25hFzN4o ' frameborder='0' allowfullscreen></iframe><div class='meta-container'><header>&nbsp;</header></div><div class='content-container'><div class='entry-content'></p>
+<iframe width="100%" height="400" src="https://www.youtube.com/embed/Xhd25hFzN4o" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen=""></iframe>
 ]]></content>
   </entry>
   
@@ -249,145 +263,134 @@ apps should use match.</p>
     <link href="https://artsy.github.io/blog/2015/09/01/Cocoa-Architecture-Dropped-Design-Patterns/"/>
     <updated>2015-09-01T00:00:00+00:00</updated>
     <id>https://artsy.github.io/blog/2015/09/01/Cocoa-Architecture-Dropped-Design-Patterns</id>
-    <content type="html"><![CDATA[<p>As a part of going through the design patterns we've found in the creation of the Artsy iOS apps, I'd like to talk a bit about some of the patterns that we've had and migrated away from. This is not 100% comprehensive, as there has been a lot of time, and a lot of people involved. Instead I'm going to try and give a birds eye view, and zoom in on some things that feel more important overall.</p>
+    <content type="html"><![CDATA[<p>As a part of going through the design patterns we’ve found in the creation of the Artsy iOS apps, I’d like to talk a bit about some of the patterns that we’ve had and migrated away from. This is not 100% comprehensive, as there has been a lot of time, and a lot of people involved. Instead I’m going to try and give a birds eye view, and zoom in on some things that feel more important overall.</p>
 
-<p>It's important to preface that I don't believe in perfect code, or am I a fan of big re-writes. We can spot a bad pattern, but not do anything about it. We do have apps to ship, not a codebase to make perfect for the sake of technical purity.</p>
+<p>It’s important to preface that I don’t believe in perfect code, or am I a fan of big re-writes. We can spot a bad pattern, but not do anything about it. We do have apps to ship, not a codebase to make perfect for the sake of technical purity.</p>
 
 <!-- more -->
-
-
 <hr />
 
-<a name="NSNotifications.as.a.decoupling.method"></a>
-<h2>NSNotifications as a decoupling method</h2>
+<h2 id="nsnotifications-as-a-decoupling-method">NSNotifications as a decoupling method</h2>
 
 <p>A lot of the initial codebase for Energy relied on using NSNotifications as a way of passing messages throughout the application. There were notifications for user settings changes, download status updates, anything related to authentication and the corresponding different error states and a few app features. These relied on sending global notifications with very little attempts at scoping the relationship between objects.</p>
 
-<p>NSNotificationCenter notifications are an implementation of the <a href="https://en.wikipedia.org/wiki/Observer_pattern">Observer Pattern</a> in Cocoa. They are a beginner to intermediate programmer's design paradigm dream. It offers a way to have objects send messages to each other without having to go through any real coupling. As someone just starting with writing apps for iOS, it was an easy choice to adapt.</p>
+<p>NSNotificationCenter notifications are an implementation of the <a href="https://en.wikipedia.org/wiki/Observer_pattern">Observer Pattern</a> in Cocoa. They are a beginner to intermediate programmer’s design paradigm dream. It offers a way to have objects send messages to each other without having to go through any real coupling. As someone just starting with writing apps for iOS, it was an easy choice to adapt.</p>
 
 <p>One of the biggest downsides of using NSNotifications are that they make it easy to be lazy as a programmer. It allows you to not think carefully about the relationships between your objects and instead to pretend that they are loosely coupled, when instead they are coupled but via stringly typed notifications.</p>
 
-<p>Loose-coupling can have it's place but without being careful there is no scope on what could be listening to any notification. Also de-registering for interest can be a tricky thing <a href="http://stackoverflow.com/questions/tagged/nsnotification">to learn</a> and the default memory-management behavior is about to change ( <a href="https://developer.apple.com/library/prerelease/mac/releasenotes/Foundation/RN-Foundation/index.html#//apple_ref/doc/uid/TP30000742">for the better</a>.)</p>
+<p>Loose-coupling can have it’s place but without being careful there is no scope on what could be listening to any notification. Also de-registering for interest can be a tricky thing <a href="http://stackoverflow.com/questions/tagged/nsnotification">to learn</a> and the default memory-management behavior is about to change ( <a href="https://developer.apple.com/library/prerelease/mac/releasenotes/Foundation/RN-Foundation/index.html#//apple_ref/doc/uid/TP30000742">for the better</a>.)</p>
 
-<p>We still have a <a href="https://github.com/artsy/energy/blob/702036664a087db218d3aece8ddddb2441f931c8/Classes/Constants/ARNotifications.h">lot of notifications</a> in Energy, however in Eigen and Eidolon there are next to none. We don't even have a specific file for the constants.</p>
+<p>We still have a <a href="https://github.com/artsy/energy/blob/702036664a087db218d3aece8ddddb2441f931c8/Classes/Constants/ARNotifications.h">lot of notifications</a> in Energy, however in Eigen and Eidolon there are next to none. We don’t even have a specific file for the constants.</p>
 
-<a name="L.define.kARConstant"></a>
-<h2>#define kARConstant</h2>
+<h2 id="define-karconstant">#define kARConstant</h2>
 
-<p>Not much to say here, using <code>#defines</code> as constants was definitely <a href="https://github.com/adium/adium/blob/master/Source/AdiumAccounts.m#L24-L30">in favour</a> when I learned Objective-C. Likely a throw back from C. Using <code>#defines</code> as constants would not use on-device memory to store an unchanging value. This is because a <code>#define</code> uses the pre-compiler to directly change the source code to be the value, whereas using a static constant takes up memory space on the device, which we used to <em>really</em> care about. It's likely that a modern copy of LLVM doesn't assign on device memory unless it needs to, especially for things marked <code>const</code>. Switching to real variables means you can inspect and use in a debugger and use can rely on the type system better.</p>
+<p>Not much to say here, using <code class="language-plaintext highlighter-rouge">#defines</code> as constants was definitely <a href="https://github.com/adium/adium/blob/master/Source/AdiumAccounts.m#L24-L30">in favour</a> when I learned Objective-C. Likely a throw back from C. Using <code class="language-plaintext highlighter-rouge">#defines</code> as constants would not use on-device memory to store an unchanging value. This is because a <code class="language-plaintext highlighter-rouge">#define</code> uses the pre-compiler to directly change the source code to be the value, whereas using a static constant takes up memory space on the device, which we used to <em>really</em> care about. It’s likely that a modern copy of LLVM doesn’t assign on device memory unless it needs to, especially for things marked <code class="language-plaintext highlighter-rouge">const</code>. Switching to real variables means you can inspect and use in a debugger and use can rely on the type system better.</p>
 
-<p>What this means in practice is what when we would have had something <a href="https://github.com/artsy/eigen/blob/master/Artsy/Views/Table_View_Cells/AdminTableView/ARAnimatedTickView.m#L3">like</a>: <code>#define TICK_DIMENSION 32</code> it should be <a href="https://github.com/artsy/eigen/blob/master/Artsy/View_Controllers/App_Navigation/ARAppSearchViewController.m#L11">migrated to</a> <code>static const NSInteger ARTickViewDimensionSize = 20;</code>.</p>
+<p>What this means in practice is what when we would have had something <a href="https://github.com/artsy/eigen/blob/master/Artsy/Views/Table_View_Cells/AdminTableView/ARAnimatedTickView.m#L3">like</a>: <code class="language-plaintext highlighter-rouge">#define TICK_DIMENSION 32</code> it should be <a href="https://github.com/artsy/eigen/blob/master/Artsy/View_Controllers/App_Navigation/ARAppSearchViewController.m#L11">migrated to</a> <code class="language-plaintext highlighter-rouge">static const NSInteger ARTickViewDimensionSize = 20;</code>.</p>
 
-<a name="Sprinkling.Analytics"></a>
-<h2>Sprinkling Analytics</h2>
+<h2 id="sprinkling-analytics">Sprinkling Analytics</h2>
 
 <p>We took some of the ideas for <a href="http://albertodebortoli.github.io/blog/2014/03/25/an-aspect-oriented-approach-programming-to-ios-analytics/">Aspect oriented programming</a> with <a href="https://cocoapods.org/pods/ARAnalytics#user-content-aspect-oriented-dsl">Analytics</a>.</p>
 
 <p>Where we used to <a href="https://github.com/artsy/energy/blob/master/Classes/Controllers/Popovers/Add%20to%20Album/ARAddToAlbumViewController.m#L271-L282">have this</a>:</p>
 
-<pre><code class="objc">@implementation ARAddToAlbumViewController
+<div class="language-objc highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">@implementation</span> <span class="nc">ARAddToAlbumViewController</span>
 
-- (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath
-{
-    if (indexPath.row &lt; [self.albums count]) {
-        Album *selectedAlbum = ((Album *)self.albums[indexPath.row]);
-        ARTickedTableViewCell *cell = (ARTickedTableViewCell *)[self.tableView cellForRowAtIndexPath:indexPath];
+<span class="k">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="nf">tableView</span><span class="p">:(</span><span class="n">UITableView</span> <span class="o">*</span><span class="p">)</span><span class="nv">tableView</span> <span class="nf">didSelectRowAtIndexPath</span><span class="p">:(</span><span class="n">NSIndexPath</span> <span class="o">*</span><span class="p">)</span><span class="nv">indexPath</span>
+<span class="p">{</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">indexPath</span><span class="p">.</span><span class="n">row</span> <span class="o">&lt;</span> <span class="p">[</span><span class="n">self</span><span class="p">.</span><span class="n">albums</span> <span class="nf">count</span><span class="p">])</span> <span class="p">{</span>
+        <span class="n">Album</span> <span class="o">*</span><span class="n">selectedAlbum</span> <span class="o">=</span> <span class="p">((</span><span class="n">Album</span> <span class="o">*</span><span class="p">)</span><span class="n">self</span><span class="p">.</span><span class="n">albums</span><span class="p">[</span><span class="n">indexPath</span><span class="p">.</span><span class="nf">row</span><span class="p">]);</span>
+        <span class="n">ARTickedTableViewCell</span> <span class="o">*</span><span class="n">cell</span> <span class="o">=</span> <span class="p">(</span><span class="n">ARTickedTableViewCell</span> <span class="o">*</span><span class="p">)[</span><span class="n">self</span><span class="p">.</span><span class="n">tableView</span> <span class="nf">cellForRowAtIndexPath</span><span class="p">:</span><span class="n">indexPath</span><span class="p">];</span>
 
-        if ([cell isSelected]) {
-            [ARAnalytics event:ARRemoveFromAlbumEvent withProperties:@{
-                @"artworks" : @(self.artworks.count),
-                @"from" : [ARNavigationController pageID]
-            }];
-            [...]
-</code></pre>
+        <span class="k">if</span> <span class="p">([</span><span class="n">cell</span> <span class="nf">isSelected</span><span class="p">])</span> <span class="p">{</span>
+            <span class="p">[</span><span class="n">ARAnalytics</span> <span class="nf">event</span><span class="p">:</span><span class="n">ARRemoveFromAlbumEvent</span> <span class="nf">withProperties</span><span class="p">:@{</span>
+                <span class="s">@"artworks"</span> <span class="o">:</span> <span class="err">@</span><span class="p">(</span><span class="n">self</span><span class="p">.</span><span class="n">artworks</span><span class="p">.</span><span class="n">count</span><span class="p">),</span>
+                <span class="s">@"from"</span> <span class="o">:</span> <span class="p">[</span><span class="n">ARNavigationController</span> <span class="nf">pageID</span><span class="p">]</span>
+            <span class="p">}];</span>
+            <span class="p">[...]</span>
+</code></pre></div></div>
 
 <p>We would instead build something <a href="https://github.com/artsy/eigen/blob/master/Artsy/App/ARAppDelegate+Analytics.m#L69">like this</a>:</p>
 
-<pre><code class="objc">@implementation ARAppDelegate (Analytics)
+<div class="language-objc highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">@implementation</span> <span class="nc">ARAppDelegate</span> <span class="p">(</span><span class="nl">Analytics</span><span class="p">)</span>
 
-- (void)setupAnalytics
-{
-    ArtsyKeys *keys = [[ArtsyKeys alloc] init];
-    [...]
-    [ARAnalytics setupWithAnalytics: @{ [...] } configuration:
-    @{
-        ARAnalyticsTrackedEvents:
-            @[
-                @{
-                    ARAnalyticsClass: ARAddToAlbumViewController.class,
-                    ARAnalyticsDetails: @[
-                        @{
-                            ARAnalyticsEventName: ARRemoveFromAlbumEvent,
-                            ARAnalyticsSelectorName: NSStringFromSelector(@selector(tableView: didSelectRowAtIndexPath:)),
-                            ARAnalyticsProperties: ^NSDictionary*(ARAddToAlbumViewController *controller, NSArray *_) {
-                                return @{
-                                    @"artworks" : @(controller.artworks.count),
-                                    @"from" : [ARNavigationController pageID],
-                                };
-                        },
-                        [...]
-                    ]
-                },
-                [...]
-</code></pre>
+<span class="k">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="n">setupAnalytics</span>
+<span class="p">{</span>
+    <span class="n">ArtsyKeys</span> <span class="o">*</span><span class="n">keys</span> <span class="o">=</span> <span class="p">[[</span><span class="n">ArtsyKeys</span> <span class="nf">alloc</span><span class="p">]</span> <span class="nf">init</span><span class="p">];</span>
+	<span class="p">[...]</span>
+    <span class="p">[</span><span class="n">ARAnalytics</span> <span class="nf">setupWithAnalytics</span><span class="p">:</span> <span class="p">@{</span> <span class="p">[...]</span> <span class="p">}</span> <span class="nf">configuration</span><span class="p">:</span>
+    <span class="p">@{</span>
+        <span class="nl">ARAnalyticsTrackedEvents:</span>
+            <span class="p">@[</span>
+                <span class="p">@{</span>
+                    <span class="nl">ARAnalyticsClass:</span> <span class="n">ARAddToAlbumViewController</span><span class="p">.</span><span class="n">class</span><span class="p">,</span>
+                    <span class="nl">ARAnalyticsDetails:</span> <span class="p">@[</span>
+                        <span class="p">@{</span>
+                            <span class="nl">ARAnalyticsEventName:</span> <span class="n">ARRemoveFromAlbumEvent</span><span class="p">,</span>
+                            <span class="nl">ARAnalyticsSelectorName:</span> <span class="n">NSStringFromSelector</span><span class="p">(</span><span class="k">@selector</span><span class="p">(</span><span class="n">tableView</span><span class="o">:</span> <span class="n">didSelectRowAtIndexPath</span><span class="o">:</span><span class="p">)),</span>
+                            <span class="nl">ARAnalyticsProperties:</span> <span class="o">^</span><span class="n">NSDictionary</span><span class="o">*</span><span class="p">(</span><span class="n">ARAddToAlbumViewController</span> <span class="o">*</span><span class="n">controller</span><span class="p">,</span> <span class="n">NSArray</span> <span class="o">*</span><span class="n">_</span><span class="p">)</span> <span class="err">{</span>
+                                <span class="k">return</span> <span class="p">@{</span>
+                                    <span class="s">@"artworks"</span> <span class="o">:</span> <span class="err">@</span><span class="p">(</span><span class="n">controller</span><span class="p">.</span><span class="n">artworks</span><span class="p">.</span><span class="n">count</span><span class="p">),</span>
+                                    <span class="s">@"from"</span> <span class="o">:</span> <span class="p">[</span><span class="n">ARNavigationController</span> <span class="nf">pageID</span><span class="p">],</span>
+                                <span class="p">};</span>
+                        <span class="p">},</span>
+                        <span class="p">[...]</span>
+                    <span class="p">]</span>
+                <span class="p">},</span>
+				<span class="p">[...]</span>
+</code></pre></div></div>
 
-<p>This gives us the ability to not sprinkle analytics code around the app in every file. It keeps the responsibilities of objects simpler and we've been happy with it in Eigen. We've not migrated it into Energy, its dependency on ReactiveCocoa brings too much additional weight. So far we've been applying analytics inline, Energy has much less need for individual analytics throughout the application. If you want to learn more about this pattern check out <a href="http://artsy.github.io/blog/2014/08/04/aspect-oriented-programming-and-aranalytics/">Aspect-Oriented Programming and ARAnalytics</a>.</p>
+<p>This gives us the ability to not sprinkle analytics code around the app in every file. It keeps the responsibilities of objects simpler and we’ve been happy with it in Eigen. We’ve not migrated it into Energy, its dependency on ReactiveCocoa brings too much additional weight. So far we’ve been applying analytics inline, Energy has much less need for individual analytics throughout the application. If you want to learn more about this pattern check out <a href="http://artsy.github.io/blog/2014/08/04/aspect-oriented-programming-and-aranalytics/">Aspect-Oriented Programming and ARAnalytics</a>.</p>
 
-<a name="Class.Methods.as.the.whole.API"></a>
-<h2>Class Methods as the whole API</h2>
+<h2 id="class-methods-as-the-whole-api">Class Methods as the whole API</h2>
 
 <p>For a very long time, I preferred aesthetics of class based APIs. E.g. using only class methods instead instance methods. I think I still do. However, once you start adding tests to a project then they become a bit of a problem.</p>
 
-<p>I'm a big fan of the idea of Dependency Injection within tests. This, roughly <em>TL:DR'd</em>, means passing in any additional context, instead of an object finding the context itself. A common case is a call to <code>NSUserDefaults</code>. It's very likely <em>not</em> the role of your class to know which <code>NSUserDefault</code>s object you're working with, but it's likely that you're making that decision in the method by doing something like <code>[[NSUserDefaults standardUserDefaults] setObject:reminderID forKey:@"ARReminderID"];</code>. Using dependency injection would be allowing that object to come from outside that method. If you're interested in a longer and better, explanation, read this great <a href="https://www.objc.io/issues/15-testing/dependency-injection/">objc.io</a> by <a href="http://qualitycoding.org/about/">Jon Reid</a>.</p>
+<p>I’m a big fan of the idea of Dependency Injection within tests. This, roughly <em>TL:DR’d</em>, means passing in any additional context, instead of an object finding the context itself. A common case is a call to <code class="language-plaintext highlighter-rouge">NSUserDefaults</code>. It’s very likely <em>not</em> the role of your class to know which <code class="language-plaintext highlighter-rouge">NSUserDefault</code>s object you’re working with, but it’s likely that you’re making that decision in the method by doing something like <code class="language-plaintext highlighter-rouge">[[NSUserDefaults standardUserDefaults] setObject:reminderID forKey:@"ARReminderID"];</code>. Using dependency injection would be allowing that object to come from outside that method. If you’re interested in a longer and better, explanation, read this great <a href="https://www.objc.io/issues/15-testing/dependency-injection/">objc.io</a> by <a href="http://qualitycoding.org/about/">Jon Reid</a>.</p>
 
-<p>The problem with a class based API, is that it becomes difficult to inject that object. This doesn't flow well with writing simple, fast tests. You can use a mocking library to fake the class API, but that feels weird. Mocking should be used for things you don't control. You control the object if you're making the API. Having an instance'd object means being able to provide different versions with different behaviors or values, even better if you can reduce the behavior to <a href="https://github.com/artsy/eigen/blob/e19ac594bf6240d076e8092d9c56e9876c94444e/Artsy/Networking/Network_Models/ARArtistNetworkModel.h">a protocol</a>.</p>
+<p>The problem with a class based API, is that it becomes difficult to inject that object. This doesn’t flow well with writing simple, fast tests. You can use a mocking library to fake the class API, but that feels weird. Mocking should be used for things you don’t control. You control the object if you’re making the API. Having an instance’d object means being able to provide different versions with different behaviors or values, even better if you can reduce the behavior to <a href="https://github.com/artsy/eigen/blob/e19ac594bf6240d076e8092d9c56e9876c94444e/Artsy/Networking/Network_Models/ARArtistNetworkModel.h">a protocol</a>.</p>
 
-<a name="Objects.Sneakily.Networking"></a>
-<h2>Objects Sneakily Networking</h2>
+<h2 id="objects-sneakily-networking">Objects Sneakily Networking</h2>
 
-<p>When you have a complicated application, there can be a lot of places you can perform networking. We've had it in models, view controllers and views. Basically throwing the idea of purity in MVC out of the system. We started to recognise a pattern in eigen, we were not doing a good job of keeping our networking well abstracted. If you want to see the full story check out the <a href="https://github.com/Moya/Moya">moya/Moya README</a>.</p>
+<p>When you have a complicated application, there can be a lot of places you can perform networking. We’ve had it in models, view controllers and views. Basically throwing the idea of purity in MVC out of the system. We started to recognise a pattern in eigen, we were not doing a good job of keeping our networking well abstracted. If you want to see the full story check out the <a href="https://github.com/Moya/Moya">moya/Moya README</a>.</p>
 
-<p>One attempt to at trying to fix this pattern by creating a different type of networking client I've just referenced, <a href="https://github.com/Moya/Moya">Moya</a>.</p>
+<p>One attempt to at trying to fix this pattern by creating a different type of networking client I’ve just referenced, <a href="https://github.com/Moya/Moya">Moya</a>.</p>
 
-<p>The other was to abstract any networking performed into a separate object. If you've heard of Model-View-ViewModel (<a href="http://www.teehanlax.com/blog/model-view-viewmodel-for-ios/">MVVM</a>) then this is a similar premise for networking instead of views. Network Models give us a way to abstract the networking into a set of behaviors. The extra abstraction means that you think "I want the things related to <em>x</em>" instead of "send a GET to address <em>x</em> and turn it into <em>y</em>."</p>
+<p>The other was to abstract any networking performed into a separate object. If you’ve heard of Model-View-ViewModel (<a href="http://www.teehanlax.com/blog/model-view-viewmodel-for-ios/">MVVM</a>) then this is a similar premise for networking instead of views. Network Models give us a way to abstract the networking into a set of behaviors. The extra abstraction means that you think “I want the things related to <em>x</em>” instead of “send a GET to address <em>x</em> and turn it into <em>y</em>.”</p>
 
 <p>Network models also make it extremely easy to swap behavior out in tests. In eigen, we have our asynchronous networking <a href="https://github.com/artsy/eigen/pull/575">run synchronously in tests</a> but we still use the network models to be able to provide <a href="https://github.com/artsy/eigen/blob/master/Artsy_Tests/View_Controller_Tests/Artist/ARArtistViewControllerTests.m#L29-L40">whatever data we want to expect</a> from the server in our tests.</p>
 
-<a name="Subclassing.more.than.twice"></a>
-<h2>Subclassing more than twice</h2>
+<h2 id="subclassing-more-than-twice">Subclassing more than twice</h2>
 
-<p>As projects evolve it can become very easy to subclass <em>x</em> in order to provide a "similar but a little bit different" behavior. Perhaps you need to <a href="https://github.com/artsy/eigen/blob/e19ac594bf6240d076e8092d9c56e9876c94444e/Artsy/View_Controllers/Web_Browsing/ARTopMenuInternalMobileWebViewController.m#L58">override some methods</a>, or add a <a href="https://github.com/artsy/eigen/blob/e19ac594bf6240d076e8092d9c56e9876c94444e/Artsy/View_Controllers/Web_Browsing/AREndOfLineInternalMobileWebViewController.h#L5">specific behavior</a>. Like the <a href="http://ezinearticles.com/?The-Boiled-Frog-Phenomenon&amp;id=932310">urban myth</a> of a frog being slowly boiled, you end up with a difficult to understand codebase as expected behavior mutates depending on how deep the hierarchy goes.</p>
+<p>As projects evolve it can become very easy to subclass <em>x</em> in order to provide a “similar but a little bit different” behavior. Perhaps you need to <a href="https://github.com/artsy/eigen/blob/e19ac594bf6240d076e8092d9c56e9876c94444e/Artsy/View_Controllers/Web_Browsing/ARTopMenuInternalMobileWebViewController.m#L58">override some methods</a>, or add a <a href="https://github.com/artsy/eigen/blob/e19ac594bf6240d076e8092d9c56e9876c94444e/Artsy/View_Controllers/Web_Browsing/AREndOfLineInternalMobileWebViewController.h#L5">specific behavior</a>. Like the <a href="http://ezinearticles.com/?The-Boiled-Frog-Phenomenon&amp;id=932310">urban myth</a> of a frog being slowly boiled, you end up with a difficult to understand codebase as expected behavior mutates depending on how deep the hierarchy goes.</p>
 
-<p>One pattern for handling this is <a href="http://stackoverflow.com/questions/9710411/ios-grasping-composition">class composition</a>. This is the idea that instead of having one object do multiple things, you allow a collection of objects to work together. Providing more space for each object to conform to the Single Responsibility Principle (<a href="https://en.wikipedia.org/wiki/Single_responsibility_principle">SRP</a>.) If you're interested in this, you may also be interested in the <a href="https://developer.apple.com/library/ios/documentation/General/Conceptual/CocoaEncyclopedia/ClassClusters/ClassClusters.html">class clusters</a> pattern.</p>
+<p>One pattern for handling this is <a href="http://stackoverflow.com/questions/9710411/ios-grasping-composition">class composition</a>. This is the idea that instead of having one object do multiple things, you allow a collection of objects to work together. Providing more space for each object to conform to the Single Responsibility Principle (<a href="https://en.wikipedia.org/wiki/Single_responsibility_principle">SRP</a>.) If you’re interested in this, you may also be interested in the <a href="https://developer.apple.com/library/ios/documentation/General/Conceptual/CocoaEncyclopedia/ClassClusters/ClassClusters.html">class clusters</a> pattern.</p>
 
-<p>A good example of this comes <a href="https://github.com/artsy/energy/blob/aa97d90cf37932d4c0f49ea4c4d31f7e491f16a6/Classes/Controllers/Top%20View%20Controller/ARTopViewToolbarController.m">from Energy</a>, our root view controller <code>ARTopViewController</code> used to control its own toolbar items. Over 4 years this became difficult to manage, and a lot of extra code in the view controller. By abstracting out the implementation details of managing the toolbar items into it's <a href="https://github.com/artsy/energy/blob/aa97d90cf37932d4c0f49ea4c4d31f7e491f16a6/Classes/Controllers/Top%20View%20Controller/ARTopViewToolbarController.m">own class</a> we were able to allow the <code>ARTopViewController</code> to state what it wanted by not how it was done.</p>
+<p>A good example of this comes <a href="https://github.com/artsy/energy/blob/aa97d90cf37932d4c0f49ea4c4d31f7e491f16a6/Classes/Controllers/Top%20View%20Controller/ARTopViewToolbarController.m">from Energy</a>, our root view controller <code class="language-plaintext highlighter-rouge">ARTopViewController</code> used to control its own toolbar items. Over 4 years this became difficult to manage, and a lot of extra code in the view controller. By abstracting out the implementation details of managing the toolbar items into it’s <a href="https://github.com/artsy/energy/blob/aa97d90cf37932d4c0f49ea4c4d31f7e491f16a6/Classes/Controllers/Top%20View%20Controller/ARTopViewToolbarController.m">own class</a> we were able to allow the <code class="language-plaintext highlighter-rouge">ARTopViewController</code> to state what it wanted by not how it was done.</p>
 
-<a name="Configuration.Classes.over.Inter-Class.Communication"></a>
-<h2>Configuration Classes over Inter-Class Communication</h2>
+<h2 id="configuration-classes-over-inter-class-communication">Configuration Classes over Inter-Class Communication</h2>
 
 <p>A one of the most important aspects of Energy is to <a href="http://folio.artsy.net">email artworks</a>. So there is a lot of code around configuring the email you want to send, and then generating HTML from those settings. This started out pretty simple as we had very few app-wide settings. Over time, deciding what we need to show in terms of settings and how they affected the email became very complicated.</p>
 
-<p>The part that eventually became a strong enough code-smell to warrant a re-write was the view controller which allowed a partner to choose what information to send would pass details individually to an object that would generate the HTML. I found it difficult to write simple tests for the class' behavior. Initially I would mock the email composer, then inspect the methods that were called. This felt wrong, as you shouldn't really be mocking classes you own. Given the importance of the functionality that classes provide our application, ideas on ways to improve the section of code stayed on my mind for a long time.</p>
+<p>The part that eventually became a strong enough code-smell to warrant a re-write was the view controller which allowed a partner to choose what information to send would pass details individually to an object that would generate the HTML. I found it difficult to write simple tests for the class’ behavior. Initially I would mock the email composer, then inspect the methods that were called. This felt wrong, as you shouldn’t really be mocking classes you own. Given the importance of the functionality that classes provide our application, ideas on ways to improve the section of code stayed on my mind for a long time.</p>
 
-<p>The fix came to me during Justin Searls' talk <a href="https://speakerdeck.com/searls/sometimes-a-controller-is-just-a-controller">Sometimes a Controller is Just a Controller</a> - specifically slide <a href="https://speakerdeck.com/searls/sometimes-a-controller-is-just-a-controller?slide=55">55</a>. Justin talks about objects that <em>either hold and describe a value or perform useful behavior, never both</em>.</p>
+<p>The fix came to me during Justin Searls’ talk <a href="https://speakerdeck.com/searls/sometimes-a-controller-is-just-a-controller">Sometimes a Controller is Just a Controller</a> - specifically slide <a href="https://speakerdeck.com/searls/sometimes-a-controller-is-just-a-controller?slide=55">55</a>. Justin talks about objects that <em>either hold and describe a value or perform useful behavior, never both</em>.</p>
 
 <p>I took this advice and re-evaluated the relationship between settings view controller and composer object. Before the change, the settings view controller would configure the composer directly. Now, the settings view controller creates a configuration object and the composer consumes it. This made it <em>significantly</em> easier to write tests for both objects, as they have very obvious inputs and outputs in the form of a <a href="https://github.com/artsy/energy/blob/aa97d90cf37932d4c0f49ea4c4d31f7e491f16a6/Classes/Util/Emails/AREmailSettings.h">AREmailSettings</a>. The <a href="https://github.com/artsy/energy/blob/aa97d90cf37932d4c0f49ea4c4d31f7e491f16a6/ArtsyFolio%20Tests/Util/AREmailComposerTests.m">AREmailComposerTests</a> in particular become much more elegant.</p>
 
-<a name="Direct.use.of.Responder.Chain"></a>
-<h3>Direct use of Responder Chain</h3>
+<h3 id="direct-use-of-responder-chain">Direct use of Responder Chain</h3>
 
-<p>Before I worked at Artsy, I was a <a href="http://i.imgur.com/Am9LjED.gif">Mac developer</a>, I've been doing that since before iOS existed, so this influences my code style. One of the great parts of the Cocoa toolchain is the <a href="https://developer.apple.com/library/ios/documentation/EventHandling/Conceptual/EventHandlingiPhoneOS/event_delivery_responder_chain/event_delivery_responder_chain.html">responder chain</a>, a well documented way of passing methods up a known chain of objects. It solves a common problem with complicated view structures. You could have a button that is generated at runtime deep inside a view hierarchy and you would like the view controller to handle it being tapped. You could use a long chain of delegate methods, or use a <a href="https://twitter.com/unimp0rtanttech/status/555828778015129600">private method</a> to get the reference to the view controller instance. On the Mac usage of the responder chain is a common pattern, on iOS it is used rarely.</p>
+<p>Before I worked at Artsy, I was a <a href="http://i.imgur.com/Am9LjED.gif">Mac developer</a>, I’ve been doing that since before iOS existed, so this influences my code style. One of the great parts of the Cocoa toolchain is the <a href="https://developer.apple.com/library/ios/documentation/EventHandling/Conceptual/EventHandlingiPhoneOS/event_delivery_responder_chain/event_delivery_responder_chain.html">responder chain</a>, a well documented way of passing methods up a known chain of objects. It solves a common problem with complicated view structures. You could have a button that is generated at runtime deep inside a view hierarchy and you would like the view controller to handle it being tapped. You could use a long chain of delegate methods, or use a <a href="https://twitter.com/unimp0rtanttech/status/555828778015129600">private method</a> to get the reference to the view controller instance. On the Mac usage of the responder chain is a common pattern, on iOS it is used rarely.</p>
 
-<p>We have this problem with our Artwork view controller in Eigen. There are buttons that are many <a href="https://speakerdeck.com/orta/ios-at-artsy?slide=38">stack views deep</a> that need to pass a message back to the view controller. When we first hit this the issue I immediately used the responder chain, you write a <a href="https://github.com/artsy/eigen/blob/e19ac594bf6240d076e8092d9c56e9876c94444e/Artsy/Views/Artwork/ARArtworkActionsView.m#L85">line of code</a> like: <code>[bidButton addTarget:self action:@selector(tappedBidButton:) forControlEvents:UIControlEventTouchUpInside];</code> where the <code>self</code> is referring to the view. This would send the message <code>tappedBidButton:</code> up the responder chain where it is reacted upon by the <a href="https://github.com/artsy/eigen/blob/e19ac594bf6240d076e8092d9c56e9876c94444e/Artsy/View_Controllers/Artwork/ARArtworkViewController+ButtonActions.m#L114">ARArtworkViewController</a>.</p>
+<p>We have this problem with our Artwork view controller in Eigen. There are buttons that are many <a href="https://speakerdeck.com/orta/ios-at-artsy?slide=38">stack views deep</a> that need to pass a message back to the view controller. When we first hit this the issue I immediately used the responder chain, you write a <a href="https://github.com/artsy/eigen/blob/e19ac594bf6240d076e8092d9c56e9876c94444e/Artsy/Views/Artwork/ARArtworkActionsView.m#L85">line of code</a> like: <code class="language-plaintext highlighter-rouge">[bidButton addTarget:self action:@selector(tappedBidButton:) forControlEvents:UIControlEventTouchUpInside];</code> where the <code class="language-plaintext highlighter-rouge">self</code> is referring to the view. This would send the message <code class="language-plaintext highlighter-rouge">tappedBidButton:</code> up the responder chain where it is reacted upon by the <a href="https://github.com/artsy/eigen/blob/e19ac594bf6240d076e8092d9c56e9876c94444e/Artsy/View_Controllers/Artwork/ARArtworkViewController+ButtonActions.m#L114">ARArtworkViewController</a>.</p>
 
-<p>I had to explain the premise of the responder chain to almost everyone touching this area of the code base. This is great in terms of the <a href="https://xkcd.com/1053/">"lucky 10,000"</a> but  means that the pattern is unintuitive to those who have not previously heard of it. There was one more issue, the lack of coupling means that renaming selectors via refactoring can break the chain.</p>
+<p>I had to explain the premise of the responder chain to almost everyone touching this area of the code base. This is great in terms of the <a href="https://xkcd.com/1053/">“lucky 10,000”</a> but  means that the pattern is unintuitive to those who have not previously heard of it. There was one more issue, the lack of coupling means that renaming selectors via refactoring can break the chain.</p>
 
-<p>The way that we reduced the cognitive load was via a protocol, all of the actions that the responder chain will use are mapped inside <a href="https://github.com/artsy/eigen/blob/e19ac594bf6240d076e8092d9c56e9876c94444e/Artsy/Views/Artwork/ARArtworkActionsView.h#L10-L20">ARArtworkActionsViewButtonDelegate</a>-like protocols. It's a bit of a white-lie given that there is no direct relationship using the protocol in the app, but it makes the relationship more obvious. We use a class extension that <a href="https://github.com/artsy/eigen/blob/e19ac594bf6240d076e8092d9c56e9876c94444e/Artsy/View_Controllers/Artwork/ARArtworkViewController+ButtonActions.h#L11">conforms to these types of protocols</a> to keep the actions all kept in one place.</p>
+<p>The way that we reduced the cognitive load was via a protocol, all of the actions that the responder chain will use are mapped inside <a href="https://github.com/artsy/eigen/blob/e19ac594bf6240d076e8092d9c56e9876c94444e/Artsy/Views/Artwork/ARArtworkActionsView.h#L10-L20">ARArtworkActionsViewButtonDelegate</a>-like protocols. It’s a bit of a white-lie given that there is no direct relationship using the protocol in the app, but it makes the relationship more obvious. We use a class extension that <a href="https://github.com/artsy/eigen/blob/e19ac594bf6240d076e8092d9c56e9876c94444e/Artsy/View_Controllers/Artwork/ARArtworkViewController+ButtonActions.h#L11">conforms to these types of protocols</a> to keep the actions all kept in one place.</p>
 
-<a name="Wrap-up"></a>
-<h3>Wrap-up</h3>
+<h3 id="wrap-up">Wrap-up</h3>
 
-<p>There are many design patterns, and they all come with trade-offs. Over time, our opinions on what is "good code" changes, this is great. It's important that as developers we understand that being able to change our minds is one of the most vital skills we have in our toolchain. This means being open to opinions outside of your usual sphere of influence and to maybe bring some good ideas from them. It's great to be passionate about an aspect of how we craft applications, but from my perspective, the best programmers choose pragmatism over idealism.</p>
+<p>There are many design patterns, and they all come with trade-offs. Over time, our opinions on what is “good code” changes, this is great. It’s important that as developers we understand that being able to change our minds is one of the most vital skills we have in our toolchain. This means being open to opinions outside of your usual sphere of influence and to maybe bring some good ideas from them. It’s great to be passionate about an aspect of how we craft applications, but from my perspective, the best programmers choose pragmatism over idealism.</p>
 ]]></content>
   </entry>
   
@@ -396,117 +399,106 @@ apps should use match.</p>
     <link href="https://artsy.github.io/blog/2015/08/19/Cocoa-Architecture-Switchboard-Pattern/"/>
     <updated>2015-08-19T00:00:00+00:00</updated>
     <id>https://artsy.github.io/blog/2015/08/19/Cocoa-Architecture-Switchboard-Pattern</id>
-    <content type="html"><![CDATA[<p>As a part of going through the design patterns we've found in the creation of the Artsy iOS apps, I'd like to introduce the Switchboard pattern. This evolved quite naturally out of <a href="/blog/2015/08/15/Cocoa-Architecture:-Router-Pattern/">ARRouter</a> when applied to generating view controllers instead of API requests.</p>
+    <content type="html"><![CDATA[<p>As a part of going through the design patterns we’ve found in the creation of the Artsy iOS apps, I’d like to introduce the Switchboard pattern. This evolved quite naturally out of <a href="/blog/2015/08/15/Cocoa-Architecture:-Router-Pattern/">ARRouter</a> when applied to generating view controllers instead of API requests.</p>
 
 <!-- more -->
-
-
 <hr />
 
-<a name="Where.we.started"></a>
-<h1>Where we started</h1>
+<h1 id="where-we-started">Where we started</h1>
+<p>In what must be one of my best named commits, <code class="language-plaintext highlighter-rouge">b9ff28</code> aka <em>“CREATING THE VOID”</em> introduced an <code class="language-plaintext highlighter-rouge">ARSwitchboard</code> to Eigen. Aside from this being the commit where I could finally write <code class="language-plaintext highlighter-rouge">[ARVoidViewController theVoid]</code> it added support for tapping an Artwork on the home-screen and going to another view controller.</p>
 
-<p>In what must be one of my best named commits, <code>b9ff28</code> aka <em>"CREATING THE VOID"</em> introduced an <code>ARSwitchboard</code> to Eigen. Aside from this being the commit where I could finally write <code>[ARVoidViewController theVoid]</code> it added support for tapping an Artwork on the home-screen and going to another view controller.</p>
+<p>We knew up-front that we needed to emulate the website’s URL schemes, so we needed to come up with a way to support two ways of loading up a view controller. Here’s what it looked like:</p>
 
-<p>We knew up-front that we needed to emulate the website's URL schemes, so we needed to come up with a way to support two ways of loading up a view controller. Here's what it looked like:</p>
+<div class="language-objc highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">@implementation</span> <span class="nc">ARSwitchBoard</span>
 
-<pre><code class="objc">@implementation ARSwitchBoard
+<span class="k">+</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="n">setupRouter</span> <span class="p">{</span>
+    <span class="n">artsyHosts</span> <span class="o">=</span> <span class="p">[</span><span class="n">NSSet</span> <span class="nf">setWithObjects</span><span class="p">:</span><span class="s">@"art.sy"</span><span class="p">,</span> <span class="s">@"artsyapi.com"</span><span class="p">,</span> <span class="s">@"artsy.net"</span><span class="p">,</span> <span class="nb">nil</span><span class="p">];</span>
 
-+ (void)setupRouter {
-    artsyHosts = [NSSet setWithObjects:@"art.sy", @"artsyapi.com", @"artsy.net", nil];
+    <span class="p">[</span><span class="n">RCRouter</span> <span class="nf">map</span><span class="p">:</span><span class="s">@"/artwork/:id"</span> <span class="nf">to</span><span class="p">:</span><span class="n">self</span> <span class="n">with</span><span class="o">:</span><span class="k">@selector</span><span class="p">(</span><span class="n">loadArtworkFromURL</span><span class="o">:</span><span class="p">)];</span>
+<span class="p">}</span>
 
-    [RCRouter map:@"/artwork/:id" to:self with:@selector(loadArtworkFromURL:)];
-}
+<span class="k">+</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="nf">navigateToURL</span><span class="p">:(</span><span class="n">NSURL</span> <span class="o">*</span><span class="p">)</span><span class="nv">url</span> <span class="p">{</span>
+    <span class="k">if</span><span class="p">([</span><span class="n">self</span> <span class="nf">isInternalURL</span><span class="p">:</span><span class="n">url</span><span class="p">]</span> <span class="o">&amp;&amp;</span> <span class="p">[</span><span class="n">RCRouter</span> <span class="nf">canRespondToRoute</span><span class="p">:</span><span class="n">url</span><span class="p">.</span><span class="n">path</span><span class="p">])</span> <span class="p">{</span>
+        <span class="p">[</span><span class="n">RCRouter</span> <span class="nf">dispatch</span><span class="p">:</span><span class="n">url</span><span class="p">.</span><span class="n">path</span><span class="p">];</span>
+    <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+<span class="c1">//        [self openInternalBrowser:url];</span>
+    <span class="p">}</span>
+<span class="p">}</span>
 
-+ (void)navigateToURL:(NSURL *)url {
-    if([self isInternalURL:url] &amp;&amp; [RCRouter canRespondToRoute:url.path]) {
-        [RCRouter dispatch:url.path];
-    } else {
-//        [self openInternalBrowser:url];
-    }
-}
+<span class="k">+</span> <span class="p">(</span><span class="n">BOOL</span><span class="p">)</span><span class="nf">isInternalURL</span><span class="p">:(</span><span class="n">NSURL</span> <span class="o">*</span><span class="p">)</span><span class="nv">url</span> <span class="p">{</span>
+    <span class="n">NSString</span> <span class="o">*</span> <span class="n">host</span> <span class="o">=</span> <span class="n">url</span><span class="p">.</span><span class="n">host</span><span class="p">;</span>
+    <span class="k">if</span><span class="p">(</span><span class="n">host</span> <span class="o">&amp;&amp;</span> <span class="p">[</span><span class="n">host</span> <span class="nf">hasPrefix</span><span class="p">:</span><span class="s">@"www"</span><span class="p">])</span> <span class="p">{</span>
+        <span class="n">host</span> <span class="o">=</span> <span class="p">[</span><span class="n">host</span> <span class="nf">substringFromIndex</span><span class="p">:</span><span class="mi">3</span><span class="p">];</span>
+    <span class="p">}</span>
 
-+ (BOOL)isInternalURL:(NSURL *)url {
-    NSString * host = url.host;
-    if(host &amp;&amp; [host hasPrefix:@"www"]) {
-        host = [host substringFromIndex:3];
-    }
+    <span class="k">return</span> <span class="p">(</span><span class="n">host</span> <span class="o">&amp;&amp;</span> <span class="p">[</span><span class="n">artsyHosts</span> <span class="nf">containsObject</span><span class="p">:</span><span class="n">host</span><span class="p">]);</span>
+<span class="p">}</span>
 
-    return (host &amp;&amp; [artsyHosts containsObject:host]);
-}
-
-#pragma mark -
+<span class="cp">#pragma mark -
 #pragma mark Artworks
+</span>
+<span class="k">+</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="nf">loadAttachmentCollection</span><span class="p">:(</span><span class="n">AttachmentCollection</span> <span class="o">*</span><span class="p">)</span><span class="nv">collection</span> <span class="p">{</span>
+    <span class="p">[[</span><span class="n">ARVoidViewController</span> <span class="nf">theVoid</span><span class="p">]</span> <span class="nf">loadArtworkViewWithAttachmentCollection</span><span class="p">:</span><span class="n">collection</span><span class="p">];</span>
+<span class="p">}</span>
 
-+ (void)loadAttachmentCollection:(AttachmentCollection *)collection {
-    [[ARVoidViewController theVoid] loadArtworkViewWithAttachmentCollection:collection];
-}
+<span class="k">+</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="nf">loadArtwork</span><span class="p">:(</span><span class="n">Artwork</span> <span class="o">*</span><span class="p">)</span><span class="nv">artwork</span> <span class="p">{</span>
+    <span class="n">AttachmentCollection</span> <span class="o">*</span> <span class="n">collection</span> <span class="o">=</span> <span class="p">[</span><span class="n">AttachmentCollection</span> <span class="nf">collectionWithItems</span><span class="p">:@[</span><span class="n">artwork</span><span class="p">]</span> <span class="nf">andIndex</span><span class="p">:</span><span class="mi">0</span><span class="p">];</span>
+    <span class="p">[</span><span class="n">self</span> <span class="nf">loadAttachmentCollection</span><span class="p">:</span><span class="n">collection</span><span class="p">];</span>
+<span class="p">}</span>
 
-+ (void)loadArtwork:(Artwork *)artwork {
-    AttachmentCollection * collection = [AttachmentCollection collectionWithItems:@[artwork] andIndex:0];
-    [self loadAttachmentCollection:collection];
-}
+<span class="k">+</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="nf">loadArtworkFromURL</span><span class="p">:(</span><span class="n">NSDictionary</span> <span class="o">*</span><span class="p">)</span><span class="nv">options</span> <span class="p">{</span>
+    <span class="p">[[</span><span class="n">ARVoidViewController</span> <span class="nf">theVoid</span><span class="p">]</span> <span class="nf">loadArtworkViewWithID</span><span class="p">:</span><span class="n">options</span><span class="p">[</span><span class="s">@"id"</span><span class="p">]];</span>
+<span class="p">}</span>
 
-+ (void)loadArtworkFromURL:(NSDictionary *)options {
-    [[ARVoidViewController theVoid] loadArtworkViewWithID:options[@"id"]];
-}
+<span class="k">@end</span>
+</code></pre></div></div>
 
-@end
-</code></pre>
+<p>It shows the pattern’s humble origins quite well. The <code class="language-plaintext highlighter-rouge">ARSwitchboard</code> provides an API that any object can call, and it will handle presenting the view controller. Offering an API that can either use arbitrary URLs or model objects.</p>
 
-<p>It shows the pattern's humble origins quite well. The <code>ARSwitchboard</code> provides an API that any object can call, and it will handle presenting the view controller. Offering an API that can either use arbitrary URLs or model objects.</p>
+<h2 id="where-the-pattern-evolved">Where the pattern evolved</h2>
+<p>I initially wrote this during my “Class methods look prettier” stage. Our <code class="language-plaintext highlighter-rouge">ARSwitchboard</code> has evolved into using instance methods, and it uses a sharedInstance. This makes writing tests for the routing extremely simple for <a href="https://github.com/artsy/energy/blob/master/ArtsyFolio%20Tests/Util/ARSwitchboardTests.m">easy use cases</a>, and possible <a href="https://github.com/artsy/eigen/blob/2eb00a8050a69ab2e05ffeb11a2bbdcbadf9fb7e/Artsy_Tests/App_Tests/ARSwitchBoardTests.m">for the complex</a>.</p>
 
-<a name="Where.the.pattern.evolved"></a>
-<h2>Where the pattern evolved</h2>
-
-<p>I initially wrote this during my "Class methods look prettier" stage. Our <code>ARSwitchboard</code> has evolved into using instance methods, and it uses a sharedInstance. This makes writing tests for the routing extremely simple for <a href="https://github.com/artsy/energy/blob/master/ArtsyFolio%20Tests/Util/ARSwitchboardTests.m">easy use cases</a>, and possible <a href="https://github.com/artsy/eigen/blob/2eb00a8050a69ab2e05ffeb11a2bbdcbadf9fb7e/Artsy_Tests/App_Tests/ARSwitchBoardTests.m">for the complex</a>.</p>
-
-<p>The pattern was established pretty well by the time it was integrated <a href="https://github.com/artsy/energy/blob/a35969d232d8309fd2aedaae35f2dbdf6d505004/Classes/Util/App/ARSwitchBoard.m">into Energy</a>. Some of it's highlights are:</p>
+<p>The pattern was established pretty well by the time it was integrated <a href="https://github.com/artsy/energy/blob/a35969d232d8309fd2aedaae35f2dbdf6d505004/Classes/Util/App/ARSwitchBoard.m">into Energy</a>. Some of it’s highlights are:</p>
 
 <ul>
-<li><p>The sharedInstance is <a href="https://github.com/artsy/energy/blob/a35969d232d8309fd2aedaae35f2dbdf6d505004/Classes/Util/App/ARSwitchBoard.m#L20-L31">set up</a> with some of the other singletons, from that point on it only acts on properties it owns.</p></li>
-<li><p>It deals with setting up entire <a href="https://github.com/artsy/energy/blob/a35969d232d8309fd2aedaae35f2dbdf6d505004/Classes/Util/App/ARSwitchBoard.m#L229-L259">view hierarchies</a>. Not just pushing another view on to a <code>UINavigationController</code>.</p></li>
+  <li>
+    <p>The sharedInstance is <a href="https://github.com/artsy/energy/blob/a35969d232d8309fd2aedaae35f2dbdf6d505004/Classes/Util/App/ARSwitchBoard.m#L20-L31">set up</a> with some of the other singletons, from that point on it only acts on properties it owns.</p>
+  </li>
+  <li>
+    <p>It deals with setting up entire <a href="https://github.com/artsy/energy/blob/a35969d232d8309fd2aedaae35f2dbdf6d505004/Classes/Util/App/ARSwitchBoard.m#L229-L259">view hierarchies</a>. Not just pushing another view on to a <code class="language-plaintext highlighter-rouge">UINavigationController</code>.</p>
+  </li>
 </ul>
 
-
-<a name="Internal.Routing"></a>
-<h2>Internal Routing</h2>
-
-<p>We try to make all view controllers that could represent a URL have two initializers; one that accepts a full model object and another that works off an ID. This means that we can provide as much context as we can initially, but can generate everything at runtime if you've come from a push notification or from another app.</p>
+<h2 id="internal-routing">Internal Routing</h2>
+<p>We try to make all view controllers that could represent a URL have two initializers; one that accepts a full model object and another that works off an ID. This means that we can provide as much context as we can initially, but can generate everything at runtime if you’ve come from a push notification or from another app.</p>
 
 <p>We use an internal routing tool to do the heavy-lifting here, currently this is <a href="https://cocoapods.org/pods/JLRoutes">JLRoutes</a> which we use to map URLs to blocks and dictionaries.</p>
 
-<a name="Difficulties"></a>
-<h2>Difficulties</h2>
-
-<p>With Eigen we're trying to map the whole data-set of Artsy into a single app, which likely an architecture post of it's own. However, one of the issues we're having that really strains this metaphor is ambiguity in the routing system. For us this crops up in two places:
-- The URL <a href="https://github.com/artsy/eigen/pull/534">routing structure</a> you're mapping against can change.
-- When one route could have <a href="https://github.com/artsy/eigen/blob/2eb00a8050a69ab2e05ffeb11a2bbdcbadf9fb7e/Artsy/App/ARSwitchBoard.m#L156">many types</a> of data.</p>
+<h2 id="difficulties">Difficulties</h2>
+<p>With Eigen we’re trying to map the whole data-set of Artsy into a single app, which likely an architecture post of it’s own. However, one of the issues we’re having that really strains this metaphor is ambiguity in the routing system. For us this crops up in two places:</p>
+<ul>
+  <li>The URL <a href="https://github.com/artsy/eigen/pull/534">routing structure</a> you’re mapping against can change.</li>
+  <li>When one route could have <a href="https://github.com/artsy/eigen/blob/2eb00a8050a69ab2e05ffeb11a2bbdcbadf9fb7e/Artsy/App/ARSwitchBoard.m#L156">many types</a> of data.</li>
+</ul>
 
 <p>Handling routes that changes is something we ended up building an <a href="https://github.com/artsy/echo/blob/master/app/api/v1/presenters/route_presenter.rb">API for</a>. It provides a JSON package of routes and names, and Eigen updates its routing internally.</p>
 
-<p>Having one route represent multiple <em>potential</em> view controllers is tricky. We didn't want to introduce asynchronicity to the <code>ARSwitchboard</code>, so we use <a href="https://github.com/artsy/eigen/blob/2eb00a8050a69ab2e05ffeb11a2bbdcbadf9fb7e/Artsy/View_Controllers/Fair/ARProfileViewController.m#L55-L66">polymorphic view controllers</a>. This is a technique where the view controller returned then looks deeper into what it is representing and using child view controllers, embeds the true view controller inside itself.</p>
+<p>Having one route represent multiple <em>potential</em> view controllers is tricky. We didn’t want to introduce asynchronicity to the <code class="language-plaintext highlighter-rouge">ARSwitchboard</code>, so we use <a href="https://github.com/artsy/eigen/blob/2eb00a8050a69ab2e05ffeb11a2bbdcbadf9fb7e/Artsy/View_Controllers/Fair/ARProfileViewController.m#L55-L66">polymorphic view controllers</a>. This is a technique where the view controller returned then looks deeper into what it is representing and using child view controllers, embeds the true view controller inside itself.</p>
 
-<a name="Future"></a>
-<h2>Future</h2>
+<h2 id="future">Future</h2>
+<p>Like all patterns, our <code class="language-plaintext highlighter-rouge">ARSwitchboard</code> pattern is evolving. With Eigen we have  a complicated navigation stack, due to supporting app-wide tabs and hosting navigation controllers inside view controllers. This adds additional logic to pretty complicated code when we’re dealing with URLs that could be root elements of a tab. So we are planning to eventually move the presentation aspect of the <code class="language-plaintext highlighter-rouge">ARSwitchboard</code> into a separate object.</p>
 
-<p>Like all patterns, our <code>ARSwitchboard</code> pattern is evolving. With Eigen we have  a complicated navigation stack, due to supporting app-wide tabs and hosting navigation controllers inside view controllers. This adds additional logic to pretty complicated code when we're dealing with URLs that could be root elements of a tab. So we are planning to eventually move the presentation aspect of the <code>ARSwitchboard</code> into a separate object.</p>
-
-<a name="Alternatives"></a>
-<h2>Alternatives</h2>
-
-<p>We didn't need an <code>ARSwitchboard</code> in Eidolon. Which, so far always seems to be the exception in these architecture pattern posts. Instead we opted for Apple's <a href="http://www.objc.io/issues/15-testing/dependency-injection/#which-di-framework-should-i-use">Dependency Injection tool</a>, Interface Builder + Storyboards. Energy pre-dates Storyboards, and they didn't feel like a good fit for Eigen.</p>
+<h2 id="alternatives">Alternatives</h2>
+<p>We didn’t need an <code class="language-plaintext highlighter-rouge">ARSwitchboard</code> in Eidolon. Which, so far always seems to be the exception in these architecture pattern posts. Instead we opted for Apple’s <a href="http://www.objc.io/issues/15-testing/dependency-injection/#which-di-framework-should-i-use">Dependency Injection tool</a>, Interface Builder + Storyboards. Energy pre-dates Storyboards, and they didn’t feel like a good fit for Eigen.</p>
 
 <p>We found storyboards to be a really good replacement to this pattern when you have an established series of steps in your application with some well defined connections.</p>
 
-<p>As an example, our on-boarding process for Eigen probably should have been storyboarded, as it's a series of view controllers pushed incrementally. However given that the rest of Eigen is essentially a web of interconnected view controllers, we'd be abusing the tool.</p>
+<p>As an example, our on-boarding process for Eigen probably should have been storyboarded, as it’s a series of view controllers pushed incrementally. However given that the rest of Eigen is essentially a web of interconnected view controllers, we’d be abusing the tool.</p>
 
-<a name="Wrap.up"></a>
-<h2>Wrap up</h2>
+<h2 id="wrap-up">Wrap up</h2>
+<p>So the Switchboard is a way that we’ve managed to contain some of the complexity around having web-like abilities to jump between any two view controllers. This pattern makes it easy to stub a switchboard in tests, and to easily test the routing itself.</p>
 
-<p>So the Switchboard is a way that we've managed to contain some of the complexity around having web-like abilities to jump between any two view controllers. This pattern makes it easy to stub a switchboard in tests, and to easily test the routing itself.</p>
-
-<p>When I looked through some of the other open source iOS apps to compare the pattern, I couldn't find anything similar. So if you do have something similar, you should probably Open Source your app ;)</p>
+<p>When I looked through some of the other open source iOS apps to compare the pattern, I couldn’t find anything similar. So if you do have something similar, you should probably Open Source your app ;)</p>
 ]]></content>
   </entry>
   

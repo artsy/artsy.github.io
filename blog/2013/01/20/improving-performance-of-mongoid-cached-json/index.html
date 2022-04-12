@@ -14,8 +14,6 @@
 
     
 
-
-
   
     
       
@@ -25,7 +23,7 @@
         
           Improving Performance of Mongoid-Cached-Json
         
-        Jan 20, 2...">
+        Jan 20, 201...">
   
 
   <!-- http://t.co/dKP3o1e -->
@@ -129,9 +127,7 @@
       <div>
   <article class="hentry" role="article">
 
-    
-<div class="article-container-single ">
-
+    <div class="article-container-single ">
 
   
     <div class="meta-container">
@@ -144,8 +140,6 @@
         
         <time datetime="2013-01-20">Jan 20, 2013</time>
           <p class="meta-author">
-  
-
 
 
   
@@ -172,52 +166,43 @@
     
       <div class="entry-content"><p>Last year, we have open-sourced and made extensive use of two Ruby libraries in our API: <a href="https://github.com/dblock/mongoid-cached-json">mongoid-cached-json</a> and <a href="https://github.com/artsy/garner">garner</a>. Both transform the procedural nightmare of caching and JSON generation into a declarative and easily manageable DSL. It was worth the investment, since our service spends half of its time generating JSON and reading from and writing to Memcached.</p>
 
-<p>Today we've released mongoid-cached-json 1.4 with two interesting performance improvements.</p>
+<p>Today we’ve released mongoid-cached-json 1.4 with two interesting performance improvements.</p>
 
 <!-- more -->
 
+<h2 id="bulk-reference-resolving-with-a-local-cache">Bulk Reference Resolving with a Local Cache</h2>
 
-<a name="Bulk.Reference.Resolving.with.a.Local.Cache"></a>
-<h2>Bulk Reference Resolving with a Local Cache</h2>
+<p>Consider an array of database model instances, each with numerous references to other objects. It’s typical to see such instances reference the same object: for example we have an <code class="language-plaintext highlighter-rouge">Artwork</code> that references an <code class="language-plaintext highlighter-rouge">Artist</code>. It’s common to see multiple artworks reference the same artist in a collection. Retrieving the artist from cache every time it is referenced is clearly inefficient.</p>
 
-<p>Consider an array of database model instances, each with numerous references to other objects. It's typical to see such instances reference the same object: for example we have an <code>Artwork</code> that references an <code>Artist</code>. It's common to see multiple artworks reference the same artist in a collection. Retrieving the artist from cache every time it is referenced is clearly inefficient.</p>
+<p><code class="language-plaintext highlighter-rouge">Mongoid::CachedJson</code> will now collect all JSON references, then resolve them after suppressing duplicates, in-place within the JSON tree. This significantly reduces the number of cache queries.</p>
 
-<p><code>Mongoid::CachedJson</code> will now collect all JSON references, then resolve them after suppressing duplicates, in-place within the JSON tree. This significantly reduces the number of cache queries.</p>
+<p>Note, that while this optimization reduces load on the Memcached servers, there’s a cost of doing additional work after collecting the entire JSON in Ruby.</p>
 
-<p>Note, that while this optimization reduces load on the Memcached servers, there's a cost of doing additional work after collecting the entire JSON in Ruby.</p>
+<h2 id="fetching-cache-data-in-bulk">Fetching Cache Data in Bulk</h2>
 
-<a name="Fetching.Cache.Data.in.Bulk"></a>
-<h2>Fetching Cache Data in Bulk</h2>
+<p>Various cache stores, including Memcached, support bulk read operations. The <a href="https://github.com/mperham/dalli">Dalli</a> gem, which we use in production, exposes this via the <code class="language-plaintext highlighter-rouge">read_multi</code> method. With the bulk reference optimization above we now have the entire list of keys to query from cache, at once. <code class="language-plaintext highlighter-rouge">Mongoid::CachedJson</code> will always invoke <code class="language-plaintext highlighter-rouge">read_multi</code> where available, which significantly reduces the number of network roundtrips to the cache servers.</p>
 
-<p>Various cache stores, including Memcached, support bulk read operations. The <a href="https://github.com/mperham/dalli">Dalli</a> gem, which we use in production, exposes this via the <code>read_multi</code> method. With the bulk reference optimization above we now have the entire list of keys to query from cache, at once. <code>Mongoid::CachedJson</code> will always invoke <code>read_multi</code> where available, which significantly reduces the number of network roundtrips to the cache servers.</p>
+<p>This is a good example of where declarative models and DSLs have tremendous advantages in enabling massive improvements across the board. Imagine making the <code class="language-plaintext highlighter-rouge">read_multi</code> optimization in hundreds of API endpoints!</p>
 
-<p>This is a good example of where declarative models and DSLs have tremendous advantages in enabling massive improvements across the board. Imagine making the <code>read_multi</code> optimization in hundreds of API endpoints!</p>
+<h2 id="benchmarks">Benchmarks</h2>
 
-<a name="Benchmarks"></a>
-<h2>Benchmarks</h2>
+<p>With the above optimizations the library does more work in order to make less roundtrips to Memcached over the network. Since the network is often the slowest part in any large scale system, the overall production performance should be better as long as we can obtain similar throughput in ideal network conditions on localhost. We’ve added some common case benchmarks in <a href="https://github.com/dblock/mongoid-cached-json/blob/master/spec/benchmark_spec.rb">spec/benchmark_spec.rb</a> and ran them against 1.2.3 and 1.4.0 to obtain <a href="https://gist.github.com/4583039">these results</a>. The overall performance gain averaged 14.6%, which is quite significant. With real world data in a production environment we’re seeing 15-50% less time spent in Memcached, depending on the API.</p>
 
-<p>With the above optimizations the library does more work in order to make less roundtrips to Memcached over the network. Since the network is often the slowest part in any large scale system, the overall production performance should be better as long as we can obtain similar throughput in ideal network conditions on localhost. We've added some common case benchmarks in <a href="https://github.com/dblock/mongoid-cached-json/blob/master/spec/benchmark_spec.rb">spec/benchmark_spec.rb</a> and ran them against 1.2.3 and 1.4.0 to obtain <a href="https://gist.github.com/4583039">these results</a>. The overall performance gain averaged 14.6%, which is quite significant. With real world data in a production environment we're seeing 15-50% less time spent in Memcached, depending on the API.</p>
-
-<a name="Links"></a>
-<h2>Links</h2>
+<h2 id="links">Links</h2>
 
 <p>The concepts behind these improvements should be attributed to <a href="https://github.com/aaw">@aaw</a> and <a href="https://github.com/macreery">@macreery</a>. If you want to learn more about the above-mentioned libraries, check out the following links:</p>
 
 <ul>
-<li><a href="http://confreaks.com/videos/986-goruco2012-from-zero-to-api-cache-w-grape-mongodb-in-10-minutes">From Zero to API-Cache w/ Grape and MongoDB</a>, video recorded at GoRuCo</li>
-<li><a href="/blog/2012/02/20/caching-model-json-with-mongoid-cached-json/">Caching Model JSON with Mongoid-Cached-Json</a></li>
-<li><a href="/blog/2012/03/23/simplifying-model-level-json-versioning-with-mongoid-cached-json/">Simplifying Model Level Versioning with Mongoid-Cched-Json</a></li>
-<li><a href="/blog/2012/05/30/restful-api-caching-with-garner/">RESTful API Caching with Garner</a></li>
+  <li><a href="http://confreaks.com/videos/986-goruco2012-from-zero-to-api-cache-w-grape-mongodb-in-10-minutes">From Zero to API-Cache w/ Grape and MongoDB</a>, video recorded at GoRuCo</li>
+  <li><a href="/blog/2012/02/20/caching-model-json-with-mongoid-cached-json/">Caching Model JSON with Mongoid-Cached-Json</a></li>
+  <li><a href="/blog/2012/03/23/simplifying-model-level-json-versioning-with-mongoid-cached-json/">Simplifying Model Level Versioning with Mongoid-Cched-Json</a></li>
+  <li><a href="/blog/2012/05/30/restful-api-caching-with-garner/">RESTful API Caching with Garner</a></li>
 </ul>
-
 </div>
     
 
-    
-      <p class="meta-author">
-        
-  
-
+    <p class="meta-author">
+      
 
 
 
@@ -258,39 +243,38 @@
 
 
 
-      </p>
-      <p class="meta-categories">
-        Categories: 
+    </p>
+    <p class="meta-categories">
+      Categories: 
 
 <span class="categories">
   
-    <a class='category' href='/blog/categories/api/'>api</a>, <a class='category' href='/blog/categories/caching/'>caching</a>, <a class='category' href='/blog/categories/mongoid/'>mongoid</a>
+    <a class='category' href='/blog/categories/api/'>API</a>, <a class='category' href='/blog/categories/caching/'>Caching</a>, <a class='category' href='/blog/categories/mongoid/'>Mongoid</a>
   
 </span>
 
 
-      </p>
-      
-
-      
-        <hr/>
-        <section class="comments">
-          <h1>Comments</h1>
-          <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
-</div>
-        </section>
-        <hr/>
-      
-
-      <p class="meta-paginate">
-        
-          <a class="previous" href="/blog/2013/01/15/debugging-bundler-issues-with-heroku/" title="Previous Post: Debugging Bundler Issues on Heroku">&laquo; Debugging Bundler Issues on Heroku</a>
-        
-        
-          <a class="next" href="/blog/2013/01/31/create-mongodb-command-lines-with-mongo/" title="next Post: Create MongoDB Command-Lines from Mongoid Configuration">Create MongoDB Command-Lines from Mongoid Configuration &raquo;</a>
-        
-      </p>
+    </p>
     
+
+    
+      <hr/>
+      <section class="comments">
+        <h1>Comments</h1>
+        <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</div>
+      </section>
+      <hr/>
+    
+
+    <p class="meta-paginate">
+      
+        <a class="previous" href="/blog/2013/01/15/debugging-bundler-issues-with-heroku/" title="Previous Post: Debugging Bundler Issues on Heroku">&laquo; Debugging Bundler Issues on Heroku</a>
+      
+      
+        <a class="next" href="/blog/2013/01/31/create-mongodb-command-lines-with-mongo/" title="next Post: Create MongoDB Command-Lines from Mongoid Configuration">Create MongoDB Command-Lines from Mongoid Configuration &raquo;</a>
+      
+    </p>
   </div>
 
 

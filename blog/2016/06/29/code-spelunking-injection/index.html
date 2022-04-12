@@ -14,8 +14,6 @@
 
     
 
-
-
   
     
       
@@ -25,7 +23,7 @@
         
           Code Spelunking: Injection for Xcode Plugin
         
-        Jun 29, 20...">
+        Jun 29, 2016...">
   
 
   <!-- http://t.co/dKP3o1e -->
@@ -129,9 +127,7 @@
       <div>
   <article class="hentry" role="article">
 
-    
-<div class="article-container-single ">
-
+    <div class="article-container-single ">
 
   
     <div class="meta-container">
@@ -144,8 +140,6 @@
         
         <time datetime="2016-06-29">Jun 29, 2016</time>
           <p class="meta-author">
-  
-
 
 
   
@@ -170,358 +164,288 @@
 
   <div class="content-container">
     
-      <div class="entry-content"><p>It was only three months ago that I came to the conclusion of just how much time I had wasted <a href="http://artsy.github.io/blog/2016/03/05/iOS-Code-Injection/">on code compilation cycles</a>, once I started to play with <a href="https://github.com/johnno1962/injectionforxcode">Injection for Xcode</a>. I still feel guilt about the time I wasted. However, I'm trying to turn that into something constructive. In order to do that, I need to have a solid understanding of the fundamentals on how Injection For Xcode works.</p>
+      <div class="entry-content"><p>It was only three months ago that I came to the conclusion of just how much time I had wasted <a href="http://artsy.github.io/blog/2016/03/05/iOS-Code-Injection/">on code compilation cycles</a>, once I started to play with <a href="https://github.com/johnno1962/injectionforxcode">Injection for Xcode</a>. I still feel guilt about the time I wasted. However, I’m trying to turn that into something constructive. In order to do that, I need to have a solid understanding of the fundamentals on how Injection For Xcode works.</p>
 
-<p><a href="https://ashfurrow.com/">Ash</a> says one of the best ways to <a href="https://ashfurrow.com/blog/teaching-learning/">learn is to teach</a>. So I'm going to try take you through a guided tour of the code-base. You need some pretty reasonable Objective-C chops to get this, but anyone with an app or two under their belt should be able to <a href="https://en.wikipedia.org/wiki/Grok">grok</a> it.</p>
+<p><a href="https://ashfurrow.com/">Ash</a> says one of the best ways to <a href="https://ashfurrow.com/blog/teaching-learning/">learn is to teach</a>. So I’m going to try take you through a guided tour of the code-base. You need some pretty reasonable Objective-C chops to get this, but anyone with an app or two under their belt should be able to <a href="https://en.wikipedia.org/wiki/Grok">grok</a> it.</p>
 
 <!-- more -->
-
 
 <p><img src="/images/2016-06-29-injection-overview/overview.png" alt="Xcode Project Overview" /></p>
 
 <p>You might find it easier to clone the repo and have Xcode open along-side this article, to quickly do that, run these commands to put it in a temporary folder via the terminal:</p>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-</pre></td><td class='code'><pre><code class='sh'><span class='line'><span class="nb">cd</span> /tmp/
-</span><span class='line'>git clone https://github.com/johnno1962/injectionforxcode TempInjection
-</span><span class='line'>open TempInjection/InjectionPluginLite/InjectionPlugin.xcodeproj/
-</span></code></pre></td></tr></table></div></figure>
+<div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cd</span> /tmp/
+git clone https://github.com/johnno1962/injectionforxcode TempInjection
+open TempInjection/InjectionPluginLite/InjectionPlugin.xcodeproj/
+</code></pre></div></div>
 
+<h2 id="a-note-on-code-style">A note on code style</h2>
 
-<a name="A.note.on.code.style"></a>
-<h2>A note on code style</h2>
+<p>I am of the _why <a href="https://www.smashingmagazine.com/2010/05/why-a-tale-of-a-post-modern-genius/#dont-be-afraid-to-take-risks">camp of programming</a> - the code we are spelunking through can feel foreign to modern Objective-C, and it’s not got tests. <a href="https://github.com/johnno1962/">@Johno1962</a> described it to me as being like 1997’s Objective-C. The end result of all this code <em>is</em> beautiful, whether the code is - is a matter of perspective. I’m super happy it exists.</p>
 
-<p>I am of the _why <a href="https://www.smashingmagazine.com/2010/05/why-a-tale-of-a-post-modern-genius/#dont-be-afraid-to-take-risks">camp of programming</a> - the code we are spelunking through can feel foreign to modern Objective-C, and it's not got tests. <a href="https://github.com/johnno1962/">@Johno1962</a> described it to me as being like 1997's Objective-C. The end result of all this code <em>is</em> beautiful, whether the code is - is a matter of perspective. I'm super happy it exists.</p>
-
-<a name="Targets"></a>
-<h2>Targets</h2>
+<h2 id="targets">Targets</h2>
 
 <ul>
-<li>InjectionPlugin - The user facing Xcode plugin</li>
-<li>InjectionLoader - A Bundle used to skip patching a project for injection.</li>
-<li>iOSBundleTemplate - A folder to a reference implementation of a iOS Project</li>
-<li>OSXBundleTemplate - Same but for OSX Project</li>
-<li>unhide - A command line tool that extracts symbols from a Swift Framework</li>
+  <li>InjectionPlugin - The user facing Xcode plugin</li>
+  <li>InjectionLoader - A Bundle used to skip patching a project for injection.</li>
+  <li>iOSBundleTemplate - A folder to a reference implementation of a iOS Project</li>
+  <li>OSXBundleTemplate - Same but for OSX Project</li>
+  <li>unhide - A command line tool that extracts symbols from a Swift Framework</li>
 </ul>
 
-
-<a name="Implementation.Order"></a>
-<h2>Implementation Order</h2>
+<h2 id="implementation-order">Implementation Order</h2>
 
 <p>I want to go through the code-base from the perspective what happens when it:</p>
 
 <ul>
-<li>Loads up inside Xcode.</li>
-<li>Recieves a call to inject.</li>
+  <li>Loads up inside Xcode.</li>
+  <li>Recieves a call to inject.</li>
 </ul>
 
+<h3 id="launch">Launch</h3>
 
-<a name="Launch"></a>
-<h3>Launch</h3>
+<p>All Xcode plugins have the exact same launch process, you <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Info.plist#L21-L22">define a class</a> in the info.plist, this class, <code class="language-plaintext highlighter-rouge">INPluginMenuController</code>, gets <code class="language-plaintext highlighter-rouge">+ pluginDidLoad:</code> called. This is where you <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/INPluginMenuController.m#L83-L94">set up a shared instance</a>, and can keep a reference to your bundle.</p>
 
-<p>All Xcode plugins have the exact same launch process, you <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Info.plist#L21-L22">define a class</a> in the info.plist, this class, <code>INPluginMenuController</code>, gets <code>+ pluginDidLoad:</code> called. This is where you <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/INPluginMenuController.m#L83-L94">set up a shared instance</a>, and can keep a reference to your bundle.</p>
+<p>This triggers the interesting stuff in <code class="language-plaintext highlighter-rouge">applicationDidFinishLaunching:</code> this sets up the <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/INPluginMenuController.m#L131-L137">user interface from a nib file</a>, which <a href="http://artsy.github.io/blog/2016/06/27/dependency-injection-in-swift/">DIs</a> in a lot of the instance variables, and will send you to get a new version of Injection if it fails. It then sets up the menu ( note: <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/INPluginMenuController.m#L151-L154">interesting use of c-structs here</a> ) and starts a TCP server, then registers for when a <code class="language-plaintext highlighter-rouge">NSWindow</code> becomes active.</p>
 
-<p>This triggers the interesting stuff in <code>applicationDidFinishLaunching:</code> this sets up the <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/INPluginMenuController.m#L131-L137">user interface from a nib file</a>, which <a href="http://artsy.github.io/blog/2016/06/27/dependency-injection-in-swift/">DIs</a> in a lot of the instance variables, and will send you to get a new version of Injection if it fails. It then sets up the menu ( note: <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/INPluginMenuController.m#L151-L154">interesting use of c-structs here</a> ) and starts a TCP server, then registers for when a <code>NSWindow</code> becomes active.</p>
+<h4 id="server">Server</h4>
 
-<a name="Server"></a>
-<h4>Server</h4>
+<p>The server is a <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/INPluginMenuController.m#L512-L535">c TCP socket</a>, prior to digging in here, I’d never needed to see one. I see a lot of references to Android injection, so I assume the low-level choice in a socket  was so the same code can do both platforms.</p>
 
-<p>The server is a <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/INPluginMenuController.m#L512-L535">c TCP socket</a>, prior to digging in here, I'd never needed to see one. I see a lot of references to Android injection, so I assume the low-level choice in a socket  was so the same code can do both platforms.</p>
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="o">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="n">startServer</span> <span class="p">{</span>
+    <span class="k">struct</span> <span class="n">sockaddr_in</span> <span class="n">serverAddr</span><span class="p">;</span>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-</pre></td><td class='code'><pre><code class='c'><span class='line'><span class="o">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="n">startServer</span> <span class="p">{</span>
-</span><span class='line'>    <span class="k">struct</span> <span class="n">sockaddr_in</span> <span class="n">serverAddr</span><span class="p">;</span>
-</span><span class='line'>
-</span><span class='line'>    <span class="n">serverAddr</span><span class="p">.</span><span class="n">sin_family</span> <span class="o">=</span> <span class="n">AF_INET</span><span class="p">;</span>
-</span><span class='line'>    <span class="n">serverAddr</span><span class="p">.</span><span class="n">sin_addr</span><span class="p">.</span><span class="n">s_addr</span> <span class="o">=</span> <span class="n">INADDR_ANY</span><span class="p">;</span>
-</span><span class='line'>    <span class="n">serverAddr</span><span class="p">.</span><span class="n">sin_port</span> <span class="o">=</span> <span class="n">htons</span><span class="p">(</span><span class="n">INJECTION_PORT</span><span class="p">);</span>
-</span><span class='line'>
-</span><span class='line'>    <span class="kt">int</span> <span class="n">optval</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
-</span><span class='line'>    <span class="k">if</span> <span class="p">(</span> <span class="p">(</span><span class="n">serverSocket</span> <span class="o">=</span> <span class="n">socket</span><span class="p">(</span><span class="n">AF_INET</span><span class="p">,</span> <span class="n">SOCK_STREAM</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="p">)</span>
-</span><span class='line'>        <span class="p">[</span><span class="n">self</span> <span class="nl">error</span><span class="p">:</span><span class="err">@</span><span class="s">&quot;Could not open service socket: %s&quot;</span><span class="p">,</span> <span class="n">strerror</span><span class="p">(</span> <span class="n">errno</span> <span class="p">)];</span>
-</span><span class='line'>    <span class="p">[...]</span> <span class="c1">// skipping a bunch of error handling</span>
-</span><span class='line'>    <span class="k">else</span> <span class="k">if</span> <span class="p">(</span> <span class="n">listen</span><span class="p">(</span> <span class="n">serverSocket</span><span class="p">,</span> <span class="mi">5</span> <span class="p">)</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="p">)</span>
-</span><span class='line'>        <span class="p">[</span><span class="n">self</span> <span class="nl">error</span><span class="p">:</span><span class="err">@</span><span class="s">&quot;Service socket would not listen: %s&quot;</span><span class="p">,</span> <span class="n">strerror</span><span class="p">(</span> <span class="n">errno</span> <span class="p">)];</span>
-</span><span class='line'>    <span class="k">else</span>
-</span><span class='line'>        <span class="p">[</span><span class="n">self</span> <span class="nl">performSelectorInBackground</span><span class="p">:</span><span class="err">@</span><span class="n">selector</span><span class="p">(</span><span class="n">backgroundConnectionService</span><span class="p">)</span> <span class="nl">withObject</span><span class="p">:</span><span class="n">nil</span><span class="p">];</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
+    <span class="n">serverAddr</span><span class="p">.</span><span class="n">sin_family</span> <span class="o">=</span> <span class="n">AF_INET</span><span class="p">;</span>
+    <span class="n">serverAddr</span><span class="p">.</span><span class="n">sin_addr</span><span class="p">.</span><span class="n">s_addr</span> <span class="o">=</span> <span class="n">INADDR_ANY</span><span class="p">;</span>
+    <span class="n">serverAddr</span><span class="p">.</span><span class="n">sin_port</span> <span class="o">=</span> <span class="n">htons</span><span class="p">(</span><span class="n">INJECTION_PORT</span><span class="p">);</span>
 
+    <span class="kt">int</span> <span class="n">optval</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+    <span class="k">if</span> <span class="p">(</span> <span class="p">(</span><span class="n">serverSocket</span> <span class="o">=</span> <span class="n">socket</span><span class="p">(</span><span class="n">AF_INET</span><span class="p">,</span> <span class="n">SOCK_STREAM</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="p">)</span>
+        <span class="p">[</span><span class="n">self</span> <span class="n">error</span><span class="o">:</span><span class="err">@</span><span class="s">"Could not open service socket: %s"</span><span class="p">,</span> <span class="n">strerror</span><span class="p">(</span> <span class="n">errno</span> <span class="p">)];</span>
+    <span class="p">[...]</span> <span class="c1">// skipping a bunch of error handling</span>
+    <span class="k">else</span> <span class="k">if</span> <span class="p">(</span> <span class="n">listen</span><span class="p">(</span> <span class="n">serverSocket</span><span class="p">,</span> <span class="mi">5</span> <span class="p">)</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="p">)</span>
+        <span class="p">[</span><span class="n">self</span> <span class="n">error</span><span class="o">:</span><span class="err">@</span><span class="s">"Service socket would not listen: %s"</span><span class="p">,</span> <span class="n">strerror</span><span class="p">(</span> <span class="n">errno</span> <span class="p">)];</span>
+    <span class="k">else</span>
+        <span class="p">[</span><span class="n">self</span> <span class="n">performSelectorInBackground</span><span class="o">:</span><span class="err">@</span><span class="n">selector</span><span class="p">(</span><span class="n">backgroundConnectionService</span><span class="p">)</span> <span class="n">withObject</span><span class="o">:</span><span class="n">nil</span><span class="p">];</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>Assuming everything went well, then a <a href="https://en.wikipedia.org/wiki/Bonjour_%28software%29">Bonjour</a> <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/INPluginMenuController.m#L539-L542">service</a> is created advertising the socket on the network. This then moves to a background thread and starts a infinite runloop checking for new connections on the <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/INPluginMenuController.m#L545-L557">socket every 0.5 seconds</a>.</p>
 
-<p>Here is it <a href="/images/2016-06-29-injection-overview/selected_bonjour.png">running</a> in <a href="http://tildesoft.com">Bonjour Browser</a>. So, what does this server do? That's handled inside <code>INPluginClientController</code>. It uses a MAC address so that you can have multiple non-competing services running on the same network.</p>
+<p>Here is it <a href="/images/2016-06-29-injection-overview/selected_bonjour.png">running</a> in <a href="http://tildesoft.com">Bonjour Browser</a>. So, what does this server do? That’s handled inside <code class="language-plaintext highlighter-rouge">INPluginClientController</code>. It uses a MAC address so that you can have multiple non-competing services running on the same network.</p>
 
-<p>At its simplest, the server exists to send messages between running multiple applications and the injection plugin. We'll get back to what the server does later.</p>
+<p>At its simplest, the server exists to send messages between running multiple applications and the injection plugin. We’ll get back to what the server does later.</p>
 
-<a name="Inside.Xcode"></a>
-<h4>Inside Xcode</h4>
+<h4 id="inside-xcode">Inside Xcode</h4>
 
-<p>The plugin will keep track of the key editor window, <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/INPluginMenuController.m#L214-L220">this is done</a> by making sure the window's controller is of the class <code>IDEWorkspaceWindowController</code> and that it has a corresponding file.</p>
+<p>The plugin will keep track of the key editor window, <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/INPluginMenuController.m#L214-L220">this is done</a> by making sure the window’s controller is of the class <code class="language-plaintext highlighter-rouge">IDEWorkspaceWindowController</code> and that it has a corresponding file.</p>
 
-<p>That's basically everything set up for the plugin now, until a user decides to start using Injection. So we're going to move to what happens when you press <code>ctrl + =</code>.</p>
+<p>That’s basically everything set up for the plugin now, until a user decides to start using Injection. So we’re going to move to what happens when you press <code class="language-plaintext highlighter-rouge">ctrl + =</code>.</p>
 
-<a name="On.Preparing.for.Injection"></a>
-<h4>On Preparing for Injection</h4>
+<h4 id="on-preparing-for-injection">On Preparing for Injection</h4>
 
-<p>The work starts at <code>injectSource</code> <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/INPluginMenuController.m#L359">from INPluginMenuController</a>.</p>
+<p>The work starts at <code class="language-plaintext highlighter-rouge">injectSource</code> <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/INPluginMenuController.m#L359">from INPluginMenuController</a>.</p>
 
-<p>The first thing it does is grab the current file, then saves it. It then checks what type of file it is, as only <code>.m, .mm, .swift or .storyboard</code> can be injected.</p>
+<p>The first thing it does is grab the current file, then saves it. It then checks what type of file it is, as only <code class="language-plaintext highlighter-rouge">.m, .mm, .swift or .storyboard</code> can be injected.</p>
 
 <p>Next, it pulls out a reference to the currently running LLDB session, the console in the bottom of Xcode. It checks if the server has any active clients.</p>
 
-<p>OK, to understand the next bit you need to understand what <em>"unpatched injection"</em> is. In order to support code injection, your app has to have some way to communicate back to the TCP server hosted in Xcode. This can be done either by <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/documentation/patching_injection.md">including some source code</a> in your project, or by adding it in at runtime. Including the source code, is "patching" your project to allow injection. It's optional because of what comes next.</p>
+<p>OK, to understand the next bit you need to understand what <em>“unpatched injection”</em> is. In order to support code injection, your app has to have some way to communicate back to the TCP server hosted in Xcode. This can be done either by <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/documentation/patching_injection.md">including some source code</a> in your project, or by adding it in at runtime. Including the source code, is “patching” your project to allow injection. It’s optional because of what comes next.</p>
 
-<p>If there are no clients connected, then requests a pause from LLDB, allowing the plugin to send messages to the running app, it then waits a few microseconds to give the debugger chance to load. Once it's loaded <code>loadBundle:</code> is <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/INPluginMenuController.m#L404-L415">called</a>.</p>
+<p>If there are no clients connected, then requests a pause from LLDB, allowing the plugin to send messages to the running app, it then waits a few microseconds to give the debugger chance to load. Once it’s loaded <code class="language-plaintext highlighter-rouge">loadBundle:</code> is <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/INPluginMenuController.m#L404-L415">called</a>.</p>
 
-<p>Injection then sends <code>expr -l objc++ -O -- (void)[[NSClassFromString(@"NSBundle")  bundleWithPath:@"/Users/orta/Library/Application Support/Developer/Shared/Xcode/Plug-ins/InjectionPlugin.xcplugin/Contents/Resources/InjectionLoader.bundle"] load]</code> into the debugger. Causing the same code as the patch to exist inside your app.  This code comes from the second target from the list at the top, and is hosted inside the plugin's bundle (meta...).</p>
+<p>Injection then sends <code class="language-plaintext highlighter-rouge">expr -l objc++ -O -- (void)[[NSClassFromString(@"NSBundle")  bundleWithPath:@"/Users/orta/Library/Application Support/Developer/Shared/Xcode/Plug-ins/InjectionPlugin.xcplugin/Contents/Resources/InjectionLoader.bundle"] load]</code> into the debugger. Causing the same code as the patch to exist inside your app.  This code comes from the second target from the list at the top, and is hosted inside the plugin’s bundle (meta…).</p>
 
-<p>With that verified, it's ready to inject the source code.</p>
+<p>With that verified, it’s ready to inject the source code.</p>
 
-<a name="Code.Injection.Compilation"></a>
-<h4>Code Injection Compilation</h4>
+<h4 id="code-injection-compilation">Code Injection Compilation</h4>
 
-<p>If everything is good, and ready to go, and we've got confirmation that a client exists, Injection starts monitoring for file changes inside your Xcodeproject.</p>
+<p>If everything is good, and ready to go, and we’ve got confirmation that a client exists, Injection starts monitoring for file changes inside your Xcodeproject.</p>
 
-<p>A lot of the code injection work is done inside perl scripts, another new language for me. OK, so, at the end of <code>injectSource</code> it runs <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/injectSource.pl">injectSource.pl</a> with an argument of the file to inject.</p>
+<p>A lot of the code injection work is done inside perl scripts, another new language for me. OK, so, at the end of <code class="language-plaintext highlighter-rouge">injectSource</code> it runs <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/injectSource.pl">injectSource.pl</a> with an argument of the file to inject.</p>
 
 <p>Note, a lot of ground-work for the perl scripts is done inside <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/common.pm">common.pm</a> - which is a module the other <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/injectSource.pl#L15">scripts import</a>.</p>
 
-<p>It is the role and responsibility of this script to setup, maintain and amend an xcodeproject that compiles just the class that has changed into a new bundle. Luckily for me this is pretty well documented <code>:D</code>.</p>
+<p>It is the role and responsibility of this script to setup, maintain and amend an xcodeproject that compiles just the class that has changed into a new bundle. Luckily for me this is pretty well documented <code class="language-plaintext highlighter-rouge">:D</code>.</p>
 
-<p>It starts out by copying a template xcodeproject (either <code>iOSBundleTemplate</code> or <code>OSXBundleTemplate</code>) into your current project directory. I <a href="https://github.com/artsy/eigen/pull/1236/files#diff-a084b794bc0759e7a6b77810e01874f2R46">add this</a> to the <code>.gitignore</code>.</p>
+<p>It starts out by copying a template xcodeproject (either <code class="language-plaintext highlighter-rouge">iOSBundleTemplate</code> or <code class="language-plaintext highlighter-rouge">OSXBundleTemplate</code>) into your current project directory. I <a href="https://github.com/artsy/eigen/pull/1236/files#diff-a084b794bc0759e7a6b77810e01874f2R46">add this</a> to the <code class="language-plaintext highlighter-rouge">.gitignore</code>.</p>
 
-<p>Next it pulls out the build settings for all these keys <code>FRAMEWORK_SEARCH_PATHS HEADER_SEARCH_PATHS USER_HEADER_SEARCH_PATHS GCC_VERSION ARCHS VALID_ARCHS GCC_PREPROCESSOR_DEFINITIONS GCC_ENABLE_OBJC_EXCEPTIONS</code> from your project, into the sub-project.</p>
+<p>Next it pulls out the build settings for all these keys <code class="language-plaintext highlighter-rouge">FRAMEWORK_SEARCH_PATHS HEADER_SEARCH_PATHS USER_HEADER_SEARCH_PATHS GCC_VERSION ARCHS VALID_ARCHS GCC_PREPROCESSOR_DEFINITIONS GCC_ENABLE_OBJC_EXCEPTIONS</code> from your project, into the sub-project.</p>
 
 <p>Next it determines how to handle code-signing on the app, as it supports both simulator and on-device, and you need to sign to run any code on a device.</p>
 
-<p>After that, if needs to understand how to compile an individual file, it gets a reference to the build log dirs for the <a href="/images/2016-06-29-injection-overview/build_logs.png">derived data</a> for your app. They're zipped files, so it unzips them and parses the log. Here's an example of what <a href="/images/2016-06-29-injection-overview/a_build_log.png">compiling a single class from Eigen looks like</a> (I've highlighted the useful bits). Internally, this is called the learnt db.</p>
+<p>After that, if needs to understand how to compile an individual file, it gets a reference to the build log dirs for the <a href="/images/2016-06-29-injection-overview/build_logs.png">derived data</a> for your app. They’re zipped files, so it unzips them and parses the log. Here’s an example of what <a href="/images/2016-06-29-injection-overview/a_build_log.png">compiling a single class from Eigen looks like</a> (I’ve highlighted the useful bits). Internally, this is called the learnt db.</p>
 
-<p>The learnt db is used to compile a class to be individually compiled into a <code>injecting_class.o</code> file, I can't quite figure out where that file comes from though.</p>
+<p>The learnt db is used to compile a class to be individually compiled into a <code class="language-plaintext highlighter-rouge">injecting_class.o</code> file, I can’t quite figure out where that file comes from though.</p>
 
-<p>To wrap up the compilation it needs to take the compiled object <code>injecting_class.o</code> and statically link it to the bundle that is generated inside the sub-project. Here is the <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/injectSource.pl#L331-L365">command line generation</a>, building the script is a little bit <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/injectSource.pl#L376-L467">more involved</a> - but that's generally because it's trying to support a lot of user options. The main class that exists in the bundle is <code>BundleContents</code>.</p>
+<p>To wrap up the compilation it needs to take the compiled object <code class="language-plaintext highlighter-rouge">injecting_class.o</code> and statically link it to the bundle that is generated inside the sub-project. Here is the <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/injectSource.pl#L331-L365">command line generation</a>, building the script is a little bit <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/injectSource.pl#L376-L467">more involved</a> - but that’s generally because it’s trying to support a lot of user options. The main class that exists in the bundle is <code class="language-plaintext highlighter-rouge">BundleContents</code>.</p>
 
-<p>The compiled bundle is then renamed so that you don't have name clashes, it's just incremental integers. My current sub-project I'm using for debugging looks like this:</p>
+<p>The compiled bundle is then renamed so that you don’t have name clashes, it’s just incremental integers. My current sub-project I’m using for debugging looks like this:</p>
 
 <p><img src="/images/2016-06-29-injection-overview/injection_subproject.png" alt="Injection Subproject" /></p>
 
-<p>With the <code>Logs</code> dir being a symlink to the derived data folder.</p>
+<p>With the <code class="language-plaintext highlighter-rouge">Logs</code> dir being a symlink to the derived data folder.</p>
 
-<p>With that done, it will <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/injectSource.pl#L487-L503">include any nibs</a> from compiling storyboards, and <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/injectSource.pl#L505-L512">code-sign the bundle</a> if it's going to a device. Finally it prints out <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/injectSource.pl#L515">the new bundle path</a> in so the monitoring script can work with it.</p>
+<p>With that done, it will <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/injectSource.pl#L487-L503">include any nibs</a> from compiling storyboards, and <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/injectSource.pl#L505-L512">code-sign the bundle</a> if it’s going to a device. Finally it prints out <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/injectSource.pl#L515">the new bundle path</a> in so the monitoring script can work with it.</p>
 
-<a name="Script.Monitoring"></a>
-<h4>Script Monitoring</h4>
+<h4 id="script-monitoring">Script Monitoring</h4>
 
-<p>The script to create the Xcode project, amend it, and compile is done as a separate process. It's <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/INPluginClientController.m#L365">done</a> via the <a href="http://linux.die.net/man/3/popen">function</a> <code>popen</code>. This is then monitored in background, <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/INPluginClientController.m#L382">listening for output lines</a> that begins with <code>&lt;</code>, <code>&gt;</code>, <code>!</code>, <code>%</code> and <code>?</code>. The one that we're most interested in, is the <code>!</code> operator which tells the server the filepath of the now compiled <code>InjectionBundleX.bundle</code>, in my most recent case, this looked like <code>/Users/orta/dev/ios/energy/iOSInjectionProject/build/Debug-iphonesimulator/InjectionBundle4.bundle</code>.</p>
+<p>The script to create the Xcode project, amend it, and compile is done as a separate process. It’s <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/INPluginClientController.m#L365">done</a> via the <a href="http://linux.die.net/man/3/popen">function</a> <code class="language-plaintext highlighter-rouge">popen</code>. This is then monitored in background, <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/INPluginClientController.m#L382">listening for output lines</a> that begins with <code class="language-plaintext highlighter-rouge">&lt;</code>, <code class="language-plaintext highlighter-rouge">&gt;</code>, <code class="language-plaintext highlighter-rouge">!</code>, <code class="language-plaintext highlighter-rouge">%</code> and <code class="language-plaintext highlighter-rouge">?</code>. The one that we’re most interested in, is the <code class="language-plaintext highlighter-rouge">!</code> operator which tells the server the filepath of the now compiled <code class="language-plaintext highlighter-rouge">InjectionBundleX.bundle</code>, in my most recent case, this looked like <code class="language-plaintext highlighter-rouge">/Users/orta/dev/ios/energy/iOSInjectionProject/build/Debug-iphonesimulator/InjectionBundle4.bundle</code>.</p>
 
 <p>This <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/INPluginClientController.m#L422-L423">tells the</a> server running inside Xcode that it has a file to send to the clients.</p>
 
-<a name="How.the.server.works"></a>
-<h4>How the server works</h4>
+<h4 id="how-the-server-works">How the server works</h4>
 
-<p>Alright, back to <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/INPluginClientController.m">the INPluginClientController</a>. Skipping over the option setting <code>IBAction</code>s and <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/INPluginClientController.m#L129-L185">RTF-formatted logging</a>. We come to the initial connection responder: <code>setConnection:</code>.</p>
+<p>Alright, back to <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/INPluginClientController.m">the INPluginClientController</a>. Skipping over the option setting <code class="language-plaintext highlighter-rouge">IBAction</code>s and <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/INPluginClientController.m#L129-L185">RTF-formatted logging</a>. We come to the initial connection responder: <code class="language-plaintext highlighter-rouge">setConnection:</code>.</p>
 
-<p>So, this is where I ended up a bit out of my comfort zone. This isn't a blog post about sockets and c though, so I'll annotate what's going on from the high level thoughout this <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/INPluginClientController.m#L189">connection setup function</a>.</p>
-
-<ul>
-<li>Grab some the main client file from socket, then if it's is an injection message, set the Injection console's info label to that filepath, this is the <code>BundleContents.m</code>.</li>
-<li>Otherwise inject all objects from a storyboard (not too sure whats going on there TBH)</li>
-<li>The server <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/INPluginClientController.m#L216">asks the client</a> for the app's path e.g. <code>/Users/orta/Library/Developer/CoreSimulator/Devices/CDC9D8EF-AAAD-47F8-8D53-C3C69551E85A/data/Containers/Data/Application/1F636180-7113-406E-88F8-7E43EFAC13F6"</code></li>
-<li>There's some more communication around the <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/INPluginClientController.m#L229-L230">app's architecture</a>.</li>
-<li>The app gets a <a href="/images/2016-06-29-injection-overview/badge.png">badge</a> with the client count on it, so you know it's working.</li>
-<li>If checks if you want the File Watcher turned on.</li>
-</ul>
-
-
-<p>From that point the server's job is mainly to pass messages and files that come out of the scripts between the client and the host doing the compilation.</p>
-
-<a name="File.Watcher"></a>
-<h4>File Watcher</h4>
-
-<p>As an option you can set in the preferences toggles a File Watcher. I found a bunch of references to this in the code, so I wanted to at least dig into that. When you turn it on, any save will trigger an injection. This is done by looking for the folder that your <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/INPluginMenuController.m#L432-L436">project resides in</a>, then using Apple's <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/FileWatcher.m#L31">file system event stream</a> to monitor for save changes. Then when a new FS event is triggered, it re-injects that file. I bet it's turned off by default as you'll see errors when it's not compilable.</p>
-
-<a name="Client-Side"></a>
-<h2>Client-Side</h2>
-
-<p>We've hand-waved though the client-side of the app during the patching stage of installation, but to understand both parts of the system we need to cover the client side in a bit more depth. There's two aspects to it, the initial bundle/patch and incremental bundles that contain the new compiled code.</p>
-
-<a name="Client.Setup"></a>
-<h4>Client Setup</h4>
-
-<p>To understand this, we need to grok a 1,200 LOC header file <code>:D</code>, it has a few responsibilities though. So we can try work through those, to <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/BundleInjection.h">BundleInjection.h</a>. Interesting note, when you are patching your application - you're actually making a link to a copy of this file inside your <code>/tmp/</code> dir.</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-</pre></td><td class='code'><pre><code class='objc'><span class='line'><span class="cp">#ifdef DEBUG</span>
-</span><span class='line'><span class="k">static</span> <span class="kt">char</span> <span class="n">_inMainFilePath</span><span class="p">[]</span> <span class="o">=</span> <span class="n">__FILE__</span><span class="p">;</span>
-</span><span class='line'><span class="k">static</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">_inIPAddresses</span><span class="p">[]</span> <span class="o">=</span> <span class="p">{</span><span class="s">&quot;10.12.1.67&quot;</span><span class="p">,</span> <span class="s">&quot;127.0.0.1&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">};</span>
-</span><span class='line'>
-</span><span class='line'><span class="cp">#define INJECTION_ENABLED</span>
-</span><span class='line'><span class="cp">#import &quot;/tmp/injectionforxcode/BundleInjection.h&quot;</span>
-</span><span class='line'><span class="cp">#endif</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<a name="Client.Socket.Connection"></a>
-<h4>Client Socket Connection</h4>
-
-<p>Like the server, this has two responsibilities - using Bonjour to find the server, and raw socket communication. There is nothing unique about the Bonjour mutlicast work, so I'm skipping that. Once the socket knows how to establish a connection between processes <code>+ bundleLoader</code> <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/BundleInjection.h#L359">is called</a> on a background thread.</p>
-
-<p>So, what does <code>bundleLoad</code> do?</p>
+<p>So, this is where I ended up a bit out of my comfort zone. This isn’t a blog post about sockets and c though, so I’ll annotate what’s going on from the high level thoughout this <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/INPluginClientController.m#L189">connection setup function</a>.</p>
 
 <ul>
-<li>It checks if it's a new Injection install in the app, <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/BundleInjection.h#L366-L367">if so</a> it sets up <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/documentation/tunable_parameters.md">INParameters and INColors</a> for tunable parameters.</li>
-<li>It then determines the <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/BundleInjection.h#L383-L400">hardware architecture</a> for it to be sent to the server for compilation later.</li>
-<li>Attempt to connect to the server, 5 times.</li>
-<li>If it succeeds, <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/BundleInjection.h#L415">write the location</a> of the <code>BundleInjection</code> file to the server. Triggering the first of the socket work on the server.</li>
-<li>Expect a response of the <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/BundleInjection.h#L417">server's</a> version of <code>BundleInjection</code></li>
-<li>If the bundle is compiling storyboards on iOS, <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/BundleInjection.h#L424-L429">swizzle some</a> of the UINib init functions.</li>
-<li>Pass the <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/BundleInjection.h#L443">home directory of the app</a> to the server.</li>
+  <li>Grab some the main client file from socket, then if it’s is an injection message, set the Injection console’s info label to that filepath, this is the <code class="language-plaintext highlighter-rouge">BundleContents.m</code>.</li>
+  <li>Otherwise inject all objects from a storyboard (not too sure whats going on there TBH)</li>
+  <li>The server <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/INPluginClientController.m#L216">asks the client</a> for the app’s path e.g. <code class="language-plaintext highlighter-rouge">/Users/orta/Library/Developer/CoreSimulator/Devices/CDC9D8EF-AAAD-47F8-8D53-C3C69551E85A/data/Containers/Data/Application/1F636180-7113-406E-88F8-7E43EFAC13F6"</code></li>
+  <li>There’s some more communication around the <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/INPluginClientController.m#L229-L230">app’s architecture</a>.</li>
+  <li>The app gets a <a href="/images/2016-06-29-injection-overview/badge.png">badge</a> with the client count on it, so you know it’s working.</li>
+  <li>If checks if you want the File Watcher turned on.</li>
 </ul>
 
+<p>From that point the server’s job is mainly to pass messages and files that come out of the scripts between the client and the host doing the compilation.</p>
 
-<p>From there the socket goes into runloop mode on it's on thread.</p>
+<h4 id="file-watcher">File Watcher</h4>
 
-<a name="Client.Socket.Runloop"></a>
-<h4>Client Socket Runloop</h4>
+<p>As an option you can set in the preferences toggles a File Watcher. I found a bunch of references to this in the code, so I wanted to at least dig into that. When you turn it on, any save will trigger an injection. This is done by looking for the folder that your <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/INPluginMenuController.m#L432-L436">project resides in</a>, then using Apple’s <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/FileWatcher.m#L31">file system event stream</a> to monitor for save changes. Then when a new FS event is triggered, it re-injects that file. I bet it’s turned off by default as you’ll see errors when it’s not compilable.</p>
+
+<h2 id="client-side">Client-Side</h2>
+
+<p>We’ve hand-waved though the client-side of the app during the patching stage of installation, but to understand both parts of the system we need to cover the client side in a bit more depth. There’s two aspects to it, the initial bundle/patch and incremental bundles that contain the new compiled code.</p>
+
+<h4 id="client-setup">Client Setup</h4>
+
+<p>To understand this, we need to grok a 1,200 LOC header file <code class="language-plaintext highlighter-rouge">:D</code>, it has a few responsibilities though. So we can try work through those, to <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/BundleInjection.h">BundleInjection.h</a>. Interesting note, when you are patching your application - you’re actually making a link to a copy of this file inside your <code class="language-plaintext highlighter-rouge">/tmp/</code> dir.</p>
+
+<div class="language-objc highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cp">#ifdef DEBUG
+</span><span class="k">static</span> <span class="kt">char</span> <span class="n">_inMainFilePath</span><span class="p">[]</span> <span class="o">=</span> <span class="n">__FILE__</span><span class="p">;</span>
+<span class="k">static</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">_inIPAddresses</span><span class="p">[]</span> <span class="o">=</span> <span class="p">{</span><span class="s">"10.12.1.67"</span><span class="p">,</span> <span class="s">"127.0.0.1"</span><span class="p">,</span> <span class="mi">0</span><span class="p">};</span>
+
+<span class="cp">#define INJECTION_ENABLED
+#import "/tmp/injectionforxcode/BundleInjection.h"
+#endif
+</span></code></pre></div></div>
+
+<h4 id="client-socket-connection">Client Socket Connection</h4>
+
+<p>Like the server, this has two responsibilities - using Bonjour to find the server, and raw socket communication. There is nothing unique about the Bonjour mutlicast work, so I’m skipping that. Once the socket knows how to establish a connection between processes <code class="language-plaintext highlighter-rouge">+ bundleLoader</code> <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/BundleInjection.h#L359">is called</a> on a background thread.</p>
+
+<p>So, what does <code class="language-plaintext highlighter-rouge">bundleLoad</code> do?</p>
+
+<ul>
+  <li>It checks if it’s a new Injection install in the app, <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/BundleInjection.h#L366-L367">if so</a> it sets up <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/documentation/tunable_parameters.md">INParameters and INColors</a> for tunable parameters.</li>
+  <li>It then determines the <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/BundleInjection.h#L383-L400">hardware architecture</a> for it to be sent to the server for compilation later.</li>
+  <li>Attempt to connect to the server, 5 times.</li>
+  <li>If it succeeds, <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/BundleInjection.h#L415">write the location</a> of the <code class="language-plaintext highlighter-rouge">BundleInjection</code> file to the server. Triggering the first of the socket work on the server.</li>
+  <li>Expect a response of the <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/BundleInjection.h#L417">server’s</a> version of <code class="language-plaintext highlighter-rouge">BundleInjection</code></li>
+  <li>If the bundle is compiling storyboards on iOS, <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/BundleInjection.h#L424-L429">swizzle some</a> of the UINib init functions.</li>
+  <li>Pass the <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/BundleInjection.h#L443">home directory of the app</a> to the server.</li>
+</ul>
+
+<p>From there the socket goes into runloop mode on it’s on thread.</p>
+
+<h4 id="client-socket-runloop">Client Socket Runloop</h4>
 
 <p>As with server monitoring, the client listens for strings that begin with special prefixes:</p>
 
 <ul>
-<li><code>~</code> - Injects, then Re-creates the app degelate + view controller hierarchy.</li>
-<li><code>/</code> - <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/BundleInjection.h#L644">Loads</a> the bundle path that was sent in.</li>
-<li><code>&gt;</code> - Accepts a file or directory to <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/BundleInjection.h#L476">be sent through the socket</a>.</li>
-<li><code>&lt;</code> - Sends a requested file or directory to <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/BundleInjection.h#L492">through the socket</a>.</li>
-<li><code>#</code> - <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/BundleInjection.h#L540">Receives</a> an <code>NS/UIImage</code> via NSData for Tunable Parameters.</li>
-<li><code>!</code> - Logs to console</li>
-<li>Otherwise, assume it's another Tunable Parameter.</li>
+  <li><code class="language-plaintext highlighter-rouge">~</code> - Injects, then Re-creates the app degelate + view controller hierarchy.</li>
+  <li><code class="language-plaintext highlighter-rouge">/</code> - <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/BundleInjection.h#L644">Loads</a> the bundle path that was sent in.</li>
+  <li><code class="language-plaintext highlighter-rouge">&gt;</code> - Accepts a file or directory to <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/BundleInjection.h#L476">be sent through the socket</a>.</li>
+  <li><code class="language-plaintext highlighter-rouge">&lt;</code> - Sends a requested file or directory to <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/BundleInjection.h#L492">through the socket</a>.</li>
+  <li><code class="language-plaintext highlighter-rouge">#</code> - <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/BundleInjection.h#L540">Receives</a> an <code class="language-plaintext highlighter-rouge">NS/UIImage</code> via NSData for Tunable Parameters.</li>
+  <li><code class="language-plaintext highlighter-rouge">!</code> - Logs to console</li>
+  <li>Otherwise, assume it’s another Tunable Parameter.</li>
 </ul>
 
-
-<a name="Loading.the.Bundle"></a>
-<h4>Loading the Bundle</h4>
+<h4 id="loading-the-bundle">Loading the Bundle</h4>
 
 <p>When the new bundle is loaded <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/injectSource.pl#L303-L308">it triggers</a> this code:</p>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-</pre></td><td class='code'><pre><code class='objc'><span class='line'><span class="p">+</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="nf">load</span> <span class="p">{</span>
-</span><span class='line'>    <span class="kt">Class</span> <span class="n">bundleInjection</span> <span class="o">=</span> <span class="n">NSClassFromString</span><span class="p">(</span><span class="s">@&quot;BundleInjection&quot;</span><span class="p">);</span>
-</span><span class='line'>    <span class="p">[</span><span class="n">bundleInjection</span> <span class="nl">autoLoadedNotify</span><span class="p">:</span><span class="err">$</span><span class="n">flags</span> <span class="nl">hook</span><span class="p">:(</span><span class="kt">void</span> <span class="o">*</span><span class="p">)</span><span class="n">injectionHook</span><span class="p">];</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
-
+<div class="language-objc highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">+</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="n">load</span> <span class="p">{</span>
+    <span class="n">Class</span> <span class="n">bundleInjection</span> <span class="o">=</span> <span class="n">NSClassFromString</span><span class="p">(</span><span class="s">@"BundleInjection"</span><span class="p">);</span>
+    <span class="p">[</span><span class="n">bundleInjection</span> <span class="nf">autoLoadedNotify</span><span class="p">:</span><span class="err">$</span><span class="n">flags</span> <span class="nf">hook</span><span class="p">:(</span><span class="kt">void</span> <span class="o">*</span><span class="p">)</span><span class="n">injectionHook</span><span class="p">];</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>Which does the job of letting the running app know that instances have been updated with new code. Injection does three things:</p>
 
 <ul>
-<li>A global NSNotification for .</li>
-<li>Sends all instances of classes injected a message that they've been injected.</li>
-<li>Sends all classes that have been injected a message they've been injected.</li>
+  <li>A global NSNotification for .</li>
+  <li>Sends all instances of classes injected a message that they’ve been injected.</li>
+  <li>Sends all classes that have been injected a message they’ve been injected.</li>
 </ul>
 
+<p>Which is where this goes from “complex”, to “I would need to study up to do this.” Let’s start of quoting the README that <a href="https://github.com/johnno1962/">@Johno1962</a> and I worked on for a while.</p>
 
-<p>Which is where this goes from "complex", to "I would need to study up to do this." Let's start of quoting the README that <a href="https://github.com/johnno1962/">@Johno1962</a> and I worked on for a while.</p>
+<blockquote>
+  <p>It can be tough to look through all of the memory of a running application. In order to determine the classes and instances to call the injected callbacks on, Injection performs a “sweep” to find all objects in memory. Roughly, this involves looking at an object, then recursively looking through objects which it refers to. For example, the object’s instance variables and properties.</p>
+</blockquote>
 
-<blockquote><p>It can be tough to look through all of the memory of a running application. In order to determine the classes and instances to call the injected callbacks on, Injection performs a "sweep" to find all objects in memory. Roughly, this involves looking at an object, then recursively looking through objects which it refers to. For example, the object's instance variables and properties.</p>
+<blockquote>
+  <p>This process is seeded using the application’s delegate and all windows. Once all the in-memory reference are collected, Injection will then filter these references to ones that it has compiled and injected. Then sending them the messages referenced in the callbacks section.</p>
+</blockquote>
 
-<p>This process is seeded using the application's delegate and all windows. Once all the in-memory reference are collected, Injection will then filter these references to ones that it has compiled and injected. Then sending them the messages referenced in the callbacks section.</p>
+<blockquote>
+  <p>If no references are found, Injection will look through all objects that are referred to via sharedInstance. If that fails, well, Injection couldn’t find your instance. This is one way in which you may miss callbacks in your app.</p>
+</blockquote>
 
-<p>If no references are found, Injection will look through all objects that are referred to via sharedInstance. If that fails, well, Injection couldn't find your instance. This is one way in which you may miss callbacks in your app.</p></blockquote>
+<h4 id="class--method-injections">Class + Method Injections</h4>
 
-<a name="Class...Method.Injections"></a>
-<h4>Class + Method Injections</h4>
+<p>So how does it pull that off? Calling <code class="language-plaintext highlighter-rouge">NSBundle</code>’s <code class="language-plaintext highlighter-rouge">- load</code> <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/BundleInjection.h#L648">here</a>, calls the <a href="https://developer.apple.com/library/mac/documentation/Cocoa/Reference/Foundation/Classes/NSBundle_Class/index.html#//apple_ref/occ/instm/NSBundle/load">load function to call on all classes</a> inside that new bundle. This triggers the load function from the <code class="language-plaintext highlighter-rouge">InjectionBundle</code> that is auto-generated during the Injection stage. Here’s what one of mine looks like:</p>
 
-<p>So how does it pull that off? Calling <code>NSBundle</code>'s <code>- load</code> <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/BundleInjection.h#L648">here</a>, calls the <a href="https://developer.apple.com/library/mac/documentation/Cocoa/Reference/Foundation/Classes/NSBundle_Class/index.html#//apple_ref/occ/instm/NSBundle/load">load function to call on all classes</a> inside that new bundle. This triggers the load function from the <code>InjectionBundle</code> that is auto-generated during the Injection stage. Here's what one of mine looks like:</p>
+<div class="language-objc highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">@interface</span> <span class="nc">InjectionBundle3</span> <span class="p">:</span> <span class="nc">NSObject</span>
+<span class="k">@end</span>
+<span class="k">@implementation</span> <span class="nc">InjectionBundle3</span>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-</pre></td><td class='code'><pre><code class='objc'><span class='line'><span class="k">@interface</span> <span class="nc">InjectionBundle3</span> : <span class="bp">NSObject</span>
-</span><span class='line'><span class="k">@end</span>
-</span><span class='line'><span class="k">@implementation</span> <span class="nc">InjectionBundle3</span>
-</span><span class='line'>
-</span><span class='line'><span class="p">+</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="nf">load</span> <span class="p">{</span>
-</span><span class='line'>    <span class="kt">Class</span> <span class="n">bundleInjection</span> <span class="o">=</span> <span class="n">NSClassFromString</span><span class="p">(</span><span class="s">@&quot;BundleInjection&quot;</span><span class="p">);</span>
-</span><span class='line'>    <span class="p">[</span><span class="n">bundleInjection</span> <span class="nl">autoLoadedNotify</span><span class="p">:</span><span class="mi">0</span> <span class="nl">hook</span><span class="p">:(</span><span class="kt">void</span> <span class="o">*</span><span class="p">)</span><span class="n">injectionHook</span><span class="p">];</span>
-</span><span class='line'><span class="p">}</span>
-</span><span class='line'>
-</span><span class='line'><span class="k">@end</span>
-</span></code></pre></td></tr></table></div></figure>
+<span class="k">+</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="n">load</span> <span class="p">{</span>
+    <span class="n">Class</span> <span class="n">bundleInjection</span> <span class="o">=</span> <span class="n">NSClassFromString</span><span class="p">(</span><span class="s">@"BundleInjection"</span><span class="p">);</span>
+    <span class="p">[</span><span class="n">bundleInjection</span> <span class="nf">autoLoadedNotify</span><span class="p">:</span><span class="mi">0</span> <span class="nf">hook</span><span class="p">:(</span><span class="kt">void</span> <span class="o">*</span><span class="p">)</span><span class="n">injectionHook</span><span class="p">];</span>
+<span class="p">}</span>
 
+<span class="k">@end</span>
+</code></pre></div></div>
 
-<p>This is generated from the <code>injectSource.pl</code> script <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/injectSource.pl#L311-L315">here</a>] <code>[bundleInjection autoLoadedNotify:$flags hook:(void *)injectionHook];</code> . It also comes with another function,</p>
+<p>This is generated from the <code class="language-plaintext highlighter-rouge">injectSource.pl</code> script <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/injectSource.pl#L311-L315">here</a>] <code class="language-plaintext highlighter-rouge">[bundleInjection autoLoadedNotify:$flags hook:(void *)injectionHook];</code> . It also comes with another function,</p>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-</pre></td><td class='code'><pre><code class='c'><span class='line'><span class="kt">int</span> <span class="nf">injectionHook</span><span class="p">()</span> <span class="p">{</span>
-</span><span class='line'>    <span class="n">NSLog</span><span class="p">(</span> <span class="err">\@</span><span class="s">&quot;injectionHook():&quot;</span> <span class="p">);</span>
-</span><span class='line'>    <span class="p">[</span><span class="n">InjectionBundle3</span> <span class="n">load</span><span class="p">];</span>
-</span><span class='line'>    <span class="k">return</span> <span class="n">YES</span><span class="p">;</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kt">int</span> <span class="nf">injectionHook</span><span class="p">()</span> <span class="p">{</span>
+    <span class="n">NSLog</span><span class="p">(</span> <span class="err">\@</span><span class="s">"injectionHook():"</span> <span class="p">);</span>
+    <span class="p">[</span><span class="n">InjectionBundle3</span> <span class="n">load</span><span class="p">];</span>
+    <span class="k">return</span> <span class="n">YES</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
+<p>What we care about is <code class="language-plaintext highlighter-rouge">&amp;injectionHook</code> which gets passed to <code class="language-plaintext highlighter-rouge">autoLoadedNotify</code> as a pointer to a function. Oddly enough, I’m a tad confused about the fact that the injection hook contains a reference to the function that calls it, but lets roll with it for now. Perhaps it’s never actually called, <em>I asked</em> -it’s for Android support, and isn’t used.</p>
 
-<p>What we care about is <code>&amp;injectionHook</code> which gets passed to <code>autoLoadedNotify</code> as a pointer to a function. Oddly enough, I'm a tad confused about the fact that the injection hook contains a reference to the function that calls it, but lets roll with it for now. Perhaps it's never actually called, <em>I asked</em> -it's for Android support, and isn't used.</p>
+<p>So, we’ve had a fairly typical <code class="language-plaintext highlighter-rouge">NSBundle</code> <code class="language-plaintext highlighter-rouge">- load</code> load our classes into the runtime. This triggered the <code class="language-plaintext highlighter-rouge">InjectionBundle.bundle</code> to have it’s classes created, and the first thing it does is pass a reference back to the <code class="language-plaintext highlighter-rouge">BundleInjection</code> class instance for the <code class="language-plaintext highlighter-rouge">injectionHook</code> function that calls the <code class="language-plaintext highlighter-rouge">load</code> on the new classes.</p>
 
-<p>So, we've had a fairly typical <code>NSBundle</code> <code>- load</code> load our classes into the runtime. This triggered the <code>InjectionBundle.bundle</code> to have it's classes created, and the first thing it does is pass a reference back to the <code>BundleInjection</code> class instance for the <code>injectionHook</code> function that calls the <code>load</code> on the new classes.</p>
+<p><em>Note:</em> terminology changes here, I’ve talked about a bundle, but now that the code is in the runtime, we start talking about it as a dynamic library. These bundles contain 2 files <code class="language-plaintext highlighter-rouge">Info.plist</code>, <code class="language-plaintext highlighter-rouge">InjectionBundleX</code> - so when I say dynamic library, I’m referring to the code that is inside the bundle that is linked ar runtime (and thus dynamically linked in.)</p>
 
-<p><em>Note:</em> terminology changes here, I've talked about a bundle, but now that the code is in the runtime, we start talking about it as a dynamic library. These bundles contain 2 files <code>Info.plist</code>, <code>InjectionBundleX</code> - so when I say dynamic library, I'm referring to the code that is inside the bundle that is linked ar runtime (and thus dynamically linked in.)</p>
+<p>Next, Injection creates a <a href="https://github.com/davetroy/astmanproxy/blob/f4b952a717b7e982b585bf0daa86398add394a88/src/include/dlfcn-compat.h#L44-L54">dynamic library info</a> <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/BundleInjection.h#L944-L946">struct</a> and uses <a href="http://linux.die.net/man/3/dladdr">dladdr</a> to fill the struct, based on the function pointer. This lets Injection know where in memory the library exists. It’s now safe in the knowledge that the code has been injected into the runtime. Injection will re-create the app structure, if requested - like when it receives a socket event of <code class="language-plaintext highlighter-rouge">~</code>.</p>
 
-<p>Next, Injection creates a <a href="https://github.com/davetroy/astmanproxy/blob/f4b952a717b7e982b585bf0daa86398add394a88/src/include/dlfcn-compat.h#L44-L54">dynamic library info</a> <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/BundleInjection.h#L944-L946">struct</a> and uses <a href="http://linux.die.net/man/3/dladdr">dladdr</a> to fill the struct, based on the function pointer. This lets Injection know where in memory the library exists. It's now safe in the knowledge that the code has been injected into the runtime. Injection will re-create the app structure, if requested - like when it receives a socket event of <code>~</code>.</p>
+<p>We’re getting into Mach-O binary APIs, so put on your crash helmets. Injection is going to use the dynamic library info, and <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/BundleInjection.h#L959-L981">ask for the Objective-C</a> <code class="language-plaintext highlighter-rouge">__classlist</code> via <a href="http://www.manpagez.com/man/3/getsectdatafromheader/">getsectdatafromheader</a> for the new dynamic library. This works fine for Swift too, it <em>mostly</em> has to be exposed to the Objective-C runtime. If you want to understand more about what this looks like, read <a href="https://blog.zynamics.com/2010/07/02/objective-c-reversing-ii/">this blog post</a> from <a href="https://zynamics.com">Zynamics</a>. Injection then loops through the classes inside the library, via the most <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/BundleInjection.h#L988">intensely casted</a> line in of code in here: <code class="language-plaintext highlighter-rouge">Class *classReferences = (Class *)(void *)((char *)info.dli_fbase+(uint64_t)referencesSection);</code>.</p>
 
-<p>We're getting into Mach-O binary APIs, so put on your crash helmets. Injection is going to use the dynamic library info, and <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/BundleInjection.h#L959-L981">ask for the Objective-C</a> <code>__classlist</code> via <a href="http://www.manpagez.com/man/3/getsectdatafromheader/">getsectdatafromheader</a> for the new dynamic library. This works fine for Swift too, it <em>mostly</em> has to be exposed to the Objective-C runtime. If you want to understand more about what this looks like, read <a href="https://blog.zynamics.com/2010/07/02/objective-c-reversing-ii/">this blog post</a> from <a href="https://zynamics.com">Zynamics</a>. Injection then loops through the classes inside the library, via the most <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/BundleInjection.h#L988">intensely casted</a> line in of code in here: <code>Class *classReferences = (Class *)(void *)((char *)info.dli_fbase+(uint64_t)referencesSection);</code>.</p>
+<p>These classes are then iterated though, and <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/BundleInjection.h#L836-L845">new implementations of functions are swizzled</a> to reference the new implementations. With Swift you have no guarantee that the methods are <code class="language-plaintext highlighter-rouge">dynamic</code> so all their <code class="language-plaintext highlighter-rouge">vtable</code> <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/BundleInjection.h#L847-L855">data is switched</a>. If you don’t know what a vtable is check this <a href="https://en.wikipedia.org/wiki/Virtual_method_table">page on Wikipedia</a>.</p>
 
-<p>These classes are then iterated though, and <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/BundleInjection.h#L836-L845">new implementations of functions are swizzled</a> to reference the new implementations. With Swift you have no guarantee that the methods are <code>dynamic</code> so all their <code>vtable</code> <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/BundleInjection.h#L847-L855">data is switched</a>. If you don't know what a vtable is check this <a href="https://en.wikipedia.org/wiki/Virtual_method_table">page on Wikipedia</a>.</p>
-
-<p>Once all of the classes have had their methods switched, the <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/BundleInjection.h#L911-L937">class table is updated</a> to ensure that functions that rely on the class table ( e.g. <code>NSClassFromSelector</code> ) return the new values.</p>
+<p>Once all of the classes have had their methods switched, the <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/BundleInjection.h#L911-L937">class table is updated</a> to ensure that functions that rely on the class table ( e.g. <code class="language-plaintext highlighter-rouge">NSClassFromSelector</code> ) return the new values.</p>
 
 <p>With valid class tables, and the newly injected functions added. Injection starts the memory sweep to send updated notifications.</p>
 
-<a name="Class...Instance.Notifications"></a>
-<h4>Class + Instance Notifications</h4>
+<h4 id="class--instance-notifications">Class + Instance Notifications</h4>
 
-<p>At <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/BundleInjection.h#L1028">this point</a> Injected does a run through the new class list again, if that class responds to the selector <code>+ injected</code> it runs it. It then does a check to see if the class's instances reponds to <code>- injected</code> if it does, it looks to see if it has any instances of the objects in it's liveObjects array. If the array hasn't been set up, then it needs to do a full memory sweep.</p>
+<p>At <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/BundleInjection.h#L1028">this point</a> Injected does a run through the new class list again, if that class responds to the selector <code class="language-plaintext highlighter-rouge">+ injected</code> it runs it. It then does a check to see if the class’s instances reponds to <code class="language-plaintext highlighter-rouge">- injected</code> if it does, it looks to see if it has any instances of the objects in it’s liveObjects array. If the array hasn’t been set up, then it needs to do a full memory sweep.</p>
 
-<p>Injection has an <a href="https://github.com/johnno1962/Xprobe">Xprobe</a>-lite included inside it. This lives in <a href="https://github.com/johnno1962/injectionforxcode/blob/16a9b8e93b458b1c5916e95df06fe8c74cb56862/InjectionPluginLite/Classes/BundleSweeper.h">BundleSweeper.h</a>. The quote opening this notification section above gave the start away, BundleSweeper <a href="https://github.com/johnno1962/injectionforxcode/blob/16a9b8e93b458b1c5916e95df06fe8c74cb56862/InjectionPluginLite/Classes/BundleSweeper.h#L47">looks at the app delegate</a> ( or a <a href="https://github.com/johnno1962/injectionforxcode/blob/16a9b8e93b458b1c5916e95df06fe8c74cb56862/InjectionPluginLite/Classes/BundleSweeper.h#L55">Cocos2D director object</a>) and then starts to recursively look at every object that it's related to. This is done by adding a <code>bwseep</code> function to <code>NSObject</code> then individually customizing it for known container classes, and "reference" classes e.g <a href="https://github.com/johnno1962/injectionforxcode/blob/16a9b8e93b458b1c5916e95df06fe8c74cb56862/InjectionPluginLite/Classes/BundleSweeper.h#L228">NSBlock</a>, <a href="https://github.com/johnno1962/injectionforxcode/blob/16a9b8e93b458b1c5916e95df06fe8c74cb56862/InjectionPluginLite/Classes/BundleSweeper.h#L221">NSData</a>, NSString, NSValue etc. The <code>bsweep</code> function adds itself to the <a href="https://github.com/johnno1962/injectionforxcode/blob/16a9b8e93b458b1c5916e95df06fe8c74cb56862/InjectionPluginLite/Classes/BundleSweeper.h#L113-L117">shared list</a> of "objects seen", checks for an it being a <a href="https://github.com/johnno1962/injectionforxcode/blob/16a9b8e93b458b1c5916e95df06fe8c74cb56862/InjectionPluginLite/Classes/BundleSweeper.h#L119-L124">private class or a transition</a>, if it's not then it loops through the <a href="http://stackoverflow.com/questions/16304483/debug-obtain-a-list-of-all-instance-variables-of-an-object-unknown-type">IvarList</a> and runs <code>bsweep</code> on all of those. With that done, it casually tests to see if there are any weakly held objects that <a href="https://github.com/johnno1962/injectionforxcode/blob/16a9b8e93b458b1c5916e95df06fe8c74cb56862/InjectionPluginLite/Classes/BundleSweeper.h#L148-L160">tend to use common selectors</a>.</p>
+<p>Injection has an <a href="https://github.com/johnno1962/Xprobe">Xprobe</a>-lite included inside it. This lives in <a href="https://github.com/johnno1962/injectionforxcode/blob/16a9b8e93b458b1c5916e95df06fe8c74cb56862/InjectionPluginLite/Classes/BundleSweeper.h">BundleSweeper.h</a>. The quote opening this notification section above gave the start away, BundleSweeper <a href="https://github.com/johnno1962/injectionforxcode/blob/16a9b8e93b458b1c5916e95df06fe8c74cb56862/InjectionPluginLite/Classes/BundleSweeper.h#L47">looks at the app delegate</a> ( or a <a href="https://github.com/johnno1962/injectionforxcode/blob/16a9b8e93b458b1c5916e95df06fe8c74cb56862/InjectionPluginLite/Classes/BundleSweeper.h#L55">Cocos2D director object</a>) and then starts to recursively look at every object that it’s related to. This is done by adding a <code class="language-plaintext highlighter-rouge">bwseep</code> function to <code class="language-plaintext highlighter-rouge">NSObject</code> then individually customizing it for known container classes, and “reference” classes e.g <a href="https://github.com/johnno1962/injectionforxcode/blob/16a9b8e93b458b1c5916e95df06fe8c74cb56862/InjectionPluginLite/Classes/BundleSweeper.h#L228">NSBlock</a>, <a href="https://github.com/johnno1962/injectionforxcode/blob/16a9b8e93b458b1c5916e95df06fe8c74cb56862/InjectionPluginLite/Classes/BundleSweeper.h#L221">NSData</a>, NSString, NSValue etc. The <code class="language-plaintext highlighter-rouge">bsweep</code> function adds itself to the <a href="https://github.com/johnno1962/injectionforxcode/blob/16a9b8e93b458b1c5916e95df06fe8c74cb56862/InjectionPluginLite/Classes/BundleSweeper.h#L113-L117">shared list</a> of “objects seen”, checks for an it being a <a href="https://github.com/johnno1962/injectionforxcode/blob/16a9b8e93b458b1c5916e95df06fe8c74cb56862/InjectionPluginLite/Classes/BundleSweeper.h#L119-L124">private class or a transition</a>, if it’s not then it loops through the <a href="http://stackoverflow.com/questions/16304483/debug-obtain-a-list-of-all-instance-variables-of-an-object-unknown-type">IvarList</a> and runs <code class="language-plaintext highlighter-rouge">bsweep</code> on all of those. With that done, it casually tests to see if there are any weakly held objects that <a href="https://github.com/johnno1962/injectionforxcode/blob/16a9b8e93b458b1c5916e95df06fe8c74cb56862/InjectionPluginLite/Classes/BundleSweeper.h#L148-L160">tend to use common selectors</a>.</p>
 
-<p>Let that simmer for a bit ( I jest, it's super fast. ) and then you have <em>almost</em> every object in your object graph being told that they've been updated. I say almost because of the above caveat. Can't find all objects this way. Singletons that never are referenced strongly from another object inside the findable graph wouldn't get a notification this way for example.</p>
+<p>Let that simmer for a bit ( I jest, it’s super fast. ) and then you have <em>almost</em> every object in your object graph being told that they’ve been updated. I say almost because of the above caveat. Can’t find all objects this way. Singletons that never are referenced strongly from another object inside the findable graph wouldn’t get a notification this way for example.</p>
 
-<p>With all the fancy class an instance nofications sorted, there is a good old reliable <code>NSNotification</code> - <a href="https://github.com/johnno1962/injectionforxcode/blob/master/InjectionPluginLite/Classes/BundleInjection.h#L1065">here</a>. Which is what I based my <a href="https://github.com/artsy/eigen/pull/1236">work on for Eigen</a>, super simple, extremely reliable and great for re-use.</p>
+<p>With all the fancy class an instance nofications sorted, there is a good old reliable <code class="language-plaintext highlighter-rouge">NSNotification</code> - <a href="https://github.com/johnno1962/injectionforxcode/blob/master/InjectionPluginLite/Classes/BundleInjection.h#L1065">here</a>. Which is what I based my <a href="https://github.com/artsy/eigen/pull/1236">work on for Eigen</a>, super simple, extremely reliable and great for re-use.</p>
 
 <p><img src="https://cloud.githubusercontent.com/assets/49038/13548868/131cbb1e-e2c8-11e5-9f61-4acdfd10b6aa.gif" alt="https://cloud.githubusercontent.com/assets/49038/13548868/131cbb1e-e2c8-11e5-9f61-4acdfd10b6aa.gif" />.</p>
 
@@ -529,33 +453,30 @@
 
 <p><strong>Phew!</strong></p>
 
-<p>So, this covered the majority of how Injection for Xcode works. It's a <em>really</em> powerful tool, that can vastly improve your day-to-day programming. When I showed a draft of this post to <a href="https://github.com/johnno1962/">@Johno1962</a> he reminded me that <a href="https://github.com/johnno1962/Diamond">Diamond</a> - his Swift scripting improvement tool, had it's own version of Injector inside that, that is much <a href="https://github.com/johnno1962/Diamond/blob/master/Reloader/Reloader.m">simpler and a easier read</a> at 120 LOC. However, can't understand the future without understanding the past.</p>
+<p>So, this covered the majority of how Injection for Xcode works. It’s a <em>really</em> powerful tool, that can vastly improve your day-to-day programming. When I showed a draft of this post to <a href="https://github.com/johnno1962/">@Johno1962</a> he reminded me that <a href="https://github.com/johnno1962/Diamond">Diamond</a> - his Swift scripting improvement tool, had it’s own version of Injector inside that, that is much <a href="https://github.com/johnno1962/Diamond/blob/master/Reloader/Reloader.m">simpler and a easier read</a> at 120 LOC. However, can’t understand the future without understanding the past.</p>
 
 <p>A lot of the most complicated code is around:</p>
 
 <ul>
-<li>The client-server architecture, and about passing files/folders between the running application and the Xcode plugin.</li>
-<li>The recursive memory sweeping required to get a notification that it's done.</li>
+  <li>The client-server architecture, and about passing files/folders between the running application and the Xcode plugin.</li>
+  <li>The recursive memory sweeping required to get a notification that it’s done.</li>
 </ul>
 
+<p>The actual work involved in <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/BundleInjection.h#L807-L938">doing the injection, and replacing the classes</a> isn’t particularly complicated, and is easy to understand without c/Mach-o domain knowledge. It’s making sure the environment is set up and supporting useful features like Storyboards, Android via Apportable, ARC and no-ARC, 32bit vs 64bit and iOS vs Mac where things start to become more complex.</p>
 
-<p>The actual work involved in <a href="https://github.com/johnno1962/injectionforxcode/blob/2c1696e7301fdcf1d99a8a75be501df7c25d93e8/InjectionPluginLite/Classes/BundleInjection.h#L807-L938">doing the injection, and replacing the classes</a> isn't particularly complicated, and is easy to understand without c/Mach-o domain knowledge. It's making sure the environment is set up and supporting useful features like Storyboards, Android via Apportable, ARC and no-ARC, 32bit vs 64bit and iOS vs Mac where things start to become more complex.</p>
-
-<p>As of Xcode 8, Xcode Plugins are on the way out, though there are hacks to work around the system to install them, doing so might not be the smartest of moves yet. It's hard to see where the future lies here. However,</p>
+<p>As of Xcode 8, Xcode Plugins are on the way out, though there are hacks to work around the system to install them, doing so might not be the smartest of moves yet. It’s hard to see where the future lies here. However,</p>
 
 <p><img src="http://media2.giphy.com/media/VHW0X0GEQQjiU/giphy.gif" alt="Giphy" /></p>
 
-<p>So we'll see in a few months.</p>
+<p>So we’ll see in a few months.</p>
 
-<p>If you're interested in this kind of stuff, follow <a href="https://github.com/johnno1962/">@Johno1962</a> on Twitter, he's <a href="https://twitter.com/Injection4Xcode">@Injection4Xcode</a> - Chris Lattner follows him, so you know it's good stuff. He's always got some project that is pushing a boundry or two.</p>
+<p>If you’re interested in this kind of stuff, follow <a href="https://github.com/johnno1962/">@Johno1962</a> on Twitter, he’s <a href="https://twitter.com/Injection4Xcode">@Injection4Xcode</a> - Chris Lattner follows him, so you know it’s good stuff. He’s always got some project that is pushing a boundry or two.</p>
+
 </div>
     
 
-    
-      <p class="meta-author">
-        
-  
-
+    <p class="meta-author">
+      
 
 
 
@@ -596,9 +517,9 @@
 
 
 
-      </p>
-      <p class="meta-categories">
-        Categories: 
+    </p>
+    <p class="meta-categories">
+      Categories: 
 
 <span class="categories">
   
@@ -607,20 +528,19 @@
 </span>
 
 
-      </p>
-      
-
-      
-
-      <p class="meta-paginate">
-        
-          <a class="previous" href="/blog/2016/06/27/dependency-injection-in-swift/" title="Previous Post: Depedency Injection in Swift">&laquo; Depedency Injection in Swift</a>
-        
-        
-          <a class="next" href="/blog/2016/07/03/handling-big-projects/" title="next Post: Handling Large OSS Projects Defensively">Handling Large OSS Projects Defensively &raquo;</a>
-        
-      </p>
+    </p>
     
+
+    
+
+    <p class="meta-paginate">
+      
+        <a class="previous" href="/blog/2016/06/27/dependency-injection-in-swift/" title="Previous Post: Depedency Injection in Swift">&laquo; Depedency Injection in Swift</a>
+      
+      
+        <a class="next" href="/blog/2016/07/03/handling-big-projects/" title="next Post: Handling Large OSS Projects Defensively">Handling Large OSS Projects Defensively &raquo;</a>
+      
+    </p>
   </div>
 
 

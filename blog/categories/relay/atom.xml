@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
 
-  <title><![CDATA[Category: relay | Artsy Engineering]]></title>
+  <title><![CDATA[Category: Relay | Artsy Engineering]]></title>
   <link href="https://artsy.github.io/blog/categories/relay/atom.xml" rel="self"/>
   <link href="https://artsy.github.io/"/>
-  <updated>2022-04-11T23:15:43+00:00</updated>
+  <updated>2022-04-12T00:53:51+00:00</updated>
   <id>https://artsy.github.io/</id>
   <author>
     <name><![CDATA[]]></name>
@@ -14,567 +14,110 @@
 
   
   <entry>
-    <title type="html"><![CDATA[Accessing the Relay Store Without a Mutation]]></title>
-    <link href="https://artsy.github.io/blog/2021/04/15/accessing-the-relay-store/"/>
-    <updated>2021-04-15T00:00:00+00:00</updated>
-    <id>https://artsy.github.io/blog/2021/04/15/accessing-the-relay-store</id>
-    <content type="html"><![CDATA[<p>I recently encountered a problem where client-side data (returned from a Relay query) became out of sync after a
-user interaction. How can we make sure our data is consistent while maintaining a single source of truth? This post
-explores why a developer might want to update client-side data locally, the basics of Relay and its store, and how
-to delete records in the store when you're not using a mutation.</p>
-
-<a name="Relay.x.Artsy.x.Me"></a>
-<h2>Relay x Artsy x Me</h2>
-
-<p><a href="https://relay.dev/">Relay</a> is a GraphQL client library maintained by Facebook engineers and enables rapid client-side data
-fetching in React applications. <a href="https://artsy.github.io/blog/2019/04/10/omakase-relay/">Artsy's adoption of Relay</a> coincided with our move
-toward using React Native for our mobile work around 2016. I joined Artsy as an engineer in November of 2020 (after
-<a href="https://medium.com/swlh/how-losing-my-job-helped-me-find-my-way-back-8c8f86552acc">transitioning to engineering from a non-technical role at the
-company</a>.) When I joined, I was about a year into React development
-and completely new to Relay.</p>
-
-<!-- more -->
-
-
-<p>I work on the Partner Experience (PX) team at Artsy. We build and maintain software used by our gallery and auction
-house partners to sell artwork on Artsy. Although Relay is not new to Artsy, it’s relatively new to our team’s main
-repository, Volt. (Volt is Artsy’s CMS used by gallery partners to manage their presences on the platform.) A topic
-for another blog post, but Volt’s structure is worth noting here: Volt is a collection of mini React apps injected
-into HAML views—our way of incrementally converting the codebase to our new stack.</p>
-
-<p>Relay’s biggest advantage in my eyes is how it tightly couples the client view and API call (in our case, to the
-GraphQL layer of our stack, which we call Metaphysics.) In addition to performance and other benefits, colocating a
-component with its data requirements creates a pretty seamless developer experience.</p>
-
-<a name="Building.an.Artwork.Checklist"></a>
-<h2>Building an Artwork Checklist</h2>
-
-<p>On the PX team, we recently launched a checklist feature aimed at empowering our gallery partners to be more
-self-sufficient and find the greatest success possible on Artsy. The checklist prompts galleries to add specific
-metadata to artworks that we know (because of our awesome data team) will make the work more likely to sell. The
-new feature gathers a list of five high-priority artworks (meaning they are published, for-sale, and by a
-top-selling artist) that are missing key pieces of metadata. The checklist prompts users to add the missing
-metadata. Users also have the ability to click a button to “snooze” works, which removes them from the list for the
-day.</p>
-
-<p><figure class="illustration">
-    <img src="https://user-images.githubusercontent.com/9466631/114630150-28886200-9c77-11eb-9f04-461101496ee0.png">
-</figure></p>
-
-<p>The feature makes use of <a href="https://redis.io/">Redis</a>, a key-value store used for in-memory cache, to store two lists:</p>
-
-<ol>
-<li><code>includeIDs</code> to store the five artworks in the list, so users see a consistent list of artworks whenever they
-log in and load the page</li>
-<li><code>excludeIDs</code> or “snoozed” IDs which Redis will store for 24 hours and ensure the user does not see</li>
-</ol>
-
-
-<p>When a user presses the “snooze” button, the ID for the artwork is added to the snoozed list in Redis. The list of
-<code>includeIDs</code> and the list of <code>excludeIDs</code> are passed down from Rails controllers to our HAML views and then passed
-as props into our React <code>HomePageChecklist</code> app. In our Checklist component, we use both the <code>includeIDs</code> and the
-<code>excludeIDs</code> as arguments passed to our Relay query to determine what is returned from Metaphysics (Artsy's GraphQL
-layer).</p>
-
-<pre><code class="js">fragment ArtworksMissingMetadata_partner on Partner
-  @argumentDefinitions(
-    first: { type: "Int", defaultValue: 5 }
-    after: { type: "String" }
-    includeIDs: { type: "[String!]" }
-    excludeIDs: { type: "[String!]" }
-  ) {
-    id
-    artworksConnection(
-      first: $first
-      after: $after
-      includeIDs: $includeIDs
-      excludeIDs: $excludeIDs
-    ) @connection(key: "ArtworksMissingMetadata_partner_artworksConnection", filters: []) {
-      edges {
-        node {
-          ...ArtworksMissingMetadataItem_artwork
-        }
-      }
-    }
-  }
-</code></pre>
-
-<a name="Problem:.How.to.Change.the.Data.Displayed.When.a.User.Interacts.with.the.Page"></a>
-<h2>Problem: How to Change the Data Displayed When a User Interacts with the Page</h2>
-
-<p>The problem we were running into occurs when the user presses “snooze” on an item. We successfully update Redis
-with the new snoozed item, but the UI still renders the item on the page. (This is because the response from Relay
-becomes stale.) If the user refreshes the page, the list is correct: The up-to-date Redis <code>excludeIDS</code> list will be
-passed into our component and used in the Relay query. But without refreshing the page, we need to make sure that
-the list in the UI updates when the user snoozes an item.</p>
-
-<p>The initial fix was to use a local state variable to keep track of which items were snoozed. We defined the following variable in the parent
-React component that renders the list:</p>
-
-<pre><code class="js">const [localSnoozedItems, setLocalSnoozedItems] = useState([])
-</code></pre>
-
-<p>We passed <code>localSnoozedItems</code> and <code>setLocalSnoozedItems</code> down to each of the children items. When the “snooze”
-button was pressed on an item, the <code>localSnoozedItems</code> in the parent was updated with the complete list of snoozed
-items. The parent then controls which items get rendered. We used the <code>localSnoozedItems</code> list to filter the connection
-returned from our Relay query (which remember, is already filtered based on our Redis <code>excludeIDs</code> from Redis.)</p>
-
-<p>This worked, but it definitely did not feel great to have two sources of truth for snoozing: The Redis key and the
-local state variable.</p>
-
-<a name="Solution:.Deleting.a.Record.From.the.Relay.Store"></a>
-<h2>Solution: Deleting a Record From the Relay Store</h2>
-
-<p>Cue the <a href="https://relay.dev/docs/api-reference/store/">RelayModernStore</a>! I learned that Relay keeps track of the GraphQL
-data returned by each query in a store on the client. Each record in the store has a unique ID, and the store can be
-changed, added to, and deleted from. There are a couple of helpful blog posts (like
-<a href="https://yashmahalwal.medium.com/a-deep-dive-into-the-relay-store-9388affd2c2b">this</a> and
-<a href="https://medium.com/entria/wrangling-the-client-store-with-the-relay-modern-updater-function-5c32149a71ac">this</a>) that explain the store and how to
-interact with it.</p>
-
-<p>In most of the Relay documentation, blog posts, and Artsy’s uses cases, the store is accessed through an <code>updater</code>
-function via <a href="https://relay.dev/docs/guided-tour/updating-data/graphql-mutations/">mutations</a>. <a href="https://relay.dev/docs/guided-tour/updating-data/graphql-mutations/#updater-functions">Updater functions</a>
-that return the store in the first argument can optionally be added to Relay mutations. Inside that function, you can access
-the store to modify the records you need.</p>
-
-<p>Here's an example:</p>
-
-<pre><code class="js">commitMutation(defaultEnvironment, {
-  mutation: graphql`
-    mutation SomeMutation {
-      ...
-    }
-  `,
-  updater: (store) =&gt; {
-    // Do something with the store
-  },
-})
-</code></pre>
-
-<p>In my use case, I was not using a Relay mutation because I did not need to modify anything on the server. Since
-Redis is keeping track of our <code>excludeIDs</code> for us, any round trip to the server will be up-to-date. We just need to
-modify our local data store.</p>
-
-<p>Relay provides a <a href="https://relay.dev/docs/guided-tour/updating-data/local-data-updates/">separate API method to make local updates</a> to the Relay
-store: <code>commitLocalUpdate</code>. <code>commitLocalUpdate</code> takes two arguments: the first is the Relay environment, which you
-can easily access from the parent Relay fragment or refetch container. The second is an <code>updater</code> callback function
-that returns the store in the first argument. We now have access to the store!</p>
-
-<a name="Deleting.a.Connection.Node.with.ConnectionHandler"></a>
-<h2>Deleting a Connection Node with ConnectionHandler</h2>
-
-<p>My main hurdle during this journey was finding an appropriate way to hook into the store for our specific use case—when we do
-not require an update to server data.</p>
-
-<p>But to close us out: Let's finish the job and delete the item from the connection in the store.</p>
-
-<p>When an item is snoozed, we call <code>commitLocalUpdate</code>, pass in the Relay environment, and then pass in the <code>updater</code>
-function. Once we have access to the store, our goal is to delete this particular item from the
-<code>artworksConnection</code>, which is the GraphQL object returned by our original Relay query.</p>
-
-<p>Because we are dealing with connections, we want to use the <a href="https://relay.dev/docs/api-reference/store/#connectionhandler">ConnectionHandler
-API</a> provided by Relay. <code>ConnectionHandler.getConnection</code> takes in the
-connection's parent record (which we can find using the GraphQL ID added as a field on our query for the
-connection) as the first argument and the connection key which can be provided through <a href="https://www.prisma.io/blog/relay-moderns-connection-directive-1ecd8322f5c8">Relay’s @connection
-directive</a>.</p>
-
-<p>Once we have the connection, we will use <code>ConnectionHandler.deleteNode</code> which takes the connection as the first
-argument and the id to be deleted, which we can also easily access using the GraphQL ID added as a field to the
-query for the item.</p>
-
-<p>Bonus: Because <code>commitLocalUpdate</code> works anywhere in Relay land, we got to perform this deletion exactly where the
-"snooze" action is happening: in the child item component. (In our previous solution, we had to manage the state of
-the children from their parent component, which wasn't as intuitive.)</p>
-
-<pre><code class="js">import { commitLocalUpdate } from "relay-runtime"
-
-commitLocalUpdate(relay.environment, (store) =&gt; {
-  const parentRecord = store.get(parentID)
-
-  if (parentRecord) {
-    const artworksConnection = ConnectionHandler.getConnection(
-      parentRecord,
-      "ArtworksMissingMetadata_partner_artworksConnection"
-    )
-    if (artworksConnection) {
-      ConnectionHandler.deleteNode(artworksConnection, id)
-    }
-  }
-})
-</code></pre>
-
-<a name="Key.Takeaways"></a>
-<h2>Key Takeaways</h2>
-
-<ol>
-<li>Relay is great because it colocates a component with its data requirements.</li>
-<li>The Relay store allows us to access and modify data that we are using on the client.</li>
-<li><code>commitLocalUpdate</code> provides us access to the store if we just need to modify local data and aren’t using a
-mutation to update server-side data.</li>
-</ol>
-
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Relay Pagination Containers Demystified]]></title>
-    <link href="https://artsy.github.io/blog/2020/08/31/relay-pagination-containers-demystified/"/>
-    <updated>2020-08-31T00:00:00+00:00</updated>
-    <id>https://artsy.github.io/blog/2020/08/31/relay-pagination-containers-demystified</id>
-    <content type="html"><![CDATA[<p>In 2017, Artsy adopted <a href="https://relay.dev/en/">Relay</a> in both its front-end web and iOS codebases (using React and
-React Native, respectively). Generally speaking, this investment has turned out very well for us! Relay empowers
-product teams to quickly iterate on new features and to share common infrastructure across web and iOS codebases.
-However, most of the original engineers who pioneered using Relay at Artsy have since moved on to their next role;
-this has left a knowledge gap where Artsy engineers are comfortable <em>using</em> Relay, but they don't totally
-understand how it works.</p>
-
-<p>This is a problem as old as software engineering itself, and it has a simple solution: learn and then teach others.
-We'll be driving a peer learning group centering around Relay, but today we are going to dive into the part of
-Relay that comes up the most in requests for pairing: getting Relay pagination to work. (Note: we're going to use
-plain old Relay and not <a href="https://github.com/relay-tools/relay-hooks">relay-hooks</a>.)</p>
-
-<!-- more -->
-
-
-<p>My goal with this post is to show my thought process when trying to learn about, and clean up our use of, Relay
-pagination containers. This post emphasizes the <em>demystifying</em> process and not so much the <em>Relay pagination
-containers</em> themselves – we'll briefly cover some Relay fundamentals before diving into a case study on how
-problematic code proliferates through copy-and-paste.</p>
-
-<p>Let's back up and talk a little bit about what Relay is and how it works. Relay is a framework that glues React
-components and GraphQL requests together. React components define the data they need from a GraphQL schema in order
-to render themselves, and Relay handles actually fetching GraphQL requests and marshalling data into the React
-component tree. It is very efficient because of build-time optimizations by the Relay compiler.</p>
-
-<p>The simplest use of Relay is a <a href="https://relay.dev/docs/en/fragment-container">fragment container</a>, which is created
-from a React component and a <a href="https://blog.logrocket.com/graphql-fragments-explained/">GraphQL fragment</a>. (We're
-going to skip over how the GraphQL query is made, but
-<a href="https://relay.dev/docs/en/query-renderer">here are the docs on query renderers</a> if you're curious.)</p>
-
-<pre><code class="js">class Artist extends React.Component {
-  render() {
-    return &lt;Text&gt;The artist name is ${this.props.artist.name}.&lt;/Text&gt;
-  }
-}
-
-export ArtistFragmentContainer = createFragmentContainer(Artist, {
-  artist: graphql` # artist will be passed in as props
-    fragment Artist_artist on Artist { # Relay has strong naming conventions
-      name # Get all the data we want here
-    }
-  `
-})
-</code></pre>
-
-<p>(At Artsy, we use <a href="https://github.com/relay-tools/relay-compiler-language-typescript">TypeScript with Relay</a>, but
-for this blog post we'll stick to JavaScript.)</p>
-
-<p>So we have a plain React component that gets some props, and a Relay fragment container that wraps it, defining the
-data that the component needs.</p>
-
-<p>There are other types of Relay containers beyond simple fragment containers.
-<a href="https://relay.dev/docs/en/refetch-container">Refetch containers</a> are like fragment containers except you can
-refetch their contents from your GraphQL server (in response to, for example, user interaction). Using a refetch
-container is very similar to using a plain fragment container. But today, we want to talk about
-<a href="https://relay.dev/docs/en/pagination-container">pagination containers</a>, which use a GraphQL construct called
-<em>connections</em> to show page after page of data.</p>
-
-<p><a href="https://www.apollographql.com/blog/explaining-graphql-connections-c48b7c3d6976/">GraphQL connections</a> are beyond
-the scope of this blog post, but they are a way to fetch lists of data without running into the limitations of
-returning a simple array. Connections can return metadata about their results, like how many total results there
-are, and use cursors (rather than page numbers) for paginating. They also handle when items are inserted or deleted
-from the results between requests for pages –
-<a href="https://artsy.github.io/blog/2020/01/21/graphql-relay-windowed-pagination/">check out this blog post</a> for more
-info on how to use connections with Relay.</p>
-
-<p>Pagination containers take considerably more setup than plain fragment containers, and the setup itself is very
-fickle. Things simply will not work until you get the configuration <em>exactly correct</em>, and then everything works
-perfectly. The setup is largely repeated boilerplate, and what I've noticed (from other engineers but also myself)
-is that the boilerplate for new pagination containers gets copy-and-pasted from existing ones. We will see how this
-leads to small problems getting propagated throughout the codebase, and leads to engineers not feeling confident
-when working in pagination containers.</p>
-
-<p>So let's modify the Relay container above to fetch a list of the artist's artworks. This is a very simple example,
-only used to illustrate how to use pagination containers.</p>
-
-<pre><code class="js">class Artist extends React.Component {
-  render() {
-    return (
-    &lt;Text&gt;The artist name is ${this.props.artist.name}.&lt;/Text&gt;
-    {this.props.artist.artworks.edges.map(node =&gt;
-      /* Render each artwork */
-      &lt;Text key={node.id}&gt;{node.name}&lt;/Text&gt;
-    )}
-    {this.props.relay.hasMore() &amp;&amp;
-      &lt;Button onPress={() =&gt; this.props.relay.loadMore() } text="Load next page" /&gt;
-    )
-  }
-}
-
-export ArtistFragmentContainer = createPaginationContainer(Artist, {
-  artist: graphql`
-    fragment Artist_artist on Artist
-      @argumentDefinitions(
-        count: { type: "Int", defaultValue: 10 }
-        cursor: { type: "String" }
-      ) {
-      name
-      id
-      artworksConnection(first: $count, after: $cursor) @connection(key: "Artist_artworks") {
-        edges {
-          node {
-            title # Now fetch all the artwork data
-            id
-          }
-        }
-      }
-    }
-  `
-}, {
-  direction: "forward",
-  getConnectionFromProps(props) {
-    return props.artist.artworks
-  },
-  getFragmentVariables(prevVars, count) {
-    return {
-      ...prevVars,
-      count,
-    }
-  },
-  getVariables(props, { count, cursor }, fragmentVariables) {
-    return {
-      id: props.artist.id,
-      count,
-      cursor,
-    }
-  },
-  query: graphql` # Here is the query to fetch any specific page
-    query ArtistArtworksQuery(
-      $id: ID!
-      $count: Int!
-      $cursor: String) {
-      artist(id: $id) {
-        ...Artist_artist @arguments(
-          count: $count
-          cursor: $cursor
-        )
-      }
-    }
-  `
-})
-</code></pre>
-
-<p>Wow, that's a lot! I don't want to get too bogged down in details, so let's break this apart at a high level:</p>
-
-<ul>
-<li>We changed the React component to show a list of artworks and include a button to load the next page.</li>
-<li>We changed from <code>createFragmentContainer</code> to using <code>createPaginationContainer</code>.</li>
-<li>We added GraphQL fragment variables for <code>count</code> and <code>cursor</code> to be passed through to the new
-<code>artworksConnection</code>, which we also added.</li>
-<li>Finally, we added a whole new configuration parameter to <code>createPaginationContainer</code>.</li>
-</ul>
-
-
-<p>This last bit is the part where I see the most frustration. Hopefully what follows will clear things up.</p>
-
-<p>I like to always start by <a href="https://relay.dev/docs/en/pagination-container">reading the docs</a>. The <code>direction</code> key
-is the direction that we paginate through, either <code>"forward"</code> or <code>"backward"</code>. <code>getConnectionFromProps</code> is a
-function that returns the GraphQL connection, in case the query has more than one. And <code>query</code> is used to fetch any
-specific page of results.</p>
-
-<p>Those all makes sense to me, but then we arrive at the real gotchas: <code>getFragmentVariables</code> and <code>getVariables</code>. The
-docs are helpful, but only if you understand
-<a href="https://relay.dev/docs/en/runtime-architecture.html">the internals of how Relay works</a>. Relay has a sophisticated
-architecture that delivers some really well-performing code, but its abstractions sometimes
-"<a href="https://en.wikipedia.org/wiki/Leaky_abstraction">leak</a>" and you have to deal with underlying implementation
-details of Relay (like <a href="https://relay.dev/docs/en/relay-store">the Relay store</a>) which you don't need to know about
-<em>most</em> of the time.</p>
-
-<p>So what are these two functions? Let's return to the docs:</p>
-
-<ul>
-<li><code>getFragmentVariables</code> is used when re-rendering the component, to retrieve the previously-fetched GraphQL
-response for a certain set of variables.</li>
-<li><code>getVariables</code> is used when actually fetching another page, and its return value is given to the <code>query</code>.</li>
-</ul>
-
-
-<p>I think of <code>getFragmentVariables</code> as a kind of caches key for lookup in Relay's internal store. Our implementation
-of <code>getFragmentVariables</code> above doesn't really do anything interesting, but a connection that accepted <code>sort</code> or
-<code>filter</code> parameters would need to return those to avoid lookup collisions when the user changed sort and filter
-options.</p>
-
-<p>Now for <code>getVariables</code>, which are the variables used for the <code>query</code> later on. It really ought to be named
-<code>getQueryVariables</code>, I think. But I digress.</p>
-
-<p>Every implementation of <code>getFragmentVariables</code> I could find at Artsy was identical, which makes sense because <em>that
-is the default implementation</em>. We shouldn't be defining this option at all! As far as I can tell, Artsy started
-with a few pagination containers that supplied this parameter unnecessarily and it got copy-and-pasted throughout
-our codebases.</p>
-
-<p>After revisiting the docs, I noticed other optional parameters that don't need to be defined either. Let's rewrite
-the call to <code>createPaginationContainer</code> to only supply the parameters that are required:</p>
-
-<pre><code class="js">export ArtistFragmentContainer = createPaginationContainer(Artist, {
-  artist: graphql`
-    fragment Artist_artist on Artist @argumentDefinitions(
-      count: { type: "Int", defaultValue: 10 }
-      cursor: { type: "String" } {
-      name
-      id
-      artworksConnection (first: $count, after: $cursor) @connection(key: "Artist_artworks") {
-        edges {
-          node {
-            title # Now fetch all the artwork data
-            id
-          }
-        }
-      }
-    }
-  `
-  }, {
-  getVariables(props, { count, cursor }, fragmentVariables) {
-    return {
-      id: props.artist.id,
-      count,
-      cursor,
-    }
-  },
-  query: graphql` # Here is the query to fetch any specific page
-    query ArtistArtworksQuery(
-      $id: ID!
-      $count: Int!
-      $cursor: String) {
-      artist(id: $id) {
-        ...Artist_artist @arguments(
-          count: $count
-          cursor: $cursor
-        )
-      }
-    }
-  `
-})
-</code></pre>
-
-<p>This is a lot nicer! By not specifying unnecessary options, we have a smaller surface area to make mistakes in. We
-also have fewer overloaded terms, like "variables", so now it's more obvious that <code>getVariables</code> supplies data for
-the <code>query</code> below it.</p>
-
-<p>I've already <a href="https://github.com/artsy/eigen/pull/3711">sent a pull request</a> to clean up our use of pagination
-containers in our React Native app, and will be following up on the web side next. But I wouldn't have discovered
-this if I hadn't really dug into the docs, which I only did so that I could write this blog post. Earlier I said
-that the solution to a knowledge gap is simple: learn, and then teach. I learned a lot about Relay today, and I
-hope this blog post illustrates the value in the learn-then-teach approach.</p>
-]]></content>
-  </entry>
-  
-  <entry>
     <title type="html"><![CDATA[Effortless Pagination with GraphQL and Relay? Really!]]></title>
     <link href="https://artsy.github.io/blog/2020/01/21/graphql-relay-windowed-pagination/"/>
     <updated>2020-01-21T00:00:00+00:00</updated>
     <id>https://artsy.github.io/blog/2020/01/21/graphql-relay-windowed-pagination</id>
-    <content type="html"><![CDATA[<p>It's the year 2020. You use a modern front-end stack of <a href="https://relay.dev/">Relay</a>,
+    <content type="html"><![CDATA[<p>It’s the year 2020. You use a modern front-end stack of <a href="https://relay.dev/">Relay</a>,
 <a href="https://graphql.org/">GraphQL</a>, <a href="https://reactjs.org/">React</a> and <a href="https://www.typescriptlang.org/">TypeScript</a>.
-You can build an infinite scroll 'feed' type UI totally out of the box with these tools, by mostly putting together
+You can build an infinite scroll ‘feed’ type UI totally out of the box with these tools, by mostly putting together
 boilerplate (proper <a href="https://facebook.github.io/relay/graphql/connections.htm#sec-Connection-Types">connections</a>,
 along with a <a href="https://relay.dev/docs/en/pagination-container">pagination container</a>). You have a design system, and
 are rapidly building up a component library. Things are great!</p>
 
-<p>Then you take a look at the latest design comps for a 'browse' type page, and you see that the
+<p>Then you take a look at the latest design comps for a ‘browse’ type page, and you see that the
 <a href="https://medium.com/simple-human/7-reasons-why-infinite-scrolling-is-probably-a-bad-idea-a0139e13c96b">controversial</a>
 infinite scroll has been replaced by a more traditional pagination bar.</p>
 
 <p>You know the one. Like the following, from <a href="https://www.amazon.com">Amazon</a>:</p>
 
-<p><img src="/images/2020-01-21-graphql-relay-windowed-pagination/amazon.png"></p>
+<p><img src="/images/2020-01-21-graphql-relay-windowed-pagination/amazon.png" /></p>
 
 <p>You start to realize that the cursor-based setup of a connection, along with a Relay pagination container, does not
-lend itself to this more traditional UI. For one thing, a user can arbitrarily 'jump' to any page by including a
-<code>?page=X</code> query param (typically). For another, the user can only actually see the current page of content, versus
+lend itself to this more traditional UI. For one thing, a user can arbitrarily ‘jump’ to any page by including a
+<code class="language-plaintext highlighter-rouge">?page=X</code> query param (typically). For another, the user can only actually see the current page of content, versus
 a feed. As you go to sleep and dream of REST, Rails controllers, <a href="https://github.com/kaminari/kaminari">kaminari</a>,
-<a href="https://github.com/mislav/will_paginate">will_paginate</a>, and a simpler time, you start to have a vision...</p>
+<a href="https://github.com/mislav/will_paginate">will_paginate</a>, and a simpler time, you start to have a vision…</p>
 
 <!-- more -->
 
-
-<p>To get a good primer of what a GraphQL connection is and why they're so useful, read this
+<p>To get a good primer of what a GraphQL connection is and why they’re so useful, read this
 <a href="https://blog.apollographql.com/explaining-graphql-connections-c48b7c3d6976">excellent Apollo blogpost</a>. Seriously.
-It's one of the best writeups on this subject out there. I'll assume basic familiarity with connection types from
+It’s one of the best writeups on this subject out there. I’ll assume basic familiarity with connection types from
 this point forward.</p>
 
 <p>We prefer to use connections in place of lists almost always. Not only do they provide a preferred cursor-based
 pagination API for clients, but their type specification (a map vs a list) is naturally forward-looking. Even if
-you do no pagination, a pure list type can't accomodate returning other metadata (such as a <code>totalCount</code>) alongside
+you do no pagination, a pure list type can’t accomodate returning other metadata (such as a <code class="language-plaintext highlighter-rouge">totalCount</code>) alongside
 the list. Additionally, if your data is very relational and better represented as nodes connected by edges (which
-would contain data about the 'join' of the two nodes), the connection type gives one more flexibility than a simple
+would contain data about the ‘join’ of the two nodes), the connection type gives one more flexibility than a simple
 list. This (and more) is all covered in the aforementioned blog post.</p>
 
-<p>So, let's start by taking a look at our desired pagination UI, and think about what kind of schema/components make
+<p>So, let’s start by taking a look at our desired pagination UI, and think about what kind of schema/components make
 sense.</p>
 
-<p><img src="/images/2020-01-21-graphql-relay-windowed-pagination/pagination.png"></p>
+<p><img src="/images/2020-01-21-graphql-relay-windowed-pagination/pagination.png" /></p>
 
 <p>There looks to be several types of appearances we want to show, based on the total size of our list and fixed page
-size chosen, as well as the current page. There's also some edge cases of empty lists, or lists that are short
-enough to just display all their page numbers. Users can click on any displayed page number to jump to it. There's
+size chosen, as well as the current page. There’s also some edge cases of empty lists, or lists that are short
+enough to just display all their page numbers. Users can click on any displayed page number to jump to it. There’s
 a prev/next navigation, which brings the user forward and back one page at a time. Whenever the current page
 changes, the URL should update accordingly. For a responsive implementation, we want to hide the page numbers, and
 only show the prev/next toggles on small screens.</p>
 
-<p>Wow! Ok, we have our work cut out for us. But wait til you see how easy this is! There'll be links to our actual
+<p>Wow! Ok, we have our work cut out for us. But wait til you see how easy this is! There’ll be links to our actual
 production components involved (all open-source) at the end.</p>
 
-<a name="Pagination.Schema"></a>
-<h2>Pagination Schema</h2>
+<h2 id="pagination-schema">Pagination Schema</h2>
 
-<p>Let's tackle the first part of this, which is: how do we adapt the
+<p>Let’s tackle the first part of this, which is: how do we adapt the
 <a href="https://facebook.github.io/relay/graphql/connections.htm">GraphQL connection spec</a> in order to hold necessary
-information that a UI might need? Generally we want the UI's to be as simple as possible, and so if the server
+information that a UI might need? Generally we want the UI’s to be as simple as possible, and so if the server
 could construct a suitable pagination schema, that would be preferable. The simpler our UI, and the more business
 logic and good abstractions made in our GraphQL server, the more portable and reusable this all becomes.</p>
 
 <p>What kind of data does the UI need, in order to render a particular page of contents? Well, for a particular page
-we'd need to render the actual number it corresponds to. We'll need to know if this is the current page or not (so
-we can distinguish it in the UI from neighboring pages). And, we'll need to know the actual cursor (think:
+we’d need to render the actual number it corresponds to. We’ll need to know if this is the current page or not (so
+we can distinguish it in the UI from neighboring pages). And, we’ll need to know the actual cursor (think:
 <a href="https://relay.dev/graphql/connections.htm">opaque string</a>) that corresponds to this page number. It seems likely
-we'll need some sort of way to construct cursors from page numbers, on the server.</p>
+we’ll need some sort of way to construct cursors from page numbers, on the server.</p>
 
 <p>So, check this out:</p>
 
-<pre><code class="js">// SDL
-type PageCursor {
-  cursor: String!
-  pageNumber: Int!
-  isCurrent: Boolean!
-}
+<div class="language-js highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// SDL</span>
+<span class="nx">type</span> <span class="nx">PageCursor</span> <span class="p">{</span>
+  <span class="nl">cursor</span><span class="p">:</span> <span class="nb">String</span><span class="o">!</span>
+  <span class="nx">pageNumber</span><span class="p">:</span> <span class="nx">Int</span><span class="o">!</span>
+  <span class="nx">isCurrent</span><span class="p">:</span> <span class="nb">Boolean</span><span class="o">!</span>
+<span class="p">}</span>
 
-type PageCursors {
-  first: PageCursor
-  around: [PageCursor!]!
-  last: PageCursor
-  previous: PageCursor
-}
-</code></pre>
+<span class="nx">type</span> <span class="nx">PageCursors</span> <span class="p">{</span>
+  <span class="nl">first</span><span class="p">:</span> <span class="nx">PageCursor</span>
+  <span class="nx">around</span><span class="p">:</span> <span class="p">[</span><span class="nx">PageCursor</span><span class="o">!</span><span class="p">]</span><span class="o">!</span>
+  <span class="nx">last</span><span class="p">:</span> <span class="nx">PageCursor</span>
+  <span class="nx">previous</span><span class="p">:</span> <span class="nx">PageCursor</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
-<p>This is our pagination schema. Including a field of type <code>pageCursors</code> as a connection-level field, onto a
-connection, is sufficient for a UI to incredibly simply 'just render' a correct pagination bar always, and be able
+<p>This is our pagination schema. Including a field of type <code class="language-plaintext highlighter-rouge">pageCursors</code> as a connection-level field, onto a
+connection, is sufficient for a UI to incredibly simply ‘just render’ a correct pagination bar always, and be able
 to hook up proper interactions. We can fully construct a simple UI (using Relay, shown in the next section) that
 can present and allow for the interactions desired, for windowed pagination.</p>
 
-<p>But, of course we're glossing over the implementation for such a <code>pageCursors</code> type, so let's check that out before
+<p>But, of course we’re glossing over the implementation for such a <code class="language-plaintext highlighter-rouge">pageCursors</code> type, so let’s check that out before
 looking at how a client might consume this.</p>
 
-<p>Our backing API's largely still paginate via offsets, and not cursors. That is, they accept page/size or
+<p>Our backing API’s largely still paginate via offsets, and not cursors. That is, they accept page/size or
 size/offset style arguments. We use <a href="https://github.com/graphql/graphql-relay-js">graphql-relay-js</a>, which includes
 helpers to make sure types and resolvers are compatible with some Relay expectations. So, we use this library to
 generate our cursors, and can convert the cursor to an offset. A page of 4 with a size of 10, returns the elements
 numbered 30 - 39 in that list. So a page of 4 (and size of 10), is equivalent to an offset of 29 (and size of 10).
 We have:</p>
 
-<pre><code class="js">const pageToCursor = (page, size) =&gt; {
-  return String((page - 1) * size - 1)
-}
-</code></pre>
+<div class="language-js highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">const</span> <span class="nx">pageToCursor</span> <span class="o">=</span> <span class="p">(</span><span class="nx">page</span><span class="p">,</span> <span class="nx">size</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="nb">String</span><span class="p">((</span><span class="nx">page</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="nx">size</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>This gives us the offset of the last value of the previous page. While our upstream services are all still
 paginating using this size/offset method, the <a href="https://relay.dev/graphql/connections.htm">GraphQL cursor spec</a>
@@ -582,7 +125,7 @@ prefers opaque cursors to be used on the client. This allows the actual implemen
 upstream while clients remain unaffected. Thus if we ever update our upstream pagination arguments/logic/setup, we
 could update this schema implementation accordingly, and clients would continue to be functional.</p>
 
-<p>For inspiration in constructing our <code>first</code>, <code>last</code>, and <code>around</code> groups, we turn to
+<p>For inspiration in constructing our <code class="language-plaintext highlighter-rouge">first</code>, <code class="language-plaintext highlighter-rouge">last</code>, and <code class="language-plaintext highlighter-rouge">around</code> groups, we turn to
 <a href="https://www.fngtps.com/">Fingertips</a> and their
 <a href="https://github.com/Fingertips/peiji-san/blob/6bd1bc7c152961dcde376a8bcb2ca393b5b45829/lib/peiji_san/view_helper.rb#L87">pagination library</a>.
 That code goes through the various cases possible (a short list, a long list where the current page is near the
@@ -591,21 +134,21 @@ can handle all combinations of list sizes, and current position relative to the 
 
 <p>In pseudo-code, it looks like:</p>
 
-<pre><code class="js">if emptyList
-  around = [1]
-else if listIsShort
-  around = [1...totalPages]
-else if nearBeginning
-  around = [1...3]
-  last = [totalPages]
-else if nearMiddle
-  first = [1]
-  middle = [currentPage-1, currentPage, currentPage+1]
-  last = [totalPages]
-else if nearEnd
-  first = [1]
-  around = [last-1, last, last+1]
-</code></pre>
+<div class="language-js highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">if</span> <span class="nx">emptyList</span>
+  <span class="nx">around</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+<span class="k">else</span> <span class="k">if</span> <span class="nx">listIsShort</span>
+  <span class="nx">around</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">...</span><span class="nx">totalPages</span><span class="p">]</span>
+<span class="k">else</span> <span class="k">if</span> <span class="nx">nearBeginning</span>
+  <span class="nx">around</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">...</span><span class="mi">3</span><span class="p">]</span>
+  <span class="nx">last</span> <span class="o">=</span> <span class="p">[</span><span class="nx">totalPages</span><span class="p">]</span>
+<span class="k">else</span> <span class="k">if</span> <span class="nx">nearMiddle</span>
+  <span class="nx">first</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+  <span class="nx">middle</span> <span class="o">=</span> <span class="p">[</span><span class="nx">currentPage</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="nx">currentPage</span><span class="p">,</span> <span class="nx">currentPage</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span>
+  <span class="nx">last</span> <span class="o">=</span> <span class="p">[</span><span class="nx">totalPages</span><span class="p">]</span>
+<span class="k">else</span> <span class="k">if</span> <span class="nx">nearEnd</span>
+  <span class="nx">first</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+  <span class="nx">around</span> <span class="o">=</span> <span class="p">[</span><span class="nx">last</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="nx">last</span><span class="p">,</span> <span class="nx">last</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span>
+</code></pre></div></div>
 
 <p>Our full implementation of that method can be found
 <a href="https://github.com/artsy/metaphysics/blob/205592be7f59970cf80313972ceb95bb1579c31f/src/schema/v2/fields/pagination.ts#L96">here</a>.</p>
@@ -615,95 +158,92 @@ else if nearEnd
 You can adjust the arguments to see how the output changes based on where you are in the list. Try putting
 different cursor values in! It looks like:</p>
 
-<p><img src="/images/2020-01-21-graphql-relay-windowed-pagination/graphiql.png"></p>
+<p><img src="/images/2020-01-21-graphql-relay-windowed-pagination/graphiql.png" /></p>
 
-<p>Let's look at a couple of other pieces of data requested here. One of these is a <code>previous</code> page cursor. This is to
-support that action (the prev/next toggles) in the UI. However, we don't need a custom <code>next</code> item to support that
-behavior. That's because we tend to use
+<p>Let’s look at a couple of other pieces of data requested here. One of these is a <code class="language-plaintext highlighter-rouge">previous</code> page cursor. This is to
+support that action (the prev/next toggles) in the UI. However, we don’t need a custom <code class="language-plaintext highlighter-rouge">next</code> item to support that
+behavior. That’s because we tend to use
 <a href="https://facebook.github.io/relay/graphql/connections.htm#sec-Forward-pagination-arguments">forward-style pagination arguments</a>
 with connections, which means the connection will already return the data needed for that action (remember, you can
 implement a scrolling infinite scroll feed that always takes you to the next page right out of the box).
-Specifically, the <code>hasNextPage</code> and <code>endCursor</code> are those fields from the
-<a href="https://facebook.github.io/relay/graphql/connections.htm#sec-undefined.PageInfo.Fields">GraphQL <code>pageInfo</code> object</a>
+Specifically, the <code class="language-plaintext highlighter-rouge">hasNextPage</code> and <code class="language-plaintext highlighter-rouge">endCursor</code> are those fields from the
+<a href="https://facebook.github.io/relay/graphql/connections.htm#sec-undefined.PageInfo.Fields">GraphQL <code class="language-plaintext highlighter-rouge">pageInfo</code> object</a>
 which give you that information.</p>
 
-<a name="Companion.UI.Component"></a>
-<h2>Companion UI Component</h2>
+<h2 id="companion-ui-component">Companion UI Component</h2>
 
-<p>Ok, now that we have a connection and corresponding fields that provide the needed data, let's take a look at a
+<p>Ok, now that we have a connection and corresponding fields that provide the needed data, let’s take a look at a
 simple React component that can render this:</p>
 
-<pre><code class="js">const Page = ({pageCursor: { page, cursor }}) =&gt; {
-  return (
-    &lt;Button onClick={() =&gt; onClick(cursor)}&gt;
-      {page}
-    &lt;/Button&gt;
-  )
-}
+<div class="language-js highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">const</span> <span class="nx">Page</span> <span class="o">=</span> <span class="p">({</span><span class="na">pageCursor</span><span class="p">:</span> <span class="p">{</span> <span class="nx">page</span><span class="p">,</span> <span class="nx">cursor</span> <span class="p">}})</span> <span class="o">=&gt;</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="p">(</span>
+    <span class="o">&lt;</span><span class="nx">Button</span> <span class="nx">onClick</span><span class="o">=</span><span class="p">{()</span> <span class="o">=&gt;</span> <span class="nx">onClick</span><span class="p">(</span><span class="nx">cursor</span><span class="p">)}</span><span class="o">&gt;</span>
+      <span class="p">{</span><span class="nx">page</span><span class="p">}</span>
+    <span class="o">&lt;</span><span class="sr">/Button</span><span class="err">&gt;
+</span>  <span class="p">)</span>
+<span class="p">}</span>
 
-// Show page 1 if `first` is present, and append with dots
-// Show everything in `around`
-// Show last page if present, and prepend with dots
-//
-// Show previous toggle, active if present
-// Show next toggle, active if next page exists
-return (
-  &lt;&gt;
-    {&lt;Button disabled={!previous} onClick={() =&gt; onClick(previous.cursor)}&gt;Previous&lt;/Button&gt;}
-    {first &amp;&amp; (&lt;&gt;&lt;Page pageCursor={first} /&gt;...&lt;/&gt;)}
-    {around.map(page =&gt; &lt;Page pageCursor={page}&gt;)}
-    {last &amp;&amp; (&lt;&gt;...&lt;Page pageCursor={last} /&gt;&lt;/&gt;)}
-    {&lt;Button disabled={!hasNextPage} onClick={() =&gt; onNext()}&gt;Next&lt;/Button&gt;}
-  &lt;/&gt;
-)
-</code></pre>
+<span class="c1">// Show page 1 if `first` is present, and append with dots</span>
+<span class="c1">// Show everything in `around`</span>
+<span class="c1">// Show last page if present, and prepend with dots</span>
+<span class="c1">//</span>
+<span class="c1">// Show previous toggle, active if present</span>
+<span class="c1">// Show next toggle, active if next page exists</span>
+<span class="k">return</span> <span class="p">(</span>
+  <span class="o">&lt;&gt;</span>
+    <span class="p">{</span><span class="o">&lt;</span><span class="nx">Button</span> <span class="nx">disabled</span><span class="o">=</span><span class="p">{</span><span class="o">!</span><span class="nx">previous</span><span class="p">}</span> <span class="nx">onClick</span><span class="o">=</span><span class="p">{()</span> <span class="o">=&gt;</span> <span class="nx">onClick</span><span class="p">(</span><span class="nx">previous</span><span class="p">.</span><span class="nx">cursor</span><span class="p">)}</span><span class="o">&gt;</span><span class="nx">Previous</span><span class="o">&lt;</span><span class="sr">/Button&gt;</span><span class="err">}
+</span>    <span class="p">{</span><span class="nx">first</span> <span class="o">&amp;&amp;</span> <span class="p">(</span><span class="o">&lt;&gt;&lt;</span><span class="nx">Page</span> <span class="nx">pageCursor</span><span class="o">=</span><span class="p">{</span><span class="nx">first</span><span class="p">}</span> <span class="sr">/&gt;...&lt;/</span><span class="o">&gt;</span><span class="p">)}</span>
+    <span class="p">{</span><span class="nx">around</span><span class="p">.</span><span class="nx">map</span><span class="p">(</span><span class="nx">page</span> <span class="o">=&gt;</span> <span class="o">&lt;</span><span class="nx">Page</span> <span class="nx">pageCursor</span><span class="o">=</span><span class="p">{</span><span class="nx">page</span><span class="p">}</span><span class="o">&gt;</span><span class="p">)}</span>
+    <span class="p">{</span><span class="nx">last</span> <span class="o">&amp;&amp;</span> <span class="p">(</span><span class="o">&lt;&gt;</span><span class="p">...</span><span class="o">&lt;</span><span class="nx">Page</span> <span class="nx">pageCursor</span><span class="o">=</span><span class="p">{</span><span class="nx">last</span><span class="p">}</span> <span class="sr">/&gt;&lt;/</span><span class="o">&gt;</span><span class="p">)}</span>
+    <span class="p">{</span><span class="o">&lt;</span><span class="nx">Button</span> <span class="nx">disabled</span><span class="o">=</span><span class="p">{</span><span class="o">!</span><span class="nx">hasNextPage</span><span class="p">}</span> <span class="nx">onClick</span><span class="o">=</span><span class="p">{()</span> <span class="o">=&gt;</span> <span class="nx">onNext</span><span class="p">()}</span><span class="o">&gt;</span><span class="nx">Next</span><span class="o">&lt;</span><span class="sr">/Button&gt;</span><span class="err">}
+</span>  <span class="o">&lt;</span><span class="sr">/</span><span class="err">&gt;
+</span><span class="p">)</span>
+</code></pre></div></div>
 
-<p>That's basically it, visually speaking! The data provided by our GraphQL server is sufficient to render what's
+<p>That’s basically it, visually speaking! The data provided by our GraphQL server is sufficient to render what’s
 needed. You can see such a UI component in our design system
 <a href="https://github.com/artsy/palette/blob/f882d32c3fdc6e7f81915c2922e3824bd26791e7/packages/palette/src/elements/Pagination/Pagination.tsx">here</a>.
 It looks very similar to the above code. Of note, is since this is a simple UI component, it is vanilla React. It
-is not a Relay component. It requires an <code>onClick</code> and <code>onNext</code> to be passed as props.</p>
+is not a Relay component. It requires an <code class="language-plaintext highlighter-rouge">onClick</code> and <code class="language-plaintext highlighter-rouge">onNext</code> to be passed as props.</p>
 
-<a name="Relay.Integration.Step.I"></a>
-<h2>Relay Integration Step I</h2>
+<h2 id="relay-integration-step-i">Relay Integration Step I</h2>
 
-<p>Now, let's take a look at how we can build a Relay container that will use the above UI component. First, let's
+<p>Now, let’s take a look at how we can build a Relay container that will use the above UI component. First, let’s
 build a Relay-wrapped component of the above UI component. This is a fragment container, and lists all the fields
 needed:</p>
 
-<pre><code class="js">fragment Pagination_pageCursors on PageCursors {
-  around {
-    cursor
-    page
-    isCurrent
-  }
-  first {
-    cursor
-    page
-    isCurrent
-  }
-  last {
-    cursor
-    page
-    isCurrent
-  }
-  previous {
-    cursor
-    page
-  }
-}
-</code></pre>
+<div class="language-js highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nx">fragment</span> <span class="nx">Pagination_pageCursors</span> <span class="nx">on</span> <span class="nx">PageCursors</span> <span class="p">{</span>
+  <span class="nx">around</span> <span class="p">{</span>
+    <span class="nx">cursor</span>
+    <span class="nx">page</span>
+    <span class="nx">isCurrent</span>
+  <span class="p">}</span>
+  <span class="nx">first</span> <span class="p">{</span>
+    <span class="nx">cursor</span>
+    <span class="nx">page</span>
+    <span class="nx">isCurrent</span>
+  <span class="p">}</span>
+  <span class="nx">last</span> <span class="p">{</span>
+    <span class="nx">cursor</span>
+    <span class="nx">page</span>
+    <span class="nx">isCurrent</span>
+  <span class="p">}</span>
+  <span class="nx">previous</span> <span class="p">{</span>
+    <span class="nx">cursor</span>
+    <span class="nx">page</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
-<p>As a fragment container, this doesn't have the ability to fetch anything by itself. We want to pass in an <code>onClick</code>
-and <code>onNext</code> prop from a parent, as well as the <code>hasNextPage</code> and <code>endCursor</code> data. Check out
+<p>As a fragment container, this doesn’t have the ability to fetch anything by itself. We want to pass in an <code class="language-plaintext highlighter-rouge">onClick</code>
+and <code class="language-plaintext highlighter-rouge">onNext</code> prop from a parent, as well as the <code class="language-plaintext highlighter-rouge">hasNextPage</code> and <code class="language-plaintext highlighter-rouge">endCursor</code> data. Check out
 <a href="https://github.com/artsy/reaction/blob/c6d630f8c3213f47c5124f63eda13fbb9d8f497b/src/Components/v2/Pagination.tsx">this component</a>
 in our library to see how we take that vanilla React component mentioned above, and use the above fragment to make
 a Relay fragment container out of it.</p>
 
 <p>Now, we need to decide what kind of parent container is appropriate, and how this fragment container will be used.</p>
 
-<a name="Relay.Integration.Step.II"></a>
-<h2>Relay Integration Step II</h2>
+<h2 id="relay-integration-step-ii">Relay Integration Step II</h2>
 
 <p>This is going to be confusing, but for this step, we use a
 <a href="https://relay.dev/docs/en/refetch-container">refetch container</a> in order to present our paginated collection view,
@@ -714,59 +254,59 @@ accomplish. The refetch container is a much more natural fit for our use case, d
 
 <p>That fragment looks like:</p>
 
-<pre><code class="js">fragment ConnectionResults_query on Query {
-  someConnection(first: $first, after: $after) {
-    pageInfo {
-      hasNextPage
-      endCursor
-    }
-    pageCursors {
-      ...Pagination_pageCursors
-    }
-    ...OtherStuffForYourView
-  }
-}
-</code></pre>
+<div class="language-js highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nx">fragment</span> <span class="nx">ConnectionResults_query</span> <span class="nx">on</span> <span class="nx">Query</span> <span class="p">{</span>
+  <span class="nx">someConnection</span><span class="p">(</span><span class="nx">first</span><span class="p">:</span> <span class="nx">$first</span><span class="p">,</span> <span class="nx">after</span><span class="p">:</span> <span class="nx">$after</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nx">pageInfo</span> <span class="p">{</span>
+      <span class="nx">hasNextPage</span>
+      <span class="nx">endCursor</span>
+    <span class="p">}</span>
+    <span class="nx">pageCursors</span> <span class="p">{</span>
+      <span class="p">...</span><span class="nx">Pagination_pageCursors</span>
+    <span class="p">}</span>
+    <span class="p">...</span><span class="nx">OtherStuffForYourView</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
-<p>We include our <code>pageCursors</code> fragment, as well as the <code>hasNextPage</code> and <code>endCursor</code> from the <code>pageInfo</code> object. We
-need to provide the <code>onClick</code> and <code>onNext</code> callbacks as well. Since this component will have access to a
-<a href="https://relay.dev/docs/en/refetch-container#refetch"><code>relay</code> prop</a> since it is a refetch container, those look
+<p>We include our <code class="language-plaintext highlighter-rouge">pageCursors</code> fragment, as well as the <code class="language-plaintext highlighter-rouge">hasNextPage</code> and <code class="language-plaintext highlighter-rouge">endCursor</code> from the <code class="language-plaintext highlighter-rouge">pageInfo</code> object. We
+need to provide the <code class="language-plaintext highlighter-rouge">onClick</code> and <code class="language-plaintext highlighter-rouge">onNext</code> callbacks as well. Since this component will have access to a
+<a href="https://relay.dev/docs/en/refetch-container#refetch"><code class="language-plaintext highlighter-rouge">relay</code> prop</a> since it is a refetch container, those look
 like:</p>
 
-<pre><code class="js">handleNext = () =&gt; {
-  if (hasNextPage) this.handleClick(endCursor)
-}
+<div class="language-js highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nx">handleNext</span> <span class="o">=</span> <span class="p">()</span> <span class="o">=&gt;</span> <span class="p">{</span>
+  <span class="k">if</span> <span class="p">(</span><span class="nx">hasNextPage</span><span class="p">)</span> <span class="k">this</span><span class="p">.</span><span class="nx">handleClick</span><span class="p">(</span><span class="nx">endCursor</span><span class="p">)</span>
+<span class="p">}</span>
 
-handleClick = (cursor: string) =&gt; {
-  this.props.relay.refetch(
-    {
-      first: PAGE_SIZE,
-      after: cursor
-    },
-    null,
-    error =&gt; {
-      /* Update URL, set state, etc. */
-    }
-  )
-}
-</code></pre>
+<span class="nx">handleClick</span> <span class="o">=</span> <span class="p">(</span><span class="nx">cursor</span><span class="p">:</span> <span class="nx">string</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">props</span><span class="p">.</span><span class="nx">relay</span><span class="p">.</span><span class="nx">refetch</span><span class="p">(</span>
+    <span class="p">{</span>
+      <span class="na">first</span><span class="p">:</span> <span class="nx">PAGE_SIZE</span><span class="p">,</span>
+      <span class="na">after</span><span class="p">:</span> <span class="nx">cursor</span>
+    <span class="p">},</span>
+    <span class="kc">null</span><span class="p">,</span>
+    <span class="nx">error</span> <span class="o">=&gt;</span> <span class="p">{</span>
+      <span class="cm">/* Update URL, set state, etc. */</span>
+    <span class="p">}</span>
+  <span class="p">)</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>The refetch query defined for the container will look like:</p>
 
-<pre><code class="js">query SomeConnectionQuery($first: Int, $after: String) {
-  ...ConnectionResults_query @arguments(first: $first, after: $after)
-}
-</code></pre>
+<div class="language-js highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nx">query</span> <span class="nx">SomeConnectionQuery</span><span class="p">(</span><span class="nx">$first</span><span class="p">:</span> <span class="nx">Int</span><span class="p">,</span> <span class="nx">$after</span><span class="p">:</span> <span class="nb">String</span><span class="p">)</span> <span class="p">{</span>
+  <span class="p">...</span><span class="nx">ConnectionResults_query</span> <span class="p">@</span><span class="nd">arguments</span><span class="p">(</span><span class="nx">first</span><span class="p">:</span> <span class="nx">$first</span><span class="p">,</span> <span class="nx">after</span><span class="p">:</span> <span class="nx">$after</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
-<p>We're pretty much done, this is all just Relay boilerplate at this point.</p>
+<p>We’re pretty much done, this is all just Relay boilerplate at this point.</p>
 
 <p>Putting it all together, our refetch container winds up rendering a fully functional pagination component in one
 line:</p>
 
-<pre><code class="js">&lt;Pagination onClick={handleClick} onNext={handleNext} pageCursors={props.pageCursors} /&gt;
-</code></pre>
+<div class="language-js highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="o">&lt;</span><span class="nx">Pagination</span> <span class="nx">onClick</span><span class="o">=</span><span class="p">{</span><span class="nx">handleClick</span><span class="p">}</span> <span class="nx">onNext</span><span class="o">=</span><span class="p">{</span><span class="nx">handleNext</span><span class="p">}</span> <span class="nx">pageCursors</span><span class="o">=</span><span class="p">{</span><span class="nx">props</span><span class="p">.</span><span class="nx">pageCursors</span><span class="p">}</span> <span class="sr">/</span><span class="err">&gt;
+</span></code></pre></div></div>
 
-<p>That's it! Any connection can have this pagination functionality added to it very simply. You include the page
+<p>That’s it! Any connection can have this pagination functionality added to it very simply. You include the page
 cursor schema on the server for that type (we have a
 <a href="https://github.com/artsy/metaphysics/blob/205592be7f59970cf80313972ceb95bb1579c31f/src/schema/v2/fields/pagination.ts#L160">factory method</a>
 to help us do that automatically for any connection type). Then, following the above steps, you can quickly build a
@@ -777,683 +317,19 @@ our <a href="https://www.artsy.net/collect">Artworks browse experience</a> and h
 through all accessible works! The pagination controls and functionality on this page, and others, are built using
 the technique described in this post.</p>
 
-<a name="Examples"></a>
-<h2>Examples</h2>
+<h2 id="examples">Examples</h2>
 
 <p>Since our <a href="https://github.com/artsy/metaphysics">GraphQL orchestration layer</a>, our
 <a href="https://github.com/artsy/palette">design system</a> and
-<a href="https://github.com/artsy/reaction">UI component and app library</a> are all open source, here's links to our actual
+<a href="https://github.com/artsy/reaction">UI component and app library</a> are all open source, here’s links to our actual
 production implementation of the above:</p>
 
 <ul>
-<li><a href="https://github.com/artsy/metaphysics/blob/205592be7f59970cf80313972ceb95bb1579c31f/src/schema/v2/fields/pagination.ts">Pagination schema in GraphQL</a></li>
-<li><a href="https://github.com/artsy/palette/blob/f882d32c3fdc6e7f81915c2922e3824bd26791e7/packages/palette/src/elements/Pagination/Pagination.tsx">React UI component</a></li>
-<li><a href="https://github.com/artsy/reaction/blob/c6d630f8c3213f47c5124f63eda13fbb9d8f497b/src/Components/v2/Pagination.tsx">Relay FragmentContainer wrapping of the above</a></li>
-<li><a href="https://github.com/artsy/reaction/blob/c6d630f8c3213f47c5124f63eda13fbb9d8f497b/src/Apps/Search/Routes/Artists/SearchResultsArtists.tsx">Relay RefetchContainer full example</a></li>
+  <li><a href="https://github.com/artsy/metaphysics/blob/205592be7f59970cf80313972ceb95bb1579c31f/src/schema/v2/fields/pagination.ts">Pagination schema in GraphQL</a></li>
+  <li><a href="https://github.com/artsy/palette/blob/f882d32c3fdc6e7f81915c2922e3824bd26791e7/packages/palette/src/elements/Pagination/Pagination.tsx">React UI component</a></li>
+  <li><a href="https://github.com/artsy/reaction/blob/c6d630f8c3213f47c5124f63eda13fbb9d8f497b/src/Components/v2/Pagination.tsx">Relay FragmentContainer wrapping of the above</a></li>
+  <li><a href="https://github.com/artsy/reaction/blob/c6d630f8c3213f47c5124f63eda13fbb9d8f497b/src/Apps/Search/Routes/Artists/SearchResultsArtists.tsx">Relay RefetchContainer full example</a></li>
 </ul>
-
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Why does Artsy use Relay?]]></title>
-    <link href="https://artsy.github.io/blog/2019/04/10/omakase-relay/"/>
-    <updated>2019-04-10T00:00:00+00:00</updated>
-    <id>https://artsy.github.io/blog/2019/04/10/omakase-relay</id>
-    <content type="html"><![CDATA[<p>When the mobile team at Artsy considered <a href="/blog/2016/08/15/React-Native-at-Artsy/">moving to React Native</a> back in 2016, one of the most compelling
-cases for making that jump was Relay. This, it seems, is a dependency that is rarely used in the JS community and
-we often find ourselves re-explaining this decision to new engineers during onboarding, and to the public at large.</p>
-
-<p>Which makes this a perfect blog post topic, so let's have a deep dive into what makes Relay compelling for Artsy's
-engineering team.</p>
-
-<!-- more -->
-
-
-<a name="What.problem.does.Relay.solve."></a>
-<h1>What problem does Relay solve?</h1>
-
-<p>Relay is an API client for GraphQL, it comes in two parts: a compiler and a set of front-end components. Relay aims
-to provide a really tight binding between your GraphQL API and your view hierarchy. When you build data-driven
-apps, Relay removes a whole suite of non-business logic from your application.</p>
-
-<p>Relay handles:</p>
-
-<ul>
-<li>Data binding (API → props)</li>
-<li>Cache management (invalidation, re-render live components with data updates, etc)</li>
-<li>Consistent abstractions for bi-directional pagination</li>
-<li>Multiple query consolidation (e.g. consolidate all API requests to one request)</li>
-<li>UI best practices baked in (e.g. optimistic response rendering)</li>
-<li>Declarative data mutation (describe how data should change, instead of doing it)</li>
-<li>Compile-time query generation (removing runtime overhead and allowing you to persist queries)</li>
-</ul>
-
-
-<p>By taking the responsibilities of the grunt work for most complex apps and moving it into Relay you get
-Facebook-scale best-practices and can build on top of that.</p>
-
-<a name="How.does.it.work."></a>
-<h1>How does it work?</h1>
-
-<p>You write a set of Relay components, you always start with a <a href="https://facebook.github.io/relay/docs/en/query-renderer.html"><code>QueryRenderer</code></a> and a tree of either
-<a href="https://facebook.github.io/relay/docs/en/fragment-container.html"><code>FragmentContainer</code></a>, <a href="https://facebook.github.io/relay/docs/en/refetch-container.html"><code>RefetchContainer</code></a> or <a href="https://facebook.github.io/relay/docs/en/pagination-container.html"><code>PaginationContainer</code></a>s. You mostly use
-<code>FragmentContainer</code>s, so I'll focus on that here.</p>
-
-<p>A <code>FragmentContainer</code> is based on a <a href="https://graphql.org/learn/queries/#fragments">GraphQL fragment</a>. If you've never used a fragment, they are an
-abstraction that lets you declare shared field-selections on a specific GraphQL type to reduce duplication in your
-queries. For example:</p>
-
-<pre><code>query GetPopularArtistAndFeaturedArtist {
-  featuredArtist {
-    id
-    name
-    bio
-  }
-  popularArtist {
-    id
-    name
-    bio
-  }
-}
-</code></pre>
-
-<p>To move this query to use fragments:</p>
-
-<pre><code>query GetPopularArtistAndFeaturedArtist {
-  featuredArtist {
-    ...ArtistMetadata
-  }
-  popularArtist {
-    ...ArtistMetadata
-  }
-}
-
-fragment ArtistMetadata on Artist {
-  id
-  name
-  bio
-}
-</code></pre>
-
-<p>It's a tiny bit longer, but you have a guarantee that the data is consistent across both artists. Now that you have
-a rough idea of what a GraphQL fragment is, let's look at what a <code>FragmentContainer</code> looks like. Here's a
-simplified <a href="https://github.com/artsy/emission/blob/892af2621eef455388e074701cca747330de3b3f/src/lib/Scenes/Settings/MyProfile.tsx#L95">profile page</a> from the Artsy iOS app:</p>
-
-<pre><code class="ts">import React from "react"
-import { createFragmentContainer, graphql } from "react-relay"
-import { MyProfile_me } from "__generated__/MyProfile_me.graphql"
-
-interface Props extends ViewProperties {
-  me: MyProfile_me
-}
-
-export class MyProfile extends React.Component&lt;Props&gt; {
-  render() {
-    return (
-      &lt;View&gt;
-        &lt;Header&gt;
-          &lt;ProfilePhoto initials={this.props.me.initials} image={this.props.me.image} /&gt;
-          &lt;Subheading&gt;{this.props.me.name}&lt;/Subheading&gt;
-        &lt;/Header&gt;
-        &lt;ButtonSection&gt;
-          &lt;ProfileButton
-            section="Selling"
-            description="Sell works from your collection"
-            onPress={startSubmission}
-          /&gt;
-          &lt;ProfileButton
-            section="Account Details"
-            description="Email, password reset, profile"
-            onPress={goToUserSettings}
-          /&gt;
-        &lt;/ButtonSection&gt;
-      &lt;/View&gt;
-    )
-  }
-}
-
-export default createFragmentContainer(MyProfile, {
-  me: graphql`
-    fragment MyProfile_me on Me {
-      name
-      image
-      initials
-    }
-  `
-})
-</code></pre>
-
-<p>There are three moving parts:</p>
-
-<ul>
-<li>The TypeScript interface <code>MyProfile_me</code>, generated by the compiler, which ensures we can only use fields that
-were selected in the fragment</li>
-<li>The <code>MyProfile</code> component, which is a vanilla React component</li>
-<li>The exported <code>createFragmentContainer</code> which returns a higher-order component that wraps <code>MyProfile</code> and ties it
-to a fragment on a <code>Me</code> type in GraphQL</li>
-</ul>
-
-
-<a name="Isolation"></a>
-<h2>Isolation</h2>
-
-<p>The React component <code>MyProfile</code> will be passed in props that directly tie to the fragment that was requested. In
-Relay terms, this is called <a href="https://facebook.github.io/relay/docs/en/thinking-in-relay.html#data-masking">data masking</a> and it is one of the first hurdles for someone new to Relay to
-<a href="https://en.wikipedia.org/wiki/Grok">grok</a>. In REST clients, and GraphQL API clients like Apollo Client, you make a request and that request is
-passed through the React tree. E.g.</p>
-
-<p></article>
-<a href='/images/omakase-relay/tree.png' style="">
-  <img src="/images/omakase-relay/tree.png" alt="REST inspired props" style="width:100%;">
-</a>
-<article class="post">
-</p>
-
-<p>This means most components know more about the request than it probably needs, as it may be needed to pass on to
-the component's children. This can lead to over-fetching, or even worse, not knowing if you can delete or refactor
-a component.</p>
-
-<p>Data masking solves this by hiding data that the component didn't request. I've still yet to find the right visual
-abstraction, but I feel this just about pays for itself.</p>
-
-<p></article>
-<a href='/images/omakase-relay/isolation.png' style="">
-  <img src="/images/omakase-relay/isolation.png" alt="Relay isolation tree" style="width:100%;">
-</a>
-<article class="post">
-</p>
-
-<p>You let Relay be responsible for consolidating all your fragments into a query via the <code>QueryRenderer</code>, causing the
-network request, and your response data to be passed your through your component hierarchy. This means Relay
-powered components can be safely changed and drastically reduces the chance for unintended consequences elsewhere.</p>
-
-<p>This isolation gives Artsy engineers the safety to work on projects with tens of contributors which regularly
-change over time. Providing a guarantee that you can safely work in isolated parts of the codebase without accruing
-technical debt.</p>
-
-<p>Relay's container components mean that the components we create are nearly all focused only on the data-driven
-aspects of rendering a subset of that GraphQL response into views. It's very powerful.</p>
-
-<a name="Co-location"></a>
-<h2>Co-location</h2>
-
-<p>Relay helped us move to one file representing everything a component needed. Effectively a single file now handles
-the styles, the actual view content hierarchy, and the exact parts of the API it needs to render itself.</p>
-
-<p><img src="/images/omakase-relay/co-location.png"></p>
-
-<p>In roughly that proportion too, though our most modern code uses the Artsy design system <a href="https://github.com/artsy/palette">Palette</a> which
-drastically reduces the need for style in our components.</p>
-
-<p>Co-location's biggest selling point is reducing <a href="https://en.wikipedia.org/wiki/Cognitive_load">cognitive load</a>,
-having everything you need in one place makes it easier to understand how a component works. This makes code review
-simpler, and lowers the barrier to understanding the entire systems at scale.</p>
-
-<a name="Community"></a>
-<h2>Community</h2>
-
-<p>When we adopted Relay, there was no competition - we'd have just used the <code>fetch</code> API. Over time, <a href="https://www.apollographql.com">the Apollo
-team</a> came up and really put a considerable amount of effort into lowering the barriers to entry, and
-making it feasible to build complex apps easily.</p>
-
-<p>As we hired a set of new engineers, the "Apollo vs Relay" debate came up. Interested in whether we would still
-start with Relay today, we ran an audit last year of what it would take to re-create a lot of the infrastructure we
-love in Relay atop of the (much more popular) Apollo GraphQL eco-system and saw it was reasonably feasible but
-would require a considerable amount of work across many different plugins and tools. With Relay that's all packaged
-into one tool, works consistently and has been proven with Facebook having tens of thousands of Relay components in
-production.</p>
-
-<p>It's worth highlighting the core difference in community engagement for Apollo vs Relay. Engineers working on
-Apollo have great incentives to do user support, and improve the tools for the community - that's their businesses
-value. Relay on the other hand is used in many places at Facebook, and the engineers on the team support internal
-issues first. IMO, this is reasonable: Relay is an opinionated batteries-included framework for building user
-interfaces, and ensuring it works with the baffling amount of JavaScript at Facebook is more or less all the team
-has time for.</p>
-
-<p>That leaves space for the OSS community to own their own problems. Notably there's been quite a lot of work going
-on in the community-managed <a href="https://github.com/relay-tools">relay-tools</a> GitHub organization.</p>
-
-<a name="Scale.Safety"></a>
-<h2>Scale Safety</h2>
-
-<p>Relay puts a lot of emphasis on ahead-of-time safety. The Relay compiler validates your queries against your
-GraphQL schema, it emits Flow types for your fragment’s field selections–which we’ve extended to emit TypeScript
-types instead, and there are strict naming systems enforced by the compiler. All of these help guide engineers to
-build scalable codebases.</p>
-
-<p>How this works in practice is that whenever you need to change the data a component requires, you edit the
-fragment, the Relay compiler verifies your query, if successful then your TypeScript types are updated and you can
-use the new property in your React component above. See below for a <a href="/images/omakase-relay/relay-process-720.mov">quick video</a> showing the Relay compiler
-in action:</p>
-
-<p></article>
-<div>
-<video controls style="margin: auto 20px; width:100%;">
-  <source src="/images/omakase-relay/relay-process-720.mov" type="video/mp4">
-  Your browser does not support the video tag.
-</video>
-</div>
-<article class="post">
-</p>
-
-<p>Moving all of these checks to be during dev-time means we can feel more confident in our deploys. This is
-especially an issue in an iOS native codebase, when any deploy requires a review from Apple and roll-backs are
-impossible.</p>
-
-<a name="Cultural.Fit"></a>
-<h2>Cultural Fit</h2>
-
-<p>Relay fit well into our team because:</p>
-
-<ul>
-<li>We had engineers who were interested in contributing back and extending Relay to work for our cases</li>
-<li>We had engineers that were used to the benefits of ahead-of-time error validation tools that compilers offer</li>
-<li>We saw a lot of value in a tightly coupling our view structure to our user interface</li>
-</ul>
-
-
-<p>Relay is not without its shortcomings to users outside of Facebook, but Relay has definitely paid for its initial
-and occasional complexity for the tightness of our codebases many years down the line.</p>
-
-<!-- prettier-ignore-start -->
-
-
-<!-- prettier-ignore-end -->
-
-
-
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[The Relay Network Deep Dive]]></title>
-    <link href="https://artsy.github.io/blog/2018/07/25/Relay-Networking-Deep-Dive/"/>
-    <updated>2018-07-25T00:00:00+00:00</updated>
-    <id>https://artsy.github.io/blog/2018/07/25/Relay-Networking-Deep-Dive</id>
-    <content type="html"><![CDATA[<blockquote><p>Hey all, we have another guest post, this one comes from <a href="https://github.com/sibelius">Sibelius Seraphini</a> - a very active contributor to
-Relay and its eco-system. When we spotted he had wrote an amazing article on how the networking aspects of Relay
-comes together, we wanted to expand his reach and inform more people on how Relay comes together.</p>
-
-<p>-- Orta</p></blockquote>
-
-<p>Data fetching is a hard problem for apps. You need to ask yourself a lot of questions: How do you ask for data from
-a server? How do you handle authentication? When is the right time to request data? How can you ensure you have all
-the necessary data to render your views? How can you make sure you're not over-fetching? Can you do lazy loading?
-When should you trigger lazy loading of data? What about pre-fetching data?</p>
-
-<p><a href="https://facebook.github.io/relay/">Relay</a> is a framework for building data-driven applications which handles data fetching for you. For an
-introduction to Relay, read <a href="https://facebook.github.io/relay/">their docs</a>, and also check out my Relay talk at <a href="https://speakerdeck.com/sibelius/reactconfbr-is-relay-modern-the-future">React Conf BR</a>.</p>
-
-<blockquote><p>You don’t deep dive if you don’t know how to swim</p></blockquote>
-
-<a name="TL.DR.Relay.Modern.Network"></a>
-<h2>TL;DR Relay Modern Network</h2>
-
-<p>Relay will aggregate the data requirements (fragments) for your components, then create a request to fulfill it.
-The API to do this is via the <a href="https://facebook.github.io/relay/docs/en/relay-environment.html">Relay Environment</a>:</p>
-
-<blockquote><p>The Relay "Environment" bundles together the configuration, cache storage, and network-handling that Relay needs
-in order to operate.</p></blockquote>
-
-<p>This post focuses on the "network-handling" part, the <a href="https://facebook.github.io/relay/docs/en/network-layer.html">Network Layer</a>. The network layer's responsibility
-is to make a request to a server (or a local graphql) and return the response data to Relay. Your implementation
-should conform to either <a href="https://github.com/facebook/relay/blob/v1.6.0/packages/relay-runtime/network/RelayNetworkTypes.js#L79-L90">FetchFunction</a> for a Promise-like API, or <a href="https://github.com/facebook/relay/blob/v1.6.0/packages/relay-runtime/network/RelayNetworkTypes.js#L92-L107">SubscribeFunction</a> for an
-Observable-like API.</p>
-
-<p>This article will provide 5 implementations of a Relay Network Interface, each of one providing more capabilities
-than the other one, eventually enabling GraphQL Live Queries and Deferrable Queries.</p>
-
-<p>You can see the code for these 5 network layers on GitHub here, open source under MIT license:
-<a href="https://github.com/sibelius/relay-modern-network-deep-dive">https://github.com/sibelius/relay-modern-network-deep-dive</a>.</p>
-
-<!-- more -->
-
-
-<a name="Simplest.Network.Layer"></a>
-<h3>Simplest Network Layer</h3>
-
-<p>The simplest network layer would; get the request, send it to a GraphQL server to resolve and return the data to
-Relay environment.</p>
-
-<pre><code class="js">const fetchFunction = async (
-  request: RequestNode,
-  variables: Variables,
-  cacheConfig: CacheConfig,
-  uploadables: ?UploadableMap
-) =&gt; {
-  // Most GraphQL APIs expect a POST with a JSON
-  // string containing the query and associated variables
-  const body = JSON.stringify({
-    query: request.text, // GraphQL text from input
-    variables
-  })
-
-  const headers = {
-    Accept: "application/json",
-    "Content-type": "application/json",
-    authorization: getToken()
-  }
-
-  const response = await fetchWithRetries(ENV.GRAPHQL_URL, {
-    method: "POST",
-    headers,
-    body,
-    fetchTimeout: 20000,
-    retryDelays: [1000, 3000, 5000, 10000]
-  })
-
-  const data = await response.json()
-
-  // Mutations should throw when they have errors, making it easier
-  // for client code to react
-  if (isMutation(request) &amp;&amp; data.errors) {
-    throw data
-  }
-
-  // We return the GraphQL response to update the Relay Environment
-  // which updates internal store where relay keeps its data
-  return data
-}
-</code></pre>
-
-<a name="Network.that.Handle.Uploadables"></a>
-<h3>Network that Handle Uploadables</h3>
-
-<p>The GraphQL spec does not handle form data, and so if you need to send along files to upload to your server with a
-mutation, you'll want to use the uploadables API in Relay when you commit the mutation.</p>
-
-<p>Adding uploadables in a mutation will inevitably get passed to your network interface, where you'll need to change
-your request body to use FormData instead of the JSON string above:</p>
-
-<pre><code class="js">function getRequestBodyWithUploadables(request, variables, uploadables) {
-  let formData = new FormData()
-  formData.append("query", request.text)
-  formData.append("variables", JSON.stringify(variables))
-
-  Object.keys(uploadables).forEach(key =&gt; {
-    if (Object.prototype.hasOwnProperty.call(uploadables, key)) {
-      formData.append(key, uploadables[key])
-    }
-  })
-
-  return formData
-}
-</code></pre>
-
-<a name="Network.that.Caches.Requests"></a>
-<h3>Network that Caches Requests</h3>
-
-<p>This builds on top of the other 2 implementations, we use
-<a href="https://github.com/facebook/relay/blob/v1.6.0/packages/relay-runtime/network/RelayQueryResponseCache.js#L24-L29">RelayQueryResponseCache</a>
-to query GraphQL requests based on query and variables.</p>
-
-<p>Every time a mutation happens, we should invalidate our cache as we are not sure how a change can affect all cached
-query responses.</p>
-
-<pre><code class="js">// Create our own in-memory cache
-const relayResponseCache = new RelayQueryResponseCache({ size: 250, ttl: oneMinute })
-
-const cacheHandler = async (
-  request: RequestNode,
-  variables: Variables,
-  cacheConfig: CacheConfig,
-  uploadables: UploadableMap
-) =&gt; {
-  const queryID = request.text
-
-  // If it's a mutation, clear all cache, then call the implementation above
-  if (isMutation(request)) {
-    relayResponseCache.clear()
-    return fetchFunction(request, variables, cacheConfig, uploadables)
-  }
-
-  // Try grab the request from the cache first
-  const fromCache = relayResponseCache.get(queryID, variables)
-  // Did it hit? Or did we suppress the cache for this request
-  if (isQuery(request) &amp;&amp; fromCache !== null &amp;&amp; !forceFetch(cacheConfig)) {
-    return fromCache
-  }
-
-  // Make the request, and cache it if we get a response
-  const fromServer = await fetchFunction(request, variables, cacheConfig, uploadables)
-  if (fromServer) {
-    relayResponseCache.set(queryID, variables, fromServer)
-  }
-
-  return fromServer
-}
-</code></pre>
-
-<a name="Network.using.Observable"></a>
-<h3>Network using Observable</h3>
-
-<p>Relay provides a limited implementation of the upcoming <a href="https://github.com/tc39/proposal-observable">ESObservables</a> spec. I recommend reading <a href="https://kriskowal.gitbooks.io/gtor/content/">A General
-Theory of Reactivity</a> to understand why Observables are a great solution instead of promises in some
-situations. Notably; a promise is one value in a time space, an observable is a stream of values in a time space.</p>
-
-<!-- [TODO: Why Sink and not the Relay Observable? Observable is exported but has one more function (complete)] -->
-
-
-<p>To work with this API, we're going to use a private interface for the observable object called Sink:</p>
-
-<pre><code class="js">/**
- * A Sink is an object of methods provided by Observable during construction.
- * The methods are to be called to trigger each event. It also contains a closed
- * field to see if the resulting subscription has closed.
- */
-export type Sink&lt;-T&gt; = {|
-  +next: T =&gt; void,
-  +error: (Error, isUncaughtThrownError?: boolean) =&gt; void,
-  +complete: () =&gt; void,
-  +closed: boolean
-|}
-</code></pre>
-
-<p>Which is the shape of the Observable object we pass back to Relay:</p>
-
-<pre><code class="js">const fetchFunction = async (
-  request: RequestNode,
-  variables: Variables,
-  cacheConfig: CacheConfig,
-  uploadables: ?UploadableMap,
-  sink: Sink&lt;any&gt;
-) =&gt; {
-  const body = getRequestBody(request, variables, uploadables)
-
-  const headers = {
-    ...getHeaders(uploadables),
-    authorization: getToken()
-  }
-
-  const response = await fetchWithRetries(ENV.GRAPHQL_URL, {
-    method: "POST",
-    headers,
-    body,
-    fetchTimeout: 20000,
-    retryDelays: [1000, 3000, 5000, 10000]
-  })
-
-  const data = await handleData(response)
-
-  if (isMutation(request) &amp;&amp; data.errors) {
-    sink.error(data)
-    sink.complete()
-
-    return
-  }
-
-  sink.next(data)
-  sink.complete()
-}
-
-// Instead of returning a Promise that will resolve a single GraphQL response.
-// We return an Observable that could fulfill many responses before it finishes.
-
-const executeFunction = (
-  request: RequestNode,
-  variables: Variables,
-  cacheConfig: CacheConfig,
-  uploadables: ?UploadableMap
-) =&gt; {
-  return Observable.create(sink =&gt; {
-    fetchFunction(request, variables, cacheConfig, uploadables, sink)
-  })
-}
-</code></pre>
-
-<p>This is an implementation you would need when working with <a href="https://github.com/facebook/relay/issues/2174">GraphQL Live Queries</a> (based on polling), as you
-are going to resolve the same query more than once.</p>
-
-<a name="Deferrable.Queries.Network"></a>
-<h3>Deferrable Queries Network</h3>
-
-<p>A common case for deferrable queries is to lazy load fragments. This lets you get request content above the page
-fold first, and then request additional data after. A good example is loading a Post's content first and then
-subsequently loading all comments of this post after the post has finished.</p>
-
-<p>Without deferrable queries you could simulate this using the <a href="https://facebook.github.io/relay/docs/en/graphql-in-relay.html#directives">@include</a> directive in your Relay fragment
-and a <a href="https://facebook.github.io/relay/docs/en/refetch-container.html">refetch container</a>. When the component mounts the refetch container changes the variable used on
-the <code>@include</code> to true and it will request the rest of the data.</p>
-
-<p>The problem with above approach is that you need to wait for the component to mount before you can start the next
-request. This becomes a bigger problem as React does more work asynchronously.</p>
-
-<!-- TODO: There are no docs for relay deferrable -->
-
-
-<p>An ideal deferrable query will start as soon as the previous query has finished, rather than depending on your
-React components render cycles. Relay provides a <a href="https://github.com/facebook/relay/issues/2194#issuecomment-383466255">directive</a> for this: <code>@relay(deferrable: true)</code>:</p>
-
-<pre><code class="js">const PostFragment = createFragmentContainer(Post, {
-  post: graphql`
-    fragment Post_post on Post {
-      title
-      commentsCount
-      ...CommentsList_post @relay(deferrable: true)
-    }
-  `
-})
-</code></pre>
-
-<p>In the fragment above, Relay will first get the <code>title</code> and <code>commentsCount</code> from the Post, then afterwards Relay
-will get the data for <code>CommentsList_post</code> fragment. Sending both through the observable.</p>
-
-<p>Here is the implementation of an execute function to handle a batched request:</p>
-
-<pre><code class="js">const executeFunction = (
-  request: RequestNode,
-  variables: Variables,
-  cacheConfig: CacheConfig,
-  uploadables: ?UploadableMap
-) =&gt; {
-  return Observable.create(sink =&gt; {
-    if (request.kind === "Request") {
-      cacheHandler(request, variables, cacheConfig, uploadables, sink, true)
-    }
-
-    if (request.kind === "BatchRequest") {
-      batchRequestQuery(request, variables, cacheConfig, uploadables, sink)
-    }
-  })
-}
-</code></pre>
-
-<p>This execute function now can handle 2 types of requests:</p>
-
-<ul>
-<li>a single GraphQL query <code>Request</code></li>
-<li>or a <code>BatchRequest</code> that could have be many queries with inter-related data</li>
-</ul>
-
-
-<p>So, what does the <code>batchRequestQuery</code> function look like?</p>
-
-<!-- TODO: Annotate ths code, I'm not 100% what it's doing myself -->
-
-
-<pre><code class="js">// Get variables from the results that have already been sent
-const getDeferrableVariables = (requests, request, variables: Variables) =&gt; {
-  const { argumentDependencies } = request
-
-  if (argumentDependencies.length === 0) {
-    return variables
-  }
-
-  return argumentDependencies.reduce((acc, ad) =&gt; {
-    const { response } = requests[ad.fromRequestName]
-
-    const variable = get(response.data, ad.fromRequestPath)
-
-    // TODO - handle ifList, ifNull
-    // See: https://github.com/facebook/relay/issues/2194
-    return {
-      ...acc,
-      [ad.name]: variable
-    }
-  }, {})
-}
-
-// Execute each of the requests, and call `sink.next()` as soon as it has the GraphQL
-/// server response data.
-//
-// It will only close the Observable stream when all requests has been fulfilled.
-const batchRequestQuery = async (
-  request: RequestNode,
-  variables: Variables,
-  cacheConfig: CacheConfig,
-  uploadables: ?UploadableMap,
-  sink: Sink&lt;ExecutePayload&gt;
-) =&gt; {
-  const requests = {}
-
-  for (const r of request.requests) {
-    const v = getDeferrableVariables(requests, r, variables)
-
-    const response = await cacheHandler(r, v, cacheConfig, uploadables, sink, false)
-
-    requests[r.name] = response
-  }
-
-  sink.complete()
-}
-</code></pre>
-
-<a name="Relay.Modern.is.very.flexible"></a>
-<h2>Relay Modern is very flexible</h2>
-
-<p>Depending on your application needs, you can scale from a simpler Promise-based API for your custom network layer
-to one that uses Observables to always resolves from cache data first and then resolves from the server.</p>
-
-<p>Here are some production examples:</p>
-
-<ul>
-<li><p><a href="https://github.com/artsy/emission/blob/master/src/lib/relay/fetchQuery.ts">Artsy Emission</a>: Uses the Promise API, caches the results locally, and shares logic with native code in
-an iOS app so that queries can be pre-cached before the JavaScript runtime has started.</p></li>
-<li><p><a href="https://github.com/relay-tools/react-relay-network-modern">ReactRelayNetworkModern</a>: A network layer that uses the middleware pattern to separate responsibilities like
-retrying, logging, caching and auth.</p></li>
-<li><p><a href="https://github.com/facebook/relay/issues/2174#issuecomment-375274003">timobetina's example</a>: The simplest Observable network layer you can start with.</p></li>
-</ul>
-
-
-<!-- TODO: More, @sibelius do you have some good examples? -->
-
-
-<a name="More.Resources"></a>
-<h2>More Resources</h2>
-
-<p>If you want to expand your understanding of GraphQL and Relay Modern, I have two great related resources:</p>
-
-<ul>
-<li><p>A boilerplate that uses dataloader to batch and cache requests to your database in a GraphQL API:
-<a href="https://github.com/entria/graphql-dataloader-boilerplate">https://github.com/entria/graphql-dataloader-boilerplate</a></p></li>
-<li><p>A simple boilerplate for working with Relay Modern and React Navigation:
-<a href="https://github.com/entria/ReactNavigationRelayModern">https://github.com/entria/ReactNavigationRelayModern</a></p></li>
-</ul>
-
-
-<p>If you have questions about this or anything send me a DM on twitter
-<a href="https://twitter.com/sseraphini">https://twitter.com/sseraphini</a></p>
 ]]></content>
   </entry>
   

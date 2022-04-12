@@ -14,8 +14,6 @@
 
     
 
-
-
   
     
       
@@ -26,7 +24,7 @@
           Building an English Auction with MongoDB
         
         Apr 17, 2014
-...">
+  ...">
   
 
   <!-- http://t.co/dKP3o1e -->
@@ -130,9 +128,7 @@
       <div>
   <article class="hentry" role="article">
 
-    
-<div class="article-container-single ">
-
+    <div class="article-container-single ">
 
   
     <div class="meta-container">
@@ -145,8 +141,6 @@
         
         <time datetime="2014-04-17">Apr 17, 2014</time>
           <p class="meta-author">
-  
-
 
 
   
@@ -178,289 +172,166 @@
 <p>The domain of auctions is a fascinating one, and includes everything from buying items on eBay to trading livestock and selling investment products on the stock exchange. For those interested in the large spectrum of auctions I highly recommend <a href="http://www.sci.brooklyn.cuny.edu/~parsons/projects/mech-design/publications/bluffers-final.pdf">Auctions and bidding: A guide for computer
 scientists</a> by Simon Parsons (CUNY), Juan A. Rodriguez-Aguilar (CSIC) and Mark Klein (MIT).</p>
 
-<p>At Artsy we implemented a classic English auction with, so called, "book bids". I spent a fair amount of time visiting engineering teams that have built internet auctions, most of which were transactional systems where taking a position on an item involved starting a transaction, running an auction round and committing the changes. In contrast, we chose to deliver a simpler, eventually consistent system on top of MongoDB, in which all data is immutable and where some level of serialization occurs within a single background process.</p>
+<p>At Artsy we implemented a classic English auction with, so called, “book bids”. I spent a fair amount of time visiting engineering teams that have built internet auctions, most of which were transactional systems where taking a position on an item involved starting a transaction, running an auction round and committing the changes. In contrast, we chose to deliver a simpler, eventually consistent system on top of MongoDB, in which all data is immutable and where some level of serialization occurs within a single background process.</p>
 
-<p>In this post we'll go over some data modeling and examine the auction engine implementation details.</p>
+<p>In this post we’ll go over some data modeling and examine the auction engine implementation details.</p>
 
 <!-- more -->
 
-
-<a name="Data.Modeling"></a>
-<h3>Data Modeling</h3>
+<h3 id="data-modeling">Data Modeling</h3>
 
 <p>In the Artsy platform, an <em>Auction</em> is an specialization of a more general concept of a <em>Sale</em>. A sale typically has an opening and a closing date, during which bidding or purchases can occur. We create a relationship between an artwork and a sale, which, in the case of an auction, includes the opening bid amount. We store all money in cents, and assume the currency to be USD, making it easy to extend the system for other currencies in the future.</p>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">SaleArtwork</span>
-</span><span class='line'>  <span class="kp">include</span> <span class="no">Mongoid</span><span class="o">::</span><span class="no">Document</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="n">field</span> <span class="ss">:opening_bid_cents</span><span class="p">,</span> <span class="ss">type</span><span class="p">:</span> <span class="nb">Integer</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="n">belongs_to</span> <span class="ss">:artwork</span><span class="p">,</span> <span class="ss">inverse_of</span><span class="p">:</span> <span class="kp">nil</span>
-</span><span class='line'>  <span class="n">belongs_to</span> <span class="ss">:sale</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="n">belongs_to</span> <span class="ss">:highest_bid</span><span class="p">,</span> <span class="ss">class_name</span><span class="p">:</span> <span class="s2">&quot;Bid&quot;</span><span class="p">,</span> <span class="ss">inverse_of</span><span class="p">:</span> <span class="kp">nil</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="c1"># Minimum next acceptable bid amount, in cents.</span>
-</span><span class='line'>  <span class="k">def</span> <span class="nf">minimum_next_bid_cents</span>
-</span><span class='line'>    <span class="k">return</span> <span class="n">opening_bid_cents</span> <span class="k">if</span> <span class="n">highest_bid</span><span class="o">.</span><span class="n">nil?</span> <span class="o">&amp;&amp;</span> <span class="n">opening_bid_cents</span><span class="o">.</span><span class="n">present?</span>
-</span><span class='line'>    <span class="c1"># calculate using a bid incrementing strategy ...</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure>
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">class</span> <span class="nc">SaleArtwork</span>
+  <span class="kp">include</span> <span class="no">Mongoid</span><span class="o">::</span><span class="no">Document</span>
 
+  <span class="n">field</span> <span class="ss">:opening_bid_cents</span><span class="p">,</span> <span class="ss">type: </span><span class="no">Integer</span>
+
+  <span class="n">belongs_to</span> <span class="ss">:artwork</span><span class="p">,</span> <span class="ss">inverse_of: </span><span class="kp">nil</span>
+  <span class="n">belongs_to</span> <span class="ss">:sale</span>
+
+  <span class="n">belongs_to</span> <span class="ss">:highest_bid</span><span class="p">,</span> <span class="ss">class_name: </span><span class="s2">"Bid"</span><span class="p">,</span> <span class="ss">inverse_of: </span><span class="kp">nil</span>
+
+  <span class="c1"># Minimum next acceptable bid amount, in cents.</span>
+  <span class="k">def</span> <span class="nf">minimum_next_bid_cents</span>
+    <span class="k">return</span> <span class="n">opening_bid_cents</span> <span class="k">if</span> <span class="n">highest_bid</span><span class="p">.</span><span class="nf">nil?</span> <span class="o">&amp;&amp;</span> <span class="n">opening_bid_cents</span><span class="p">.</span><span class="nf">present?</span>
+    <span class="c1"># calculate using a bid incrementing strategy ...</span>
+  <span class="k">end</span>
+<span class="k">end</span>
+</code></pre></div></div>
 
 <p>A user registers to bid and creates a <em>Bidder</em> record.</p>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">Bidder</span>
-</span><span class='line'>  <span class="kp">include</span> <span class="no">Mongoid</span><span class="o">::</span><span class="no">Document</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="n">belongs_to</span> <span class="ss">:user</span>
-</span><span class='line'>  <span class="n">belongs_to</span> <span class="ss">:sale</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="n">has_many</span> <span class="ss">:positions</span><span class="p">,</span> <span class="ss">class_name</span><span class="p">:</span> <span class="s1">&#39;BidderPosition&#39;</span><span class="p">,</span> <span class="ss">inverse_of</span><span class="p">:</span> <span class="ss">:bidder</span>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure>
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">class</span> <span class="nc">Bidder</span>
+  <span class="kp">include</span> <span class="no">Mongoid</span><span class="o">::</span><span class="no">Document</span>
 
+  <span class="n">belongs_to</span> <span class="ss">:user</span>
+  <span class="n">belongs_to</span> <span class="ss">:sale</span>
 
-<p>This doesn't just mimic the real world where bidding typically requires registration - the bidder record doesn't belong to the user and contains essential data to identify an individual that is placing a bid. It also solves a very peculiar problem where a user decides to delete their account mid-auction. Finally, a bidder could eventually delegate bidding to an agent through this model's permissions.</p>
+  <span class="n">has_many</span> <span class="ss">:positions</span><span class="p">,</span> <span class="ss">class_name: </span><span class="s1">'BidderPosition'</span><span class="p">,</span> <span class="ss">inverse_of: :bidder</span>
+<span class="k">end</span>
+</code></pre></div></div>
 
-<p>A bidder doesn't actually place any bids, but create a <em>Bidder Position</em>, which indicates the highest amount they are willing to pay for a given artwork.</p>
+<p>This doesn’t just mimic the real world where bidding typically requires registration - the bidder record doesn’t belong to the user and contains essential data to identify an individual that is placing a bid. It also solves a very peculiar problem where a user decides to delete their account mid-auction. Finally, a bidder could eventually delegate bidding to an agent through this model’s permissions.</p>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">BidderPosition</span>
-</span><span class='line'>  <span class="kp">include</span> <span class="no">Mongoid</span><span class="o">::</span><span class="no">Document</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="n">field</span> <span class="ss">:active</span><span class="p">,</span> <span class="ss">type</span><span class="p">:</span> <span class="no">Boolean</span><span class="p">,</span> <span class="ss">default</span><span class="p">:</span> <span class="kp">true</span>
-</span><span class='line'>  <span class="n">field</span> <span class="ss">:max_bid_amount_cents</span><span class="p">,</span> <span class="ss">type</span><span class="p">:</span> <span class="nb">Integer</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="n">belongs_to</span> <span class="ss">:bidder</span><span class="p">,</span> <span class="ss">class_name</span><span class="p">:</span> <span class="s1">&#39;Bidder&#39;</span><span class="p">,</span> <span class="ss">inverse_of</span><span class="p">:</span> <span class="ss">:positions</span>
-</span><span class='line'>  <span class="n">belongs_to</span> <span class="ss">:sale_artwork</span>
-</span><span class='line'>  <span class="n">has_many</span> <span class="ss">:bids</span><span class="p">,</span> <span class="ss">inverse_of</span><span class="p">:</span> <span class="ss">:position</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="n">scope</span> <span class="ss">:active</span><span class="p">,</span> <span class="n">where</span><span class="p">(</span><span class="ss">active</span><span class="p">:</span> <span class="kp">true</span><span class="p">)</span><span class="o">.</span><span class="n">asc</span><span class="p">(</span><span class="ss">:max_bid_amount_cents</span><span class="p">)</span>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure>
+<p>A bidder doesn’t actually place any bids, but create a <em>Bidder Position</em>, which indicates the highest amount they are willing to pay for a given artwork.</p>
 
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">class</span> <span class="nc">BidderPosition</span>
+  <span class="kp">include</span> <span class="no">Mongoid</span><span class="o">::</span><span class="no">Document</span>
 
-<p>This is called a "book bid" - before technology took over the auctions world buyers delegated an agent to bid on their behalf after giving them a maximum amount they were willing to part with. Bidder positions belong to a bidder and to the artwork-to-sale relationship. They cannot be changed - if a user wants to increase his maximum bid, he simply creates a new bidder position.</p>
+  <span class="n">field</span> <span class="ss">:active</span><span class="p">,</span> <span class="ss">type: </span><span class="no">Boolean</span><span class="p">,</span> <span class="ss">default: </span><span class="kp">true</span>
+  <span class="n">field</span> <span class="ss">:max_bid_amount_cents</span><span class="p">,</span> <span class="ss">type: </span><span class="no">Integer</span>
 
-<a name="Bidding.Round"></a>
-<h3>Bidding Round</h3>
+  <span class="n">belongs_to</span> <span class="ss">:bidder</span><span class="p">,</span> <span class="ss">class_name: </span><span class="s1">'Bidder'</span><span class="p">,</span> <span class="ss">inverse_of: :positions</span>
+  <span class="n">belongs_to</span> <span class="ss">:sale_artwork</span>
+  <span class="n">has_many</span> <span class="ss">:bids</span><span class="p">,</span> <span class="ss">inverse_of: :position</span>
+
+  <span class="n">scope</span> <span class="ss">:active</span><span class="p">,</span> <span class="n">where</span><span class="p">(</span><span class="ss">active: </span><span class="kp">true</span><span class="p">).</span><span class="nf">asc</span><span class="p">(</span><span class="ss">:max_bid_amount_cents</span><span class="p">)</span>
+<span class="k">end</span>
+</code></pre></div></div>
+
+<p>This is called a “book bid” - before technology took over the auctions world buyers delegated an agent to bid on their behalf after giving them a maximum amount they were willing to part with. Bidder positions belong to a bidder and to the artwork-to-sale relationship. They cannot be changed - if a user wants to increase his maximum bid, he simply creates a new bidder position.</p>
+
+<h3 id="bidding-round">Bidding Round</h3>
 
 <p>Every time a bidder position is created, a <em>Bidding Round</em> is queued for the item being bid on. We can parallelize execution of these by artwork, however all bidding rounds for the same artwork are serialized.</p>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">EnglishAuction</span>
-</span><span class='line'>  <span class="c1"># Run multiple rounds of bidding for the given lot, to rest. Return number of bids generated.</span>
-</span><span class='line'>  <span class="k">def</span> <span class="nc">self</span><span class="o">.</span><span class="nf">run!</span><span class="p">(</span><span class="n">sale_artwork</span><span class="p">)</span>
-</span><span class='line'>    <span class="k">return</span> <span class="mi">0</span> <span class="k">unless</span> <span class="n">sale_artwork</span><span class="o">.</span><span class="n">sale</span> <span class="o">&amp;&amp;</span> <span class="n">sale_artwork</span><span class="o">.</span><span class="n">sale</span><span class="o">.</span><span class="n">biddable?</span>
-</span><span class='line'>
-</span><span class='line'>    <span class="n">round</span> <span class="o">=</span> <span class="no">EnglishAuction</span><span class="o">::</span><span class="no">Round</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="n">sale_artwork</span><span class="p">)</span>
-</span><span class='line'>    <span class="n">round</span><span class="o">.</span><span class="n">run!</span>
-</span><span class='line'>
-</span><span class='line'>    <span class="n">round</span><span class="o">.</span><span class="n">bids_generated</span><span class="o">.</span><span class="n">size</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure>
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">class</span> <span class="nc">EnglishAuction</span>
+  <span class="c1"># Run multiple rounds of bidding for the given lot, to rest. Return number of bids generated.</span>
+  <span class="k">def</span> <span class="nc">self</span><span class="o">.</span><span class="nf">run!</span><span class="p">(</span><span class="n">sale_artwork</span><span class="p">)</span>
+    <span class="k">return</span> <span class="mi">0</span> <span class="k">unless</span> <span class="n">sale_artwork</span><span class="p">.</span><span class="nf">sale</span> <span class="o">&amp;&amp;</span> <span class="n">sale_artwork</span><span class="p">.</span><span class="nf">sale</span><span class="p">.</span><span class="nf">biddable?</span>
 
+    <span class="n">round</span> <span class="o">=</span> <span class="no">EnglishAuction</span><span class="o">::</span><span class="no">Round</span><span class="p">.</span><span class="nf">new</span><span class="p">(</span><span class="n">sale_artwork</span><span class="p">)</span>
+    <span class="n">round</span><span class="p">.</span><span class="nf">run!</span>
+
+    <span class="n">round</span><span class="p">.</span><span class="nf">bids_generated</span><span class="p">.</span><span class="nf">size</span>
+  <span class="k">end</span>
+<span class="k">end</span>
+</code></pre></div></div>
 
 <p>A bidding round iterates over all active bidder positions in ascending order by dollar value, outbids any bidders below the max bid, and places new bids, as necessary. The entire round algorithm is below.</p>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-<span class='line-number'>19</span>
-<span class='line-number'>20</span>
-<span class='line-number'>21</span>
-<span class='line-number'>22</span>
-<span class='line-number'>23</span>
-<span class='line-number'>24</span>
-<span class='line-number'>25</span>
-<span class='line-number'>26</span>
-<span class='line-number'>27</span>
-<span class='line-number'>28</span>
-<span class='line-number'>29</span>
-<span class='line-number'>30</span>
-<span class='line-number'>31</span>
-<span class='line-number'>32</span>
-<span class='line-number'>33</span>
-<span class='line-number'>34</span>
-<span class='line-number'>35</span>
-<span class='line-number'>36</span>
-<span class='line-number'>37</span>
-<span class='line-number'>38</span>
-<span class='line-number'>39</span>
-<span class='line-number'>40</span>
-<span class='line-number'>41</span>
-<span class='line-number'>42</span>
-<span class='line-number'>43</span>
-<span class='line-number'>44</span>
-<span class='line-number'>45</span>
-<span class='line-number'>46</span>
-<span class='line-number'>47</span>
-<span class='line-number'>48</span>
-<span class='line-number'>49</span>
-<span class='line-number'>50</span>
-<span class='line-number'>51</span>
-<span class='line-number'>52</span>
-<span class='line-number'>53</span>
-<span class='line-number'>54</span>
-<span class='line-number'>55</span>
-<span class='line-number'>56</span>
-<span class='line-number'>57</span>
-<span class='line-number'>58</span>
-<span class='line-number'>59</span>
-<span class='line-number'>60</span>
-<span class='line-number'>61</span>
-<span class='line-number'>62</span>
-<span class='line-number'>63</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="c1"># A bidding round for an English auction.</span>
-</span><span class='line'><span class="k">class</span> <span class="nc">Round</span>
-</span><span class='line'>  <span class="kp">attr_accessor</span> <span class="ss">:bids_generated</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="c1"># @param sale_artwork A relationship between an artwork and a sale.</span>
-</span><span class='line'>  <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="n">sale_artwork</span><span class="p">)</span>
-</span><span class='line'>    <span class="vi">@sale_artwork</span> <span class="o">=</span> <span class="n">sale_artwork</span>
-</span><span class='line'>    <span class="vi">@bids_generated</span> <span class="o">=</span> <span class="o">[]</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="c1"># Run multiple rounds of bidding, to rest.</span>
-</span><span class='line'>  <span class="k">def</span> <span class="nf">run!</span>
-</span><span class='line'>    <span class="k">while</span> <span class="p">(</span><span class="n">bids</span> <span class="o">=</span> <span class="n">process_more_bids!</span><span class="p">)</span><span class="o">.</span><span class="n">any?</span> <span class="k">do</span>
-</span><span class='line'>      <span class="vi">@bids_generated</span> <span class="o">+=</span> <span class="n">bids</span>
-</span><span class='line'>    <span class="k">end</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="c1"># Run one round of bidding. Return bids.</span>
-</span><span class='line'>  <span class="k">def</span> <span class="nf">process_more_bids!</span>
-</span><span class='line'>    <span class="vi">@sale_artwork</span><span class="o">.</span><span class="n">bidder_positions</span><span class="o">.</span><span class="n">active</span><span class="o">.</span><span class="n">map</span> <span class="k">do</span> <span class="o">|</span><span class="n">bidder_position</span><span class="o">|</span>
-</span><span class='line'>      <span class="n">process_bidder_position!</span><span class="p">(</span><span class="n">bidder_position</span><span class="p">)</span>
-</span><span class='line'>    <span class="k">end</span><span class="o">.</span><span class="n">compact</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="c1"># Process a single bid position.</span>
-</span><span class='line'>  <span class="c1"># @returns Generated bid, if any.</span>
-</span><span class='line'>  <span class="k">def</span> <span class="nf">process_bidder_position!</span><span class="p">(</span><span class="n">bidder_position</span><span class="p">)</span>
-</span><span class='line'>
-</span><span class='line'>    <span class="c1"># ignore if current position is highest</span>
-</span><span class='line'>    <span class="k">return</span> <span class="kp">nil</span> <span class="k">if</span> <span class="n">bidder_position</span> <span class="o">==</span> <span class="vi">@sale_artwork</span><span class="o">.</span><span class="n">highest_bid</span><span class="o">.</span><span class="n">try</span><span class="p">(</span><span class="ss">:position</span><span class="p">)</span>
-</span><span class='line'>
-</span><span class='line'>    <span class="c1"># ignore if bidder is already highest</span>
-</span><span class='line'>    <span class="k">return</span> <span class="kp">nil</span> <span class="k">if</span> <span class="n">bidder_position</span><span class="o">.</span><span class="n">bidder</span> <span class="o">==</span> <span class="vi">@sale_artwork</span><span class="o">.</span><span class="n">highest_bid</span><span class="o">.</span><span class="n">try</span><span class="p">(</span><span class="ss">:position</span><span class="p">)</span><span class="o">.</span><span class="n">try</span><span class="p">(</span><span class="ss">:bidder</span><span class="p">)</span>
-</span><span class='line'>
-</span><span class='line'>    <span class="c1"># close if below opening bid</span>
-</span><span class='line'>    <span class="k">if</span> <span class="n">bidder_position</span><span class="o">.</span><span class="n">max_bid_amount_cents</span> <span class="o">&lt;</span> <span class="p">(</span><span class="vi">@sale_artwork</span><span class="o">.</span><span class="n">opening_bid_cents</span> <span class="o">||</span> <span class="mi">1</span><span class="p">)</span>
-</span><span class='line'>      <span class="n">bidder_position</span><span class="o">.</span><span class="n">deactivate!</span> <span class="s2">&quot;Bid must be greater than the minimum bid of </span><span class="si">#{</span><span class="vi">@sale_artwork</span><span class="o">.</span><span class="n">opening_bid_cents</span><span class="si">}</span><span class="s2">.&quot;</span>
-</span><span class='line'>      <span class="k">return</span> <span class="kp">nil</span>
-</span><span class='line'>    <span class="k">end</span>
-</span><span class='line'>
-</span><span class='line'>    <span class="n">amount_cents</span> <span class="o">=</span> <span class="vi">@sale_artwork</span><span class="o">.</span><span class="n">minimum_next_bid_cents</span> <span class="c1"># opening bid or an increment thereafter</span>
-</span><span class='line'>
-</span><span class='line'>    <span class="k">if</span> <span class="n">bidder_position</span><span class="o">.</span><span class="n">max_bid_amount_cents</span> <span class="o">&lt;</span> <span class="n">amount_cents</span>
-</span><span class='line'>      <span class="n">highest_bid_amount</span> <span class="o">=</span> <span class="vi">@sale_artwork</span><span class="o">.</span><span class="n">highest_bid</span><span class="o">.</span><span class="n">try</span><span class="p">(</span><span class="ss">:amount_cents</span><span class="p">)</span> <span class="o">||</span> <span class="mi">0</span>
-</span><span class='line'>
-</span><span class='line'>      <span class="c1"># if max is between current and increment (or if it&#39;s at current, but earlier), bid max anyway</span>
-</span><span class='line'>      <span class="c1"># this means that a bidder who placed an identical max bid earlier becomes the highest bidder</span>
-</span><span class='line'>      <span class="k">if</span> <span class="n">bidder_position</span><span class="o">.</span><span class="n">max_bid_amount_cents</span> <span class="o">&gt;</span> <span class="n">highest_bid_amount</span> <span class="o">||</span>
-</span><span class='line'>        <span class="p">(</span><span class="n">bidder_position</span><span class="o">.</span><span class="n">max_bid_amount_cents</span> <span class="o">==</span> <span class="n">highest_bid_amount</span> <span class="o">&amp;&amp;</span> <span class="n">bidder_position</span><span class="o">.</span><span class="n">id</span> <span class="o">&lt;</span> <span class="vi">@sale_artwork</span><span class="o">.</span><span class="n">highest_bid</span><span class="o">.</span><span class="n">position</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
-</span><span class='line'>        <span class="n">amount_cents</span> <span class="o">=</span> <span class="n">bidder_position</span><span class="o">.</span><span class="n">max_bid_amount_cents</span>
-</span><span class='line'>      <span class="k">else</span>
-</span><span class='line'>        <span class="c1"># outbid, next bid must be at least amount_cents</span>
-</span><span class='line'>        <span class="n">bidder_position</span><span class="o">.</span><span class="n">update_attributes!</span> <span class="ss">active</span><span class="p">:</span> <span class="kp">false</span>
-</span><span class='line'>        <span class="k">return</span> <span class="kp">nil</span>
-</span><span class='line'>      <span class="k">end</span>
-</span><span class='line'>    <span class="k">end</span>
-</span><span class='line'>
-</span><span class='line'>    <span class="c1"># place a bid</span>
-</span><span class='line'>    <span class="n">bidder_position</span><span class="o">.</span><span class="n">bids</span><span class="o">.</span><span class="n">create!</span><span class="p">(</span><span class="n">attrs</span><span class="p">)</span><span class="o">.</span><span class="n">tap</span> <span class="k">do</span> <span class="o">|</span><span class="n">bid</span><span class="o">|</span>
-</span><span class='line'>      <span class="vi">@sale_artwork</span><span class="o">.</span><span class="n">update_attributes!</span> <span class="ss">highest_bid</span><span class="p">:</span> <span class="n">bid</span>
-</span><span class='line'>    <span class="k">end</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure>
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1"># A bidding round for an English auction.</span>
+<span class="k">class</span> <span class="nc">Round</span>
+  <span class="nb">attr_accessor</span> <span class="ss">:bids_generated</span>
 
+  <span class="c1"># @param sale_artwork A relationship between an artwork and a sale.</span>
+  <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="n">sale_artwork</span><span class="p">)</span>
+    <span class="vi">@sale_artwork</span> <span class="o">=</span> <span class="n">sale_artwork</span>
+    <span class="vi">@bids_generated</span> <span class="o">=</span> <span class="p">[]</span>
+  <span class="k">end</span>
+
+  <span class="c1"># Run multiple rounds of bidding, to rest.</span>
+  <span class="k">def</span> <span class="nf">run!</span>
+    <span class="k">while</span> <span class="p">(</span><span class="n">bids</span> <span class="o">=</span> <span class="n">process_more_bids!</span><span class="p">).</span><span class="nf">any?</span> <span class="k">do</span>
+      <span class="vi">@bids_generated</span> <span class="o">+=</span> <span class="n">bids</span>
+    <span class="k">end</span>
+  <span class="k">end</span>
+
+  <span class="c1"># Run one round of bidding. Return bids.</span>
+  <span class="k">def</span> <span class="nf">process_more_bids!</span>
+    <span class="vi">@sale_artwork</span><span class="p">.</span><span class="nf">bidder_positions</span><span class="p">.</span><span class="nf">active</span><span class="p">.</span><span class="nf">map</span> <span class="k">do</span> <span class="o">|</span><span class="n">bidder_position</span><span class="o">|</span>
+      <span class="n">process_bidder_position!</span><span class="p">(</span><span class="n">bidder_position</span><span class="p">)</span>
+    <span class="k">end</span><span class="p">.</span><span class="nf">compact</span>
+  <span class="k">end</span>
+
+  <span class="c1"># Process a single bid position.</span>
+  <span class="c1"># @returns Generated bid, if any.</span>
+  <span class="k">def</span> <span class="nf">process_bidder_position!</span><span class="p">(</span><span class="n">bidder_position</span><span class="p">)</span>
+
+    <span class="c1"># ignore if current position is highest</span>
+    <span class="k">return</span> <span class="kp">nil</span> <span class="k">if</span> <span class="n">bidder_position</span> <span class="o">==</span> <span class="vi">@sale_artwork</span><span class="p">.</span><span class="nf">highest_bid</span><span class="p">.</span><span class="nf">try</span><span class="p">(</span><span class="ss">:position</span><span class="p">)</span>
+
+    <span class="c1"># ignore if bidder is already highest</span>
+    <span class="k">return</span> <span class="kp">nil</span> <span class="k">if</span> <span class="n">bidder_position</span><span class="p">.</span><span class="nf">bidder</span> <span class="o">==</span> <span class="vi">@sale_artwork</span><span class="p">.</span><span class="nf">highest_bid</span><span class="p">.</span><span class="nf">try</span><span class="p">(</span><span class="ss">:position</span><span class="p">).</span><span class="nf">try</span><span class="p">(</span><span class="ss">:bidder</span><span class="p">)</span>
+
+    <span class="c1"># close if below opening bid</span>
+    <span class="k">if</span> <span class="n">bidder_position</span><span class="p">.</span><span class="nf">max_bid_amount_cents</span> <span class="o">&lt;</span> <span class="p">(</span><span class="vi">@sale_artwork</span><span class="p">.</span><span class="nf">opening_bid_cents</span> <span class="o">||</span> <span class="mi">1</span><span class="p">)</span>
+      <span class="n">bidder_position</span><span class="p">.</span><span class="nf">deactivate!</span> <span class="s2">"Bid must be greater than the minimum bid of </span><span class="si">#{</span><span class="vi">@sale_artwork</span><span class="p">.</span><span class="nf">opening_bid_cents</span><span class="si">}</span><span class="s2">."</span>
+      <span class="k">return</span> <span class="kp">nil</span>
+    <span class="k">end</span>
+
+    <span class="n">amount_cents</span> <span class="o">=</span> <span class="vi">@sale_artwork</span><span class="p">.</span><span class="nf">minimum_next_bid_cents</span> <span class="c1"># opening bid or an increment thereafter</span>
+
+    <span class="k">if</span> <span class="n">bidder_position</span><span class="p">.</span><span class="nf">max_bid_amount_cents</span> <span class="o">&lt;</span> <span class="n">amount_cents</span>
+      <span class="n">highest_bid_amount</span> <span class="o">=</span> <span class="vi">@sale_artwork</span><span class="p">.</span><span class="nf">highest_bid</span><span class="p">.</span><span class="nf">try</span><span class="p">(</span><span class="ss">:amount_cents</span><span class="p">)</span> <span class="o">||</span> <span class="mi">0</span>
+
+      <span class="c1"># if max is between current and increment (or if it's at current, but earlier), bid max anyway</span>
+      <span class="c1"># this means that a bidder who placed an identical max bid earlier becomes the highest bidder</span>
+      <span class="k">if</span> <span class="n">bidder_position</span><span class="p">.</span><span class="nf">max_bid_amount_cents</span> <span class="o">&gt;</span> <span class="n">highest_bid_amount</span> <span class="o">||</span>
+        <span class="p">(</span><span class="n">bidder_position</span><span class="p">.</span><span class="nf">max_bid_amount_cents</span> <span class="o">==</span> <span class="n">highest_bid_amount</span> <span class="o">&amp;&amp;</span> <span class="n">bidder_position</span><span class="p">.</span><span class="nf">id</span> <span class="o">&lt;</span> <span class="vi">@sale_artwork</span><span class="p">.</span><span class="nf">highest_bid</span><span class="p">.</span><span class="nf">position</span><span class="p">.</span><span class="nf">id</span><span class="p">)</span>
+        <span class="n">amount_cents</span> <span class="o">=</span> <span class="n">bidder_position</span><span class="p">.</span><span class="nf">max_bid_amount_cents</span>
+      <span class="k">else</span>
+        <span class="c1"># outbid, next bid must be at least amount_cents</span>
+        <span class="n">bidder_position</span><span class="p">.</span><span class="nf">update_attributes!</span> <span class="ss">active: </span><span class="kp">false</span>
+        <span class="k">return</span> <span class="kp">nil</span>
+      <span class="k">end</span>
+    <span class="k">end</span>
+
+    <span class="c1"># place a bid</span>
+    <span class="n">bidder_position</span><span class="p">.</span><span class="nf">bids</span><span class="p">.</span><span class="nf">create!</span><span class="p">(</span><span class="n">attrs</span><span class="p">).</span><span class="nf">tap</span> <span class="k">do</span> <span class="o">|</span><span class="n">bid</span><span class="o">|</span>
+      <span class="vi">@sale_artwork</span><span class="p">.</span><span class="nf">update_attributes!</span> <span class="ss">highest_bid: </span><span class="n">bid</span>
+    <span class="k">end</span>
+  <span class="k">end</span>
+<span class="k">end</span>
+</code></pre></div></div>
 
 <p>One of the interesting aspects of this system is what happens when two users create two identical bidder positions - the earlier one wins and the later one is outbid. In a transactional system we could produce an error message to the second bidder before the position is even created.</p>
 
-<a name="Bidder.Notifications"></a>
-<h3>Bidder Notifications</h3>
+<h3 id="bidder-notifications">Bidder Notifications</h3>
 
-<p>Notifying upon being "outbid" is straightforward, because a position only enters that state once, but notifying bidders of when they are the current high bidder or when their bid has been increased is trickier. We don't want to generate notifications every time a bid is made (i.e., it's the current high). Rather, we want to allow the round to reach a stable state at which there's only a single active position and then notify the current high and outbid bidders. This happens after each <code>round.run!</code>.</p>
+<p>Notifying upon being “outbid” is straightforward, because a position only enters that state once, but notifying bidders of when they are the current high bidder or when their bid has been increased is trickier. We don’t want to generate notifications every time a bid is made (i.e., it’s the current high). Rather, we want to allow the round to reach a stable state at which there’s only a single active position and then notify the current high and outbid bidders. This happens after each <code class="language-plaintext highlighter-rouge">round.run!</code>.</p>
 
-<a name="Beyond.Bidding"></a>
-<h3>Beyond Bidding</h3>
+<h3 id="beyond-bidding">Beyond Bidding</h3>
 
-<p>Aside of the bidding implementation we've built a whole software ecosystem around auctions. We developed a backend system to manage these. We put up projection screens at the event that list works being auctioned and flash every time a bid is placed. We register users' credit cards and collect their money.</p>
+<p>Aside of the bidding implementation we’ve built a whole software ecosystem around auctions. We developed a backend system to manage these. We put up projection screens at the event that list works being auctioned and flash every time a bid is placed. We register users’ credit cards and collect their money.</p>
 
-<p>The software part, however, is definitely dwarfed by the amount of logistics and people involved in making one of those auctions a success. We're only trying to make that a bit more efficient. We'll see you at the upcoming BAM Art Auction, SFMOMA Modern Ball or the Whitney Museum Art Party!</p>
+<p>The software part, however, is definitely dwarfed by the amount of logistics and people involved in making one of those auctions a success. We’re only trying to make that a bit more efficient. We’ll see you at the upcoming BAM Art Auction, SFMOMA Modern Ball or the Whitney Museum Art Party!</p>
 </div>
     
 
-    
-      <p class="meta-author">
-        
-  
-
+    <p class="meta-author">
+      
 
 
 
@@ -501,39 +372,38 @@ scientists</a> by Simon Parsons (CUNY), Juan A. Rodriguez-Aguilar (CSIC) and Mar
 
 
 
-      </p>
-      <p class="meta-categories">
-        Categories: 
+    </p>
+    <p class="meta-categories">
+      Categories: 
 
 <span class="categories">
   
-    <a class='category' href='/blog/categories/auctions/'>auctions</a>, <a class='category' href='/blog/categories/bidding/'>bidding</a>, <a class='category' href='/blog/categories/mongodb/'>mongodb</a>, <a class='category' href='/blog/categories/ruby/'>ruby</a>
+    <a class='category' href='/blog/categories/auctions/'>Auctions</a>, <a class='category' href='/blog/categories/bidding/'>Bidding</a>, <a class='category' href='/blog/categories/mongodb/'>MongoDB</a>, <a class='category' href='/blog/categories/ruby/'>Ruby</a>
   
 </span>
 
 
-      </p>
-      
-
-      
-        <hr/>
-        <section class="comments">
-          <h1>Comments</h1>
-          <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
-</div>
-        </section>
-        <hr/>
-      
-
-      <p class="meta-paginate">
-        
-          <a class="previous" href="/blog/2014/04/02/refactoring-infrastructure/" title="Previous Post: Refactoring Infrastructure">&laquo; Refactoring Infrastructure</a>
-        
-        
-          <a class="next" href="/blog/2014/04/24/generating-notifications-and-personalized-emails-efficiently/" title="next Post: Generating Notifications and Personalized Emails Efficiently">Generating Notifications and Personalized Emails Efficiently &raquo;</a>
-        
-      </p>
+    </p>
     
+
+    
+      <hr/>
+      <section class="comments">
+        <h1>Comments</h1>
+        <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</div>
+      </section>
+      <hr/>
+    
+
+    <p class="meta-paginate">
+      
+        <a class="previous" href="/blog/2014/04/02/refactoring-infrastructure/" title="Previous Post: Refactoring Infrastructure">&laquo; Refactoring Infrastructure</a>
+      
+      
+        <a class="next" href="/blog/2014/04/24/generating-notifications-and-personalized-emails-efficiently/" title="next Post: Generating Notifications and Personalized Emails Efficiently">Generating Notifications and Personalized Emails Efficiently &raquo;</a>
+      
+    </p>
   </div>
 
 

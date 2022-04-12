@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
 
-  <title><![CDATA[Category: graphql | Artsy Engineering]]></title>
+  <title><![CDATA[Category: GraphQL | Artsy Engineering]]></title>
   <link href="https://artsy.github.io/blog/categories/graphql/atom.xml" rel="self"/>
   <link href="https://artsy.github.io/"/>
-  <updated>2022-04-11T23:15:43+00:00</updated>
+  <updated>2022-04-12T00:53:51+00:00</updated>
   <id>https://artsy.github.io/</id>
   <author>
     <name><![CDATA[]]></name>
@@ -14,315 +14,110 @@
 
   
   <entry>
-    <title type="html"><![CDATA[Accessing the Relay Store Without a Mutation]]></title>
-    <link href="https://artsy.github.io/blog/2021/04/15/accessing-the-relay-store/"/>
-    <updated>2021-04-15T00:00:00+00:00</updated>
-    <id>https://artsy.github.io/blog/2021/04/15/accessing-the-relay-store</id>
-    <content type="html"><![CDATA[<p>I recently encountered a problem where client-side data (returned from a Relay query) became out of sync after a
-user interaction. How can we make sure our data is consistent while maintaining a single source of truth? This post
-explores why a developer might want to update client-side data locally, the basics of Relay and its store, and how
-to delete records in the store when you're not using a mutation.</p>
-
-<a name="Relay.x.Artsy.x.Me"></a>
-<h2>Relay x Artsy x Me</h2>
-
-<p><a href="https://relay.dev/">Relay</a> is a GraphQL client library maintained by Facebook engineers and enables rapid client-side data
-fetching in React applications. <a href="https://artsy.github.io/blog/2019/04/10/omakase-relay/">Artsy's adoption of Relay</a> coincided with our move
-toward using React Native for our mobile work around 2016. I joined Artsy as an engineer in November of 2020 (after
-<a href="https://medium.com/swlh/how-losing-my-job-helped-me-find-my-way-back-8c8f86552acc">transitioning to engineering from a non-technical role at the
-company</a>.) When I joined, I was about a year into React development
-and completely new to Relay.</p>
-
-<!-- more -->
-
-
-<p>I work on the Partner Experience (PX) team at Artsy. We build and maintain software used by our gallery and auction
-house partners to sell artwork on Artsy. Although Relay is not new to Artsy, it’s relatively new to our team’s main
-repository, Volt. (Volt is Artsy’s CMS used by gallery partners to manage their presences on the platform.) A topic
-for another blog post, but Volt’s structure is worth noting here: Volt is a collection of mini React apps injected
-into HAML views—our way of incrementally converting the codebase to our new stack.</p>
-
-<p>Relay’s biggest advantage in my eyes is how it tightly couples the client view and API call (in our case, to the
-GraphQL layer of our stack, which we call Metaphysics.) In addition to performance and other benefits, colocating a
-component with its data requirements creates a pretty seamless developer experience.</p>
-
-<a name="Building.an.Artwork.Checklist"></a>
-<h2>Building an Artwork Checklist</h2>
-
-<p>On the PX team, we recently launched a checklist feature aimed at empowering our gallery partners to be more
-self-sufficient and find the greatest success possible on Artsy. The checklist prompts galleries to add specific
-metadata to artworks that we know (because of our awesome data team) will make the work more likely to sell. The
-new feature gathers a list of five high-priority artworks (meaning they are published, for-sale, and by a
-top-selling artist) that are missing key pieces of metadata. The checklist prompts users to add the missing
-metadata. Users also have the ability to click a button to “snooze” works, which removes them from the list for the
-day.</p>
-
-<p><figure class="illustration">
-    <img src="https://user-images.githubusercontent.com/9466631/114630150-28886200-9c77-11eb-9f04-461101496ee0.png">
-</figure></p>
-
-<p>The feature makes use of <a href="https://redis.io/">Redis</a>, a key-value store used for in-memory cache, to store two lists:</p>
-
-<ol>
-<li><code>includeIDs</code> to store the five artworks in the list, so users see a consistent list of artworks whenever they
-log in and load the page</li>
-<li><code>excludeIDs</code> or “snoozed” IDs which Redis will store for 24 hours and ensure the user does not see</li>
-</ol>
-
-
-<p>When a user presses the “snooze” button, the ID for the artwork is added to the snoozed list in Redis. The list of
-<code>includeIDs</code> and the list of <code>excludeIDs</code> are passed down from Rails controllers to our HAML views and then passed
-as props into our React <code>HomePageChecklist</code> app. In our Checklist component, we use both the <code>includeIDs</code> and the
-<code>excludeIDs</code> as arguments passed to our Relay query to determine what is returned from Metaphysics (Artsy's GraphQL
-layer).</p>
-
-<pre><code class="js">fragment ArtworksMissingMetadata_partner on Partner
-  @argumentDefinitions(
-    first: { type: "Int", defaultValue: 5 }
-    after: { type: "String" }
-    includeIDs: { type: "[String!]" }
-    excludeIDs: { type: "[String!]" }
-  ) {
-    id
-    artworksConnection(
-      first: $first
-      after: $after
-      includeIDs: $includeIDs
-      excludeIDs: $excludeIDs
-    ) @connection(key: "ArtworksMissingMetadata_partner_artworksConnection", filters: []) {
-      edges {
-        node {
-          ...ArtworksMissingMetadataItem_artwork
-        }
-      }
-    }
-  }
-</code></pre>
-
-<a name="Problem:.How.to.Change.the.Data.Displayed.When.a.User.Interacts.with.the.Page"></a>
-<h2>Problem: How to Change the Data Displayed When a User Interacts with the Page</h2>
-
-<p>The problem we were running into occurs when the user presses “snooze” on an item. We successfully update Redis
-with the new snoozed item, but the UI still renders the item on the page. (This is because the response from Relay
-becomes stale.) If the user refreshes the page, the list is correct: The up-to-date Redis <code>excludeIDS</code> list will be
-passed into our component and used in the Relay query. But without refreshing the page, we need to make sure that
-the list in the UI updates when the user snoozes an item.</p>
-
-<p>The initial fix was to use a local state variable to keep track of which items were snoozed. We defined the following variable in the parent
-React component that renders the list:</p>
-
-<pre><code class="js">const [localSnoozedItems, setLocalSnoozedItems] = useState([])
-</code></pre>
-
-<p>We passed <code>localSnoozedItems</code> and <code>setLocalSnoozedItems</code> down to each of the children items. When the “snooze”
-button was pressed on an item, the <code>localSnoozedItems</code> in the parent was updated with the complete list of snoozed
-items. The parent then controls which items get rendered. We used the <code>localSnoozedItems</code> list to filter the connection
-returned from our Relay query (which remember, is already filtered based on our Redis <code>excludeIDs</code> from Redis.)</p>
-
-<p>This worked, but it definitely did not feel great to have two sources of truth for snoozing: The Redis key and the
-local state variable.</p>
-
-<a name="Solution:.Deleting.a.Record.From.the.Relay.Store"></a>
-<h2>Solution: Deleting a Record From the Relay Store</h2>
-
-<p>Cue the <a href="https://relay.dev/docs/api-reference/store/">RelayModernStore</a>! I learned that Relay keeps track of the GraphQL
-data returned by each query in a store on the client. Each record in the store has a unique ID, and the store can be
-changed, added to, and deleted from. There are a couple of helpful blog posts (like
-<a href="https://yashmahalwal.medium.com/a-deep-dive-into-the-relay-store-9388affd2c2b">this</a> and
-<a href="https://medium.com/entria/wrangling-the-client-store-with-the-relay-modern-updater-function-5c32149a71ac">this</a>) that explain the store and how to
-interact with it.</p>
-
-<p>In most of the Relay documentation, blog posts, and Artsy’s uses cases, the store is accessed through an <code>updater</code>
-function via <a href="https://relay.dev/docs/guided-tour/updating-data/graphql-mutations/">mutations</a>. <a href="https://relay.dev/docs/guided-tour/updating-data/graphql-mutations/#updater-functions">Updater functions</a>
-that return the store in the first argument can optionally be added to Relay mutations. Inside that function, you can access
-the store to modify the records you need.</p>
-
-<p>Here's an example:</p>
-
-<pre><code class="js">commitMutation(defaultEnvironment, {
-  mutation: graphql`
-    mutation SomeMutation {
-      ...
-    }
-  `,
-  updater: (store) =&gt; {
-    // Do something with the store
-  },
-})
-</code></pre>
-
-<p>In my use case, I was not using a Relay mutation because I did not need to modify anything on the server. Since
-Redis is keeping track of our <code>excludeIDs</code> for us, any round trip to the server will be up-to-date. We just need to
-modify our local data store.</p>
-
-<p>Relay provides a <a href="https://relay.dev/docs/guided-tour/updating-data/local-data-updates/">separate API method to make local updates</a> to the Relay
-store: <code>commitLocalUpdate</code>. <code>commitLocalUpdate</code> takes two arguments: the first is the Relay environment, which you
-can easily access from the parent Relay fragment or refetch container. The second is an <code>updater</code> callback function
-that returns the store in the first argument. We now have access to the store!</p>
-
-<a name="Deleting.a.Connection.Node.with.ConnectionHandler"></a>
-<h2>Deleting a Connection Node with ConnectionHandler</h2>
-
-<p>My main hurdle during this journey was finding an appropriate way to hook into the store for our specific use case—when we do
-not require an update to server data.</p>
-
-<p>But to close us out: Let's finish the job and delete the item from the connection in the store.</p>
-
-<p>When an item is snoozed, we call <code>commitLocalUpdate</code>, pass in the Relay environment, and then pass in the <code>updater</code>
-function. Once we have access to the store, our goal is to delete this particular item from the
-<code>artworksConnection</code>, which is the GraphQL object returned by our original Relay query.</p>
-
-<p>Because we are dealing with connections, we want to use the <a href="https://relay.dev/docs/api-reference/store/#connectionhandler">ConnectionHandler
-API</a> provided by Relay. <code>ConnectionHandler.getConnection</code> takes in the
-connection's parent record (which we can find using the GraphQL ID added as a field on our query for the
-connection) as the first argument and the connection key which can be provided through <a href="https://www.prisma.io/blog/relay-moderns-connection-directive-1ecd8322f5c8">Relay’s @connection
-directive</a>.</p>
-
-<p>Once we have the connection, we will use <code>ConnectionHandler.deleteNode</code> which takes the connection as the first
-argument and the id to be deleted, which we can also easily access using the GraphQL ID added as a field to the
-query for the item.</p>
-
-<p>Bonus: Because <code>commitLocalUpdate</code> works anywhere in Relay land, we got to perform this deletion exactly where the
-"snooze" action is happening: in the child item component. (In our previous solution, we had to manage the state of
-the children from their parent component, which wasn't as intuitive.)</p>
-
-<pre><code class="js">import { commitLocalUpdate } from "relay-runtime"
-
-commitLocalUpdate(relay.environment, (store) =&gt; {
-  const parentRecord = store.get(parentID)
-
-  if (parentRecord) {
-    const artworksConnection = ConnectionHandler.getConnection(
-      parentRecord,
-      "ArtworksMissingMetadata_partner_artworksConnection"
-    )
-    if (artworksConnection) {
-      ConnectionHandler.deleteNode(artworksConnection, id)
-    }
-  }
-})
-</code></pre>
-
-<a name="Key.Takeaways"></a>
-<h2>Key Takeaways</h2>
-
-<ol>
-<li>Relay is great because it colocates a component with its data requirements.</li>
-<li>The Relay store allows us to access and modify data that we are using on the client.</li>
-<li><code>commitLocalUpdate</code> provides us access to the store if we just need to modify local data and aren’t using a
-mutation to update server-side data.</li>
-</ol>
-
-]]></content>
-  </entry>
-  
-  <entry>
     <title type="html"><![CDATA[Effortless Pagination with GraphQL and Relay? Really!]]></title>
     <link href="https://artsy.github.io/blog/2020/01/21/graphql-relay-windowed-pagination/"/>
     <updated>2020-01-21T00:00:00+00:00</updated>
     <id>https://artsy.github.io/blog/2020/01/21/graphql-relay-windowed-pagination</id>
-    <content type="html"><![CDATA[<p>It's the year 2020. You use a modern front-end stack of <a href="https://relay.dev/">Relay</a>,
+    <content type="html"><![CDATA[<p>It’s the year 2020. You use a modern front-end stack of <a href="https://relay.dev/">Relay</a>,
 <a href="https://graphql.org/">GraphQL</a>, <a href="https://reactjs.org/">React</a> and <a href="https://www.typescriptlang.org/">TypeScript</a>.
-You can build an infinite scroll 'feed' type UI totally out of the box with these tools, by mostly putting together
+You can build an infinite scroll ‘feed’ type UI totally out of the box with these tools, by mostly putting together
 boilerplate (proper <a href="https://facebook.github.io/relay/graphql/connections.htm#sec-Connection-Types">connections</a>,
 along with a <a href="https://relay.dev/docs/en/pagination-container">pagination container</a>). You have a design system, and
 are rapidly building up a component library. Things are great!</p>
 
-<p>Then you take a look at the latest design comps for a 'browse' type page, and you see that the
+<p>Then you take a look at the latest design comps for a ‘browse’ type page, and you see that the
 <a href="https://medium.com/simple-human/7-reasons-why-infinite-scrolling-is-probably-a-bad-idea-a0139e13c96b">controversial</a>
 infinite scroll has been replaced by a more traditional pagination bar.</p>
 
 <p>You know the one. Like the following, from <a href="https://www.amazon.com">Amazon</a>:</p>
 
-<p><img src="/images/2020-01-21-graphql-relay-windowed-pagination/amazon.png"></p>
+<p><img src="/images/2020-01-21-graphql-relay-windowed-pagination/amazon.png" /></p>
 
 <p>You start to realize that the cursor-based setup of a connection, along with a Relay pagination container, does not
-lend itself to this more traditional UI. For one thing, a user can arbitrarily 'jump' to any page by including a
-<code>?page=X</code> query param (typically). For another, the user can only actually see the current page of content, versus
+lend itself to this more traditional UI. For one thing, a user can arbitrarily ‘jump’ to any page by including a
+<code class="language-plaintext highlighter-rouge">?page=X</code> query param (typically). For another, the user can only actually see the current page of content, versus
 a feed. As you go to sleep and dream of REST, Rails controllers, <a href="https://github.com/kaminari/kaminari">kaminari</a>,
-<a href="https://github.com/mislav/will_paginate">will_paginate</a>, and a simpler time, you start to have a vision...</p>
+<a href="https://github.com/mislav/will_paginate">will_paginate</a>, and a simpler time, you start to have a vision…</p>
 
 <!-- more -->
 
-
-<p>To get a good primer of what a GraphQL connection is and why they're so useful, read this
+<p>To get a good primer of what a GraphQL connection is and why they’re so useful, read this
 <a href="https://blog.apollographql.com/explaining-graphql-connections-c48b7c3d6976">excellent Apollo blogpost</a>. Seriously.
-It's one of the best writeups on this subject out there. I'll assume basic familiarity with connection types from
+It’s one of the best writeups on this subject out there. I’ll assume basic familiarity with connection types from
 this point forward.</p>
 
 <p>We prefer to use connections in place of lists almost always. Not only do they provide a preferred cursor-based
 pagination API for clients, but their type specification (a map vs a list) is naturally forward-looking. Even if
-you do no pagination, a pure list type can't accomodate returning other metadata (such as a <code>totalCount</code>) alongside
+you do no pagination, a pure list type can’t accomodate returning other metadata (such as a <code class="language-plaintext highlighter-rouge">totalCount</code>) alongside
 the list. Additionally, if your data is very relational and better represented as nodes connected by edges (which
-would contain data about the 'join' of the two nodes), the connection type gives one more flexibility than a simple
+would contain data about the ‘join’ of the two nodes), the connection type gives one more flexibility than a simple
 list. This (and more) is all covered in the aforementioned blog post.</p>
 
-<p>So, let's start by taking a look at our desired pagination UI, and think about what kind of schema/components make
+<p>So, let’s start by taking a look at our desired pagination UI, and think about what kind of schema/components make
 sense.</p>
 
-<p><img src="/images/2020-01-21-graphql-relay-windowed-pagination/pagination.png"></p>
+<p><img src="/images/2020-01-21-graphql-relay-windowed-pagination/pagination.png" /></p>
 
 <p>There looks to be several types of appearances we want to show, based on the total size of our list and fixed page
-size chosen, as well as the current page. There's also some edge cases of empty lists, or lists that are short
-enough to just display all their page numbers. Users can click on any displayed page number to jump to it. There's
+size chosen, as well as the current page. There’s also some edge cases of empty lists, or lists that are short
+enough to just display all their page numbers. Users can click on any displayed page number to jump to it. There’s
 a prev/next navigation, which brings the user forward and back one page at a time. Whenever the current page
 changes, the URL should update accordingly. For a responsive implementation, we want to hide the page numbers, and
 only show the prev/next toggles on small screens.</p>
 
-<p>Wow! Ok, we have our work cut out for us. But wait til you see how easy this is! There'll be links to our actual
+<p>Wow! Ok, we have our work cut out for us. But wait til you see how easy this is! There’ll be links to our actual
 production components involved (all open-source) at the end.</p>
 
-<a name="Pagination.Schema"></a>
-<h2>Pagination Schema</h2>
+<h2 id="pagination-schema">Pagination Schema</h2>
 
-<p>Let's tackle the first part of this, which is: how do we adapt the
+<p>Let’s tackle the first part of this, which is: how do we adapt the
 <a href="https://facebook.github.io/relay/graphql/connections.htm">GraphQL connection spec</a> in order to hold necessary
-information that a UI might need? Generally we want the UI's to be as simple as possible, and so if the server
+information that a UI might need? Generally we want the UI’s to be as simple as possible, and so if the server
 could construct a suitable pagination schema, that would be preferable. The simpler our UI, and the more business
 logic and good abstractions made in our GraphQL server, the more portable and reusable this all becomes.</p>
 
 <p>What kind of data does the UI need, in order to render a particular page of contents? Well, for a particular page
-we'd need to render the actual number it corresponds to. We'll need to know if this is the current page or not (so
-we can distinguish it in the UI from neighboring pages). And, we'll need to know the actual cursor (think:
+we’d need to render the actual number it corresponds to. We’ll need to know if this is the current page or not (so
+we can distinguish it in the UI from neighboring pages). And, we’ll need to know the actual cursor (think:
 <a href="https://relay.dev/graphql/connections.htm">opaque string</a>) that corresponds to this page number. It seems likely
-we'll need some sort of way to construct cursors from page numbers, on the server.</p>
+we’ll need some sort of way to construct cursors from page numbers, on the server.</p>
 
 <p>So, check this out:</p>
 
-<pre><code class="js">// SDL
-type PageCursor {
-  cursor: String!
-  pageNumber: Int!
-  isCurrent: Boolean!
-}
+<div class="language-js highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// SDL</span>
+<span class="nx">type</span> <span class="nx">PageCursor</span> <span class="p">{</span>
+  <span class="nl">cursor</span><span class="p">:</span> <span class="nb">String</span><span class="o">!</span>
+  <span class="nx">pageNumber</span><span class="p">:</span> <span class="nx">Int</span><span class="o">!</span>
+  <span class="nx">isCurrent</span><span class="p">:</span> <span class="nb">Boolean</span><span class="o">!</span>
+<span class="p">}</span>
 
-type PageCursors {
-  first: PageCursor
-  around: [PageCursor!]!
-  last: PageCursor
-  previous: PageCursor
-}
-</code></pre>
+<span class="nx">type</span> <span class="nx">PageCursors</span> <span class="p">{</span>
+  <span class="nl">first</span><span class="p">:</span> <span class="nx">PageCursor</span>
+  <span class="nx">around</span><span class="p">:</span> <span class="p">[</span><span class="nx">PageCursor</span><span class="o">!</span><span class="p">]</span><span class="o">!</span>
+  <span class="nx">last</span><span class="p">:</span> <span class="nx">PageCursor</span>
+  <span class="nx">previous</span><span class="p">:</span> <span class="nx">PageCursor</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
-<p>This is our pagination schema. Including a field of type <code>pageCursors</code> as a connection-level field, onto a
-connection, is sufficient for a UI to incredibly simply 'just render' a correct pagination bar always, and be able
+<p>This is our pagination schema. Including a field of type <code class="language-plaintext highlighter-rouge">pageCursors</code> as a connection-level field, onto a
+connection, is sufficient for a UI to incredibly simply ‘just render’ a correct pagination bar always, and be able
 to hook up proper interactions. We can fully construct a simple UI (using Relay, shown in the next section) that
 can present and allow for the interactions desired, for windowed pagination.</p>
 
-<p>But, of course we're glossing over the implementation for such a <code>pageCursors</code> type, so let's check that out before
+<p>But, of course we’re glossing over the implementation for such a <code class="language-plaintext highlighter-rouge">pageCursors</code> type, so let’s check that out before
 looking at how a client might consume this.</p>
 
-<p>Our backing API's largely still paginate via offsets, and not cursors. That is, they accept page/size or
+<p>Our backing API’s largely still paginate via offsets, and not cursors. That is, they accept page/size or
 size/offset style arguments. We use <a href="https://github.com/graphql/graphql-relay-js">graphql-relay-js</a>, which includes
 helpers to make sure types and resolvers are compatible with some Relay expectations. So, we use this library to
 generate our cursors, and can convert the cursor to an offset. A page of 4 with a size of 10, returns the elements
 numbered 30 - 39 in that list. So a page of 4 (and size of 10), is equivalent to an offset of 29 (and size of 10).
 We have:</p>
 
-<pre><code class="js">const pageToCursor = (page, size) =&gt; {
-  return String((page - 1) * size - 1)
-}
-</code></pre>
+<div class="language-js highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">const</span> <span class="nx">pageToCursor</span> <span class="o">=</span> <span class="p">(</span><span class="nx">page</span><span class="p">,</span> <span class="nx">size</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="nb">String</span><span class="p">((</span><span class="nx">page</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="nx">size</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>This gives us the offset of the last value of the previous page. While our upstream services are all still
 paginating using this size/offset method, the <a href="https://relay.dev/graphql/connections.htm">GraphQL cursor spec</a>
@@ -330,7 +125,7 @@ prefers opaque cursors to be used on the client. This allows the actual implemen
 upstream while clients remain unaffected. Thus if we ever update our upstream pagination arguments/logic/setup, we
 could update this schema implementation accordingly, and clients would continue to be functional.</p>
 
-<p>For inspiration in constructing our <code>first</code>, <code>last</code>, and <code>around</code> groups, we turn to
+<p>For inspiration in constructing our <code class="language-plaintext highlighter-rouge">first</code>, <code class="language-plaintext highlighter-rouge">last</code>, and <code class="language-plaintext highlighter-rouge">around</code> groups, we turn to
 <a href="https://www.fngtps.com/">Fingertips</a> and their
 <a href="https://github.com/Fingertips/peiji-san/blob/6bd1bc7c152961dcde376a8bcb2ca393b5b45829/lib/peiji_san/view_helper.rb#L87">pagination library</a>.
 That code goes through the various cases possible (a short list, a long list where the current page is near the
@@ -339,21 +134,21 @@ can handle all combinations of list sizes, and current position relative to the 
 
 <p>In pseudo-code, it looks like:</p>
 
-<pre><code class="js">if emptyList
-  around = [1]
-else if listIsShort
-  around = [1...totalPages]
-else if nearBeginning
-  around = [1...3]
-  last = [totalPages]
-else if nearMiddle
-  first = [1]
-  middle = [currentPage-1, currentPage, currentPage+1]
-  last = [totalPages]
-else if nearEnd
-  first = [1]
-  around = [last-1, last, last+1]
-</code></pre>
+<div class="language-js highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">if</span> <span class="nx">emptyList</span>
+  <span class="nx">around</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+<span class="k">else</span> <span class="k">if</span> <span class="nx">listIsShort</span>
+  <span class="nx">around</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">...</span><span class="nx">totalPages</span><span class="p">]</span>
+<span class="k">else</span> <span class="k">if</span> <span class="nx">nearBeginning</span>
+  <span class="nx">around</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">...</span><span class="mi">3</span><span class="p">]</span>
+  <span class="nx">last</span> <span class="o">=</span> <span class="p">[</span><span class="nx">totalPages</span><span class="p">]</span>
+<span class="k">else</span> <span class="k">if</span> <span class="nx">nearMiddle</span>
+  <span class="nx">first</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+  <span class="nx">middle</span> <span class="o">=</span> <span class="p">[</span><span class="nx">currentPage</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="nx">currentPage</span><span class="p">,</span> <span class="nx">currentPage</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span>
+  <span class="nx">last</span> <span class="o">=</span> <span class="p">[</span><span class="nx">totalPages</span><span class="p">]</span>
+<span class="k">else</span> <span class="k">if</span> <span class="nx">nearEnd</span>
+  <span class="nx">first</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+  <span class="nx">around</span> <span class="o">=</span> <span class="p">[</span><span class="nx">last</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="nx">last</span><span class="p">,</span> <span class="nx">last</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span>
+</code></pre></div></div>
 
 <p>Our full implementation of that method can be found
 <a href="https://github.com/artsy/metaphysics/blob/205592be7f59970cf80313972ceb95bb1579c31f/src/schema/v2/fields/pagination.ts#L96">here</a>.</p>
@@ -363,95 +158,92 @@ else if nearEnd
 You can adjust the arguments to see how the output changes based on where you are in the list. Try putting
 different cursor values in! It looks like:</p>
 
-<p><img src="/images/2020-01-21-graphql-relay-windowed-pagination/graphiql.png"></p>
+<p><img src="/images/2020-01-21-graphql-relay-windowed-pagination/graphiql.png" /></p>
 
-<p>Let's look at a couple of other pieces of data requested here. One of these is a <code>previous</code> page cursor. This is to
-support that action (the prev/next toggles) in the UI. However, we don't need a custom <code>next</code> item to support that
-behavior. That's because we tend to use
+<p>Let’s look at a couple of other pieces of data requested here. One of these is a <code class="language-plaintext highlighter-rouge">previous</code> page cursor. This is to
+support that action (the prev/next toggles) in the UI. However, we don’t need a custom <code class="language-plaintext highlighter-rouge">next</code> item to support that
+behavior. That’s because we tend to use
 <a href="https://facebook.github.io/relay/graphql/connections.htm#sec-Forward-pagination-arguments">forward-style pagination arguments</a>
 with connections, which means the connection will already return the data needed for that action (remember, you can
 implement a scrolling infinite scroll feed that always takes you to the next page right out of the box).
-Specifically, the <code>hasNextPage</code> and <code>endCursor</code> are those fields from the
-<a href="https://facebook.github.io/relay/graphql/connections.htm#sec-undefined.PageInfo.Fields">GraphQL <code>pageInfo</code> object</a>
+Specifically, the <code class="language-plaintext highlighter-rouge">hasNextPage</code> and <code class="language-plaintext highlighter-rouge">endCursor</code> are those fields from the
+<a href="https://facebook.github.io/relay/graphql/connections.htm#sec-undefined.PageInfo.Fields">GraphQL <code class="language-plaintext highlighter-rouge">pageInfo</code> object</a>
 which give you that information.</p>
 
-<a name="Companion.UI.Component"></a>
-<h2>Companion UI Component</h2>
+<h2 id="companion-ui-component">Companion UI Component</h2>
 
-<p>Ok, now that we have a connection and corresponding fields that provide the needed data, let's take a look at a
+<p>Ok, now that we have a connection and corresponding fields that provide the needed data, let’s take a look at a
 simple React component that can render this:</p>
 
-<pre><code class="js">const Page = ({pageCursor: { page, cursor }}) =&gt; {
-  return (
-    &lt;Button onClick={() =&gt; onClick(cursor)}&gt;
-      {page}
-    &lt;/Button&gt;
-  )
-}
+<div class="language-js highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">const</span> <span class="nx">Page</span> <span class="o">=</span> <span class="p">({</span><span class="na">pageCursor</span><span class="p">:</span> <span class="p">{</span> <span class="nx">page</span><span class="p">,</span> <span class="nx">cursor</span> <span class="p">}})</span> <span class="o">=&gt;</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="p">(</span>
+    <span class="o">&lt;</span><span class="nx">Button</span> <span class="nx">onClick</span><span class="o">=</span><span class="p">{()</span> <span class="o">=&gt;</span> <span class="nx">onClick</span><span class="p">(</span><span class="nx">cursor</span><span class="p">)}</span><span class="o">&gt;</span>
+      <span class="p">{</span><span class="nx">page</span><span class="p">}</span>
+    <span class="o">&lt;</span><span class="sr">/Button</span><span class="err">&gt;
+</span>  <span class="p">)</span>
+<span class="p">}</span>
 
-// Show page 1 if `first` is present, and append with dots
-// Show everything in `around`
-// Show last page if present, and prepend with dots
-//
-// Show previous toggle, active if present
-// Show next toggle, active if next page exists
-return (
-  &lt;&gt;
-    {&lt;Button disabled={!previous} onClick={() =&gt; onClick(previous.cursor)}&gt;Previous&lt;/Button&gt;}
-    {first &amp;&amp; (&lt;&gt;&lt;Page pageCursor={first} /&gt;...&lt;/&gt;)}
-    {around.map(page =&gt; &lt;Page pageCursor={page}&gt;)}
-    {last &amp;&amp; (&lt;&gt;...&lt;Page pageCursor={last} /&gt;&lt;/&gt;)}
-    {&lt;Button disabled={!hasNextPage} onClick={() =&gt; onNext()}&gt;Next&lt;/Button&gt;}
-  &lt;/&gt;
-)
-</code></pre>
+<span class="c1">// Show page 1 if `first` is present, and append with dots</span>
+<span class="c1">// Show everything in `around`</span>
+<span class="c1">// Show last page if present, and prepend with dots</span>
+<span class="c1">//</span>
+<span class="c1">// Show previous toggle, active if present</span>
+<span class="c1">// Show next toggle, active if next page exists</span>
+<span class="k">return</span> <span class="p">(</span>
+  <span class="o">&lt;&gt;</span>
+    <span class="p">{</span><span class="o">&lt;</span><span class="nx">Button</span> <span class="nx">disabled</span><span class="o">=</span><span class="p">{</span><span class="o">!</span><span class="nx">previous</span><span class="p">}</span> <span class="nx">onClick</span><span class="o">=</span><span class="p">{()</span> <span class="o">=&gt;</span> <span class="nx">onClick</span><span class="p">(</span><span class="nx">previous</span><span class="p">.</span><span class="nx">cursor</span><span class="p">)}</span><span class="o">&gt;</span><span class="nx">Previous</span><span class="o">&lt;</span><span class="sr">/Button&gt;</span><span class="err">}
+</span>    <span class="p">{</span><span class="nx">first</span> <span class="o">&amp;&amp;</span> <span class="p">(</span><span class="o">&lt;&gt;&lt;</span><span class="nx">Page</span> <span class="nx">pageCursor</span><span class="o">=</span><span class="p">{</span><span class="nx">first</span><span class="p">}</span> <span class="sr">/&gt;...&lt;/</span><span class="o">&gt;</span><span class="p">)}</span>
+    <span class="p">{</span><span class="nx">around</span><span class="p">.</span><span class="nx">map</span><span class="p">(</span><span class="nx">page</span> <span class="o">=&gt;</span> <span class="o">&lt;</span><span class="nx">Page</span> <span class="nx">pageCursor</span><span class="o">=</span><span class="p">{</span><span class="nx">page</span><span class="p">}</span><span class="o">&gt;</span><span class="p">)}</span>
+    <span class="p">{</span><span class="nx">last</span> <span class="o">&amp;&amp;</span> <span class="p">(</span><span class="o">&lt;&gt;</span><span class="p">...</span><span class="o">&lt;</span><span class="nx">Page</span> <span class="nx">pageCursor</span><span class="o">=</span><span class="p">{</span><span class="nx">last</span><span class="p">}</span> <span class="sr">/&gt;&lt;/</span><span class="o">&gt;</span><span class="p">)}</span>
+    <span class="p">{</span><span class="o">&lt;</span><span class="nx">Button</span> <span class="nx">disabled</span><span class="o">=</span><span class="p">{</span><span class="o">!</span><span class="nx">hasNextPage</span><span class="p">}</span> <span class="nx">onClick</span><span class="o">=</span><span class="p">{()</span> <span class="o">=&gt;</span> <span class="nx">onNext</span><span class="p">()}</span><span class="o">&gt;</span><span class="nx">Next</span><span class="o">&lt;</span><span class="sr">/Button&gt;</span><span class="err">}
+</span>  <span class="o">&lt;</span><span class="sr">/</span><span class="err">&gt;
+</span><span class="p">)</span>
+</code></pre></div></div>
 
-<p>That's basically it, visually speaking! The data provided by our GraphQL server is sufficient to render what's
+<p>That’s basically it, visually speaking! The data provided by our GraphQL server is sufficient to render what’s
 needed. You can see such a UI component in our design system
 <a href="https://github.com/artsy/palette/blob/f882d32c3fdc6e7f81915c2922e3824bd26791e7/packages/palette/src/elements/Pagination/Pagination.tsx">here</a>.
 It looks very similar to the above code. Of note, is since this is a simple UI component, it is vanilla React. It
-is not a Relay component. It requires an <code>onClick</code> and <code>onNext</code> to be passed as props.</p>
+is not a Relay component. It requires an <code class="language-plaintext highlighter-rouge">onClick</code> and <code class="language-plaintext highlighter-rouge">onNext</code> to be passed as props.</p>
 
-<a name="Relay.Integration.Step.I"></a>
-<h2>Relay Integration Step I</h2>
+<h2 id="relay-integration-step-i">Relay Integration Step I</h2>
 
-<p>Now, let's take a look at how we can build a Relay container that will use the above UI component. First, let's
+<p>Now, let’s take a look at how we can build a Relay container that will use the above UI component. First, let’s
 build a Relay-wrapped component of the above UI component. This is a fragment container, and lists all the fields
 needed:</p>
 
-<pre><code class="js">fragment Pagination_pageCursors on PageCursors {
-  around {
-    cursor
-    page
-    isCurrent
-  }
-  first {
-    cursor
-    page
-    isCurrent
-  }
-  last {
-    cursor
-    page
-    isCurrent
-  }
-  previous {
-    cursor
-    page
-  }
-}
-</code></pre>
+<div class="language-js highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nx">fragment</span> <span class="nx">Pagination_pageCursors</span> <span class="nx">on</span> <span class="nx">PageCursors</span> <span class="p">{</span>
+  <span class="nx">around</span> <span class="p">{</span>
+    <span class="nx">cursor</span>
+    <span class="nx">page</span>
+    <span class="nx">isCurrent</span>
+  <span class="p">}</span>
+  <span class="nx">first</span> <span class="p">{</span>
+    <span class="nx">cursor</span>
+    <span class="nx">page</span>
+    <span class="nx">isCurrent</span>
+  <span class="p">}</span>
+  <span class="nx">last</span> <span class="p">{</span>
+    <span class="nx">cursor</span>
+    <span class="nx">page</span>
+    <span class="nx">isCurrent</span>
+  <span class="p">}</span>
+  <span class="nx">previous</span> <span class="p">{</span>
+    <span class="nx">cursor</span>
+    <span class="nx">page</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
-<p>As a fragment container, this doesn't have the ability to fetch anything by itself. We want to pass in an <code>onClick</code>
-and <code>onNext</code> prop from a parent, as well as the <code>hasNextPage</code> and <code>endCursor</code> data. Check out
+<p>As a fragment container, this doesn’t have the ability to fetch anything by itself. We want to pass in an <code class="language-plaintext highlighter-rouge">onClick</code>
+and <code class="language-plaintext highlighter-rouge">onNext</code> prop from a parent, as well as the <code class="language-plaintext highlighter-rouge">hasNextPage</code> and <code class="language-plaintext highlighter-rouge">endCursor</code> data. Check out
 <a href="https://github.com/artsy/reaction/blob/c6d630f8c3213f47c5124f63eda13fbb9d8f497b/src/Components/v2/Pagination.tsx">this component</a>
 in our library to see how we take that vanilla React component mentioned above, and use the above fragment to make
 a Relay fragment container out of it.</p>
 
 <p>Now, we need to decide what kind of parent container is appropriate, and how this fragment container will be used.</p>
 
-<a name="Relay.Integration.Step.II"></a>
-<h2>Relay Integration Step II</h2>
+<h2 id="relay-integration-step-ii">Relay Integration Step II</h2>
 
 <p>This is going to be confusing, but for this step, we use a
 <a href="https://relay.dev/docs/en/refetch-container">refetch container</a> in order to present our paginated collection view,
@@ -462,59 +254,59 @@ accomplish. The refetch container is a much more natural fit for our use case, d
 
 <p>That fragment looks like:</p>
 
-<pre><code class="js">fragment ConnectionResults_query on Query {
-  someConnection(first: $first, after: $after) {
-    pageInfo {
-      hasNextPage
-      endCursor
-    }
-    pageCursors {
-      ...Pagination_pageCursors
-    }
-    ...OtherStuffForYourView
-  }
-}
-</code></pre>
+<div class="language-js highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nx">fragment</span> <span class="nx">ConnectionResults_query</span> <span class="nx">on</span> <span class="nx">Query</span> <span class="p">{</span>
+  <span class="nx">someConnection</span><span class="p">(</span><span class="nx">first</span><span class="p">:</span> <span class="nx">$first</span><span class="p">,</span> <span class="nx">after</span><span class="p">:</span> <span class="nx">$after</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nx">pageInfo</span> <span class="p">{</span>
+      <span class="nx">hasNextPage</span>
+      <span class="nx">endCursor</span>
+    <span class="p">}</span>
+    <span class="nx">pageCursors</span> <span class="p">{</span>
+      <span class="p">...</span><span class="nx">Pagination_pageCursors</span>
+    <span class="p">}</span>
+    <span class="p">...</span><span class="nx">OtherStuffForYourView</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
-<p>We include our <code>pageCursors</code> fragment, as well as the <code>hasNextPage</code> and <code>endCursor</code> from the <code>pageInfo</code> object. We
-need to provide the <code>onClick</code> and <code>onNext</code> callbacks as well. Since this component will have access to a
-<a href="https://relay.dev/docs/en/refetch-container#refetch"><code>relay</code> prop</a> since it is a refetch container, those look
+<p>We include our <code class="language-plaintext highlighter-rouge">pageCursors</code> fragment, as well as the <code class="language-plaintext highlighter-rouge">hasNextPage</code> and <code class="language-plaintext highlighter-rouge">endCursor</code> from the <code class="language-plaintext highlighter-rouge">pageInfo</code> object. We
+need to provide the <code class="language-plaintext highlighter-rouge">onClick</code> and <code class="language-plaintext highlighter-rouge">onNext</code> callbacks as well. Since this component will have access to a
+<a href="https://relay.dev/docs/en/refetch-container#refetch"><code class="language-plaintext highlighter-rouge">relay</code> prop</a> since it is a refetch container, those look
 like:</p>
 
-<pre><code class="js">handleNext = () =&gt; {
-  if (hasNextPage) this.handleClick(endCursor)
-}
+<div class="language-js highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nx">handleNext</span> <span class="o">=</span> <span class="p">()</span> <span class="o">=&gt;</span> <span class="p">{</span>
+  <span class="k">if</span> <span class="p">(</span><span class="nx">hasNextPage</span><span class="p">)</span> <span class="k">this</span><span class="p">.</span><span class="nx">handleClick</span><span class="p">(</span><span class="nx">endCursor</span><span class="p">)</span>
+<span class="p">}</span>
 
-handleClick = (cursor: string) =&gt; {
-  this.props.relay.refetch(
-    {
-      first: PAGE_SIZE,
-      after: cursor
-    },
-    null,
-    error =&gt; {
-      /* Update URL, set state, etc. */
-    }
-  )
-}
-</code></pre>
+<span class="nx">handleClick</span> <span class="o">=</span> <span class="p">(</span><span class="nx">cursor</span><span class="p">:</span> <span class="nx">string</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">props</span><span class="p">.</span><span class="nx">relay</span><span class="p">.</span><span class="nx">refetch</span><span class="p">(</span>
+    <span class="p">{</span>
+      <span class="na">first</span><span class="p">:</span> <span class="nx">PAGE_SIZE</span><span class="p">,</span>
+      <span class="na">after</span><span class="p">:</span> <span class="nx">cursor</span>
+    <span class="p">},</span>
+    <span class="kc">null</span><span class="p">,</span>
+    <span class="nx">error</span> <span class="o">=&gt;</span> <span class="p">{</span>
+      <span class="cm">/* Update URL, set state, etc. */</span>
+    <span class="p">}</span>
+  <span class="p">)</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>The refetch query defined for the container will look like:</p>
 
-<pre><code class="js">query SomeConnectionQuery($first: Int, $after: String) {
-  ...ConnectionResults_query @arguments(first: $first, after: $after)
-}
-</code></pre>
+<div class="language-js highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nx">query</span> <span class="nx">SomeConnectionQuery</span><span class="p">(</span><span class="nx">$first</span><span class="p">:</span> <span class="nx">Int</span><span class="p">,</span> <span class="nx">$after</span><span class="p">:</span> <span class="nb">String</span><span class="p">)</span> <span class="p">{</span>
+  <span class="p">...</span><span class="nx">ConnectionResults_query</span> <span class="p">@</span><span class="nd">arguments</span><span class="p">(</span><span class="nx">first</span><span class="p">:</span> <span class="nx">$first</span><span class="p">,</span> <span class="nx">after</span><span class="p">:</span> <span class="nx">$after</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
-<p>We're pretty much done, this is all just Relay boilerplate at this point.</p>
+<p>We’re pretty much done, this is all just Relay boilerplate at this point.</p>
 
 <p>Putting it all together, our refetch container winds up rendering a fully functional pagination component in one
 line:</p>
 
-<pre><code class="js">&lt;Pagination onClick={handleClick} onNext={handleNext} pageCursors={props.pageCursors} /&gt;
-</code></pre>
+<div class="language-js highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="o">&lt;</span><span class="nx">Pagination</span> <span class="nx">onClick</span><span class="o">=</span><span class="p">{</span><span class="nx">handleClick</span><span class="p">}</span> <span class="nx">onNext</span><span class="o">=</span><span class="p">{</span><span class="nx">handleNext</span><span class="p">}</span> <span class="nx">pageCursors</span><span class="o">=</span><span class="p">{</span><span class="nx">props</span><span class="p">.</span><span class="nx">pageCursors</span><span class="p">}</span> <span class="sr">/</span><span class="err">&gt;
+</span></code></pre></div></div>
 
-<p>That's it! Any connection can have this pagination functionality added to it very simply. You include the page
+<p>That’s it! Any connection can have this pagination functionality added to it very simply. You include the page
 cursor schema on the server for that type (we have a
 <a href="https://github.com/artsy/metaphysics/blob/205592be7f59970cf80313972ceb95bb1579c31f/src/schema/v2/fields/pagination.ts#L160">factory method</a>
 to help us do that automatically for any connection type). Then, following the above steps, you can quickly build a
@@ -525,21 +317,19 @@ our <a href="https://www.artsy.net/collect">Artworks browse experience</a> and h
 through all accessible works! The pagination controls and functionality on this page, and others, are built using
 the technique described in this post.</p>
 
-<a name="Examples"></a>
-<h2>Examples</h2>
+<h2 id="examples">Examples</h2>
 
 <p>Since our <a href="https://github.com/artsy/metaphysics">GraphQL orchestration layer</a>, our
 <a href="https://github.com/artsy/palette">design system</a> and
-<a href="https://github.com/artsy/reaction">UI component and app library</a> are all open source, here's links to our actual
+<a href="https://github.com/artsy/reaction">UI component and app library</a> are all open source, here’s links to our actual
 production implementation of the above:</p>
 
 <ul>
-<li><a href="https://github.com/artsy/metaphysics/blob/205592be7f59970cf80313972ceb95bb1579c31f/src/schema/v2/fields/pagination.ts">Pagination schema in GraphQL</a></li>
-<li><a href="https://github.com/artsy/palette/blob/f882d32c3fdc6e7f81915c2922e3824bd26791e7/packages/palette/src/elements/Pagination/Pagination.tsx">React UI component</a></li>
-<li><a href="https://github.com/artsy/reaction/blob/c6d630f8c3213f47c5124f63eda13fbb9d8f497b/src/Components/v2/Pagination.tsx">Relay FragmentContainer wrapping of the above</a></li>
-<li><a href="https://github.com/artsy/reaction/blob/c6d630f8c3213f47c5124f63eda13fbb9d8f497b/src/Apps/Search/Routes/Artists/SearchResultsArtists.tsx">Relay RefetchContainer full example</a></li>
+  <li><a href="https://github.com/artsy/metaphysics/blob/205592be7f59970cf80313972ceb95bb1579c31f/src/schema/v2/fields/pagination.ts">Pagination schema in GraphQL</a></li>
+  <li><a href="https://github.com/artsy/palette/blob/f882d32c3fdc6e7f81915c2922e3824bd26791e7/packages/palette/src/elements/Pagination/Pagination.tsx">React UI component</a></li>
+  <li><a href="https://github.com/artsy/reaction/blob/c6d630f8c3213f47c5124f63eda13fbb9d8f497b/src/Components/v2/Pagination.tsx">Relay FragmentContainer wrapping of the above</a></li>
+  <li><a href="https://github.com/artsy/reaction/blob/c6d630f8c3213f47c5124f63eda13fbb9d8f497b/src/Apps/Search/Routes/Artists/SearchResultsArtists.tsx">Relay RefetchContainer full example</a></li>
 </ul>
-
 ]]></content>
   </entry>
   
@@ -551,20 +341,18 @@ production implementation of the above:</p>
     <content type="html"><![CDATA[<p>This will be the first in a series of posts about how we used advanced GraphQL tooling and functionality to better
 handle errors occurring during query resolution, and better equip clients to reason about such errors.</p>
 
-<p>The goal is to describe our current approach, but also do a deep dive into specific ways we've extended our
+<p>The goal is to describe our current approach, but also do a deep dive into specific ways we’ve extended our
 <a href="https://github.com/artsy/metaphysics">GraphQL server</a> to help us accomplish that. If you are an interested GraphQL
 user, you may find this useful, even if some of the larger context specifically around how we are using it to help
-standardize error handling doesn't apply.</p>
+standardize error handling doesn’t apply.</p>
 
 <!-- more -->
 
-
-<a name="Introduction.and.Initial.Context"></a>
-<h2>Introduction and Initial Context</h2>
+<h2 id="introduction-and-initial-context">Introduction and Initial Context</h2>
 
 <p>At Artsy, we use GraphQL as our API language of choice. In particular,
 <a href="https://artsy.github.io/blog/2018/05/08/is-graphql-the-future/">as</a>
-<a href="https://artsy.github.io/blog/2016/06/19/graphql-for-mobile/">we've described</a>
+<a href="https://artsy.github.io/blog/2016/06/19/graphql-for-mobile/">we’ve described</a>
 <a href="https://artsy.github.io/blog/2016/11/02/improving-page-speed-with-graphql/">before</a>, we have an orchestration
 layer speaking GraphQL, which is what our front-end clients talk to. The GraphQL orchestration layer wraps up
 access to several backend services, which are made accessible via a combination of data loaders and
@@ -572,24 +360,24 @@ access to several backend services, which are made accessible via a combination 
 <a href="https://www.apollographql.com/docs/apollo-server/federation/introduction/">Apollo Federation</a> is another tool
 people are using to bring together disparate backends when using GraphQL in an orchestration layer.</p>
 
-<p>Now, consider the following query, which is a realistic one you might see when accessing a 'product' page.</p>
+<p>Now, consider the following query, which is a realistic one you might see when accessing a ‘product’ page.</p>
 
-<pre><code class="javascript">{
-  artwork(id: "andy-warhol-skull") {
-    mainContentStuff
-    biographicalData
-    userReviews {
-        ...
-    }  # Accesses a back-end reviews service
-    ...
-  }
-}
-</code></pre>
+<div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span>
+  <span class="nx">artwork</span><span class="p">(</span><span class="nx">id</span><span class="p">:</span> <span class="dl">"</span><span class="s2">andy-warhol-skull</span><span class="dl">"</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nx">mainContentStuff</span>
+    <span class="nx">biographicalData</span>
+    <span class="nx">userReviews</span> <span class="p">{</span>
+        <span class="p">...</span>
+    <span class="p">}</span>  <span class="err">#</span> <span class="nx">Accesses</span> <span class="nx">a</span> <span class="nx">back</span><span class="o">-</span><span class="nx">end</span> <span class="nx">reviews</span> <span class="nx">service</span>
+    <span class="p">...</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>Part of the <a href="https://graphql.github.io/graphql-spec/">GraphQL spec</a> advises that one should return a 2XX status
 code, even if there are exceptions raised when resolving your query. A non-2XX status code from a GraphQL server
 would indicate an error with the server itself. Errors that occur during query resolution can be consolidated and
-placed in the <code>errors</code> key of the response. This is all
+placed in the <code class="language-plaintext highlighter-rouge">errors</code> key of the response. This is all
 <a href="https://graphql.github.io/graphql-spec/draft/#sec-Errors">advised by the spec</a>, and so is found in most GraphQL
 implementations.</p>
 
@@ -597,19 +385,17 @@ implementations.</p>
 immediately arise:</p>
 
 <ul>
-<li>If there are multiple fields erroring, which error (if any) is reported to the user?</li>
-<li>How does the UI decide whether an error is recoverable? That is, if the <code>mainContentStuff</code> field for a view has
-errored, that's probably not recoverable, and appropriate feedback should be displayed. But, if user reviews are
-unavailable at this time, it's likely you might still want to render the main view, but with that section
+  <li>If there are multiple fields erroring, which error (if any) is reported to the user?</li>
+  <li>How does the UI decide whether an error is recoverable? That is, if the <code class="language-plaintext highlighter-rouge">mainContentStuff</code> field for a view has
+errored, that’s probably not recoverable, and appropriate feedback should be displayed. But, if user reviews are
+unavailable at this time, it’s likely you might still want to render the main view, but with that section
 appropriately handled. Is there a generic way to handle this?</li>
 </ul>
 
-
-<a name="Using.a.Directive.to.Eliminate.Ambiguity"></a>
-<h2>Using a Directive to Eliminate Ambiguity</h2>
+<h2 id="using-a-directive-to-eliminate-ambiguity">Using a Directive to Eliminate Ambiguity</h2>
 
 <p>We decided to allow our UI components to declare, using a GraphQL directive, one and only one field in a query to
-optionally be the 'principal field'. That is, this is the field that, if there are any errors resolving it, should
+optionally be the ‘principal field’. That is, this is the field that, if there are any errors resolving it, should
 result in an entire view rendering an appropriate error state. For web, this means a non-2XX status code and
 resulting error page. Any errors occurring in field resolution of non-principal fields should still result in a 2XX
 to the user, and the UI should be able to gracefully recover from the missing data. Since we use
@@ -618,72 +404,71 @@ useful.</p>
 
 <p>Rewriting the above query, we might do something like:</p>
 
-<pre><code class="javascript">{
-  artwork(id: "andy-warhol-skull") {
-    mainContentStuff @principalField
-    biographicalData
-    userReviews {
-        ...
-    }  # Accesses a back-end reviews service
-    ...
-  }
-}
-</code></pre>
+<div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span>
+  <span class="nx">artwork</span><span class="p">(</span><span class="nx">id</span><span class="p">:</span> <span class="dl">"</span><span class="s2">andy-warhol-skull</span><span class="dl">"</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nx">mainContentStuff</span> <span class="p">@</span><span class="nd">principalField</span>
+    <span class="nx">biographicalData</span>
+    <span class="nx">userReviews</span> <span class="p">{</span>
+        <span class="p">...</span>
+    <span class="p">}</span>  <span class="err">#</span> <span class="nx">Accesses</span> <span class="nx">a</span> <span class="nx">back</span><span class="o">-</span><span class="nx">end</span> <span class="nx">reviews</span> <span class="nx">service</span>
+    <span class="p">...</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
-<p>This would mean that any errors occuring in resolving <code>mainContentStuff</code> would result in either a 500 status code
+<p>This would mean that any errors occuring in resolving <code class="language-plaintext highlighter-rouge">mainContentStuff</code> would result in either a 500 status code
 and error page to the user, or possibly a more specific error and status code. However, any errors occurring in
 resolving user reviews or other fields, would not cause a 500 and error page. Instead, there would be a 200 and the
 UI would render. This means that our UI components should generally be defensive about their incoming props being
-<code>null</code> (which is likely what you'd see when the corresponding field errors during query resolution). Using
+<code class="language-plaintext highlighter-rouge">null</code> (which is likely what you’d see when the corresponding field errors during query resolution). Using
 TypeScript and
 <a href="https://www.typescriptlang.org/docs/handbook/release-notes/typescript-2-0.html">strict null checking</a> can help
 make your UI bulletproof to these sorts of issues.</p>
 
-<p>With this context, let's look at how we implement a custom <code>@principalField</code> GraphQL directive. Future posts in
+<p>With this context, let’s look at how we implement a custom <code class="language-plaintext highlighter-rouge">@principalField</code> GraphQL directive. Future posts in
 this series talking about custom GraphQL functionality will likely skip this intro section.</p>
 
-<a name="Implementing.a.Custom.GraphQL.Directive"></a>
-<h2>Implementing a Custom GraphQL Directive</h2>
+<h2 id="implementing-a-custom-graphql-directive">Implementing a Custom GraphQL Directive</h2>
 
-<p>First, we have a new directive that we'd like to add to our schema. That is, we'd like a client to be able to
-specify <code>@principalField</code> alongside any field, and have that query be validated correctly by the server. You can
+<p>First, we have a new directive that we’d like to add to our schema. That is, we’d like a client to be able to
+specify <code class="language-plaintext highlighter-rouge">@principalField</code> alongside any field, and have that query be validated correctly by the server. You can
 <a href="https://metaphysics-staging.artsy.net/?query=%7B%0Aartwork(id%3A%22andy-warhol-skull%22)%20%40nonExistentDirective%7B%0A%20%20id%0A%7D%7D">see for yourself</a>
 how <a href="https://github.com/graphql/graphql-js">graphql-js</a> and
 <a href="https://github.com/graphql/express-graphql">express-graphql</a> respond when an unknown directive is specified. Your
 GraphQL server implementation may look slightly different.</p>
 
-<p>Turns out, that's pretty easy to do in <code>graphql-js</code>. We declare a variable of type <code>GraphQLDirective</code>, which
-operates on a <code>DirectiveLocation.FIELD</code> location:</p>
+<p>Turns out, that’s pretty easy to do in <code class="language-plaintext highlighter-rouge">graphql-js</code>. We declare a variable of type <code class="language-plaintext highlighter-rouge">GraphQLDirective</code>, which
+operates on a <code class="language-plaintext highlighter-rouge">DirectiveLocation.FIELD</code> location:</p>
 
-<pre><code class="javascript">const PrincipalFieldDirective = new GraphQLDirective({
-  name: "principalField",
-  locations: [DirectiveLocation.FIELD]
-})
-</code></pre>
+<div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">const</span> <span class="nx">PrincipalFieldDirective</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">GraphQLDirective</span><span class="p">({</span>
+  <span class="na">name</span><span class="p">:</span> <span class="dl">"</span><span class="s2">principalField</span><span class="dl">"</span><span class="p">,</span>
+  <span class="na">locations</span><span class="p">:</span> <span class="p">[</span><span class="nx">DirectiveLocation</span><span class="p">.</span><span class="nx">FIELD</span><span class="p">]</span>
+<span class="p">})</span>
+</code></pre></div></div>
 
-<p>and then when we create our schema, we pass this in as <code>directives</code>. Since this will overwrite the
+<p>and then when we create our schema, we pass this in as <code class="language-plaintext highlighter-rouge">directives</code>. Since this will overwrite the
 <a href="https://www.apollographql.com/docs/apollo-server/schema/directives/">default directives</a>, we need to append ours.</p>
 
 <p>Something like:</p>
 
-<pre><code class="javascript">import { specifiedDirectives } from "graphql"
+<div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="p">{</span> <span class="nx">specifiedDirectives</span> <span class="p">}</span> <span class="k">from</span> <span class="dl">"</span><span class="s2">graphql</span><span class="dl">"</span>
 
-new GraphQLSchema({
-  directives: [...specifiedDirectives, PrincipalFieldDirective],
-  query: ...
-  ...
-})
-</code></pre>
+<span class="k">new</span> <span class="nx">GraphQLSchema</span><span class="p">({</span>
+  <span class="na">directives</span><span class="p">:</span> <span class="p">[...</span><span class="nx">specifiedDirectives</span><span class="p">,</span> <span class="nx">PrincipalFieldDirective</span><span class="p">],</span>
+  <span class="na">query</span><span class="p">:</span> <span class="p">...</span>
+  <span class="p">...</span>
+<span class="p">})</span>
+</code></pre></div></div>
 
 <p>In terms of the SDL for your schema, this is equivalent to the following line:</p>
 
-<pre><code>directive @principalField on FIELD
-</code></pre>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>directive @principalField on FIELD
+</code></pre></div></div>
 
-<p>That's it! You've successfully added a new directive to your schema. At this point, your GraphQL server will
-properly validate and allow a <code>@principalField</code> directive specified by a client alongside any field. Now, we do
+<p>That’s it! You’ve successfully added a new directive to your schema. At this point, your GraphQL server will
+properly validate and allow a <code class="language-plaintext highlighter-rouge">@principalField</code> directive specified by a client alongside any field. Now, we do
 want to ensure that if this directive is used, it only appears once in your query. We can accomplish this with a
-custom GraphQL validation, which we'll cover in the next post.</p>
+custom GraphQL validation, which we’ll cover in the next post.</p>
 
 <p>So now, how should we implement the functionality of this directive? We decided that we want to use the
 <a href="https://github.com/graphql/graphql-spec/blob/master/spec/Section%207%20--%20Response.md#response-format">extensions</a>
@@ -691,77 +476,76 @@ part of our GraphQL response to carry this data, a free-form map of data up to t
 fit for this type of optional additional information. If an error occurs in a field tagged with the directive, we
 want the response to look something like:</p>
 
-<pre><code class="json">{
-  "data": {
-    ...
-  },
-  "extensions": {
-    "principalField": {
-      "error": ...
-    }
-  }
-}
-</code></pre>
+<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
+  </span><span class="nl">"data"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+    </span><span class="err">...</span><span class="w">
+  </span><span class="p">},</span><span class="w">
+  </span><span class="nl">"extensions"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+    </span><span class="nl">"principalField"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+      </span><span class="nl">"error"</span><span class="p">:</span><span class="w"> </span><span class="err">...</span><span class="w">
+    </span><span class="p">}</span><span class="w">
+  </span><span class="p">}</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre></div></div>
 
-<p>In <code>express-graphql</code>, we'll need a method appropriate for the
+<p>In <code class="language-plaintext highlighter-rouge">express-graphql</code>, we’ll need a method appropriate for the
 <a href="https://github.com/graphql/express-graphql#options">extensions</a> option. That looks like:</p>
 
-<pre><code class="javascript">const principalFieldDirectiveExtension = ({ documentAST, result }) =&gt; {
-  const path = getPrincipalFieldDirectivePath(documentAST)
-  if (path.length) {
-    const error = result.errors.find(e =&gt; isEqual(e.path, path))
-    if (error) return { principalField: error }
-  }
-}
-</code></pre>
+<div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">const</span> <span class="nx">principalFieldDirectiveExtension</span> <span class="o">=</span> <span class="p">({</span> <span class="nx">documentAST</span><span class="p">,</span> <span class="nx">result</span> <span class="p">})</span> <span class="o">=&gt;</span> <span class="p">{</span>
+  <span class="kd">const</span> <span class="nx">path</span> <span class="o">=</span> <span class="nx">getPrincipalFieldDirectivePath</span><span class="p">(</span><span class="nx">documentAST</span><span class="p">)</span>
+  <span class="k">if</span> <span class="p">(</span><span class="nx">path</span><span class="p">.</span><span class="nx">length</span><span class="p">)</span> <span class="p">{</span>
+    <span class="kd">const</span> <span class="nx">error</span> <span class="o">=</span> <span class="nx">result</span><span class="p">.</span><span class="nx">errors</span><span class="p">.</span><span class="nx">find</span><span class="p">(</span><span class="nx">e</span> <span class="o">=&gt;</span> <span class="nx">isEqual</span><span class="p">(</span><span class="nx">e</span><span class="p">.</span><span class="nx">path</span><span class="p">,</span> <span class="nx">path</span><span class="p">))</span>
+    <span class="k">if</span> <span class="p">(</span><span class="nx">error</span><span class="p">)</span> <span class="k">return</span> <span class="p">{</span> <span class="na">principalField</span><span class="p">:</span> <span class="nx">error</span> <span class="p">}</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
-<p>If there is a field designated with the principal field directive, and there is an error at that same path, we'll
+<p>If there is a field designated with the principal field directive, and there is an error at that same path, we’ll
 return that information, otherwise do nothing.</p>
 
-<p>That's it! We have one additional helper we need to write, <code>getPrincipalFieldDirectivePath</code>. This builds an array
+<p>That’s it! We have one additional helper we need to write, <code class="language-plaintext highlighter-rouge">getPrincipalFieldDirectivePath</code>. This builds an array
 of all the fields encountered to get to one tagged with our directive. It matches the way the
 <a href="https://graphql.github.io/graphql-spec/June2018/#sec-Errors">path of an error</a> is constructed by the server, which
 enables us to determine if a particular error was associated with a field tagged with the directive.</p>
 
 <p>That looks like:</p>
 
-<pre><code class="javascript">import { visit, BREAK, DocumentNode } from "graphql"
+<div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="p">{</span> <span class="nx">visit</span><span class="p">,</span> <span class="nx">BREAK</span><span class="p">,</span> <span class="nx">DocumentNode</span> <span class="p">}</span> <span class="k">from</span> <span class="dl">"</span><span class="s2">graphql</span><span class="dl">"</span>
 
-export const getPrincipalFieldDirectivePath = (documentNode: DocumentNode): string[] =&gt; {
-  const path: string[] = []
-  visit(documentNode, {
-    Field: {
-      enter(node) {
-        const name = (node.alias || node.name).value
-        path.push(name)
-      },
-      leave() {
-        path.pop()
-      }
-    },
-    Directive(node) {
-      if (node.name.value === "principalField") {
-        return BREAK
-      }
-    }
-  })
+<span class="k">export</span> <span class="kd">const</span> <span class="nx">getPrincipalFieldDirectivePath</span> <span class="o">=</span> <span class="p">(</span><span class="nx">documentNode</span><span class="p">:</span> <span class="nx">DocumentNode</span><span class="p">):</span> <span class="nx">string</span><span class="p">[]</span> <span class="o">=&gt;</span> <span class="p">{</span>
+  <span class="kd">const</span> <span class="na">path</span><span class="p">:</span> <span class="nx">string</span><span class="p">[]</span> <span class="o">=</span> <span class="p">[]</span>
+  <span class="nx">visit</span><span class="p">(</span><span class="nx">documentNode</span><span class="p">,</span> <span class="p">{</span>
+    <span class="na">Field</span><span class="p">:</span> <span class="p">{</span>
+      <span class="nx">enter</span><span class="p">(</span><span class="nx">node</span><span class="p">)</span> <span class="p">{</span>
+        <span class="kd">const</span> <span class="nx">name</span> <span class="o">=</span> <span class="p">(</span><span class="nx">node</span><span class="p">.</span><span class="nx">alias</span> <span class="o">||</span> <span class="nx">node</span><span class="p">.</span><span class="nx">name</span><span class="p">).</span><span class="nx">value</span>
+        <span class="nx">path</span><span class="p">.</span><span class="nx">push</span><span class="p">(</span><span class="nx">name</span><span class="p">)</span>
+      <span class="p">},</span>
+      <span class="nx">leave</span><span class="p">()</span> <span class="p">{</span>
+        <span class="nx">path</span><span class="p">.</span><span class="nx">pop</span><span class="p">()</span>
+      <span class="p">}</span>
+    <span class="p">},</span>
+    <span class="nx">Directive</span><span class="p">(</span><span class="nx">node</span><span class="p">)</span> <span class="p">{</span>
+      <span class="k">if</span> <span class="p">(</span><span class="nx">node</span><span class="p">.</span><span class="nx">name</span><span class="p">.</span><span class="nx">value</span> <span class="o">===</span> <span class="dl">"</span><span class="s2">principalField</span><span class="dl">"</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">return</span> <span class="nx">BREAK</span>
+      <span class="p">}</span>
+    <span class="p">}</span>
+  <span class="p">})</span>
 
-  return path
-}
-</code></pre>
+  <span class="k">return</span> <span class="nx">path</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>This uses a <a href="https://graphql.org/graphql-js/language/#visit">GraphQL visitor</a> to traverse our query, and build up
 an array of field names. We can exit early with that path if we encounter our directive.</p>
 
-<a name="Example.Query"></a>
-<h2>Example Query</h2>
+<h2 id="example-query">Example Query</h2>
 
-<p>Let's take a look at how you can use this in practice, in order to help standardize when and with what status a UI
+<p>Let’s take a look at how you can use this in practice, in order to help standardize when and with what status a UI
 can inform the user of an error.</p>
 
 <p>Something like:</p>
 
-<pre><code>{
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>{
   artwork(id: "andy-warhol-skull") @principalField {
     userReviews {
       notes
@@ -770,574 +554,51 @@ can inform the user of an error.</p>
     ...
   }
 }
-</code></pre>
+</code></pre></div></div>
 
 <p>results in:</p>
 
-<pre><code class="json">{
-  "data": {
-    "artwork": null
-  },
-  "extensions": {
-    "principalFieldError": {
-      "httpStatusCode": 404
-    }
-  }
-}
-</code></pre>
+<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
+  </span><span class="nl">"data"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+    </span><span class="nl">"artwork"</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span><span class="w">
+  </span><span class="p">},</span><span class="w">
+  </span><span class="nl">"extensions"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+    </span><span class="nl">"principalFieldError"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+      </span><span class="nl">"httpStatusCode"</span><span class="p">:</span><span class="w"> </span><span class="mi">404</span><span class="w">
+    </span><span class="p">}</span><span class="w">
+  </span><span class="p">}</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre></div></div>
 
 <p>and the UI can immediately return an appropriate message to the user, if the artwork is not found. If fetching the
-artwork is successful, but there's an issue with the reviews, the response will look like:</p>
+artwork is successful, but there’s an issue with the reviews, the response will look like:</p>
 
-<pre><code class="json">{
-  "data": {
-    "artwork": {
-      "userReviews": null,
-      "contents": ...
-    }
-  }
-}
-</code></pre>
+<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
+  </span><span class="nl">"data"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+    </span><span class="nl">"artwork"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+      </span><span class="nl">"userReviews"</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span><span class="w">
+      </span><span class="nl">"contents"</span><span class="p">:</span><span class="w"> </span><span class="err">...</span><span class="w">
+    </span><span class="p">}</span><span class="w">
+  </span><span class="p">}</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre></div></div>
 
-<p>We can make sure that our UI components (likely Relay containers) corresponding to <code>userReviews</code> are defensive
-about that incoming prop being <code>null</code>. Most likely a zero state ("No Reviews Found"), or just skipping the section
+<p>We can make sure that our UI components (likely Relay containers) corresponding to <code class="language-plaintext highlighter-rouge">userReviews</code> are defensive
+about that incoming prop being <code class="language-plaintext highlighter-rouge">null</code>. Most likely a zero state (“No Reviews Found”), or just skipping the section
 entirely, is appropriate.</p>
 
-<a name="Conclusion"></a>
-<h2>Conclusion</h2>
+<h2 id="conclusion">Conclusion</h2>
 
 <p>In this way, we can standardize on and remove ambiguity about how a UI handles one or more errors in query
 resolution and exactly when such an error should be propagated and made user-facing. We can help ensure that our
-UI's are resilient to errors occurring in a leaf.</p>
+UI’s are resilient to errors occurring in a leaf.</p>
 
-<p>In the next post, we'll look at how we can write a GraphQL validation rule to ensure that a client specifies at
-most one field with the <code>@principalField</code> directive. After that, we'll take a look at how you can successfully
+<p>In the next post, we’ll look at how we can write a GraphQL validation rule to ensure that a client specifies at
+most one field with the <code class="language-plaintext highlighter-rouge">@principalField</code> directive. After that, we’ll take a look at how you can successfully
 parse and support GraphQL query resolution errors occurring in a variety of contexts such as during stitching.
 Putting this altogether, we hope you will come away with a better understanding of how to extend your GraphQL
-server with your own custom behaviors, and in particular how we've used these to better log/propagate/present the
+server with your own custom behaviors, and in particular how we’ve used these to better log/propagate/present the
 potential errors occurring during a query.</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[From TSLint to ESLint, or How I Learned to Lint GraphQL Code]]></title>
-    <link href="https://artsy.github.io/blog/2019/01/29/from-tslint-to-eslint/"/>
-    <updated>2019-01-29T00:00:00+00:00</updated>
-    <id>https://artsy.github.io/blog/2019/01/29/from-tslint-to-eslint</id>
-    <content type="html"><![CDATA[<p>At the beginning of January we discovered an interesting note in <a href="https://github.com/Microsoft/TypeScript/issues/29288">TypeScript's roadmap</a> about linting:</p>
-
-<blockquote><p>In a survey we ran in VS Code a few months back, the most frequent theme we heard from users was that the linting
-experience left much to be desired. Since part of our team is dedicated to editing experiences in JavaScript, our
-editor team set out to add support for both TSLint and ESLint. However, we noticed that there were a few
-architectural issues with the way TSLint rules operate that impacted performance. Fixing TSLint to operate more
-efficiently would require a different API which would break existing rules (unless an interop API was built like
-what wotan provides).</p>
-
-<p>Meanwhile, ESLint already has the more-performant architecture we're looking for from a linter. Additionally,
-different communities of users often have lint rules (e.g. rules for React Hooks or Vue) that are built for
-ESLint, but not TSLint.</p>
-
-<p>Given this, our editor team will be focusing on leveraging ESLint rather than duplicating work. For scenarios
-that ESLint currently doesn't cover (e.g. semantic linting or program-wide linting), we'll be working on sending
-contributions to bring ESLint's TypeScript support to parity with TSLint. As an initial testbed of how this works
-in practice, we'll be switching the TypeScript repository over to using ESLint, and sending any new rules
-upstream.</p></blockquote>
-
-<p>At Artsy we've been using TSLint for a few years now; it's worked well for us, and we've even written our own
-<a href="https://github.com/relay-tools/tslint-plugin-relay">custom rules</a>. However, given the vastness of the JS ecosystem
-and how fast it moves, it's easy to recognize this announcement as an exciting moment for tooling simplicity.</p>
-
-<!-- more -->
-
-
-<p>To give an example, anyone who has built a culture around Airbnb's
-<a href="https://github.com/airbnb/javascript">JavaScript style guide</a> will instantly recognize the conundrum they're in
-when migrating to TypeScript:</p>
-
-<p><img width="100%" alt="a reddit user discovers their linting rules no longer work" src="https://user-images.githubusercontent.com/236943/51884369-d845b380-233b-11e9-9d2f-102cc8a3a78b.png"></p>
-
-<p>This means that teams maintaining legacy JavaScript codebases will no longer have to <em>also</em> maintain
-<a href="https://github.com/palantir/tslint-react">two</a> <a href="https://github.com/yannickcr/eslint-plugin-react">versions</a> of often nearly <a href="https://github.com/prettier/tslint-plugin-prettier">identical</a>
-<a href="https://github.com/prettier/prettier-eslint">rule-sets</a>. All of the aggregate culture that builds up around linting can now be shared in a
-forward and backward facing way, making the often-daunting process of migrating a codebase from JavaScript to
-TypeScript a much easier sell.</p>
-
-<p>With this in mind we wanted to give the new officially-sanctioned <a href="https://github.com/typescript-eslint/typescript-eslint">typescript-eslint</a> project a
-spin and document our findings.</p>
-
-<a name="Setup"></a>
-<h3>Setup</h3>
-
-<p>To get started, install the necessary dependencies:</p>
-
-<pre><code class="sh">$ yarn install -D eslint typescript @typescript-eslint/eslint-plugin
-</code></pre>
-
-<p>Then create a new <code>.eslintrc.js</code> and add a bit of setup:</p>
-
-<pre><code class="js">module.exports = {
-  parser: "@typescript-eslint/parser",
-  plugins: ["@typescript-eslint"],
-  extends: ["eslint:recommended", "plugin:@typescript-eslint/recommended"],
-  parserOptions: {
-    ecmaVersion: 6,
-    project: "./tsconfig.json",
-    sourceType: "module"
-  }
-}
-</code></pre>
-
-<p>Note that <code>parserOptions.project</code> points to your <code>tsconfig.json</code> file:</p>
-
-<pre><code class="json">{
-  "compilerOptions": {}
-}
-</code></pre>
-
-<p>Next, add a bit of TypeScript to a file</p>
-
-<pre><code class="sh">$ echo "export const foo: any = 'bar'" &gt; index.ts
-</code></pre>
-
-<p>and run the linter:</p>
-
-<pre><code class="sh">$ yarn eslint . --ext .ts,.tsx
-
-~/index.ts
-  1:12  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
-
-✖ 1 problem (0 errors, 1 warnings)
-</code></pre>
-
-<p>Very nice!</p>
-
-<p>Now lets expand the example a bit and add something more sophisticated, which in Artsy's use-case is commonly
-GraphQL:</p>
-
-<pre><code class="sh">$ yarn add -D eslint-plugin-graphql graphql-tag apollo
-</code></pre>
-
-<p>Update <code>tsconfig.json</code> and let it know we'll be using <code>node</code> for imports:</p>
-
-<pre><code class="json">{
-  "compilerOptions": {
-    "moduleResolution": "node"
-  }
-}
-</code></pre>
-
-<p>In <code>.eslintrc.js</code> add these rules (while noting the addition of <code>graphql</code> to <code>plugins</code> and
-<code>graphql/template-strings</code> under <code>rules</code>):</p>
-
-<pre><code class="js">const path = require("path")
-
-module.exports = {
-  parser: "@typescript-eslint/parser",
-  plugins: ["@typescript-eslint", "graphql"],
-  extends: ["eslint:recommended", "plugin:@typescript-eslint/recommended"],
-  parserOptions: {
-    ecmaVersion: 6,
-    project: "./tsconfig.json",
-    sourceType: "module"
-  },
-  rules: {
-    "graphql/template-strings": [
-      "error",
-      {
-        schemaJsonFilepath: path.resolve(__dirname, "./schema.json"),
-        tagName: "graphql"
-      }
-    ]
-  }
-}
-</code></pre>
-
-<p>For GraphQL to know what to lint, we'll need a schema. Thankfully the
-<a href="https://etmdb.com/graphql">Ethiopian Movie Database</a> has our back :)</p>
-
-<pre><code class="sh">$ yarn apollo service:download --endpoint https://etmdb.com/graphql
-  ✔ Loading Apollo Project
-  ✔ Saving schema to schema.json
-✨  Done in 2.18s.
-</code></pre>
-
-<p>Back in <code>index.ts</code>, add this bit of code:</p>
-
-<pre><code class="js">import graphql from "graphql-tag"
-
-export const MovieQuery = graphql`
-  query MoveQuery {
-    allCinemaDetails(before: "2017-10-04", after: "2010-01-01") {
-      edges {
-        nodez {
-          slug
-          hallName
-        }
-      }
-    }
-  }
-`
-</code></pre>
-
-<p>And run the linter:</p>
-
-<pre><code class="sh">$ yarn eslint . --ext .ts,.tsx
-
-~/index.ts
-  7:9  error  Cannot query field "nodez" on type "CinemaDetailNodeEdge". Did you mean "node"?  graphql/template-strings
-
-✖ 1 problem (1 error, 0 warnings)
-</code></pre>
-
-<p>Ahh yes, I meant <a href="https://i.redd.it/tfugj4n3l6ez.png"><code>node</code></a>.</p>
-
-<a name="Bonus:.VSCode.Integration"></a>
-<h3>Bonus: VSCode Integration</h3>
-
-<p>As developers, we like our tools to work for us, and in 2019 the tool that <em>seems</em> to do that best just happens to
-be a brilliant open source product from Microsoft. There were a couple unexpected configuration issues when we were
-setting this up, but thankfully they're easy fixes.</p>
-
-<pre><code class="sh">$ mkdir .vscode &amp;&amp; touch .vscode/settings.json
-</code></pre>
-
-<p>Then add a couple settings:</p>
-
-<pre><code class="json">{
-  "editor.formatOnSave": true,
-  "eslint.autoFixOnSave": true,
-  "eslint.validate": [
-    {
-      "language": "javascript",
-      "autoFix": true
-    },
-    {
-      "language": "javascriptreact",
-      "autoFix": true
-    },
-    {
-      "language": "typescript",
-      "autoFix": true
-    },
-    {
-      "language": "typescriptreact",
-      "autoFix": true
-    }
-  ],
-  "tslint.enable": false
-}
-</code></pre>
-
-<p>Format on save, fix on save, <em>autofix</em> on save, tell ESLint to recognize <code>.ts</code> (and <code>.tsx</code>, for the React folks)
-then disable <code>tslint</code> so that <code>eslint</code> can do its thing:</p>
-
-<p><img width="698" alt="eslint displaying graphql error in VSCode IDE" src="https://user-images.githubusercontent.com/236943/51884366-d380ff80-233b-11e9-8128-6c39e210dd31.png"></p>
-
-<p>Now ESLint will show you right where your GraphQL error is from within VSCode. Pretty sweet.</p>
-
-<p>Be sure to read <a href="https://eslint.org/blog/2019/01/future-typescript-eslint">The future of TypeScript on ESLint</a> for more details.</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[GraphQL: Union vs. Interface]]></title>
-    <link href="https://artsy.github.io/blog/2019/01/14/graphql-union-vs-interface/"/>
-    <updated>2019-01-14T00:00:00+00:00</updated>
-    <id>https://artsy.github.io/blog/2019/01/14/graphql-union-vs-interface</id>
-    <content type="html"><![CDATA[<p>At Artsy we’ve been moving towards GraphQL for all of our new services. Acknowledging GraphQL is a relatively new
-technology, we faced some challenging questions as we were developing one of our most recent services.</p>
-
-<p>Naively as my first attempt to define GraphQL types and schemas, I naturally tried to map our database models to
-GraphQL types. While this may work for lot of cases, we may not be utilizing some of the useful features that come
-with GraphQL that can make the consuming of our data a lot easier.</p>
-
-<a name="GraphQL:.Interface.or.Union."></a>
-<h2>GraphQL: Interface or Union?</h2>
-
-<p>Think of the case where we are trying to expose search functionality and the result of our search can be either a
-<code>Book</code> , <code>Movie</code> or <code>Album</code>. One way to think about this is to have our search query return something like:</p>
-
-<!-- more -->
-
-
-<pre><code class="js">search(term: "something") {
-  books {
-    id
-    title
-    author
-  }
-  movies {
-    id
-    title
-    director
-  }
-  albums {
-    id
-    name
-  }
-}
-</code></pre>
-
-<p>While ☝️ works, we can’t rank the result based on relevance in one result set. Ideally, we would return one result
-set that can have different types in it. A naive approach for this could be to only return one type in the results:</p>
-
-<pre><code class="js">search(term: "something") {
-  results {
-    id
-    name
-    author   // when a book
-    director // when a movie
-    title    // when a movie/book
-  }
-}
-</code></pre>
-
-<p>We could have a single object that has all these values as optional properties:</p>
-
-<pre><code class="js">type Result {
-  id: ID!
-  name: String!
-
-  // All of the optional data, available as nullable types
-  author: String
-  director: String
-  title: String
-}
-</code></pre>
-
-<p>But returning these Result objects would be very messy on the server and for clients, plus it would undermine using
-GraphQL's type system.</p>
-
-<p>There are two main solutions in the GraphQL toolkit for this problem:
-<a href="https://graphql.org/learn/schema/#union-types">Unions</a> and
-<a href="https://graphql.org/learn/schema/#interfaces">Interfaces</a>.</p>
-
-<a name="Union"></a>
-<h3>Union</h3>
-
-<p>GraphQL interfaces are useful to solve problems like above where we want to have the returned type possibly from
-different types.</p>
-
-<p>For this to work, we can define a <code>Union</code> type that can resolve to either one of <code>Book</code>, <code>Movie</code> or <code>Album</code> and
-then each type can have its own set of fields.</p>
-
-<p>In <code>graphql-ruby</code> you can define Unions with:</p>
-
-<pre><code class="ruby">class Types::Movie &lt; Types::BaseObject
-  field :id, ID, null: false
-  field :title, String, null: false
-  field :director, String, null: false
-end
-
-class Types::Book &lt; Types::BaseObject
-  field :id, ID, null: false
-  field :title, String, null: false
-end
-
-class Types::Album &lt; Types::BaseObject
-  field :id, ID, null: false
-  field :name, String, null: false
-end
-
-class SearchResultUnionType &lt; Types::BaseUnion
-  description 'Represents either a Movie, Book or Album'
-  possible_types Book, Movie, Album
-  def self.resolve_type(object, _context)
-    case object
-    when Movie then Types::Movie
-    when Book then Types::Book
-    when Album then Types::Album
-    else
-      raise "Unknown search result type"
-    end
-  end
-end
-</code></pre>
-
-<p>With the above change you can now query for search results and use specific fragments for different result types:</p>
-
-<pre><code class="js">query {
-  search(term: "something") {
-    ... on Movie {
-      __typename
-      id
-      title
-    }
-    ... on Book {
-      __typename
-      id
-      title
-    }
-    ... on Album {
-      __typename
-      id
-      name
-    }
-  }
-}
-</code></pre>
-
-<pre><code class="json">{
-  "data": [
-    {
-      "__typename": "Movie",
-      "id": 1,
-      "title": "Close-Up"
-    },
-    {
-      "__typename": "Album",
-      "id": 2,
-      "name": "Dark Side Of The Moon"
-    }
-  ]
-}
-</code></pre>
-
-<a name="Interface"></a>
-<h3>Interface</h3>
-
-<p>Unions are useful when we are trying to group different types together in one field. Now let’s think of the case
-where we are trying to expose models of the same Type that can have different fields populated.</p>
-
-<p>For example a music <code>Instrument</code> can have strings or not. If it has strings we want to mention how many strings it
-has in <code>numberOfStrings</code> field. For any non-string instrument this field would be <code>null</code> in the database.</p>
-
-<p>One way to do this is to have the <code>Instrument</code> Type always have <code>numberOfStrings</code> and in the case of non-string
-instruments return <code>nil</code>. Sample result for this would be:</p>
-
-<pre><code class="json">{
-  "data": [
-    {
-      "id": 1,
-      "name": "Guitar",
-      "numberOfStrings": 6
-    },
-    {
-      "id": 2,
-      "name": "Drums",
-      "numberOfStrings": null
-    }
-  ]
-}
-</code></pre>
-
-<p>The above solution would work, but it will add extra work on the clients to decide if <code>numberOfStrings</code> is even
-applicable to this current instrument or not.</p>
-
-<p>The more GraphQL approach for this would be to use an <code>Interface</code>. We can define a generic <code>Instrument</code> interface and
-have all the common fields between all instruments defined there. Then we can have each specific category of
-instruments define its own special fields and then access those specific fields using fragments.</p>
-
-<p>In <code>graphql-ruby</code> you can define an Interface with:</p>
-
-<pre><code class="ruby">module Types::InstrumentInterface
-  include Types::BaseInterface
-
-  description 'A Musical Instrument'
-  graphql_name 'Musical Instrument'
-
-  field :id, ID, null: false
-  field :name, String, null: false
-  field :category, String, null: false
-
-  definition_methods do
-    def resolve_type(object, _context)
-      case object.category
-      when "string" then Types::StringInstrument
-      when "drums" then Types::DrumInstrument
-      else
-        raise 'Unknown instrument type'
-      end
-    end
-  end
-end
-</code></pre>
-
-<p>Then we can have our specific types implementing this interface.</p>
-
-<pre><code class="ruby">class Types::StringInstrument &lt; Types::BaseObject
-  implements Types:: InstrumentInterface
-
-  field :number_of_strings, Integer, null: false
-end
-</code></pre>
-
-<p>For types that don’t have any extra field, they can just reuse everything from interface.</p>
-
-<pre><code class="ruby">class Types::DrumInstrument &lt; Types::BaseObject
-  implements Types:: InstrumentInterface
-end
-</code></pre>
-
-<p>This way the query for getting instruments can look like</p>
-
-<pre><code class="ruby">query {
-  instruments {
-    id
-    name
-    category
-    ... on StringInstrument {
-       numberOfStrings
-    }
-  }
-}
-</code></pre>
-
-<p>Sample response can look like</p>
-
-<pre><code class="json">{
-  "data": [
-    {
-      "id": 1,
-      "name": "Guitar",
-      "category": "StringInstrument",
-      "numberOfStrings": 6
-    },
-    {
-      "id": 2,
-      "name": "Drums",
-      "category": "StringInstrument"
-    }
-  ]
-}
-</code></pre>
-
-<p>One issue we found after doing the above was, since this way we don’t reference <code>StringInstrument</code> and <code>DrumInstrument</code>
-types anywhere in our schema, they actually don’t end up showing in the generated schema. For them to show up we
-have to add them as <code>orphan_types</code> in the interface. So the interface definition will look like:</p>
-
-<pre><code class="ruby">module Types::InstrumentInterface
-  include Types::BaseInterface
-
-  description 'A Music Album'
-  graphql_name 'Album'
-
-  field :id, ID, null: false
-  field :name, String, null: false
-  field :category, String, null: false
-
-  ## Changes
-  orphan_types Types::StringInstrument, Types::DrumInstrument
-
-  definition_methods do
-    def resolve_type(object, _context)
-      case object.category
-      when "string" then Types::StringInstrument
-      when "drums" then Types::DrumInstrument
-      else
-        raise 'Unknown instrument type'
-      end
-    end
-  end
-end
-</code></pre>
-
-<a name="Conclusion"></a>
-<h2>Conclusion</h2>
-
-<p>The biggest learning experience for us was realizing that with GraphQL we have the option to decouple our database
-modeling with how the data is exposed to consumers. This way when designing our persistence layer, we can focus on
-the needs of that layer and then separately think about what's the best way to expose the data to the outside world.</p>
 ]]></content>
   </entry>
   

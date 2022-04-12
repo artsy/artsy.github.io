@@ -16,8 +16,6 @@
       
         
 
-
-
   
     
       
@@ -29,10 +27,11 @@
         
         
           
+
+
   
 
-
-...">
+ ...">
   
 
   <!-- http://t.co/dKP3o1e -->
@@ -138,9 +137,7 @@
   
     
       <article>
-        
-<div class="article-container">
-
+        <div class="article-container">
 
   
     <div class="meta-container">
@@ -153,8 +150,6 @@
         
         <time datetime=""></time>
           <p class="meta-author">
-  
-
 
 
   
@@ -180,7 +175,7 @@
   <div class="content-container">
     
     
-        <p><img src="/images/2012-09-13-on-grid-thumbnails/grid.jpg"></p>
+        <p><img src="/images/2012-09-13-on-grid-thumbnails/grid.jpg" /></p>
 
 <p>Artsy Folio, our free iPad app for Gallery Partners, had been in the App Store for a couple of weeks before the iPad with a Retina display was announced. This had been something we expected internally and felt the application would be ready. We had all our image assets available in <em>@2x</em> versions and an image pipeline that would take scaling into account. With that in mind, we changed our artwork grid view to show a double resolution image. Finally, once we were happy that it worked fine on the simulator, we sent the build off to Apple for review.</p>
 
@@ -188,76 +183,49 @@
 
 <!--more-->
 
+<p>Scrolling the grid view was slow. Extremely slow. The reason why wasn’t obvious initially, but thanks to digging around using <a href="http://developer.apple.com/library/mac/#documentation/DeveloperTools/Conceptual/InstrumentsUserGuide/Introduction/Introduction.html">Instruments</a>, we saw that a great deal of time was spent in Apple’s image processing libraries. This was a strong hint that the problem involved taking the file and getting it to the screen.</p>
 
-<p>Scrolling the grid view was slow. Extremely slow. The reason why wasn't obvious initially, but thanks to digging around using <a href="http://developer.apple.com/library/mac/#documentation/DeveloperTools/Conceptual/InstrumentsUserGuide/Introduction/Introduction.html">Instruments</a>, we saw that a great deal of time was spent in Apple's image processing libraries. This was a strong hint that the problem involved taking the file and getting it to the screen.</p>
+<p>In our naiveté, Folio was originally using <code class="language-plaintext highlighter-rouge">UIImage</code>’s <code class="language-plaintext highlighter-rouge">initWithContentsOfFile:</code> to load (without caching) a jpg from the file system. Once the file was loaded into memory, we displayed it onscreen in an <code class="language-plaintext highlighter-rouge">UIImageView.</code> This was fast enough to deal with our small thumbnails of <em>240x240</em> but the moment that you start asking it to pull 3 or 4 <em>480x480</em> jpg files off the filesystem, decompress them and then put them on the screen, you’re not going to have a smooth scroll.</p>
 
-<p>In our naiveté, Folio was originally using <code>UIImage</code>'s <code>initWithContentsOfFile:</code> to load (without caching) a jpg from the file system. Once the file was loaded into memory, we displayed it onscreen in an <code>UIImageView.</code> This was fast enough to deal with our small thumbnails of <em>240x240</em> but the moment that you start asking it to pull 3 or 4 <em>480x480</em> jpg files off the filesystem, decompress them and then put them on the screen, you're not going to have a smooth scroll.</p>
+<p><img src="/images/2012-09-13-on-grid-thumbnails/thumbnails.jpg" /></p>
 
-<p><img src="/images/2012-09-13-on-grid-thumbnails/thumbnails.jpg"></p>
+<p>As we knew that we were looking at an issue with getting images from a file, it made sense to start looking at ways to move image processing off the main thread. This Stack Overflow thread on <a href="http://stackoverflow.com/questions/1815476/cgimage-uiimage-lazily-loading-on-ui-thread-causes-stutter">UIImage lazy loading</a> proved to be an essential start to dealing with our issue. We needed a thread-safe way to get the contents of a file and to pass them through once the images had been decoded. What we needed was <a href="https://gist.github.com/3715588">initImmediateLoadWithContentsOfFile</a>, a thread-safe way to go from a filepath to a <code class="language-plaintext highlighter-rouge">UIImage</code>.</p>
 
-<p>As we knew that we were looking at an issue with getting images from a file, it made sense to start looking at ways to move image processing off the main thread. This Stack Overflow thread on <a href="http://stackoverflow.com/questions/1815476/cgimage-uiimage-lazily-loading-on-ui-thread-causes-stutter">UIImage lazy loading</a> proved to be an essential start to dealing with our issue. We needed a thread-safe way to get the contents of a file and to pass them through once the images had been decoded. What we needed was <a href="https://gist.github.com/3715588">initImmediateLoadWithContentsOfFile</a>, a thread-safe way to go from a filepath to a <code>UIImage</code>.</p>
+<p>Now that we had a way to get an image that was safe to go on a background thread, we gave our grid an <code class="language-plaintext highlighter-rouge">NSOperationQueue</code> and created a method to kick off a <code class="language-plaintext highlighter-rouge">NSInvocationOperation</code> with our the cell we’re looking at and the address it needs to load the thumbnail.</p>
 
-<p>Now that we had a way to get an image that was safe to go on a background thread, we gave our grid an <code>NSOperationQueue</code> and created a method to kick off a <code>NSInvocationOperation</code> with our the cell we're looking at and the address it needs to load the thumbnail.</p>
+<div class="language-objc highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="nf">setImageAsyncAtPath</span><span class="p">:(</span><span class="n">NSString</span> <span class="o">*</span><span class="p">)</span><span class="nv">imageAddress</span> <span class="nf">forGridCell</span><span class="p">:(</span><span class="n">ARImageGridViewCell</span> <span class="o">*</span><span class="p">)</span><span class="nv">cell</span> <span class="p">{</span>
+    <span class="n">NSDictionary</span> <span class="o">*</span><span class="n">operationOptions</span> <span class="o">=</span> <span class="p">@{</span><span class="s">@"address"</span><span class="o">:</span> <span class="n">imageAddress</span><span class="p">,</span> <span class="s">@"cell"</span><span class="o">:</span> <span class="n">cell</span><span class="p">};</span>
+    <span class="n">NSInvocationOperation</span> <span class="o">*</span><span class="n">operation</span> <span class="o">=</span> <span class="p">[[</span><span class="n">NSInvocationOperation</span> <span class="nf">alloc</span><span class="p">]</span> <span class="nf">initWithTarget</span><span class="p">:</span><span class="n">self</span> <span class="nf">selector</span><span class="p">:</span><span class="k">@selector</span><span class="p">(</span><span class="n">asyncLoadImage</span><span class="o">:</span><span class="p">)</span> <span class="n">object</span><span class="o">:</span><span class="n">operationOptions</span><span class="p">];</span>
 
-<div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-</pre></td><td class='code'><pre><code class='objc'><span class='line'><span class="p">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="nf">setImageAsyncAtPath:</span><span class="p">(</span><span class="bp">NSString</span> <span class="o">*</span><span class="p">)</span><span class="nv">imageAddress</span> <span class="nf">forGridCell:</span><span class="p">(</span><span class="n">ARImageGridViewCell</span> <span class="o">*</span><span class="p">)</span><span class="nv">cell</span> <span class="p">{</span>
-</span><span class='line'>    <span class="bp">NSDictionary</span> <span class="o">*</span><span class="n">operationOptions</span> <span class="o">=</span> <span class="l">@{</span><span class="s">@&quot;address&quot;</span><span class="o">:</span> <span class="n">imageAddress</span><span class="p">,</span> <span class="s">@&quot;cell&quot;</span><span class="o">:</span> <span class="n">cell</span><span class="l">}</span><span class="p">;</span>
-</span><span class='line'>    <span class="bp">NSInvocationOperation</span> <span class="o">*</span><span class="n">operation</span> <span class="o">=</span> <span class="p">[[</span><span class="bp">NSInvocationOperation</span> <span class="n">alloc</span><span class="p">]</span> <span class="nl">initWithTarget</span><span class="p">:</span><span class="nb">self</span> <span class="nl">selector</span><span class="p">:</span><span class="k">@selector</span><span class="p">(</span><span class="nl">asyncLoadImage</span><span class="p">:)</span> <span class="nl">object</span><span class="p">:</span><span class="n">operationOptions</span><span class="p">];</span>
-</span><span class='line'>
-</span><span class='line'>    <span class="p">[</span><span class="n">_operationQueue</span> <span class="nl">addOperation</span><span class="p">:</span><span class="n">operation</span><span class="p">];</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure></notextile></div>
+    <span class="p">[</span><span class="n">_operationQueue</span> <span class="nf">addOperation</span><span class="p">:</span><span class="n">operation</span><span class="p">];</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
+<p>When we had the simplest implementation of <code class="language-plaintext highlighter-rouge">asyncLoadImage</code> we found that scrolling would sometimes result in grid cells displaying the wrong image. It turned out that in the time it took to decode the jpg,  the cell had already been reused for a different artwork. This one totally caught us off guard!</p>
 
-<p>When we had the simplest implementation of <code>asyncLoadImage</code> we found that scrolling would sometimes result in grid cells displaying the wrong image. It turned out that in the time it took to decode the jpg,  the cell had already been reused for a different artwork. This one totally caught us off guard!</p>
+<div class="language-objc highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="nf">asyncLoadImage</span><span class="p">:(</span><span class="n">NSDictionary</span> <span class="o">*</span><span class="p">)</span><span class="nv">options</span> <span class="p">{</span>
+    <span class="k">@autoreleasepool</span> <span class="p">{</span>
+        <span class="n">NSString</span> <span class="o">*</span><span class="n">address</span> <span class="o">=</span> <span class="n">options</span><span class="p">[</span><span class="s">@"address"</span><span class="p">];</span>
+        <span class="n">ARImageGridViewCell</span> <span class="o">*</span><span class="n">cell</span> <span class="o">=</span> <span class="n">options</span><span class="p">[</span><span class="s">@"cell"</span><span class="p">];</span>
 
-<div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-</pre></td><td class='code'><pre><code class='objc'><span class='line'><span class="p">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="nf">asyncLoadImage:</span><span class="p">(</span><span class="bp">NSDictionary</span> <span class="o">*</span><span class="p">)</span><span class="nv">options</span> <span class="p">{</span>
-</span><span class='line'>    <span class="k">@autoreleasepool</span> <span class="p">{</span>
-</span><span class='line'>        <span class="bp">NSString</span> <span class="o">*</span><span class="n">address</span> <span class="o">=</span> <span class="n">options</span><span class="p">[</span><span class="s">@&quot;address&quot;</span><span class="p">];</span>
-</span><span class='line'>        <span class="n">ARImageGridViewCell</span> <span class="o">*</span><span class="n">cell</span> <span class="o">=</span> <span class="n">options</span><span class="p">[</span><span class="s">@&quot;cell&quot;</span><span class="p">];</span>
-</span><span class='line'>
-</span><span class='line'>        <span class="c1">// don&#39;t load if it&#39;s on a different cell</span>
-</span><span class='line'>        <span class="k">if</span> <span class="p">([</span><span class="n">cell</span><span class="p">.</span><span class="n">imagePath</span> <span class="nl">isEqualToString</span><span class="p">:</span><span class="n">address</span><span class="p">])</span> <span class="p">{</span>
-</span><span class='line'>            <span class="bp">UIImage</span> <span class="o">*</span><span class="n">thumbnail</span> <span class="o">=</span> <span class="p">[[</span><span class="bp">UIImage</span> <span class="n">alloc</span><span class="p">]</span> <span class="nl">initImmediateLoadWithContentsOfFile</span><span class="p">:</span><span class="n">address</span><span class="p">];</span>
-</span><span class='line'>
-</span><span class='line'>            <span class="c1">// double check that during the decoding the cell&#39;s not been re-used</span>
-</span><span class='line'>            <span class="k">if</span> <span class="p">([</span><span class="n">cell</span><span class="p">.</span><span class="n">imagePath</span> <span class="nl">isEqualToString</span><span class="p">:</span><span class="n">address</span><span class="p">]</span> <span class="o">&amp;&amp;</span> <span class="n">thumbnail</span><span class="p">)</span> <span class="p">{</span>
-</span><span class='line'>                <span class="p">[</span><span class="n">cell</span> <span class="nl">performSelectorOnMainThread</span><span class="p">:</span><span class="k">@selector</span><span class="p">(</span><span class="nl">setImage</span><span class="p">:)</span> <span class="nl">withObject</span><span class="p">:</span><span class="n">thumbnail</span> <span class="nl">waitUntilDone</span><span class="p">:</span><span class="nb">NO</span><span class="p">];</span>
-</span><span class='line'>            <span class="p">}</span>
-</span><span class='line'>        <span class="p">}</span>
-</span><span class='line'>    <span class="p">}</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure></notextile></div>
+        <span class="c1">// don't load if it's on a different cell</span>
+        <span class="k">if</span> <span class="p">([</span><span class="n">cell</span><span class="p">.</span><span class="n">imagePath</span> <span class="nf">isEqualToString</span><span class="p">:</span><span class="n">address</span><span class="p">])</span> <span class="p">{</span>
+            <span class="n">UIImage</span> <span class="o">*</span><span class="n">thumbnail</span> <span class="o">=</span> <span class="p">[[</span><span class="n">UIImage</span> <span class="nf">alloc</span><span class="p">]</span> <span class="nf">initImmediateLoadWithContentsOfFile</span><span class="p">:</span><span class="n">address</span><span class="p">];</span>
 
+            <span class="c1">// double check that during the decoding the cell's not been re-used</span>
+            <span class="k">if</span> <span class="p">([</span><span class="n">cell</span><span class="p">.</span><span class="n">imagePath</span> <span class="nf">isEqualToString</span><span class="p">:</span><span class="n">address</span><span class="p">]</span> <span class="o">&amp;&amp;</span> <span class="n">thumbnail</span><span class="p">)</span> <span class="p">{</span>
+                <span class="p">[</span><span class="n">cell</span> <span class="nf">performSelectorOnMainThread</span><span class="p">:</span><span class="k">@selector</span><span class="p">(</span><span class="nf">setImage</span><span class="p">:)</span> <span class="n">withObject</span><span class="o">:</span><span class="n">thumbnail</span> <span class="n">waitUntilDone</span><span class="o">:</span><span class="nb">NO</span><span class="p">];</span>
+            <span class="p">}</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
-<p>This meant we could have our UI thread dealing with scrolling, whilst <a href="https://developer.apple.com/technologies/mac/core.html">Grand Central Dispatch</a> would deal with ensuring the image processing was done asynchronously and as fast as possible.However, this still wasn't enough. We were finding if you scrolled fast enough, you could still see images pop in after the grid cell was visible. For this, we actually went back to the beginning, and made our image pipeline create a <em>120x120</em> thumbnail for each artwork that we use <code>initImmediateLoadWithContentsOfFile</code> to load on the UI thread. This is fast enough to smoothly scroll, and is replaced by the higher resolution image practically instantly.</p>
+<p>This meant we could have our UI thread dealing with scrolling, whilst <a href="https://developer.apple.com/technologies/mac/core.html">Grand Central Dispatch</a> would deal with ensuring the image processing was done asynchronously and as fast as possible.However, this still wasn’t enough. We were finding if you scrolled fast enough, you could still see images pop in after the grid cell was visible. For this, we actually went back to the beginning, and made our image pipeline create a <em>120x120</em> thumbnail for each artwork that we use <code class="language-plaintext highlighter-rouge">initImmediateLoadWithContentsOfFile</code> to load on the UI thread. This is fast enough to smoothly scroll, and is replaced by the higher resolution image practically instantly.</p>
 
-<p><img src="/images/2012-09-13-on-grid-thumbnails/hover-thumbnails.jpg"></p>
+<p><img src="/images/2012-09-13-on-grid-thumbnails/hover-thumbnails.jpg" /></p>
 
 <p>The rest of the story is pretty straightforward. We wrapped all this up within a few days and got out a version of Folio for the Retina iPad, I ended up doing a talk about the issues involved in doing this in <a href="http://lsx.co/lsxcafe/">Leeds LSxCafé</a>, and you got a blog post out of it.</p>
-
-    
 
     
 
@@ -274,9 +242,7 @@
   
     
       <article>
-        
-<div class="article-container">
-
+        <div class="article-container">
 
   
     <div class="meta-container">
@@ -289,8 +255,6 @@
         
         <time datetime=""></time>
           <p class="meta-author">
-  
-
 
 
   
@@ -320,12 +284,10 @@
 
 <p>A new feature released into production is usually only turned on for a handful of users. We get feedback from our own team and a tiny group of early adopters, iterate, fix bugs, toss failed experiments and work on promoting complete, well behaved features to all users. The labs infrastructure gives us a chance to sleep on an idea and polish details. It also allows us to make progress continuously and flip a switch on the very last day.</p>
 
-<p>My favorite labs features push our collective imagination and give birth to productive brainstorms around coffee at a popular startup hangout around the corner from our Manhattan office. But the team's favorite labs are, by far, those that ship as easter eggs. These are fun and sometimes useful features that don't make much business sense. So, before I explain our rudimentary labs system, I want to invite you to our easter egg hunt. Check out <a href="https://artsy.net/humans.txt">https://artsy.net/humans.txt</a> for instructions.</p>
+<p>My favorite labs features push our collective imagination and give birth to productive brainstorms around coffee at a popular startup hangout around the corner from our Manhattan office. But the team’s favorite labs are, by far, those that ship as easter eggs. These are fun and sometimes useful features that don’t make much business sense. So, before I explain our rudimentary labs system, I want to invite you to our easter egg hunt. Check out <a href="https://artsy.net/humans.txt">https://artsy.net/humans.txt</a> for instructions.</p>
 
 
         <p><a href="/blog/2012/09/12/how-artsy-builds-experiments-labs-and-easter-eggs/">Read on →</a></p>
-    
-
     
 
     
@@ -341,9 +303,7 @@
   
     
       <article>
-        
-<div class="article-container">
-
+        <div class="article-container">
 
   
     <div class="meta-container">
@@ -356,8 +316,6 @@
         
         <time datetime=""></time>
           <p class="meta-author">
-  
-
 
 
   
@@ -383,14 +341,12 @@
   <div class="content-container">
     
     
-        <p>A mean bug made it into our production environment. It wasn't caught by our extensive test suite and caused thousands of emails to be sent to a handful of people. The root cause was an unfortunate combination of <a href="https://github.com/plataformatec/devise">Devise</a>, <a href="https://github.com/collectiveidea/delayed_job">DelayedJob</a> and, of course, our own code. It was an easy fix, but nobody ever wants this to happen again.</p>
+        <p>A mean bug made it into our production environment. It wasn’t caught by our extensive test suite and caused thousands of emails to be sent to a handful of people. The root cause was an unfortunate combination of <a href="https://github.com/plataformatec/devise">Devise</a>, <a href="https://github.com/collectiveidea/delayed_job">DelayedJob</a> and, of course, our own code. It was an easy fix, but nobody ever wants this to happen again.</p>
 
-<p>tl;dr DelayedJob says it's possible to set <code>Delayed::Worker.delay_jobs = false</code> for your tests. Don't do it.</p>
+<p>tl;dr DelayedJob says it’s possible to set <code class="language-plaintext highlighter-rouge">Delayed::Worker.delay_jobs = false</code> for your tests. Don’t do it.</p>
 
 
         <p><a href="/blog/2012/08/16/testing-with-delayed-jobs/">Read on →</a></p>
-    
-
     
 
     
@@ -406,9 +362,7 @@
   
     
       <article>
-        
-<div class="article-container">
-
+        <div class="article-container">
 
   
     <div class="meta-container">
@@ -421,8 +375,6 @@
         
         <time datetime=""></time>
           <p class="meta-author">
-  
-
 
 
   
@@ -448,59 +400,49 @@
   <div class="content-container">
     
     
-        <p>With the release of Xcode 4.4 I've taken a look back at our existing code standards and tried to come up with something that is cleaner and more elegant. Here are a few of the ideas I've been using to modernize the codebase.</p>
+        <p>With the release of Xcode 4.4 I’ve taken a look back at our existing code standards and tried to come up with something that is cleaner and more elegant. Here are a few of the ideas I’ve been using to modernize the codebase.</p>
 
-<a name="Remove.private.method.declarations.and.use.class.extensions.to.add.ivars."></a>
-<h3>Remove private method declarations and use class extensions to add ivars.</h3>
+<h3 id="remove-private-method-declarations-and-use-class-extensions-to-add-ivars">Remove private method declarations and use class extensions to add ivars.</h3>
 
-<p>First to get chopped by the deletion button are private method declarations. After Xcode 4.2 came out we took to using the class extension feature to add private method declarations at the top of implementation files. This was a nice way of keeping private methods out of the header files. Now that the compiler will check for pre-existing method signatures within the same object there's no need to define their interfaces.</p>
+<p>First to get chopped by the deletion button are private method declarations. After Xcode 4.2 came out we took to using the class extension feature to add private method declarations at the top of implementation files. This was a nice way of keeping private methods out of the header files. Now that the compiler will check for pre-existing method signatures within the same object there’s no need to define their interfaces.</p>
 
 <!--more-->
 
+<p>Occasionally it’s necessary for subclass to know about private methods defined by its superclass, so we use a shared category to let them know what they respond to. Like Apple, we also quit using <code class="language-plaintext highlighter-rouge">@private</code> in header files.</p>
 
-<p>Occasionally it's necessary for subclass to know about private methods defined by its superclass, so we use a shared category to let them know what they respond to. Like Apple, we also quit using <code>@private</code> in header files.</p>
+<p>Ivars now should go in class extensions, and be prefixed by an underscore. Apple advises that you don’t use method names with underscores but encourage underscored variable names. This also can free up method parameters from having ugly names such as anArtwork or aString.</p>
 
-<p>Ivars now should go in class extensions, and be prefixed by an underscore. Apple advises that you don't use method names with underscores but encourage underscored variable names. This also can free up method parameters from having ugly names such as anArtwork or aString.</p>
+<h3 id="use-object-literals-when-possible">Use object literals when possible.</h3>
 
-<a name="Use.object.literals.when.possible."></a>
-<h3>Use object literals when possible.</h3>
+<p>Object literals are ways of adding syntacitcal sugar to the Objective-C language, they let you access keys and values easily on <code class="language-plaintext highlighter-rouge">NSDictionary</code>s and objects in <code class="language-plaintext highlighter-rouge">NSArray</code>s. There’s no reason to not be using them if you’re supporting iOS 4 and above. It’s simple a matter of <code class="language-plaintext highlighter-rouge">_artworks[2]</code> vs <code class="language-plaintext highlighter-rouge">[_artworks objectAtIndex:2]</code>.</p>
 
-<p>Object literals are ways of adding syntacitcal sugar to the Objective-C language, they let you access keys and values easily on <code>NSDictionary</code>s and objects in <code>NSArray</code>s. There's no reason to not be using them if you're supporting iOS 4 and above. It's simple a matter of <code>_artworks[2]</code> vs <code>[_artworks objectAtIndex:2]</code>.</p>
+<h3 id="dot-syntax-is-ok-for-non-properties">Dot syntax is OK for non-properties.</h3>
 
-<a name="Dot.syntax.is.OK.for.non-properties."></a>
-<h3>Dot syntax is OK for non-properties.</h3>
+<p>OK so, I admit it. I whined when properties came out. It was back in 2007 and the Objective-C was ranked 40th in the world, it’s now ranked <a href="http://www.tiobe.com/index.php/paperinfo/tpci/Objective-C.html">3nd most popular programming language.</a> Within timeframe, my opinion on the subject of properties changed also.</p>
 
-<p>OK so, I admit it. I whined when properties came out. It was back in 2007 and the Objective-C was ranked 40th in the world, it's now ranked <a href="http://www.tiobe.com/index.php/paperinfo/tpci/Objective-C.html">3nd most popular programming language.</a> Within timeframe, my opinion on the subject of properties changed also.</p>
+<p>Originally when properties came out they exclusively were given the right to use dot notation on objects. This makes sense as they were created to provide public access to ivars which normally you can only access internally using the dot notation. With Xcode 4.3, that also changed. Now, if a method doesn’t have any arguments it can be called using dot notation. I’m in favour of using this. For me a good rule of thumb has been if a method returns something, dot notation is OK. For example, <code class="language-plaintext highlighter-rouge">_artworksArray.count</code> is fine whilst <code class="language-plaintext highlighter-rouge">_parsingOperation.stop</code> isn’t.</p>
 
-<p>Originally when properties came out they exclusively were given the right to use dot notation on objects. This makes sense as they were created to provide public access to ivars which normally you can only access internally using the dot notation. With Xcode 4.3, that also changed. Now, if a method doesn't have any arguments it can be called using dot notation. I'm in favour of using this. For me a good rule of thumb has been if a method returns something, dot notation is OK. For example, <code>_artworksArray.count</code> is fine whilst <code>_parsingOperation.stop</code> isn't.</p>
-
-<a name="Keep.external.code.out.of.your.project."></a>
-<h3>Keep external code out of your project.</h3>
+<h3 id="keep-external-code-out-of-your-project">Keep external code out of your project.</h3>
 
 <p>External, or vendored code should be kept out of the main body of your code. You can use CocoaPods to keep all that code in check and up-to-date. CocoaPods is a project that aims to be what bundler does for ruby projects, or npm for node. It will deal with your dependancies whilst you can concentrate on your own code. It will create a seperate Xcode project that handles all you dependancies leaving your project only as your own code.</p>
 
-<a name="Use.umbrella.imports."></a>
-<h3>Use umbrella imports.</h3>
+<h3 id="use-umbrella-imports">Use umbrella imports.</h3>
 
-<p>To try and keep the amount of noise we have at the top of our implementation files we have started to reduce the number of <code>#import "ARModel.h"</code> lines we use. By creating a <code>Models.h</code> file and having that include all the models it means we can still have a look through the <code>#imports</code> at the top to get an idea of the connections between the objects as that will only show the important imports. These can optionally be moved into your precompiled header files.</p>
+<p>To try and keep the amount of noise we have at the top of our implementation files we have started to reduce the number of <code class="language-plaintext highlighter-rouge">#import "ARModel.h"</code> lines we use. By creating a <code class="language-plaintext highlighter-rouge">Models.h</code> file and having that include all the models it means we can still have a look through the <code class="language-plaintext highlighter-rouge">#imports</code> at the top to get an idea of the connections between the objects as that will only show the important imports. These can optionally be moved into your precompiled header files.</p>
 
-<a name="Keep.your.code.clean."></a>
-<h3>Keep your code clean.</h3>
+<h3 id="keep-your-code-clean">Keep your code clean.</h3>
 
-<p>Whitespace can and does slowly accumulate at the line-endings of your code. You should make sure that the new preference for automatically trimming whitespace is turned on in the text editing section of Xcode's preferences.</p>
+<p>Whitespace can and does slowly accumulate at the line-endings of your code. You should make sure that the new preference for automatically trimming whitespace is turned on in the text editing section of Xcode’s preferences.</p>
 
-<a name="IBOutlets.should.probably.go.in.your.class.extensions."></a>
-<h3>IBOutlets should probably go in your class extensions.</h3>
+<h3 id="iboutlets-should-probably-go-in-your-class-extensions">IBOutlets should probably go in your class extensions.</h3>
 
-<p>With modern versions of Xcode, it doesn't matter that your IBOutlets are defined in places other than in headers. As Objective-C developers, we've come a long way from having to repeatedly drag a .h from Xcode to Interface Builder, so maybe it's time to rethink the idea that our interface outlets should be publicly accessible. My opinion is that a controller's views are for the most part a private affair and that if you want to expose their functionality you do it through custom methods in the controller. There are some downsides to this, in that  initially you have to change to the implementation file when using hybrid view when connecting them.</p>
+<p>With modern versions of Xcode, it doesn’t matter that your IBOutlets are defined in places other than in headers. As Objective-C developers, we’ve come a long way from having to repeatedly drag a .h from Xcode to Interface Builder, so maybe it’s time to rethink the idea that our interface outlets should be publicly accessible. My opinion is that a controller’s views are for the most part a private affair and that if you want to expose their functionality you do it through custom methods in the controller. There are some downsides to this, in that  initially you have to change to the implementation file when using hybrid view when connecting them.</p>
 
 <p>These decisions have come from internal discussions and from watching many WWDC sessions on the topic. We highly recommend watching the following <a href="https://developer.apple.com/wwdc/">WWDC sessions</a>.</p>
 
-<p>  <a href="https://developer.apple.com/videos/wwdc/2011/">WWDC 2011</a>: 105 Polishing Your App, 112 Writing Easy To Change Code and 322 - Objective-C Advancements in Depth.</p>
+<p><a href="https://developer.apple.com/videos/wwdc/2011/">WWDC 2011</a>: 105 Polishing Your App, 112 Writing Easy To Change Code and 322 - Objective-C Advancements in Depth.</p>
 
-<p>  <a href="https://developer.apple.com/videos/wwdc/2012/">WWDC 2012</a>: 405 Modern Objective-C and 413 Migrating to Modern Objective-C</p>
-
-    
+<p><a href="https://developer.apple.com/videos/wwdc/2012/">WWDC 2012</a>: 405 Modern Objective-C and 413 Migrating to Modern Objective-C</p>
 
     
 
@@ -517,9 +459,7 @@
   
     
       <article>
-        
-<div class="article-container">
-
+        <div class="article-container">
 
   
     <div class="meta-container">
@@ -532,8 +472,6 @@
         
         <time datetime=""></time>
           <p class="meta-author">
-  
-
 
 
   
@@ -570,24 +508,21 @@
     
     
         <p>The <a href="http://artsy.net">Artsy</a> team faithfully uses <a href="http://jenkins-ci.org">Jenkins</a> for continuous integration.
-<a href="http://artsy.github.com/blog/2012/05/27/using-jenkins-for-ruby-and-ruby-on-rails-teams/">As we've described before</a>,
+<a href="http://artsy.github.com/blog/2012/05/27/using-jenkins-for-ruby-and-ruby-on-rails-teams/">As we’ve described before</a>,
 our Jenkins controller and 8 agents run on Linode. This arrangement has at least a few drawbacks:</p>
 
 <ul>
-<li>Our Linode servers are manually configured. They require frequent maintenance, and inconsistencies lead to
+  <li>Our Linode servers are manually configured. They require frequent maintenance, and inconsistencies lead to
 surprising build failures.</li>
-<li>The fixed set of agents don't match the pattern of our build jobs: jobs get backed up during the day, but servers
+  <li>The fixed set of agents don’t match the pattern of our build jobs: jobs get backed up during the day, but servers
 are mostly unused overnight and on weekends.</li>
 </ul>
-
 
 <p>The <a href="https://wiki.jenkins-ci.org/display/JENKINS/Amazon+EC2+Plugin">Amazon EC2 Plugin</a> allowed us to replace those
 agents with a totally scripted environment. Now, agents are spun up in the cloud whenever build jobs need them.</p>
 
 
         <p><a href="/blog/2012/07/10/on-demand-jenkins-agents-with-amazon-ec2/">Read on →</a></p>
-    
-
     
 
     
@@ -603,9 +538,7 @@ agents with a totally scripted environment. Now, agents are spun up in the cloud
   
     
       <article>
-        
-<div class="article-container">
-
+        <div class="article-container">
 
   
     <div class="meta-container">
@@ -618,8 +551,6 @@ agents with a totally scripted environment. Now, agents are spun up in the cloud
         
         <time datetime=""></time>
           <p class="meta-author">
-  
-
 
 
   
@@ -647,28 +578,26 @@ agents with a totally scripted environment. Now, agents are spun up in the cloud
     
         <p>Empathy with end users is critical when developing consumer-facing software. Many go <a href="http://innonate.com/2011/03/09/hackers-the-canon-of-consumer-facing-products/">even</a> <a href="http://www.uie.com/articles/self_design/">further</a> and argue that you should <em>be</em> your own user to effectively deliver the best experience.</p>
 
-<blockquote><p><em>I'd encourage anyone starting a startup to become one of its users, however unnatural it seems.</em></p>
+<blockquote>
+  <p><em>I’d encourage anyone starting a startup to become one of its users, however unnatural it seems.</em></p>
 
-<p>&mdash; Paul Graham <a href="http://paulgraham.com/organic.html">Organic Startup Ideas</a></p></blockquote>
+  <p>— Paul Graham <a href="http://paulgraham.com/organic.html">Organic Startup Ideas</a></p>
+</blockquote>
 
 <p>In practice, though, this can be difficult:</p>
 
 <ul>
-<li>As a developer, you're just not representative of the intended audience.</li>
-<li>You're [appropriately] focused on the product's next iteration, while your audience is occupied with the current state.</li>
-<li>You spend countless hours focused on product details&mdash;of course it's a challenge to empathize with a casual visitor's first impression.</li>
+  <li>As a developer, you’re just not representative of the intended audience.</li>
+  <li>You’re [appropriately] focused on the product’s next iteration, while your audience is occupied with the current state.</li>
+  <li>You spend countless hours focused on product details—of course it’s a challenge to empathize with a casual visitor’s first impression.</li>
 </ul>
 
+<h2 id="keeping-it-real">Keeping it Real</h2>
 
-<a name="Keeping.it.Real"></a>
-<h2>Keeping it Real</h2>
-
-<p>We've tried some best practices to overcome these tendencies. User feedback is emailed to everyone in the company. Engineers share customer support responsibilities. But one simple tool has been surprisingly useful: we stole a page from the agile development handbook and built an <a href="http://alistair.cockburn.us/Information+radiator">information radiator</a>. Like a <a href="http://en.wikipedia.org/wiki/Kanban_board">kanban board</a>, news ticker, or <a href="https://demo.geckoboard.com/dashboard/B6782E562794C2F2/">analytics wall board</a>, our information radiator gives us an ambient awareness of end users' experiences. How?</p>
+<p>We’ve tried some best practices to overcome these tendencies. User feedback is emailed to everyone in the company. Engineers share customer support responsibilities. But one simple tool has been surprisingly useful: we stole a page from the agile development handbook and built an <a href="http://alistair.cockburn.us/Information+radiator">information radiator</a>. Like a <a href="http://en.wikipedia.org/wiki/Kanban_board">kanban board</a>, news ticker, or <a href="https://demo.geckoboard.com/dashboard/B6782E562794C2F2/">analytics wall board</a>, our information radiator gives us an ambient awareness of end users’ experiences. How?</p>
 
 
         <p><a href="/blog/2012/07/05/spend-time-with-your-site/">Read on →</a></p>
-    
-
     
 
     
@@ -684,9 +613,7 @@ agents with a totally scripted environment. Now, agents are spun up in the cloud
   
     
       <article>
-        
-<div class="article-container">
-
+        <div class="article-container">
 
   
     <div class="meta-container">
@@ -699,8 +626,6 @@ agents with a totally scripted environment. Now, agents are spun up in the cloud
         
         <time datetime=""></time>
           <p class="meta-author">
-  
-
 
 
   
@@ -726,36 +651,30 @@ agents with a totally scripted environment. Now, agents are spun up in the cloud
   <div class="content-container">
     
     
-        <blockquote><p>The only constant is change, continuing change, inevitable change, that is the dominant factor in society
+        <blockquote>
+  <p>The only constant is change, continuing change, inevitable change, that is the dominant factor in society
 [and web apps!] today. No sensible decision can be made any longer without taking into account not only
 the world as it is, but the world as it will be.</p>
 
-<p>&ndash; Isaac Asimov</p></blockquote>
+  <p>– Isaac Asimov</p>
+</blockquote>
 
-<a name="R.I.P..."></a>
-<h2>R.I.P #!</h2>
+<h2 id="rip-">R.I.P #!</h2>
 
-<p>It did not take us long to discover we shared the concerns of Twitter's
+<p>It did not take us long to discover we shared the concerns of Twitter’s
 <a href="http://danwebb.net/2011/5/28/it-is-about-the-hashbangs">Dan Webb on hashbang routes</a>,
-but it was almost a year before we were able to remove them from Artsy. Here's how it went down.</p>
+but it was almost a year before we were able to remove them from Artsy. Here’s how it went down.</p>
 
 <p>Artsy relies on the <a href="http://documentcloud.github.com/backbone/">Backbone.js</a> framework for our client application
 which offers a solid pushState routing scheme. This includes a seamless hashtag fallback for
-<a href="http://caniuse.com/#feat=history">browsers that don't support the HTML5 History API</a> (looking at you IE 9).</p>
+<a href="http://caniuse.com/#feat=history">browsers that don’t support the HTML5 History API</a> (looking at you IE 9).</p>
 
-<p>The pushState routing is optional, but <em>"the world as it should be"</em> suggests we say "Yes!" (or true) to pushState.</p>
-
-<div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-</pre></td><td class='code'><pre><code class='coffeescript'><span class='line'><span class="nx">Backbone</span><span class="p">.</span><span class="nx">history</span><span class="p">.</span><span class="nx">start</span><span class="p">({</span> <span class="nv">pushState: </span><span class="kc">true</span> <span class="p">})</span>
-</span></code></pre></td></tr></table></div></figure></notextile></div>
-
-
-
+<p>The pushState routing is optional, but <em>“the world as it should be”</em> suggests we say “Yes!” (or true) to pushState.</p>
+<div class="language-coffeescript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nx">Backbone</span><span class="p">.</span><span class="na">history</span><span class="p">.</span><span class="na">start</span><span class="p">({</span> <span class="na">pushState</span><span class="o">:</span> <span class="no">true</span> <span class="p">})</span>
+</code></pre></div></div>
 
 
         <p><a href="/blog/2012/06/25/replacing-hashbang-routes-with-pushstate/">Read on →</a></p>
-    
-
     
 
     
@@ -771,9 +690,7 @@ which offers a solid pushState routing scheme. This includes a seamless hashtag 
   
     
       <article>
-        
-<div class="article-container">
-
+        <div class="article-container">
 
   
     <div class="meta-container">
@@ -786,8 +703,6 @@ which offers a solid pushState routing scheme. This includes a seamless hashtag 
         
         <time datetime=""></time>
           <p class="meta-author">
-  
-
 
 
   
@@ -815,14 +730,12 @@ which offers a solid pushState routing scheme. This includes a seamless hashtag 
     
         <p>Implementing server-side RESTful API caching is hard. In a straightforward API all the expiry decisions can be made automatically based on the URL, but most real world APIs that add requirements around object relationships or user authorization make caching particularly challenging.</p>
 
-<p>At <a href="http://goruco.com/">GoRuCo</a> we open-sourced <a href="http://github.com/artsy/garner">Garner</a>, a cache implementation of the concepts described in this post. To "garner" means to gather data from various sources and to make it readily available in one place, kind-of like a cache! Garner works today with the <a href="http://github.com/intridea/grape">Grape API framework</a> and the <a href="http://github.com/mongoid/mongoid">Mongoid ODM</a>. We encourage you to fork the project, extend our library to other systems and contribute your code back, if you find it useful.</p>
+<p>At <a href="http://goruco.com/">GoRuCo</a> we open-sourced <a href="http://github.com/artsy/garner">Garner</a>, a cache implementation of the concepts described in this post. To “garner” means to gather data from various sources and to make it readily available in one place, kind-of like a cache! Garner works today with the <a href="http://github.com/intridea/grape">Grape API framework</a> and the <a href="http://github.com/mongoid/mongoid">Mongoid ODM</a>. We encourage you to fork the project, extend our library to other systems and contribute your code back, if you find it useful.</p>
 
 <p>Garner implements the Artsy API caching cookbook that has been tried by fire in production.</p>
 
 
         <p><a href="/blog/2012/05/30/restful-api-caching-with-garner/">Read on →</a></p>
-    
-
     
 
     
@@ -838,9 +751,7 @@ which offers a solid pushState routing scheme. This includes a seamless hashtag 
   
     
       <article>
-        
-<div class="article-container">
-
+        <div class="article-container">
 
   
     <div class="meta-container">
@@ -853,8 +764,6 @@ which offers a solid pushState routing scheme. This includes a seamless hashtag 
         
         <time datetime=""></time>
           <p class="meta-author">
-  
-
 
 
   
@@ -880,22 +789,20 @@ which offers a solid pushState routing scheme. This includes a seamless hashtag 
   <div class="content-container">
     
     
-        <p>The <a href="http://jenkins-ci.org">Jenkins CI</a> project has grown tremendously in the past few months. There're now
+        <p>The <a href="http://jenkins-ci.org">Jenkins CI</a> project has grown tremendously in the past few months. There’re now
 hundreds of plugins and an amazing engaged community. Artsy is a happy user and proud contributor to this effort
 with the essential <a href="https://wiki.jenkins-ci.org/display/JENKINS/AnsiColor+Plugin">jenkins-ansicolor plugin</a>,
 eliminating boring console output since 2011.</p>
 
-<p>We are a continuous integration, deployment and devops shop and have been using Jenkins for over a year now. We've
+<p>We are a continuous integration, deployment and devops shop and have been using Jenkins for over a year now. We’ve
 shared our experience at the <a href="http://www.cloudbees.com/juc2012.cb">Jenkins User Conference 2012</a> in
 <a href="http://www.slideshare.net/dblockdotorg/graduating-to-jenkins-ci-for-rubyonrails-teams">a presentation</a>. This blog
 post is an overview of how to get started with Jenkins for Ruby(-on-Rails) teams.</p>
 
-<p><img src="Artsy%20Jenkins%20CI" alt="/images/2012-05-27-using-jenkins-for-ruby-on-rails-teams/jenkins.png" /></p>
+<p><img src="Artsy Jenkins CI" alt="/images/2012-05-27-using-jenkins-for-ruby-on-rails-teams/jenkins.png" /></p>
 
 
         <p><a href="/blog/2012/05/27/using-jenkins-for-ruby-and-ruby-on-rails-teams/">Read on →</a></p>
-    
-
     
 
     
@@ -911,9 +818,7 @@ post is an overview of how to get started with Jenkins for Ruby(-on-Rails) teams
   
     
       <article>
-        
-<div class="article-container">
-
+        <div class="article-container">
 
   
     <div class="meta-container">
@@ -926,8 +831,6 @@ post is an overview of how to get started with Jenkins for Ruby(-on-Rails) teams
         
         <time datetime=""></time>
           <p class="meta-author">
-  
-
 
 
   
@@ -953,84 +856,55 @@ post is an overview of how to get started with Jenkins for Ruby(-on-Rails) teams
   <div class="content-container">
     
     
-        <p>E-mail is one of the most important ways to engage your users. And every time you touch a user's inbox, it reflects on your brand. But getting email right has become increasing difficult due to the complexities introduced by the thousands of web-based, desktop and mobile mail clients. Email formatting is like the "Hunger Games" where the major players include online services such as GMail, Yahoo, Hotmail or AOL, desktop clients such as Outlook and a myriad mobile devices ranging from iPhone and Android to Blackberry.</p>
+        <p>E-mail is one of the most important ways to engage your users. And every time you touch a user’s inbox, it reflects on your brand. But getting email right has become increasing difficult due to the complexities introduced by the thousands of web-based, desktop and mobile mail clients. Email formatting is like the “Hunger Games” where the major players include online services such as GMail, Yahoo, Hotmail or AOL, desktop clients such as Outlook and a myriad mobile devices ranging from iPhone and Android to Blackberry.</p>
 
-<p>To deal with this landscape, the MIME standard allows systems to send e-mail with multiple parts: <code>plain/text</code> for business-efficient devices such as the Blackberry, and <code>text/html</code> for web-based e-mail readers, such as GMail. Furthermore, <code>ActionMailer</code> supports multiple template formats: create an <code>.html.haml</code> template along with a <code>.txt.haml</code> template to generate both. We also know that <code>text/plain</code> email helps deliverability, but we believe a disproportionately small amount of text e-mails are actually read - the vast majority of devices are capable of parsing some HTML.</p>
+<p>To deal with this landscape, the MIME standard allows systems to send e-mail with multiple parts: <code class="language-plaintext highlighter-rouge">plain/text</code> for business-efficient devices such as the Blackberry, and <code class="language-plaintext highlighter-rouge">text/html</code> for web-based e-mail readers, such as GMail. Furthermore, <code class="language-plaintext highlighter-rouge">ActionMailer</code> supports multiple template formats: create an <code class="language-plaintext highlighter-rouge">.html.haml</code> template along with a <code class="language-plaintext highlighter-rouge">.txt.haml</code> template to generate both. We also know that <code class="language-plaintext highlighter-rouge">text/plain</code> email helps deliverability, but we believe a disproportionately small amount of text e-mails are actually read - the vast majority of devices are capable of parsing some HTML.</p>
 
-<p>Is it possible to avoid having to maintain two separate templates without sacrificing deliverability? How can we inject a <code>text/plain</code> part into HTML e-mail that is both useful and "free"?</p>
+<p>Is it possible to avoid having to maintain two separate templates without sacrificing deliverability? How can we inject a <code class="language-plaintext highlighter-rouge">text/plain</code> part into HTML e-mail that is both useful and “free”?</p>
 
 <!--more-->
 
+<p><code class="language-plaintext highlighter-rouge">ActionMailer::Base</code> defines an internal method called <code class="language-plaintext highlighter-rouge">collect_responses_and_parts_order</code> (<a href="http://apidock.com/rails/ActionMailer/Base/collect_responses_and_parts_order">#ref</a>), which iterates over templates and renders them. Let’s override that method and examine the contents of the generated parts.</p>
 
-<p><code>ActionMailer::Base</code> defines an internal method called <code>collect_responses_and_parts_order</code> (<a href="http://apidock.com/rails/ActionMailer/Base/collect_responses_and_parts_order">#ref</a>), which iterates over templates and renders them. Let's override that method and examine the contents of the generated parts.</p>
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="nf">collect_responses_and_parts_order</span><span class="p">(</span><span class="n">headers</span><span class="p">)</span>
+    <span class="n">responses</span><span class="p">,</span> <span class="n">parts_order</span> <span class="o">=</span> <span class="k">super</span><span class="p">(</span><span class="n">headers</span><span class="p">)</span>
+    <span class="p">[</span><span class="n">responses</span><span class="p">,</span> <span class="n">parts_order</span><span class="p">]</span>
+<span class="k">end</span>
+</code></pre></div></div>
 
-<div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">def</span> <span class="nf">collect_responses_and_parts_order</span><span class="p">(</span><span class="n">headers</span><span class="p">)</span>
-</span><span class='line'>    <span class="n">responses</span><span class="p">,</span> <span class="n">parts_order</span> <span class="o">=</span> <span class="k">super</span><span class="p">(</span><span class="n">headers</span><span class="p">)</span>
-</span><span class='line'>    <span class="o">[</span><span class="n">responses</span><span class="p">,</span> <span class="n">parts_order</span><span class="o">]</span>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure></notextile></div>
+<p>Each <code class="language-plaintext highlighter-rouge">response</code> is a MIME part with its boundary and the <code class="language-plaintext highlighter-rouge">parts_order</code> is the order in which the parts appear in the final e-mail. The <a href="http://www.ietf.org/rfc/rfc1341.txt">MIME RFC 1341</a> says that the parts must be generated in the increasing order of preference, ie. <code class="language-plaintext highlighter-rouge">text/html</code> content-type part last, provided you want it to be the preferred format of your email.</p>
 
+<p>We can find whether the generated e-mail contains a <code class="language-plaintext highlighter-rouge">plain/text</code> part and otherwise generate one.</p>
 
-<p>Each <code>response</code> is a MIME part with its boundary and the <code>parts_order</code> is the order in which the parts appear in the final e-mail. The <a href="http://www.ietf.org/rfc/rfc1341.txt">MIME RFC 1341</a> says that the parts must be generated in the increasing order of preference, ie. <code>text/html</code> content-type part last, provided you want it to be the preferred format of your email.</p>
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">html_part</span> <span class="o">=</span> <span class="n">responses</span><span class="p">.</span><span class="nf">detect</span> <span class="p">{</span> <span class="o">|</span><span class="n">response</span><span class="o">|</span> <span class="n">response</span><span class="p">[</span><span class="ss">:content_type</span><span class="p">]</span> <span class="o">==</span> <span class="s2">"text/html"</span> <span class="p">}</span>
+<span class="n">text_part</span> <span class="o">=</span> <span class="n">responses</span><span class="p">.</span><span class="nf">detect</span> <span class="p">{</span> <span class="o">|</span><span class="n">response</span><span class="o">|</span> <span class="n">response</span><span class="p">[</span><span class="ss">:content_type</span><span class="p">]</span> <span class="o">==</span> <span class="s2">"text/plain"</span> <span class="p">}</span>
+<span class="k">if</span> <span class="n">html_part</span> <span class="o">&amp;&amp;</span> <span class="o">!</span> <span class="n">text_part</span>
+  <span class="c1"># generate a text/plain part</span>
+<span class="k">end</span>
+</code></pre></div></div>
 
-<p>We can find whether the generated e-mail contains a <code>plain/text</code> part and otherwise generate one.</p>
+<p>Generating the text part means stripping all HTML with links preserved. <a href="http://nokogiri.org/">Nokogiri</a> has a very convenient deep <code class="language-plaintext highlighter-rouge">traverse</code> iterator.</p>
 
-<div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">html_part</span> <span class="o">=</span> <span class="n">responses</span><span class="o">.</span><span class="n">detect</span> <span class="p">{</span> <span class="o">|</span><span class="n">response</span><span class="o">|</span> <span class="n">response</span><span class="o">[</span><span class="ss">:content_type</span><span class="o">]</span> <span class="o">==</span> <span class="s2">&quot;text/html&quot;</span> <span class="p">}</span>
-</span><span class='line'><span class="n">text_part</span> <span class="o">=</span> <span class="n">responses</span><span class="o">.</span><span class="n">detect</span> <span class="p">{</span> <span class="o">|</span><span class="n">response</span><span class="o">|</span> <span class="n">response</span><span class="o">[</span><span class="ss">:content_type</span><span class="o">]</span> <span class="o">==</span> <span class="s2">&quot;text/plain&quot;</span> <span class="p">}</span>
-</span><span class='line'><span class="k">if</span> <span class="n">html_part</span> <span class="o">&amp;&amp;</span> <span class="o">!</span> <span class="n">text_part</span>
-</span><span class='line'>  <span class="c1"># generate a text/plain part</span>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure></notextile></div>
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">body_parts</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="no">Nokogiri</span><span class="o">::</span><span class="no">HTML</span><span class="p">(</span><span class="n">html_part</span><span class="p">[</span><span class="ss">:body</span><span class="p">]).</span><span class="nf">traverse</span> <span class="k">do</span> <span class="o">|</span><span class="n">node</span><span class="o">|</span>
+  <span class="k">if</span> <span class="n">node</span><span class="p">.</span><span class="nf">text?</span> <span class="n">and</span> <span class="o">!</span> <span class="p">(</span><span class="n">content</span> <span class="o">=</span> <span class="n">node</span><span class="p">.</span><span class="nf">content</span> <span class="p">?</span> <span class="n">node</span><span class="p">.</span><span class="nf">content</span><span class="p">.</span><span class="nf">strip</span> <span class="p">:</span> <span class="kp">nil</span><span class="p">).</span><span class="nf">blank?</span>
+    <span class="n">body_parts</span> <span class="o">&lt;&lt;</span> <span class="n">content</span>
+  <span class="k">elsif</span> <span class="n">node</span><span class="p">.</span><span class="nf">name</span> <span class="o">==</span> <span class="s2">"a"</span> <span class="o">&amp;&amp;</span> <span class="p">(</span><span class="n">href</span> <span class="o">=</span> <span class="n">node</span><span class="p">.</span><span class="nf">attr</span><span class="p">(</span><span class="s2">"href"</span><span class="p">))</span> <span class="o">&amp;&amp;</span> <span class="n">href</span><span class="p">.</span><span class="nf">match</span><span class="p">(</span><span class="sr">/^https?:/</span><span class="p">)</span>
+    <span class="n">body_parts</span> <span class="o">&lt;&lt;</span> <span class="n">href</span>
+  <span class="k">end</span>
+<span class="k">end</span>
+</code></pre></div></div>
 
+<p>Once we have all the parts, assemble them, get rid of duplicate text and links, and re-insert into the email as a <code class="language-plaintext highlighter-rouge">text/plain</code> multipart block.</p>
 
-<p>Generating the text part means stripping all HTML with links preserved. <a href="http://nokogiri.org/">Nokogiri</a> has a very convenient deep <code>traverse</code> iterator.</p>
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">responses</span><span class="p">.</span><span class="nf">insert</span> <span class="mi">0</span><span class="p">,</span> <span class="p">{</span>
+  <span class="ss">content_type: </span><span class="s2">"text/plain"</span><span class="p">,</span>
+  <span class="ss">body: </span><span class="n">body_parts</span><span class="p">.</span><span class="nf">uniq</span><span class="p">.</span><span class="nf">join</span><span class="p">(</span><span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="p">)</span>
+<span class="p">}</span>
+<span class="n">parts_order</span><span class="p">.</span><span class="nf">insert</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">"text/plain"</span>
+</code></pre></div></div>
 
-<div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">body_parts</span> <span class="o">=</span> <span class="o">[]</span>
-</span><span class='line'><span class="no">Nokogiri</span><span class="o">::</span><span class="no">HTML</span><span class="p">(</span><span class="n">html_part</span><span class="o">[</span><span class="ss">:body</span><span class="o">]</span><span class="p">)</span><span class="o">.</span><span class="n">traverse</span> <span class="k">do</span> <span class="o">|</span><span class="n">node</span><span class="o">|</span>
-</span><span class='line'>  <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">text?</span> <span class="ow">and</span> <span class="o">!</span> <span class="p">(</span><span class="n">content</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">content</span> <span class="p">?</span> <span class="n">node</span><span class="o">.</span><span class="n">content</span><span class="o">.</span><span class="n">strip</span> <span class="p">:</span> <span class="kp">nil</span><span class="p">)</span><span class="o">.</span><span class="n">blank?</span>
-</span><span class='line'>    <span class="n">body_parts</span> <span class="o">&lt;&lt;</span> <span class="n">content</span>
-</span><span class='line'>  <span class="k">elsif</span> <span class="n">node</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="s2">&quot;a&quot;</span> <span class="o">&amp;&amp;</span> <span class="p">(</span><span class="n">href</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">attr</span><span class="p">(</span><span class="s2">&quot;href&quot;</span><span class="p">))</span> <span class="o">&amp;&amp;</span> <span class="n">href</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="sr">/^https?:/</span><span class="p">)</span>
-</span><span class='line'>    <span class="n">body_parts</span> <span class="o">&lt;&lt;</span> <span class="n">href</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure></notextile></div>
-
-
-<p>Once we have all the parts, assemble them, get rid of duplicate text and links, and re-insert into the email as a <code>text/plain</code> multipart block.</p>
-
-<div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">responses</span><span class="o">.</span><span class="n">insert</span> <span class="mi">0</span><span class="p">,</span> <span class="p">{</span>
-</span><span class='line'>  <span class="ss">content_type</span><span class="p">:</span> <span class="s2">&quot;text/plain&quot;</span><span class="p">,</span>
-</span><span class='line'>  <span class="ss">body</span><span class="p">:</span> <span class="n">body_parts</span><span class="o">.</span><span class="n">uniq</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
-</span><span class='line'><span class="p">}</span>
-</span><span class='line'><span class="n">parts_order</span><span class="o">.</span><span class="n">insert</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;text/plain&quot;</span>
-</span></code></pre></td></tr></table></div></figure></notextile></div>
-
-
-<p>This has been extracted into the <a href="https://github.com/dblock/actionmailer-text">actionmailer-text</a> gem. Include <code>ActionMailer::Text</code> in your mailers.</p>
-
-    
+<p>This has been extracted into the <a href="https://github.com/dblock/actionmailer-text">actionmailer-text</a> gem. Include <code class="language-plaintext highlighter-rouge">ActionMailer::Text</code> in your mailers.</p>
 
     
 

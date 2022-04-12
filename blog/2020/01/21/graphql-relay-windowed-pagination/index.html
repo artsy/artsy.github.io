@@ -8,9 +8,9 @@
   <meta name="author" content="">
 
   
-  <meta name="description" content="It's the year 2020. You use a modern front-end stack of Relay,
+  <meta name="description" content="It’s the year 2020. You use a modern front-end stack of Relay,
 GraphQL, React and TypeScript.
-You can build an infinite scroll 'feed' type UI total...">
+You can build an infinite scroll ‘feed’ type UI total...">
   
 
   <!-- http://t.co/dKP3o1e -->
@@ -94,126 +94,106 @@ You can build an infinite scroll 'feed' type UI total...">
         </header>
 
         <article class='post'>
-          <p>It's the year 2020. You use a modern front-end stack of <a href="https://relay.dev/">Relay</a>,
+          <p>It’s the year 2020. You use a modern front-end stack of <a href="https://relay.dev/">Relay</a>,
 <a href="https://graphql.org/">GraphQL</a>, <a href="https://reactjs.org/">React</a> and <a href="https://www.typescriptlang.org/">TypeScript</a>.
-You can build an infinite scroll 'feed' type UI totally out of the box with these tools, by mostly putting together
+You can build an infinite scroll ‘feed’ type UI totally out of the box with these tools, by mostly putting together
 boilerplate (proper <a href="https://facebook.github.io/relay/graphql/connections.htm#sec-Connection-Types">connections</a>,
 along with a <a href="https://relay.dev/docs/en/pagination-container">pagination container</a>). You have a design system, and
 are rapidly building up a component library. Things are great!</p>
 
-<p>Then you take a look at the latest design comps for a 'browse' type page, and you see that the
+<p>Then you take a look at the latest design comps for a ‘browse’ type page, and you see that the
 <a href="https://medium.com/simple-human/7-reasons-why-infinite-scrolling-is-probably-a-bad-idea-a0139e13c96b">controversial</a>
 infinite scroll has been replaced by a more traditional pagination bar.</p>
 
 <p>You know the one. Like the following, from <a href="https://www.amazon.com">Amazon</a>:</p>
 
-<p><img src="/images/2020-01-21-graphql-relay-windowed-pagination/amazon.png"></p>
+<p><img src="/images/2020-01-21-graphql-relay-windowed-pagination/amazon.png" /></p>
 
 <p>You start to realize that the cursor-based setup of a connection, along with a Relay pagination container, does not
-lend itself to this more traditional UI. For one thing, a user can arbitrarily 'jump' to any page by including a
-<code>?page=X</code> query param (typically). For another, the user can only actually see the current page of content, versus
+lend itself to this more traditional UI. For one thing, a user can arbitrarily ‘jump’ to any page by including a
+<code class="language-plaintext highlighter-rouge">?page=X</code> query param (typically). For another, the user can only actually see the current page of content, versus
 a feed. As you go to sleep and dream of REST, Rails controllers, <a href="https://github.com/kaminari/kaminari">kaminari</a>,
-<a href="https://github.com/mislav/will_paginate">will_paginate</a>, and a simpler time, you start to have a vision...</p>
+<a href="https://github.com/mislav/will_paginate">will_paginate</a>, and a simpler time, you start to have a vision…</p>
 
 <!-- more -->
 
-
-<p>To get a good primer of what a GraphQL connection is and why they're so useful, read this
+<p>To get a good primer of what a GraphQL connection is and why they’re so useful, read this
 <a href="https://blog.apollographql.com/explaining-graphql-connections-c48b7c3d6976">excellent Apollo blogpost</a>. Seriously.
-It's one of the best writeups on this subject out there. I'll assume basic familiarity with connection types from
+It’s one of the best writeups on this subject out there. I’ll assume basic familiarity with connection types from
 this point forward.</p>
 
 <p>We prefer to use connections in place of lists almost always. Not only do they provide a preferred cursor-based
 pagination API for clients, but their type specification (a map vs a list) is naturally forward-looking. Even if
-you do no pagination, a pure list type can't accomodate returning other metadata (such as a <code>totalCount</code>) alongside
+you do no pagination, a pure list type can’t accomodate returning other metadata (such as a <code class="language-plaintext highlighter-rouge">totalCount</code>) alongside
 the list. Additionally, if your data is very relational and better represented as nodes connected by edges (which
-would contain data about the 'join' of the two nodes), the connection type gives one more flexibility than a simple
+would contain data about the ‘join’ of the two nodes), the connection type gives one more flexibility than a simple
 list. This (and more) is all covered in the aforementioned blog post.</p>
 
-<p>So, let's start by taking a look at our desired pagination UI, and think about what kind of schema/components make
+<p>So, let’s start by taking a look at our desired pagination UI, and think about what kind of schema/components make
 sense.</p>
 
-<p><img src="/images/2020-01-21-graphql-relay-windowed-pagination/pagination.png"></p>
+<p><img src="/images/2020-01-21-graphql-relay-windowed-pagination/pagination.png" /></p>
 
 <p>There looks to be several types of appearances we want to show, based on the total size of our list and fixed page
-size chosen, as well as the current page. There's also some edge cases of empty lists, or lists that are short
-enough to just display all their page numbers. Users can click on any displayed page number to jump to it. There's
+size chosen, as well as the current page. There’s also some edge cases of empty lists, or lists that are short
+enough to just display all their page numbers. Users can click on any displayed page number to jump to it. There’s
 a prev/next navigation, which brings the user forward and back one page at a time. Whenever the current page
 changes, the URL should update accordingly. For a responsive implementation, we want to hide the page numbers, and
 only show the prev/next toggles on small screens.</p>
 
-<p>Wow! Ok, we have our work cut out for us. But wait til you see how easy this is! There'll be links to our actual
+<p>Wow! Ok, we have our work cut out for us. But wait til you see how easy this is! There’ll be links to our actual
 production components involved (all open-source) at the end.</p>
 
-<a name="Pagination.Schema"></a>
-<h2>Pagination Schema</h2>
+<h2 id="pagination-schema">Pagination Schema</h2>
 
-<p>Let's tackle the first part of this, which is: how do we adapt the
+<p>Let’s tackle the first part of this, which is: how do we adapt the
 <a href="https://facebook.github.io/relay/graphql/connections.htm">GraphQL connection spec</a> in order to hold necessary
-information that a UI might need? Generally we want the UI's to be as simple as possible, and so if the server
+information that a UI might need? Generally we want the UI’s to be as simple as possible, and so if the server
 could construct a suitable pagination schema, that would be preferable. The simpler our UI, and the more business
 logic and good abstractions made in our GraphQL server, the more portable and reusable this all becomes.</p>
 
 <p>What kind of data does the UI need, in order to render a particular page of contents? Well, for a particular page
-we'd need to render the actual number it corresponds to. We'll need to know if this is the current page or not (so
-we can distinguish it in the UI from neighboring pages). And, we'll need to know the actual cursor (think:
+we’d need to render the actual number it corresponds to. We’ll need to know if this is the current page or not (so
+we can distinguish it in the UI from neighboring pages). And, we’ll need to know the actual cursor (think:
 <a href="https://relay.dev/graphql/connections.htm">opaque string</a>) that corresponds to this page number. It seems likely
-we'll need some sort of way to construct cursors from page numbers, on the server.</p>
+we’ll need some sort of way to construct cursors from page numbers, on the server.</p>
 
 <p>So, check this out:</p>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-</pre></td><td class='code'><pre><code class='js'><span class='line'><span class="c1">// SDL</span>
-</span><span class='line'><span class="nx">type</span> <span class="nx">PageCursor</span> <span class="p">{</span>
-</span><span class='line'>  <span class="nx">cursor</span><span class="o">:</span> <span class="nb">String</span><span class="o">!</span>
-</span><span class='line'>  <span class="nx">pageNumber</span><span class="o">:</span> <span class="nx">Int</span><span class="o">!</span>
-</span><span class='line'>  <span class="nx">isCurrent</span><span class="o">:</span> <span class="nb">Boolean</span><span class="o">!</span>
-</span><span class='line'><span class="p">}</span>
-</span><span class='line'>
-</span><span class='line'><span class="nx">type</span> <span class="nx">PageCursors</span> <span class="p">{</span>
-</span><span class='line'>  <span class="nx">first</span><span class="o">:</span> <span class="nx">PageCursor</span>
-</span><span class='line'>  <span class="nx">around</span><span class="o">:</span> <span class="p">[</span><span class="nx">PageCursor</span><span class="o">!</span><span class="p">]</span><span class="o">!</span>
-</span><span class='line'>  <span class="nx">last</span><span class="o">:</span> <span class="nx">PageCursor</span>
-</span><span class='line'>  <span class="nx">previous</span><span class="o">:</span> <span class="nx">PageCursor</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
+<div class="language-js highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// SDL</span>
+<span class="nx">type</span> <span class="nx">PageCursor</span> <span class="p">{</span>
+  <span class="nl">cursor</span><span class="p">:</span> <span class="nb">String</span><span class="o">!</span>
+  <span class="nx">pageNumber</span><span class="p">:</span> <span class="nx">Int</span><span class="o">!</span>
+  <span class="nx">isCurrent</span><span class="p">:</span> <span class="nb">Boolean</span><span class="o">!</span>
+<span class="p">}</span>
 
+<span class="nx">type</span> <span class="nx">PageCursors</span> <span class="p">{</span>
+  <span class="nl">first</span><span class="p">:</span> <span class="nx">PageCursor</span>
+  <span class="nx">around</span><span class="p">:</span> <span class="p">[</span><span class="nx">PageCursor</span><span class="o">!</span><span class="p">]</span><span class="o">!</span>
+  <span class="nx">last</span><span class="p">:</span> <span class="nx">PageCursor</span>
+  <span class="nx">previous</span><span class="p">:</span> <span class="nx">PageCursor</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
-<p>This is our pagination schema. Including a field of type <code>pageCursors</code> as a connection-level field, onto a
-connection, is sufficient for a UI to incredibly simply 'just render' a correct pagination bar always, and be able
+<p>This is our pagination schema. Including a field of type <code class="language-plaintext highlighter-rouge">pageCursors</code> as a connection-level field, onto a
+connection, is sufficient for a UI to incredibly simply ‘just render’ a correct pagination bar always, and be able
 to hook up proper interactions. We can fully construct a simple UI (using Relay, shown in the next section) that
 can present and allow for the interactions desired, for windowed pagination.</p>
 
-<p>But, of course we're glossing over the implementation for such a <code>pageCursors</code> type, so let's check that out before
+<p>But, of course we’re glossing over the implementation for such a <code class="language-plaintext highlighter-rouge">pageCursors</code> type, so let’s check that out before
 looking at how a client might consume this.</p>
 
-<p>Our backing API's largely still paginate via offsets, and not cursors. That is, they accept page/size or
+<p>Our backing API’s largely still paginate via offsets, and not cursors. That is, they accept page/size or
 size/offset style arguments. We use <a href="https://github.com/graphql/graphql-relay-js">graphql-relay-js</a>, which includes
 helpers to make sure types and resolvers are compatible with some Relay expectations. So, we use this library to
 generate our cursors, and can convert the cursor to an offset. A page of 4 with a size of 10, returns the elements
 numbered 30 - 39 in that list. So a page of 4 (and size of 10), is equivalent to an offset of 29 (and size of 10).
 We have:</p>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-</pre></td><td class='code'><pre><code class='js'><span class='line'><span class="kr">const</span> <span class="nx">pageToCursor</span> <span class="o">=</span> <span class="p">(</span><span class="nx">page</span><span class="p">,</span> <span class="nx">size</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span>
-</span><span class='line'>  <span class="k">return</span> <span class="nb">String</span><span class="p">((</span><span class="nx">page</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="nx">size</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
-
+<div class="language-js highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">const</span> <span class="nx">pageToCursor</span> <span class="o">=</span> <span class="p">(</span><span class="nx">page</span><span class="p">,</span> <span class="nx">size</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="nb">String</span><span class="p">((</span><span class="nx">page</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="nx">size</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>This gives us the offset of the last value of the previous page. While our upstream services are all still
 paginating using this size/offset method, the <a href="https://relay.dev/graphql/connections.htm">GraphQL cursor spec</a>
@@ -221,7 +201,7 @@ prefers opaque cursors to be used on the client. This allows the actual implemen
 upstream while clients remain unaffected. Thus if we ever update our upstream pagination arguments/logic/setup, we
 could update this schema implementation accordingly, and clients would continue to be functional.</p>
 
-<p>For inspiration in constructing our <code>first</code>, <code>last</code>, and <code>around</code> groups, we turn to
+<p>For inspiration in constructing our <code class="language-plaintext highlighter-rouge">first</code>, <code class="language-plaintext highlighter-rouge">last</code>, and <code class="language-plaintext highlighter-rouge">around</code> groups, we turn to
 <a href="https://www.fngtps.com/">Fingertips</a> and their
 <a href="https://github.com/Fingertips/peiji-san/blob/6bd1bc7c152961dcde376a8bcb2ca393b5b45829/lib/peiji_san/view_helper.rb#L87">pagination library</a>.
 That code goes through the various cases possible (a short list, a long list where the current page is near the
@@ -230,36 +210,21 @@ can handle all combinations of list sizes, and current position relative to the 
 
 <p>In pseudo-code, it looks like:</p>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-</pre></td><td class='code'><pre><code class='js'><span class='line'><span class="k">if</span> <span class="nx">emptyList</span>
-</span><span class='line'>  <span class="nx">around</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">]</span>
-</span><span class='line'><span class="k">else</span> <span class="k">if</span> <span class="nx">listIsShort</span>
-</span><span class='line'>  <span class="nx">around</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">...</span><span class="nx">totalPages</span><span class="p">]</span>
-</span><span class='line'><span class="k">else</span> <span class="k">if</span> <span class="nx">nearBeginning</span>
-</span><span class='line'>  <span class="nx">around</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">...</span><span class="mi">3</span><span class="p">]</span>
-</span><span class='line'>  <span class="nx">last</span> <span class="o">=</span> <span class="p">[</span><span class="nx">totalPages</span><span class="p">]</span>
-</span><span class='line'><span class="k">else</span> <span class="k">if</span> <span class="nx">nearMiddle</span>
-</span><span class='line'>  <span class="nx">first</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">]</span>
-</span><span class='line'>  <span class="nx">middle</span> <span class="o">=</span> <span class="p">[</span><span class="nx">currentPage</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="nx">currentPage</span><span class="p">,</span> <span class="nx">currentPage</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span>
-</span><span class='line'>  <span class="nx">last</span> <span class="o">=</span> <span class="p">[</span><span class="nx">totalPages</span><span class="p">]</span>
-</span><span class='line'><span class="k">else</span> <span class="k">if</span> <span class="nx">nearEnd</span>
-</span><span class='line'>  <span class="nx">first</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">]</span>
-</span><span class='line'>  <span class="nx">around</span> <span class="o">=</span> <span class="p">[</span><span class="nx">last</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="nx">last</span><span class="p">,</span> <span class="nx">last</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span>
-</span></code></pre></td></tr></table></div></figure>
-
+<div class="language-js highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">if</span> <span class="nx">emptyList</span>
+  <span class="nx">around</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+<span class="k">else</span> <span class="k">if</span> <span class="nx">listIsShort</span>
+  <span class="nx">around</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">...</span><span class="nx">totalPages</span><span class="p">]</span>
+<span class="k">else</span> <span class="k">if</span> <span class="nx">nearBeginning</span>
+  <span class="nx">around</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">...</span><span class="mi">3</span><span class="p">]</span>
+  <span class="nx">last</span> <span class="o">=</span> <span class="p">[</span><span class="nx">totalPages</span><span class="p">]</span>
+<span class="k">else</span> <span class="k">if</span> <span class="nx">nearMiddle</span>
+  <span class="nx">first</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+  <span class="nx">middle</span> <span class="o">=</span> <span class="p">[</span><span class="nx">currentPage</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="nx">currentPage</span><span class="p">,</span> <span class="nx">currentPage</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span>
+  <span class="nx">last</span> <span class="o">=</span> <span class="p">[</span><span class="nx">totalPages</span><span class="p">]</span>
+<span class="k">else</span> <span class="k">if</span> <span class="nx">nearEnd</span>
+  <span class="nx">first</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+  <span class="nx">around</span> <span class="o">=</span> <span class="p">[</span><span class="nx">last</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="nx">last</span><span class="p">,</span> <span class="nx">last</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span>
+</code></pre></div></div>
 
 <p>Our full implementation of that method can be found
 <a href="https://github.com/artsy/metaphysics/blob/205592be7f59970cf80313972ceb95bb1579c31f/src/schema/v2/fields/pagination.ts#L96">here</a>.</p>
@@ -269,141 +234,92 @@ can handle all combinations of list sizes, and current position relative to the 
 You can adjust the arguments to see how the output changes based on where you are in the list. Try putting
 different cursor values in! It looks like:</p>
 
-<p><img src="/images/2020-01-21-graphql-relay-windowed-pagination/graphiql.png"></p>
+<p><img src="/images/2020-01-21-graphql-relay-windowed-pagination/graphiql.png" /></p>
 
-<p>Let's look at a couple of other pieces of data requested here. One of these is a <code>previous</code> page cursor. This is to
-support that action (the prev/next toggles) in the UI. However, we don't need a custom <code>next</code> item to support that
-behavior. That's because we tend to use
+<p>Let’s look at a couple of other pieces of data requested here. One of these is a <code class="language-plaintext highlighter-rouge">previous</code> page cursor. This is to
+support that action (the prev/next toggles) in the UI. However, we don’t need a custom <code class="language-plaintext highlighter-rouge">next</code> item to support that
+behavior. That’s because we tend to use
 <a href="https://facebook.github.io/relay/graphql/connections.htm#sec-Forward-pagination-arguments">forward-style pagination arguments</a>
 with connections, which means the connection will already return the data needed for that action (remember, you can
 implement a scrolling infinite scroll feed that always takes you to the next page right out of the box).
-Specifically, the <code>hasNextPage</code> and <code>endCursor</code> are those fields from the
-<a href="https://facebook.github.io/relay/graphql/connections.htm#sec-undefined.PageInfo.Fields">GraphQL <code>pageInfo</code> object</a>
+Specifically, the <code class="language-plaintext highlighter-rouge">hasNextPage</code> and <code class="language-plaintext highlighter-rouge">endCursor</code> are those fields from the
+<a href="https://facebook.github.io/relay/graphql/connections.htm#sec-undefined.PageInfo.Fields">GraphQL <code class="language-plaintext highlighter-rouge">pageInfo</code> object</a>
 which give you that information.</p>
 
-<a name="Companion.UI.Component"></a>
-<h2>Companion UI Component</h2>
+<h2 id="companion-ui-component">Companion UI Component</h2>
 
-<p>Ok, now that we have a connection and corresponding fields that provide the needed data, let's take a look at a
+<p>Ok, now that we have a connection and corresponding fields that provide the needed data, let’s take a look at a
 simple React component that can render this:</p>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-<span class='line-number'>19</span>
-<span class='line-number'>20</span>
-<span class='line-number'>21</span>
-<span class='line-number'>22</span>
-<span class='line-number'>23</span>
-</pre></td><td class='code'><pre><code class='js'><span class='line'><span class="kr">const</span> <span class="nx">Page</span> <span class="o">=</span> <span class="p">({</span><span class="nx">pageCursor</span><span class="o">:</span> <span class="p">{</span> <span class="nx">page</span><span class="p">,</span> <span class="nx">cursor</span> <span class="p">}})</span> <span class="o">=&gt;</span> <span class="p">{</span>
-</span><span class='line'>  <span class="k">return</span> <span class="p">(</span>
-</span><span class='line'>    <span class="o">&lt;</span><span class="nx">Button</span> <span class="nx">onClick</span><span class="o">=</span><span class="p">{()</span> <span class="o">=&gt;</span> <span class="nx">onClick</span><span class="p">(</span><span class="nx">cursor</span><span class="p">)}</span><span class="o">&gt;</span>
-</span><span class='line'>      <span class="p">{</span><span class="nx">page</span><span class="p">}</span>
-</span><span class='line'>    <span class="o">&lt;</span><span class="err">/Button&gt;</span>
-</span><span class='line'>  <span class="p">)</span>
-</span><span class='line'><span class="p">}</span>
-</span><span class='line'>
-</span><span class='line'><span class="c1">// Show page 1 if `first` is present, and append with dots</span>
-</span><span class='line'><span class="c1">// Show everything in `around`</span>
-</span><span class='line'><span class="c1">// Show last page if present, and prepend with dots</span>
-</span><span class='line'><span class="c1">//</span>
-</span><span class='line'><span class="c1">// Show previous toggle, active if present</span>
-</span><span class='line'><span class="c1">// Show next toggle, active if next page exists</span>
-</span><span class='line'><span class="k">return</span> <span class="p">(</span>
-</span><span class='line'>  <span class="o">&lt;&gt;</span>
-</span><span class='line'>    <span class="p">{</span><span class="o">&lt;</span><span class="nx">Button</span> <span class="nx">disabled</span><span class="o">=</span><span class="p">{</span><span class="o">!</span><span class="nx">previous</span><span class="p">}</span> <span class="nx">onClick</span><span class="o">=</span><span class="p">{()</span> <span class="o">=&gt;</span> <span class="nx">onClick</span><span class="p">(</span><span class="nx">previous</span><span class="p">.</span><span class="nx">cursor</span><span class="p">)}</span><span class="o">&gt;</span><span class="nx">Previous</span><span class="o">&lt;</span><span class="err">/Button&gt;}</span>
-</span><span class='line'>    <span class="p">{</span><span class="nx">first</span> <span class="o">&amp;&amp;</span> <span class="p">(</span><span class="o">&lt;&gt;&lt;</span><span class="nx">Page</span> <span class="nx">pageCursor</span><span class="o">=</span><span class="p">{</span><span class="nx">first</span><span class="p">}</span> <span class="o">/&gt;</span><span class="p">...</span><span class="o">&lt;</span><span class="err">/&gt;)}</span>
-</span><span class='line'>    <span class="p">{</span><span class="nx">around</span><span class="p">.</span><span class="nx">map</span><span class="p">(</span><span class="nx">page</span> <span class="o">=&gt;</span> <span class="o">&lt;</span><span class="nx">Page</span> <span class="nx">pageCursor</span><span class="o">=</span><span class="p">{</span><span class="nx">page</span><span class="p">}</span><span class="o">&gt;</span><span class="p">)}</span>
-</span><span class='line'>    <span class="p">{</span><span class="nx">last</span> <span class="o">&amp;&amp;</span> <span class="p">(</span><span class="o">&lt;&gt;</span><span class="p">...</span><span class="o">&lt;</span><span class="nx">Page</span> <span class="nx">pageCursor</span><span class="o">=</span><span class="p">{</span><span class="nx">last</span><span class="p">}</span> <span class="o">/&gt;&lt;</span><span class="err">/&gt;)}</span>
-</span><span class='line'>    <span class="p">{</span><span class="o">&lt;</span><span class="nx">Button</span> <span class="nx">disabled</span><span class="o">=</span><span class="p">{</span><span class="o">!</span><span class="nx">hasNextPage</span><span class="p">}</span> <span class="nx">onClick</span><span class="o">=</span><span class="p">{()</span> <span class="o">=&gt;</span> <span class="nx">onNext</span><span class="p">()}</span><span class="o">&gt;</span><span class="nx">Next</span><span class="o">&lt;</span><span class="err">/Button&gt;}</span>
-</span><span class='line'>  <span class="o">&lt;</span><span class="err">/&gt;</span>
-</span><span class='line'><span class="p">)</span>
-</span></code></pre></td></tr></table></div></figure>
+<div class="language-js highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">const</span> <span class="nx">Page</span> <span class="o">=</span> <span class="p">({</span><span class="na">pageCursor</span><span class="p">:</span> <span class="p">{</span> <span class="nx">page</span><span class="p">,</span> <span class="nx">cursor</span> <span class="p">}})</span> <span class="o">=&gt;</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="p">(</span>
+    <span class="o">&lt;</span><span class="nx">Button</span> <span class="nx">onClick</span><span class="o">=</span><span class="p">{()</span> <span class="o">=&gt;</span> <span class="nx">onClick</span><span class="p">(</span><span class="nx">cursor</span><span class="p">)}</span><span class="o">&gt;</span>
+      <span class="p">{</span><span class="nx">page</span><span class="p">}</span>
+    <span class="o">&lt;</span><span class="sr">/Button</span><span class="err">&gt;
+</span>  <span class="p">)</span>
+<span class="p">}</span>
 
+<span class="c1">// Show page 1 if `first` is present, and append with dots</span>
+<span class="c1">// Show everything in `around`</span>
+<span class="c1">// Show last page if present, and prepend with dots</span>
+<span class="c1">//</span>
+<span class="c1">// Show previous toggle, active if present</span>
+<span class="c1">// Show next toggle, active if next page exists</span>
+<span class="k">return</span> <span class="p">(</span>
+  <span class="o">&lt;&gt;</span>
+    <span class="p">{</span><span class="o">&lt;</span><span class="nx">Button</span> <span class="nx">disabled</span><span class="o">=</span><span class="p">{</span><span class="o">!</span><span class="nx">previous</span><span class="p">}</span> <span class="nx">onClick</span><span class="o">=</span><span class="p">{()</span> <span class="o">=&gt;</span> <span class="nx">onClick</span><span class="p">(</span><span class="nx">previous</span><span class="p">.</span><span class="nx">cursor</span><span class="p">)}</span><span class="o">&gt;</span><span class="nx">Previous</span><span class="o">&lt;</span><span class="sr">/Button&gt;</span><span class="err">}
+</span>    <span class="p">{</span><span class="nx">first</span> <span class="o">&amp;&amp;</span> <span class="p">(</span><span class="o">&lt;&gt;&lt;</span><span class="nx">Page</span> <span class="nx">pageCursor</span><span class="o">=</span><span class="p">{</span><span class="nx">first</span><span class="p">}</span> <span class="sr">/&gt;...&lt;/</span><span class="o">&gt;</span><span class="p">)}</span>
+    <span class="p">{</span><span class="nx">around</span><span class="p">.</span><span class="nx">map</span><span class="p">(</span><span class="nx">page</span> <span class="o">=&gt;</span> <span class="o">&lt;</span><span class="nx">Page</span> <span class="nx">pageCursor</span><span class="o">=</span><span class="p">{</span><span class="nx">page</span><span class="p">}</span><span class="o">&gt;</span><span class="p">)}</span>
+    <span class="p">{</span><span class="nx">last</span> <span class="o">&amp;&amp;</span> <span class="p">(</span><span class="o">&lt;&gt;</span><span class="p">...</span><span class="o">&lt;</span><span class="nx">Page</span> <span class="nx">pageCursor</span><span class="o">=</span><span class="p">{</span><span class="nx">last</span><span class="p">}</span> <span class="sr">/&gt;&lt;/</span><span class="o">&gt;</span><span class="p">)}</span>
+    <span class="p">{</span><span class="o">&lt;</span><span class="nx">Button</span> <span class="nx">disabled</span><span class="o">=</span><span class="p">{</span><span class="o">!</span><span class="nx">hasNextPage</span><span class="p">}</span> <span class="nx">onClick</span><span class="o">=</span><span class="p">{()</span> <span class="o">=&gt;</span> <span class="nx">onNext</span><span class="p">()}</span><span class="o">&gt;</span><span class="nx">Next</span><span class="o">&lt;</span><span class="sr">/Button&gt;</span><span class="err">}
+</span>  <span class="o">&lt;</span><span class="sr">/</span><span class="err">&gt;
+</span><span class="p">)</span>
+</code></pre></div></div>
 
-<p>That's basically it, visually speaking! The data provided by our GraphQL server is sufficient to render what's
+<p>That’s basically it, visually speaking! The data provided by our GraphQL server is sufficient to render what’s
 needed. You can see such a UI component in our design system
 <a href="https://github.com/artsy/palette/blob/f882d32c3fdc6e7f81915c2922e3824bd26791e7/packages/palette/src/elements/Pagination/Pagination.tsx">here</a>.
 It looks very similar to the above code. Of note, is since this is a simple UI component, it is vanilla React. It
-is not a Relay component. It requires an <code>onClick</code> and <code>onNext</code> to be passed as props.</p>
+is not a Relay component. It requires an <code class="language-plaintext highlighter-rouge">onClick</code> and <code class="language-plaintext highlighter-rouge">onNext</code> to be passed as props.</p>
 
-<a name="Relay.Integration.Step.I"></a>
-<h2>Relay Integration Step I</h2>
+<h2 id="relay-integration-step-i">Relay Integration Step I</h2>
 
-<p>Now, let's take a look at how we can build a Relay container that will use the above UI component. First, let's
+<p>Now, let’s take a look at how we can build a Relay container that will use the above UI component. First, let’s
 build a Relay-wrapped component of the above UI component. This is a fragment container, and lists all the fields
 needed:</p>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-<span class='line-number'>19</span>
-<span class='line-number'>20</span>
-<span class='line-number'>21</span>
-</pre></td><td class='code'><pre><code class='js'><span class='line'><span class="nx">fragment</span> <span class="nx">Pagination_pageCursors</span> <span class="nx">on</span> <span class="nx">PageCursors</span> <span class="p">{</span>
-</span><span class='line'>  <span class="nx">around</span> <span class="p">{</span>
-</span><span class='line'>    <span class="nx">cursor</span>
-</span><span class='line'>    <span class="nx">page</span>
-</span><span class='line'>    <span class="nx">isCurrent</span>
-</span><span class='line'>  <span class="p">}</span>
-</span><span class='line'>  <span class="nx">first</span> <span class="p">{</span>
-</span><span class='line'>    <span class="nx">cursor</span>
-</span><span class='line'>    <span class="nx">page</span>
-</span><span class='line'>    <span class="nx">isCurrent</span>
-</span><span class='line'>  <span class="p">}</span>
-</span><span class='line'>  <span class="nx">last</span> <span class="p">{</span>
-</span><span class='line'>    <span class="nx">cursor</span>
-</span><span class='line'>    <span class="nx">page</span>
-</span><span class='line'>    <span class="nx">isCurrent</span>
-</span><span class='line'>  <span class="p">}</span>
-</span><span class='line'>  <span class="nx">previous</span> <span class="p">{</span>
-</span><span class='line'>    <span class="nx">cursor</span>
-</span><span class='line'>    <span class="nx">page</span>
-</span><span class='line'>  <span class="p">}</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
+<div class="language-js highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nx">fragment</span> <span class="nx">Pagination_pageCursors</span> <span class="nx">on</span> <span class="nx">PageCursors</span> <span class="p">{</span>
+  <span class="nx">around</span> <span class="p">{</span>
+    <span class="nx">cursor</span>
+    <span class="nx">page</span>
+    <span class="nx">isCurrent</span>
+  <span class="p">}</span>
+  <span class="nx">first</span> <span class="p">{</span>
+    <span class="nx">cursor</span>
+    <span class="nx">page</span>
+    <span class="nx">isCurrent</span>
+  <span class="p">}</span>
+  <span class="nx">last</span> <span class="p">{</span>
+    <span class="nx">cursor</span>
+    <span class="nx">page</span>
+    <span class="nx">isCurrent</span>
+  <span class="p">}</span>
+  <span class="nx">previous</span> <span class="p">{</span>
+    <span class="nx">cursor</span>
+    <span class="nx">page</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
-
-<p>As a fragment container, this doesn't have the ability to fetch anything by itself. We want to pass in an <code>onClick</code>
-and <code>onNext</code> prop from a parent, as well as the <code>hasNextPage</code> and <code>endCursor</code> data. Check out
+<p>As a fragment container, this doesn’t have the ability to fetch anything by itself. We want to pass in an <code class="language-plaintext highlighter-rouge">onClick</code>
+and <code class="language-plaintext highlighter-rouge">onNext</code> prop from a parent, as well as the <code class="language-plaintext highlighter-rouge">hasNextPage</code> and <code class="language-plaintext highlighter-rouge">endCursor</code> data. Check out
 <a href="https://github.com/artsy/reaction/blob/c6d630f8c3213f47c5124f63eda13fbb9d8f497b/src/Components/v2/Pagination.tsx">this component</a>
 in our library to see how we take that vanilla React component mentioned above, and use the above fragment to make
 a Relay fragment container out of it.</p>
 
 <p>Now, we need to decide what kind of parent container is appropriate, and how this fragment container will be used.</p>
 
-<a name="Relay.Integration.Step.II"></a>
-<h2>Relay Integration Step II</h2>
+<h2 id="relay-integration-step-ii">Relay Integration Step II</h2>
 
 <p>This is going to be confusing, but for this step, we use a
 <a href="https://relay.dev/docs/en/refetch-container">refetch container</a> in order to present our paginated collection view,
@@ -414,95 +330,59 @@ accomplish. The refetch container is a much more natural fit for our use case, d
 
 <p>That fragment looks like:</p>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-</pre></td><td class='code'><pre><code class='js'><span class='line'><span class="nx">fragment</span> <span class="nx">ConnectionResults_query</span> <span class="nx">on</span> <span class="nx">Query</span> <span class="p">{</span>
-</span><span class='line'>  <span class="nx">someConnection</span><span class="p">(</span><span class="nx">first</span><span class="o">:</span> <span class="nx">$first</span><span class="p">,</span> <span class="nx">after</span><span class="o">:</span> <span class="nx">$after</span><span class="p">)</span> <span class="p">{</span>
-</span><span class='line'>    <span class="nx">pageInfo</span> <span class="p">{</span>
-</span><span class='line'>      <span class="nx">hasNextPage</span>
-</span><span class='line'>      <span class="nx">endCursor</span>
-</span><span class='line'>    <span class="p">}</span>
-</span><span class='line'>    <span class="nx">pageCursors</span> <span class="p">{</span>
-</span><span class='line'>      <span class="p">...</span><span class="nx">Pagination_pageCursors</span>
-</span><span class='line'>    <span class="p">}</span>
-</span><span class='line'>    <span class="p">...</span><span class="nx">OtherStuffForYourView</span>
-</span><span class='line'>  <span class="p">}</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
+<div class="language-js highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nx">fragment</span> <span class="nx">ConnectionResults_query</span> <span class="nx">on</span> <span class="nx">Query</span> <span class="p">{</span>
+  <span class="nx">someConnection</span><span class="p">(</span><span class="nx">first</span><span class="p">:</span> <span class="nx">$first</span><span class="p">,</span> <span class="nx">after</span><span class="p">:</span> <span class="nx">$after</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nx">pageInfo</span> <span class="p">{</span>
+      <span class="nx">hasNextPage</span>
+      <span class="nx">endCursor</span>
+    <span class="p">}</span>
+    <span class="nx">pageCursors</span> <span class="p">{</span>
+      <span class="p">...</span><span class="nx">Pagination_pageCursors</span>
+    <span class="p">}</span>
+    <span class="p">...</span><span class="nx">OtherStuffForYourView</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
-
-<p>We include our <code>pageCursors</code> fragment, as well as the <code>hasNextPage</code> and <code>endCursor</code> from the <code>pageInfo</code> object. We
-need to provide the <code>onClick</code> and <code>onNext</code> callbacks as well. Since this component will have access to a
-<a href="https://relay.dev/docs/en/refetch-container#refetch"><code>relay</code> prop</a> since it is a refetch container, those look
+<p>We include our <code class="language-plaintext highlighter-rouge">pageCursors</code> fragment, as well as the <code class="language-plaintext highlighter-rouge">hasNextPage</code> and <code class="language-plaintext highlighter-rouge">endCursor</code> from the <code class="language-plaintext highlighter-rouge">pageInfo</code> object. We
+need to provide the <code class="language-plaintext highlighter-rouge">onClick</code> and <code class="language-plaintext highlighter-rouge">onNext</code> callbacks as well. Since this component will have access to a
+<a href="https://relay.dev/docs/en/refetch-container#refetch"><code class="language-plaintext highlighter-rouge">relay</code> prop</a> since it is a refetch container, those look
 like:</p>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-</pre></td><td class='code'><pre><code class='js'><span class='line'><span class="nx">handleNext</span> <span class="o">=</span> <span class="p">()</span> <span class="o">=&gt;</span> <span class="p">{</span>
-</span><span class='line'>  <span class="k">if</span> <span class="p">(</span><span class="nx">hasNextPage</span><span class="p">)</span> <span class="k">this</span><span class="p">.</span><span class="nx">handleClick</span><span class="p">(</span><span class="nx">endCursor</span><span class="p">)</span>
-</span><span class='line'><span class="p">}</span>
-</span><span class='line'>
-</span><span class='line'><span class="nx">handleClick</span> <span class="o">=</span> <span class="p">(</span><span class="nx">cursor</span><span class="o">:</span> <span class="nx">string</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span>
-</span><span class='line'>  <span class="k">this</span><span class="p">.</span><span class="nx">props</span><span class="p">.</span><span class="nx">relay</span><span class="p">.</span><span class="nx">refetch</span><span class="p">(</span>
-</span><span class='line'>    <span class="p">{</span>
-</span><span class='line'>      <span class="nx">first</span><span class="o">:</span> <span class="nx">PAGE_SIZE</span><span class="p">,</span>
-</span><span class='line'>      <span class="nx">after</span><span class="o">:</span> <span class="nx">cursor</span>
-</span><span class='line'>    <span class="p">},</span>
-</span><span class='line'>    <span class="kc">null</span><span class="p">,</span>
-</span><span class='line'>    <span class="nx">error</span> <span class="o">=&gt;</span> <span class="p">{</span>
-</span><span class='line'>      <span class="cm">/* Update URL, set state, etc. */</span>
-</span><span class='line'>    <span class="p">}</span>
-</span><span class='line'>  <span class="p">)</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
+<div class="language-js highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nx">handleNext</span> <span class="o">=</span> <span class="p">()</span> <span class="o">=&gt;</span> <span class="p">{</span>
+  <span class="k">if</span> <span class="p">(</span><span class="nx">hasNextPage</span><span class="p">)</span> <span class="k">this</span><span class="p">.</span><span class="nx">handleClick</span><span class="p">(</span><span class="nx">endCursor</span><span class="p">)</span>
+<span class="p">}</span>
 
+<span class="nx">handleClick</span> <span class="o">=</span> <span class="p">(</span><span class="nx">cursor</span><span class="p">:</span> <span class="nx">string</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">props</span><span class="p">.</span><span class="nx">relay</span><span class="p">.</span><span class="nx">refetch</span><span class="p">(</span>
+    <span class="p">{</span>
+      <span class="na">first</span><span class="p">:</span> <span class="nx">PAGE_SIZE</span><span class="p">,</span>
+      <span class="na">after</span><span class="p">:</span> <span class="nx">cursor</span>
+    <span class="p">},</span>
+    <span class="kc">null</span><span class="p">,</span>
+    <span class="nx">error</span> <span class="o">=&gt;</span> <span class="p">{</span>
+      <span class="cm">/* Update URL, set state, etc. */</span>
+    <span class="p">}</span>
+  <span class="p">)</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>The refetch query defined for the container will look like:</p>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-</pre></td><td class='code'><pre><code class='js'><span class='line'><span class="nx">query</span> <span class="nx">SomeConnectionQuery</span><span class="p">(</span><span class="nx">$first</span><span class="o">:</span> <span class="nx">Int</span><span class="p">,</span> <span class="nx">$after</span><span class="o">:</span> <span class="nb">String</span><span class="p">)</span> <span class="p">{</span>
-</span><span class='line'>  <span class="p">...</span><span class="nx">ConnectionResults_query</span> <span class="err">@</span><span class="nx">arguments</span><span class="p">(</span><span class="nx">first</span><span class="o">:</span> <span class="nx">$first</span><span class="p">,</span> <span class="nx">after</span><span class="o">:</span> <span class="nx">$after</span><span class="p">)</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure>
+<div class="language-js highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nx">query</span> <span class="nx">SomeConnectionQuery</span><span class="p">(</span><span class="nx">$first</span><span class="p">:</span> <span class="nx">Int</span><span class="p">,</span> <span class="nx">$after</span><span class="p">:</span> <span class="nb">String</span><span class="p">)</span> <span class="p">{</span>
+  <span class="p">...</span><span class="nx">ConnectionResults_query</span> <span class="p">@</span><span class="nd">arguments</span><span class="p">(</span><span class="nx">first</span><span class="p">:</span> <span class="nx">$first</span><span class="p">,</span> <span class="nx">after</span><span class="p">:</span> <span class="nx">$after</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
-
-<p>We're pretty much done, this is all just Relay boilerplate at this point.</p>
+<p>We’re pretty much done, this is all just Relay boilerplate at this point.</p>
 
 <p>Putting it all together, our refetch container winds up rendering a fully functional pagination component in one
 line:</p>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-</pre></td><td class='code'><pre><code class='js'><span class='line'><span class="o">&lt;</span><span class="nx">Pagination</span> <span class="nx">onClick</span><span class="o">=</span><span class="p">{</span><span class="nx">handleClick</span><span class="p">}</span> <span class="nx">onNext</span><span class="o">=</span><span class="p">{</span><span class="nx">handleNext</span><span class="p">}</span> <span class="nx">pageCursors</span><span class="o">=</span><span class="p">{</span><span class="nx">props</span><span class="p">.</span><span class="nx">pageCursors</span><span class="p">}</span> <span class="o">/&gt;</span>
-</span></code></pre></td></tr></table></div></figure>
+<div class="language-js highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="o">&lt;</span><span class="nx">Pagination</span> <span class="nx">onClick</span><span class="o">=</span><span class="p">{</span><span class="nx">handleClick</span><span class="p">}</span> <span class="nx">onNext</span><span class="o">=</span><span class="p">{</span><span class="nx">handleNext</span><span class="p">}</span> <span class="nx">pageCursors</span><span class="o">=</span><span class="p">{</span><span class="nx">props</span><span class="p">.</span><span class="nx">pageCursors</span><span class="p">}</span> <span class="sr">/</span><span class="err">&gt;
+</span></code></pre></div></div>
 
-
-<p>That's it! Any connection can have this pagination functionality added to it very simply. You include the page
+<p>That’s it! Any connection can have this pagination functionality added to it very simply. You include the page
 cursor schema on the server for that type (we have a
 <a href="https://github.com/artsy/metaphysics/blob/205592be7f59970cf80313972ceb95bb1579c31f/src/schema/v2/fields/pagination.ts#L160">factory method</a>
 to help us do that automatically for any connection type). Then, following the above steps, you can quickly build a
@@ -513,21 +393,19 @@ our <a href="https://www.artsy.net/collect">Artworks browse experience</a> and h
 through all accessible works! The pagination controls and functionality on this page, and others, are built using
 the technique described in this post.</p>
 
-<a name="Examples"></a>
-<h2>Examples</h2>
+<h2 id="examples">Examples</h2>
 
 <p>Since our <a href="https://github.com/artsy/metaphysics">GraphQL orchestration layer</a>, our
 <a href="https://github.com/artsy/palette">design system</a> and
-<a href="https://github.com/artsy/reaction">UI component and app library</a> are all open source, here's links to our actual
+<a href="https://github.com/artsy/reaction">UI component and app library</a> are all open source, here’s links to our actual
 production implementation of the above:</p>
 
 <ul>
-<li><a href="https://github.com/artsy/metaphysics/blob/205592be7f59970cf80313972ceb95bb1579c31f/src/schema/v2/fields/pagination.ts">Pagination schema in GraphQL</a></li>
-<li><a href="https://github.com/artsy/palette/blob/f882d32c3fdc6e7f81915c2922e3824bd26791e7/packages/palette/src/elements/Pagination/Pagination.tsx">React UI component</a></li>
-<li><a href="https://github.com/artsy/reaction/blob/c6d630f8c3213f47c5124f63eda13fbb9d8f497b/src/Components/v2/Pagination.tsx">Relay FragmentContainer wrapping of the above</a></li>
-<li><a href="https://github.com/artsy/reaction/blob/c6d630f8c3213f47c5124f63eda13fbb9d8f497b/src/Apps/Search/Routes/Artists/SearchResultsArtists.tsx">Relay RefetchContainer full example</a></li>
+  <li><a href="https://github.com/artsy/metaphysics/blob/205592be7f59970cf80313972ceb95bb1579c31f/src/schema/v2/fields/pagination.ts">Pagination schema in GraphQL</a></li>
+  <li><a href="https://github.com/artsy/palette/blob/f882d32c3fdc6e7f81915c2922e3824bd26791e7/packages/palette/src/elements/Pagination/Pagination.tsx">React UI component</a></li>
+  <li><a href="https://github.com/artsy/reaction/blob/c6d630f8c3213f47c5124f63eda13fbb9d8f497b/src/Components/v2/Pagination.tsx">Relay FragmentContainer wrapping of the above</a></li>
+  <li><a href="https://github.com/artsy/reaction/blob/c6d630f8c3213f47c5124f63eda13fbb9d8f497b/src/Apps/Search/Routes/Artists/SearchResultsArtists.tsx">Relay RefetchContainer full example</a></li>
 </ul>
-
 
         </article>
 
@@ -684,14 +562,14 @@ production implementation of the above:</p>
 
           <section>
             <h4>Author</h4>
-            <p> <a href="/author/matt"/>Matt Zikherman</a></p>
+            <p> <a href="/author/matt">Matt Zikherman</a></p>
             <p></a></p>
           </section>
 
           <section>
             <h4>Post Meta</h4>
             <p>Jan 21, 2020</p>
-            <p>Tagged: <a class='category' href='/blog/categories/graphql/'>graphql</a>, <a class='category' href='/blog/categories/pagination/'>pagination</a>, <a class='category' href='/blog/categories/relay/'>relay</a></p>
+            <p>Tagged: <a class='category' href='/blog/categories/graphql/'>GraphQL</a>, <a class='category' href='/blog/categories/pagination/'>Pagination</a>, <a class='category' href='/blog/categories/relay/'>Relay</a></p>
           </section>
           <br/>
           <section>
@@ -710,7 +588,7 @@ production implementation of the above:</p>
               <li><a href='http://artsy.github.io/blog/archives/'>Archives</a></li>
               <li><a href='http://artsy.github.io/search/'>Search</a></li>
               <li><a href='https://github.com/artsy/artsy.github.io'>Code on GitHub</a></li>
-              <li><a href='https://github.com/artsy/artsy.github.io/edit/source/_posts/2020-01-21-graphql-relay-windowed-pagination.markdown'>Fix typoes in this post</a></li>
+              <li><a href='https://github.com/artsy/artsy.github.io/edit/source/_posts/2020-01-21-graphql-relay-windowed-pagination.markdown'>Fix typos in this post</a></li>
             </ul>
           </section>
 

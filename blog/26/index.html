@@ -16,8 +16,6 @@
       
         
 
-
-
   
     
       
@@ -25,7 +23,7 @@
           
         
         
-          How to Organize Over 3000 RSpec Specs and Retry Test ...">
+          How to Organize Over 3000 RSpec Specs and Retry Test Fa...">
   
 
   <!-- http://t.co/dKP3o1e -->
@@ -131,9 +129,7 @@
   
     
       <article>
-        
-<div class="article-container">
-
+        <div class="article-container">
 
   
     <div class="meta-container">
@@ -146,8 +142,6 @@
         
         <time datetime=""></time>
           <p class="meta-author">
-  
-
 
 
   
@@ -173,26 +167,130 @@
   <div class="content-container">
     
     
-        <p>Having over three thousand RSpec tests in a single project has become difficult to manage. We chose to organize these into suites, somewhat mimicking our directory structure. And while we succeeded at making our Capybara integration tests more reliable (see <a href="/blog/2012/02/03/reliably-testing-asynchronous-ui-w-slash-rspec-and-capybara/">Reliably Testing Asynchronous UI with RSpec and Capybara</a>), they continue relying on finicky timeouts. To avoid too many false positives we've put together a system to retry failed tests. We know that a spec that fails twice in a row is definitely not a fluke!</p>
+        <p>Having over three thousand RSpec tests in a single project has become difficult to manage. We chose to organize these into suites, somewhat mimicking our directory structure. And while we succeeded at making our Capybara integration tests more reliable (see <a href="/blog/2012/02/03/reliably-testing-asynchronous-ui-w-slash-rspec-and-capybara/">Reliably Testing Asynchronous UI with RSpec and Capybara</a>), they continue relying on finicky timeouts. To avoid too many false positives we’ve put together a system to retry failed tests. We know that a spec that fails twice in a row is definitely not a fluke!</p>
 
-<p>Create a new Rake file in <code>lib/tasks/test_suites.rake</code> and declare an array of test suites.</p>
+<p>Create a new Rake file in <code class="language-plaintext highlighter-rouge">lib/tasks/test_suites.rake</code> and declare an array of test suites.</p>
 
-<div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span>lib/tasks/test_suites.rake</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'>  <span class="no">SPEC_SUITES</span> <span class="o">=</span> <span class="o">[</span>
-</span><span class='line'>    <span class="p">{</span> <span class="ss">:id</span> <span class="o">=&gt;</span> <span class="ss">:models</span><span class="p">,</span> <span class="ss">:pattern</span> <span class="o">=&gt;</span> <span class="s2">&quot;spec/models/**/*_spec.rb&quot;</span> <span class="p">},</span>
-</span><span class='line'>    <span class="p">{</span> <span class="ss">:id</span> <span class="o">=&gt;</span> <span class="ss">:controllers</span><span class="p">,</span> <span class="ss">:pattern</span> <span class="o">=&gt;</span> <span class="s2">&quot;spec/controllers/**/*_spec.rb&quot;</span> <span class="p">},</span>
-</span><span class='line'>    <span class="p">{</span> <span class="ss">:id</span> <span class="o">=&gt;</span> <span class="ss">:views</span><span class="p">,</span> <span class="ss">:pattern</span> <span class="o">=&gt;</span> <span class="s2">&quot;spec/views/**/*_spec.rb&quot;</span> <span class="p">}</span>
-</span><span class='line'>  <span class="o">]</span>
-</span></code></pre></td></tr></table></div></figure></notextile></div>
+<p>``` ruby lib/tasks/test_suites.rake
+  SPEC_SUITES = [
+    { :id =&gt; :models, :pattern =&gt; “spec/models/<strong>/<em>_spec.rb” },
+    { :id =&gt; :controllers, :pattern =&gt; “spec/controllers/**/</em>_spec.rb” },
+    { :id =&gt; :views, :pattern =&gt; “spec/views/</strong>/*_spec.rb” }
+  ]</p>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>&lt;!-- more --&gt;
+`RSpec::Core` contains a module called `RakeTask` that will programmatically create Rake tasks for you.
 
+``` ruby lib/tasks/test_suites.rake
+require 'rspec/core/rake_task'
 
+namespace :test
+  namespace :suite
+    RSpec::Core::RakeTask.new("#{suite[:id]}:run") do |t|
+      t.pattern = suite[:pattern]
+      t.verbose = false
+      t.fail_on_error = false
+    end
+  end
+end
+</code></pre></div></div>
 
-        <p><a href="/blog/2012/05/15/how-to-organize-over-3000-rspec-specs-and-retry-test-failures/">Read on →</a></p>
-    
+<p>Run <code class="language-plaintext highlighter-rouge">rake -T</code> to ensure that the suites have been generated. To execute a suite, run <code class="language-plaintext highlighter-rouge">rake test:suite:models:run</code>. Having a test suite will help you separate spec failures and enables other organizations than by directory, potentially allowing you to tag tests across multiple suites.</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>rake spec:suite:models:run
+rake spec:suite:controllers:run
+rake spec:suite:views:run
+</code></pre></div></div>
+
+<p>Retrying failed specs has been a long requested feature in RSpec (see <a href="https://github.com/rspec/rspec-core/issues/456">#456</a>). A viable approach has been finally implemented by <a href="https://github.com/antifun">Matt Mitchell</a> in <a href="https://github.com/rspec/rspec-core/pull/596">#596</a>. There’re a few issues with that pull request, but two pieces have already been merged that make retrying specs feasible outside of RSpec.</p>
+
+<ul>
+  <li><a href="https://github.com/rspec/rspec-core/pull/610">#610</a>:
+A fix for incorrect parsing input files specified via <code class="language-plaintext highlighter-rouge">-O</code>.</li>
+  <li><a href="https://github.com/rspec/rspec-core/pull/614">#614</a>:
+A fix for making the <code class="language-plaintext highlighter-rouge">-e</code> option cumulative, so that one can pass multiple example names to run.</li>
+</ul>
+
+<p>Both will appear in the 2.11.0 version of RSpec, in the meantime you have to point your <code class="language-plaintext highlighter-rouge">rspec-core</code> dependency to the latest version on Github.</p>
+
+<p>``` ruby Gemfile
+“rspec-core”, :git =&gt; “https://github.com/rspec/rspec-core.git”</p>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+Don't forget to run `bundle update rspec-core`.
+
+The strategy to retry failed specs is to output a file that contains a list of failed ones and to feed that file back to RSpec. The former can be accomplished with a custom logger. Create `spec/support/formatters/failures_formatter.rb`.
+
+``` ruby spec/support/formatters/failures_formatter.rb
+require 'rspec/core/formatters/base_formatter'
+
+module RSpec
+  module Core
+    module Formatters
+      class FailuresFormatter &lt; BaseFormatter
+
+        # create a file called rspec.failures with a list of failed examples
+        def dump_failures
+          return if failed_examples.empty?
+          f = File.new("rspec.failures", "w+")
+          failed_examples.each do |example|
+            f.puts retry_command(example)
+          end
+          f.close
+        end
+
+        def retry_command(example)
+          example_name = example.full_description.gsub("\"", "\\\"")
+          "-e \"#{example_name}\""
+        end
+
+      end
+    end
+  end
+end
+</code></pre></div></div>
+
+<p>In order to use the formatter, we must tell RSpec to <code class="language-plaintext highlighter-rouge">require</code> it with <code class="language-plaintext highlighter-rouge">--require</code> and to use it with <code class="language-plaintext highlighter-rouge">--format</code>. We don’t want to lose our settings in <code class="language-plaintext highlighter-rouge">.rspec</code> either - all these options can be combined in the Rake task.</p>
+
+<p>``` ruby lib/tasks/test_suites.rake
+RSpec::Core::RakeTask.new(“#{suite[:id]}:run”) do |t|
+  t.pattern = suite[:pattern]
+  t.verbose = false
+  t.fail_on_error = false
+  t.spec_opts = [
+    “–require”, “#{Rails.root}/spec/support/formatters/failures_formatter.rb”,
+    “–format”, “RSpec::Core::Formatters::FailuresFormatter”,
+    File.read(File.join(Rails.root, “.rspec”)).split(/\n+/).map { |l| l.shellsplit }
+  ].flatten
+end</p>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+Once a file is generated, we can feed it back to RSpec in another task, called `suite:suite[:id]:retry`.
+
+``` ruby lib/tasks/test_suites.rake
+RSpec::Core::RakeTask.new("#{suite[:id]}:retry") do |t|
+  t.pattern = suite[:pattern]
+  t.verbose = false
+  t.fail_on_error = false
+  t.spec_opts = [
+    "-O", File.join(Rails.root, 'rspec.failures'),
+    File.read(File.join(Rails.root, '.rspec')).split(/\n+/).map { |l| l.shellsplit }
+  ].flatten
+end
+</code></pre></div></div>
+
+<p>Finally, lets combine the two tasks and invoke <code class="language-plaintext highlighter-rouge">retry</code> when the <code class="language-plaintext highlighter-rouge">run</code> task fails.</p>
+
+<p><code class="language-plaintext highlighter-rouge">ruby lib/tasks/test_suites.rake
+task "#{suite[:id]}" do
+  rspec_failures = File.join(Rails.root, 'rspec.failures')
+  FileUtils.rm_f rspec_failures
+  Rake::Task["spec:suite:#{suite[:id]}:run"].execute
+  unless $?.success?
+    puts "[#{Time.now}] Failed, retrying #{File.read(rspec_failures).split(/\n+/).count} failure(s) in spec:suite:#{suite[:id]} ..."
+    Rake::Task["spec:suite:#{suite[:id]}:retry"].execute
+  end
+end
+</code></p>
+
+<p>A complete version of our <code class="language-plaintext highlighter-rouge">test_suites.rake</code>, including a <code class="language-plaintext highlighter-rouge">spec:suite:all</code> task that executes all specs can be found <a href="https://gist.github.com/2597305">in this gist</a>. Our Jenkins CI runs <code class="language-plaintext highlighter-rouge">rake spec:suite:all</code>, with a much improved weather report since we started using this system.</p>
 
     
 
@@ -209,23 +307,19 @@
   
     
       <article>
-        
-<div class="article-container">
-
+        <div class="article-container">
 
   
     <div class="meta-container">
       <header>
         
-          <a href="/blog/2012/05/11/on-making-it-personal--in-iOS-with-searchbars/">
+          <a href="/blog/2012/05/11/on-making-it-personal-in-iOS-with-searchbars/">
         
         
           <h2 class="entry-title">On Making It Personal in iOS with Searchbars</h2>
         
         <time datetime=""></time>
           <p class="meta-author">
-  
-
 
 
   
@@ -251,323 +345,185 @@
   <div class="content-container">
     
     
-        <p>We make Folio, a pretty kick-ass iPad app that we give away to our partners to showcase their inventory at art fairs. Whilst making it we tried to ensure that all of the application fits in with the <a href="http://artsy.net">Artsy</a> website aesthetic, and recently the last natively styled control fell to our mighty code hammers. That was the <code>UISearchBar</code>.</p>
+        <p>We make Folio, a pretty kick-ass iPad app that we give away to our partners to showcase their inventory at art fairs. Whilst making it we tried to ensure that all of the application fits in with the <a href="http://artsy.net">Artsy</a> website aesthetic, and recently the last natively styled control fell to our mighty code hammers. That was the <code class="language-plaintext highlighter-rouge">UISearchBar</code>.</p>
 
 <p><img src="http://ortastuff.s3.amazonaws.com/images/custom_searchbar_example.jpg" alt="Screenshot of Artsy Folio" /></p>
 
-<p>When displaying only search results in a table it makes a lot of sense to use Apple's <code>UISearchDisplayController</code> as it handles a lot of edge cases for you. However the downside is that you lose some control over how the views interact.</p>
+<p>When displaying only search results in a table it makes a lot of sense to use Apple’s <code class="language-plaintext highlighter-rouge">UISearchDisplayController</code> as it handles a lot of edge cases for you. However the downside is that you lose some control over how the views interact.</p>
 
 <p>The search bar was the only native control that actually made it into the version 1 release. This was mainly due to it requiring a bit of black magic in order to get it to work the way we wanted. So lets go through the code and rip it to pieces.</p>
 
 <!--more-->
 
+<p>First up, you’re going to want to make yourself a subclass of the <code class="language-plaintext highlighter-rouge">UISearchBar</code>, I’m going to be calling ours <code class="language-plaintext highlighter-rouge">ARSearchBar</code>. Here’s our public header.</p>
 
-<p>First up, you're going to want to make yourself a subclass of the <code>UISearchBar</code>, I'm going to be calling ours <code>ARSearchBar</code>. Here's our public header.</p>
+<div class="language-objc highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">@interface</span> <span class="nc">ARSearchBar</span> <span class="p">:</span> <span class="nc">UISearchBar</span>
 
-<div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-</pre></td><td class='code'><pre><code class='objc'><span class='line'><span class="k">@interface</span> <span class="nc">ARSearchBar</span> : <span class="bp">UISearchBar</span>
-</span><span class='line'>
-</span><span class='line'><span class="c1">// Called from The SearchDisplayController Delegate</span>
-</span><span class='line'><span class="p">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="nf">showCancelButton:</span><span class="p">(</span><span class="kt">BOOL</span><span class="p">)</span><span class="nv">show</span><span class="p">;</span>
-</span><span class='line'><span class="p">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="nf">cancelSearchField</span><span class="p">;</span>
-</span><span class='line'><span class="k">@end</span>
-</span></code></pre></td></tr></table></div></figure></notextile></div>
-
+<span class="c1">// Called from The SearchDisplayController Delegate</span>
+<span class="k">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="nf">showCancelButton</span><span class="p">:(</span><span class="n">BOOL</span><span class="p">)</span><span class="nv">show</span><span class="p">;</span>
+<span class="k">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="n">cancelSearchField</span><span class="p">;</span>
+<span class="k">@end</span>
+</code></pre></div></div>
 
 <p>Inside the implementation file we declare private instance variables for keeping track of the textfield and the Cancel button. This is so we can avoid finding them in the view hierarchy when we want to change the frame it during resizing.</p>
 
-<div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-</pre></td><td class='code'><pre><code class='objc'><span class='line'><span class="k">@interface</span> <span class="nc">ARSearchBar</span> <span class="p">(){</span>
-</span><span class='line'>    <span class="bp">UITextField</span> <span class="o">*</span><span class="n">foundSearchTextField</span><span class="p">;</span>
-</span><span class='line'>    <span class="bp">UIButton</span> <span class="o">*</span><span class="n">overlayCancelButton</span><span class="p">;</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure></notextile></div>
+<div class="language-objc highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">@interface</span> <span class="nc">ARSearchBar</span> <span class="p">(){</span>
+    <span class="n">UITextField</span> <span class="o">*</span><span class="n">foundSearchTextField</span><span class="p">;</span>
+    <span class="n">UIButton</span> <span class="o">*</span><span class="n">overlayCancelButton</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
+<p>So, to look at setting the size we’ve found it easiest to deal with that in an overrode <code class="language-plaintext highlighter-rouge">setFrame</code> and setting the height of the new frame before it goes to the super class. As the search bar doesn’t change its height between state changes like text insertion it shouldn’t pose a problem to have it hardcoded.</p>
 
-<p>So, to look at setting the size we've found it easiest to deal with that in an overrode <code>setFrame</code> and setting the height of the new frame before it goes to the super class. As the search bar doesn't change its height between state changes like text insertion it shouldn't pose a problem to have it hardcoded.</p>
+<div class="language-objc highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="nf">setFrame</span><span class="p">:(</span><span class="n">CGRect</span><span class="p">)</span><span class="nv">frame</span> <span class="p">{</span>
+    <span class="n">frame</span><span class="p">.</span><span class="n">size</span><span class="p">.</span><span class="n">height</span> <span class="o">=</span> <span class="n">ARSearchBarHeight</span><span class="p">;</span>
+    <span class="p">[</span><span class="n">super</span> <span class="nf">setFrame</span><span class="p">:</span><span class="n">frame</span><span class="p">];</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
-<div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-</pre></td><td class='code'><pre><code class='objc'><span class='line'><span class="p">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="nf">setFrame:</span><span class="p">(</span><span class="bp">CGRect</span><span class="p">)</span><span class="nv">frame</span> <span class="p">{</span>
-</span><span class='line'>    <span class="n">frame</span><span class="p">.</span><span class="n">size</span><span class="p">.</span><span class="n">height</span> <span class="o">=</span> <span class="n">ARSearchBarHeight</span><span class="p">;</span>
-</span><span class='line'>    <span class="p">[</span><span class="nb">super</span> <span class="nl">setFrame</span><span class="p">:</span><span class="n">frame</span><span class="p">];</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure></notextile></div>
+<p>What does pose a problem though is making sure that the subviews inside the search bar are positioned correctly with respect to the new height, this is amended in <code class="language-plaintext highlighter-rouge">layoutSubviews</code>. In our case the textfield should take up almost all of the search bar.</p>
 
+<div class="language-objc highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="n">layoutSubviews</span> <span class="p">{</span>
+    <span class="p">[</span><span class="n">super</span> <span class="nf">layoutSubviews</span><span class="p">];</span>
 
-<p>What does pose a problem though is making sure that the subviews inside the search bar are positioned correctly with respect to the new height, this is amended in <code>layoutSubviews</code>. In our case the textfield should take up almost all of the search bar.</p>
+    <span class="c1">// resize textfield</span>
+    <span class="n">CGRect</span> <span class="n">frame</span> <span class="o">=</span> <span class="n">foundSearchTextField</span><span class="p">.</span><span class="n">frame</span><span class="p">;</span>
+    <span class="n">frame</span><span class="p">.</span><span class="n">size</span><span class="p">.</span><span class="n">height</span> <span class="o">=</span> <span class="n">ViewHeight</span><span class="p">;</span>
+    <span class="n">frame</span><span class="p">.</span><span class="n">origin</span><span class="p">.</span><span class="n">y</span> <span class="o">=</span> <span class="n">ViewMargin</span><span class="p">;</span>
+    <span class="n">frame</span><span class="p">.</span><span class="n">origin</span><span class="p">.</span><span class="n">x</span> <span class="o">=</span> <span class="n">ViewMargin</span><span class="p">;</span>
+    <span class="n">frame</span><span class="p">.</span><span class="n">size</span><span class="p">.</span><span class="n">width</span> <span class="o">-=</span> <span class="n">ViewMargin</span> <span class="o">/</span> <span class="mi">2</span><span class="p">;</span>
+    <span class="n">foundSearchTextField</span><span class="p">.</span><span class="n">frame</span> <span class="o">=</span> <span class="n">frame</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
-<div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-</pre></td><td class='code'><pre><code class='objc'><span class='line'><span class="p">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="nf">layoutSubviews</span> <span class="p">{</span>
-</span><span class='line'>    <span class="p">[</span><span class="nb">super</span> <span class="n">layoutSubviews</span><span class="p">];</span>
-</span><span class='line'>
-</span><span class='line'>    <span class="c1">// resize textfield</span>
-</span><span class='line'>    <span class="bp">CGRect</span> <span class="n">frame</span> <span class="o">=</span> <span class="n">foundSearchTextField</span><span class="p">.</span><span class="n">frame</span><span class="p">;</span>
-</span><span class='line'>    <span class="n">frame</span><span class="p">.</span><span class="n">size</span><span class="p">.</span><span class="n">height</span> <span class="o">=</span> <span class="n">ViewHeight</span><span class="p">;</span>
-</span><span class='line'>    <span class="n">frame</span><span class="p">.</span><span class="n">origin</span><span class="p">.</span><span class="n">y</span> <span class="o">=</span> <span class="n">ViewMargin</span><span class="p">;</span>
-</span><span class='line'>    <span class="n">frame</span><span class="p">.</span><span class="n">origin</span><span class="p">.</span><span class="n">x</span> <span class="o">=</span> <span class="n">ViewMargin</span><span class="p">;</span>
-</span><span class='line'>    <span class="n">frame</span><span class="p">.</span><span class="n">size</span><span class="p">.</span><span class="n">width</span> <span class="o">-=</span> <span class="n">ViewMargin</span> <span class="o">/</span> <span class="mi">2</span><span class="p">;</span>
-</span><span class='line'>    <span class="n">foundSearchTextField</span><span class="p">.</span><span class="n">frame</span> <span class="o">=</span> <span class="n">frame</span><span class="p">;</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure></notextile></div>
+<p>Next up is that we can’t access our <code class="language-plaintext highlighter-rouge">foundSearchField</code> because it’s not been found yet! Personally,  I’m a big fan of using nibs for everything ( and pretty pumped about Storyboards too ) so we do our searching in <code class="language-plaintext highlighter-rouge">awakeFromNib</code> .</p>
 
+<div class="language-objc highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="n">awakeFromNib</span> <span class="p">{</span>
+    <span class="p">[</span><span class="n">super</span> <span class="nf">awakeFromNib</span><span class="p">];</span>
 
-<p>Next up is that we can't access our <code>foundSearchField</code> because it's not been found yet! Personally,  I'm a big fan of using nibs for everything ( and pretty pumped about Storyboards too ) so we do our searching in <code>awakeFromNib</code> .</p>
-
-<div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-</pre></td><td class='code'><pre><code class='objc'><span class='line'><span class="p">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="nf">awakeFromNib</span> <span class="p">{</span>
-</span><span class='line'>    <span class="p">[</span><span class="nb">super</span> <span class="n">awakeFromNib</span><span class="p">];</span>
-</span><span class='line'>
-</span><span class='line'>    <span class="c1">// find textfield in subviews</span>
-</span><span class='line'>    <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="p">[</span><span class="nb">self</span><span class="p">.</span><span class="n">subviews</span> <span class="n">count</span><span class="p">]</span> <span class="o">-</span> <span class="mi">1</span><span class="p">;</span> <span class="n">i</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span><span class="o">--</span><span class="p">)</span> <span class="p">{</span>
-</span><span class='line'>        <span class="bp">UIView</span> <span class="o">*</span><span class="n">subview</span> <span class="o">=</span> <span class="p">[</span><span class="nb">self</span><span class="p">.</span><span class="n">subviews</span> <span class="nl">objectAtIndex</span><span class="p">:</span><span class="n">i</span><span class="p">];</span>
-</span><span class='line'>        <span class="k">if</span> <span class="p">([</span><span class="n">subview</span><span class="p">.</span><span class="k">class</span> <span class="nl">isSubclassOfClass</span><span class="p">:[</span><span class="bp">UITextField</span> <span class="k">class</span><span class="p">]])</span> <span class="p">{</span>
-</span><span class='line'>            <span class="n">foundSearchTextField</span> <span class="o">=</span> <span class="p">(</span><span class="bp">UITextField</span> <span class="o">*</span><span class="p">)</span><span class="n">subview</span><span class="p">;</span>
-</span><span class='line'>        <span class="p">}</span>
-</span><span class='line'>    <span class="p">}</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure></notextile></div>
-
+    <span class="c1">// find textfield in subviews</span>
+    <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="p">[</span><span class="n">self</span><span class="p">.</span><span class="n">subviews</span> <span class="nf">count</span><span class="p">]</span> <span class="o">-</span> <span class="mi">1</span><span class="p">;</span> <span class="n">i</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span><span class="o">--</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">UIView</span> <span class="o">*</span><span class="n">subview</span> <span class="o">=</span> <span class="p">[</span><span class="n">self</span><span class="p">.</span><span class="n">subviews</span> <span class="nf">objectAtIndex</span><span class="p">:</span><span class="n">i</span><span class="p">];</span>                
+        <span class="k">if</span> <span class="p">([</span><span class="n">subview</span><span class="p">.</span><span class="n">class</span> <span class="nf">isSubclassOfClass</span><span class="p">:[</span><span class="n">UITextField</span> <span class="nf">class</span><span class="p">]])</span> <span class="p">{</span>
+            <span class="n">foundSearchTextField</span> <span class="o">=</span> <span class="p">(</span><span class="n">UITextField</span> <span class="o">*</span><span class="p">)</span><span class="n">subview</span><span class="p">;</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>This gives us a textfield, next up we want to stylize it. The perfect place for this is just after finding the textfield that you use to search in.</p>
 
-<div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-<span class='line-number'>19</span>
-<span class='line-number'>20</span>
-<span class='line-number'>21</span>
-</pre></td><td class='code'><pre><code class='objc'><span class='line'><span class="p">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="nf">stylizeSearchTextField</span> <span class="p">{</span>
-</span><span class='line'>    <span class="c1">// Sets the background to a static black by removing the gradient view</span>
-</span><span class='line'>    <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="p">[</span><span class="nb">self</span><span class="p">.</span><span class="n">subviews</span> <span class="n">count</span><span class="p">]</span> <span class="o">-</span> <span class="mi">1</span><span class="p">;</span> <span class="n">i</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span><span class="o">--</span><span class="p">)</span> <span class="p">{</span>
-</span><span class='line'>        <span class="bp">UIView</span> <span class="o">*</span><span class="n">subview</span> <span class="o">=</span> <span class="p">[</span><span class="nb">self</span><span class="p">.</span><span class="n">subviews</span> <span class="nl">objectAtIndex</span><span class="p">:</span><span class="n">i</span><span class="p">];</span>
-</span><span class='line'>
-</span><span class='line'>        <span class="c1">// This is the gradient behind the textfield</span>
-</span><span class='line'>        <span class="k">if</span> <span class="p">([</span><span class="n">subview</span><span class="p">.</span><span class="n">description</span> <span class="nl">hasPrefix</span><span class="p">:</span><span class="s">@&quot;&lt;UISearchBarBackground&quot;</span><span class="p">])</span> <span class="p">{</span>
-</span><span class='line'>            <span class="p">[</span><span class="n">subview</span> <span class="n">removeFromSuperview</span><span class="p">];</span>
-</span><span class='line'>        <span class="p">}</span>
-</span><span class='line'>    <span class="p">}</span>
-</span><span class='line'>
-</span><span class='line'>    <span class="c1">// now change the search textfield itself</span>
-</span><span class='line'>    <span class="n">foundSearchTextField</span><span class="p">.</span><span class="n">borderStyle</span> <span class="o">=</span> <span class="n">UITextBorderStyleNone</span><span class="p">;</span>
-</span><span class='line'>    <span class="n">foundSearchTextField</span><span class="p">.</span><span class="n">backgroundColor</span> <span class="o">=</span> <span class="p">[</span><span class="bp">UIColor</span> <span class="n">whiteColor</span><span class="p">];</span>
-</span><span class='line'>    <span class="n">foundSearchTextField</span><span class="p">.</span><span class="n">background</span> <span class="o">=</span> <span class="nb">nil</span><span class="p">;</span>
-</span><span class='line'>    <span class="n">foundSearchTextField</span><span class="p">.</span><span class="n">text</span> <span class="o">=</span> <span class="s">@&quot;&quot;</span><span class="p">;</span>
-</span><span class='line'>    <span class="n">foundSearchTextField</span><span class="p">.</span><span class="n">clearButtonMode</span> <span class="o">=</span> <span class="n">UITextFieldViewModeNever</span><span class="p">;</span>
-</span><span class='line'>    <span class="n">foundSearchTextField</span><span class="p">.</span><span class="n">leftView</span> <span class="o">=</span> <span class="p">[[</span><span class="bp">UIView</span> <span class="n">alloc</span><span class="p">]</span> <span class="nl">initWithFrame</span><span class="p">:</span><span class="n">CGRectMake</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">TextfieldLeftMargin</span><span class="p">,</span> <span class="mi">0</span><span class="p">)];</span>
-</span><span class='line'>    <span class="n">foundSearchTextField</span><span class="p">.</span><span class="n">placeholder</span> <span class="o">=</span> <span class="s">@&quot;&quot;</span><span class="p">;</span>
-</span><span class='line'>    <span class="n">foundSearchTextField</span><span class="p">.</span><span class="n">font</span> <span class="o">=</span> <span class="p">[</span><span class="bp">UIFont</span> <span class="nl">serifFontWithSize</span><span class="p">:</span><span class="n">ARFontSansLarge</span><span class="p">];</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure></notextile></div>
+<div class="language-objc highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="n">stylizeSearchTextField</span> <span class="p">{</span>
+    <span class="c1">// Sets the background to a static black by removing the gradient view</span>
+    <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="p">[</span><span class="n">self</span><span class="p">.</span><span class="n">subviews</span> <span class="nf">count</span><span class="p">]</span> <span class="o">-</span> <span class="mi">1</span><span class="p">;</span> <span class="n">i</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span><span class="o">--</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">UIView</span> <span class="o">*</span><span class="n">subview</span> <span class="o">=</span> <span class="p">[</span><span class="n">self</span><span class="p">.</span><span class="n">subviews</span> <span class="nf">objectAtIndex</span><span class="p">:</span><span class="n">i</span><span class="p">];</span>                
 
+        <span class="c1">// This is the gradient behind the textfield</span>
+        <span class="k">if</span> <span class="p">([</span><span class="n">subview</span><span class="p">.</span><span class="n">description</span> <span class="nf">hasPrefix</span><span class="p">:</span><span class="s">@"&lt;UISearchBarBackground"</span><span class="p">])</span> <span class="p">{</span>
+            <span class="p">[</span><span class="n">subview</span> <span class="nf">removeFromSuperview</span><span class="p">];</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+
+    <span class="c1">// now change the search textfield itself</span>
+    <span class="n">foundSearchTextField</span><span class="p">.</span><span class="n">borderStyle</span> <span class="o">=</span> <span class="n">UITextBorderStyleNone</span><span class="p">;</span>
+    <span class="n">foundSearchTextField</span><span class="p">.</span><span class="n">backgroundColor</span> <span class="o">=</span> <span class="p">[</span><span class="n">UIColor</span> <span class="nf">whiteColor</span><span class="p">];</span>
+    <span class="n">foundSearchTextField</span><span class="p">.</span><span class="n">background</span> <span class="o">=</span> <span class="nb">nil</span><span class="p">;</span>
+    <span class="n">foundSearchTextField</span><span class="p">.</span><span class="n">text</span> <span class="o">=</span> <span class="s">@""</span><span class="p">;</span>
+    <span class="n">foundSearchTextField</span><span class="p">.</span><span class="n">clearButtonMode</span> <span class="o">=</span> <span class="n">UITextFieldViewModeNever</span><span class="p">;</span>
+    <span class="n">foundSearchTextField</span><span class="p">.</span><span class="n">leftView</span> <span class="o">=</span> <span class="p">[[</span><span class="n">UIView</span> <span class="nf">alloc</span><span class="p">]</span> <span class="nf">initWithFrame</span><span class="p">:</span><span class="n">CGRectMake</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">TextfieldLeftMargin</span><span class="p">,</span> <span class="mi">0</span><span class="p">)];</span>
+    <span class="n">foundSearchTextField</span><span class="p">.</span><span class="n">placeholder</span> <span class="o">=</span> <span class="s">@""</span><span class="p">;</span>
+    <span class="n">foundSearchTextField</span><span class="p">.</span><span class="n">font</span> <span class="o">=</span> <span class="p">[</span><span class="n">UIFont</span> <span class="nf">serifFontWithSize</span><span class="p">:</span><span class="n">ARFontSansLarge</span><span class="p">];</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>You might be wondering why we removed the placeholder text? We needed more control over the style and positioning of the placeholder text and the search icon. These are easily controlled by the UISearchDisplayController subclass rather than inside the custom search bar. This is also the place that we can deal with having our custom Cancel button.</p>
 
-<div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-</pre></td><td class='code'><pre><code class='objc'><span class='line'><span class="p">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span> <span class="nf">searchDisplayControllerWillBeginSearch:</span><span class="p">(</span><span class="bp">UISearchDisplayController</span> <span class="o">*</span><span class="p">)</span><span class="nv">controller</span> <span class="p">{</span>
-</span><span class='line'>    <span class="p">[</span><span class="n">searchBar</span> <span class="nl">showCancelButton</span><span class="p">:</span><span class="nb">YES</span><span class="p">];</span>
-</span><span class='line'>    <span class="p">[</span><span class="bp">UIView</span> <span class="nl">animateWithDuration</span><span class="p">:</span><span class="mf">0.2</span> <span class="nl">animations</span><span class="p">:</span><span class="o">^</span><span class="p">{</span>
-</span><span class='line'>        <span class="n">searchPlaceholderLabel</span><span class="p">.</span><span class="n">alpha</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
-</span><span class='line'>    <span class="p">}];</span>
-</span><span class='line'><span class="p">}</span>
-</span><span class='line'>
-</span><span class='line'><span class="p">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span> <span class="nf">searchDisplayControllerWillEndSearch:</span><span class="p">(</span><span class="bp">UISearchDisplayController</span> <span class="o">*</span><span class="p">)</span><span class="nv">controller</span> <span class="p">{</span>
-</span><span class='line'>    <span class="p">[</span><span class="n">searchBar</span> <span class="nl">showCancelButton</span><span class="p">:</span><span class="nb">NO</span><span class="p">];</span>
-</span><span class='line'>    <span class="p">[</span><span class="bp">UIView</span> <span class="nl">animateWithDuration</span><span class="p">:</span><span class="mf">0.2</span> <span class="nl">animations</span><span class="p">:</span><span class="o">^</span><span class="p">{</span>
-</span><span class='line'>        <span class="n">searchPlaceholderLabel</span><span class="p">.</span><span class="n">alpha</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
-</span><span class='line'>    <span class="p">}];</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure></notextile></div>
+<div class="language-objc highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span> <span class="nf">searchDisplayControllerWillBeginSearch</span><span class="p">:(</span><span class="n">UISearchDisplayController</span> <span class="o">*</span><span class="p">)</span><span class="nv">controller</span> <span class="p">{</span>
+    <span class="p">[</span><span class="n">searchBar</span> <span class="nf">showCancelButton</span><span class="p">:</span><span class="nb">YES</span><span class="p">];</span>
+    <span class="p">[</span><span class="n">UIView</span> <span class="nf">animateWithDuration</span><span class="p">:</span><span class="mi">0</span><span class="p">.</span><span class="mi">2</span> <span class="nf">animations</span><span class="p">:</span><span class="o">^</span><span class="p">{</span>
+        <span class="n">searchPlaceholderLabel</span><span class="p">.</span><span class="n">alpha</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+    <span class="p">}];</span>
+<span class="p">}</span>
 
+<span class="k">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span> <span class="nf">searchDisplayControllerWillEndSearch</span><span class="p">:(</span><span class="n">UISearchDisplayController</span> <span class="o">*</span><span class="p">)</span><span class="nv">controller</span> <span class="p">{</span>
+    <span class="p">[</span><span class="n">searchBar</span> <span class="nf">showCancelButton</span><span class="p">:</span><span class="nb">NO</span><span class="p">];</span>
+    <span class="p">[</span><span class="n">UIView</span> <span class="nf">animateWithDuration</span><span class="p">:</span><span class="mi">0</span><span class="p">.</span><span class="mi">2</span> <span class="nf">animations</span><span class="p">:</span><span class="o">^</span><span class="p">{</span>
+        <span class="n">searchPlaceholderLabel</span><span class="p">.</span><span class="n">alpha</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+    <span class="p">}];</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>The corresponding code for showing and hiding the Cancel button is here. We just animate it in and out by a distance of 80.</p>
 
-<div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-</pre></td><td class='code'><pre><code class='objc'><span class='line'><span class="p">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="nf">showCancelButton:</span><span class="p">(</span><span class="kt">BOOL</span><span class="p">)</span><span class="nv">show</span> <span class="p">{</span>
-</span><span class='line'>    <span class="n">CGFloat</span> <span class="n">distance</span> <span class="o">=</span> <span class="n">show</span><span class="o">?</span> <span class="o">-</span><span class="nl">CancelAnimationDistance</span> <span class="p">:</span> <span class="n">CancelAnimationDistance</span><span class="p">;</span>
-</span><span class='line'>    <span class="p">[</span><span class="bp">UIView</span> <span class="nl">animateWithDuration</span><span class="p">:</span><span class="mf">0.25</span> <span class="nl">animations</span><span class="p">:</span><span class="o">^</span><span class="p">{</span>
-</span><span class='line'>        <span class="n">overlayCancelButton</span><span class="p">.</span><span class="n">frame</span> <span class="o">=</span> <span class="n">CGRectOffset</span><span class="p">(</span><span class="n">overlayCancelButton</span><span class="p">.</span><span class="n">frame</span><span class="p">,</span> <span class="n">distance</span><span class="p">,</span> <span class="mi">0</span><span class="p">);</span>
-</span><span class='line'>    <span class="p">}];</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure></notextile></div>
+<div class="language-objc highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="nf">showCancelButton</span><span class="p">:(</span><span class="n">BOOL</span><span class="p">)</span><span class="nv">show</span> <span class="p">{</span>
+    <span class="n">CGFloat</span> <span class="n">distance</span> <span class="o">=</span> <span class="n">show</span><span class="p">?</span> <span class="o">-</span><span class="n">CancelAnimationDistance</span> <span class="p">:</span> <span class="n">CancelAnimationDistance</span><span class="p">;</span>
+    <span class="p">[</span><span class="n">UIView</span> <span class="nf">animateWithDuration</span><span class="p">:</span><span class="mi">0</span><span class="p">.</span><span class="mi">25</span> <span class="nf">animations</span><span class="p">:</span><span class="o">^</span><span class="p">{</span>
+        <span class="n">overlayCancelButton</span><span class="p">.</span><span class="n">frame</span> <span class="o">=</span> <span class="n">CGRectOffset</span><span class="p">(</span><span class="n">overlayCancelButton</span><span class="p">.</span><span class="n">frame</span><span class="p">,</span> <span class="n">distance</span><span class="p">,</span> <span class="mi">0</span><span class="p">);</span>
+    <span class="p">}];</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
-
-<p>The original Cancel button is something that we choose to keep around, rather than removing it form the view hierarchy, that's so we can have our overlay Cancel button call its method instead of trying to replicate the cancel functionality ourselves.</p>
+<p>The original Cancel button is something that we choose to keep around, rather than removing it form the view hierarchy, that’s so we can have our overlay Cancel button call its method instead of trying to replicate the cancel functionality ourselves.</p>
 
 <p>To keep track of the Cancel button we need to know when its meant to appear, and when its meant to disappear. Because the Cancel button is created at runtime every time a search is started we need to
-know when thats happening so we can hide it, we can do that by registering for <code>UITextFieldTextDidBeginEditingNotification</code> on the textfield once it's been found. We do this in <code>awakeFromNib</code>.</p>
+know when thats happening so we can hide it, we can do that by registering for <code class="language-plaintext highlighter-rouge">UITextFieldTextDidBeginEditingNotification</code> on the textfield once it’s been found. We do this in <code class="language-plaintext highlighter-rouge">awakeFromNib</code>.</p>
 
-<div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-</pre></td><td class='code'><pre><code class='objc'><span class='line'><span class="p">[[</span><span class="bp">NSNotificationCenter</span> <span class="n">defaultCenter</span><span class="p">]</span> <span class="nl">addObserver</span><span class="p">:</span><span class="nb">self</span> <span class="nl">selector</span><span class="p">:</span><span class="k">@selector</span><span class="p">(</span><span class="n">removeOriginalCancel</span><span class="p">)</span> <span class="nl">name</span><span class="p">:</span><span class="n">UITextFieldTextDidBeginEditingNotification</span> <span class="nl">object</span><span class="p">:</span><span class="n">foundSearchTextField</span><span class="p">];</span>
-</span><span class='line'>
-</span><span class='line'>
-</span><span class='line'><span class="p">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="nf">removeOriginalCancel</span> <span class="p">{</span>
-</span><span class='line'>    <span class="c1">// remove the original button</span>
-</span><span class='line'>    <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="p">[</span><span class="nb">self</span><span class="p">.</span><span class="n">subviews</span> <span class="n">count</span><span class="p">]</span> <span class="o">-</span> <span class="mi">1</span><span class="p">;</span> <span class="n">i</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span><span class="o">--</span><span class="p">)</span> <span class="p">{</span>
-</span><span class='line'>        <span class="bp">UIView</span> <span class="o">*</span><span class="n">subview</span> <span class="o">=</span> <span class="p">[</span><span class="nb">self</span><span class="p">.</span><span class="n">subviews</span> <span class="nl">objectAtIndex</span><span class="p">:</span><span class="n">i</span><span class="p">];</span>
-</span><span class='line'>        <span class="k">if</span> <span class="p">([</span><span class="n">subview</span><span class="p">.</span><span class="k">class</span> <span class="nl">isSubclassOfClass</span><span class="p">:[</span><span class="bp">UIButton</span> <span class="k">class</span><span class="p">]])</span> <span class="p">{</span>
-</span><span class='line'>          <span class="c1">// This is called every time a search is began,</span>
-</span><span class='line'>          <span class="c1">// so make sure to get the right button!</span>
-</span><span class='line'>            <span class="k">if</span> <span class="p">(</span><span class="n">subview</span><span class="p">.</span><span class="n">frame</span><span class="p">.</span><span class="n">size</span><span class="p">.</span><span class="n">height</span> <span class="o">!=</span> <span class="n">ViewHeight</span><span class="p">)</span> <span class="p">{</span>
-</span><span class='line'>                <span class="n">subview</span><span class="p">.</span><span class="n">hidden</span> <span class="o">=</span> <span class="nb">YES</span><span class="p">;</span>
-</span><span class='line'>            <span class="p">}</span>
-</span><span class='line'>        <span class="p">}</span>
-</span><span class='line'>    <span class="p">}</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure></notextile></div>
+<div class="language-objc highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">[[</span><span class="n">NSNotificationCenter</span> <span class="nf">defaultCenter</span><span class="p">]</span> <span class="nf">addObserver</span><span class="p">:</span><span class="n">self</span> <span class="nf">selector</span><span class="p">:</span><span class="k">@selector</span><span class="p">(</span><span class="n">removeOriginalCancel</span><span class="p">)</span> <span class="n">name</span><span class="o">:</span><span class="n">UITextFieldTextDidBeginEditingNotification</span> <span class="n">object</span><span class="o">:</span><span class="n">foundSearchTextField</span><span class="p">];</span>
 
 
-<p>Finally we have the styling of the button. I've summed it up here as a lot of it is very application specific.</p>
+<span class="k">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="n">removeOriginalCancel</span> <span class="p">{</span>
+    <span class="c1">// remove the original button</span>
+    <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="p">[</span><span class="n">self</span><span class="p">.</span><span class="n">subviews</span> <span class="nf">count</span><span class="p">]</span> <span class="o">-</span> <span class="mi">1</span><span class="p">;</span> <span class="n">i</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span><span class="o">--</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">UIView</span> <span class="o">*</span><span class="n">subview</span> <span class="o">=</span> <span class="p">[</span><span class="n">self</span><span class="p">.</span><span class="n">subviews</span> <span class="nf">objectAtIndex</span><span class="p">:</span><span class="n">i</span><span class="p">];</span>                
+        <span class="k">if</span> <span class="p">([</span><span class="n">subview</span><span class="p">.</span><span class="n">class</span> <span class="nf">isSubclassOfClass</span><span class="p">:[</span><span class="n">UIButton</span> <span class="nf">class</span><span class="p">]])</span> <span class="p">{</span>
+        	<span class="c1">// This is called every time a search is began,</span>
+        	<span class="c1">// so make sure to get the right button!</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">subview</span><span class="p">.</span><span class="n">frame</span><span class="p">.</span><span class="n">size</span><span class="p">.</span><span class="n">height</span> <span class="o">!=</span> <span class="n">ViewHeight</span><span class="p">)</span> <span class="p">{</span>
+                <span class="n">subview</span><span class="p">.</span><span class="n">hidden</span> <span class="o">=</span> <span class="nb">YES</span><span class="p">;</span>
+            <span class="p">}</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
-<div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-<span class='line-number'>19</span>
-<span class='line-number'>20</span>
-<span class='line-number'>21</span>
-<span class='line-number'>22</span>
-<span class='line-number'>23</span>
-<span class='line-number'>24</span>
-<span class='line-number'>25</span>
-<span class='line-number'>26</span>
-<span class='line-number'>27</span>
-<span class='line-number'>28</span>
-<span class='line-number'>29</span>
-<span class='line-number'>30</span>
-<span class='line-number'>31</span>
-<span class='line-number'>32</span>
-<span class='line-number'>33</span>
-</pre></td><td class='code'><pre><code class='objc'><span class='line'><span class="p">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="nf">createButton</span> <span class="p">{</span>
-</span><span class='line'>    <span class="n">ARFlatButton</span> <span class="o">*</span><span class="n">cancelButton</span> <span class="o">=</span> <span class="p">[</span><span class="n">ARFlatButton</span> <span class="nl">buttonWithType</span><span class="p">:</span><span class="n">UIButtonTypeCustom</span><span class="p">];</span>
-</span><span class='line'>    <span class="p">[[</span><span class="n">cancelButton</span> <span class="n">titleLabel</span><span class="p">]</span> <span class="nl">setFont</span><span class="p">:[</span><span class="bp">UIFont</span> <span class="nl">sansSerifFontWithSize</span><span class="p">:</span><span class="n">ARFontSansSmall</span><span class="p">]];</span>
-</span><span class='line'>
-</span><span class='line'>    <span class="bp">NSString</span> <span class="o">*</span><span class="n">title</span> <span class="o">=</span> <span class="p">[</span><span class="s">@&quot;Cancel&quot;</span> <span class="n">uppercaseString</span><span class="p">];</span>
-</span><span class='line'>    <span class="p">[</span><span class="n">cancelButton</span> <span class="nl">setTitle</span><span class="p">:</span><span class="n">title</span> <span class="nl">forState</span><span class="p">:</span><span class="n">UIControlStateNormal</span><span class="p">];</span>
-</span><span class='line'>    <span class="p">[</span><span class="n">cancelButton</span> <span class="nl">setTitle</span><span class="p">:</span><span class="n">title</span> <span class="nl">forState</span><span class="p">:</span><span class="n">UIControlStateHighlighted</span><span class="p">];</span>
-</span><span class='line'>
-</span><span class='line'>    <span class="bp">CGRect</span> <span class="n">buttonFrame</span> <span class="o">=</span> <span class="n">cancelButton</span><span class="p">.</span><span class="n">frame</span><span class="p">;</span>
-</span><span class='line'>    <span class="n">buttonFrame</span><span class="p">.</span><span class="n">origin</span><span class="p">.</span><span class="n">y</span> <span class="o">=</span> <span class="n">ViewMargin</span><span class="p">;</span>
-</span><span class='line'>    <span class="n">buttonFrame</span><span class="p">.</span><span class="n">size</span><span class="p">.</span><span class="n">height</span> <span class="o">=</span> <span class="n">ViewHeight</span><span class="p">;</span>
-</span><span class='line'>    <span class="n">buttonFrame</span><span class="p">.</span><span class="n">size</span><span class="p">.</span><span class="n">width</span> <span class="o">=</span> <span class="mi">66</span><span class="p">;</span>
-</span><span class='line'>    <span class="n">buttonFrame</span><span class="p">.</span><span class="n">origin</span><span class="p">.</span><span class="n">x</span> <span class="o">=</span> <span class="nb">self</span><span class="p">.</span><span class="n">frame</span><span class="p">.</span><span class="n">size</span><span class="p">.</span><span class="n">width</span> <span class="o">-</span> <span class="n">buttonFrame</span><span class="p">.</span><span class="n">size</span><span class="p">.</span><span class="n">width</span> <span class="o">-</span> <span class="n">ViewMargin</span> <span class="o">+</span> <span class="n">CancelAnimationDistance</span><span class="p">;</span>
-</span><span class='line'>    <span class="n">cancelButton</span><span class="p">.</span><span class="n">frame</span> <span class="o">=</span> <span class="n">buttonFrame</span><span class="p">;</span>
-</span><span class='line'>    <span class="p">[</span><span class="n">cancelButton</span> <span class="nl">addTarget</span><span class="p">:</span><span class="nb">self</span> <span class="nl">action</span><span class="p">:</span><span class="k">@selector</span><span class="p">(</span><span class="n">cancelSearchField</span><span class="p">)</span> <span class="nl">forControlEvents</span><span class="p">:</span><span class="n">UIControlEventTouchUpInside</span><span class="p">];</span>
-</span><span class='line'>
-</span><span class='line'>    <span class="n">overlayCancelButton</span> <span class="o">=</span> <span class="n">cancelButton</span><span class="p">;</span>
-</span><span class='line'>    <span class="p">[</span><span class="nb">self</span> <span class="nl">addSubview</span><span class="p">:</span><span class="n">overlayCancelButton</span><span class="p">];</span>
-</span><span class='line'>    <span class="p">[</span><span class="nb">self</span> <span class="nl">bringSubviewToFront</span><span class="p">:</span><span class="n">overlayCancelButton</span><span class="p">];</span>
-</span><span class='line'><span class="p">}</span>
-</span><span class='line'>
-</span><span class='line'><span class="p">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="nf">cancelSearchField</span> <span class="p">{</span>
-</span><span class='line'>    <span class="c1">// tap the original button!</span>
-</span><span class='line'>    <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="p">[</span><span class="nb">self</span><span class="p">.</span><span class="n">subviews</span> <span class="n">count</span><span class="p">]</span> <span class="o">-</span> <span class="mi">1</span><span class="p">;</span> <span class="n">i</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span><span class="o">--</span><span class="p">)</span> <span class="p">{</span>
-</span><span class='line'>        <span class="bp">UIView</span> <span class="o">*</span><span class="n">subview</span> <span class="o">=</span> <span class="p">[</span><span class="nb">self</span><span class="p">.</span><span class="n">subviews</span> <span class="nl">objectAtIndex</span><span class="p">:</span><span class="n">i</span><span class="p">];</span>
-</span><span class='line'>        <span class="k">if</span> <span class="p">([</span><span class="n">subview</span><span class="p">.</span><span class="k">class</span> <span class="nl">isSubclassOfClass</span><span class="p">:[</span><span class="bp">UIButton</span> <span class="k">class</span><span class="p">]])</span> <span class="p">{</span>
-</span><span class='line'>            <span class="k">if</span> <span class="p">(</span><span class="n">subview</span><span class="p">.</span><span class="n">frame</span><span class="p">.</span><span class="n">size</span><span class="p">.</span><span class="n">height</span> <span class="o">!=</span> <span class="n">ViewHeight</span><span class="p">)</span> <span class="p">{</span>
-</span><span class='line'>                <span class="bp">UIButton</span> <span class="o">*</span><span class="n">realCancel</span> <span class="o">=</span> <span class="p">(</span><span class="bp">UIButton</span> <span class="o">*</span><span class="p">)</span><span class="n">subview</span><span class="p">;</span>
-</span><span class='line'>                <span class="p">[</span><span class="n">realCancel</span> <span class="nl">sendActionsForControlEvents</span><span class="p">:</span> <span class="n">UIControlEventTouchUpInside</span><span class="p">];</span>
-</span><span class='line'>            <span class="p">}</span>
-</span><span class='line'>        <span class="p">}</span>
-</span><span class='line'>    <span class="p">}</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure></notextile></div>
+<p>Finally we have the styling of the button. I’ve summed it up here as a lot of it is very application specific.</p>
 
+<div class="language-objc highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="n">createButton</span> <span class="p">{</span>
+    <span class="n">ARFlatButton</span> <span class="o">*</span><span class="n">cancelButton</span> <span class="o">=</span> <span class="p">[</span><span class="n">ARFlatButton</span> <span class="nf">buttonWithType</span><span class="p">:</span><span class="n">UIButtonTypeCustom</span><span class="p">];</span>
+    <span class="p">[[</span><span class="n">cancelButton</span> <span class="nf">titleLabel</span><span class="p">]</span> <span class="nf">setFont</span><span class="p">:[</span><span class="n">UIFont</span> <span class="nf">sansSerifFontWithSize</span><span class="p">:</span><span class="n">ARFontSansSmall</span><span class="p">]];</span>
+
+    <span class="n">NSString</span> <span class="o">*</span><span class="n">title</span> <span class="o">=</span> <span class="p">[</span><span class="s">@"Cancel"</span> <span class="nf">uppercaseString</span><span class="p">];</span>
+    <span class="p">[</span><span class="n">cancelButton</span> <span class="nf">setTitle</span><span class="p">:</span><span class="n">title</span> <span class="nf">forState</span><span class="p">:</span><span class="n">UIControlStateNormal</span><span class="p">];</span>
+    <span class="p">[</span><span class="n">cancelButton</span> <span class="nf">setTitle</span><span class="p">:</span><span class="n">title</span> <span class="nf">forState</span><span class="p">:</span><span class="n">UIControlStateHighlighted</span><span class="p">];</span>
+
+    <span class="n">CGRect</span> <span class="n">buttonFrame</span> <span class="o">=</span> <span class="n">cancelButton</span><span class="p">.</span><span class="n">frame</span><span class="p">;</span>
+    <span class="n">buttonFrame</span><span class="p">.</span><span class="n">origin</span><span class="p">.</span><span class="n">y</span> <span class="o">=</span> <span class="n">ViewMargin</span><span class="p">;</span>
+    <span class="n">buttonFrame</span><span class="p">.</span><span class="n">size</span><span class="p">.</span><span class="n">height</span> <span class="o">=</span> <span class="n">ViewHeight</span><span class="p">;</span>
+    <span class="n">buttonFrame</span><span class="p">.</span><span class="n">size</span><span class="p">.</span><span class="n">width</span> <span class="o">=</span> <span class="mi">66</span><span class="p">;</span>
+    <span class="n">buttonFrame</span><span class="p">.</span><span class="n">origin</span><span class="p">.</span><span class="n">x</span> <span class="o">=</span> <span class="n">self</span><span class="p">.</span><span class="n">frame</span><span class="p">.</span><span class="n">size</span><span class="p">.</span><span class="n">width</span> <span class="o">-</span> <span class="n">buttonFrame</span><span class="p">.</span><span class="n">size</span><span class="p">.</span><span class="n">width</span> <span class="o">-</span> <span class="n">ViewMargin</span> <span class="o">+</span> <span class="n">CancelAnimationDistance</span><span class="p">;</span>
+    <span class="n">cancelButton</span><span class="p">.</span><span class="n">frame</span> <span class="o">=</span> <span class="n">buttonFrame</span><span class="p">;</span>
+    <span class="p">[</span><span class="n">cancelButton</span> <span class="nf">addTarget</span><span class="p">:</span><span class="n">self</span> <span class="nf">action</span><span class="p">:</span><span class="k">@selector</span><span class="p">(</span><span class="n">cancelSearchField</span><span class="p">)</span> <span class="n">forControlEvents</span><span class="o">:</span><span class="n">UIControlEventTouchUpInside</span><span class="p">];</span>
+
+    <span class="n">overlayCancelButton</span> <span class="o">=</span> <span class="n">cancelButton</span><span class="p">;</span>
+    <span class="p">[</span><span class="n">self</span> <span class="nf">addSubview</span><span class="p">:</span><span class="n">overlayCancelButton</span><span class="p">];</span>
+    <span class="p">[</span><span class="n">self</span> <span class="nf">bringSubviewToFront</span><span class="p">:</span><span class="n">overlayCancelButton</span><span class="p">];</span>
+<span class="p">}</span>
+
+<span class="k">-</span> <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="n">cancelSearchField</span> <span class="p">{</span>
+    <span class="c1">// tap the original button!</span>
+    <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="p">[</span><span class="n">self</span><span class="p">.</span><span class="n">subviews</span> <span class="nf">count</span><span class="p">]</span> <span class="o">-</span> <span class="mi">1</span><span class="p">;</span> <span class="n">i</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span><span class="o">--</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">UIView</span> <span class="o">*</span><span class="n">subview</span> <span class="o">=</span> <span class="p">[</span><span class="n">self</span><span class="p">.</span><span class="n">subviews</span> <span class="nf">objectAtIndex</span><span class="p">:</span><span class="n">i</span><span class="p">];</span>                
+        <span class="k">if</span> <span class="p">([</span><span class="n">subview</span><span class="p">.</span><span class="n">class</span> <span class="nf">isSubclassOfClass</span><span class="p">:[</span><span class="n">UIButton</span> <span class="nf">class</span><span class="p">]])</span> <span class="p">{</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">subview</span><span class="p">.</span><span class="n">frame</span><span class="p">.</span><span class="n">size</span><span class="p">.</span><span class="n">height</span> <span class="o">!=</span> <span class="n">ViewHeight</span><span class="p">)</span> <span class="p">{</span>
+                <span class="n">UIButton</span> <span class="o">*</span><span class="n">realCancel</span> <span class="o">=</span> <span class="p">(</span><span class="n">UIButton</span> <span class="o">*</span><span class="p">)</span><span class="n">subview</span><span class="p">;</span>
+                <span class="p">[</span><span class="n">realCancel</span> <span class="nf">sendActionsForControlEvents</span><span class="p">:</span> <span class="n">UIControlEventTouchUpInside</span><span class="p">];</span>
+            <span class="p">}</span>
+        <span class="p">}</span>
+    <span class="p">}</span>    
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>The complete code is available <a href="https://gist.github.com/2667766">as a gist</a> under the MIT license.</p>
-
-    
 
     
 
@@ -584,9 +540,7 @@ know when thats happening so we can hide it, we can do that by registering for <
   
     
       <article>
-        
-<div class="article-container">
-
+        <div class="article-container">
 
   
     <div class="meta-container">
@@ -599,8 +553,6 @@ know when thats happening so we can hide it, we can do that by registering for <
         
         <time datetime=""></time>
           <p class="meta-author">
-  
-
 
 
   
@@ -626,197 +578,119 @@ know when thats happening so we can hide it, we can do that by registering for <
   <div class="content-container">
     
     
-        <p>Why do so many companies write a homegrown pageviews tracking system? Between Google Analytics, Kissmetrics and many others, isn't that a completely solved problem?</p>
+        <p>Why do so many companies write a homegrown pageviews tracking system? Between Google Analytics, Kissmetrics and many others, isn’t that a completely solved problem?</p>
 
-<p>These popular solutions lack domain knowledge. They are easily capable of segmenting users by region or browser, but they fail to recognize rules core to your business. Tracking pageviews with a homegrown system becomes your next sprint's goal.</p>
+<p>These popular solutions lack domain knowledge. They are easily capable of segmenting users by region or browser, but they fail to recognize rules core to your business. Tracking pageviews with a homegrown system becomes your next sprint’s goal.</p>
 
 <p>Implementing a hit counter service is quite tricky. This is a write-heavy, asynchronous problem that must minimize impact on page rendering time, while dealing with rapidly growing amounts of data. Is there a middle ground between using Google Analytics and rolling out our own homegrown implementation? How can we use Google Analytics for data collection and inject domain knowledge into gathered data, incrementally, without writing our own service?</p>
 
 <!--more-->
 
+<p>Let’s write a Rake task that pulls data from Google Analytics. We can run it daily. Start with a Ruby gem called <a href="https://github.com/vigetlabs/garb">Garb</a>.</p>
 
-<p>Let's write a Rake task that pulls data from Google Analytics. We can run it daily. Start with a Ruby gem called <a href="https://github.com/vigetlabs/garb">Garb</a>.</p>
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">gem</span> <span class="s2">"garb"</span><span class="p">,</span> <span class="s2">"0.9.1"</span>
+</code></pre></div></div>
 
-<div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">gem</span> <span class="s2">&quot;garb&quot;</span><span class="p">,</span> <span class="s2">&quot;0.9.1&quot;</span>
-</span></code></pre></td></tr></table></div></figure></notextile></div>
+<p>Garb requires Google Analytics credentials. Those can go into a YAML configuration file, which will use environment settings in production (it’s an ERB template, too). We can hardcode the test account values.</p>
 
+<p>``` yaml config/google_analytics.yml
+defaults: &amp;defaults</p>
 
-<p>Garb requires Google Analytics credentials. Those can go into a YAML configuration file, which will use environment settings in production (it's an ERB template, too). We can hardcode the test account values.</p>
+<p>development, test:
+  «: *defaults
+  email: “ga@example.com”
+  password: “password”
+  ua: “UA-12345678-1”</p>
 
-<div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span>config/google_analytics.yml</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-</pre></td><td class='code'><pre><code class='yaml'><span class='line'><span class="l-Scalar-Plain">defaults</span><span class="p-Indicator">:</span> <span class="nl">&amp;defaults</span>
-</span><span class='line'>
-</span><span class='line'><span class="l-Scalar-Plain">development, test</span><span class="p-Indicator">:</span>
-</span><span class='line'>  <span class="l-Scalar-Plain">&lt;&lt;</span><span class="p-Indicator">:</span> <span class="nv">*defaults</span>
-</span><span class='line'>  <span class="l-Scalar-Plain">email</span><span class="p-Indicator">:</span> <span class="s">&quot;ga@example.com&quot;</span>
-</span><span class='line'>  <span class="l-Scalar-Plain">password</span><span class="p-Indicator">:</span> <span class="s">&quot;password&quot;</span>
-</span><span class='line'>  <span class="l-Scalar-Plain">ua</span><span class="p-Indicator">:</span> <span class="s">&quot;UA-12345678-1&quot;</span>
-</span><span class='line'>
-</span><span class='line'><span class="l-Scalar-Plain">production</span><span class="p-Indicator">:</span>
-</span><span class='line'>  <span class="l-Scalar-Plain">&lt;&lt;</span><span class="p-Indicator">:</span> <span class="nv">*defaults</span>
-</span><span class='line'>  <span class="l-Scalar-Plain">email</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">&lt;%= ENV[&#39;GOOGLE_ANALYTICS_EMAIL&#39;] %&gt;</span>
-</span><span class='line'>  <span class="l-Scalar-Plain">password</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">&lt;%= ENV[&#39;GOOGLE_ANALYTICS_PASSWORD&#39;] %&gt;</span>
-</span><span class='line'>  <span class="l-Scalar-Plain">ua</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">&lt;%= ENV[&#39;GOOGLE_ANALYICS_UA&#39;] %&gt;</span>
-</span></code></pre></td></tr></table></div></figure></notextile></div>
+<p>production:
+  «: *defaults
+  email: &lt;%= ENV[‘GOOGLE_ANALYTICS_EMAIL’] %&gt;
+  password: &lt;%= ENV[‘GOOGLE_ANALYTICS_PASSWORD’] %&gt;
+  ua: &lt;%= ENV[‘GOOGLE_ANALYICS_UA’] %&gt;</p>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+Establish a Google Analytics session and fetch the profile corresponding to the Google user account with Garb.
 
+``` ruby
+config = YAML.load(ERB.new(File.new(Rails.root.join("config/google_analytics.yml")).read).result)[Rails.env].symbolize_keys
+Garb::Session.login(config[:email], config[:password])
+profile = Garb::Management::Profile.all.detect { |p| p.web_property_id == config[:ua] }
+raise "missing profile #{config[:ua]} in #{Garb::Management::Profile.all.map(&amp;:web_property_id)}" unless profile
+</code></pre></div></div>
 
-<p>Establish a Google Analytics session and fetch the profile corresponding to the Google user account with Garb.</p>
+<p>Garbs needs a data model to collect pageviews. It extends <code class="language-plaintext highlighter-rouge">Garb::Model</code> and defines a set of “metrics” and “dimensions”.</p>
 
-<div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">config</span> <span class="o">=</span> <span class="no">YAML</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="no">ERB</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="no">File</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="no">Rails</span><span class="o">.</span><span class="n">root</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s2">&quot;config/google_analytics.yml&quot;</span><span class="p">))</span><span class="o">.</span><span class="n">read</span><span class="p">)</span><span class="o">.</span><span class="n">result</span><span class="p">)</span><span class="o">[</span><span class="no">Rails</span><span class="o">.</span><span class="n">env</span><span class="o">].</span><span class="n">symbolize_keys</span>
-</span><span class='line'><span class="no">Garb</span><span class="o">::</span><span class="no">Session</span><span class="o">.</span><span class="n">login</span><span class="p">(</span><span class="n">config</span><span class="o">[</span><span class="ss">:email</span><span class="o">]</span><span class="p">,</span> <span class="n">config</span><span class="o">[</span><span class="ss">:password</span><span class="o">]</span><span class="p">)</span>
-</span><span class='line'><span class="n">profile</span> <span class="o">=</span> <span class="no">Garb</span><span class="o">::</span><span class="no">Management</span><span class="o">::</span><span class="no">Profile</span><span class="o">.</span><span class="n">all</span><span class="o">.</span><span class="n">detect</span> <span class="p">{</span> <span class="o">|</span><span class="nb">p</span><span class="o">|</span> <span class="nb">p</span><span class="o">.</span><span class="n">web_property_id</span> <span class="o">==</span> <span class="n">config</span><span class="o">[</span><span class="ss">:ua</span><span class="o">]</span> <span class="p">}</span>
-</span><span class='line'><span class="k">raise</span> <span class="s2">&quot;missing profile </span><span class="si">#{</span><span class="n">config</span><span class="o">[</span><span class="ss">:ua</span><span class="o">]</span><span class="si">}</span><span class="s2"> in </span><span class="si">#{</span><span class="no">Garb</span><span class="o">::</span><span class="no">Management</span><span class="o">::</span><span class="no">Profile</span><span class="o">.</span><span class="n">all</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="o">&amp;</span><span class="ss">:web_property_id</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">unless</span> <span class="n">profile</span>
-</span></code></pre></td></tr></table></div></figure></notextile></div>
+<p>``` ruby app/models/google_analytics_pageviews.rb
+class GoogleAnalyticsPageviews
+  extend Garb::Model
+  metrics :pageviews
+  dimensions :page_path
+end</p>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+You can play with the [Google Analytics Query Explorer](http://ga-dev-tools.appspot.com/explorer/) to see the many possible metrics (such as pageviews) and dimensions (such as requested page path).
 
+By default, Google Analytics lets clients retrieve 1000 records in a single request. To get all records we can add an iterator, called `all`, that will keep making requests until the server runs out of data. The code for *config/initializers/garb_model.rb* is [in this gist](https://gist.github.com/2265877) and I made a [pull request](https://github.com/vigetlabs/garb/pull/116) into Garb if you'd rather merge that onto your fork.
 
-<p>Garbs needs a data model to collect pageviews. It extends <code>Garb::Model</code> and defines a set of "metrics" and "dimensions".</p>
+The majority of our pages are in the form of "/model/id", for example "/artwork/leonardo-mona-lisa". We're interested in all pageviews for a given artwork and in pageviews for a given artist, at a given date. We'll store selected Google Analytics data in a `GoogleAnalyticsPageviewsRecord` model described further.
 
-<div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span>app/models/google_analytics_pageviews.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">GoogleAnalyticsPageviews</span>
-</span><span class='line'>  <span class="kp">extend</span> <span class="no">Garb</span><span class="o">::</span><span class="no">Model</span>
-</span><span class='line'>  <span class="n">metrics</span> <span class="ss">:pageviews</span>
-</span><span class='line'>  <span class="n">dimensions</span> <span class="ss">:page_path</span>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure></notextile></div>
+``` ruby
+t = Date.today - 1
+GoogleAnalyticsPageviews.all(profile, { :start_date =&gt; t, :end_date =&gt; t }) do |row|
+  model = /^\/#\!\/(?&lt;type&gt;[a-z-]+)\/(?&lt;id&gt;[a-z-]+)$/.match(row.page_path)
+  next unless (model[:type] == "artwork" || model[:type] == "artist")
+  GoogleAnalyticsPageviewsRecord.create!({
+    :model_type =&gt; model[:type],
+    :model_id =&gt; model[:id],
+    :pageviews =&gt; row.pageviews,
+    :dt =&gt; t.strftime("%Y-%m-%d")
+  })
+end
+</code></pre></div></div>
 
+<p>Each <code class="language-plaintext highlighter-rouge">GoogleAnalyticsPageviewsRecord</code> contains the total pageviews for a given model ID at a given date. We now have a record for each artwork and artist. We can rollup existing data into a set of collections, incrementally. For example, <code class="language-plaintext highlighter-rouge">google_analytics_artworks_monthly</code> will contain the monthly hits for each artwork.</p>
 
-<p>You can play with the <a href="http://ga-dev-tools.appspot.com/explorer/">Google Analytics Query Explorer</a> to see the many possible metrics (such as pageviews) and dimensions (such as requested page path).</p>
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">class</span> <span class="nc">GoogleAnalyticsPageviewsRecord</span>
+  <span class="kp">include</span> <span class="no">Mongoid</span><span class="o">::</span><span class="no">Document</span>
 
-<p>By default, Google Analytics lets clients retrieve 1000 records in a single request. To get all records we can add an iterator, called <code>all</code>, that will keep making requests until the server runs out of data. The code for <em>config/initializers/garb_model.rb</em> is <a href="https://gist.github.com/2265877">in this gist</a> and I made a <a href="https://github.com/vigetlabs/garb/pull/116">pull request</a> into Garb if you'd rather merge that onto your fork.</p>
+  <span class="n">field</span> <span class="ss">:model_type</span><span class="p">,</span> <span class="ss">type: </span><span class="no">String</span>
+  <span class="n">field</span> <span class="ss">:model_id</span><span class="p">,</span> <span class="ss">type: </span><span class="no">String</span>
+  <span class="n">field</span> <span class="ss">:pageviews</span><span class="p">,</span> <span class="ss">type: </span><span class="no">Integer</span>
+  <span class="n">field</span> <span class="ss">:dt</span><span class="p">,</span> <span class="ss">type: </span><span class="no">Date</span>
 
-<p>The majority of our pages are in the form of "/model/id", for example "/artwork/leonardo-mona-lisa". We're interested in all pageviews for a given artwork and in pageviews for a given artist, at a given date. We'll store selected Google Analytics data in a <code>GoogleAnalyticsPageviewsRecord</code> model described further.</p>
+  <span class="n">index</span> <span class="p">[</span>
+    <span class="p">[</span><span class="ss">:model_type</span><span class="p">,</span> <span class="no">Mongo</span><span class="o">::</span><span class="no">ASCENDING</span><span class="p">],</span>
+    <span class="p">[</span><span class="ss">:model_id</span><span class="p">,</span> <span class="no">Mongo</span><span class="o">::</span><span class="no">ASCENDING</span><span class="p">],</span>
+    <span class="p">[</span><span class="ss">:dt</span><span class="p">,</span> <span class="no">Mongo</span><span class="o">::</span><span class="no">DESCENDING</span><span class="p">]</span>
+  <span class="p">],</span> <span class="ss">:unique</span> <span class="o">=&gt;</span> <span class="kp">true</span>
 
-<div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">t</span> <span class="o">=</span> <span class="no">Date</span><span class="o">.</span><span class="n">today</span> <span class="o">-</span> <span class="mi">1</span>
-</span><span class='line'><span class="no">GoogleAnalyticsPageviews</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">profile</span><span class="p">,</span> <span class="p">{</span> <span class="ss">:start_date</span> <span class="o">=&gt;</span> <span class="n">t</span><span class="p">,</span> <span class="ss">:end_date</span> <span class="o">=&gt;</span> <span class="n">t</span> <span class="p">})</span> <span class="k">do</span> <span class="o">|</span><span class="n">row</span><span class="o">|</span>
-</span><span class='line'>  <span class="n">model</span> <span class="o">=</span> <span class="sr">/^\/#\!\/(?&lt;type&gt;[a-z-]+)\/(?&lt;id&gt;[a-z-]+)$/</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">row</span><span class="o">.</span><span class="n">page_path</span><span class="p">)</span>
-</span><span class='line'>  <span class="k">next</span> <span class="k">unless</span> <span class="p">(</span><span class="n">model</span><span class="o">[</span><span class="ss">:type</span><span class="o">]</span> <span class="o">==</span> <span class="s2">&quot;artwork&quot;</span> <span class="o">||</span> <span class="n">model</span><span class="o">[</span><span class="ss">:type</span><span class="o">]</span> <span class="o">==</span> <span class="s2">&quot;artist&quot;</span><span class="p">)</span>
-</span><span class='line'>  <span class="no">GoogleAnalyticsPageviewsRecord</span><span class="o">.</span><span class="n">create!</span><span class="p">({</span>
-</span><span class='line'>    <span class="ss">:model_type</span> <span class="o">=&gt;</span> <span class="n">model</span><span class="o">[</span><span class="ss">:type</span><span class="o">]</span><span class="p">,</span>
-</span><span class='line'>    <span class="ss">:model_id</span> <span class="o">=&gt;</span> <span class="n">model</span><span class="o">[</span><span class="ss">:id</span><span class="o">]</span><span class="p">,</span>
-</span><span class='line'>    <span class="ss">:pageviews</span> <span class="o">=&gt;</span> <span class="n">row</span><span class="o">.</span><span class="n">pageviews</span><span class="p">,</span>
-</span><span class='line'>    <span class="ss">:dt</span> <span class="o">=&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y-%m-%d&quot;</span><span class="p">)</span>
-</span><span class='line'>  <span class="p">})</span>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure></notextile></div>
+  <span class="n">after_create</span> <span class="ss">:rollup</span>
 
+  <span class="k">def</span> <span class="nf">rollup</span>
+    <span class="no">Mongoid</span><span class="p">.</span><span class="nf">master</span><span class="p">.</span><span class="nf">collection</span><span class="p">(</span><span class="s2">"google_analytics_</span><span class="si">#{</span><span class="nb">self</span><span class="p">.</span><span class="nf">model_type</span><span class="si">}</span><span class="s2">s_total"</span><span class="p">).</span><span class="nf">update</span><span class="p">(</span>
+      <span class="p">{</span> <span class="ss">:model_id</span> <span class="o">=&gt;</span> <span class="nb">self</span><span class="p">.</span><span class="nf">model_id</span> <span class="p">},</span>
+      <span class="p">{</span> <span class="s2">"$inc"</span> <span class="o">=&gt;</span> <span class="p">{</span> <span class="s2">"count"</span> <span class="o">=&gt;</span> <span class="nb">self</span><span class="p">.</span><span class="nf">pageviews</span> <span class="p">}},</span> <span class="p">{</span> <span class="ss">:upsert</span> <span class="o">=&gt;</span> <span class="kp">true</span> <span class="p">})</span>
+    <span class="p">{</span>
+      <span class="ss">:daily</span> <span class="o">=&gt;</span> <span class="nb">self</span><span class="p">.</span><span class="nf">dt</span><span class="p">.</span><span class="nf">strftime</span><span class="p">(</span><span class="s2">"%Y-%m-%d"</span><span class="p">),</span>
+      <span class="ss">:weekly</span> <span class="o">=&gt;</span> <span class="nb">self</span><span class="p">.</span><span class="nf">dt</span><span class="p">.</span><span class="nf">beginning_of_week</span><span class="p">.</span><span class="nf">strftime</span><span class="p">(</span><span class="s2">"%Y-%W"</span><span class="p">),</span>
+      <span class="ss">:monthly</span> <span class="o">=&gt;</span> <span class="nb">self</span><span class="p">.</span><span class="nf">dt</span><span class="p">.</span><span class="nf">beginning_of_month</span><span class="p">.</span><span class="nf">strftime</span><span class="p">(</span><span class="s2">"%Y-%m"</span><span class="p">),</span>
+      <span class="ss">:yearly</span> <span class="o">=&gt;</span> <span class="nb">self</span><span class="p">.</span><span class="nf">dt</span><span class="p">.</span><span class="nf">beginning_of_year</span><span class="p">.</span><span class="nf">strftime</span><span class="p">(</span><span class="s2">"%Y"</span><span class="p">)</span>
+    <span class="p">}.</span><span class="nf">each_pair</span> <span class="k">do</span> <span class="o">|</span><span class="n">t</span><span class="p">,</span> <span class="n">dt</span><span class="o">|</span>
+      <span class="no">Mongoid</span><span class="p">.</span><span class="nf">master</span><span class="p">.</span><span class="nf">collection</span><span class="p">(</span><span class="s2">"google_analytics_</span><span class="si">#{</span><span class="nb">self</span><span class="p">.</span><span class="nf">model_type</span><span class="si">}</span><span class="s2">s_</span><span class="si">#{</span><span class="n">t</span><span class="si">}</span><span class="s2">"</span><span class="p">).</span><span class="nf">update</span><span class="p">(</span>
+        <span class="p">{</span> <span class="ss">:model_id</span> <span class="o">=&gt;</span> <span class="nb">self</span><span class="p">.</span><span class="nf">model_id</span><span class="p">,</span> <span class="ss">:dt</span> <span class="o">=&gt;</span> <span class="n">dt</span> <span class="p">},</span>
+        <span class="p">{</span> <span class="s2">"$inc"</span> <span class="o">=&gt;</span> <span class="p">{</span> <span class="s2">"count"</span> <span class="o">=&gt;</span> <span class="nb">self</span><span class="p">.</span><span class="nf">pageviews</span> <span class="p">}},</span> <span class="p">{</span> <span class="ss">:upsert</span> <span class="o">=&gt;</span> <span class="kp">true</span> <span class="p">})</span>
+    <span class="k">end</span>
+  <span class="k">end</span>
 
-<p>Each <code>GoogleAnalyticsPageviewsRecord</code> contains the total pageviews for a given model ID at a given date. We now have a record for each artwork and artist. We can rollup existing data into a set of collections, incrementally. For example, <code>google_analytics_artworks_monthly</code> will contain the monthly hits for each artwork.</p>
+<span class="k">end</span>
+</code></pre></div></div>
 
-<div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-<span class='line-number'>19</span>
-<span class='line-number'>20</span>
-<span class='line-number'>21</span>
-<span class='line-number'>22</span>
-<span class='line-number'>23</span>
-<span class='line-number'>24</span>
-<span class='line-number'>25</span>
-<span class='line-number'>26</span>
-<span class='line-number'>27</span>
-<span class='line-number'>28</span>
-<span class='line-number'>29</span>
-<span class='line-number'>30</span>
-<span class='line-number'>31</span>
-<span class='line-number'>32</span>
-<span class='line-number'>33</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">GoogleAnalyticsPageviewsRecord</span>
-</span><span class='line'>  <span class="kp">include</span> <span class="no">Mongoid</span><span class="o">::</span><span class="no">Document</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="n">field</span> <span class="ss">:model_type</span><span class="p">,</span> <span class="ss">type</span><span class="p">:</span> <span class="nb">String</span>
-</span><span class='line'>  <span class="n">field</span> <span class="ss">:model_id</span><span class="p">,</span> <span class="ss">type</span><span class="p">:</span> <span class="nb">String</span>
-</span><span class='line'>  <span class="n">field</span> <span class="ss">:pageviews</span><span class="p">,</span> <span class="ss">type</span><span class="p">:</span> <span class="nb">Integer</span>
-</span><span class='line'>  <span class="n">field</span> <span class="ss">:dt</span><span class="p">,</span> <span class="ss">type</span><span class="p">:</span> <span class="no">Date</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="n">index</span> <span class="o">[</span>
-</span><span class='line'>    <span class="o">[</span><span class="ss">:model_type</span><span class="p">,</span> <span class="no">Mongo</span><span class="o">::</span><span class="no">ASCENDING</span><span class="o">]</span><span class="p">,</span>
-</span><span class='line'>    <span class="o">[</span><span class="ss">:model_id</span><span class="p">,</span> <span class="no">Mongo</span><span class="o">::</span><span class="no">ASCENDING</span><span class="o">]</span><span class="p">,</span>
-</span><span class='line'>    <span class="o">[</span><span class="ss">:dt</span><span class="p">,</span> <span class="no">Mongo</span><span class="o">::</span><span class="no">DESCENDING</span><span class="o">]</span>
-</span><span class='line'>  <span class="o">]</span><span class="p">,</span> <span class="ss">:unique</span> <span class="o">=&gt;</span> <span class="kp">true</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="n">after_create</span> <span class="ss">:rollup</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="k">def</span> <span class="nf">rollup</span>
-</span><span class='line'>    <span class="no">Mongoid</span><span class="o">.</span><span class="n">master</span><span class="o">.</span><span class="n">collection</span><span class="p">(</span><span class="s2">&quot;google_analytics_</span><span class="si">#{</span><span class="nb">self</span><span class="o">.</span><span class="n">model_type</span><span class="si">}</span><span class="s2">s_total&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
-</span><span class='line'>      <span class="p">{</span> <span class="ss">:model_id</span> <span class="o">=&gt;</span> <span class="nb">self</span><span class="o">.</span><span class="n">model_id</span> <span class="p">},</span>
-</span><span class='line'>      <span class="p">{</span> <span class="s2">&quot;$inc&quot;</span> <span class="o">=&gt;</span> <span class="p">{</span> <span class="s2">&quot;count&quot;</span> <span class="o">=&gt;</span> <span class="nb">self</span><span class="o">.</span><span class="n">pageviews</span> <span class="p">}},</span> <span class="p">{</span> <span class="ss">:upsert</span> <span class="o">=&gt;</span> <span class="kp">true</span> <span class="p">})</span>
-</span><span class='line'>    <span class="p">{</span>
-</span><span class='line'>      <span class="ss">:daily</span> <span class="o">=&gt;</span> <span class="nb">self</span><span class="o">.</span><span class="n">dt</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y-%m-%d&quot;</span><span class="p">),</span>
-</span><span class='line'>      <span class="ss">:weekly</span> <span class="o">=&gt;</span> <span class="nb">self</span><span class="o">.</span><span class="n">dt</span><span class="o">.</span><span class="n">beginning_of_week</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y-%W&quot;</span><span class="p">),</span>
-</span><span class='line'>      <span class="ss">:monthly</span> <span class="o">=&gt;</span> <span class="nb">self</span><span class="o">.</span><span class="n">dt</span><span class="o">.</span><span class="n">beginning_of_month</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y-%m&quot;</span><span class="p">),</span>
-</span><span class='line'>      <span class="ss">:yearly</span> <span class="o">=&gt;</span> <span class="nb">self</span><span class="o">.</span><span class="n">dt</span><span class="o">.</span><span class="n">beginning_of_year</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y&quot;</span><span class="p">)</span>
-</span><span class='line'>    <span class="p">}</span><span class="o">.</span><span class="n">each_pair</span> <span class="k">do</span> <span class="o">|</span><span class="n">t</span><span class="p">,</span> <span class="n">dt</span><span class="o">|</span>
-</span><span class='line'>      <span class="no">Mongoid</span><span class="o">.</span><span class="n">master</span><span class="o">.</span><span class="n">collection</span><span class="p">(</span><span class="s2">&quot;google_analytics_</span><span class="si">#{</span><span class="nb">self</span><span class="o">.</span><span class="n">model_type</span><span class="si">}</span><span class="s2">s_</span><span class="si">#{</span><span class="n">t</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
-</span><span class='line'>        <span class="p">{</span> <span class="ss">:model_id</span> <span class="o">=&gt;</span> <span class="nb">self</span><span class="o">.</span><span class="n">model_id</span><span class="p">,</span> <span class="ss">:dt</span> <span class="o">=&gt;</span> <span class="n">dt</span> <span class="p">},</span>
-</span><span class='line'>        <span class="p">{</span> <span class="s2">&quot;$inc&quot;</span> <span class="o">=&gt;</span> <span class="p">{</span> <span class="s2">&quot;count&quot;</span> <span class="o">=&gt;</span> <span class="nb">self</span><span class="o">.</span><span class="n">pageviews</span> <span class="p">}},</span> <span class="p">{</span> <span class="ss">:upsert</span> <span class="o">=&gt;</span> <span class="kp">true</span> <span class="p">})</span>
-</span><span class='line'>    <span class="k">end</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure></notextile></div>
+<p>The rollup lets us query these tables directly. For example, the following query returns a record with the pageviews for the Leonardo’s “Mona Lisa” in January 2012.</p>
 
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="no">Mongoid</span><span class="p">.</span><span class="nf">master</span><span class="p">.</span><span class="nf">collection</span><span class="p">(</span><span class="s2">"google_analytics_artworks_monthly"</span><span class="p">).</span><span class="nf">find_one</span><span class="p">({</span>
+  <span class="ss">:model_type</span> <span class="o">=&gt;</span> <span class="s2">"artwork"</span><span class="p">,</span> <span class="ss">:model_id</span> <span class="o">=&gt;</span> <span class="s2">"leonardo-mona-lisa"</span><span class="p">,</span> <span class="ss">:dt</span> <span class="o">=&gt;</span> <span class="s2">"2012/01"</span>
+<span class="p">})</span>
+</code></pre></div></div>
 
-<p>The rollup lets us query these tables directly. For example, the following query returns a record with the pageviews for the Leonardo's "Mona Lisa" in January 2012.</p>
-
-<div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="no">Mongoid</span><span class="o">.</span><span class="n">master</span><span class="o">.</span><span class="n">collection</span><span class="p">(</span><span class="s2">&quot;google_analytics_artworks_monthly&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">find_one</span><span class="p">({</span>
-</span><span class='line'>  <span class="ss">:model_type</span> <span class="o">=&gt;</span> <span class="s2">&quot;artwork&quot;</span><span class="p">,</span> <span class="ss">:model_id</span> <span class="o">=&gt;</span> <span class="s2">&quot;leonardo-mona-lisa&quot;</span><span class="p">,</span> <span class="ss">:dt</span> <span class="o">=&gt;</span> <span class="s2">&quot;2012/01&quot;</span>
-</span><span class='line'><span class="p">})</span>
-</span></code></pre></td></tr></table></div></figure></notextile></div>
-
-
-<p>One of the obvious advantages of pulling Google Analytics data is the low volume of requests and offline processing. We're letting Google Analytics do the hard work of collecting data for us in real time and are consuming its API without the performance or time pressures.</p>
-
-    
+<p>One of the obvious advantages of pulling Google Analytics data is the low volume of requests and offline processing. We’re letting Google Analytics do the hard work of collecting data for us in real time and are consuming its API without the performance or time pressures.</p>
 
     
 
@@ -833,9 +707,7 @@ know when thats happening so we can hide it, we can do that by registering for <
   
     
       <article>
-        
-<div class="article-container">
-
+        <div class="article-container">
 
   
     <div class="meta-container">
@@ -848,8 +720,6 @@ know when thats happening so we can hide it, we can do that by registering for <
         
         <time datetime=""></time>
           <p class="meta-author">
-  
-
 
 
   
@@ -875,46 +745,29 @@ know when thats happening so we can hide it, we can do that by registering for <
   <div class="content-container">
     
     
-        <p>Often times people will use <em>border-bottom: 1px solid</em> in favor of <em>text-decoration: underline</em> to give their links some breathing room. But what if you're giving it <em>too</em> much breathing room and want to adjust the height of that underline. With Adobe Garamond that happened to be the case, so we've come up with this little css trick:</p>
+        <p>Often times people will use <em>border-bottom: 1px solid</em> in favor of <em>text-decoration: underline</em> to give their links some breathing room. But what if you’re giving it <em>too</em> much breathing room and want to adjust the height of that underline. With Adobe Garamond that happened to be the case, so we’ve come up with this little css trick:</p>
 
-<div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-</pre></td><td class='code'><pre><code class='css'><span class='line'><span class="nt">a</span> <span class="p">{</span>
-</span><span class='line'>  <span class="k">display</span><span class="o">:</span> <span class="k">inline</span><span class="o">-</span><span class="k">block</span><span class="p">;</span>
-</span><span class='line'>  <span class="k">position</span><span class="o">:</span> <span class="k">relative</span><span class="p">;</span>
-</span><span class='line'><span class="p">}</span>
-</span><span class='line'><span class="nt">a</span><span class="o">:</span><span class="nd">:after</span> <span class="p">{</span>
-</span><span class='line'>  <span class="k">content</span><span class="o">:</span> <span class="s1">&#39;&#39;</span><span class="p">;</span>
-</span><span class='line'>  <span class="k">position</span><span class="o">:</span> <span class="k">absolute</span><span class="p">;</span>
-</span><span class='line'>  <span class="k">left</span><span class="o">:</span> <span class="m">0</span><span class="p">;</span>
-</span><span class='line'>  <span class="k">display</span><span class="o">:</span> <span class="k">inline</span><span class="o">-</span><span class="k">block</span><span class="p">;</span>
-</span><span class='line'>  <span class="k">height</span><span class="o">:</span> <span class="m">1em</span><span class="p">;</span>
-</span><span class='line'>  <span class="k">width</span><span class="o">:</span> <span class="m">100%</span><span class="p">;</span>
-</span><span class='line'>  <span class="k">border-bottom</span><span class="o">:</span> <span class="m">1px</span> <span class="k">solid</span><span class="p">;</span>
-</span><span class='line'>  <span class="k">margin-top</span><span class="o">:</span> <span class="m">5px</span><span class="p">;</span>
-</span><span class='line'><span class="p">}</span>
-</span></code></pre></td></tr></table></div></figure></notextile></div>
-
+<div class="language-css highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nt">a</span> <span class="p">{</span>
+  <span class="nl">display</span><span class="p">:</span> <span class="n">inline-block</span><span class="p">;</span>
+  <span class="nl">position</span><span class="p">:</span> <span class="nb">relative</span><span class="p">;</span>
+<span class="p">}</span>
+<span class="nt">a</span><span class="nd">::after</span> <span class="p">{</span>
+  <span class="nl">content</span><span class="p">:</span> <span class="s2">''</span><span class="p">;</span>
+  <span class="nl">position</span><span class="p">:</span> <span class="nb">absolute</span><span class="p">;</span>
+  <span class="nl">left</span><span class="p">:</span> <span class="m">0</span><span class="p">;</span>
+  <span class="nl">display</span><span class="p">:</span> <span class="n">inline-block</span><span class="p">;</span>
+  <span class="nl">height</span><span class="p">:</span> <span class="m">1em</span><span class="p">;</span>
+  <span class="nl">width</span><span class="p">:</span> <span class="m">100%</span><span class="p">;</span>
+  <span class="nl">border-bottom</span><span class="p">:</span> <span class="m">1px</span> <span class="nb">solid</span><span class="p">;</span>
+  <span class="nl">margin-top</span><span class="p">:</span> <span class="m">5px</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></div>
 
 <p>This overlays a CSS pseudo element with a border-bottom that can be adjusted by changing margin-top.</p>
 
-<p>For handling browsers that don't support pseudo elements I recommend targeting them with the <a href="http://paulirish.com/2008/conditional-stylesheets-vs-css-hacks-answer-neither/">Paul Irish class-on-html-trick</a>.</p>
+<p>For handling browsers that don’t support pseudo elements I recommend targeting them with the <a href="http://paulirish.com/2008/conditional-stylesheets-vs-css-hacks-answer-neither/">Paul Irish class-on-html-trick</a>.</p>
 
 <p>Let your links breathe!</p>
-
-    
 
     
 
@@ -931,9 +784,7 @@ know when thats happening so we can hide it, we can do that by registering for <
   
     
       <article>
-        
-<div class="article-container">
-
+        <div class="article-container">
 
   
     <div class="meta-container">
@@ -946,8 +797,6 @@ know when thats happening so we can hide it, we can do that by registering for <
         
         <time datetime=""></time>
           <p class="meta-author">
-  
-
 
 
   
@@ -973,143 +822,83 @@ know when thats happening so we can hide it, we can do that by registering for <
   <div class="content-container">
     
     
-        <p>Did you know that Netflix has hundreds of API versions, one for each device? Daniel Jacobson's <a href="http://www.slideshare.net/danieljacobson/techniques-for-scaling-the-netflix-api-qcon-sf">Techniques for Scaling the Netflix API</a> at QConSF 2011 explained why they chose this model. And while we don't all build distributed services that supply custom-tailored data to thousands of heterogeneous TVs and set-top boxes, we do have to pay close attention to API versioning from day one.</p>
+        <p>Did you know that Netflix has hundreds of API versions, one for each device? Daniel Jacobson’s <a href="http://www.slideshare.net/danieljacobson/techniques-for-scaling-the-netflix-api-qcon-sf">Techniques for Scaling the Netflix API</a> at QConSF 2011 explained why they chose this model. And while we don’t all build distributed services that supply custom-tailored data to thousands of heterogeneous TVs and set-top boxes, we do have to pay close attention to API versioning from day one.</p>
 
-<p>Versioning is hard. Your data models evolve, but you must maintain backward-compatibility for your public interfaces. While many strategies exist to deal with this problem, we'd like to propose one that requires very little programming effort and that is more declarative in nature.</p>
+<p>Versioning is hard. Your data models evolve, but you must maintain backward-compatibility for your public interfaces. While many strategies exist to deal with this problem, we’d like to propose one that requires very little programming effort and that is more declarative in nature.</p>
 
-<p>At Artsy we use <a href="http://github.com/intridea/grape">Grape</a> and implement the "path" versioning strategy from the <a href="http://github.com/intridea/grape/tree/frontier">frontier</a> branch. Our initial v1 API is consumed by our own website and services and lives at <a href="https://artsyapi.com/api/v1">https://artsyapi.com/api/v1</a>. We've also prototyped v2 and by the time v1 is frozen, it should already be in production.</p>
+<p>At Artsy we use <a href="http://github.com/intridea/grape">Grape</a> and implement the “path” versioning strategy from the <a href="http://github.com/intridea/grape/tree/frontier">frontier</a> branch. Our initial v1 API is consumed by our own website and services and lives at <a href="https://artsyapi.com/api/v1">https://artsyapi.com/api/v1</a>. We’ve also prototyped v2 and by the time v1 is frozen, it should already be in production.</p>
 
-<p>Grape takes care of version-based routing and has a system that lets you split version-based presentation of a model from the model implementation. I find that separation forcefully induced by unnecessary implementation complexity around wanting to return different JSON depending on the API version requested. What if implementing versioning in <code>as_json</code> were super simple?</p>
+<p>Grape takes care of version-based routing and has a system that lets you split version-based presentation of a model from the model implementation. I find that separation forcefully induced by unnecessary implementation complexity around wanting to return different JSON depending on the API version requested. What if implementing versioning in <code class="language-plaintext highlighter-rouge">as_json</code> were super simple?</p>
 
 <p>Consider a Person model returned from a v1 API.</p>
 
-<div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">API</span> <span class="o">&lt;</span> <span class="no">Grape</span><span class="o">::</span><span class="no">API</span>
-</span><span class='line'>  <span class="n">prefix</span> <span class="ss">:api</span>
-</span><span class='line'>  <span class="n">version</span> <span class="ss">:v1</span>
-</span><span class='line'>  <span class="n">namespace</span> <span class="ss">:person</span>
-</span><span class='line'>    <span class="n">get</span> <span class="s2">&quot;:id&quot;</span>
-</span><span class='line'>      <span class="no">Person</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="n">params</span><span class="o">[</span><span class="ss">:id</span><span class="o">]</span><span class="p">)</span><span class="o">.</span><span class="n">as_json</span>
-</span><span class='line'>    <span class="k">end</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure></notextile></div>
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">class</span> <span class="nc">API</span> <span class="o">&lt;</span> <span class="no">Grape</span><span class="o">::</span><span class="no">API</span>
+  <span class="n">prefix</span> <span class="ss">:api</span>
+  <span class="n">version</span> <span class="ss">:v1</span>
+  <span class="n">namespace</span> <span class="ss">:person</span>
+    <span class="n">get</span> <span class="s2">":id"</span>
+      <span class="no">Person</span><span class="p">.</span><span class="nf">find</span><span class="p">(</span><span class="n">params</span><span class="p">[</span><span class="ss">:id</span><span class="p">]).</span><span class="nf">as_json</span>
+    <span class="k">end</span>
+  <span class="k">end</span>
+<span class="k">end</span>
+</code></pre></div></div>
 
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">class</span> <span class="nc">Person</span>
+  <span class="kp">include</span> <span class="no">Mongoid</span><span class="o">::</span><span class="no">Document</span>
 
+  <span class="n">field</span> <span class="ss">:name</span>
 
+  <span class="k">def</span> <span class="nf">as_json</span>
+    <span class="p">{</span>
+      <span class="ss">name: </span><span class="nb">name</span>
+    <span class="p">}</span>
+  <span class="k">end</span>
 
-<div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">Person</span>
-</span><span class='line'>  <span class="kp">include</span> <span class="no">Mongoid</span><span class="o">::</span><span class="no">Document</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="n">field</span> <span class="ss">:name</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="k">def</span> <span class="nf">as_json</span>
-</span><span class='line'>    <span class="p">{</span>
-</span><span class='line'>      <span class="nb">name</span><span class="p">:</span> <span class="nb">name</span>
-</span><span class='line'>    <span class="p">}</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure></notextile></div>
+<span class="k">end</span>
+</code></pre></div></div>
 
+<p>In v2 the model split <code class="language-plaintext highlighter-rouge">:name</code> into a <code class="language-plaintext highlighter-rouge">:first</code> and <code class="language-plaintext highlighter-rouge">:last</code> name and in v3 <code class="language-plaintext highlighter-rouge">:name</code> has finally been deprecated. A version v3 Person model would look as follows.</p>
 
-<p>In v2 the model split <code>:name</code> into a <code>:first</code> and <code>:last</code> name and in v3 <code>:name</code> has finally been deprecated. A version v3 Person model would look as follows.</p>
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">class</span> <span class="nc">Person</span>
+  <span class="kp">include</span> <span class="no">Mongoid</span><span class="o">::</span><span class="no">Document</span>
 
-<div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">Person</span>
-</span><span class='line'>  <span class="kp">include</span> <span class="no">Mongoid</span><span class="o">::</span><span class="no">Document</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="n">field</span> <span class="ss">:first</span>
-</span><span class='line'>  <span class="n">field</span> <span class="ss">:last</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="k">def</span> <span class="nf">as_json</span>
-</span><span class='line'>    <span class="p">{</span>
-</span><span class='line'>      <span class="ss">first</span><span class="p">:</span> <span class="n">first</span><span class="p">,</span>
-</span><span class='line'>      <span class="ss">last</span><span class="p">:</span> <span class="n">last</span>
-</span><span class='line'>    <span class="p">}</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure></notextile></div>
+  <span class="n">field</span> <span class="ss">:first</span>
+  <span class="n">field</span> <span class="ss">:last</span>
 
+  <span class="k">def</span> <span class="nf">as_json</span>
+    <span class="p">{</span>
+      <span class="ss">first: </span><span class="n">first</span><span class="p">,</span>
+      <span class="ss">last: </span><span class="n">last</span>
+    <span class="p">}</span>
+  <span class="k">end</span>
 
-<p>How can we combine these two implementations and write <code>Person.find(params[:id]).as_json({ :version =&gt; ? })</code>?</p>
+<span class="k">end</span>
+</code></pre></div></div>
 
-<p>In <a href="http://github.com/dblock/mongoid-cached-json">mongoid-cached-json</a> we've introduced a declarative way of versioning JSON. Here's the code for Person v3.</p>
+<p>How can we combine these two implementations and write <code class="language-plaintext highlighter-rouge">Person.find(params[:id]).as_json({ :version =&gt; ? })</code>?</p>
 
-<div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">Person</span>
-</span><span class='line'>  <span class="kp">include</span> <span class="no">Mongoid</span><span class="o">::</span><span class="no">Document</span>
-</span><span class='line'>  <span class="kp">include</span> <span class="no">Mongoid</span><span class="o">::</span><span class="no">CachedJson</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="n">field</span> <span class="ss">:first</span>
-</span><span class='line'>  <span class="n">field</span> <span class="ss">:last</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="k">def</span> <span class="nf">name</span>
-</span><span class='line'>    <span class="o">[</span> <span class="n">first</span><span class="p">,</span> <span class="n">last</span> <span class="o">].</span><span class="n">join</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="p">)</span>
-</span><span class='line'>  <span class="k">end</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="n">json_fields</span> <span class="p">\</span>
-</span><span class='line'>    <span class="nb">name</span><span class="p">:</span> <span class="p">{</span> <span class="ss">:versions</span> <span class="o">=&gt;</span> <span class="o">[</span> <span class="ss">:v1</span><span class="p">,</span> <span class="ss">:v2</span> <span class="o">]</span> <span class="p">},</span>
-</span><span class='line'>    <span class="ss">first</span><span class="p">:</span> <span class="p">{</span> <span class="ss">:versions</span> <span class="o">=&gt;</span> <span class="o">[</span> <span class="ss">:v2</span><span class="p">,</span> <span class="ss">:v3</span> <span class="o">]</span> <span class="p">},</span>
-</span><span class='line'>    <span class="ss">last</span><span class="p">:</span> <span class="p">{</span> <span class="ss">:versions</span> <span class="o">=&gt;</span> <span class="o">[</span> <span class="ss">:v2</span><span class="p">,</span> <span class="ss">:v3</span> <span class="o">]</span> <span class="p">}</span>
-</span><span class='line'>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure></notextile></div>
+<p>In <a href="http://github.com/dblock/mongoid-cached-json">mongoid-cached-json</a> we’ve introduced a declarative way of versioning JSON. Here’s the code for Person v3.</p>
 
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">class</span> <span class="nc">Person</span>
+  <span class="kp">include</span> <span class="no">Mongoid</span><span class="o">::</span><span class="no">Document</span>
+  <span class="kp">include</span> <span class="no">Mongoid</span><span class="o">::</span><span class="no">CachedJson</span>
+
+  <span class="n">field</span> <span class="ss">:first</span>
+  <span class="n">field</span> <span class="ss">:last</span>
+
+  <span class="k">def</span> <span class="nf">name</span>
+    <span class="p">[</span> <span class="n">first</span><span class="p">,</span> <span class="n">last</span> <span class="p">].</span><span class="nf">join</span><span class="p">(</span><span class="s2">" "</span><span class="p">)</span>
+  <span class="k">end</span>
+
+  <span class="n">json_fields</span> <span class="p">\</span>
+    <span class="ss">name: </span><span class="p">{</span> <span class="ss">:versions</span> <span class="o">=&gt;</span> <span class="p">[</span> <span class="ss">:v1</span><span class="p">,</span> <span class="ss">:v2</span> <span class="p">]</span> <span class="p">},</span>
+    <span class="ss">first: </span><span class="p">{</span> <span class="ss">:versions</span> <span class="o">=&gt;</span> <span class="p">[</span> <span class="ss">:v2</span><span class="p">,</span> <span class="ss">:v3</span> <span class="p">]</span> <span class="p">},</span>
+    <span class="ss">last: </span><span class="p">{</span> <span class="ss">:versions</span> <span class="o">=&gt;</span> <span class="p">[</span> <span class="ss">:v2</span><span class="p">,</span> <span class="ss">:v3</span> <span class="p">]</span> <span class="p">}</span>
+
+<span class="k">end</span>
+</code></pre></div></div>
 
 <p>With the <a href="http://github.com/dblock/mongoid-cached-json">mongoid-cached-json</a> gem you also get caching that respects JSON versioning, for free. Read about it <a href="http://artsy.github.com/blog/2012/02/20/caching-model-json-with-mongoid-cached-json/">here</a>.</p>
-
-    
 
     
 
@@ -1126,9 +915,7 @@ know when thats happening so we can hide it, we can do that by registering for <
   
     
       <article>
-        
-<div class="article-container">
-
+        <div class="article-container">
 
   
     <div class="meta-container">
@@ -1141,8 +928,6 @@ know when thats happening so we can hide it, we can do that by registering for <
         
         <time datetime=""></time>
           <p class="meta-author">
-  
-
 
 
   
@@ -1170,72 +955,48 @@ know when thats happening so we can hide it, we can do that by registering for <
     
         <p>Sometimes you type a hash-bang URL too fast, bang first.</p>
 
-<p>Consider <code>https://artsy.net/!#/log_in</code>. Rails will receive <code>/!</code> as the file path, resulting in a 404, File Not Found error. The part of the URL after the hash is a position within the page and is never sent to the web server.</p>
+<p>Consider <code class="language-plaintext highlighter-rouge">https://artsy.net/!#/log_in</code>. Rails will receive <code class="language-plaintext highlighter-rouge">/!</code> as the file path, resulting in a 404, File Not Found error. The part of the URL after the hash is a position within the page and is never sent to the web server.</p>
 
-<p>It's actually pretty easy to handle this scenario and redirect to the corresponding hash-bang URL.</p>
+<p>It’s actually pretty easy to handle this scenario and redirect to the corresponding hash-bang URL.</p>
 
-<p>The most straightforward way is to create a file called <code>!.html</code> in your <code>public</code> folder and use JavaScript to rewrite the URL with the bang-hash.</p>
+<p>The most straightforward way is to create a file called <code class="language-plaintext highlighter-rouge">!.html</code> in your <code class="language-plaintext highlighter-rouge">public</code> folder and use JavaScript to rewrite the URL with the bang-hash.</p>
 
-<div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span>public/!.html</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-</pre></td><td class='code'><pre><code class='html'><span class='line'><span class="nt">&lt;html&gt;</span>
-</span><span class='line'> <span class="nt">&lt;head&gt;</span>
-</span><span class='line'> <span class="nt">&lt;/head&gt;</span>
-</span><span class='line'> <span class="nt">&lt;body&gt;</span>
-</span><span class='line'>  Click <span class="nt">&lt;a</span> <span class="na">href=</span><span class="s">&quot;#&quot;</span> <span class="na">onclick=</span><span class="s">&quot;return window.redirect();&quot;</span><span class="nt">&gt;</span>here<span class="nt">&lt;/a&gt;</span> if you&#39;re not redirected ...
-</span><span class='line'>  <span class="nt">&lt;script </span><span class="na">language=</span><span class="s">&quot;javascript&quot;</span><span class="nt">&gt;</span>
-</span><span class='line'>    <span class="nb">window</span><span class="p">.</span><span class="nx">redirect</span> <span class="o">=</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
-</span><span class='line'>      <span class="nb">window</span><span class="p">.</span><span class="nx">location</span> <span class="o">=</span> <span class="s1">&#39;/#!&#39;</span> <span class="o">+</span> <span class="nb">window</span><span class="p">.</span><span class="nx">location</span><span class="p">.</span><span class="nx">hash</span><span class="p">.</span><span class="nx">substring</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
-</span><span class='line'>      <span class="k">return</span> <span class="kc">false</span><span class="p">;</span>
-</span><span class='line'>    <span class="p">}</span>
-</span><span class='line'>    <span class="nb">window</span><span class="p">.</span><span class="nx">redirect</span><span class="p">();</span>
-</span><span class='line'>  <span class="nt">&lt;/script&gt;</span>
-</span><span class='line'> <span class="nt">&lt;/body&gt;</span>
-</span><span class='line'><span class="nt">&lt;/html&gt;</span>
-</span></code></pre></td></tr></table></div></figure></notextile></div>
+<p>``` html public/!.html</p>
+<html>
+ <head>
+ </head>
+ <body>
+  Click <a href="#" onclick="return window.redirect();">here</a> if you're not redirected ...
+  <script language="javascript">
+    window.redirect = function() {
+      window.location = '/#!' + window.location.hash.substring(1)
+      return false;
+    }
+    window.redirect();
+  </script>
+ </body>
+</html>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+You can also do this inside a controller with a view or layout. Start by trapping the URL in your `ApplicationController`.
 
-
-<p>You can also do this inside a controller with a view or layout. Start by trapping the URL in your <code>ApplicationController</code>.</p>
-
-<div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span>app/controllers/application_controller.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">if</span> <span class="n">request</span><span class="o">.</span><span class="n">env</span><span class="o">[</span><span class="s1">&#39;PATH_INFO&#39;</span><span class="o">]</span> <span class="o">==</span> <span class="s1">&#39;/!&#39;</span>
-</span><span class='line'>  <span class="n">render</span> <span class="ss">layout</span><span class="p">:</span> <span class="s2">&quot;bang_hash&quot;</span>
-</span><span class='line'>  <span class="k">return</span>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure></notextile></div>
-
+``` ruby app/controllers/application_controller.rb
+if request.env['PATH_INFO'] == '/!'
+  render layout: "bang_hash"
+  return
+end
+</code></pre></div></div>
 
 <p>The layout can have the piece of JavaScript that redirects to the corresponding hash-bang URL.</p>
 
-<div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span>app/views/layouts/bang_hash.html.haml</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="o">!!!</span>
-</span><span class='line'><span class="o">-</span> <span class="n">ie_tag</span><span class="p">(</span><span class="ss">:html</span><span class="p">)</span> <span class="k">do</span>
-</span><span class='line'>  <span class="o">%</span><span class="n">body</span>
-</span><span class='line'>    <span class="ss">:javascript</span>
-</span><span class='line'>      <span class="n">window</span><span class="o">.</span><span class="n">location</span> <span class="o">=</span> <span class="s1">&#39;/#!&#39;</span> <span class="o">+</span> <span class="n">window</span><span class="o">.</span><span class="n">location</span><span class="o">.</span><span class="n">hash</span><span class="o">.</span><span class="n">substring</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
-</span></code></pre></td></tr></table></div></figure></notextile></div>
-
-
-    
+<p>``` ruby app/views/layouts/bang_hash.html.haml
+!!!</p>
+<ul>
+  <li>ie_tag(:html) do
+%body
+  :javascript
+    window.location = ‘/#!’ + window.location.hash.substring(1)
+```</li>
+</ul>
 
     
 
@@ -1252,9 +1013,7 @@ know when thats happening so we can hide it, we can do that by registering for <
   
     
       <article>
-        
-<div class="article-container">
-
+        <div class="article-container">
 
   
     <div class="meta-container">
@@ -1267,8 +1026,6 @@ know when thats happening so we can hide it, we can do that by registering for <
         
         <time datetime=""></time>
           <p class="meta-author">
-  
-
 
 
   
@@ -1298,30 +1055,20 @@ know when thats happening so we can hide it, we can do that by registering for <
 
 <p>For a Rails application, modify config/application.rb or config/environment.rb.</p>
 
-<div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span>config/application.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="no">Acme</span><span class="o">::</span><span class="no">Application</span><span class="o">.</span><span class="n">configure</span> <span class="k">do</span>
-</span><span class='line'>  <span class="n">config</span><span class="o">.</span><span class="n">middleware</span><span class="o">.</span><span class="n">use</span> <span class="no">Rack</span><span class="o">::</span><span class="no">Deflater</span>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure></notextile></div>
+<p>``` ruby config/application.rb
+Acme::Application.configure do
+  config.middleware.use Rack::Deflater
+end</p>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+For a Rack application, add the middleware in config.ru.
 
-
-<p>For a Rack application, add the middleware in config.ru.</p>
-
-<div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span>config.ru</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">use</span> <span class="no">Rack</span><span class="o">::</span><span class="no">Deflater</span>
-</span><span class='line'><span class="n">run</span> <span class="no">Acme</span><span class="o">::</span><span class="no">Instance</span>
-</span></code></pre></td></tr></table></div></figure></notextile></div>
-
-
-
+``` ruby config.ru
+use Rack::Deflater
+run Acme::Instance
+</code></pre></div></div>
 
 
         <p><a href="/blog/2012/02/24/10x-rack-and-rails-output-compression-with-rack-deflater/">Read on →</a></p>
-    
-
     
 
     
@@ -1337,9 +1084,7 @@ know when thats happening so we can hide it, we can do that by registering for <
   
     
       <article>
-        
-<div class="article-container">
-
+        <div class="article-container">
 
   
     <div class="meta-container">
@@ -1352,8 +1097,6 @@ know when thats happening so we can hide it, we can do that by registering for <
         
         <time datetime=""></time>
           <p class="meta-author">
-  
-
 
 
   
@@ -1381,65 +1124,41 @@ know when thats happening so we can hide it, we can do that by registering for <
     
         <p>Consider the following two <a href="http://mongoid.org">Mongoid</a> domain models, <em>Widget</em> and <em>Gadget</em>.</p>
 
-<div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span>widget.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">Widget</span>
-</span><span class='line'>  <span class="kp">include</span> <span class="no">Mongoid</span><span class="o">::</span><span class="no">Document</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="n">field</span> <span class="ss">:name</span>
-</span><span class='line'>  <span class="n">has_many</span> <span class="ss">:gadgets</span>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure></notextile></div>
+<p>``` ruby widget.rb
+class Widget
+  include Mongoid::Document</p>
 
+<p>field :name
+  has_many :gadgets
+end</p>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>``` ruby gadget.rb
+class Gadget
+  include Mongoid::Document
 
-<div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span>gadget.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">Gadget</span>
-</span><span class='line'>  <span class="kp">include</span> <span class="no">Mongoid</span><span class="o">::</span><span class="no">Document</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="n">field</span> <span class="ss">:name</span>
-</span><span class='line'>  <span class="n">field</span> <span class="ss">:extras</span>
-</span><span class='line'>
-</span><span class='line'>  <span class="n">belongs_to</span> <span class="ss">:widget</span>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure></notextile></div>
+  field :name
+  field :extras
 
-
+  belongs_to :widget
+end
+</code></pre></div></div>
 <p>And an API call that returns a collection of widgets.</p>
 
-<div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">get</span> <span class="s1">&#39;widgets&#39;</span> <span class="k">do</span>
-</span><span class='line'>  <span class="no">Widget</span><span class="o">.</span><span class="n">all</span><span class="o">.</span><span class="n">as_json</span>
-</span><span class='line'><span class="k">end</span>
-</span></code></pre></td></tr></table></div></figure></notextile></div>
-
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">get</span> <span class="s1">'widgets'</span> <span class="k">do</span>
+  <span class="no">Widget</span><span class="p">.</span><span class="nf">all</span><span class="p">.</span><span class="nf">as_json</span>
+<span class="k">end</span>
+</code></pre></div></div>
 
 <p>Given many widgets, the API makes a subquery to fetch the corresponding gadgets for each widget.</p>
 
 <p>Introducing <a href="https://github.com/dblock/mongoid-cached-json">mongoid-cached-json</a>. This library mitigates several frequent problems with such code.</p>
 
 <ul>
-<li>Adds a declarative way of specifying a subset of fields to be returned part of <em>as_json</em>.</li>
-<li>Avoids a large amount of subqueries by caching document JSONs participating in the parent-child relationship.</li>
-<li>Provides a consistent strategy for restricting child documents' fields from being returned via the parent JSON.</li>
+  <li>Adds a declarative way of specifying a subset of fields to be returned part of <em>as_json</em>.</li>
+  <li>Avoids a large amount of subqueries by caching document JSONs participating in the parent-child relationship.</li>
+  <li>Provides a consistent strategy for restricting child documents’ fields from being returned via the parent JSON.</li>
 </ul>
 
-
 <p>Using <em>Mongoid::CachedJson</em> we were able to cut our JSON API average response time by about a factor of 10. Find it <a href="https://github.com/dblock/mongoid-cached-json">on Github</a>.</p>
-
-    
 
     
 
@@ -1456,9 +1175,7 @@ know when thats happening so we can hide it, we can do that by registering for <
   
     
       <article>
-        
-<div class="article-container">
-
+        <div class="article-container">
 
   
     <div class="meta-container">
@@ -1471,8 +1188,6 @@ know when thats happening so we can hide it, we can do that by registering for <
         
         <time datetime=""></time>
           <p class="meta-author">
-  
-
 
 
   
@@ -1500,20 +1215,18 @@ know when thats happening so we can hide it, we can do that by registering for <
     
         <p>tl;dr - You can write 632 rock solid UI tests with Capybara and RSpec, too.</p>
 
-<p><img src="Miami%20Weather%20in%20NYC" alt="/images/2012-02-03-reliably-testing-asynchronous-ui-w-slash-rspec-and-capybara/jenkins-ci.png" /></p>
+<p><img src="Miami Weather in NYC" alt="/images/2012-02-03-reliably-testing-asynchronous-ui-w-slash-rspec-and-capybara/jenkins-ci.png" /></p>
 
 <p>We have exactly 231 integration tests and 401 view tests out of a total of 3086 in our core application today. This adds up to 632 tests that exercise UI. The vast majority use <a href="http://rspec.info/">RSpec</a> with <a href="https://github.com/jnicklas/capybara">Capybara</a> and <a href="http://seleniumhq.org/">Selenium</a>. This means that every time the suite runs we set up real data in a local MongoDB and use a real browser to hit a fully running local application, 632 times. The suite currently takes 45 minutes to run headless on a slow Linode, UI tests taking more than half the time.</p>
 
-<p>While the site is in private beta, you can get a glimpse of the complexity of the UI from the <a href="http://artsy.net">splash page</a>. It's a rich client-side Javascript application that talks to an API. You can open your browser's developer tools and watch a combination of API calls and many asynchronous events.</p>
+<p>While the site is in private beta, you can get a glimpse of the complexity of the UI from the <a href="http://artsy.net">splash page</a>. It’s a rich client-side Javascript application that talks to an API. You can open your browser’s developer tools and watch a combination of API calls and many asynchronous events.</p>
 
-<p>Keeping the UI tests reliable is notoriously difficult. For the longest time we felt depressed under the Pacific Northwest -like weather of our Jenkins CI and blamed every possible combination of code and infrastructure for the many intermittent failures. We've gone on sprees of marking many such tests "pending" too.</p>
+<p>Keeping the UI tests reliable is notoriously difficult. For the longest time we felt depressed under the Pacific Northwest -like weather of our Jenkins CI and blamed every possible combination of code and infrastructure for the many intermittent failures. We’ve gone on sprees of marking many such tests “pending” too.</p>
 
-<p>We've learned a lot and stabilized our test suite. This is how we do UI testing.</p>
+<p>We’ve learned a lot and stabilized our test suite. This is how we do UI testing.</p>
 
 
         <p><a href="/blog/2012/02/03/reliably-testing-asynchronous-ui-w-slash-rspec-and-capybara/">Read on →</a></p>
-    
-
     
 
     
@@ -1529,9 +1242,7 @@ know when thats happening so we can hide it, we can do that by registering for <
   
     
       <article>
-        
-<div class="article-container">
-
+        <div class="article-container">
 
   
     <div class="meta-container">
@@ -1544,8 +1255,6 @@ know when thats happening so we can hide it, we can do that by registering for <
         
         <time datetime=""></time>
           <p class="meta-author">
-  
-
 
 
   
@@ -1573,59 +1282,37 @@ know when thats happening so we can hide it, we can do that by registering for <
     
         <p>[TL;DR: To supplement Heroku-managed app servers, we launched custom EC2 instances to host Delayed Job worker processes. See the <a href="https://github.com/joeyAghion/satellite_setup">satellite_setup github repo</a> for rake tasks and Chef recipes that make it easy.]</p>
 
-<p><a href="http://artsy.net">Artsy</a> engineers are big users and abusers of <a href="http://heroku.com">Heroku</a>. It's a neat abstraction of server resources, so we were conflicted when parts of our application started to bump into Heroku's limitations. While we weren't eager to start managing additional infrastructure, we found that--with a few good tools--we could migrate some components away from Heroku without fragmenting the codebase or over-complicating our development environments.</p>
+<p><a href="http://artsy.net">Artsy</a> engineers are big users and abusers of <a href="http://heroku.com">Heroku</a>. It’s a neat abstraction of server resources, so we were conflicted when parts of our application started to bump into Heroku’s limitations. While we weren’t eager to start managing additional infrastructure, we found that–with a few good tools–we could migrate some components away from Heroku without fragmenting the codebase or over-complicating our development environments.</p>
 
-<p>There are a number of reasons your app might need to go beyond Heroku. It might rely on a locally installed tool (not possible on Heroku's locked-down servers), or require heavy file-system usage (limited to <code>tmp/</code> and <code>log/</code>, and not permanent or shared). In our case, the culprit was Heroku's 512 MB RAM limit--reasonable for most web processes, but quickly exceeded by the image-processing tasks of our <a href="https://github.com/collectiveidea/delayed_job">delayed_job</a> workers. We considered building a specialized image-processing service, but decided instead to supplement our web apps with a custom <a href="http://aws.amazon.com/ec2/">EC2</a> instance dedicated to processing background tasks. We call these servers "satellites."</p>
+<p>There are a number of reasons your app might need to go beyond Heroku. It might rely on a locally installed tool (not possible on Heroku’s locked-down servers), or require heavy file-system usage (limited to <code class="language-plaintext highlighter-rouge">tmp/</code> and <code class="language-plaintext highlighter-rouge">log/</code>, and not permanent or shared). In our case, the culprit was Heroku’s 512 MB RAM limit–reasonable for most web processes, but quickly exceeded by the image-processing tasks of our <a href="https://github.com/collectiveidea/delayed_job">delayed_job</a> workers. We considered building a specialized image-processing service, but decided instead to supplement our web apps with a custom <a href="http://aws.amazon.com/ec2/">EC2</a> instance dedicated to processing background tasks. We call these servers “satellites.”</p>
 
-<p>We'll walk through the pertinent sections here, but you can find Rake tasks that correspond with these scripts, plus all of the necessary cookbooks, in the <a href="https://github.com/joeyAghion/satellite_setup">satellite_setup github repo</a>. Now, on to the code!</p>
+<p>We’ll walk through the pertinent sections here, but you can find Rake tasks that correspond with these scripts, plus all of the necessary cookbooks, in the <a href="https://github.com/joeyAghion/satellite_setup">satellite_setup github repo</a>. Now, on to the code!</p>
 
-<p>First, generate a key-pair from <a href="https://console.aws.amazon.com/ec2/home?#s=KeyPairs">Amazon's AWS Management Console</a>. Then we'll use <a href="http://fog.io">Fog</a> to spawn the EC2 instance.</p>
+<p>First, generate a key-pair from <a href="https://console.aws.amazon.com/ec2/home?#s=KeyPairs">Amazon’s AWS Management Console</a>. Then we’ll use <a href="http://fog.io">Fog</a> to spawn the EC2 instance.</p>
 
-<div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-<span class='line-number'>19</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="nb">require</span> <span class="s1">&#39;fog&#39;</span>
-</span><span class='line'>
-</span><span class='line'><span class="c1"># Update these values according to your environment...</span>
-</span><span class='line'><span class="no">S3_ACCESS_KEY_ID</span> <span class="o">=</span> <span class="s1">&#39;XXXXXXXXXXXXXXXXXXXX&#39;</span>
-</span><span class='line'><span class="no">S3_SECRET_ACCESS_KEY</span> <span class="o">=</span> <span class="s1">&#39;xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx&#39;</span>
-</span><span class='line'><span class="no">KEY_NAME</span> <span class="o">=</span> <span class="s1">&#39;satellite_keypair&#39;</span>
-</span><span class='line'><span class="no">KEY_PATH</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">#{</span><span class="no">ENV</span><span class="o">[</span><span class="s1">&#39;HOME&#39;</span><span class="o">]</span><span class="si">}</span><span class="s2">/.ssh/</span><span class="si">#{</span><span class="no">KEY_NAME</span><span class="si">}</span><span class="s2">.pem&quot;</span>
-</span><span class='line'><span class="no">IMAGE_ID</span> <span class="o">=</span> <span class="s1">&#39;ami-c162a9a8&#39;</span>  <span class="c1"># 64-bit Ubuntu 11.10</span>
-</span><span class='line'><span class="no">FLAVOR_ID</span> <span class="o">=</span> <span class="s1">&#39;m1.large&#39;</span>
-</span><span class='line'>
-</span><span class='line'><span class="n">connection</span> <span class="o">=</span> <span class="no">Fog</span><span class="o">::</span><span class="no">Compute</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="ss">provider</span><span class="p">:</span> <span class="s1">&#39;AWS&#39;</span><span class="p">,</span>
-</span><span class='line'>  <span class="ss">aws_access_key_id</span><span class="p">:</span> <span class="no">S3_ACCESS_KEY_ID</span><span class="p">,</span>
-</span><span class='line'>  <span class="ss">aws_secret_access_key</span><span class="p">:</span> <span class="no">S3_SECRET_ACCESS_KEY</span><span class="p">)</span>
-</span><span class='line'>
-</span><span class='line'><span class="n">server</span> <span class="o">=</span> <span class="n">connection</span><span class="o">.</span><span class="n">servers</span><span class="o">.</span><span class="n">bootstrap</span><span class="p">(</span>
-</span><span class='line'>  <span class="ss">key_name</span><span class="p">:</span> <span class="no">KEY_NAME</span><span class="p">,</span>
-</span><span class='line'>  <span class="ss">private_key_path</span><span class="p">:</span> <span class="no">KEY_PATH</span><span class="p">,</span>
-</span><span class='line'>  <span class="ss">image_id</span><span class="p">:</span> <span class="no">IMAGE_ID</span><span class="p">,</span>
-</span><span class='line'>  <span class="ss">flavor_id</span><span class="p">:</span> <span class="no">FLAVOR_ID</span><span class="p">)</span>
-</span></code></pre></td></tr></table></div></figure></notextile></div>
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">require</span> <span class="s1">'fog'</span>
 
+<span class="c1"># Update these values according to your environment...</span>
+<span class="no">S3_ACCESS_KEY_ID</span> <span class="o">=</span> <span class="s1">'XXXXXXXXXXXXXXXXXXXX'</span>
+<span class="no">S3_SECRET_ACCESS_KEY</span> <span class="o">=</span> <span class="s1">'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'</span>
+<span class="no">KEY_NAME</span> <span class="o">=</span> <span class="s1">'satellite_keypair'</span>
+<span class="no">KEY_PATH</span> <span class="o">=</span> <span class="s2">"</span><span class="si">#{</span><span class="no">ENV</span><span class="p">[</span><span class="s1">'HOME'</span><span class="p">]</span><span class="si">}</span><span class="s2">/.ssh/</span><span class="si">#{</span><span class="no">KEY_NAME</span><span class="si">}</span><span class="s2">.pem"</span>
+<span class="no">IMAGE_ID</span> <span class="o">=</span> <span class="s1">'ami-c162a9a8'</span>  <span class="c1"># 64-bit Ubuntu 11.10</span>
+<span class="no">FLAVOR_ID</span> <span class="o">=</span> <span class="s1">'m1.large'</span>
 
-<p>Next, we'll do some basic server prep and install our preferred Ruby version.
+<span class="n">connection</span> <span class="o">=</span> <span class="no">Fog</span><span class="o">::</span><span class="no">Compute</span><span class="p">.</span><span class="nf">new</span><span class="p">(</span><span class="ss">provider: </span><span class="s1">'AWS'</span><span class="p">,</span>
+  <span class="ss">aws_access_key_id: </span><span class="no">S3_ACCESS_KEY_ID</span><span class="p">,</span>
+  <span class="ss">aws_secret_access_key: </span><span class="no">S3_SECRET_ACCESS_KEY</span><span class="p">)</span>
+
+<span class="n">server</span> <span class="o">=</span> <span class="n">connection</span><span class="p">.</span><span class="nf">servers</span><span class="p">.</span><span class="nf">bootstrap</span><span class="p">(</span>
+  <span class="ss">key_name: </span><span class="no">KEY_NAME</span><span class="p">,</span>
+  <span class="ss">private_key_path: </span><span class="no">KEY_PATH</span><span class="p">,</span>
+  <span class="ss">image_id: </span><span class="no">IMAGE_ID</span><span class="p">,</span>
+  <span class="ss">flavor_id: </span><span class="no">FLAVOR_ID</span><span class="p">)</span>
+</code></pre></div></div>
+
+<p>Next, we’ll do some basic server prep and install our preferred Ruby version.
         <p><a href="/blog/2012/01/31/beyond-heroku-satellite-delayed-job-workers-on-ec2/">Read on →</a></p>
-    
-
     
 
     
