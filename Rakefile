@@ -9,7 +9,7 @@ end
 desc 'Builds the site locally'
 task :build do
   puts 'Building site.'
-  sh 'PRODUCTION="YES" jekyll build --destination _gh-pages'
+  sh 'PRODUCTION="YES" bundle exec jekyll build --destination _gh-pages'
 end
 
 namespace :podcast do
@@ -116,13 +116,11 @@ task :deploy do
     puts `git pull origin main`
 
     puts 'Creating a commit for the deploy.'
-
-    puts `git ls-files --deleted -z | xargs -0 git rm;`
-    puts `git add .`
+    puts `git add --all`
     puts `git commit -m "[skip ci] Deploy"`
 
     puts 'Pushing to github.'
-    puts `git push --quiet > /dev/null 2>&1`
+    puts `git push`
   end
 end
 
