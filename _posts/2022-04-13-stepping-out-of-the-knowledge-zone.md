@@ -12,7 +12,7 @@ As I am writing my first blog post for Artsy, here is a short introduction on wh
 engineer in our Berlin entity. As a Ruby-born programmer I am calling myself a backend engineer, but that also may
 change and is more about emotional identification and less about what I actually do (as you will see in this blog
 post). My background is not in engineering at all. In university I graduated in philosophy and historical
-linguistics, both the most unpractical but most beautifully theoretical subjects I can think of. I really love
+linguistics, both the most impractical but most beautifully theoretical subjects I can think of. I really love
 being in the world of ideas and thought experiments that challenge the current status of what _is_, as opposed to
 what is _thinkable_.
 
@@ -142,15 +142,15 @@ down into smaller task definitely already demystified the whole thing a bit. It 
 - create staging deployment(s) and get them working
 - CircleCI
 - create production deployment(s) and get them working
-- set up the project in Horizon
+- set up the project in [Horizon](https://github.com/artsy/horizon)
 
 Also I knew that Roop was the point person for this project and had started setting up the github repo so I started
 to set up the project locally myself and then went to reach out to him for my questions that had come up. This is
 how I had my first ever pairing session with Roop and it was so much fun. After having the project working for me
 locally I was informed that Devon had already put a tutorial video out there on how to set up a new project with
-hokusai in the artsy system. I watched the video and followed the steps along and when I got stuck reached out to
-Devon directly and there I was having another interesting and fun pairing session on setting up a new project with
-hokusai.
+[hokusai](https://github.com/artsy/hokusai) in the artsy system. I watched the video and followed the steps along
+and when I got stuck reached out to Devon directly and there I was having another interesting and fun pairing
+session on setting up a new project with hokusai.
 
 As you can see each step demystified this task further and further so that in the end after another bunch of fun
 pairing sessions with Jian and Joey I got the new admin deployed and ready just in time for my week four of the
