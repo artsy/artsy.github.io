@@ -13,11 +13,12 @@ bundle exec rake bootstrap
 bundle exec rake build
 ```
 
-### Common issues
+### Common issues ⚠️
 
 <details><summary>Issues installing `therubyracer` and/or `v8` dependencies</summary>
 Some combination of the following might help resolve issues with installing these dependencies:
 
+- make sure you have a ruby version that works (e.g. 2.7.5)
 - Installing `v8` via homebrew: `brew install v8`
 - Installing the `libv8` gem using a specific version and v8 flag:
   `gem install libv8 -v '3.16.14.19' -- --with-system-v8`
