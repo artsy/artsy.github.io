@@ -40,7 +40,7 @@ don't have any other uses of TypeORM and TypeGraphQL. When it was created, it wa
 direction for future APIs - one we decided not to pursue for the time being.
 
 KAWS doesn't store any artworks - or even any artwork IDs. Instead, it just stores a "query", a set of
-ElasticSearch criteria. This could be a list of artist IDs or gene IDs, a tag ID, a keyword, or any combination of
+Elasticsearch criteria. This could be a list of artist IDs or gene IDs, a tag ID, a keyword, or any combination of
 those things.
 
 In other words, a KAWS artwork collection could be defined in human-readable terms as something like
@@ -52,16 +52,16 @@ This approach results in a somewhat odd flow for resolving collection requests. 
 [KAWS: Toys](https://www.artsy.net/collection/kaws-toys). Our frontend, Force, sends a request to Metaphysics, our
 GraphQL API.
 
-Metaphysics knows to route that request to KAWS - it asks KAWS "hey, what's the ElasticSearch query for the
-collection with slug 'kaws-toys'? Also, give me the title, the category, the header image, the description text,
+Metaphysics knows to route that request to KAWS - it asks KAWS "hey, what's the Elasticsearch query for the
+collection with slug `kaws-toys`? Also, give me the title, the category, the header image, the description text,
 and [any other pieces of metadata about the collection itself]." But it can't ask KAWS for the artworks!
 
 Instead, it receives the query from KAWS and then turns around and sends another request to Gravity, which stores
-all of our artworks and indexes them in ElasticSearch so that we can filter them. "Hey Gravity, I got this query
+all of our artworks and indexes them in Elasticsearch so that we can filter them. "Hey Gravity, I got this query
 from KAWS (the service, not the artist): `{ artists: 'KAWS', genes: 'Sculpture' }`. Can you return me all of the
 artworks that match that query?"
 
-Gravity takes those parameters and passes them to its ElasticSearch cluster, fetching all artworks that match the
+Gravity takes those parameters and passes them to its Elasticsearch cluster, fetching all artworks that match the
 criteria (and sorting/filtering them according to what the user has selected on the page).
 
 Gravity returns those artworks to Metaphysics, which then packages them up with all of the collection metadata it
@@ -90,7 +90,7 @@ That meant that any projects involving KAWS required extra effort to familiarize
 
 ### Lack of relationship between collections and artworks
 
-All KAWS-backed artwork grids (e.g. any `/collection/:slug` page) is the ephemeral result of a canned search query.
+Any KAWS-backed artwork grid (e.g. any `/collection/:slug` page) is the ephemeral result of a canned search query.
 This has some advantages: collections stay evergreen & current, so long as artworks with appropriate metadata
 continue to land on the platform. But it also has some downsides: there is no modeled relationship between a
 collection and its artworks, so given an artwork, you _can't_ tell what collections it's in.
@@ -185,7 +185,7 @@ will likely want to directly associate artworks with collections - but there act
 reason for doing so. We were just doing it because we were "pretty sure we might need it at some point."
 
 So to unblock the project, we removed the join models and instead kept a similar approach to what KAWS used
-initially: fetching artworks at request time using the ElasticSearch query stored on the `MarketingCollection`.
+initially: fetching artworks at request time using the Elasticsearch query stored on the `MarketingCollection`.
 
 ### There's a reason we don't name our projects after artists!
 
