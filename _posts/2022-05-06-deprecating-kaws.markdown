@@ -33,7 +33,7 @@ Let's talk about why and what we learned along the way.
 
 KAWS has a somewhat unusual design. It's a server, a Node.js app with its own Mongo database, and it serves up a
 GraphQL API. It also relies on [TypeORM](https://typeorm.io/#/) to map TypeScript models to database records and
-[TypeGraphQL](typegraphql.com) to keep TS and GraphQL types in sync.
+[TypeGraphQL](https://typegraphql.com) to keep TS and GraphQL types in sync.
 
 This makes it a bit different from most services Artsy maintains. Most of our APIs are Ruby on Rails apps, and we
 don't have any other uses of TypeORM and TypeGraphQL. When it was created, it was a cool experiment with a possible
@@ -189,8 +189,8 @@ initially: fetching artworks at request time using the ElasticSearch query store
 
 ### There's a reason we don't name our projects after artists!
 
-To quote a [post](2019-05-10-why-projects-need-codenames) about how we name our projects written by our Senior
-Director of Engineering, Joey:
+To quote a [post](https://artsy.github.io/blog/2019/05/10/why-projects-need-codenames/) about how we name our
+projects written by our Senior Director of Engineering, Joey:
 
 > Choose a code name scheme that isn't directly related to your technology or business. A flower business using
 > flower names is cute, but breaks down when you want to build a feature that _actually_ is about tulips.
