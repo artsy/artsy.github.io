@@ -76,7 +76,7 @@ Here's a diagram showing what that looks like:
 ### Idiosyncratic stack
 
 As mentioned above, KAWS is an unusual app by Artsy standards. It's neither a database-backed Rails/Ruby app, nor
-an API-consuming Javascript/Node app. It was missing the typical Rails niceties (a dev console, background jobs,
+an API-consuming JavaScript/Node app. It was missing the typical Rails niceties (a dev console, background jobs,
 rake tasks, etc.), and inclusion of elements like TypeORM and TypeGraphQL that don't exist in our other apps meant
 there was a bit of a learning curve for working with it.
 
