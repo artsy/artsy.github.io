@@ -2,10 +2,10 @@
 layout: epic
 title: "Third Time's the Charm: Deprecating KAWS"
 subtitle: What we learned from spinning down one of our APIs
-date: 2022-05-06
+date: 2022-05-09
 categories: [KAWS refactoring gravity]
 author: [matt-dole, roop]
-comment_id: TKTKTKTKTKTKTKTK
+comment_id: 730
 ---
 
 How do you tell when it's time to deprecate a system? If something mostly works OK, is it worth spending time and
