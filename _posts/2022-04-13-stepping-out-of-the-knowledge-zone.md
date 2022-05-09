@@ -16,6 +16,8 @@ linguistics, both the most impractical but most beautifully theoretical subjects
 being in the world of ideas and thought experiments that challenge the current status of what _is_, as opposed to
 what is _thinkable_.
 
+<!-- more -->
+
 At Artsy I am currently working in the PX (Partner Experience) Team and since I joined 1 year ago, most of my time
 in the PX team has been dedicated to the implementation of the Artsy Shipping feature. In the backend I helped
 tying the ties between the external ARTA-API (a white glove shipping company) and our own service that is managing
