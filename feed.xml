@@ -5,9 +5,265 @@
     <description></description>
     <link>https://artsy.github.io/</link>
     <atom:link href="https://artsy.github.io/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Fri, 29 Apr 2022 18:32:05 +0000</pubDate>
-    <lastBuildDate>Fri, 29 Apr 2022 18:32:05 +0000</lastBuildDate>
+    <pubDate>Mon, 09 May 2022 12:47:47 +0000</pubDate>
+    <lastBuildDate>Mon, 09 May 2022 12:47:47 +0000</lastBuildDate>
     <generator>Jekyll v3.9.0</generator>
+    
+      <item>
+        <title>Third Time's the Charm: Deprecating KAWS</title>
+        <description>&lt;p&gt;How do you tell when it’s time to deprecate a system? If something mostly works OK, is it worth spending time and
+effort replacing its functionality?&lt;/p&gt;
+
+&lt;p&gt;At Artsy, we realized several years ago that we needed to be able to group a bunch of artworks together. If we
+wanted to have a page with all of the
+&lt;a href=&quot;https://www.artsy.net/collection/lucio-fontana-ceramics&quot;&gt;ceramics by Lucio Fontana&lt;/a&gt;, or
+&lt;a href=&quot;https://www.artsy.net/collection/buy-now-contemporary-prints-in-the-ifpda-fair-spring-2022&quot;&gt;contemporary prints from the IFPDA Fair Sprint 2022&lt;/a&gt;,
+or a &lt;a href=&quot;https://www.artsy.net/collection/antwaun-sargents-wishlist&quot;&gt;gift guide curated by Antwaun Sargent&lt;/a&gt;, we needed
+to have a way to make that happen.&lt;/p&gt;
+
+&lt;p&gt;We decided to call these things “collections,” a reasonable name for a collection of artworks. In order to create
+them, we developed a service called KAWS, named after the artist (whose works we wanted to put in several of these
+collections).&lt;/p&gt;
+
+&lt;p&gt;Now, 4 years later, we’ve taken down the service and folded its functionality into Artsy’s main database and API,
+Gravity.&lt;/p&gt;
+
+&lt;p&gt;Let’s talk about why and what we learned along the way.&lt;/p&gt;
+
+&lt;!-- more --&gt;
+
+&lt;h2 id=&quot;a-little-context&quot;&gt;A little context&lt;/h2&gt;
+
+&lt;p&gt;KAWS has a somewhat unusual design. It’s a server, a Node.js app with its own Mongo database, and it serves up a
+GraphQL API. It also relies on &lt;a href=&quot;https://typeorm.io/#/&quot;&gt;TypeORM&lt;/a&gt; to map TypeScript models to database records and
+&lt;a href=&quot;https://typegraphql.com&quot;&gt;TypeGraphQL&lt;/a&gt; to keep TS and GraphQL types in sync.&lt;/p&gt;
+
+&lt;p&gt;This makes it a bit different from most services Artsy maintains. Most of our APIs are Ruby on Rails apps, and we
+don’t have any other uses of TypeORM and TypeGraphQL. When it was created, it was a cool experiment with a possible
+direction for future APIs - one we decided not to pursue for the time being.&lt;/p&gt;
+
+&lt;p&gt;KAWS doesn’t store any artworks - or even any artwork IDs. Instead, it just stores a “query”, a set of
+Elasticsearch criteria. This could be a list of artist IDs or gene IDs, a tag ID, a keyword, or any combination of
+those things.&lt;/p&gt;
+
+&lt;p&gt;In other words, a KAWS artwork collection could be defined in human-readable terms as something like
+“&lt;a href=&quot;https://www.artsy.net/collection/bridget-riley-black-and-white&quot;&gt;artworks with the ‘Black and White’ gene by the artist Bridget Riley&lt;/a&gt;”
+or
+“&lt;a href=&quot;https://www.artsy.net/collection/auguste-rodin-bronze-sculpture&quot;&gt;artworks by Auguste Rodin with the keyword ‘bronze’ and the gene ‘Sculpture’&lt;/a&gt;.”&lt;/p&gt;
+
+&lt;p&gt;This approach results in a somewhat odd flow for resolving collection requests. Let’s say a user requests the page
+&lt;a href=&quot;https://www.artsy.net/collection/kaws-toys&quot;&gt;KAWS: Toys&lt;/a&gt;. Our frontend, Force, sends a request to Metaphysics, our
+GraphQL API.&lt;/p&gt;
+
+&lt;p&gt;Metaphysics knows to route that request to KAWS - it asks KAWS “hey, what’s the Elasticsearch query for the
+collection with slug &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;kaws-toys&lt;/code&gt;? Also, give me the title, the category, the header image, the description text,
+and [any other pieces of metadata about the collection itself].” But it can’t ask KAWS for the artworks!&lt;/p&gt;
+
+&lt;p&gt;Instead, it receives the query from KAWS and then turns around and sends another request to Gravity, which stores
+all of our artworks and indexes them in Elasticsearch so that we can filter them. “Hey Gravity, I got this query
+from KAWS (the service, not the artist): &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;{ artists: 'KAWS', genes: 'Sculpture' }&lt;/code&gt;. Can you return me all of the
+artworks that match that query?”&lt;/p&gt;
+
+&lt;p&gt;Gravity takes those parameters and passes them to its Elasticsearch cluster, fetching all artworks that match the
+criteria (and sorting/filtering them according to what the user has selected on the page).&lt;/p&gt;
+
+&lt;p&gt;Gravity returns those artworks to Metaphysics, which then packages them up with all of the collection metadata it
+received from KAWS and returns to the client that requested it. Whew!&lt;/p&gt;
+
+&lt;p&gt;Here’s a diagram showing what that looks like:&lt;/p&gt;
+
+&lt;p&gt;&lt;img alt=&quot;Diagram depicting how requests for collections get resolved&quot; src=&quot;/images/2022-05-06-deprecating-kaws/kaws-diagram.png&quot; /&gt;&lt;/p&gt;
+
+&lt;h2 id=&quot;why-did-we-decide-to-deprecate-it&quot;&gt;Why did we decide to deprecate it?&lt;/h2&gt;
+
+&lt;h3 id=&quot;idiosyncratic-stack&quot;&gt;Idiosyncratic stack&lt;/h3&gt;
+
+&lt;p&gt;As mentioned above, KAWS is an unusual app by Artsy standards. It’s neither a database-backed Rails/Ruby app, nor
+an API-consuming JavaScript/Node app. It was missing the typical Rails niceties (a dev console, background jobs,
+rake tasks, etc.), and inclusion of elements like TypeORM and TypeGraphQL that don’t exist in our other apps meant
+there was a bit of a learning curve for working with it.&lt;/p&gt;
+
+&lt;p&gt;While it’s not terrible to have some variety in our systems, it does make them harder to work in and keep
+up-to-date. And that also resulted in a high…&lt;/p&gt;
+
+&lt;h3 id=&quot;lottery-factor&quot;&gt;Lottery factor&lt;/h3&gt;
+
+&lt;p&gt;There are still people at Artsy who’ve worked in KAWS, but the top 4 contributors have moved on to other companies.
+That meant that any projects involving KAWS required extra effort to familiarize devs with the system.&lt;/p&gt;
+
+&lt;h3 id=&quot;lack-of-relationship-between-collections-and-artworks&quot;&gt;Lack of relationship between collections and artworks&lt;/h3&gt;
+
+&lt;p&gt;Any KAWS-backed artwork grid (e.g. any &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;/collection/:slug&lt;/code&gt; page) is the ephemeral result of a canned search query.
+This has some advantages: collections stay evergreen &amp;amp; current, so long as artworks with appropriate metadata
+continue to land on the platform. But it also has some downsides: there is no modeled relationship between a
+collection and its artworks, so given an artwork, you &lt;em&gt;can’t&lt;/em&gt; tell what collections it’s in.&lt;/p&gt;
+
+&lt;h3 id=&quot;extra-hops-on-each-request&quot;&gt;Extra hops on each request&lt;/h3&gt;
+
+&lt;p&gt;Every &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;/collection/:slug&lt;/code&gt; request has to go to → MP → Kaws→ MP → Gravity → ES. The diagram above illustrates this
+flow. And it’s worth noting that KAWS really doesn’t store that much. It’s a whole service that only stores a
+single data type.&lt;/p&gt;
+
+&lt;h3 id=&quot;lack-of-admin-ui&quot;&gt;Lack of admin UI&lt;/h3&gt;
+
+&lt;p&gt;Collections in KAWS were first created via a CSV import, then eventually a Google Sheets-driven workflow was added.
+To create or update a collection, an admin creates/modifies a row in the spreadsheet, then goes to our Jenkins UI
+and kicks off an “update collections” job, which causes KAWS to pull the new data from the Google Sheet.&lt;/p&gt;
+
+&lt;p&gt;This is a pretty rough workflow, and it means it’s very easy to accidentally modify or delete information from a
+collection (e.g. overwriting the text in the wrong cell).&lt;/p&gt;
+
+&lt;h2 id=&quot;how-did-we-go-about-planning-it&quot;&gt;How did we go about planning it?&lt;/h2&gt;
+
+&lt;p&gt;This actually wasn’t the first time we attempted to deprecate KAWS. It became something of a running joke: every
+October for 3 years running (2019, 2020, 2021), someone would say “hey we should probably deprecate this thing” and
+write a tech plan.&lt;/p&gt;
+
+&lt;figure class=&quot;illustration&quot;&gt;
+  &lt;img src=&quot;/images/2022-05-06-deprecating-kaws/Screen Shot 2022-05-06 at 12.49.55 PM.png&quot; alt=&quot;Screenshot of a
+comment on a previous tech plan. Text says 'I do like how this is becoming an Artsy autumnal tradition. Pumpkin
+Spice Kaws Deprecation 😆. That alone tells us something.'&quot; style=&quot;width: 300px;&quot; /&gt;
+  &lt;figcaption&gt;At least we're self-aware&lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;This time, there were three key differences that allowed us to get it done:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;
+    &lt;p&gt;There was a business need to do it. We want to work on improving collections, bringing new features to them and
+making it easier for our admins to manage and use collections for important marketing campaigns. We took a look
+at collections as they existed and said “deprecating KAWS and moving its functionality into Gravity is a
+prerequisite for these projects.” We could have eventually completed them, but it would have been slower and
+more difficult - we were confident that investing time into this refactor now would save a lot of time and
+headaches later.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;We kept the plan very tightly scoped, focusing only on “maintain existing functionality and move it to Gravity.”
+Previous iterations of the tech plan had proposed broader changes, such as rethinking collections modeling
+entirely or breaking with our existing GraphQL schema. Any changes to fields currently being consumed by our
+frontend clients significantly increases scope, especially since our GraphQL schema is “baked in” to our app.
+That means that if we removed fields the app was currently relying on, some users who never upgrade their apps
+would see that functionality break.&lt;/p&gt;
+
+    &lt;p&gt;To be clear, the authors of those tech plans weren’t wrong to propose rethinking and improving how collections
+are modeled and served! We may very well end up implementing some of their ideas and suggestions. The learning
+this time around was mostly “we’re never going to get this done unless we really rein in the scope.”&lt;/p&gt;
+
+    &lt;p&gt;Our goal was 100% compatibility: all of the currently-used fields would still be available and could be
+successfully resolved by Gravity instead of KAWS. Even if we changed the type of those fields or updated how
+they were resolved, they still needed to exist. We did end up getting rid of lots of fields that were not being
+used by frontend clients (which meant a lot of spelunking through our code and trying to find out if fields like
+&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;showOnEditorial&lt;/code&gt; were still being used), so the schema is still significantly simpler and cleaner than it was.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;Roop laid a really nice foundation by writing up a thorough document about what KAWS is, how it works, and the
+steps we might need to take in order to deprecate it. Much of this blog post comes almost verbatim from that
+document! It’s a testament to the power that well-organized documentation can have: being able to see and
+understand the problem gave us confidence to tackle it.&lt;/p&gt;
+
+    &lt;p&gt;Here’s the diagram he created that sketches out how we might go about deprecating KAWS:&lt;/p&gt;
+
+    &lt;p&gt;&lt;img src=&quot;/images/2022-05-06-deprecating-kaws/kaws-tasks.png&quot; alt=&quot;Diagram with many different steps connected by arrows indicating which updates need to be made in what order to allow us to deprecate KAWS.&quot; /&gt;&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h2 id=&quot;what-did-we-learn&quot;&gt;What did we learn?&lt;/h2&gt;
+
+&lt;h3 id=&quot;its-easy-for-scope-to-expand-without-you-noticing&quot;&gt;It’s easy for scope to expand without you noticing&lt;/h3&gt;
+
+&lt;p&gt;I mentioned that our goal was JUST moving KAWS functionality to Gravity, and that we wanted to avoid adding new
+functionality to keep the project focused. We mostly did that - but we &lt;em&gt;did&lt;/em&gt; get off track in one important way.&lt;/p&gt;
+
+&lt;p&gt;We’ve discussed how KAWS doesn’t include direct relationships between artworks and collections. As we worked on
+moving collections to Gravity, we had a baked-in assumption that there would be a join model between &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Artwork&lt;/code&gt; and
+&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;MarketingCollection&lt;/code&gt; (the name of the model in Gravity). This was largely informed by the approach we took to
+moving &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;ArtistSeries&lt;/code&gt; from KAWS to Gravity, a project we previously completed.&lt;/p&gt;
+
+&lt;p&gt;In that case, we created an explicit link between the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;ArtistSeries&lt;/code&gt; model and the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Artwork&lt;/code&gt; model, and we updated
+those relationships with a daily recurring job. We would essentially run the query defined by the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;ArtistSeries&lt;/code&gt;,
+see if there were any new artworks that matched, and if so, add them to the Series in question.&lt;/p&gt;
+
+&lt;p&gt;When we tried this same approach for &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;MarketingCollections&lt;/code&gt;, we noticed there was a problem: &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;ArtistSeries&lt;/code&gt; cap out
+at a few hundred works, but &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;MarketingCollections&lt;/code&gt; could be as many as &lt;em&gt;several hundred thousand&lt;/em&gt; for collections
+like “&lt;a href=&quot;https://www.artsy.net/collection/contemporary&quot;&gt;Contemporary&lt;/a&gt;” that are based on very general criteria. The
+jobs to associate artworks with &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;MarketingCollections&lt;/code&gt; were taking so long that they ate up all of our Sidekiq
+resources and prevented other jobs from being executed in a timely manner.&lt;/p&gt;
+
+&lt;p&gt;When we took a step back and looked at the problem, we realized that we were getting ahead of ourselves. Yes, we
+will likely want to directly associate artworks with collections - but there actually wasn’t a clear business
+reason for doing so. We were just doing it because we were “pretty sure we might need it at some point.”&lt;/p&gt;
+
+&lt;p&gt;So to unblock the project, we removed the join models and instead kept a similar approach to what KAWS used
+initially: fetching artworks at request time using the Elasticsearch query stored on the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;MarketingCollection&lt;/code&gt;.&lt;/p&gt;
+
+&lt;h3 id=&quot;theres-a-reason-we-dont-name-our-projects-after-artists&quot;&gt;There’s a reason we don’t name our projects after artists!&lt;/h3&gt;
+
+&lt;p&gt;To quote a &lt;a href=&quot;https://artsy.github.io/blog/2019/05/10/why-projects-need-codenames/&quot;&gt;post&lt;/a&gt; about how we name our
+projects written by our Senior Director of Engineering, Joey:&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;Choose a code name scheme that isn’t directly related to your technology or business. A flower business using
+flower names is cute, but breaks down when you want to build a feature that &lt;em&gt;actually&lt;/em&gt; is about tulips.&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;Most of our systems at Artsy are named after scientific concepts. Force, Eigen, Fresnel. This can seem confusing at
+first, but it means there are not many opportunities for mistaking a system with its data. With a project like this
+one named after an artist, discussions get confusing quickly! “Yeah, we need to make sure we’re fetching all of the
+artworks from KAWS. Sorry, not the artworks &lt;em&gt;by&lt;/em&gt; KAWS, I actually meant the Warhol collection. But KAWS is the
+service. Right. Anyway…”&lt;/p&gt;
+
+&lt;h3 id=&quot;feature-flagging-a-graphql-service-with-a-schema-is-hard&quot;&gt;Feature flagging a GraphQL service with a schema is hard&lt;/h3&gt;
+
+&lt;p&gt;Our plan for launching this change was pretty simple: introduce a new environment variable to Metaphysics and
+toggle it when we wanted to QA or launch. Toggling the variable to &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;true&lt;/code&gt; and restarting Metaphysics’ Kubernetes
+pods would result in a few updates to the schema (removal of all of the unused types that we got rid of) and would
+cause requests for collections to be routed to Gravity instead of KAWS.&lt;/p&gt;
+
+&lt;p&gt;We figured that we would flip this variable on staging, QA, resolve any issues, and release. We wouldn’t need to
+flip it off unless we had broken something big by accident; we wouldn’t be in danger of shipping these changes to
+production since they would exist only in our staging environment and were not checked in to version control.&lt;/p&gt;
+
+&lt;p&gt;However, we had forgotten something crucial: Metaphysics has a post-merge step in CI that creates PRs with any
+schema updates in client services like Force and Eigen, and the schema it ships to those services is &lt;em&gt;pulled
+directly from staging Metaphysics&lt;/em&gt;. It’s not the version of the schema that’s stored in GitHub (which we had
+carefully avoided changing by not flipping the feature flag), it’s the schema that exists in the staging
+environment.&lt;/p&gt;
+
+&lt;p&gt;In other words, Force (for example) received an updated &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;MarketingCollection&lt;/code&gt; type in its schema, which didn’t
+exist (and wouldn’t exist until we finished QA and decided to launch) in production Metaphysics schema. Oops.&lt;/p&gt;
+
+&lt;p&gt;This also meant we accidentally blocked deploys for a while. Services like Force have a check before they can be
+deployed to production: “does my copy of Metaphysics’ schema have changes that are not present in production
+Metaphysics? If so, that probably means deploying me would break something, so go deploy Metaphysics first.”&lt;/p&gt;
+
+&lt;p&gt;Because the flag was still set to &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;false&lt;/code&gt; on production, the schema updates would never move past staging. We
+eventually figured out the problem and flipped the flag to “off”, re-ran the “update client schemas” job, and
+deployed Force &lt;em&gt;without&lt;/em&gt; the updated schema. But it made for a pretty confusing few hours, and it could have been
+bad if we needed to ship an urgent bugfix. Lesson learned.&lt;/p&gt;
+
+&lt;p&gt;We ended up creating a Force review app that pointed at a Metaphysics review app with the flag set to &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;true&lt;/code&gt; to
+avoid causing more issues. This is definitely what we would do next time.&lt;/p&gt;
+
+&lt;h2 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h2&gt;
+
+&lt;p&gt;Overall, we’re feeling pretty happy about how this project went. We hit a few snags along the way, but we launched
+the change earlier this week and haven’t seen any noticeable bugs or problems.&lt;/p&gt;
+
+&lt;p&gt;Of course, there’s still an important question: was it worth it? What did we gain by completing this refactor?&lt;/p&gt;
+
+&lt;p&gt;The answer will mostly depend on what happens next. We’re meeting with stakeholders next week to talk about what
+kind of features we can add or modifications we might want to make. But for now, we’re excited to have one less
+application to maintain and to have made it easier for future Artsy engineers to understand and iterate on our
+collections infrastructure.&lt;/p&gt;
+</description>
+        <pubDate>Mon, 09 May 2022 00:00:00 +0000</pubDate>
+        <link>https://artsy.github.io/blog/2022/05/09/deprecating-kaws/</link>
+        <guid isPermaLink="true">https://artsy.github.io/blog/2022/05/09/deprecating-kaws/</guid>
+        
+        
+        <category>KAWS refactoring gravity</category>
+        
+      </item>
     
       <item>
         <title>Stepping Out Of The Knowledge Zone</title>
@@ -1534,56 +1790,6 @@ career will pay dividends to my team in the months and years to come.&lt;/p&gt;
         <category>teaching</category>
         
         <category>team</category>
-        
-      </item>
-    
-      <item>
-        <title>Introducing Artsy Engineering Radio</title>
-        <description>&lt;p&gt;Available now on &lt;a href=&quot;https://podcasts.apple.com/us/podcast/artsy-engineering-radio/id1545870104&quot;&gt;Apple Podcasts&lt;/a&gt;, &lt;a href=&quot;https://open.spotify.com/show/0gJYxpqN6P11dbjNw8VT2a?si=L4TWDrQETwuVO6JR1SOZTQ&quot;&gt;Spotify&lt;/a&gt;, and coming soon elsewhere, is Artsy
-Engineering Radio!&lt;/p&gt;
-
-&lt;p&gt;Solving problems in the world of software engineering can mean a lot of different things, and this podcast will
-explore what that looks like at Artsy. If you’ve followed our blog, you can expect a podcast that sounds like it.
-There are a ton of amazing engineers here at Artsy and we’re excited for you to hear their voices and stories. Our
-hope is that this podcast will make it easy for more engineers at Artsy to contribute to the public persona of
-Artsy Engineering.&lt;/p&gt;
-
-&lt;!-- more --&gt;
-
-&lt;p&gt;We’ll release new episodes every other week. Our target episode length is 30 minutes. Some episodes will be
-technical and others less so. Because
-&lt;a href=&quot;https://github.com/artsy/README/blob/master/culture/engineering-principles.md#open-source-by-default&quot;&gt;we work in the open&lt;/a&gt;
-it’s easy for us to talk about our work in public.&lt;/p&gt;
-
-&lt;p&gt;This isn’t the first attempt at an Artsy engineering podcast! Our engineering team has attempted multiple times to
-start one. When &lt;a href=&quot;https://artsy.github.io/author/jonallured/&quot;&gt;Jon&lt;/a&gt; went to create new Slack and Notion hubs, he found that both already existed. The
-&lt;a href=&quot;https://github.com/artsy/artsy.github.io/pull/368&quot;&gt;PR for the podcast RSS feed&lt;/a&gt; was opened in July, 2017!&lt;/p&gt;
-
-&lt;p&gt;We’re beating the fizzle this time, though. We’ve got momentum and enthusiasm on our side — several episodes are
-already published and we’ve got more lined up. Instead of tinkering with tooling we’re focusing on making episodes,
-even if they aren’t perfect. Like the software we build, the podcast will get better over time as we iterate.&lt;/p&gt;
-
-&lt;p&gt;What do we have so far? In
-&lt;a href=&quot;https://podcasts.apple.com/us/podcast/0-introducing-artsy-engineering-radio/id1545870104?i=1000503035175&quot;&gt;episode 0&lt;/a&gt;,
-&lt;a href=&quot;https://artsy.github.io/author/jonallured/&quot;&gt;Jon&lt;/a&gt;, &lt;a href=&quot;https://artsy.github.io/author/matt-dole/&quot;&gt;Matt&lt;/a&gt;, and &lt;a href=&quot;https://artsy.github.io/author/steve-hicks/&quot;&gt;Steve&lt;/a&gt; introduced the podcast and talked about what you can expect from
-future episodes. &lt;a href=&quot;https://podcasts.apple.com/us/podcast/1-how-to-have-good-meetings/id1545870104?i=1000503035176&quot;&gt;Episode 1&lt;/a&gt; features a conversation with &lt;a href=&quot;https://artsy.github.io/author/ash/&quot;&gt;Ash&lt;/a&gt; about facilitating meaningful and
-inclusive team meetings, and how meetings are part of building teams, trust, and systems. &lt;a href=&quot;https://podcasts.apple.com/us/podcast/2-how-artsy-hires-engineers/id1545870104?i=1000504558896&quot;&gt;Episode 2&lt;/a&gt; is
-a conversation between &lt;a href=&quot;https://artsy.github.io/author/steve-hicks/&quot;&gt;Steve&lt;/a&gt; and &lt;a href=&quot;https://artsy.github.io/author/ash/&quot;&gt;Ash&lt;/a&gt; about how Artsy hires engineers.&lt;/p&gt;
-
-&lt;p&gt;Find the first few episodes right now in your podcast player. Watch for future episodes in your feed and we’ll
-announce them &lt;a href=&quot;https://twitter.com/artsyopensource&quot;&gt;on Twitter&lt;/a&gt; when they’re released.&lt;/p&gt;
-
-</description>
-        <pubDate>Wed, 06 Jan 2021 00:00:00 +0000</pubDate>
-        <link>https://artsy.github.io/blog/2021/01/06/introducing-artsy-engineering-radio/</link>
-        <guid isPermaLink="true">https://artsy.github.io/blog/2021/01/06/introducing-artsy-engineering-radio/</guid>
-        
-        
-        <category>community</category>
-        
-        <category>learning</category>
-        
-        <category>podcast</category>
         
       </item>
     
