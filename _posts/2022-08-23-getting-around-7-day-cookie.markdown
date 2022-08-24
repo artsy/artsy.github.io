@@ -3,7 +3,7 @@ layout: epic
 title: "Hacking Around Safari's 7-day Cookie Limit"
 subtitle: What we learned while trying to fix our cookie consent banner
 date: 2022-08-23
-categories: [Privacy Cookies GDPR CCPA]
+categories: [Privacy, Cookies, GDPR, CCPA]
 author: [chris]
 ---
 
@@ -30,10 +30,10 @@ experiencing was Apple's ITP feature in action. After choosing your preferences,
 the cookie we use to store them is erased after 7 days, necessitating another
 interaction.
 
-We thrashed around in this vicious cycle for months until we found a
-simple, elegant solution thanks to a WebKit engineer's prompt (during Apple's
-open lab calls at WWDC -- [which you too can schedule!][labs]) She mentioned
-that the 7-day cookie limitation only applies to _client-side cookies_ and that
+We thrashed around in this vicious cycle for months until we found a simple,
+elegant solution thanks to a WebKit engineer's prompt (during Apple's open lab
+calls at WWDC -- [which you too can schedule!][labs]) She mentioned that the
+7-day cookie limitation only applies to _client-side cookies_ and that
 **same-domain, secure, server-side cookies** are not limited to these
 constraints.
 
