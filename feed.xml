@@ -5,9 +5,107 @@
     <description></description>
     <link>https://artsy.github.io/</link>
     <atom:link href="https://artsy.github.io/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Thu, 19 May 2022 08:57:53 +0000</pubDate>
-    <lastBuildDate>Thu, 19 May 2022 08:57:53 +0000</lastBuildDate>
+    <pubDate>Thu, 25 Aug 2022 18:12:43 +0000</pubDate>
+    <lastBuildDate>Thu, 25 Aug 2022 18:12:43 +0000</lastBuildDate>
     <generator>Jekyll v3.9.0</generator>
+    
+      <item>
+        <title>Hacking Around Safari's 7-day Cookie Limit</title>
+        <description>&lt;p&gt;Amongst the many, many things that organizations have to contend with around
+cookie consent laws is Apple’s very own browser, Safari. Did you know that
+Safari will only retain a client-side cookie for 7 days? This is in support of
+Apple’s &lt;a href=&quot;https://clearcode.cc/blog/intelligent-tracking-prevention-faq&quot;&gt;Intelligent Tracking Prevention (ITP)&lt;/a&gt; feature, designed to
+protect a user’s privacy.&lt;/p&gt;
+
+&lt;p&gt;These privacy efforts are great but, in hand with laws like &lt;a href=&quot;https://gdpr-info.eu&quot;&gt;GDPR&lt;/a&gt; and
+&lt;a href=&quot;https://oag.ca.gov/privacy/ccpa&quot;&gt;CCPA&lt;/a&gt;, their rollout often creates a UX nightmare for users without some
+extra care. Here at Artsy, we’ve landed on a way to make things slightly less
+bad and want to share our approach.&lt;/p&gt;
+
+&lt;!-- more --&gt;
+
+&lt;p&gt;Scenario: Imagine that as a EU resident you visit artsy.net for the first time.
+A banner appears asking you to &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Accept&lt;/code&gt; or &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Deny&lt;/code&gt; tracking cookies from our
+site. You don’t like tracking cookies, so you click the “Deny” button and the
+banner disappears. All good, right? Nope! You visit Artsy a week later and
+again, a banner appears asking you to choose your preferences. This happens
+again and again until you switch browsers and realize that what you were
+experiencing was Apple’s ITP feature in action. After choosing your preferences,
+the cookie we use to store them is erased after 7 days, necessitating another
+interaction.&lt;/p&gt;
+
+&lt;p&gt;We thrashed around this in this vicious cycle for months until we found a
+simple, elegant solution thanks to a WebKit engineer’s prompt (during Apple’s
+open lab calls at WWDC – &lt;a href=&quot;https://developer.apple.com/wwdc22/labs/&quot;&gt;which you too can schedule!&lt;/a&gt;) She mentioned
+that the 7-day cookie limitation only applies to &lt;em&gt;client-side cookies&lt;/em&gt; and that
+&lt;strong&gt;same-domain, secure, server-side cookies&lt;/strong&gt; are not limited to these
+constraints.&lt;/p&gt;
+
+&lt;p&gt;This got us thinking. Our third-party cookie consent management service sets a
+client-side cookie, not a server-side cookie. Could we perhaps overwrite the
+client-side cookie with a server-side cookie &lt;em&gt;of the same name&lt;/em&gt; and trick Safari
+into persisting the user preferences beyond the 7-day limit?&lt;/p&gt;
+
+&lt;p&gt;We gave it a try and… Yes. We. Can! And this means that you can too (and it’s
+also real easy to implement).&lt;/p&gt;
+
+&lt;hr /&gt;
+
+&lt;p&gt;First, define an API endpoint server-side:&lt;/p&gt;
+
+&lt;div class=&quot;language-tsx highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;kd&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;app&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;express&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+
+&lt;span class=&quot;nx&quot;&gt;app&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;kd&quot;&gt;get&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;dl&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;/set-tracking-preferences&lt;/span&gt;&lt;span class=&quot;dl&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;req&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;res&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+  &lt;span class=&quot;kd&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;trackingPreferences&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;req&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;query&lt;/span&gt;
+
+  &lt;span class=&quot;kd&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;cookieConfig&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;na&quot;&gt;maxAge&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;10000000&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+    &lt;span class=&quot;na&quot;&gt;httpOnly&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;kc&quot;&gt;false&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+    &lt;span class=&quot;na&quot;&gt;secure&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;kc&quot;&gt;true&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;// important!&lt;/span&gt;
+  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+  &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;trackingPreferences&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;!==&lt;/span&gt; &lt;span class=&quot;dl&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;undefined&lt;/span&gt;&lt;span class=&quot;dl&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;c1&quot;&gt;// Overwrite client-side cookie with cloned, secure server-side version&lt;/span&gt;
+    &lt;span class=&quot;nx&quot;&gt;res&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;cookie&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;dl&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;trackingPreferences&lt;/span&gt;&lt;span class=&quot;dl&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;trackingPreferences&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;cookieConfig&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+  &lt;span class=&quot;nx&quot;&gt;res&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;send&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;dl&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;Tracking preferences set.&lt;/span&gt;&lt;span class=&quot;dl&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;})&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Next, call the endpoint from the client when your app boots or when preferences
+have been set by the user:&lt;/p&gt;
+
+&lt;div class=&quot;language-tsx highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;cookies&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;dl&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;cookies-js&lt;/span&gt;&lt;span class=&quot;dl&quot;&gt;&quot;&lt;/span&gt;
+
+&lt;span class=&quot;kd&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;App&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+  &lt;span class=&quot;nx&quot;&gt;useEffect&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;kd&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;trackingPreferences&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;encodeURIComponent&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;cookies&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;kd&quot;&gt;get&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;dl&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;trackingPreferences&lt;/span&gt;&lt;span class=&quot;dl&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt;
+
+    &lt;span class=&quot;nx&quot;&gt;fetch&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
+      &lt;span class=&quot;s2&quot;&gt;`/set-tracking-preferences?trackingPreferences=&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;${&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;trackingPreferences&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;`&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+  &lt;span class=&quot;p&quot;&gt;},&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[])&lt;/span&gt;
+
+  &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;nc&quot;&gt;CookieConsentBanner&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;onClick&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;si&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;...&lt;/span&gt;&lt;span class=&quot;si&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;/&amp;gt;&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;And that’s it. I’m not sure of the exact reason why we can overwrite cookies in
+this way, but I suspect it has to do with Safari’s assumption that a server we
+control will always take precedence and thus assumes things are safe. And in 7
+days, when Safari would otherwise erase the cookie, it will see that it’s now
+&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;secure&lt;/code&gt; and ignore it, preserving the user’s preferences.&lt;/p&gt;
+
+</description>
+        <pubDate>Tue, 23 Aug 2022 00:00:00 +0000</pubDate>
+        <link>https://artsy.github.io/blog/2022/08/23/getting-around-7-day-cookie/</link>
+        <guid isPermaLink="true">https://artsy.github.io/blog/2022/08/23/getting-around-7-day-cookie/</guid>
+        
+        
+        <category>Privacy Cookies GDPR CCPA</category>
+        
+      </item>
     
       <item>
         <title>Third Time's the Charm: Deprecating KAWS</title>
@@ -1673,125 +1771,6 @@ mutation to update server-side data.&lt;/li&gt;
         <category>team</category>
         
         <category>tools</category>
-        
-      </item>
-    
-      <item>
-        <title>Why Asking for Help Strengthens Engineering Teams</title>
-        <description>&lt;p&gt;I know that for many developers, especially those early in their careers, asking for help can be intimidating. I
-often fear wasting someone’s time or exposing myself as less skilled or smart than my team initially thought.&lt;/p&gt;
-
-&lt;p&gt;In my first month as a software engineer at Artsy (and barely six months into life as an engineer after
-&lt;a href=&quot;https://medium.com/swlh/how-losing-my-job-helped-me-find-my-way-back-8c8f86552acc&quot;&gt;transitioning from a career in communications&lt;/a&gt;), I was struggling
-through a ticket assigned to me as a “good first issue.” (The team estimated the task to be straightforward enough
-for someone new to the team.) After a few hours stumbling between the ticket, my code, and Google, I made very
-little progress.&lt;/p&gt;
-
-&lt;!-- more --&gt;
-
-&lt;p&gt;Early and often, my fellow engineers at Artsy encourage me to ask for help when I hit roadblocks. Even with the
-support explicitly offered to me, I was shaky. The extra 10 seconds it took to type out my question in Slack was
-just enough time for me to chicken out.&lt;/p&gt;
-
-&lt;p&gt;Opening up with my team members about my concerns, I learned that asking for help is not just for me but ultimately
-benefits my team. Sharing their insights below, I hope other engineers, early-career or not, feel empowered to ask
-questions, stay curious, and prioritize learning for themselves and their team — all hallmarks of great engineers.&lt;/p&gt;
-
-&lt;h2 id=&quot;why-its-so-hard-to-ask-for-help&quot;&gt;Why It’s So Hard to Ask For Help&lt;/h2&gt;
-
-&lt;p&gt;Working in tech and as an engineer (and even in &lt;a href=&quot;https://medium.com/better-programming/why-women-dont-pursue-software-engineering-17d0dead24e9&quot;&gt;undergraduate computer science
-classes&lt;/a&gt;,) I often felt surrounded by people smarter than me.
-Operating alongside peers who are excelling motivates me to set the bar higher for myself. But at times, it can
-also be intimidating. There is a reason that imposter syndrome is so pervasive in tech industry discourse. (A 2018
-study found that &lt;a href=&quot;https://www.cnet.com/news/tech-employees-likely-to-suffer-from-impostor-syndrome/&quot;&gt;58% of tech workers suffer from
-it&lt;/a&gt;.) The fear of being “found out” as an imposter,
-inadequate, or less impressive can be especially acute for those early in their career and from &lt;a href=&quot;https://zora.medium.com/why-imposter-syndrome-is-worse-for-women-of-color-3bcf37335405&quot;&gt;underrepresented
-groups&lt;/a&gt;.&lt;/p&gt;
-
-&lt;p&gt;Like other VC-backed companies, Artsy is working toward aggressive business targets and ships software at a high
-velocity. At high-growth companies, tight deadlines and high-energy cultures make it tempting to shy away from hard
-problems and to let the more senior people tackle the tough challenges. But these moments are critical for growth
-and learning across the team.&lt;/p&gt;
-
-&lt;figure class=&quot;illustration&quot;&gt;
-    &lt;a target=&quot;_blank&quot; href=&quot;https://www.artsy.net/artwork/pipilotti-rist-help-me&quot;&gt;
-        &lt;img src=&quot;https://d32dm0rphc51dk.cloudfront.net/P24AUuVFX50Tr2Q6w58-fQ/large.jpg&quot; /&gt;
-    &lt;/a&gt;
-    &lt;figcaption&gt;Pipilotti Rist, Help me, 2016, Hauser &amp;amp; Wirth, available on Artsy
-    &lt;/figcaption&gt;
-&lt;/figure&gt;
-
-&lt;h2 id=&quot;rethinking-productivity&quot;&gt;Rethinking Productivity&lt;/h2&gt;
-
-&lt;p&gt;On Artsy’s engineering team, we put a lot of energy into optimizing developer workflows and communication channels.
-While asking for help seemed counter to productivity, my team helped me see that the opposite is true: Encouraging
-engineers to support one another is integral to building an effective engineering organization.&lt;/p&gt;
-
-&lt;p&gt;Pair programming is growing in popularity, not because society is becoming more kind and patient, but because it’s
-good for business. Teams in synergy can &lt;a href=&quot;https://martinfowler.com/articles/on-pair-programming.html&quot;&gt;ship higher-quality code more quickly&lt;/a&gt;.&lt;/p&gt;
-
-&lt;p&gt;Because teaching is one of the best ways to become an expert, a more experienced engineer can level up when pairing
-with a less experienced engineer. Teaching solidifies understanding, reveals gaps in knowledge, and opens up new
-questions for exploration. Recently, a senior engineer shared that they never questioned something in our codebase
-until I prompted them to take a closer look. We deepened our understanding together.&lt;/p&gt;
-
-&lt;p&gt;Providing help also cultivates an engineer’s mentoring skills, which is especially important if they aim for
-management or leadership roles.&lt;/p&gt;
-
-&lt;p&gt;Finally, a lot of people enjoy helping others for the pure reason that it feels good. Studies show that a majority
-of workers prioritize meaning in their work over salary and that meaningful work translates to greater retention
-and productivity. (&lt;a href=&quot;https://hbr.org/2018/11/9-out-of-10-people-are-willing-to-earn-less-money-to-do-more-meaningful-work&quot;&gt;Harvard Business Review&lt;/a&gt; goes
-so far as attaching a dollar sign to meaningful work: they estimate highly meaningful work generates an extra
-$9,078 per worker per year and saves an average of $6.43 million in annual turnover-related costs for every 10,000
-workers.) All good arguments for engaging in collaborative and empathetic workflows.&lt;/p&gt;
-
-&lt;h2 id=&quot;building-community-and-scaling-knowledge&quot;&gt;Building Community and Scaling Knowledge&lt;/h2&gt;
-
-&lt;p&gt;Building a culture of collaboration is particularly challenging, especially for distributed teams and those working
-remotely during the pandemic. Pair programming provides opportunities for connecting, which can reverberate
-throughout an organization.&lt;/p&gt;
-
-&lt;p&gt;Learning also has a network effect, so knowledge scales exponentially. If someone teaches me a new concept, I am
-now empowered to share the knowledge with others, and then they can then spread that knowledge even further.&lt;/p&gt;
-
-&lt;p&gt;Put simply by one of my coworkers: Learning is contributing.&lt;/p&gt;
-
-&lt;figure class=&quot;illustration&quot;&gt;
-    &lt;a target=&quot;_blank&quot; href=&quot;https://www.artsy.net/artwork/richard-artschwager-question-mark&quot;&gt;
-        &lt;img src=&quot;https://d32dm0rphc51dk.cloudfront.net/fccQIzHtxIwf2eHTrEg0Dw/large.jpg&quot; /&gt;
-    &lt;/a&gt;
-    &lt;figcaption&gt;Richard Artschwager, Question Mark, 2001, Gagosian, available on Artsy
-    &lt;/figcaption&gt;
-&lt;/figure&gt;
-
-&lt;h2 id=&quot;why-prioritizing-your-growth-is-okay&quot;&gt;Why Prioritizing Your Growth is Okay&lt;/h2&gt;
-
-&lt;p&gt;My natural tendency is to want to give more than I ask. But for all early-career engineers, it is also normal to
-need a lot of help at the beginning. I need to trust that our recruitment team knew to ask the right questions to
-make an informed decision to hire me — the real me, beginner and all. The fastest way to improve is to tackle
-difficult problems head-on and ask questions when I need support. Investing in my learning at this point in my
-career will pay dividends to my team in the months and years to come.&lt;/p&gt;
-
-&lt;p&gt;So yes, I went ahead and pressed send on that Slack to ask for help.&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;&lt;em&gt;This post originally appeared on Anna’s blog on &lt;a href=&quot;https://anna-carey.medium.com/&quot;&gt;Medium&lt;/a&gt;.&lt;/em&gt;&lt;/p&gt;
-&lt;/blockquote&gt;
-</description>
-        <pubDate>Thu, 11 Feb 2021 00:00:00 +0000</pubDate>
-        <link>https://artsy.github.io/blog/2021/02/11/asking-for-help/</link>
-        <guid isPermaLink="true">https://artsy.github.io/blog/2021/02/11/asking-for-help/</guid>
-        
-        
-        <category>community</category>
-        
-        <category>culture</category>
-        
-        <category>learning</category>
-        
-        <category>teaching</category>
-        
-        <category>team</category>
         
       </item>
     
