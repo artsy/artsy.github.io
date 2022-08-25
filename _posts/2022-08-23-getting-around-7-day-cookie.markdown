@@ -30,7 +30,7 @@ experiencing was Apple's ITP feature in action. After choosing your preferences,
 the cookie we use to store them is erased after 7 days, necessitating another
 interaction.
 
-We thrashed around this in this vicious cycle for months until we found a
+We thrashed around in this vicious cycle for months until we found a
 simple, elegant solution thanks to a WebKit engineer's prompt (during Apple's
 open lab calls at WWDC -- [which you too can schedule!][labs]) She mentioned
 that the 7-day cookie limitation only applies to _client-side cookies_ and that
