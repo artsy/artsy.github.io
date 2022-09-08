@@ -130,12 +130,12 @@ integration:
 ```
 
 We use the `circleci tests glob` command to gather all of our tests, and then
-pipe that into the `circleci tests split` [command][split] which will divide our
-tests into buckets, similar to how Jest's `--shard` command works up above. We
-then assign that to a `$TESTS` variable and pass it into
-`cypress run --spec $TESTS`. CircleCI sees the `parallelism` prop in the config
-and automatically divides our tests into 5 separate containers, each running a
-small subset of our integration tests in parallel.
+pipe that into the `circleci tests split` which will divide our tests into
+buckets, similar to how Jest's `--shard` command works up above. We then assign
+that to a `$TESTS` variable and pass it into `cypress run --spec $TESTS`.
+CircleCI sees the `parallelism` prop in the config and automatically divides our
+tests into 5 separate containers, each running a small subset of our integration
+tests in parallel.
 
 On Artsy.net, our smoke tests times have gone from around ~7m on average down to
 ~3m. A huge reduction for only a few lines of config!
