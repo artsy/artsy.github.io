@@ -351,8 +351,8 @@ returning data to be used in the component. Very cool.
 
 Now that suspense is properly understood lets get to some common patterns that
 one can use to get around the gotchas. Suspense is new; it's like the transition
-period when Functional Components (FCs) came out and people were moving from
-class based components to hooks. And remember when render props were a thing?
+period when hooks came out and people were moving from
+class-based components with explicit lifecycle methods to functional components with hooks. And remember when render props were a thing?
 They were a way to use dependency injection to "inject" props into a component,
 allowing us to share data dependencies across a react tree. That pattern was
 cool at the time but it wasn't without its headaches, and the community hadn't
