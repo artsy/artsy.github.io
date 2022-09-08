@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: CCPA | Artsy Engineering]]></title>
+  <link href="https://artsy.github.io/blog/categories/ccpa/atom.xml" rel="self"/>
+  <link href="https://artsy.github.io/"/>
+  <updated>2022-09-08T17:33:46+00:00</updated>
+  <id>https://artsy.github.io/</id>
+  <author>
+    <name><![CDATA[]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Hacking Around Safari's 7-day Cookie Limit]]></title>
+    <link href="https://artsy.github.io/blog/2022/08/23/getting-around-7-day-cookie/"/>
+    <updated>2022-08-23T00:00:00+00:00</updated>
+    <id>https://artsy.github.io/blog/2022/08/23/getting-around-7-day-cookie</id>
+    <content type="html"><![CDATA[<p>Amongst the many, many things that organizations have to contend with around
+cookie consent laws is Apple’s very own browser, Safari. Did you know that
+Safari will only retain a client-side cookie for 7 days? This is in support of
+Apple’s <a href="https://clearcode.cc/blog/intelligent-tracking-prevention-faq">Intelligent Tracking Prevention (ITP)</a> feature, designed to
+protect a user’s privacy.</p>
+
+<p>These privacy efforts are great but, in hand with laws like <a href="https://gdpr-info.eu">GDPR</a> and
+<a href="https://oag.ca.gov/privacy/ccpa">CCPA</a>, their rollout often creates a UX nightmare for users without some
+extra care. Here at Artsy, we’ve landed on a way to make things slightly less
+bad and want to share our approach.</p>
+
+<!-- more -->
+
+<p>Scenario: Imagine that as a EU resident you visit artsy.net for the first time.
+A banner appears asking you to <code class="language-plaintext highlighter-rouge">Accept</code> or <code class="language-plaintext highlighter-rouge">Deny</code> tracking cookies from our
+site. You don’t like tracking cookies, so you click the “Deny” button and the
+banner disappears. All good, right? Nope! You visit Artsy a week later and
+again, a banner appears asking you to choose your preferences. This happens
+again and again until you switch browsers and realize that what you were
+experiencing was Apple’s ITP feature in action. After choosing your preferences,
+the cookie we use to store them is erased after 7 days, necessitating another
+interaction.</p>
+
+<p>We thrashed around in this vicious cycle for months until we found a simple,
+elegant solution thanks to a WebKit engineer’s prompt (during Apple’s open lab
+calls at WWDC – <a href="https://developer.apple.com/wwdc22/labs/">which you too can schedule!</a>) She mentioned that the
+7-day cookie limitation only applies to <em>client-side cookies</em> and that
+<strong>same-domain, secure, server-side cookies</strong> are not limited to these
+constraints.</p>
+
+<p>This got us thinking. Our third-party cookie consent management service sets a
+client-side cookie, not a server-side cookie. Could we perhaps overwrite the
+client-side cookie with a server-side cookie <em>of the same name</em> and trick Safari
+into persisting the user preferences beyond the 7-day limit?</p>
+
+<p>We gave it a try and… Yes. We. Can! And this means that you can too (and it’s
+also real easy to implement).</p>
+
+<hr />
+
+<p>First, define an API endpoint server-side:</p>
+
+<div class="language-tsx highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">const</span> <span class="nx">app</span> <span class="o">=</span> <span class="nx">express</span><span class="p">()</span>
+
+<span class="nx">app</span><span class="p">.</span><span class="kd">get</span><span class="p">(</span><span class="dl">"</span><span class="s2">/set-tracking-preferences</span><span class="dl">"</span><span class="p">,</span> <span class="p">(</span><span class="nx">req</span><span class="p">,</span> <span class="nx">res</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span>
+  <span class="kd">const</span> <span class="p">{</span> <span class="nx">trackingPreferences</span> <span class="p">}</span> <span class="o">=</span> <span class="nx">req</span><span class="p">.</span><span class="nx">query</span>
+
+  <span class="kd">const</span> <span class="nx">cookieConfig</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="na">maxAge</span><span class="p">:</span> <span class="mi">10000000</span><span class="p">,</span>
+    <span class="na">httpOnly</span><span class="p">:</span> <span class="kc">false</span><span class="p">,</span>
+    <span class="na">secure</span><span class="p">:</span> <span class="kc">true</span><span class="p">,</span> <span class="c1">// important!</span>
+  <span class="p">}</span>
+
+  <span class="k">if</span> <span class="p">(</span><span class="nx">trackingPreferences</span> <span class="o">!==</span> <span class="dl">"</span><span class="s2">undefined</span><span class="dl">"</span><span class="p">)</span> <span class="p">{</span>
+    <span class="c1">// Overwrite client-side cookie with cloned, secure server-side version</span>
+    <span class="nx">res</span><span class="p">.</span><span class="nx">cookie</span><span class="p">(</span><span class="dl">"</span><span class="s2">trackingPreferences</span><span class="dl">"</span><span class="p">,</span> <span class="nx">trackingPreferences</span><span class="p">,</span> <span class="nx">cookieConfig</span><span class="p">)</span>
+  <span class="p">}</span>
+
+  <span class="nx">res</span><span class="p">.</span><span class="nx">send</span><span class="p">(</span><span class="dl">"</span><span class="s2">Tracking preferences set.</span><span class="dl">"</span><span class="p">)</span>
+<span class="p">})</span>
+</code></pre></div></div>
+
+<p>Next, call the endpoint from the client when your app boots or when preferences
+have been set by the user:</p>
+
+<div class="language-tsx highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nx">cookies</span> <span class="k">from</span> <span class="dl">"</span><span class="s2">cookies-js</span><span class="dl">"</span>
+
+<span class="kd">const</span> <span class="nx">App</span> <span class="o">=</span> <span class="p">()</span> <span class="o">=&gt;</span> <span class="p">{</span>
+  <span class="nx">useEffect</span><span class="p">(()</span> <span class="o">=&gt;</span> <span class="p">{</span>
+    <span class="kd">const</span> <span class="nx">trackingPreferences</span> <span class="o">=</span> <span class="nb">encodeURIComponent</span><span class="p">(</span><span class="nx">cookies</span><span class="p">.</span><span class="kd">get</span><span class="p">(</span><span class="dl">"</span><span class="s2">trackingPreferences</span><span class="dl">"</span><span class="p">))</span>
+
+    <span class="nx">fetch</span><span class="p">(</span>
+      <span class="s2">`/set-tracking-preferences?trackingPreferences=</span><span class="p">${</span><span class="nx">trackingPreferences</span><span class="p">}</span><span class="s2">`</span>
+    <span class="p">)</span>
+  <span class="p">},</span> <span class="p">[])</span>
+
+  <span class="k">return</span> <span class="p">&lt;</span><span class="nc">CookieConsentBanner</span> <span class="na">onClick</span><span class="p">=</span><span class="si">{</span><span class="p">...</span><span class="si">}</span> <span class="p">/&gt;</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>And that’s it. I’m not sure of the exact reason why we can overwrite cookies in
+this way, but I suspect it has to do with Safari’s assumption that a server we
+control will always take precedence and thus assumes things are safe. And in 7
+days, when Safari would otherwise erase the cookie, it will see that it’s now
+<code class="language-plaintext highlighter-rouge">secure</code> and ignore it, preserving the user’s preferences.</p>
+
+]]></content>
+  </entry>
+  
+</feed>

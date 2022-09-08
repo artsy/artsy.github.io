@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
 
-  <title><![CDATA[Category: ci | Artsy Engineering]]></title>
+  <title><![CDATA[Category: CI | Artsy Engineering]]></title>
   <link href="https://artsy.github.io/blog/categories/ci/atom.xml" rel="self"/>
   <link href="https://artsy.github.io/"/>
-  <updated>2022-09-06T14:40:37+00:00</updated>
+  <updated>2022-09-08T17:33:46+00:00</updated>
   <id>https://artsy.github.io/</id>
   <author>
     <name><![CDATA[]]></name>
@@ -14,251 +14,140 @@
 
   
   <entry>
-    <title type="html"><![CDATA[Switch from Capybara Webkit to Chrome]]></title>
-    <link href="https://artsy.github.io/blog/2018/11/27/switch-from-capybara-webkit-to-chrome/"/>
-    <updated>2018-11-27T00:00:00+00:00</updated>
-    <id>https://artsy.github.io/blog/2018/11/27/switch-from-capybara-webkit-to-chrome</id>
-    <content type="html"><![CDATA[<p>Volt is the internal app name of Artsy CMS, and our partners use it to manage their inventory and presence on artsy.net. It’s a Rails-based UI app that talks to many API services. We use <a href="https://github.com/rspec/rspec">RSpec</a> extensively to cover controller, model, view, and feature specs. As of Jun. 2018, Volt had 3751 specs and 495 of them were run with JavaScript enabled. It took about 16 mins to run on CircleCI with 6x parallelism.</p>
+    <title type="html"><![CDATA[Parallelizing Jest and Cypress.io Tests on CircleCI]]></title>
+    <link href="https://artsy.github.io/blog/2022/09/07/quick-tips-to-speed-up-ci/"/>
+    <updated>2022-09-07T00:00:00+00:00</updated>
+    <id>https://artsy.github.io/blog/2022/09/07/quick-tips-to-speed-up-ci</id>
+    <content type="html"><![CDATA[<p>At Artsy, exploring ways to improve the developer experience is part of our
+makeup. Whether it’s implementing <a href="https://github.com/artsy/express-reloadable">hot-swapping</a> for Express.js or
+integrating the Rust-based <a href="https://github.com/artsy/force/pull/10598">SWC compiler</a> into our front-end build
+pipeline, we’re always trying to reduce the amount of time it takes for a code
+cycle to take place. CI is no exception. When a developer opens a PR, we want to
+ensure they get timely feedback. Do their unit tests pass? Does the app build
+correctly? And how about smoke tests? Each of these jobs are complex processes
+that take time, and the more one can parallelize said tasks the less devs will
+need to wait. Scaled out to a whole engineering org, minor improvements to CI
+can be radical.</p>
 
-<p>Capybara-webkit was introduced from the very beginning of Volt for testing JavaScript-enabled specs via headless WebKit browser. It’s been providing a lot of confidence for the past 4+ years; however, a few reasons/growing concerns have encouraged us to look for (more modern) alternatives:</p>
-
-<!-- more -->
-
-<h2 id="the-problem">The Problem</h2>
-
-<ul>
-  <li>The <a href="https://github.com/thoughtbot/capybara-webkit/tree/v1.14.0#qt-dependency-and-installation-issues">dependency of a specific versions of Qt</a> has been causing frustrations to set it up properly both on engineers’ local machines and on CI.</li>
-  <li>The roadmap of capybara-webkit development is <a href="https://github.com/thoughtbot/capybara-webkit/issues/885#issuecomment-193988527">unclear</a>.</li>
-  <li>It’s been hard to truly identify the root cause of “flickering” feature specs (i.e. tests that fail intermittently and are hard to reliably reproduce), while retrying tended to resolve it on CI.</li>
-  <li>The entire RSpec tests took about 16 mins to complete on CI, with 6 parallelism. The slowness made it unrealistic to run the whole tests locally.</li>
-</ul>
-
-<h2 id="the-goal">The Goal</h2>
-
-<p>Headless Chrome has gained a lot of attention in the past few years and migrations done by companies such as <a href="https://about.gitlab.com/2017/12/19/moving-to-headless-chrome/">GitLab</a> and <a href="https://robots.thoughtbot.com/headless-feature-specs-with-chrome">thoughtbot</a> have proven it to be a promising alternative to capybara-webkit. In fact, it’s been <a href="http://guides.rubyonrails.org/5_1_release_notes.html#system-tests">officially included in Rails 5.1</a> for <a href="https://guides.rubyonrails.org/testing.html#system-testing">system tests</a>.</p>
-
-<p>The goal of this project is to switch to Headless Chrome and maintain the same feature sets we have now. This includes:</p>
-
-<ul>
-  <li>Making all existing specs pass</li>
-  <li>Running in container environments and using Artsy <a href="https://github.com/artsy/hokusai">Hokusai</a></li>
-  <li>Supporting mechanisms to debug specs, e.g. examining browser console logs for JavaScript behavior, taking screenshots on demand and automatically on failure, etc.</li>
-  <li>Bonus point to improve the stability of feature specs</li>
-  <li>Bonus point to improve the speed of running the entire test suite</li>
-</ul>
-
-<h2 id="the-how">The How</h2>
-
-<p>First, we replaced <code class="language-plaintext highlighter-rouge">capybara-webkit</code> with <code class="language-plaintext highlighter-rouge">selenium-webdriver</code> and <code class="language-plaintext highlighter-rouge">chromedriver-helper</code>:</p>
-
-<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">gem</span> <span class="s1">'selenium-webdriver'</span>
-<span class="n">gem</span> <span class="s1">'chromedriver-helper'</span>
-</code></pre></div></div>
-
-<p><a href="https://github.com/flavorjones/chromedriver-helper"><code class="language-plaintext highlighter-rouge">chromedriver-helper</code></a> was useful to help install <a href="https://sites.google.com/a/chromium.org/chromedriver/">chromedriver</a> in different environments, e.g. an engineer’s local machine, CI, etc.</p>
-
-<p>Second, we registered both <code class="language-plaintext highlighter-rouge">:chrome</code> and <code class="language-plaintext highlighter-rouge">:headleass_chrome</code> drivers. By default, it used Headless Chrome as the JavaScript driver, and we could easily switch to Chrome and observe the actual interaction happening in a real browser.</p>
-
-<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="no">Capybara</span><span class="p">.</span><span class="nf">register_driver</span> <span class="ss">:chrome</span> <span class="k">do</span> <span class="o">|</span><span class="n">app</span><span class="o">|</span>
-  <span class="no">Capybara</span><span class="o">::</span><span class="no">Selenium</span><span class="o">::</span><span class="no">Driver</span><span class="p">.</span><span class="nf">new</span><span class="p">(</span><span class="n">app</span><span class="p">,</span> <span class="ss">browser: :chrome</span><span class="p">)</span>
-<span class="k">end</span>
-
-<span class="no">Capybara</span><span class="p">.</span><span class="nf">register_driver</span> <span class="ss">:headless_chrome</span> <span class="k">do</span> <span class="o">|</span><span class="n">app</span><span class="o">|</span>
-  <span class="n">caps</span> <span class="o">=</span> <span class="no">Selenium</span><span class="o">::</span><span class="no">WebDriver</span><span class="o">::</span><span class="no">Remote</span><span class="o">::</span><span class="no">Capabilities</span><span class="p">.</span><span class="nf">chrome</span><span class="p">(</span><span class="ss">loggingPrefs: </span><span class="p">{</span> <span class="ss">browser: </span><span class="s1">'ALL'</span> <span class="p">})</span>
-  <span class="n">opts</span> <span class="o">=</span> <span class="no">Selenium</span><span class="o">::</span><span class="no">WebDriver</span><span class="o">::</span><span class="no">Chrome</span><span class="o">::</span><span class="no">Options</span><span class="p">.</span><span class="nf">new</span>
-
-  <span class="n">chrome_args</span> <span class="o">=</span> <span class="sx">%w[--headless --window-size=1920,1080 --no-sandbox --disable-dev-shm-usage]</span>
-  <span class="n">chrome_args</span><span class="p">.</span><span class="nf">each</span> <span class="p">{</span> <span class="o">|</span><span class="n">arg</span><span class="o">|</span> <span class="n">opts</span><span class="p">.</span><span class="nf">add_argument</span><span class="p">(</span><span class="n">arg</span><span class="p">)</span> <span class="p">}</span>
-  <span class="no">Capybara</span><span class="o">::</span><span class="no">Selenium</span><span class="o">::</span><span class="no">Driver</span><span class="p">.</span><span class="nf">new</span><span class="p">(</span><span class="n">app</span><span class="p">,</span> <span class="ss">browser: :chrome</span><span class="p">,</span> <span class="ss">options: </span><span class="n">opts</span><span class="p">,</span> <span class="ss">desired_capabilities: </span><span class="n">caps</span><span class="p">)</span>
-<span class="k">end</span>
-
-<span class="no">Capybara</span><span class="p">.</span><span class="nf">configure</span> <span class="k">do</span> <span class="o">|</span><span class="n">config</span><span class="o">|</span>
-  <span class="c1"># change this to :chrome to observe tests in a real browser</span>
-  <span class="n">config</span><span class="p">.</span><span class="nf">javascript_driver</span> <span class="o">=</span> <span class="ss">:headless_chrome</span>
-<span class="k">end</span>
-</code></pre></div></div>
-
-<p>We were on Rails v5.0.2 and Capybara v2.18.0 during the migration. We will be able to simplify the configuration by using the default <code class="language-plaintext highlighter-rouge">:selenium_chrome</code> and <code class="language-plaintext highlighter-rouge">:selenium_chrome_headless</code> drivers introduced in <a href="https://github.com/teamcapybara/capybara/blob/3.11.1/lib/capybara.rb#L535-L545">Capybara v3.11.1</a>. In addition, Rails v5.1 introduced the new system tests, and it’ll be even simpler by using the <a href="https://api.rubyonrails.org/v5.1.3/classes/ActionDispatch/SystemTestCase.html#method-c-driven_by"><code class="language-plaintext highlighter-rouge">driven_by</code></a> method.</p>
-
-<h2 id="lessons-learned">Lessons Learned</h2>
-
-<p>Naively switching to Headless Chrome caused about 60 spec failures on my local machine. We simply went through them one by one and fixed them. A big part of failures was due to <a href="https://github.com/thoughtbot/capybara-webkit/tree/v1.14.0#non-standard-driver-methods">capybara-webkit’s non-standard driver methods</a>, such as setting cookies, inspecting console logs, etc., and we just had to migrate to Selenium WebDriver’s equivalents.</p>
-
-<p>However, we still observed flickering specs on CI, while the exact failures seemed to be different than previously observed with Capybara Webkit. We will have to investigate further for possible causes. Regarding speed, we didn’t see significant improvement after switching to Headless Chrome, as mentioned in GitLab’s and others’ blog post, too.</p>
-
-<h2 id="next-steps">Next Steps</h2>
-
-<p>The naive migration to Chrome (and removal of the Qt dependency) already improved the developer experience quite a lot (e.g. no more wrestling with installing Capybara Webkit and Qt 5.5 on every engineer’s local machine <em>and</em> CI.) There are many next steps we can keep experimenting with and improving our tests, for example</p>
-
-<ul>
-  <li>Updating Volt to Rails &gt;= 5.1 and switching to system tests</li>
-  <li>Investigating the causes of the flickering specs by looking into intermittent failures reported on CI</li>
-  <li>Improving speed by using Docker <a href="https://docs.docker.com/develop/develop-images/multistage-build/">multi-stage builds</a>, caching, writing the right type and amount of tests, etc.</li>
-</ul>
-
-<p>It’s a long journey, and we were all excited about the migration and the new future. We’d love to hear your experience, too!</p>
-
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Upgrading Volt to CircleCI 2.0]]></title>
-    <link href="https://artsy.github.io/blog/2018/01/19/upgrading-volt-to-circleci-two/"/>
-    <updated>2018-01-19T00:00:00+00:00</updated>
-    <id>https://artsy.github.io/blog/2018/01/19/upgrading-volt-to-circleci-two</id>
-    <content type="html"><![CDATA[<p>I was really excited about CircleCI 2.0, especially the <a href="https://circleci.com/docs/2.0/workflows/">workflows
-features</a>. It seemed to me that with the work they had done here,
-really complicated builds would be able to be configured in a way that made more
-sense than on 1.0. This was something that was causing me grief on one of our
-projects so I upgraded to 2.0. It was pretty hard to get green and once we did,
-we decided to downgrade back to 1.0. Here’s why.</p>
+<p>In this regard, two things came across our radar recently that we’d like to
+share: sharding via Jest, and a (free) way to parallelize Cypress.io integration
+tests via CircleCI’s <code class="language-plaintext highlighter-rouge">split</code> command.</p>
 
 <!-- more -->
 
-<p>Volt is the internal name for the app that our Partners use to enter information
-about their artworks and artists into the Artsy platform. It’s a Rails app and
-has a pretty big and slow test suite. Over time, we’ve ended up with a good
-number of things that run during CI for this project:</p>
+<h2 id="sharding-in-jest">Sharding in Jest</h2>
 
-<ul>
-  <li><a href="http://danger.systems/">Danger</a></li>
-  <li><a href="http://rubocop.readthedocs.io/">RuboCop</a></li>
-  <li><a href="https://prettier.io/">Prettier</a></li>
-  <li><a href="https://facebook.github.io/jest/">Jest tests</a></li>
-  <li><a href="https://github.com/jejacks0n/teaspoon">Teaspoon tests</a></li>
-  <li><a href="http://rspec.info/">RSpec tests</a></li>
-</ul>
+<p>“What is sharding?” Good question! In short, it means “a small part of a whole”.
+The database community has employed sharding techniques for decades, where a
+large database is split up into smaller, more manageable chunks, usually to
+improve performance at scale. The same idea can be applied to any process or
+task involving a lot of data, including tests.</p>
 
-<p>Some of these things are fast and some are slow. Ok, fine, really only the view
-specs are slow - running them in isolation takes around 20 minutes on my laptop.</p>
+<p>Think about it like this. Imagine an app that has thousands of tests. One can
+open up their terminal and run <code class="language-plaintext highlighter-rouge">yarn test</code> and execute all of the tests at once
+in a single process, or one can open two terminal tabs and run
+<code class="language-plaintext highlighter-rouge">yarn test src/utils</code> and <code class="language-plaintext highlighter-rouge">yarn test src/routes</code>, and have both processes
+allocate a pool of memory to complete each (smaller) subset of tasks. Because
+each process has its own memory pool the performance characteristics are
+generally better, and thus the overall time required to run our tests is reduced
+/ decreased. Running each of these commands scoped to a particular folder is
+easy enough, but in a CI environment this is somewhat cumbersome; we’d need to
+define two new jobs and then the conditions in which they run, increasing the
+scope and complexity of our configuration file.</p>
 
-<p>My goal was to separate out the fast stuff, run that in parallel and only if all
-that passed would I run the view specs. This should get feedback to developers
-faster when they’ve broken something and not waste time running the slowest part
-of the CI stack.</p>
+<p>This is where <a href="https://jestjs.io/blog/2022/04/25/jest-28#sharding-of-test-run">Jest’s new sharding feature</a> comes into play, which
+taps nicely into most modern CI runners. Using a hypothetical app containing 100
+tests, here’s a quick example of how it works:</p>
 
-<p>Artsy has 7 containers with CircleCI and Volt takes up 6 of them, so being able
-to break apart a run into pieces seemed like a good thing for the wider Artsy
-engineering organization too - developers working on something else would spend
-less time blocked by Volt runs and developers working on Volt shouldn’t notice
-anything. Foreshadowing!!</p>
-
-<p>Here’s the CircleCI 2.0 <a href="https://gist.github.com/jonallured/45032779506138186973af7cb94b5363">config</a> I ended up with and here’s a pretty picture
-of what our CircleCI 2.0 builds looked like:</p>
-
-<p><img src="/images/circle-two-oh/volt-circle-two-workflow.png" alt="/images/circle-two-oh/volt-circle-two-workflow.png" /></p>
-
-<p>I’m really proud of this - it’s cool and it was hard to figure out!</p>
-
-<p>But then we lived with it and noticed something that really slowed us down. Each
-rounded rect in that picture is called a job and is scheduled along with
-anything else you have going on at CircleCI. Let’s talk about parallelism for a
-moment. Take that second column - those jobs all run in parallel, but you can
-also set any of your jobs to have also be parallelised. For instance, that
-<code class="language-plaintext highlighter-rouge">fast_spec</code> job was <a href="https://gist.github.com/jonallured/45032779506138186973af7cb94b5363#file-config-yml-L114">set to a parallelism of 6</a>. That means in order
-to run all of the jobs in column two, we’d have to have a total of 11
-containers!</p>
-
-<p>While tinkering with this, I used all sorts of values for the parallelism of the
-<code class="language-plaintext highlighter-rouge">fast_specs</code> job, even trying no parallelism.</p>
-
-<p>It didn’t seem to matter - having these jobs in a queue along with whatever
-other projects consume the Artsy containers meant that once the build step was
-done and the next column of jobs kicked off, only some of the jobs would be
-able to run and we’d be stuck waiting for more containers. But those are fast
-jobs, so they would finish pretty quickly. But then again, moving on to the
-<code class="language-plaintext highlighter-rouge">view_specs</code> job would be slow because it also wanted 6 containers to run in
-~10 minutes.</p>
-
-<p>What this meant was that all told it often took 45 minutes of wall time to
-finish one of these builds even though as CircleCI reports it, they only took
-like 15 minutes.</p>
-
-<p>We reached out to CircleCI to explain as best we could our situation but didn’t
-get a lot of help there. They advised that going back to 1.0 might be wise for
-now. This is fine - we can’t expect all of CircleCI’s features are going to be
-perfect for us and our particular projects.</p>
-
-<p>For now, we’re back to CircleCI 1.0 and have tried to achieve a similar setup,
-but without the glamorous workflow functionality and cool diagram. I’m looking
-forward to seeing how CircleCI evolves their workflow feature and hope that it
-may end up in a place that can work for this project.</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Xcode 8 Manual Codesigning with Fastlane]]></title>
-    <link href="https://artsy.github.io/blog/2017/01/13/xcode-8-fastlane-codesigning/"/>
-    <updated>2017-01-13T14:00:00+00:00</updated>
-    <id>https://artsy.github.io/blog/2017/01/13/xcode-8-fastlane-codesigning</id>
-    <content type="html"><![CDATA[<p>New year, new deploy process! Late last year our mobile team completed the update to Swift 3 (and thus, the update to Xcode 8). The latest version of Apple’s IDE includes a lovely feature: automating provisioning profile management! (Note: not sarcasm, the feature is really nice. Check out the <a href="https://developer.apple.com/videos/play/wwdc2016/401/">WWDC video</a> for an in-depth exploration.)</p>
-
-<p><img src="/images/2017-01-13-xcode-8-fastlane-codesigning/xcode-screenshot.png" alt="Automatic code signing settings" /></p>
-
-<p>However, when I went to make our first <a href="http://artsy.github.io/blog/2015/12/15/Automating-Testflight-Deploys/">automated deploy</a> today, things didn’t work; I got a somewhat cryptic error about code signing.</p>
-
-<!-- more -->
-
-<blockquote>
-  <p>Code signing is required for product type ‘Application’ in SDK ‘iOS 10.1’</p>
-</blockquote>
-
-<p>Code signing was failing for our project. Hmm. First step in fixing a bug is always to reproduce it, which I could do locally. I started looking into the code that manages our deploys’ signing process and got lost. My colleague Orta was kind enough to give me a hand.</p>
-
-<p>Some background: the Fastlane suite of tools includes <a href="https://github.com/fastlane/fastlane/tree/master/match">Match</a>, which manages your signing certificates and provisioning profiles in a private GitHub repository. We don’t use match due to complications with our multiple apps, but we use <a href="https://github.com/artsy/eigen/blob/608f60860165dd9b3c376da00492a3cb36bf5214/fastlane/Fastfile#L95-L130">very similar logic</a> to clone the repo, extract the certificate and profile, and install the keys on CI.</p>
-
-<p>So what wasn’t working?</p>
-
-<p>Well it turns out that Xcode’s fancy new automatic code signing was incompatible with our manual process of specifying certificates and profiles. The easy solution would be to simply disable that setting, but that would be a shame: the new automatic code signing makes developing on devices way easier and we didn’t want to sacrifice that for the sake of our deploys.</p>
-
-<p>So we went looking and luckily found <a href="https://github.com/artsy/eigen/pull/2104">the solution</a>. We amended our codesigning setup with the <a href="https://docs.fastlane.tools/actions/#update_project_provisioning">update_project_provisioning</a> and <a href="https://docs.fastlane.tools/actions/#update_project_team">update_project_team</a> Fastlane actions, and the <a href="https://github.com/hjanuschka/fastlane-plugin-update_project_codesigning">update_project_codesigning plugin</a>. Basically, we disable the automatic signing feature and then manually set the provisioning profile to the one we cloned from our private GitHub repo.</p>
-
-<p>So remember folks, if you’re ever asked to sacrifice ease of development for the sake of getting computers to behave, there’s probably a better way.</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Automating TestFlight Deploys using Fastlane]]></title>
-    <link href="https://artsy.github.io/blog/2015/12/15/Automating-Testflight-Deploys/"/>
-    <updated>2015-12-15T00:00:00+00:00</updated>
-    <id>https://artsy.github.io/blog/2015/12/15/Automating-Testflight-Deploys</id>
-    <content type="html"><![CDATA[<p>I’ve been a really <a href="http://artsy.github.io/blog/2015/09/18/Cocoa-Architecture-Dependencies/">strong supporter</a> of the <a href="https://fastlane.tools">fastlane</a> toolset. I think it fixes a lot of common developer problems, in a space that Apple doesn’t really touch. The command line.</p>
-
-<p>We’ve added hints of fastlane to our apps at different rates, <a href="https://github.com/artsy/eidolon/">Eidolon</a> uses fastlane for everything but <a href="https://github.com/artsy/eigen/">Eigen</a>/<a href="https://github.com/artsy/energy">Energy</a>/<a href="https://github.com/artsy/emergence">Emergence</a> have been pretty slow on the uptake, though they have more complicated setups, being App Store apps.</p>
-
-<p>When <a href="https://krausefx.com/">Felix</a> announced <a href="https://krausefx.com/blog/introducing-match-a-new-approach-to-code-signing">match</a> this week, I felt like he tackled a problem we face in our <a href="http://artsy.net/job/mobile-engineer">small dev team</a>. I integrated this, only to find that it could also fix my problems with deployment. The rest of this post goes into the “how I did this.” You can also cheat and look at the <a href="https://github.com/artsy/eigen/compare/d06270882aadec8f03927455a5229b53dd0a73c8...9eaf9082ebdcdf75f12ad2804260587e01526f2d">commits</a> directly.</p>
-
-<!-- more -->
-
-<p>First up, a TLDR for <a href="https://github.com/fastlane/match">match</a>. <em>match is a tool that keeps all of your code-signing setup in a private git repo.</em> We currently keep them in a shared 1Password vault. By switching to using a private git repo we can can use our existing GitHub authentication for CI to provide access to the certificates for signing on circle.</p>
-
-<p>We use a <a href="https://github.com/artsy/eigen/blob/master/Makefile">Makefile</a>, I know that fastlane provides an awesome tool in the form of <a href="https://github.com/fastlane/fastlane#features">fastlane lanes</a> - but we’re pretty happy with a Makefile, they’re the simplest tool that does what we need.</p>
-
-<p>I wanted to lower the barrier for us shipping betas, so I opted to add another build step in the CI process. This step checks what branch is it, and if it’s the beta branch, grab the certs, then deploy.</p>
-
-<div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code>deploy_if_beta_branch:
-	<span class="k">if</span> <span class="o">[</span> <span class="s2">"</span><span class="si">$(</span>LOCAL_BRANCH<span class="si">)</span><span class="s2">"</span> <span class="o">==</span> <span class="s2">"beta"</span> <span class="o">]</span><span class="p">;</span> <span class="k">then </span>make certs<span class="p">;</span> make ipa<span class="p">;</span> make distribute<span class="p">;</span> <span class="k">fi</span>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>yarn jest <span class="nt">--shard</span> 1/5
 </code></pre></div></div>
 
-<p><code class="language-plaintext highlighter-rouge">make certs</code> is really simple, it runs: <code class="language-plaintext highlighter-rouge">bundle exec match appstore --readonly</code> which and pulls metadata from a <a href="https://github.com/artsy/eigen/blob/9eaf9082ebdcdf75f12ad2804260587e01526f2d/fastlane/Matchfile">Matchfile</a>. This means we can sign app store builds on CI.</p>
+<p>What this says is: take the total number of tests (100), divide them into five
+buckets (containing 20 tests each), and execute the test runner against the
+first bucket (the first 20 tests). Continuing:</p>
 
-<p>If you don’t know what the <code class="language-plaintext highlighter-rouge">bundle exec</code> prefix is, I’d recommend reading my guide on the CocoaPods website for <a href="https://guides.cocoapods.org/using/a-gemfile.html">Gemfile</a>s.</p>
-
-<p>The next step is generating an ipa, we do this with <a href="https://github.com/fastlane/gym">gym</a> via <code class="language-plaintext highlighter-rouge">make ipa</code> which looks like this:</p>
-
-<div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code>ipa: set_git_properties change_version_to_date
-	bundle <span class="nb">exec </span>gym
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>yarn jest <span class="nt">--shard</span> 2/5
 </code></pre></div></div>
 
-<p>It executes some make tasks to ensure we know what git commit each build is, and we use the date to provide a faux-<a href="http://semver.org">semver</a> for apps.</p>
+<p>Now take the second bucket and execute the next 20 tests – and so on. Simple
+enough.</p>
 
-<p>Gym will build our app, according to our <a href="https://github.com/artsy/eigen/blob/9eaf9082ebdcdf75f12ad2804260587e01526f2d/fastlane/GymFile">Gymfile</a>. Nothing too surprising in there. It will output an <a href="http://apple.stackexchange.com/questions/26550/what-does-ipa-stand-for">ipa</a> and a <a href="http://stackoverflow.com/questions/3656391/whats-the-dsym-and-how-to-use-it-ios-sdk">dsym</a> that <code class="language-plaintext highlighter-rouge">make distribute</code> can handle.</p>
+<p>Taking this further, we could turn this into a bash loop, including an <code class="language-plaintext highlighter-rouge">&amp;</code>
+symbol to run things in parallel and automating some of the redundancy away:</p>
 
-<p><code class="language-plaintext highlighter-rouge">make distribute</code> is a pretty easy one, we generate a CHANGELOG via Ruby, then run the command <code class="language-plaintext highlighter-rouge">bundle exec pilot upload -i build/Artsy.ipa</code>, it will ship it to iTunes Connect after configuration from the <a href="https://github.com/artsy/eigen/blob/9eaf9082ebdcdf75f12ad2804260587e01526f2d/fastlane/AppFile">Appfile</a>. This is great, but it goes one better. It will, by default, run a synchronous check for whether the App has finished processing.</p>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">BUCKETS</span><span class="o">=</span>5
 
-<p>&lt;/div&gt;&lt;/div&gt;<a href="/images/2015-12-15-Automating-Testflight-Deploys/ci-itunes-screenshot.png"><img src="/images/2015-12-15-Automating-Testflight-Deploys/ci-itunes-screenshot.png" /></a>&lt;div class='meta-container'&gt;&lt;header&gt; &lt;/header&gt;&lt;/div&gt;&lt;div class='date-container'&gt; &lt;/div&gt;&lt;div class='content-container'&gt;&lt;div class='entry-content'&gt;</p>
+<span class="k">for </span>i <span class="k">in</span> <span class="o">{</span>1..<span class="k">${</span><span class="nv">BUCKETS</span><span class="k">}</span><span class="o">}</span>
+<span class="k">do
+   </span>yarn jest <span class="nt">--shard</span> <span class="nv">$i</span>/<span class="nv">$BUCKETS</span> &amp;
+<span class="k">done</span>
+</code></pre></div></div>
 
-<p>This is awesome. I’d like to add a Slack message to tell us that it’s shipped too, which would be much easier if we used a <a href="https://github.com/fastlane/fastlane/tree/master/docs#after_all-block">Fastfile</a>. We’ve not entirely moved all of our apps to TestFlight, this is our first experiment in the space, we’ve been really happy with Hockey, and still are. However, without trying new things we’ll never be able to know what we should consider internal best practices.</p>
+<p>For many the above snippet should be sufficient to speed up your test suite, but
+who wants to write bash loops? Thankfully, most modern CI task runners contain
+the ability to split jobs into separate processes programatically and so this
+kind of logic is unnecessary.</p>
+
+<p>Here’s how to do this in Circle CI:</p>
+
+<div class="language-yaml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="na">test</span><span class="pi">:</span>
+  <span class="na">parallelism</span><span class="pi">:</span> <span class="m">5</span>
+  <span class="na">steps</span><span class="pi">:</span>
+    <span class="pi">-</span> <span class="na">run</span><span class="pi">:</span> <span class="s">yarn test --shard=$(expr $CIRCLE_NODE_INDEX + 1)/$CIRCLE_NODE_TOTAL</span>
+</code></pre></div></div>
+
+<p>Set a <code class="language-plaintext highlighter-rouge">parallelism</code> value, and drop the <code class="language-plaintext highlighter-rouge">jest</code> command into a cool one-liner.
+The variable <code class="language-plaintext highlighter-rouge">CIRCLE_NODE_INDEX</code> refers to which container index the job is
+running on, and <code class="language-plaintext highlighter-rouge">CIRCLE_NODE_TOTAL</code> points to the value of <code class="language-plaintext highlighter-rouge">parallelism</code>.</p>
+
+<p>On Artsy.net, we’ve been able to reduce the average time it takes to run our
+unit tests from around ~10 minutes per PR to just above 2m. A 4-5x performance
+improvement.</p>
+
+<h2 id="parallelizing-cypressio-integration-tests-for-free">Parallelizing Cypress.io Integration Tests (For Free)</h2>
+
+<p>For those who want robust integration test coverage, <a href="https://www.cypress.io">Cypress.io</a> has
+been a game-changer due to its reliability and ease of use. Here at Artsy we use
+it in a number of apps, most notably [Integrity][integrity]. One complaint,
+however, is just how <em>slow</em> it is. This is reasonable; Cypress is simulating a
+user browsing your website and sometimes a user needs to do <code class="language-plaintext highlighter-rouge">x</code> and <code class="language-plaintext highlighter-rouge">y</code> (such as
+logging in) before they can do <code class="language-plaintext highlighter-rouge">z</code>. At scale this can really slow things down
+and lead to bottlenecks, especially if deploys are dependent on all of your
+integration tests passing.</p>
+
+<p>The Cypress.io team has recognized this bottleneck and released the [Cypress
+Dashboard][dashboard], a paid product which includes the ability to unlock
+parallelized tests on your CI. For those willing to pay for another SAAS product
+this will get the job done well, but for those with leaner budgets there’s
+another way to accomplish this for free, and on CircleCI it’s very easy to setup
+via the CircleCI CLI command <code class="language-plaintext highlighter-rouge">split</code>.</p>
+
+<p>You can check out the [full example here][smoketests], but in short:</p>
+
+<div class="language-yaml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="na">integration</span><span class="pi">:</span>
+  <span class="na">parallelism</span><span class="pi">:</span> <span class="m">5</span>
+  <span class="na">run</span><span class="pi">:</span> <span class="pi">|</span>
+    <span class="s">TESTS=$(circleci tests glob "cypress/integration" | circleci tests split | paste -sd ',')</span>
+    <span class="s">cypress run --spec $TESTS</span>
+</code></pre></div></div>
+
+<p>We use the <code class="language-plaintext highlighter-rouge">circleci tests glob</code> command to gather all of our tests, and then
+pipe that into the <code class="language-plaintext highlighter-rouge">circleci tests split</code> [command][split] which will divide our
+tests into buckets, similar to how Jest’s <code class="language-plaintext highlighter-rouge">--shard</code> command works up above. We
+then assign that to a <code class="language-plaintext highlighter-rouge">$TESTS</code> variable and pass it into
+<code class="language-plaintext highlighter-rouge">cypress run --spec $TESTS</code>. CircleCI sees the <code class="language-plaintext highlighter-rouge">parallelism</code> prop in the config
+and automatically divides our tests into 5 separate containers, each running a
+small subset of our integration tests in parallel.</p>
+
+<p>On Artsy.net, our smoke tests times have gone from around ~7m on average down to
+~3m. A huge reduction for only a few lines of config!</p>
+
+<p>[split]:
+  https://circleci.com/docs/parallelism-faster-jobs#using-the-circleci-cli-to-split-tests
+[integrity]: https://github.com/artsy/integrity
+[dashboard]: https://docs.cypress.io/guides/dashboard/introduction
+[smoketests]:
+  https://github.com/artsy/force/blob/main/.circleci/config.yml#L219-L235</p>
 ]]></content>
   </entry>
   

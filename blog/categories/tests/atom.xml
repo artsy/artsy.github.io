@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: Tests | Artsy Engineering]]></title>
+  <link href="https://artsy.github.io/blog/categories/tests/atom.xml" rel="self"/>
+  <link href="https://artsy.github.io/"/>
+  <updated>2022-09-08T17:33:46+00:00</updated>
+  <id>https://artsy.github.io/</id>
+  <author>
+    <name><![CDATA[]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Parallelizing Jest and Cypress.io Tests on CircleCI]]></title>
+    <link href="https://artsy.github.io/blog/2022/09/07/quick-tips-to-speed-up-ci/"/>
+    <updated>2022-09-07T00:00:00+00:00</updated>
+    <id>https://artsy.github.io/blog/2022/09/07/quick-tips-to-speed-up-ci</id>
+    <content type="html"><![CDATA[<p>At Artsy, exploring ways to improve the developer experience is part of our
+makeup. Whether it’s implementing <a href="https://github.com/artsy/express-reloadable">hot-swapping</a> for Express.js or
+integrating the Rust-based <a href="https://github.com/artsy/force/pull/10598">SWC compiler</a> into our front-end build
+pipeline, we’re always trying to reduce the amount of time it takes for a code
+cycle to take place. CI is no exception. When a developer opens a PR, we want to
+ensure they get timely feedback. Do their unit tests pass? Does the app build
+correctly? And how about smoke tests? Each of these jobs are complex processes
+that take time, and the more one can parallelize said tasks the less devs will
+need to wait. Scaled out to a whole engineering org, minor improvements to CI
+can be radical.</p>
+
+<p>In this regard, two things came across our radar recently that we’d like to
+share: sharding via Jest, and a (free) way to parallelize Cypress.io integration
+tests via CircleCI’s <code class="language-plaintext highlighter-rouge">split</code> command.</p>
+
+<!-- more -->
+
+<h2 id="sharding-in-jest">Sharding in Jest</h2>
+
+<p>“What is sharding?” Good question! In short, it means “a small part of a whole”.
+The database community has employed sharding techniques for decades, where a
+large database is split up into smaller, more manageable chunks, usually to
+improve performance at scale. The same idea can be applied to any process or
+task involving a lot of data, including tests.</p>
+
+<p>Think about it like this. Imagine an app that has thousands of tests. One can
+open up their terminal and run <code class="language-plaintext highlighter-rouge">yarn test</code> and execute all of the tests at once
+in a single process, or one can open two terminal tabs and run
+<code class="language-plaintext highlighter-rouge">yarn test src/utils</code> and <code class="language-plaintext highlighter-rouge">yarn test src/routes</code>, and have both processes
+allocate a pool of memory to complete each (smaller) subset of tasks. Because
+each process has its own memory pool the performance characteristics are
+generally better, and thus the overall time required to run our tests is reduced
+/ decreased. Running each of these commands scoped to a particular folder is
+easy enough, but in a CI environment this is somewhat cumbersome; we’d need to
+define two new jobs and then the conditions in which they run, increasing the
+scope and complexity of our configuration file.</p>
+
+<p>This is where <a href="https://jestjs.io/blog/2022/04/25/jest-28#sharding-of-test-run">Jest’s new sharding feature</a> comes into play, which
+taps nicely into most modern CI runners. Using a hypothetical app containing 100
+tests, here’s a quick example of how it works:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>yarn jest <span class="nt">--shard</span> 1/5
+</code></pre></div></div>
+
+<p>What this says is: take the total number of tests (100), divide them into five
+buckets (containing 20 tests each), and execute the test runner against the
+first bucket (the first 20 tests). Continuing:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>yarn jest <span class="nt">--shard</span> 2/5
+</code></pre></div></div>
+
+<p>Now take the second bucket and execute the next 20 tests – and so on. Simple
+enough.</p>
+
+<p>Taking this further, we could turn this into a bash loop, including an <code class="language-plaintext highlighter-rouge">&amp;</code>
+symbol to run things in parallel and automating some of the redundancy away:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">BUCKETS</span><span class="o">=</span>5
+
+<span class="k">for </span>i <span class="k">in</span> <span class="o">{</span>1..<span class="k">${</span><span class="nv">BUCKETS</span><span class="k">}</span><span class="o">}</span>
+<span class="k">do
+   </span>yarn jest <span class="nt">--shard</span> <span class="nv">$i</span>/<span class="nv">$BUCKETS</span> &amp;
+<span class="k">done</span>
+</code></pre></div></div>
+
+<p>For many the above snippet should be sufficient to speed up your test suite, but
+who wants to write bash loops? Thankfully, most modern CI task runners contain
+the ability to split jobs into separate processes programatically and so this
+kind of logic is unnecessary.</p>
+
+<p>Here’s how to do this in Circle CI:</p>
+
+<div class="language-yaml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="na">test</span><span class="pi">:</span>
+  <span class="na">parallelism</span><span class="pi">:</span> <span class="m">5</span>
+  <span class="na">steps</span><span class="pi">:</span>
+    <span class="pi">-</span> <span class="na">run</span><span class="pi">:</span> <span class="s">yarn test --shard=$(expr $CIRCLE_NODE_INDEX + 1)/$CIRCLE_NODE_TOTAL</span>
+</code></pre></div></div>
+
+<p>Set a <code class="language-plaintext highlighter-rouge">parallelism</code> value, and drop the <code class="language-plaintext highlighter-rouge">jest</code> command into a cool one-liner.
+The variable <code class="language-plaintext highlighter-rouge">CIRCLE_NODE_INDEX</code> refers to which container index the job is
+running on, and <code class="language-plaintext highlighter-rouge">CIRCLE_NODE_TOTAL</code> points to the value of <code class="language-plaintext highlighter-rouge">parallelism</code>.</p>
+
+<p>On Artsy.net, we’ve been able to reduce the average time it takes to run our
+unit tests from around ~10 minutes per PR to just above 2m. A 4-5x performance
+improvement.</p>
+
+<h2 id="parallelizing-cypressio-integration-tests-for-free">Parallelizing Cypress.io Integration Tests (For Free)</h2>
+
+<p>For those who want robust integration test coverage, <a href="https://www.cypress.io">Cypress.io</a> has
+been a game-changer due to its reliability and ease of use. Here at Artsy we use
+it in a number of apps, most notably [Integrity][integrity]. One complaint,
+however, is just how <em>slow</em> it is. This is reasonable; Cypress is simulating a
+user browsing your website and sometimes a user needs to do <code class="language-plaintext highlighter-rouge">x</code> and <code class="language-plaintext highlighter-rouge">y</code> (such as
+logging in) before they can do <code class="language-plaintext highlighter-rouge">z</code>. At scale this can really slow things down
+and lead to bottlenecks, especially if deploys are dependent on all of your
+integration tests passing.</p>
+
+<p>The Cypress.io team has recognized this bottleneck and released the [Cypress
+Dashboard][dashboard], a paid product which includes the ability to unlock
+parallelized tests on your CI. For those willing to pay for another SAAS product
+this will get the job done well, but for those with leaner budgets there’s
+another way to accomplish this for free, and on CircleCI it’s very easy to setup
+via the CircleCI CLI command <code class="language-plaintext highlighter-rouge">split</code>.</p>
+
+<p>You can check out the [full example here][smoketests], but in short:</p>
+
+<div class="language-yaml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="na">integration</span><span class="pi">:</span>
+  <span class="na">parallelism</span><span class="pi">:</span> <span class="m">5</span>
+  <span class="na">run</span><span class="pi">:</span> <span class="pi">|</span>
+    <span class="s">TESTS=$(circleci tests glob "cypress/integration" | circleci tests split | paste -sd ',')</span>
+    <span class="s">cypress run --spec $TESTS</span>
+</code></pre></div></div>
+
+<p>We use the <code class="language-plaintext highlighter-rouge">circleci tests glob</code> command to gather all of our tests, and then
+pipe that into the <code class="language-plaintext highlighter-rouge">circleci tests split</code> [command][split] which will divide our
+tests into buckets, similar to how Jest’s <code class="language-plaintext highlighter-rouge">--shard</code> command works up above. We
+then assign that to a <code class="language-plaintext highlighter-rouge">$TESTS</code> variable and pass it into
+<code class="language-plaintext highlighter-rouge">cypress run --spec $TESTS</code>. CircleCI sees the <code class="language-plaintext highlighter-rouge">parallelism</code> prop in the config
+and automatically divides our tests into 5 separate containers, each running a
+small subset of our integration tests in parallel.</p>
+
+<p>On Artsy.net, our smoke tests times have gone from around ~7m on average down to
+~3m. A huge reduction for only a few lines of config!</p>
+
+<p>[split]:
+  https://circleci.com/docs/parallelism-faster-jobs#using-the-circleci-cli-to-split-tests
+[integrity]: https://github.com/artsy/integrity
+[dashboard]: https://docs.cypress.io/guides/dashboard/introduction
+[smoketests]:
+  https://github.com/artsy/force/blob/main/.circleci/config.yml#L219-L235</p>
+]]></content>
+  </entry>
+  
+</feed>

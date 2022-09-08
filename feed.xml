@@ -5,9 +5,159 @@
     <description></description>
     <link>https://artsy.github.io/</link>
     <atom:link href="https://artsy.github.io/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Tue, 06 Sep 2022 14:40:37 +0000</pubDate>
-    <lastBuildDate>Tue, 06 Sep 2022 14:40:37 +0000</lastBuildDate>
+    <pubDate>Thu, 08 Sep 2022 17:33:46 +0000</pubDate>
+    <lastBuildDate>Thu, 08 Sep 2022 17:33:46 +0000</lastBuildDate>
     <generator>Jekyll v3.9.0</generator>
+    
+      <item>
+        <title>Parallelizing Jest and Cypress.io Tests on CircleCI</title>
+        <description>&lt;p&gt;At Artsy, exploring ways to improve the developer experience is part of our
+makeup. Whether it’s implementing &lt;a href=&quot;https://github.com/artsy/express-reloadable&quot;&gt;hot-swapping&lt;/a&gt; for Express.js or
+integrating the Rust-based &lt;a href=&quot;https://github.com/artsy/force/pull/10598&quot;&gt;SWC compiler&lt;/a&gt; into our front-end build
+pipeline, we’re always trying to reduce the amount of time it takes for a code
+cycle to take place. CI is no exception. When a developer opens a PR, we want to
+ensure they get timely feedback. Do their unit tests pass? Does the app build
+correctly? And how about smoke tests? Each of these jobs are complex processes
+that take time, and the more one can parallelize said tasks the less devs will
+need to wait. Scaled out to a whole engineering org, minor improvements to CI
+can be radical.&lt;/p&gt;
+
+&lt;p&gt;In this regard, two things came across our radar recently that we’d like to
+share: sharding via Jest, and a (free) way to parallelize Cypress.io integration
+tests via CircleCI’s &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;split&lt;/code&gt; command.&lt;/p&gt;
+
+&lt;!-- more --&gt;
+
+&lt;h2 id=&quot;sharding-in-jest&quot;&gt;Sharding in Jest&lt;/h2&gt;
+
+&lt;p&gt;“What is sharding?” Good question! In short, it means “a small part of a whole”.
+The database community has employed sharding techniques for decades, where a
+large database is split up into smaller, more manageable chunks, usually to
+improve performance at scale. The same idea can be applied to any process or
+task involving a lot of data, including tests.&lt;/p&gt;
+
+&lt;p&gt;Think about it like this. Imagine an app that has thousands of tests. One can
+open up their terminal and run &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;yarn test&lt;/code&gt; and execute all of the tests at once
+in a single process, or one can open two terminal tabs and run
+&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;yarn test src/utils&lt;/code&gt; and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;yarn test src/routes&lt;/code&gt;, and have both processes
+allocate a pool of memory to complete each (smaller) subset of tasks. Because
+each process has its own memory pool the performance characteristics are
+generally better, and thus the overall time required to run our tests is reduced
+/ decreased. Running each of these commands scoped to a particular folder is
+easy enough, but in a CI environment this is somewhat cumbersome; we’d need to
+define two new jobs and then the conditions in which they run, increasing the
+scope and complexity of our configuration file.&lt;/p&gt;
+
+&lt;p&gt;This is where &lt;a href=&quot;https://jestjs.io/blog/2022/04/25/jest-28#sharding-of-test-run&quot;&gt;Jest’s new sharding feature&lt;/a&gt; comes into play, which
+taps nicely into most modern CI runners. Using a hypothetical app containing 100
+tests, here’s a quick example of how it works:&lt;/p&gt;
+
+&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nv&quot;&gt;$ &lt;/span&gt;yarn jest &lt;span class=&quot;nt&quot;&gt;--shard&lt;/span&gt; 1/5
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;What this says is: take the total number of tests (100), divide them into five
+buckets (containing 20 tests each), and execute the test runner against the
+first bucket (the first 20 tests). Continuing:&lt;/p&gt;
+
+&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nv&quot;&gt;$ &lt;/span&gt;yarn jest &lt;span class=&quot;nt&quot;&gt;--shard&lt;/span&gt; 2/5
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Now take the second bucket and execute the next 20 tests – and so on. Simple
+enough.&lt;/p&gt;
+
+&lt;p&gt;Taking this further, we could turn this into a bash loop, including an &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;&amp;amp;&lt;/code&gt;
+symbol to run things in parallel and automating some of the redundancy away:&lt;/p&gt;
+
+&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nv&quot;&gt;BUCKETS&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;5
+
+&lt;span class=&quot;k&quot;&gt;for &lt;/span&gt;i &lt;span class=&quot;k&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;1..&lt;span class=&quot;k&quot;&gt;${&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;BUCKETS&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;do
+   &lt;/span&gt;yarn jest &lt;span class=&quot;nt&quot;&gt;--shard&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;$i&lt;/span&gt;/&lt;span class=&quot;nv&quot;&gt;$BUCKETS&lt;/span&gt; &amp;amp;
+&lt;span class=&quot;k&quot;&gt;done&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;For many the above snippet should be sufficient to speed up your test suite, but
+who wants to write bash loops? Thankfully, most modern CI task runners contain
+the ability to split jobs into separate processes programatically and so this
+kind of logic is unnecessary.&lt;/p&gt;
+
+&lt;p&gt;Here’s how to do this in Circle CI:&lt;/p&gt;
+
+&lt;div class=&quot;language-yaml highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;na&quot;&gt;test&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt;
+  &lt;span class=&quot;na&quot;&gt;parallelism&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;5&lt;/span&gt;
+  &lt;span class=&quot;na&quot;&gt;steps&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt;
+    &lt;span class=&quot;pi&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;run&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;yarn test --shard=$(expr $CIRCLE_NODE_INDEX + 1)/$CIRCLE_NODE_TOTAL&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Set a &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;parallelism&lt;/code&gt; value, and drop the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;jest&lt;/code&gt; command into a cool one-liner.
+The variable &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;CIRCLE_NODE_INDEX&lt;/code&gt; refers to which container index the job is
+running on, and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;CIRCLE_NODE_TOTAL&lt;/code&gt; points to the value of &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;parallelism&lt;/code&gt;.&lt;/p&gt;
+
+&lt;p&gt;On Artsy.net, we’ve been able to reduce the average time it takes to run our
+unit tests from around ~10 minutes per PR to just above 2m. A 4-5x performance
+improvement.&lt;/p&gt;
+
+&lt;h2 id=&quot;parallelizing-cypressio-integration-tests-for-free&quot;&gt;Parallelizing Cypress.io Integration Tests (For Free)&lt;/h2&gt;
+
+&lt;p&gt;For those who want robust integration test coverage, &lt;a href=&quot;https://www.cypress.io&quot;&gt;Cypress.io&lt;/a&gt; has
+been a game-changer due to its reliability and ease of use. Here at Artsy we use
+it in a number of apps, most notably [Integrity][integrity]. One complaint,
+however, is just how &lt;em&gt;slow&lt;/em&gt; it is. This is reasonable; Cypress is simulating a
+user browsing your website and sometimes a user needs to do &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;x&lt;/code&gt; and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;y&lt;/code&gt; (such as
+logging in) before they can do &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;z&lt;/code&gt;. At scale this can really slow things down
+and lead to bottlenecks, especially if deploys are dependent on all of your
+integration tests passing.&lt;/p&gt;
+
+&lt;p&gt;The Cypress.io team has recognized this bottleneck and released the [Cypress
+Dashboard][dashboard], a paid product which includes the ability to unlock
+parallelized tests on your CI. For those willing to pay for another SAAS product
+this will get the job done well, but for those with leaner budgets there’s
+another way to accomplish this for free, and on CircleCI it’s very easy to setup
+via the CircleCI CLI command &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;split&lt;/code&gt;.&lt;/p&gt;
+
+&lt;p&gt;You can check out the [full example here][smoketests], but in short:&lt;/p&gt;
+
+&lt;div class=&quot;language-yaml highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;na&quot;&gt;integration&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt;
+  &lt;span class=&quot;na&quot;&gt;parallelism&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;5&lt;/span&gt;
+  &lt;span class=&quot;na&quot;&gt;run&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;pi&quot;&gt;|&lt;/span&gt;
+    &lt;span class=&quot;s&quot;&gt;TESTS=$(circleci tests glob &quot;cypress/integration&quot; | circleci tests split | paste -sd ',')&lt;/span&gt;
+    &lt;span class=&quot;s&quot;&gt;cypress run --spec $TESTS&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;We use the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;circleci tests glob&lt;/code&gt; command to gather all of our tests, and then
+pipe that into the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;circleci tests split&lt;/code&gt; [command][split] which will divide our
+tests into buckets, similar to how Jest’s &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;--shard&lt;/code&gt; command works up above. We
+then assign that to a &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;$TESTS&lt;/code&gt; variable and pass it into
+&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;cypress run --spec $TESTS&lt;/code&gt;. CircleCI sees the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;parallelism&lt;/code&gt; prop in the config
+and automatically divides our tests into 5 separate containers, each running a
+small subset of our integration tests in parallel.&lt;/p&gt;
+
+&lt;p&gt;On Artsy.net, our smoke tests times have gone from around ~7m on average down to
+~3m. A huge reduction for only a few lines of config!&lt;/p&gt;
+
+&lt;p&gt;[split]:
+  https://circleci.com/docs/parallelism-faster-jobs#using-the-circleci-cli-to-split-tests
+[integrity]: https://github.com/artsy/integrity
+[dashboard]: https://docs.cypress.io/guides/dashboard/introduction
+[smoketests]:
+  https://github.com/artsy/force/blob/main/.circleci/config.yml#L219-L235&lt;/p&gt;
+</description>
+        <pubDate>Wed, 07 Sep 2022 00:00:00 +0000</pubDate>
+        <link>https://artsy.github.io/blog/2022/09/07/quick-tips-to-speed-up-ci/</link>
+        <guid isPermaLink="true">https://artsy.github.io/blog/2022/09/07/quick-tips-to-speed-up-ci/</guid>
+        
+        
+        <category>CI</category>
+        
+        <category>CircleCI</category>
+        
+        <category>Cypress</category>
+        
+        <category>Jest</category>
+        
+        <category>Tests</category>
+        
+      </item>
     
       <item>
         <title>Hacking Around Safari's 7-day Cookie Limit</title>
@@ -34,10 +184,10 @@ experiencing was Apple’s ITP feature in action. After choosing your preference
 the cookie we use to store them is erased after 7 days, necessitating another
 interaction.&lt;/p&gt;
 
-&lt;p&gt;We thrashed around in this vicious cycle for months until we found a
-simple, elegant solution thanks to a WebKit engineer’s prompt (during Apple’s
-open lab calls at WWDC – &lt;a href=&quot;https://developer.apple.com/wwdc22/labs/&quot;&gt;which you too can schedule!&lt;/a&gt;) She mentioned
-that the 7-day cookie limitation only applies to &lt;em&gt;client-side cookies&lt;/em&gt; and that
+&lt;p&gt;We thrashed around in this vicious cycle for months until we found a simple,
+elegant solution thanks to a WebKit engineer’s prompt (during Apple’s open lab
+calls at WWDC – &lt;a href=&quot;https://developer.apple.com/wwdc22/labs/&quot;&gt;which you too can schedule!&lt;/a&gt;) She mentioned that the
+7-day cookie limitation only applies to &lt;em&gt;client-side cookies&lt;/em&gt; and that
 &lt;strong&gt;same-domain, secure, server-side cookies&lt;/strong&gt; are not limited to these
 constraints.&lt;/p&gt;
 
@@ -103,7 +253,13 @@ days, when Safari would otherwise erase the cookie, it will see that it’s now
         <guid isPermaLink="true">https://artsy.github.io/blog/2022/08/23/getting-around-7-day-cookie/</guid>
         
         
-        <category>Privacy Cookies GDPR CCPA</category>
+        <category>CCPA</category>
+        
+        <category>Cookies</category>
+        
+        <category>GDPR</category>
+        
+        <category>Privacy</category>
         
       </item>
     
@@ -1636,141 +1792,6 @@ mutation to update server-side data.&lt;/li&gt;
         <category>relay</category>
         
         <category>tooling</category>
-        
-      </item>
-    
-      <item>
-        <title>Strategies For Small, Focused Pull Requests</title>
-        <description>&lt;p&gt;A common suggestion for improving pull requests (PRs) is to “make your PR small and focused”. I myself gave this suggestion in &lt;a href=&quot;https://artsy.github.io/blog/2020/08/11/improve-pull-requests-by-including-valuable-context/&quot;&gt;a recent article on this very blog about including context in PRs&lt;/a&gt;.&lt;/p&gt;
-
-&lt;p&gt;Like most internet advice, this can feel like the &lt;a href=&quot;https://knowyourmeme.com/memes/how-to-draw-an-owl&quot;&gt;“draw the rest of the owl”&lt;/a&gt; meme. Even if we’re in agreement that I &lt;em&gt;should&lt;/em&gt; make a PR smaller…&lt;strong&gt;&lt;em&gt;how&lt;/em&gt;&lt;/strong&gt; do I do it? How do I avoid a big PR when there’s a lot of cross-cutting changes to make? How do I create small, focused units of work when I’m building a large feature? How can I overcome my perfectionism and submit a PR that feels incomplete to me because the edges aren’t all polished?&lt;/p&gt;
-
-&lt;!-- more --&gt;
-
-&lt;h2 id=&quot;what-is-small-and-focused&quot;&gt;What is “small and focused”?&lt;/h2&gt;
-
-&lt;p&gt;Not all small PRs are focused. I might sneak five unrelated one-line changes into a PR. While it feels like that will enable me to move quickly, it also runs the risk of four unrelated changes being held up in review because the other is controversial.&lt;/p&gt;
-
-&lt;p&gt;Not all focused PRs are small. I might put an entire feature in one PR, and while it is focused, it’s still going to be difficult for you to review the large amount of changes thoroughly.&lt;/p&gt;
-
-&lt;p&gt;To make our PR reviewers’ jobs easier, we’re looking for the intersection of small &lt;em&gt;and&lt;/em&gt; focused. Changes that are cohesive and without distractions. Code that accomplishes one small thing.&lt;/p&gt;
-
-&lt;p&gt;Note that the recommendation for “small and focused” PRs does &lt;strong&gt;not&lt;/strong&gt; include the word “complete”. I’m a perfectionist and I like my work to be very polished before it’s done, but when we’re iterating quickly the polish can come in a follow-up PR. This is the biggest challenge I’ve had as an Artsy engineer — finding the balance between polish and iteration. Artsy’s core values include &lt;a href=&quot;https://github.com/artsy/README/blob/ccfbba13ead7cb6586d2d9bf088e5180907be07b/culture/what-is-artsy.md#impact-over-perfection&quot;&gt;Impact Over Perfection&lt;/a&gt; but my personal values include “make things &lt;em&gt;real good&lt;/em&gt;” and it can be hard for me to navigate that tension.&lt;/p&gt;
-
-&lt;h3 id=&quot;integrating-code-a-little-at-a-time&quot;&gt;Integrating code a little at a time&lt;/h3&gt;
-
-&lt;p&gt;A caveat: the recommendations in this article assume you can integrate code a little bit at a time. I’ve worked on teams and projects where we used very long-lived branches for features or even epic — I know those environments exist. This article is probably not the one that will convince you to move to &lt;a href=&quot;https://trunkbaseddevelopment.com/&quot;&gt;trunk-based development&lt;/a&gt;; it also might be less useful without trunk-based development.&lt;/p&gt;
-
-&lt;p&gt;Having said that, even with long-lived feature branches you can introduce code &lt;em&gt;into those branches&lt;/em&gt; a little bit at a time. PRs can be opened against &lt;em&gt;any&lt;/em&gt; branch, not just &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;main&lt;/code&gt;.&lt;/p&gt;
-
-&lt;p&gt;A couple strategies we use at Artsy for integrating code a little bit at a time:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;&lt;a href=&quot;https://trunkbaseddevelopment.com/feature-flags/&quot;&gt;Feature toggles&lt;/a&gt;&lt;/strong&gt;. &lt;a href=&quot;https://artsy.github.io/blog/2020/12/31/echo-supporting-old-app-versions/&quot;&gt;Ash wrote about Echo&lt;/a&gt;, a service for toggling features on mobile devices, but we have additional ways for enabling/disabling features at the system &lt;em&gt;or&lt;/em&gt; user level. When we introduce new code we can hide it behind a feature flag until we’re ready for everyone to see it.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;“Hidden” routes&lt;/strong&gt;. Often when we redesign or modernize an existing route on Artsy.net we’ll create a &lt;em&gt;second&lt;/em&gt; similar route. We hide the in-progress page behind that new route and don’t share it until it’s ready. 🤫&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;Armed with tools for integrating code incrementally, here are some strategies for reducing the size and scope of a PR. I’m not suggesting you use these strategies universally, but if you think you’re headed toward a very large PR, these are some things to try.&lt;/p&gt;
-
-&lt;h2 id=&quot;start-with-small-scope--slice-your-stories-small&quot;&gt;Start with small scope — slice your stories small&lt;/h2&gt;
-
-&lt;p&gt;One of the most valuable lessons I learned as a consultant with a company focused on agile development is that you can almost always slice a story smaller. You can do this by sacrificing quality, but you can also (and probably should) do it by cutting scope. We can ship a new screen for our app sooner if we focus on building the most absolutely critical features first, and follow up with the valuable-but-not-critical features later.&lt;/p&gt;
-
-&lt;p&gt;There are many ways to break a story smaller, and all of them enable you to integrate code sooner in the form of smaller PRs:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Separate CRUD (Create, Read, Update, Delete) operations and ship them one at a time&lt;/li&gt;
-  &lt;li&gt;Separate by user role&lt;/li&gt;
-  &lt;li&gt;Separate individual edge cases&lt;/li&gt;
-  &lt;li&gt;Separate a simplified experience from an enhanced version&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;Think of these smaller scoped features as self-contained vertical slices of functionality. As each one is released, users can take advantage of them, and your team can start building the next slice.&lt;/p&gt;
-
-&lt;h2 id=&quot;pr-by-architectural-layer&quot;&gt;PR by architectural layer&lt;/h2&gt;
-
-&lt;p&gt;Rather than building an entire feature end-to-end before creating a pull request, consider integrating one layer at a time. Embrace the boundaries between the front and back ends of your code — submit a PR to introduce changes to the API, and once it’s merged follow up with another PR to introduce changes to the UI.&lt;/p&gt;
-
-&lt;p&gt;Depending on the architecture of your system, you might already be forced to this. At Artsy, our &lt;a href=&quot;https://github.com/artsy/force&quot;&gt;web app lives in one repo&lt;/a&gt;, our &lt;a href=&quot;https://github.com/artsy/metaphysics&quot;&gt;GraphQL endpoint lives in another&lt;/a&gt;, and many services are separated into repositories behind that. We &lt;em&gt;must&lt;/em&gt; integrate our features one layer at a time. Here’s an example where &lt;a href=&quot;https://artsy.github.io/author/matt/&quot;&gt;Matt&lt;/a&gt; &lt;a href=&quot;https://github.com/artsy/metaphysics/pull/2819/files&quot;&gt;added a field to our API&lt;/a&gt; in one PR, and &lt;a href=&quot;https://github.com/artsy/force/pull/6613&quot;&gt;propagated it to the UI&lt;/a&gt; in a separate PR. Even if you don’t have a repository boundary between your API and your UI, splitting PRs at this logical boundary can help make them more digestible.&lt;/p&gt;
-
-&lt;p&gt;The suggestion to PR by architectural layer is not in conflict with slicing stories small — in fact, these two strategies complement each other nicely. A PR that contains multiple features but only one layer is probably large enough to be difficult to review; so is a PR that contains one feature end-to-end. A PR containing one layer of one feature can be easier to review.&lt;/p&gt;
-
-&lt;h2 id=&quot;build-a-walking-skeleton&quot;&gt;Build a walking skeleton&lt;/h2&gt;
-
-&lt;p&gt;A &lt;a href=&quot;walking-skeleton&quot;&gt;walking skeleton&lt;/a&gt; is a bare-bones, stripped down implementation of your feature from end-to-end. It connects the UI all the way to the data source. Very little of the feature is presented, but what is there is fully functional.&lt;/p&gt;
-
-&lt;p&gt;Start a new feature with a walking skeleton PR to demonstrate connectivity of the pieces involved. It won’t do very much — maybe it only displays one field — but that’s okay because no one’s going to see it yet. The important thing is that the moving pieces are all connected — the database, the API, the UI.&lt;/p&gt;
-
-&lt;p&gt;Once a walking skeleton PR is merged, you can start filling in the skeleton. Each new sub-feature can be its own PR.&lt;/p&gt;
-
-&lt;p&gt;This is a great approach if your team is looking to swarm on a feature. If we all work on our own sub-features without first merging a walking skeleton, we’re likely to face some intense merge conflict headaches when we realize we’ve all connected the full stack in slightly different ways. Starting with a walking skeleton removes a lot of those merge conflicts, because we’re mostly bolting fields on to existing infrastructure along the way.&lt;/p&gt;
-
-&lt;p&gt;&lt;a href=&quot;https://github.com/artsy/relay-workshop/pull/1&quot;&gt;This PR&lt;/a&gt; is an example of a walking skeleton. My goal was to stand up an app that connected &lt;a href=&quot;https://reactjs.org/&quot;&gt;React&lt;/a&gt;, &lt;a href=&quot;https://relay.dev/&quot;&gt;Relay&lt;/a&gt;, and &lt;a href=&quot;https://www.typescriptlang.org/&quot;&gt;TypeScript&lt;/a&gt;. &lt;a href=&quot;https://github.com/artsy/relay-workshop/pull/1/files#diff-26ad4b834941d9b19ebf9db8082bd202aaf72ea0ddea85f5a8a0cb3c729cc6f2R25&quot;&gt;The actual app doesn’t display very much&lt;/a&gt; — just enough to prove that the pieces were all working.&lt;/p&gt;
-
-&lt;h2 id=&quot;separate-riskycontroversial-work-from-routine-work&quot;&gt;Separate risky/controversial work from routine work&lt;/h2&gt;
-
-&lt;p&gt;It’s not always possible to identify ahead of time which work will prompt more discussion during review, but sometimes it’s obvious. Novel work that takes thoughtful consideration of multiple approaches is much more likely to invite feedback than work that follows existing patterns.&lt;/p&gt;
-
-&lt;p&gt;Routine implementation can be a noisy distraction in a PR that also contains a unique function that you really want reviewers to see. You should point out the unique bits in the PR body if they’re combined, but you also might consider separating the less-interesting implementation into its own PR.&lt;/p&gt;
-
-&lt;p&gt;The worst review you can get on a PR that contains both novel and routine work is “LGTM!” (looks good to me). It likely means the reviewer couldn’t separate the signal from the noise and overlooked the bits that required more thought and effort.&lt;/p&gt;
-
-&lt;h2 id=&quot;separate-infrastructural-work-from-implementations&quot;&gt;Separate infrastructural work from implementations&lt;/h2&gt;
-
-&lt;p&gt;A &lt;a href=&quot;https://en.wikipedia.org/wiki/T-shaped_skills&quot;&gt;t-shaped person&lt;/a&gt; is someone with a lot of shallow experience in many areas, and deep expertise in one or a few areas. Their skills are wide at the base, and tall and narrow in their area of focus.&lt;/p&gt;
-
-&lt;p&gt;Code can have a similar shape. Infrastructural work tends to be wide and shallow — it touches a lot of places in your code, but it doesn’t go deep in any of them. Implementation work tends to be the opposite — it doesn’t affect the entire app, but it goes very deep for one feature.&lt;/p&gt;
-
-&lt;p&gt;We probably review infrastructural changes differently than we review implementation changes:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;
-    &lt;p&gt;Infrastructural work deserves scrutiny for the abstractions it introduces and how it might affect performance or future implementations. These kinds of changes introduce new patterns to the codebase and we want to make sure they’re useful and usable patterns.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;An individual implementation gets more scrutiny on user-facing details. It’s probably combining &lt;em&gt;existing&lt;/em&gt; patterns, so we’ll spend less time looking at abstractions. We’ll spend more time confirming it works for our users.&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;When a large PR combines wide, shallow, abstract work with deep, narrow, concrete work, it requires the reviewer to shift between two different mindsets. You might consider breaking your PR into two: one containing the wide infrastructural work, and one containing the deep implementation work. This allows reviewers to focus on abstractions in one PR and user-facing details in the other.&lt;/p&gt;
-
-&lt;p&gt;Some examples of infrastructural changes that could be separated from implementation work:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;We introduced a seam to the code in order to make room for our implementation.&lt;/li&gt;
-  &lt;li&gt;We updated a dependency to take advantage of a new feature.&lt;/li&gt;
-  &lt;li&gt;We refactored before we started our implementation.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;separating-an-already-large-pr&quot;&gt;Separating an already-large PR&lt;/h2&gt;
-
-&lt;p&gt;It’s natural for PRs to grow large. &lt;a href=&quot;https://thedecisionlab.com/biases/optimism-bias/&quot;&gt;Optimism bias&lt;/a&gt; diminishes our ability to estimate work often resulting in more code changes than we expected. A feature seems like it won’t take much work until you get deeper and find complexity in places you hadn’t considered. There’s a lot of uncertainty when you start working on a feature and we’d need to model the entire problem to completion to know what the PR was going to look like before we started. A PR seems like it will be small until suddenly…it isn’t anymore.&lt;/p&gt;
-
-&lt;p&gt;This is what usually prevents developers from separating PRs — by the time you recognize the PRs could be de-tangled, it seems like a lot of effort to de-tangle them.&lt;/p&gt;
-
-&lt;p&gt;When you’ve got a PR/branch that contains multiple lines of work and you want to separate them, &lt;a href=&quot;https://www.atlassian.com/git/tutorials/rewriting-history/git-rebase&quot;&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;git rebase&lt;/code&gt;&lt;/a&gt; is your best friend. Rebasing enables you to rename, reorder, combine, and separate commits. Use &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;git rebase&lt;/code&gt; to group your commits into one set for each branch you want to extract, and submit a PR for each smaller set of changes.&lt;/p&gt;
-
-&lt;p&gt;Good commit hygiene makes it easier to rebase commits. Commit small units of work so that they can be re-ordered and grouped, and apply clear messages to each commit in case you need to move it. While you might not &lt;em&gt;always&lt;/em&gt; separate/rebase PR branches, you’ll appreciate small commits with clear messages when you do.&lt;/p&gt;
-
-&lt;h2 id=&quot;small-prs-start-long-before-the-work-starts&quot;&gt;Small PRs start long before the work starts&lt;/h2&gt;
-
-&lt;p&gt;The size of a pull request can be influenced long before the PR is opened. Slice features small in your product backlog; make small commits along the way; combine small commits into small pull requests. Among other benefits, a focus on breaking work into small parts will make it easier to review your changes.&lt;/p&gt;
-
-</description>
-        <pubDate>Tue, 09 Mar 2021 00:00:00 +0000</pubDate>
-        <link>https://artsy.github.io/blog/2021/03/09/strategies-for-small-focused-pull-requests/</link>
-        <guid isPermaLink="true">https://artsy.github.io/blog/2021/03/09/strategies-for-small-focused-pull-requests/</guid>
-        
-        
-        <category>community</category>
-        
-        <category>engineering</category>
-        
-        <category>github</category>
-        
-        <category>team</category>
-        
-        <category>tools</category>
         
       </item>
     
