@@ -101,21 +101,25 @@ improvement.
 
 For those who want robust integration test coverage, [Cypress.io][cypress] has
 been a game-changer due to its reliability and ease of use. Here at Artsy we use
-it in a number of apps, most notably [Integrity][integrity]. One complaint,
-however, is just how _slow_ it is. This is reasonable; Cypress is simulating a
-user browsing your website and sometimes a user needs to do `x` and `y` (such as
-logging in) before they can do `z`. At scale this can really slow things down
-and lead to bottlenecks, especially if deploys are dependent on all of your
-integration tests passing.
+it in a number of apps, most notably
+[Integrity](https://github.com/artsy/integrity). One complaint, however, is just
+how _slow_ it is. This is reasonable; Cypress is simulating a user browsing your
+website and sometimes a user needs to do `x` and `y` (such as logging in) before
+they can do `z`. At scale this can really slow things down and lead to
+bottlenecks, especially if deploys are dependent on all of your integration
+tests passing.
 
-The Cypress.io team has recognized this bottleneck and released the [Cypress
-Dashboard][dashboard], a paid product which includes the ability to unlock
-parallelized tests on your CI. For those willing to pay for another SAAS product
-this will get the job done well, but for those with leaner budgets there's
-another way to accomplish this for free, and on CircleCI it's very easy to setup
-via the CircleCI CLI command `split`.
+The Cypress.io team has recognized this bottleneck and released the
+[Cypress Dashboard](https://docs.cypress.io/guides/dashboard/introduction), a
+paid product which includes the ability to unlock parallelized tests on your CI.
+For those willing to pay for another SAAS product this will get the job done
+well, but for those with leaner budgets there's another way to accomplish this
+for free, and on CircleCI it's very easy to setup via the
+[CircleCI CLI command `split`](https://circleci.com/docs/parallelism-faster-jobs#using-the-circleci-cli-to-split-tests).
 
-You can check out the [full example here][smoketests], but in short:
+You can check out the
+[full example here](https://github.com/artsy/force/blob/main/.circleci/config.yml#L219-L235),
+but in short:
 
 ```yaml
 integration:
@@ -140,9 +144,3 @@ On Artsy.net, our smoke tests times have gone from around ~7m on average down to
 [hot-swap]: https://github.com/artsy/express-reloadable
 [swc]: https://github.com/artsy/force/pull/10598
 [cypress]: https://www.cypress.io
-[split]:
-  https://circleci.com/docs/parallelism-faster-jobs#using-the-circleci-cli-to-split-tests
-[integrity]: https://github.com/artsy/integrity
-[dashboard]: https://docs.cypress.io/guides/dashboard/introduction
-[smoketests]:
-  https://github.com/artsy/force/blob/main/.circleci/config.yml#L219-L235
