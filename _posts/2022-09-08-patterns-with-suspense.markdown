@@ -9,13 +9,14 @@ categories: [React, Suspense]
 author: [chris]
 ---
 
-With the release of v18, React's new concurrent mode -- aka [Suspense][suspense]
--- was [officially released][react]. Finally! It was first demoed at React Conf
-in [2018][reactconf], has been discussed and debated [for years][umbrella], and
-the first parts started to ship in [v16][v16]. And now, with React 18 shipping
-to a client app near you, it's time to discuss some of the patterns that are
-emerging in the community and how to avoid some common pitfalls that you might
-encounter when implementing Suspense (or refactoring) your UI in support of it.
+With the release of React 18, React's new concurrent mode (aka
+[Suspense][suspense]) was [officially released][react]. Finally! It was first
+demoed at React Conf in [2018][reactconf], has been discussed and debated [for
+years][umbrella], and the first parts started to ship in [v16][v16]. And now,
+with React 18 shipping to a client app near you, it's time to discuss some of
+the patterns that are emerging in the community and how to avoid some common
+pitfalls that you might encounter when implementing Suspense (or refactoring)
+your UI in support of it.
 
 <!-- more -->
 
@@ -67,15 +68,15 @@ boundaries. Breaking it down a bit:
 1. `<App />` is wrapped in a top-level `<Suspense />` boundary. This tells React
    that it is waiting for something to happen
 1. The first component nested within the top-level suspense boundary is
-   `<UserInfo />`. React renders it
+   `<UserInfo />`. React attempts to render it
 1. Inside of `<UserInfo />` there's a mechanism for fetching user data. When
    triggered, this tells React that we need to "suspend"
 1. At this moment the top-level "Loading..." fallback indicator appears.
-1. `<FollowedArtists />` and `<FollowedArtworks />` execute and also display
+1. `<FollowedArtists />` and `<FollowedArtworks />` execute and also trigger
    fallback loading states
 1. `<UserInfo />` finishes loading and reveals the page
-1. `<FollowedArtists />` then finishes and shows a list
-1. `<FollowedArtworks />` then finishes and shows a list
+1. `<FollowedArtists />` and `<FollowedArtworks />` render and show their
+   content as soon as they finish loading
 
 The nested suspense boundaries give us fine-grained control over time management
 in our UI. We're able to say: before the user data is fetched, visually pause
@@ -95,9 +96,7 @@ simply `throw` a promise in the same way that you would `throw` an error:
 
 ```tsx
 const UserInfo = () => {
-  throw new Promise((resolve, reject) => {
-    ...
-  })
+  throw new Promise(...)
 
   return (
     <div>...</div>
@@ -122,7 +121,7 @@ _fetching on render_; it's designed around the concept of _rendering as you
 fetch_. This is _the_ crucial idea to understand about Suspense: that **one
 should be able to execute an entire component tree in one go with nothing
 preventing any other component from executing, regardless of whether there are
-required data dependencies needed for rendering the _display_**. The performance
+required data dependencies needed for rendering the display**. The performance
 implications of this are very cool and a bit mind-bending once fully understood!
 Lets demonstrate with a few examples.
 
@@ -171,8 +170,8 @@ Suspense.
 
 ### A better way: `render-as-you-fetch`
 
-Lets refactor the above example slightly to introduce a more suspense-friendly
-way of doing things.
+Lets refactor the above example to introduce a more suspense-friendly way of
+doing things.
 
 First, wrap the `<Artist />` component with a suspense boundary:
 
@@ -238,7 +237,7 @@ There's no React-specific API methods here that one needs to call, which is
 wonderful; this is only a JS pattern and one can expand or contract it in any
 way they see fit and depending on their needs.
 
-Continuing, here's our `prepareArtistData` function:
+Here's our `prepareArtistData` function:
 
 ```tsx
 export const prepareArtistData = () => {
@@ -271,8 +270,8 @@ export const prepareArtistData = () => {
 ```
 
 Building on the concept we learned above -- that all one needs to do to trigger
-a suspense boundary's loading state is `throw` a promise -- we can understand
-what's happening in the `prepareArtistData` function:
+a suspense boundary's fallback loading state is `throw` a promise -- we can
+understand what's happening in the `prepareArtistData` function:
 
 1. When `prepareArtistData` is first called at the top of `Artist.tsx` file and
    outside of the component, the initial `status` is set to `"pending"`
@@ -320,10 +319,10 @@ Here's another pseudocode example, using a router which preloads all route data
 ahead of time:
 
 ```tsx
-const routes = [
+const routes = makeRoutes([
   {
     path: '/':
-    queryRef: loadQuery(homeQuery)
+    query: loadQuery(homeQuery)
     Component: () => {
       const data = usePreloadedQuery(homeQuery)
       ...
@@ -331,15 +330,19 @@ const routes = [
   },
   {
     path: '/artists':
-    queryRef: loadQuery(artistsQuery)
+    query: loadQuery(artistsQuery)
     Component: () => {
       const data = usePreloadedQuery(artistsQuery)
       ...
     }
   }
-]
+])
 
-bootApp({ routes })
+bootApp(() => (
+  <Suspense fallback="Loading route...">
+    {routes}
+  </Suspense>
+))
 ```
 
 This pattern is _flexible_. One can imagine any number of ways we could
@@ -349,17 +352,18 @@ returning data to be used in the component. Very cool.
 
 ## Gotchas and Emerging Patterns Around Them
 
-Now that suspense is properly understood lets get to some common patterns that
+Now that suspense is properly understood lets discuss some common patterns that
 one can use to get around the gotchas. Suspense is new; it's like the transition
-period when hooks came out and people were moving from
-class-based components with explicit lifecycle methods to functional components with hooks. And remember when render props were a thing?
-They were a way to use dependency injection to "inject" props into a component,
-allowing us to share data dependencies across a react tree. That pattern was
-cool at the time but it wasn't without its headaches, and the community hadn't
-yet settled on contexts as they're now commonly understood. It was a pattern
-that we had to come up with. It's the same thing with Suspense. React has
-provided the tools for us to work with concurrency patterns in our UI, but since
-Suspense is so new we still need to figure out just how to do it right.
+period when hooks came out and people were moving from class-based components
+with explicit lifecycle methods to functional components with hooks. And
+remember when render props were a thing? They were a way to use dependency
+injection to "inject" props into a component, allowing us to share data
+dependencies across a react tree. That pattern was cool at the time but it
+wasn't without its headaches, and the community hadn't yet settled on contexts
+as they're now commonly understood. It was a pattern that we had to come up
+with. It's the same thing with Suspense. React has provided the tools for us to
+work with concurrency patterns in our UI, but since Suspense is so new we still
+need to figure out just how to do it right.
 
 The following bits of code have been made generic for demonstration purposes,
 but if you use [Relay][relay] (like we do at Artsy) you're officially in a
@@ -379,13 +383,13 @@ const ArtistAutocomplete = () => {
 
   return (
     <Autocomplete
-      onChange={value => {
+      onChange={(value) => {
         startTransition(() => {
           setQuery(value)
         })
       }}
       options={options}
-      isLoading={???} // where do we get loading state?
+      isLoading="???" // where do we get loading state?
     />
   )
 }
@@ -499,6 +503,7 @@ const ArtistAutocomplete = () => {
   const [isLoading, setIsLoading] = useState(false)
 
   const handleOnChange = (response) => {
+    setIsLoading(false)
     setOptions(response)
   }
 
@@ -539,7 +544,7 @@ const LoadingToggle = ({ onChange }) => {
 When the suspense boundary fallback has been triggered the `<LoadingToggle />`
 component renders, and instantly we call the `onChange` callback with `true` to
 alert the parent that our component has suspended. And again, similar to
-`<Fetcher />` we return `null` from the `LoadingToggle` because all we're
+`<Fetcher />`, we return `null` from the `LoadingToggle` because all we're
 concerned about is learning when the suspense boundary has been triggered to set
 the state in the parent, and we don't need to render visuals for the fallback;
 our aim is solely to update the `isLoading` prop on `<Autocomplete />`.
