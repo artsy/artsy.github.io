@@ -12,11 +12,11 @@ makeup. Whether it's implementing [hot-swapping][hot-swap] for Express.js or
 integrating the Rust-based [SWC compiler][swc] into our front-end build
 pipeline, we're always trying to reduce the amount of time it takes for a code
 cycle to take place. CI is no exception. When a developer opens a PR, we want to
-ensure they get timely feedback. Have their unit tests passed? Does the app
-build correctly? And how about smoke tests? Each of these jobs are complex
-processes that take time, and the more one can parallelize said tasks the less
-waiting devs will need to do. Scaled out to a whole engineering org, minor
-improvements to CI can be radical.
+ensure they get timely feedback. Do their unit tests pass? Does the app build
+correctly? And how about smoke tests? Each of these jobs are complex processes
+that take time, and the more one can parallelize said tasks the less devs will
+need to wait. Scaled out to a whole engineering org, minor improvements to CI
+can be radical.
 
 In this regard, two things came across our radar recently that we'd like to
 share: sharding via Jest, and a (free) way to parallelize Cypress.io integration
@@ -38,15 +38,15 @@ in a single process, or one can open two terminal tabs and run
 `yarn test src/utils` and `yarn test src/routes`, and have both processes
 allocate a pool of memory to complete each (smaller) subset of tasks. Because
 each process has its own memory pool the performance characteristics are
-generally better, and thus speed up the overall time required to run our tests.
-To run each of these commands scoped to a particular folder is easy enough, but
-in a CI environment this is somewhat cumbersome; we'd need to define two new
-jobs and then the conditions in which they run, increasing the scope and
-complexity of our configuration file.
+generally better, and thus the overall time required to run our tests is reduced
+/ decreased. Running each of these commands scoped to a particular folder is
+easy enough, but in a CI environment this is somewhat cumbersome; we'd need to
+define two new jobs and then the conditions in which they run, increasing the
+scope and complexity of our configuration file.
 
-This is where Jest's new sharding feature comes into play, which taps nicely
-into most modern CI runners. Using a hypothetical app containing 100 tests,
-here's a quick example of how it works:
+This is where [Jest's new sharding feature][sharding] comes into play, which
+taps nicely into most modern CI runners. Using a hypothetical app containing 100
+tests, here's a quick example of how it works:
 
 ```bash
 $ yarn jest --shard 1/5
@@ -63,8 +63,8 @@ $ yarn jest --shard 2/5
 Now take the second bucket and execute the next 20 tests -- and so on. Simple
 enough.
 
-Taking this further, we could turn this into a bash loop, include an `&` symbol
-to run things in parallel and automate some of the redundancy away:
+Taking this further, we could turn this into a bash loop, including an `&`
+symbol to run things in parallel and automating some of the redundancy away:
 
 ```bash
 BUCKETS=5
@@ -126,19 +126,22 @@ integration:
 ```
 
 We use the `circleci tests glob` command to gather all of our tests, and then
-pipe that into the `split` command which will divide our tests into buckets,
-similar to how Jest's `--shard` command works up above. We then assign that to a
-`$TESTS` variable and pass it into `cypress run --spec $TESTS`. CircleCI sees
-the `parallelism` prop in the config and automatically divides our tests into 5
-separate containers, each running a small subset of our integration tests in
-parallel.
+pipe that into the `circleci tests split` [command][split] which will divide our
+tests into buckets, similar to how Jest's `--shard` command works up above. We
+then assign that to a `$TESTS` variable and pass it into
+`cypress run --spec $TESTS`. CircleCI sees the `parallelism` prop in the config
+and automatically divides our tests into 5 separate containers, each running a
+small subset of our integration tests in parallel.
 
 On Artsy.net, our smoke tests times have gone from around ~7m on average down to
 ~3m. A huge reduction for only a few lines of config!
 
+[sharding]: https://jestjs.io/blog/2022/04/25/jest-28#sharding-of-test-run
 [hot-swap]: https://github.com/artsy/express-reloadable
 [swc]: https://github.com/artsy/force/pull/10598
 [cypress]: https://www.cypress.io
+[split]:
+  https://circleci.com/docs/parallelism-faster-jobs#using-the-circleci-cli-to-split-tests
 [integrity]: https://github.com/artsy/integrity
 [dashboard]: https://docs.cypress.io/guides/dashboard/introduction
 [smoketests]:
