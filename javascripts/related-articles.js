@@ -35,11 +35,19 @@ function insertIntoDom(relatedArticles) {
   const el = document.querySelector("aside.related-articles")
   if (el) {
     const h2 = document.createElement("h2")
-    h2.innerText = "Related articles"
-
-    const div = document.createElement("pre")
-    div.innerText = JSON.stringify(relatedArticles, null, 2)
+    h2.innerText = "You might also like"
     el.appendChild(h2)
-    el.appendChild(div)
+
+    ul = document.createElement("ul")
+    el.appendChild(ul)
+
+    relatedArticles.forEach((article) => {
+      const li = document.createElement("li")
+      const a = document.createElement("a")
+      a.href = `/blog/${article.path}`
+      a.innerText = article.title
+      li.appendChild(a)
+      ul.appendChild(li)
+    })
   }
 }

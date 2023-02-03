@@ -11,6 +11,7 @@ gem 'jekyll-lunr-js-search', git: 'https://github.com/ashfurrow/jekyll-lunr-js-s
 gem 'jekyll-redirect-from'
 gem 'jekyll-paginate'
 gem 'byebug'
+gem 'ruby-openai'
 
 group :distribution do
   gem 'danger'
