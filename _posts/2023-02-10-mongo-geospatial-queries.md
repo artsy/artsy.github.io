@@ -50,13 +50,13 @@ db.events.find({
 In the query above we are asking MongoDB to give us all events within a 25km
 radius around the point 34.05°N, 118.24°W which we have designated as a central
 point within Los Angeles. For our purposes in this post we can consider "events"
-≈ "exhibitions" ≈ "shows".
+≈ "exhibitions" ≈ "shows."
 
 We are not asking for the 25km radius directly, but rather converting it into
 into an equivalent amount of geographic degrees by using a conversion factor of
 1° ≈ 111.32 kilometers, a factor which is true at enough the equator.
 
-I modified the above query to cast a wider net (50km) in order to see if there
+I modified the above query to cast a 50km net in order to see if there
 were some edges cases that needed scrutiny. Taking the resulting JSON response,
 I fired up [Placemark](https://www.placemark.io/), my favorite new tool for
 wrangling geospatial data.
@@ -129,7 +129,7 @@ for `$center`, this query…
 
 Let us pause for a moment to note that while only some maps are
 [deceitful](https://press.uchicago.edu/ucp/books/book/chicago/H/bo27400568.html),
-_all_ maps are untruths. In the sense that they flatten three dimension down to
+_all_ maps are untruths. In the sense that they flatten three dimensions down to
 two, and inevitably distort the world in the process.
 
 The surface of a three-dimensional globe cannot be flattened down to a
@@ -278,10 +278,10 @@ map projection?
   <figcaption>Tissot's indicatrix for equirectangular projection. Credit: Justin Kunimune, <a href="https://creativecommons.org/licenses/by-sa/4.0">CC BY-SA 4.0</a>, via Wikimedia Commons</figcaption>
 </figure>
 
-Now, imagine the inverse operation of drawing true circles on this planar space,
+Now, imagine the inverse operation of this ⤴︎, drawing *true* circles on this planar space,
 in order to get a sense of how distorted your query results on a globe would be.
 
-And finally here is Tissot’s indicatrix for the Mercator projection,
+Finally, here is Tissot’s indicatrix for the Mercator projection,
 demonstrating its ability to preserve shapes at the expense of sizes.
 
 <figure class="illustration">
@@ -296,7 +296,7 @@ An interesting recent development is that the web's reliance on Mercator is
 changing, but only very slowly.
 [Google began to make this change](https://www.theverge.com/2018/8/5/17653122/google-maps-update-mercator-projection-earth-isnt-flat)
 a few years ago, and
-[Mapbox has blogged about their approach](https://www.mapbox.com/blog/adaptive-projections)
+[Mapbox has written about their approach](https://www.mapbox.com/blog/adaptive-projections)
 as well.
 
 Hopefully this digression into the display of geospatial data has been
@@ -312,6 +312,6 @@ and its spherical sibling
 [the $nearSphere query](https://www.mongodb.com/docs/manual/reference/operator/query/nearSphere/),
 all worthy topics.
 
-But we hope that understanding this crucial distinction between `$center` and
-`$centerSphere` will help you make the right choice when devising your own
+But we hope that understanding this crucial distinction between planar (`$center`) and spherical
+(`$centerSphere`) calculations will help you make the right choice when devising your own
 radius queries with MongoDB or other geospatial engines.
