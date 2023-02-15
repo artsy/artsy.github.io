@@ -5,9 +5,318 @@
     <description></description>
     <link>https://artsy.github.io/</link>
     <atom:link href="https://artsy.github.io/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Wed, 11 Jan 2023 14:31:53 +0000</pubDate>
-    <lastBuildDate>Wed, 11 Jan 2023 14:31:53 +0000</lastBuildDate>
+    <pubDate>Wed, 15 Feb 2023 17:40:04 +0000</pubDate>
+    <lastBuildDate>Wed, 15 Feb 2023 17:40:04 +0000</lastBuildDate>
     <generator>Jekyll v3.9.0</generator>
+    
+      <item>
+        <title>Are you using the right Mongo geospatial query?</title>
+        <description>&lt;p&gt;We recently got a report from one of our galleries in the Los Angeles area that
+they weren’t showing up on our
+&lt;a href=&quot;https://www.artsy.net/shows/los-angeles-ca-usa&quot;&gt;Los Angeles exhibition listings&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;I fielded the report and right away confirmed: when we asked our core API for
+&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;/shows?near=&amp;lt;los angeles coordinates&amp;gt;&lt;/code&gt;, sure enough this gallery partner didn’t
+make the cut.&lt;/p&gt;
+
+&lt;p&gt;Turns out they are based in Santa Monica, a separate and neighboring
+municipality. They must not be within the 25km radius that we use by default for
+these sorts of queries.&lt;/p&gt;
+
+&lt;p&gt;&lt;em&gt;Case closed&lt;/em&gt;. Or so I thought.&lt;/p&gt;
+
+&lt;!-- more --&gt;
+
+&lt;p&gt;After some back and forth with our partner I decided to investigate more
+thoroughly, this time using some tricks of the trade from
+&lt;a href=&quot;https://www.anandarooproy.com&quot;&gt;my other life&lt;/a&gt; outside of Artsy.&lt;/p&gt;
+
+&lt;h2 id=&quot;casting-a-wider-net&quot;&gt;Casting a wider net&lt;/h2&gt;
+
+&lt;p&gt;If there was something wrong with our 25km radius query, I wanted to start by
+casting a wider net and visualizing the results.&lt;/p&gt;
+
+&lt;p&gt;I consulted our Rails application code to find the query logic in question, and
+then issued the same query directly to MongoDB. Something like the following
+query (simplified for clarity):&lt;/p&gt;
+
+&lt;div class=&quot;language-js highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;c1&quot;&gt;// a $geoWithin $center query&lt;/span&gt;
+
+&lt;span class=&quot;nx&quot;&gt;db&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;events&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;find&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;({&lt;/span&gt;
+  &lt;span class=&quot;na&quot;&gt;coordinates&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;na&quot;&gt;$geoWithin&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+      &lt;span class=&quot;na&quot;&gt;$center&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[[&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;mf&quot;&gt;118.24&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mf&quot;&gt;34.05&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;],&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;25&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;/&lt;/span&gt; &lt;span class=&quot;mf&quot;&gt;111.32&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;],&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;
+  &lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;})&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;In the query above we are asking MongoDB to give us all events within a 25km
+radius around the point 34.05°N, 118.24°W which we have designated as a central
+point within Los Angeles. For our purposes in this post we can consider “events”
+≈ “exhibitions” ≈ “shows.”&lt;/p&gt;
+
+&lt;p&gt;We are not asking for the 25km radius directly, but rather converting it into an
+equivalent amount of geographic degrees by using a conversion factor of 1° ≈
+111.32 kilometers, a factor which is true at enough the equator.&lt;/p&gt;
+
+&lt;p&gt;I modified the above query to cast a 50km net in order to see if there were some
+edges cases that needed scrutiny. Taking the resulting JSON response, I fired up
+&lt;a href=&quot;https://www.placemark.io/&quot;&gt;Placemark&lt;/a&gt;, my favorite new tool for wrangling
+geospatial data.&lt;/p&gt;
+
+&lt;p&gt;(Incidentally I recommend reading Tom Macwright’s
+&lt;a href=&quot;https://macwright.com/2023/01/28/placemark.html&quot;&gt;recent reflection on creating Placemark&lt;/a&gt;
+as a bootstrapped indie developer.)&lt;/p&gt;
+
+&lt;figure class=&quot;illustration&quot;&gt;
+  &lt;img src=&quot;/images/2023-02-10-mongo-geospatial-queries/1.png&quot; alt=&quot;Screenshot of a visualization in Placemark showing Los Angeles area exhibitions within a 50km radius.&quot; /&gt;
+  &lt;figcaption&gt;All shows within a 50km radius&lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;h2 id=&quot;ball-of-confusion&quot;&gt;Ball of confusion&lt;/h2&gt;
+
+&lt;p&gt;One nice feature of Placemark is that it lets us place geodesic circles on the
+map, that is, circles that represent a constant radius around a point, as
+plotted on a globe.&lt;/p&gt;
+
+&lt;p&gt;When I placed a 25km radius circle on the map, something stood out immediately.&lt;/p&gt;
+
+&lt;figure class=&quot;illustration&quot;&gt;
+  &lt;img src=&quot;/images/2023-02-10-mongo-geospatial-queries/2.png&quot; alt=&quot;Screenshot of a visualization in Placemark showing Los Angeles area exhibitions within a 50km radius, with a 25km radius superimposed.&quot; /&gt;
+  &lt;figcaption&gt;25km radius superimposed. &lt;a style=&quot;padding-bottom: 1px; border-bottom: solid 1px lightgray&quot; href=&quot;https://en.wikipedia.org/wiki/Ball_of_Confusion_%28That%27s_What_the_World_Is_Today%29&quot;&gt;Ball of Confusion&lt;/a&gt;, that's what the world was that day.&lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;The partner in question is highlighted in pink — and is clearly within the 25km
+radius. &lt;strong&gt;What gives?&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;By spot-checking a few points on the map against our current geo query I found
+that edge cases near the top or bottom of the circle were likely to be evaluated
+correctly, while edges cases at the left and right were being incorrectly
+omitted, as our partner gallery was.&lt;/p&gt;
+
+&lt;p&gt;A fuller visualization of that finding would look like this:&lt;/p&gt;
+
+&lt;figure class=&quot;illustration&quot;&gt;
+  &lt;img src=&quot;/images/2023-02-10-mongo-geospatial-queries/3.png&quot; alt=&quot;Screenshot of a visualization in Placemark showing the results of a $geoWithin $center query&quot; /&gt;
+  &lt;figcaption&gt;Results of a &lt;code&gt;$geoWithin $center&lt;/code&gt; query around Los Angeles, evaluated against a grid of test points.&lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;A distinctly &lt;em&gt;non&lt;/em&gt;-circular circle — that rung a bell.&lt;/p&gt;
+
+&lt;h2 id=&quot;more-than-one-way-to-draw-a-circle-on-the-earth&quot;&gt;More than one way to draw a circle on the Earth&lt;/h2&gt;
+
+&lt;p&gt;It was at this point that I recalled the specific form of the geospatial query
+our code was performing, and consulted the
+&lt;a href=&quot;https://www.mongodb.com/docs/manual/reference/operator/query/geoWithin/&quot;&gt;MongoDB docs for the $geoWithin query&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;Turns out that you can invoke this as a radius query in one of two ways, by
+specifying
+&lt;a href=&quot;https://www.mongodb.com/docs/manual/reference/operator/query/center/&quot;&gt;$center&lt;/a&gt;
+or
+&lt;a href=&quot;https://www.mongodb.com/docs/manual/reference/operator/query/centerSphere/&quot;&gt;$centerSphere&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;Per the
+&lt;a href=&quot;https://www.mongodb.com/docs/manual/reference/operator/query/center/#behavior&quot;&gt;docs&lt;/a&gt;
+for &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;$center&lt;/code&gt;, this query…&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;calculates distances using flat (planar) geometry&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;Let us pause for a moment to note that while only some maps are
+&lt;a href=&quot;https://press.uchicago.edu/ucp/books/book/chicago/H/bo27400568.html&quot;&gt;deceitful&lt;/a&gt;,
+&lt;em&gt;all&lt;/em&gt; maps are untruths. In the sense that they flatten three dimensions down to
+two, and inevitably distort the world in the process.&lt;/p&gt;
+
+&lt;p&gt;The surface of a three-dimensional globe cannot be flattened down to a
+two-dimensional plane without some stretching or tearing, any more than an
+orange peel can be. The mathematical algorithms for turning those three
+dimensions into two are what we know as map projections. (Ah, the good old days
+when “dimensionality reduction” meant &lt;em&gt;from three to two&lt;/em&gt;.)&lt;/p&gt;
+
+&lt;p&gt;If you do your distance calculations in such a flattened, projected coordinate
+system — as the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;$geoWithin $center&lt;/code&gt; query does — then you are accepting
+whatever distortions are inherent to that projection.&lt;/p&gt;
+
+&lt;p&gt;That’s the situation we were in. We thought we were catching everything inside
+the green circle, but in fact we were only catching everything inside the red
+egg:&lt;/p&gt;
+
+&lt;figure class=&quot;illustration&quot;&gt;
+  &lt;img src=&quot;/images/2023-02-10-mongo-geospatial-queries/5.png&quot; alt=&quot;Screenshot of a visualization in Placemark showing the results of a $geoWithin $center query compared to the expected results&quot; /&gt;
+  &lt;figcaption&gt;Actual &lt;code&gt;$geoWithin $center&lt;/code&gt; results vs. expected results.&lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;And our unfortunate partner was &lt;em&gt;just&lt;/em&gt; outside the egg, thus being incorrectly
+omitted.&lt;/p&gt;
+
+&lt;h2 id=&quot;fixing-the-query&quot;&gt;Fixing the query&lt;/h2&gt;
+
+&lt;p&gt;Luckily the solution was simple.&lt;/p&gt;
+
+&lt;p&gt;As noted above MongoDB supports a second variant for radius queries using a
+&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;$centerSphere&lt;/code&gt; operator instead of the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;$center&lt;/code&gt; that we were using.&lt;/p&gt;
+
+&lt;p&gt;Per the
+&lt;a href=&quot;https://www.mongodb.com/docs/manual/reference/operator/query/centerSphere/&quot;&gt;docs&lt;/a&gt;
+for &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;$centerSphere&lt;/code&gt;, this version…&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;defines a circle for a geospatial query that uses spherical geometry&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;In other words, this query effectively draws our circle on the three-dimensional
+globe rather than on the stretched and distorted two-dimensional map.&lt;/p&gt;
+
+&lt;p&gt;We just need to rewrite our query as follows:&lt;/p&gt;
+
+&lt;div class=&quot;language-js highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;c1&quot;&gt;// a $geoWithin $centerSphere query&lt;/span&gt;
+
+&lt;span class=&quot;nx&quot;&gt;db&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;events&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;find&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;({&lt;/span&gt;
+  &lt;span class=&quot;na&quot;&gt;coordinates&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;na&quot;&gt;$geoWithin&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+      &lt;span class=&quot;c1&quot;&gt;// $center: [[-118.24, 34.05], 25 / 111.32],    /* BEFORE */&lt;/span&gt;
+      &lt;span class=&quot;na&quot;&gt;$centerSphere&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[[&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;mf&quot;&gt;118.24&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mf&quot;&gt;34.05&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;],&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;25&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;/&lt;/span&gt; &lt;span class=&quot;mf&quot;&gt;6378.1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;cm&quot;&gt;/* AFTER */&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;
+  &lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;})&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;There is a new conversion factor in play here, this time denoting that the
+radius of the earth is approximately 6378.1 km. In this &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;$centerSphere&lt;/code&gt; flavor
+of the query we are working in unprojected
+&lt;a href=&quot;https://en.wikipedia.org/wiki/Spherical_coordinate_system&quot;&gt;spherical coordinates&lt;/a&gt;,
+measured in &lt;a href=&quot;https://en.wikipedia.org/wiki/Radian&quot;&gt;radians&lt;/a&gt;. Thus we need to
+account for the size of the sphere that we are calculating upon.&lt;/p&gt;
+
+&lt;p&gt;We can re-run
+&lt;a href=&quot;https://gist.github.com/anandaroop/a1b794559615b2bbdea097678321c93f&quot;&gt;our test&lt;/a&gt;
+with this version of the query, and now we see that the results are finally in
+line with what we were expecting:&lt;/p&gt;
+
+&lt;figure class=&quot;illustration&quot;&gt;
+  &lt;img src=&quot;/images/2023-02-10-mongo-geospatial-queries/4.png&quot; alt=&quot;Screenshot of a visualization in Placemark showing the results of a $geoWithin $centerSphere query&quot; /&gt;
+  &lt;figcaption&gt;Results of a &lt;code&gt;$geoWithin $centerSphere&lt;/code&gt; query around Los Angeles, evaluated against a grid of test points.&lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;Having updated our API to use this variant of the query, we solved the problem
+and returned our partner gallery to its rightful place in our listings, as shown
+by the pink highlight above.&lt;/p&gt;
+
+&lt;p&gt;That was the happy ending we were looking for.&lt;/p&gt;
+
+&lt;h2 id=&quot;a-postscript-on-map-distortion&quot;&gt;A postscript on map distortion&lt;/h2&gt;
+
+&lt;p&gt;But if you’re curious to learn a little more about map distortion, let’s dig a
+bit deeper into the nature of the problem that we were encountering.&lt;/p&gt;
+
+&lt;p&gt;Returning to &lt;a href=&quot;https://www.placemark.io/&quot;&gt;Placemark&lt;/a&gt;’s ability to draw different
+kinds of circles on the map, let’s now place a &lt;em&gt;geographic&lt;/em&gt; circle on the map
+rather than a geodesic one. This one is computed in the simplest possible map
+projection — a geographic projection where we simply treat the longitude as the
+X coordinate and the latitude as the Y coordinate. (This projection goes by many
+names, such as “geographic”, “equirectangular”, “Plate Carrée” or even
+&lt;em&gt;“unprojected”&lt;/em&gt;, which is not quite accurate.)&lt;/p&gt;
+
+&lt;p&gt;This corresponds to what you get when you use MongoDB’s &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;$geoWithin&lt;/code&gt; &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;$center&lt;/code&gt;
+query on geospatial data:&lt;/p&gt;
+
+&lt;figure class=&quot;illustration&quot;&gt;
+  &lt;img src=&quot;/images/2023-02-10-mongo-geospatial-queries/6.gif&quot; alt=&quot;Animation showing the distortion a geographic circle encounters at various latitudes&quot; /&gt;
+  &lt;figcaption&gt;Animation showing the distortion a geographic circle encounters at various latitudes.&lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;As you can see, we get: a moderately oblong egg at the latitude of Los Angeles;
+a nice circle as we get close to the equator; and a very oblong egg as we
+approach the poles.&lt;/p&gt;
+
+&lt;p&gt;If you are wondering why you should trust my claims about the egginess of &lt;em&gt;this&lt;/em&gt;
+two-dimensional image after I just said that all such maps are lies — good
+question!&lt;/p&gt;
+
+&lt;p&gt;It just so happens that nearly all web-based interactive maps, including
+Placemark, use a variation of the Mercator projection, the one you might
+remember from schoolroom maps. Mercator is a so-called
+“&lt;a href=&quot;https://en.wikipedia.org/wiki/Conformal_map_projection&quot;&gt;conformal&lt;/a&gt;”
+projection, meaning that &lt;em&gt;its&lt;/em&gt; particular lie is to sacrifice area in favor of
+shape.&lt;/p&gt;
+
+&lt;p&gt;A shape drawn on a globe will be correctly maintained in a Mercator map, but the
+scale will vary across the map: true at the equator and very incorrect towards
+the poles. This is the reason for the common complaint that
+&lt;a href=&quot;https://www.nature.com/nature-index/news-blog/data-visualisation-animated-map-mercater-projection-true-size-countries&quot;&gt;Mercator maps show Greenland as about the same size as Africa&lt;/a&gt;,
+when in fact Africa is about 14 times larger.&lt;/p&gt;
+
+&lt;p&gt;The amount and nature of the distortion introduced by map projections is such an
+important topic that cartographers have long relied on a clever technique for
+communicating this distortion visually, known as
+“&lt;a href=&quot;https://en.wikipedia.org/wiki/Tissot%27s_indicatrix&quot;&gt;Tissot’s indicatrix&lt;/a&gt;.”&lt;/p&gt;
+
+&lt;p&gt;To give you a sense of the kind of distortion we encountered with the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;$center&lt;/code&gt;
+query, here is what Tissot’s indicatrix looks like for the geographic
+projection. This shows essentially the inverse of the animation above — what
+does a true circle plotted on the globe look like at various locations on this
+map projection?&lt;/p&gt;
+
+&lt;figure class=&quot;illustration&quot;&gt;
+  &lt;img src=&quot;/images/2023-02-10-mongo-geospatial-queries/7.png&quot; alt=&quot;Tissot's indicatrix for equirectangular projection&quot; /&gt;
+  &lt;figcaption&gt;Tissot's indicatrix for equirectangular projection. Credit: Justin Kunimune, &lt;a href=&quot;https://creativecommons.org/licenses/by-sa/4.0&quot;&gt;CC BY-SA 4.0&lt;/a&gt;, via Wikimedia Commons&lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;Now, imagine the inverse operation of this ⤴︎, drawing &lt;em&gt;true&lt;/em&gt; circles on this
+planar space, in order to get a sense of how distorted your query results on a
+globe would be.&lt;/p&gt;
+
+&lt;p&gt;Finally, here is Tissot’s indicatrix for the Mercator projection, demonstrating
+its ability to preserve shapes at the expense of sizes.&lt;/p&gt;
+
+&lt;figure class=&quot;illustration&quot;&gt;
+  &lt;img src=&quot;/images/2023-02-10-mongo-geospatial-queries/8.png&quot; alt=&quot;Tissot's indicatrix for Mercator projection&quot; /&gt;
+  &lt;figcaption&gt;Tissot's indicatrix for Mercator projection. Credit: Eric Gaba, &lt;a href=&quot;http://creativecommons.org/licenses/by-sa/4.0/&quot;&gt;CC BY-SA 4.0&lt;/a&gt;, via Wikimedia Commons&lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;An interesting recent development is that the web’s reliance on Mercator is
+changing, but only very slowly.
+&lt;a href=&quot;https://www.theverge.com/2018/8/5/17653122/google-maps-update-mercator-projection-earth-isnt-flat&quot;&gt;Google began to make this change&lt;/a&gt;
+a few years ago, and
+&lt;a href=&quot;https://www.mapbox.com/blog/adaptive-projections&quot;&gt;Mapbox has written about their approach&lt;/a&gt;
+as well.&lt;/p&gt;
+
+&lt;p&gt;Hopefully this digression into the display of geospatial data has been
+illuminating. There is much more to say on this topic, since geospatial is more
+or less one asterisk after another. For example, we haven’t mentioned that the
+Mercator projection above is incapable of depicting the north or south poles at
+all! Nor have we touched on MongoDB’s various geospatial
+&lt;a href=&quot;https://www.mongodb.com/docs/manual/geospatial-queries/#geospatial-data&quot;&gt;data formats&lt;/a&gt;,
+&lt;a href=&quot;https://www.mongodb.com/docs/manual/geospatial-queries/#geospatial-indexes&quot;&gt;indexes&lt;/a&gt;,
+or
+&lt;a href=&quot;https://www.mongodb.com/docs/manual/reference/operator/query/near/&quot;&gt;the $near query&lt;/a&gt;
+and its spherical sibling
+&lt;a href=&quot;https://www.mongodb.com/docs/manual/reference/operator/query/nearSphere/&quot;&gt;the $nearSphere query&lt;/a&gt;,
+all worthy topics.&lt;/p&gt;
+
+&lt;p&gt;But we hope that understanding this crucial distinction between planar
+(&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;$center&lt;/code&gt;) and spherical (&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;$centerSphere&lt;/code&gt;) calculations will help you make the
+right choice when devising your own radius queries with MongoDB or other
+geospatial engines.&lt;/p&gt;
+</description>
+        <pubDate>Fri, 10 Feb 2023 00:00:00 +0000</pubDate>
+        <link>https://artsy.github.io/blog/2023/02/10/mongo-geospatial-queries/</link>
+        <guid isPermaLink="true">https://artsy.github.io/blog/2023/02/10/mongo-geospatial-queries/</guid>
+        
+        
+        <category>MongoDB</category>
+        
+        <category>best practices</category>
+        
+        <category>debugging</category>
+        
+        <category>geospatial</category>
+        
+        <category>gravity</category>
+        
+      </item>
     
       <item>
         <title>Parallelizing Jest and Cypress.io Tests on CircleCI</title>
@@ -1583,213 +1892,6 @@ you’re still confused, leave a comment!&lt;/p&gt;
         <category>tracking</category>
         
         <category>volt</category>
-        
-      </item>
-    
-      <item>
-        <title>Accessing the Relay Store Without a Mutation</title>
-        <description>&lt;p&gt;I recently encountered a problem where client-side data (returned from a Relay query) became out of sync after a
-user interaction. How can we make sure our data is consistent while maintaining a single source of truth? This post
-explores why a developer might want to update client-side data locally, the basics of Relay and its store, and how
-to delete records in the store when you’re not using a mutation.&lt;/p&gt;
-
-&lt;h2 id=&quot;relay-x-artsy-x-me&quot;&gt;Relay x Artsy x Me&lt;/h2&gt;
-
-&lt;p&gt;&lt;a href=&quot;https://relay.dev/&quot;&gt;Relay&lt;/a&gt; is a GraphQL client library maintained by Facebook engineers and enables rapid client-side data
-fetching in React applications. &lt;a href=&quot;https://artsy.github.io/blog/2019/04/10/omakase-relay/&quot;&gt;Artsy’s adoption of Relay&lt;/a&gt; coincided with our move
-toward using React Native for our mobile work around 2016. I joined Artsy as an engineer in November of 2020 (after
-&lt;a href=&quot;https://medium.com/swlh/how-losing-my-job-helped-me-find-my-way-back-8c8f86552acc&quot;&gt;transitioning to engineering from a non-technical role at the
-company&lt;/a&gt;.) When I joined, I was about a year into React development
-and completely new to Relay.&lt;/p&gt;
-
-&lt;!-- more --&gt;
-
-&lt;p&gt;I work on the Partner Experience (PX) team at Artsy. We build and maintain software used by our gallery and auction
-house partners to sell artwork on Artsy. Although Relay is not new to Artsy, it’s relatively new to our team’s main
-repository, Volt. (Volt is Artsy’s CMS used by gallery partners to manage their presences on the platform.) A topic
-for another blog post, but Volt’s structure is worth noting here: Volt is a collection of mini React apps injected
-into HAML views—our way of incrementally converting the codebase to our new stack.&lt;/p&gt;
-
-&lt;p&gt;Relay’s biggest advantage in my eyes is how it tightly couples the client view and API call (in our case, to the
-GraphQL layer of our stack, which we call Metaphysics.) In addition to performance and other benefits, colocating a
-component with its data requirements creates a pretty seamless developer experience.&lt;/p&gt;
-
-&lt;h2 id=&quot;building-an-artwork-checklist&quot;&gt;Building an Artwork Checklist&lt;/h2&gt;
-
-&lt;p&gt;On the PX team, we recently launched a checklist feature aimed at empowering our gallery partners to be more
-self-sufficient and find the greatest success possible on Artsy. The checklist prompts galleries to add specific
-metadata to artworks that we know (because of our awesome data team) will make the work more likely to sell. The
-new feature gathers a list of five high-priority artworks (meaning they are published, for-sale, and by a
-top-selling artist) that are missing key pieces of metadata. The checklist prompts users to add the missing
-metadata. Users also have the ability to click a button to “snooze” works, which removes them from the list for the
-day.&lt;/p&gt;
-
-&lt;figure class=&quot;illustration&quot;&gt;
-    &lt;img src=&quot;https://user-images.githubusercontent.com/9466631/114630150-28886200-9c77-11eb-9f04-461101496ee0.png&quot; /&gt;
-&lt;/figure&gt;
-
-&lt;p&gt;The feature makes use of &lt;a href=&quot;https://redis.io/&quot;&gt;Redis&lt;/a&gt;, a key-value store used for in-memory cache, to store two lists:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;includeIDs&lt;/code&gt; to store the five artworks in the list, so users see a consistent list of artworks whenever they
-log in and load the page&lt;/li&gt;
-  &lt;li&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;excludeIDs&lt;/code&gt; or “snoozed” IDs which Redis will store for 24 hours and ensure the user does not see&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;When a user presses the “snooze” button, the ID for the artwork is added to the snoozed list in Redis. The list of
-&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;includeIDs&lt;/code&gt; and the list of &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;excludeIDs&lt;/code&gt; are passed down from Rails controllers to our HAML views and then passed
-as props into our React &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;HomePageChecklist&lt;/code&gt; app. In our Checklist component, we use both the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;includeIDs&lt;/code&gt; and the
-&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;excludeIDs&lt;/code&gt; as arguments passed to our Relay query to determine what is returned from Metaphysics (Artsy’s GraphQL
-layer).&lt;/p&gt;
-
-&lt;div class=&quot;language-js highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nx&quot;&gt;fragment&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;ArtworksMissingMetadata_partner&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;on&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;Partner&lt;/span&gt;
-  &lt;span class=&quot;p&quot;&gt;@&lt;/span&gt;&lt;span class=&quot;nd&quot;&gt;argumentDefinitions&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
-    &lt;span class=&quot;nx&quot;&gt;first&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt; &lt;span class=&quot;nl&quot;&gt;type&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;dl&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;Int&lt;/span&gt;&lt;span class=&quot;dl&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;defaultValue&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;5&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-    &lt;span class=&quot;nl&quot;&gt;after&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;type&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;dl&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;String&lt;/span&gt;&lt;span class=&quot;dl&quot;&gt;&quot;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-    &lt;span class=&quot;nl&quot;&gt;includeIDs&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;type&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;dl&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;[String!]&lt;/span&gt;&lt;span class=&quot;dl&quot;&gt;&quot;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-    &lt;span class=&quot;nl&quot;&gt;excludeIDs&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;type&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;dl&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;[String!]&lt;/span&gt;&lt;span class=&quot;dl&quot;&gt;&quot;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-  &lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-    &lt;span class=&quot;nx&quot;&gt;id&lt;/span&gt;
-    &lt;span class=&quot;nx&quot;&gt;artworksConnection&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
-      &lt;span class=&quot;nx&quot;&gt;first&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;$first&lt;/span&gt;
-      &lt;span class=&quot;nx&quot;&gt;after&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;$after&lt;/span&gt;
-      &lt;span class=&quot;nx&quot;&gt;includeIDs&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;$includeIDs&lt;/span&gt;
-      &lt;span class=&quot;nx&quot;&gt;excludeIDs&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;$excludeIDs&lt;/span&gt;
-    &lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;@&lt;/span&gt;&lt;span class=&quot;nd&quot;&gt;connection&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;key&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;dl&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;ArtworksMissingMetadata_partner_artworksConnection&lt;/span&gt;&lt;span class=&quot;dl&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;filters&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[])&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-      &lt;span class=&quot;nx&quot;&gt;edges&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-        &lt;span class=&quot;nx&quot;&gt;node&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-          &lt;span class=&quot;p&quot;&gt;...&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;ArtworksMissingMetadataItem_artwork&lt;/span&gt;
-        &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-      &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;h2 id=&quot;problem-how-to-change-the-data-displayed-when-a-user-interacts-with-the-page&quot;&gt;Problem: How to Change the Data Displayed When a User Interacts with the Page&lt;/h2&gt;
-
-&lt;p&gt;The problem we were running into occurs when the user presses “snooze” on an item. We successfully update Redis
-with the new snoozed item, but the UI still renders the item on the page. (This is because the response from Relay
-becomes stale.) If the user refreshes the page, the list is correct: The up-to-date Redis &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;excludeIDS&lt;/code&gt; list will be
-passed into our component and used in the Relay query. But without refreshing the page, we need to make sure that
-the list in the UI updates when the user snoozes an item.&lt;/p&gt;
-
-&lt;p&gt;The initial fix was to use a local state variable to keep track of which items were snoozed. We defined the following variable in the parent
-React component that renders the list:&lt;/p&gt;
-
-&lt;div class=&quot;language-js highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;kd&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;localSnoozedItems&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;setLocalSnoozedItems&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;useState&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;([])&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;We passed &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;localSnoozedItems &lt;/code&gt; and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;setLocalSnoozedItems&lt;/code&gt; down to each of the children items. When the “snooze”
-button was pressed on an item, the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;localSnoozedItems&lt;/code&gt; in the parent was updated with the complete list of snoozed
-items. The parent then controls which items get rendered. We used the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;localSnoozedItems&lt;/code&gt; list to filter the connection
-returned from our Relay query (which remember, is already filtered based on our Redis &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;excludeIDs&lt;/code&gt; from Redis.)&lt;/p&gt;
-
-&lt;p&gt;This worked, but it definitely did not feel great to have two sources of truth for snoozing: The Redis key and the
-local state variable.&lt;/p&gt;
-
-&lt;h2 id=&quot;solution-deleting-a-record-from-the-relay-store&quot;&gt;Solution: Deleting a Record From the Relay Store&lt;/h2&gt;
-
-&lt;p&gt;Cue the &lt;a href=&quot;https://relay.dev/docs/api-reference/store/&quot;&gt;RelayModernStore&lt;/a&gt;! I learned that Relay keeps track of the GraphQL
-data returned by each query in a store on the client. Each record in the store has a unique ID, and the store can be
-changed, added to, and deleted from. There are a couple of helpful blog posts (like
-&lt;a href=&quot;https://yashmahalwal.medium.com/a-deep-dive-into-the-relay-store-9388affd2c2b&quot;&gt;this&lt;/a&gt; and
-&lt;a href=&quot;https://medium.com/entria/wrangling-the-client-store-with-the-relay-modern-updater-function-5c32149a71ac&quot;&gt;this&lt;/a&gt;) that explain the store and how to
-interact with it.&lt;/p&gt;
-
-&lt;p&gt;In most of the Relay documentation, blog posts, and Artsy’s uses cases, the store is accessed through an &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;updater&lt;/code&gt;
-function via &lt;a href=&quot;https://relay.dev/docs/guided-tour/updating-data/graphql-mutations/&quot;&gt;mutations&lt;/a&gt;. &lt;a href=&quot;https://relay.dev/docs/guided-tour/updating-data/graphql-mutations/#updater-functions&quot;&gt;Updater functions&lt;/a&gt;
-that return the store in the first argument can optionally be added to Relay mutations. Inside that function, you can access
-the store to modify the records you need.&lt;/p&gt;
-
-&lt;p&gt;Here’s an example:&lt;/p&gt;
-
-&lt;div class=&quot;language-js highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nx&quot;&gt;commitMutation&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;defaultEnvironment&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-  &lt;span class=&quot;na&quot;&gt;mutation&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;graphql&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;`
-    mutation SomeMutation {
-      ...
-    }
-  `&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-  &lt;span class=&quot;na&quot;&gt;updater&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;store&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-    &lt;span class=&quot;c1&quot;&gt;// Do something with the store&lt;/span&gt;
-  &lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;})&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;In my use case, I was not using a Relay mutation because I did not need to modify anything on the server. Since
-Redis is keeping track of our &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;excludeIDs&lt;/code&gt; for us, any round trip to the server will be up-to-date. We just need to
-modify our local data store.&lt;/p&gt;
-
-&lt;p&gt;Relay provides a &lt;a href=&quot;https://relay.dev/docs/guided-tour/updating-data/local-data-updates/&quot;&gt;separate API method to make local updates&lt;/a&gt; to the Relay
-store: &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;commitLocalUpdate&lt;/code&gt;. &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;commitLocalUpdate&lt;/code&gt; takes two arguments: the first is the Relay environment, which you
-can easily access from the parent Relay fragment or refetch container. The second is an &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;updater&lt;/code&gt; callback function
-that returns the store in the first argument. We now have access to the store!&lt;/p&gt;
-
-&lt;h2 id=&quot;deleting-a-connection-node-with-connectionhandler&quot;&gt;Deleting a Connection Node with ConnectionHandler&lt;/h2&gt;
-
-&lt;p&gt;My main hurdle during this journey was finding an appropriate way to hook into the store for our specific use case—when we do
-not require an update to server data.&lt;/p&gt;
-
-&lt;p&gt;But to close us out: Let’s finish the job and delete the item from the connection in the store.&lt;/p&gt;
-
-&lt;p&gt;When an item is snoozed, we call &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;commitLocalUpdate&lt;/code&gt;, pass in the Relay environment, and then pass in the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;updater&lt;/code&gt;
-function. Once we have access to the store, our goal is to delete this particular item from the
-&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;artworksConnection&lt;/code&gt;, which is the GraphQL object returned by our original Relay query.&lt;/p&gt;
-
-&lt;p&gt;Because we are dealing with connections, we want to use the &lt;a href=&quot;https://relay.dev/docs/api-reference/store/#connectionhandler&quot;&gt;ConnectionHandler
-API&lt;/a&gt; provided by Relay. &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;ConnectionHandler.getConnection&lt;/code&gt; takes in the
-connection’s parent record (which we can find using the GraphQL ID added as a field on our query for the
-connection) as the first argument and the connection key which can be provided through &lt;a href=&quot;https://www.prisma.io/blog/relay-moderns-connection-directive-1ecd8322f5c8&quot;&gt;Relay’s @connection
-directive&lt;/a&gt;.&lt;/p&gt;
-
-&lt;p&gt;Once we have the connection, we will use &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;ConnectionHandler.deleteNode&lt;/code&gt; which takes the connection as the first
-argument and the id to be deleted, which we can also easily access using the GraphQL ID added as a field to the
-query for the item.&lt;/p&gt;
-
-&lt;p&gt;Bonus: Because &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;commitLocalUpdate&lt;/code&gt; works anywhere in Relay land, we got to perform this deletion exactly where the
-“snooze” action is happening: in the child item component. (In our previous solution, we had to manage the state of
-the children from their parent component, which wasn’t as intuitive.)&lt;/p&gt;
-
-&lt;div class=&quot;language-js highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;commitLocalUpdate&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;dl&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;relay-runtime&lt;/span&gt;&lt;span class=&quot;dl&quot;&gt;&quot;&lt;/span&gt;
-
-&lt;span class=&quot;nx&quot;&gt;commitLocalUpdate&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;relay&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;environment&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;store&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-  &lt;span class=&quot;kd&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;parentRecord&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;store&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;kd&quot;&gt;get&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;parentID&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-
-  &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;parentRecord&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-    &lt;span class=&quot;kd&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;artworksConnection&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;ConnectionHandler&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;getConnection&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
-      &lt;span class=&quot;nx&quot;&gt;parentRecord&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-      &lt;span class=&quot;dl&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;ArtworksMissingMetadata_partner_artworksConnection&lt;/span&gt;&lt;span class=&quot;dl&quot;&gt;&quot;&lt;/span&gt;
-    &lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;artworksConnection&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-      &lt;span class=&quot;nx&quot;&gt;ConnectionHandler&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;deleteNode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;artworksConnection&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;id&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;})&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;h2 id=&quot;key-takeaways&quot;&gt;Key Takeaways&lt;/h2&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;Relay is great because it colocates a component with its data requirements.&lt;/li&gt;
-  &lt;li&gt;The Relay store allows us to access and modify data that we are using on the client.&lt;/li&gt;
-  &lt;li&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;commitLocalUpdate&lt;/code&gt; provides us access to the store if we just need to modify local data and aren’t using a
-mutation to update server-side data.&lt;/li&gt;
-&lt;/ol&gt;
-
-</description>
-        <pubDate>Thu, 15 Apr 2021 00:00:00 +0000</pubDate>
-        <link>https://artsy.github.io/blog/2021/04/15/accessing-the-relay-store/</link>
-        <guid isPermaLink="true">https://artsy.github.io/blog/2021/04/15/accessing-the-relay-store/</guid>
-        
-        
-        <category>graphql</category>
-        
-        <category>react</category>
-        
-        <category>redis</category>
-        
-        <category>relay</category>
-        
-        <category>tooling</category>
         
       </item>
     

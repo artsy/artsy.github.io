@@ -4,7 +4,7 @@
   <title><![CDATA[Category: best practices | Artsy Engineering]]></title>
   <link href="https://artsy.github.io/blog/categories/best-practices/atom.xml" rel="self"/>
   <link href="https://artsy.github.io/"/>
-  <updated>2023-01-11T14:31:53+00:00</updated>
+  <updated>2023-02-15T17:40:04+00:00</updated>
   <id>https://artsy.github.io/</id>
   <author>
     <name><![CDATA[]]></name>
@@ -12,6 +12,303 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Are you using the right Mongo geospatial query?]]></title>
+    <link href="https://artsy.github.io/blog/2023/02/10/mongo-geospatial-queries/"/>
+    <updated>2023-02-10T00:00:00+00:00</updated>
+    <id>https://artsy.github.io/blog/2023/02/10/mongo-geospatial-queries</id>
+    <content type="html"><![CDATA[<p>We recently got a report from one of our galleries in the Los Angeles area that
+they weren’t showing up on our
+<a href="https://www.artsy.net/shows/los-angeles-ca-usa">Los Angeles exhibition listings</a>.</p>
+
+<p>I fielded the report and right away confirmed: when we asked our core API for
+<code class="language-plaintext highlighter-rouge">/shows?near=&lt;los angeles coordinates&gt;</code>, sure enough this gallery partner didn’t
+make the cut.</p>
+
+<p>Turns out they are based in Santa Monica, a separate and neighboring
+municipality. They must not be within the 25km radius that we use by default for
+these sorts of queries.</p>
+
+<p><em>Case closed</em>. Or so I thought.</p>
+
+<!-- more -->
+
+<p>After some back and forth with our partner I decided to investigate more
+thoroughly, this time using some tricks of the trade from
+<a href="https://www.anandarooproy.com">my other life</a> outside of Artsy.</p>
+
+<h2 id="casting-a-wider-net">Casting a wider net</h2>
+
+<p>If there was something wrong with our 25km radius query, I wanted to start by
+casting a wider net and visualizing the results.</p>
+
+<p>I consulted our Rails application code to find the query logic in question, and
+then issued the same query directly to MongoDB. Something like the following
+query (simplified for clarity):</p>
+
+<div class="language-js highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// a $geoWithin $center query</span>
+
+<span class="nx">db</span><span class="p">.</span><span class="nx">events</span><span class="p">.</span><span class="nx">find</span><span class="p">({</span>
+  <span class="na">coordinates</span><span class="p">:</span> <span class="p">{</span>
+    <span class="na">$geoWithin</span><span class="p">:</span> <span class="p">{</span>
+      <span class="na">$center</span><span class="p">:</span> <span class="p">[[</span><span class="o">-</span><span class="mf">118.24</span><span class="p">,</span> <span class="mf">34.05</span><span class="p">],</span> <span class="mi">25</span> <span class="o">/</span> <span class="mf">111.32</span><span class="p">],</span>
+    <span class="p">},</span>
+  <span class="p">},</span>
+<span class="p">})</span>
+</code></pre></div></div>
+
+<p>In the query above we are asking MongoDB to give us all events within a 25km
+radius around the point 34.05°N, 118.24°W which we have designated as a central
+point within Los Angeles. For our purposes in this post we can consider “events”
+≈ “exhibitions” ≈ “shows.”</p>
+
+<p>We are not asking for the 25km radius directly, but rather converting it into an
+equivalent amount of geographic degrees by using a conversion factor of 1° ≈
+111.32 kilometers, a factor which is true at enough the equator.</p>
+
+<p>I modified the above query to cast a 50km net in order to see if there were some
+edges cases that needed scrutiny. Taking the resulting JSON response, I fired up
+<a href="https://www.placemark.io/">Placemark</a>, my favorite new tool for wrangling
+geospatial data.</p>
+
+<p>(Incidentally I recommend reading Tom Macwright’s
+<a href="https://macwright.com/2023/01/28/placemark.html">recent reflection on creating Placemark</a>
+as a bootstrapped indie developer.)</p>
+
+<figure class="illustration">
+  <img src="/images/2023-02-10-mongo-geospatial-queries/1.png" alt="Screenshot of a visualization in Placemark showing Los Angeles area exhibitions within a 50km radius." />
+  <figcaption>All shows within a 50km radius</figcaption>
+</figure>
+
+<h2 id="ball-of-confusion">Ball of confusion</h2>
+
+<p>One nice feature of Placemark is that it lets us place geodesic circles on the
+map, that is, circles that represent a constant radius around a point, as
+plotted on a globe.</p>
+
+<p>When I placed a 25km radius circle on the map, something stood out immediately.</p>
+
+<figure class="illustration">
+  <img src="/images/2023-02-10-mongo-geospatial-queries/2.png" alt="Screenshot of a visualization in Placemark showing Los Angeles area exhibitions within a 50km radius, with a 25km radius superimposed." />
+  <figcaption>25km radius superimposed. <a style="padding-bottom: 1px; border-bottom: solid 1px lightgray" href="https://en.wikipedia.org/wiki/Ball_of_Confusion_%28That%27s_What_the_World_Is_Today%29">Ball of Confusion</a>, that's what the world was that day.</figcaption>
+</figure>
+
+<p>The partner in question is highlighted in pink — and is clearly within the 25km
+radius. <strong>What gives?</strong></p>
+
+<p>By spot-checking a few points on the map against our current geo query I found
+that edge cases near the top or bottom of the circle were likely to be evaluated
+correctly, while edges cases at the left and right were being incorrectly
+omitted, as our partner gallery was.</p>
+
+<p>A fuller visualization of that finding would look like this:</p>
+
+<figure class="illustration">
+  <img src="/images/2023-02-10-mongo-geospatial-queries/3.png" alt="Screenshot of a visualization in Placemark showing the results of a $geoWithin $center query" />
+  <figcaption>Results of a <code>$geoWithin $center</code> query around Los Angeles, evaluated against a grid of test points.</figcaption>
+</figure>
+
+<p>A distinctly <em>non</em>-circular circle — that rung a bell.</p>
+
+<h2 id="more-than-one-way-to-draw-a-circle-on-the-earth">More than one way to draw a circle on the Earth</h2>
+
+<p>It was at this point that I recalled the specific form of the geospatial query
+our code was performing, and consulted the
+<a href="https://www.mongodb.com/docs/manual/reference/operator/query/geoWithin/">MongoDB docs for the $geoWithin query</a>.</p>
+
+<p>Turns out that you can invoke this as a radius query in one of two ways, by
+specifying
+<a href="https://www.mongodb.com/docs/manual/reference/operator/query/center/">$center</a>
+or
+<a href="https://www.mongodb.com/docs/manual/reference/operator/query/centerSphere/">$centerSphere</a>.</p>
+
+<p>Per the
+<a href="https://www.mongodb.com/docs/manual/reference/operator/query/center/#behavior">docs</a>
+for <code class="language-plaintext highlighter-rouge">$center</code>, this query…</p>
+
+<blockquote>
+  <p>calculates distances using flat (planar) geometry</p>
+</blockquote>
+
+<p>Let us pause for a moment to note that while only some maps are
+<a href="https://press.uchicago.edu/ucp/books/book/chicago/H/bo27400568.html">deceitful</a>,
+<em>all</em> maps are untruths. In the sense that they flatten three dimensions down to
+two, and inevitably distort the world in the process.</p>
+
+<p>The surface of a three-dimensional globe cannot be flattened down to a
+two-dimensional plane without some stretching or tearing, any more than an
+orange peel can be. The mathematical algorithms for turning those three
+dimensions into two are what we know as map projections. (Ah, the good old days
+when “dimensionality reduction” meant <em>from three to two</em>.)</p>
+
+<p>If you do your distance calculations in such a flattened, projected coordinate
+system — as the <code class="language-plaintext highlighter-rouge">$geoWithin $center</code> query does — then you are accepting
+whatever distortions are inherent to that projection.</p>
+
+<p>That’s the situation we were in. We thought we were catching everything inside
+the green circle, but in fact we were only catching everything inside the red
+egg:</p>
+
+<figure class="illustration">
+  <img src="/images/2023-02-10-mongo-geospatial-queries/5.png" alt="Screenshot of a visualization in Placemark showing the results of a $geoWithin $center query compared to the expected results" />
+  <figcaption>Actual <code>$geoWithin $center</code> results vs. expected results.</figcaption>
+</figure>
+
+<p>And our unfortunate partner was <em>just</em> outside the egg, thus being incorrectly
+omitted.</p>
+
+<h2 id="fixing-the-query">Fixing the query</h2>
+
+<p>Luckily the solution was simple.</p>
+
+<p>As noted above MongoDB supports a second variant for radius queries using a
+<code class="language-plaintext highlighter-rouge">$centerSphere</code> operator instead of the <code class="language-plaintext highlighter-rouge">$center</code> that we were using.</p>
+
+<p>Per the
+<a href="https://www.mongodb.com/docs/manual/reference/operator/query/centerSphere/">docs</a>
+for <code class="language-plaintext highlighter-rouge">$centerSphere</code>, this version…</p>
+
+<blockquote>
+  <p>defines a circle for a geospatial query that uses spherical geometry</p>
+</blockquote>
+
+<p>In other words, this query effectively draws our circle on the three-dimensional
+globe rather than on the stretched and distorted two-dimensional map.</p>
+
+<p>We just need to rewrite our query as follows:</p>
+
+<div class="language-js highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// a $geoWithin $centerSphere query</span>
+
+<span class="nx">db</span><span class="p">.</span><span class="nx">events</span><span class="p">.</span><span class="nx">find</span><span class="p">({</span>
+  <span class="na">coordinates</span><span class="p">:</span> <span class="p">{</span>
+    <span class="na">$geoWithin</span><span class="p">:</span> <span class="p">{</span>
+      <span class="c1">// $center: [[-118.24, 34.05], 25 / 111.32],    /* BEFORE */</span>
+      <span class="na">$centerSphere</span><span class="p">:</span> <span class="p">[[</span><span class="o">-</span><span class="mf">118.24</span><span class="p">,</span> <span class="mf">34.05</span><span class="p">],</span> <span class="mi">25</span> <span class="o">/</span> <span class="mf">6378.1</span><span class="p">]</span> <span class="cm">/* AFTER */</span><span class="p">,</span>
+    <span class="p">},</span>
+  <span class="p">},</span>
+<span class="p">})</span>
+</code></pre></div></div>
+
+<p>There is a new conversion factor in play here, this time denoting that the
+radius of the earth is approximately 6378.1 km. In this <code class="language-plaintext highlighter-rouge">$centerSphere</code> flavor
+of the query we are working in unprojected
+<a href="https://en.wikipedia.org/wiki/Spherical_coordinate_system">spherical coordinates</a>,
+measured in <a href="https://en.wikipedia.org/wiki/Radian">radians</a>. Thus we need to
+account for the size of the sphere that we are calculating upon.</p>
+
+<p>We can re-run
+<a href="https://gist.github.com/anandaroop/a1b794559615b2bbdea097678321c93f">our test</a>
+with this version of the query, and now we see that the results are finally in
+line with what we were expecting:</p>
+
+<figure class="illustration">
+  <img src="/images/2023-02-10-mongo-geospatial-queries/4.png" alt="Screenshot of a visualization in Placemark showing the results of a $geoWithin $centerSphere query" />
+  <figcaption>Results of a <code>$geoWithin $centerSphere</code> query around Los Angeles, evaluated against a grid of test points.</figcaption>
+</figure>
+
+<p>Having updated our API to use this variant of the query, we solved the problem
+and returned our partner gallery to its rightful place in our listings, as shown
+by the pink highlight above.</p>
+
+<p>That was the happy ending we were looking for.</p>
+
+<h2 id="a-postscript-on-map-distortion">A postscript on map distortion</h2>
+
+<p>But if you’re curious to learn a little more about map distortion, let’s dig a
+bit deeper into the nature of the problem that we were encountering.</p>
+
+<p>Returning to <a href="https://www.placemark.io/">Placemark</a>’s ability to draw different
+kinds of circles on the map, let’s now place a <em>geographic</em> circle on the map
+rather than a geodesic one. This one is computed in the simplest possible map
+projection — a geographic projection where we simply treat the longitude as the
+X coordinate and the latitude as the Y coordinate. (This projection goes by many
+names, such as “geographic”, “equirectangular”, “Plate Carrée” or even
+<em>“unprojected”</em>, which is not quite accurate.)</p>
+
+<p>This corresponds to what you get when you use MongoDB’s <code class="language-plaintext highlighter-rouge">$geoWithin</code> <code class="language-plaintext highlighter-rouge">$center</code>
+query on geospatial data:</p>
+
+<figure class="illustration">
+  <img src="/images/2023-02-10-mongo-geospatial-queries/6.gif" alt="Animation showing the distortion a geographic circle encounters at various latitudes" />
+  <figcaption>Animation showing the distortion a geographic circle encounters at various latitudes.</figcaption>
+</figure>
+
+<p>As you can see, we get: a moderately oblong egg at the latitude of Los Angeles;
+a nice circle as we get close to the equator; and a very oblong egg as we
+approach the poles.</p>
+
+<p>If you are wondering why you should trust my claims about the egginess of <em>this</em>
+two-dimensional image after I just said that all such maps are lies — good
+question!</p>
+
+<p>It just so happens that nearly all web-based interactive maps, including
+Placemark, use a variation of the Mercator projection, the one you might
+remember from schoolroom maps. Mercator is a so-called
+“<a href="https://en.wikipedia.org/wiki/Conformal_map_projection">conformal</a>”
+projection, meaning that <em>its</em> particular lie is to sacrifice area in favor of
+shape.</p>
+
+<p>A shape drawn on a globe will be correctly maintained in a Mercator map, but the
+scale will vary across the map: true at the equator and very incorrect towards
+the poles. This is the reason for the common complaint that
+<a href="https://www.nature.com/nature-index/news-blog/data-visualisation-animated-map-mercater-projection-true-size-countries">Mercator maps show Greenland as about the same size as Africa</a>,
+when in fact Africa is about 14 times larger.</p>
+
+<p>The amount and nature of the distortion introduced by map projections is such an
+important topic that cartographers have long relied on a clever technique for
+communicating this distortion visually, known as
+“<a href="https://en.wikipedia.org/wiki/Tissot%27s_indicatrix">Tissot’s indicatrix</a>.”</p>
+
+<p>To give you a sense of the kind of distortion we encountered with the <code class="language-plaintext highlighter-rouge">$center</code>
+query, here is what Tissot’s indicatrix looks like for the geographic
+projection. This shows essentially the inverse of the animation above — what
+does a true circle plotted on the globe look like at various locations on this
+map projection?</p>
+
+<figure class="illustration">
+  <img src="/images/2023-02-10-mongo-geospatial-queries/7.png" alt="Tissot's indicatrix for equirectangular projection" />
+  <figcaption>Tissot's indicatrix for equirectangular projection. Credit: Justin Kunimune, <a href="https://creativecommons.org/licenses/by-sa/4.0">CC BY-SA 4.0</a>, via Wikimedia Commons</figcaption>
+</figure>
+
+<p>Now, imagine the inverse operation of this ⤴︎, drawing <em>true</em> circles on this
+planar space, in order to get a sense of how distorted your query results on a
+globe would be.</p>
+
+<p>Finally, here is Tissot’s indicatrix for the Mercator projection, demonstrating
+its ability to preserve shapes at the expense of sizes.</p>
+
+<figure class="illustration">
+  <img src="/images/2023-02-10-mongo-geospatial-queries/8.png" alt="Tissot's indicatrix for Mercator projection" />
+  <figcaption>Tissot's indicatrix for Mercator projection. Credit: Eric Gaba, <a href="http://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>, via Wikimedia Commons</figcaption>
+</figure>
+
+<p>An interesting recent development is that the web’s reliance on Mercator is
+changing, but only very slowly.
+<a href="https://www.theverge.com/2018/8/5/17653122/google-maps-update-mercator-projection-earth-isnt-flat">Google began to make this change</a>
+a few years ago, and
+<a href="https://www.mapbox.com/blog/adaptive-projections">Mapbox has written about their approach</a>
+as well.</p>
+
+<p>Hopefully this digression into the display of geospatial data has been
+illuminating. There is much more to say on this topic, since geospatial is more
+or less one asterisk after another. For example, we haven’t mentioned that the
+Mercator projection above is incapable of depicting the north or south poles at
+all! Nor have we touched on MongoDB’s various geospatial
+<a href="https://www.mongodb.com/docs/manual/geospatial-queries/#geospatial-data">data formats</a>,
+<a href="https://www.mongodb.com/docs/manual/geospatial-queries/#geospatial-indexes">indexes</a>,
+or
+<a href="https://www.mongodb.com/docs/manual/reference/operator/query/near/">the $near query</a>
+and its spherical sibling
+<a href="https://www.mongodb.com/docs/manual/reference/operator/query/nearSphere/">the $nearSphere query</a>,
+all worthy topics.</p>
+
+<p>But we hope that understanding this crucial distinction between planar
+(<code class="language-plaintext highlighter-rouge">$center</code>) and spherical (<code class="language-plaintext highlighter-rouge">$centerSphere</code>) calculations will help you make the
+right choice when devising your own radius queries with MongoDB or other
+geospatial engines.</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Diagnosing our Radiation Problems]]></title>
@@ -774,55 +1071,6 @@ to CoffeeScript and Bootstrap, to React and GraphQL, Artsy Engineering has evolv
 a quality worthy of art – both from the user’s perspective and from the developer’s. I’m very excited about what’s
 coming next, and I can’t wait to share it with you. Have a great day!</p>
 
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[My First Week On Call]]></title>
-    <link href="https://artsy.github.io/blog/2018/05/30/my-first-week-on-call/"/>
-    <updated>2018-05-30T00:00:00+00:00</updated>
-    <id>https://artsy.github.io/blog/2018/05/30/my-first-week-on-call</id>
-    <content type="html"><![CDATA[<p>As I write this, I have completed my first ever engineering on-call rotation at Artsy, so naturally I had to write a blog post about some of the things I learned.</p>
-
-<!-- more -->
-
-<p>A year ago, I would have been terrified to be one of two engineers responsible for handling everything from re-sending automated emails to fixing total site outages, but <a href="https://ashfurrow.com/blog/perspective-of-the-polyglot/">I have grown a lot</a> so being on-call was only <em>regular</em>-level intimidating. And indeed, with supportive documentation and a good partner, I didn’t experience any situations where I felt truly lost about what to do next.</p>
-
-<p>But I did learn a few things. So let’s discuss a few things that weren’t immediately obvious to me.</p>
-
-<h2 id="ignore-my-instinct-to-fix-things-right-away">Ignore My Instinct to Fix Things Right Away</h2>
-
-<p>This sounds really counterintuitive, right? I mean, a server is down, let’s reboot it so it’s up again! It’s got a little red X next to it in AWS, let’s make it a green checkmark again! I want that checkmark!</p>
-
-<p>But that’s not always the best course of action. Sometimes, fixing something right away would deprive us of the opportunity to figure out <em>why</em> it broke in the first place. For example: we had Rails servers running out of disk space, and rebooting those servers would have refreshed their drives and fixed the problem, but one of our platform engineers asked me to wait so they could ssh in and examine the contents of the filesystems. In the mean time, the load balancer had already routed traffic around the servers, so there was no need to rush to fix anything.</p>
-
-<p>My instinct to fix things right away was at odds with the team’s desire to understand why something broke.</p>
-
-<h2 id="what-is-an-incident-even">What is an Incident, Even?</h2>
-
-<p>One thing became really clear to be, really quickly: people have many different, valid perspectives on what an “incident” is. Our support documentation goes into detail about what our responsibilities as on-call engineers are responsible for, and what should be routed through product teams to be prioritized, but my support partner and I still hit cases where we weren’t quite sure if we should take action.</p>
-
-<p>Sometimes, issues of critical importance were brought to our #incidents Slack channel, but weren’t <em>really</em> incidents, from an Engineering perspective. We erred on the side of helping our colleagues, but it’s difficult. I want to help people! But I also have responsibilities. Balancing the two is a skill every engineer has to develop, and being on-call highlighted the importance of balance in a new way for me.</p>
-
-<p>My first ever jobs were retail, where I helped rural Canadians learn to use their first ever cell phones, and IT helpdesks; both taught me how to handle support requests in a way that makes the other person feel like things are going to be okay. I had to reapply those skills when on-call because sometimes what people were bringing to my attention fell outside the scope of an “incident”. Consider the response:</p>
-
-<blockquote>
-  <p>What you’ve reported isn’t an incident, talk to your PM.</p>
-</blockquote>
-
-<p>… and contrast it with:</p>
-
-<blockquote>
-  <p>This falls outside the scope of immediate support, so I’ve opened a ticket for you. You can talk to the team PM about prioritization.</p>
-</blockquote>
-
-<p>This kind of reply also aligns with Artsy’s <a href="https://github.com/artsy/meta/blob/master/meta/what_is_artsy.md#artsy-values">values</a> of <strong>Positive Energy</strong> and <strong>People are Paramount</strong>. Everyone working at Artsy is here to make art a bigger part of culture, and that shared understanding helped.</p>
-
-<h2 id="we-need-to-improve-our-automated-alerts">We Need to Improve our Automated Alerts</h2>
-
-<p>For a few months now, Artsy Engineering has been discussing how to consolidate our automated alerts. I somehow got it in my head that anything in our #alerts channel needed immediate engineer attention, when in fact, our #alerts channel is often noisy. By the final day of my rotation, I learned that not everything needed immediate attention.</p>
-
-<p>That’s a bit of a problem. There are alerts that need immediate intervention (“the API servers are all down”) and there are alerts that need no intervention (“this server is responding slowly, oh wait, it’s back to normal, never mind”), and then there are the tricky ones: the ones that need <em>eventual</em> intervention (“gosh, our image processing API out of disk space for the third time in a month, we need to look into that”). Figuring out how to sort mid-level, important-but-not-urgent automated alerts from critical ones will be a critical part of our long-term support process.</p>
 ]]></content>
   </entry>
   
