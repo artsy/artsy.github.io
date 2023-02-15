@@ -3,7 +3,7 @@ layout: post
 title: "Mashing Data, Making Maps"
 date: 2017-01-25 14:00
 author: orta
-categories: [mongo, postgres, coffeescript, node, analytics]
+categories: [mongo, postgres, coffeescript, node, analytics, geospatial]
 ---
 
 We have a lot of really awesome data. Things worth exploring, and visualizing. We have an entire team devoted to it, [looks like they're hiring too](https://www.artsy.net/article/artsy-jobs-data-analyst). Not all of the output of the data comes from that team though, 2 years ago our Director of Product Engineering, [Craig Spaeth][craig] created a [static-site generator][partner-maps] that mapped our partners around the globe. Last week I've been improving it.
