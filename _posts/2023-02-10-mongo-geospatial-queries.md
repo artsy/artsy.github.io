@@ -52,14 +52,14 @@ radius around the point 34.05°N, 118.24°W which we have designated as a centra
 point within Los Angeles. For our purposes in this post we can consider "events"
 ≈ "exhibitions" ≈ "shows."
 
-We are not asking for the 25km radius directly, but rather converting it into
-into an equivalent amount of geographic degrees by using a conversion factor of
-1° ≈ 111.32 kilometers, a factor which is true at enough the equator.
+We are not asking for the 25km radius directly, but rather converting it into an
+equivalent amount of geographic degrees by using a conversion factor of 1° ≈
+111.32 kilometers, a factor which is true at enough the equator.
 
-I modified the above query to cast a 50km net in order to see if there
-were some edges cases that needed scrutiny. Taking the resulting JSON response,
-I fired up [Placemark](https://www.placemark.io/), my favorite new tool for
-wrangling geospatial data.
+I modified the above query to cast a 50km net in order to see if there were some
+edges cases that needed scrutiny. Taking the resulting JSON response, I fired up
+[Placemark](https://www.placemark.io/), my favorite new tool for wrangling
+geospatial data.
 
 (Incidentally I recommend reading Tom Macwright's
 [recent reflection on creating Placemark](https://macwright.com/2023/01/28/placemark.html)
@@ -278,11 +278,12 @@ map projection?
   <figcaption>Tissot's indicatrix for equirectangular projection. Credit: Justin Kunimune, <a href="https://creativecommons.org/licenses/by-sa/4.0">CC BY-SA 4.0</a>, via Wikimedia Commons</figcaption>
 </figure>
 
-Now, imagine the inverse operation of this ⤴︎, drawing *true* circles on this planar space,
-in order to get a sense of how distorted your query results on a globe would be.
+Now, imagine the inverse operation of this ⤴︎, drawing _true_ circles on this
+planar space, in order to get a sense of how distorted your query results on a
+globe would be.
 
-Finally, here is Tissot’s indicatrix for the Mercator projection,
-demonstrating its ability to preserve shapes at the expense of sizes.
+Finally, here is Tissot’s indicatrix for the Mercator projection, demonstrating
+its ability to preserve shapes at the expense of sizes.
 
 <figure class="illustration">
   <img
@@ -312,6 +313,7 @@ and its spherical sibling
 [the $nearSphere query](https://www.mongodb.com/docs/manual/reference/operator/query/nearSphere/),
 all worthy topics.
 
-But we hope that understanding this crucial distinction between planar (`$center`) and spherical
-(`$centerSphere`) calculations will help you make the right choice when devising your own
-radius queries with MongoDB or other geospatial engines.
+But we hope that understanding this crucial distinction between planar
+(`$center`) and spherical (`$centerSphere`) calculations will help you make the
+right choice when devising your own radius queries with MongoDB or other
+geospatial engines.
