@@ -1,17 +1,15 @@
 ---
 layout: epic
 title: "TypeScript magic"
-date: 2023-02-10
+date: 2023-03-01
 categories: [TypeScript, Types, Tools, Palette]
 author: [pvinis]
 ---
 
-## Intro
-
 At Artsy, we love TypeScript. We use it in most of our node/web/mobile repos.
 Today, I want to talk about a specific case we found while trying to make our
-types more strict on [palette-mobile], which is our Design System for React
-Native.
+types more strict on [palette-mobile](https://github.com/artsy/palette-mobile),
+which is our Design System for React Native.
 
 Check this out:
 
@@ -26,7 +24,11 @@ the type that includes the most.
 
 Think of set theory and bubbles.
 
-!["hello" | "world"](/images/2023-02-20-typescript-magic/hello-world.png)
+<!-- more -->
+
+<figure class="illustration">
+  <img src="/images/2023-02-20-typescript-magic/hello-world.png">
+</figure>
 
 `"hello"` is a type by itself, and `"world"` is a type by itself. Unioning them
 together gives us a new type, which is a bubble that contains both `"hello"` and
@@ -36,7 +38,9 @@ together gives us a new type, which is a bubble that contains both `"hello"` and
 The `string` bubble contains all strings, so it contains `"hello"` and `"world"`
 and `"hello" | "world"`, so the union of them with string is string.
 
-![string](/images/2023-02-20-typescript-magic/string.png)
+<figure class="illustration">
+  <img src="/images/2023-02-20-typescript-magic/string.png">
+</figure>
 
 That is usually ok, but for our case, it didn't work. Here is what we wanted to
 do.
@@ -118,7 +122,9 @@ specific string, but also any other string.
 
 Here is a complete view of the sets.
 
-![everything](/images/2023-02-20-typescript-magic/everything.png)
+<figure class="illustration">
+  <img src="/images/2023-02-20-typescript-magic/everything.png">
+</figure>
 
 It seems pretty funky that `string` and `string & {}` are same in a way, but
 different in another way. They both tell the type system that any string is
@@ -148,15 +154,13 @@ Now we have autocomplete and typechecking.
 ## Final thoughts
 
 This is such a useful little TypeScript trick. Thanks to
-[Sultan](https://github.com/MrSltun) for finding this. He found it at
-https://github.com/microsoft/TypeScript/issues/29729#issuecomment-567871939.
+[Sultan](https://github.com/MrSltun) for finding this. He found it in a
+[TypeScript issue](https://github.com/microsoft/TypeScript/issues/29729#issuecomment-567871939).
 Then we tried it and figured out how to work with this, and how to make our type
 exactly what we wanted, for the best DX we can get.
 
 Link to palette-mobile, where we use this type:
-https://github.com/artsy/palette-mobile/blob/v11.0.0/src/types.ts#L17
+[link](https://github.com/artsy/palette-mobile/blob/v11.0.0/src/types.ts#L17)
 
 Link to a TypeScript playground with the examples:
 [link](https://www.typescriptlang.org/play?#code/MYewdgzgLgBA7gUwDYAcBcMBEALZSSYwA+WcIATkgCaEnTkCWYA5jALxa5L6YBQvUAJ4oEMAMIh85ACIBlAGoBDJAFdRHTACMki4AGsAjAAYjtLNt16AHKeLnVCY7ZKZyCKgYCstgPQ+7CFDAAsKiAEKKVBJSAPJQuOSyUIws7DD0TMz8QiIwEVGSFGnRFHJKDnb5JeRxCUkpWbygkLCakdUYVYXkaTiKEDBgIDCKKlAgoAC2KEiBCHz8zdDwIHAYABQ4eAR2mGSUNACUdusZqQBkMADeAL7HGlw82aEwAOIgIAWx8QiJyZlpM6sS63Z65d6farFbplZRqOwQr4UWq-eqZRbgZbMD5I8gYRFQh79EZjCYgaazKAIAB0MGSgjpw2A2EULFE8QYAyBMAS7OGFn0TgAhHwgA)
-
-palette-mobile: https://github.com/artsy/palette-mobile
