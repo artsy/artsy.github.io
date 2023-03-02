@@ -1,0 +1,177 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: Palette | Artsy Engineering]]></title>
+  <link href="https://artsy.github.io/blog/categories/palette/atom.xml" rel="self"/>
+  <link href="https://artsy.github.io/"/>
+  <updated>2023-03-02T07:07:59+00:00</updated>
+  <id>https://artsy.github.io/</id>
+  <author>
+    <name><![CDATA[]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[TypeScript magic]]></title>
+    <link href="https://artsy.github.io/blog/2023/03/01/typescript-magic/"/>
+    <updated>2023-03-01T00:00:00+00:00</updated>
+    <id>https://artsy.github.io/blog/2023/03/01/typescript-magic</id>
+    <content type="html"><![CDATA[<p>At Artsy, we love TypeScript. We use it in most of our node/web/mobile repos.
+Today, I want to talk about a specific case we found while trying to make our
+types more strict on <a href="https://github.com/artsy/palette-mobile">palette-mobile</a>,
+which is our Design System for React Native.</p>
+
+<p>Check this out:</p>
+
+<div class="language-ts highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">const</span> <span class="nx">welp</span><span class="p">:</span> <span class="dl">"</span><span class="s2">hello</span><span class="dl">"</span> <span class="o">|</span> <span class="dl">"</span><span class="s2">world</span><span class="dl">"</span> <span class="o">|</span> <span class="kr">string</span> <span class="c1">// `welp` is of type `string`.</span>
+</code></pre></div></div>
+
+<p>Like the comment says, even though we have two specific strings, the fact that
+we do a union with <code class="language-plaintext highlighter-rouge">string</code>, makes <code class="language-plaintext highlighter-rouge">welp</code> have a type of just <code class="language-plaintext highlighter-rouge">string</code>. This is
+because both <code class="language-plaintext highlighter-rouge">"hello"</code> and <code class="language-plaintext highlighter-rouge">"world"</code> are strings, and the union tends to go to
+the type that includes the most.</p>
+
+<p>Think of set theory and bubbles.</p>
+
+<!-- more -->
+
+<figure class="illustration">
+  <img src="/images/2023-02-20-typescript-magic/hello-world.png" />
+</figure>
+
+<p><code class="language-plaintext highlighter-rouge">"hello"</code> is a type by itself, and <code class="language-plaintext highlighter-rouge">"world"</code> is a type by itself. Unioning them
+together gives us a new type, which is a bubble that contains both <code class="language-plaintext highlighter-rouge">"hello"</code> and
+<code class="language-plaintext highlighter-rouge">"world"</code>. In that <code class="language-plaintext highlighter-rouge">"hello" | "world"</code> union bubble, we see both <code class="language-plaintext highlighter-rouge">"hello"</code> and
+<code class="language-plaintext highlighter-rouge">"world"</code> types as subsets.</p>
+
+<p>The <code class="language-plaintext highlighter-rouge">string</code> bubble contains all strings, so it contains <code class="language-plaintext highlighter-rouge">"hello"</code> and <code class="language-plaintext highlighter-rouge">"world"</code>
+and <code class="language-plaintext highlighter-rouge">"hello" | "world"</code>, so the union of them with string is string.</p>
+
+<figure class="illustration">
+  <img src="/images/2023-02-20-typescript-magic/string.png" />
+</figure>
+
+<p>That is usually ok, but for our case, it didn’t work. Here is what we wanted to
+do.</p>
+
+<h2 id="the-problem">The problem</h2>
+
+<p>In our Design System, we have certain color, named like <code class="language-plaintext highlighter-rouge">black100</code>, <code class="language-plaintext highlighter-rouge">black80</code>,
+<code class="language-plaintext highlighter-rouge">blue100</code>, <code class="language-plaintext highlighter-rouge">red150</code> etc. We can have a type like</p>
+
+<div class="language-ts highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">type</span> <span class="nx">ColorDSValue</span> <span class="o">=</span> <span class="dl">"</span><span class="s2">black100</span><span class="dl">"</span> <span class="o">|</span> <span class="dl">"</span><span class="s2">black80</span><span class="dl">"</span> <span class="o">|</span> <span class="dl">"</span><span class="s2">blue100</span><span class="dl">"</span> <span class="o">|</span> <span class="dl">"</span><span class="s2">red150</span><span class="dl">"</span> <span class="c1">// | etc</span>
+</code></pre></div></div>
+
+<p>and that works great. We get to have autocomplete, typechecking, all the good
+stuff that TypeScript brings.</p>
+
+<p>But we also want to support any other string, like <code class="language-plaintext highlighter-rouge">"#000000"</code>, <code class="language-plaintext highlighter-rouge">"#000"</code>,
+<code class="language-plaintext highlighter-rouge">"rgb(0,0,0)"</code>, <code class="language-plaintext highlighter-rouge">"rgba(0,0,0,0.5)"</code>, <code class="language-plaintext highlighter-rouge">"hsl(0,0%,0%)"</code>, <code class="language-plaintext highlighter-rouge">"hsla(0,0%,0%,0.5)"</code>.
+Ok, you might say, just make more types like</p>
+
+<div class="language-ts highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">type</span> <span class="nx">ColorHexValue</span> <span class="o">=</span> <span class="s2">`#</span><span class="p">${</span><span class="kr">string</span><span class="p">}</span><span class="s2">`</span>
+<span class="kd">type</span> <span class="nx">ColorRGBValue</span> <span class="o">=</span> <span class="s2">`rgb(</span><span class="p">${</span><span class="kr">number</span><span class="p">}</span><span class="s2">,</span><span class="p">${</span><span class="kr">number</span><span class="p">}</span><span class="s2">,</span><span class="p">${</span><span class="kr">number</span><span class="p">}</span><span class="s2">)`</span>
+<span class="kd">type</span> <span class="nx">ColorRGBAValue</span> <span class="o">=</span> <span class="s2">`rgba(</span><span class="p">${</span><span class="kr">number</span><span class="p">}</span><span class="s2">,</span><span class="p">${</span><span class="kr">number</span><span class="p">}</span><span class="s2">,</span><span class="p">${</span><span class="kr">number</span><span class="p">}</span><span class="s2">,</span><span class="p">${</span><span class="kr">number</span><span class="p">}</span><span class="s2">)`</span>
+<span class="kd">type</span> <span class="nx">ColorHSLValue</span> <span class="o">=</span> <span class="s2">`hsl(</span><span class="p">${</span><span class="kr">number</span><span class="p">}</span><span class="s2">,</span><span class="p">${</span><span class="kr">number</span><span class="p">}</span><span class="s2">%,</span><span class="p">${</span><span class="kr">number</span><span class="p">}</span><span class="s2">%)`</span>
+</code></pre></div></div>
+
+<p>and so on. That’s great. So far, so good.</p>
+
+<p>We also want to make sure CSS color names are accepted. So then we add something
+like</p>
+
+<div class="language-ts highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">type</span> <span class="nx">ColorCSSString</span> <span class="o">=</span> <span class="dl">"</span><span class="s2">red</span><span class="dl">"</span> <span class="o">|</span> <span class="dl">"</span><span class="s2">blue</span><span class="dl">"</span> <span class="o">|</span> <span class="dl">"</span><span class="s2">hotpink</span><span class="dl">"</span> <span class="c1">// | etc</span>
+</code></pre></div></div>
+
+<p>and now we have a type with all the values. That seemed ok, but it also felt a
+bit too much. If CSS names change, we need to update. Also what we wanted to do
+is actually have autocomplete and typechecking for our DS values, and just leave
+it loose for all the rest.</p>
+
+<p>So we tried</p>
+
+<div class="language-ts highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">type</span> <span class="nx">ColorDSValue</span> <span class="o">=</span> <span class="dl">"</span><span class="s2">black100</span><span class="dl">"</span> <span class="o">|</span> <span class="dl">"</span><span class="s2">black80</span><span class="dl">"</span> <span class="o">|</span> <span class="dl">"</span><span class="s2">blue100</span><span class="dl">"</span> <span class="o">|</span> <span class="dl">"</span><span class="s2">red150</span><span class="dl">"</span> <span class="c1">// | etc</span>
+<span class="kd">type</span> <span class="nx">ColorOtherString</span> <span class="o">=</span> <span class="kr">string</span>
+
+<span class="kd">type</span> <span class="nx">Color</span> <span class="o">=</span> <span class="nx">ColorDSValue</span> <span class="o">|</span> <span class="nx">ColorOtherString</span>
+</code></pre></div></div>
+
+<p>but we ended up with <code class="language-plaintext highlighter-rouge">Color</code> being just <code class="language-plaintext highlighter-rouge">string</code>, which automatically means no
+autocomplete and no typechecking.</p>
+
+<h2 id="now-check-this-out">Now check this out!</h2>
+
+<div class="language-ts highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">const</span> <span class="nx">wow</span><span class="p">:</span> <span class="p">(</span><span class="dl">"</span><span class="s2">hello</span><span class="dl">"</span> <span class="o">|</span> <span class="dl">"</span><span class="s2">world</span><span class="dl">"</span><span class="p">)</span> <span class="o">|</span> <span class="p">(</span><span class="kr">string</span> <span class="o">&amp;</span> <span class="p">{})</span> <span class="c1">// `wow` is of type `"hello"` or `"world"` or `string`.</span>
+</code></pre></div></div>
+
+<p>This weird-looking intersection of <code class="language-plaintext highlighter-rouge">string &amp; {}</code> makes it so that the specific
+strings <code class="language-plaintext highlighter-rouge">"hello"</code> and <code class="language-plaintext highlighter-rouge">"world"</code> are distinguished from <code class="language-plaintext highlighter-rouge">string</code> as a whole type.</p>
+
+<p>The way this works is this:</p>
+
+<ul>
+  <li>the intersection of <code class="language-plaintext highlighter-rouge">string</code> and <code class="language-plaintext highlighter-rouge">{}</code> (which is <code class="language-plaintext highlighter-rouge">string &amp; {}</code>), is essentially
+the same as <code class="language-plaintext highlighter-rouge">string</code>, but it is a new type, different from <code class="language-plaintext highlighter-rouge">string</code>.</li>
+  <li>the union of <code class="language-plaintext highlighter-rouge">"hello"</code> and <code class="language-plaintext highlighter-rouge">"world"</code> is <code class="language-plaintext highlighter-rouge">"hello" | "world"</code>, which is a new
+type, different from <code class="language-plaintext highlighter-rouge">"hello"</code> and <code class="language-plaintext highlighter-rouge">"world"</code>. It contains both.</li>
+  <li>the union of <code class="language-plaintext highlighter-rouge">"hello" | "world"</code> and <code class="language-plaintext highlighter-rouge">string</code> expands the type to <code class="language-plaintext highlighter-rouge">string</code>,
+since that is the common type. <code class="language-plaintext highlighter-rouge">"hello"</code>, <code class="language-plaintext highlighter-rouge">"world"</code>, and <code class="language-plaintext highlighter-rouge">"hello" | "world"</code>,
+all inherit from <code class="language-plaintext highlighter-rouge">string</code>.</li>
+  <li>the union of <code class="language-plaintext highlighter-rouge">"hello" | "world"</code> and <code class="language-plaintext highlighter-rouge">string &amp; {}</code> is
+<code class="language-plaintext highlighter-rouge">"hello" | "world" | (string &amp; {})</code>, which is a new type, different from just
+<code class="language-plaintext highlighter-rouge">string</code>. This is because <code class="language-plaintext highlighter-rouge">"hello"</code> and <code class="language-plaintext highlighter-rouge">"world"</code> DO NOT inherit from
+<code class="language-plaintext highlighter-rouge">string &amp; {}</code>, so they are distinguished from <code class="language-plaintext highlighter-rouge">string &amp; {}</code> as a whole type.</li>
+</ul>
+
+<p>With this type trick, essentially we can tell the type system that we want
+specific string, but also any other string.</p>
+
+<p>Here is a complete view of the sets.</p>
+
+<figure class="illustration">
+  <img src="/images/2023-02-20-typescript-magic/everything.png" />
+</figure>
+
+<p>It seems pretty funky that <code class="language-plaintext highlighter-rouge">string</code> and <code class="language-plaintext highlighter-rouge">string &amp; {}</code> are same in a way, but
+different in another way. They both tell the type system that any string is
+accepted. But one is inherited by every type that is a string (like
+<code class="language-plaintext highlighter-rouge">type Hi = "hello"</code>), where as the other is not inherited, so they are
+distinguished from each other.</p>
+
+<p>That is so cool to me! I wanted to do this and didn’t even have the words to
+describe it, I didn’t know how to google it. We kind of found it accidentally.</p>
+
+<p>This is so so useful for types or props where you want the general type for
+support (<code class="language-plaintext highlighter-rouge">string</code>), but you also want the specific type for autocomplete
+(<code class="language-plaintext highlighter-rouge">"black100"</code>). It made my whole week when I figured that out and made that
+color type.</p>
+
+<p>Here is the final type:</p>
+
+<div class="language-ts highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">type</span> <span class="nx">ColorDSValue</span> <span class="o">=</span> <span class="dl">"</span><span class="s2">black100</span><span class="dl">"</span> <span class="o">|</span> <span class="dl">"</span><span class="s2">black80</span><span class="dl">"</span> <span class="o">|</span> <span class="dl">"</span><span class="s2">blue100</span><span class="dl">"</span> <span class="o">|</span> <span class="dl">"</span><span class="s2">red150</span><span class="dl">"</span> <span class="c1">// | etc</span>
+<span class="kd">type</span> <span class="nx">ColorOtherString</span> <span class="o">=</span> <span class="kr">string</span> <span class="o">&amp;</span> <span class="p">{}</span>
+
+<span class="kd">type</span> <span class="nx">Color</span> <span class="o">=</span> <span class="nx">ColorDSValue</span> <span class="o">|</span> <span class="nx">ColorOtherString</span>
+</code></pre></div></div>
+
+<p>Now we have autocomplete and typechecking.</p>
+
+<h2 id="final-thoughts">Final thoughts</h2>
+
+<p>This is such a useful little TypeScript trick. Thanks to
+<a href="https://github.com/MrSltun">Sultan</a> for finding this. He found it in a
+<a href="https://github.com/microsoft/TypeScript/issues/29729#issuecomment-567871939">TypeScript issue</a>.
+Then we tried it and figured out how to work with this, and how to make our type
+exactly what we wanted, for the best DX we can get.</p>
+
+<p>Link to palette-mobile, where we use this type:
+<a href="https://github.com/artsy/palette-mobile/blob/v11.0.0/src/types.ts#L17">link</a></p>
+
+<p>Link to a TypeScript playground with the examples:
+<a href="https://www.typescriptlang.org/play?#code/MYewdgzgLgBA7gUwDYAcBcMBEALZSSYwA+WcIATkgCaEnTkCWYA5jALxa5L6YBQvUAJ4oEMAMIh85ACIBlAGoBDJAFdRHTACMki4AGsAjAAYjtLNt16AHKeLnVCY7ZKZyCKgYCstgPQ+7CFDAAsKiAEKKVBJSAPJQuOSyUIws7DD0TMz8QiIwEVGSFGnRFHJKDnb5JeRxCUkpWbygkLCakdUYVYXkaTiKEDBgIDCKKlAgoAC2KEiBCHz8zdDwIHAYABQ4eAR2mGSUNACUdusZqQBkMADeAL7HGlw82aEwAOIgIAWx8QiJyZlpM6sS63Z65d6farFbplZRqOwQr4UWq-eqZRbgZbMD5I8gYRFQh79EZjCYgaazKAIAB0MGSgjpw2A2EULFE8QYAyBMAS7OGFn0TgAhHwgA">link</a></p>
+]]></content>
+  </entry>
+  
+</feed>
