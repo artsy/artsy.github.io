@@ -126,3 +126,13 @@ end
 
 desc 'Defaults to serve:drafts'
 task :default => 'serve:drafts'
+
+namespace :related_articles do
+  require 'weaviate'
+  require_relative './lib/related_articles'
+
+  desc "Recreate the Weaviate index"
+  task :prepare do
+    RelatedArticles::Database.prepare
+  end
+end
