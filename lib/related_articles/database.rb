@@ -12,7 +12,7 @@ module RelatedArticles
       end
 
       # Create new index
-      pp client.schema.create(
+      client.schema.create(
         class_name: "EngineeringBlogPost",
         description: "An Artsy engineering blog post",
         module_config: { "text2vec-openai": {vectorizeClassName: false} },

@@ -133,9 +133,16 @@ task :default => 'serve:drafts'
 
 desc "Generate the related articles data"
 task :related_articles do
+  pretty_puts("Re-creating Weaviate index…")
   Rake::Task["related_articles:prepare"].invoke
+
+  pretty_puts("Inserting & vectorizing articles into Weaviate in batches…")
   Rake::Task["related_articles:insert"].invoke
+
+  pretty_puts("Clustering related articles…")
   Rake::Task["related_articles:cluster"].invoke
+
+  pretty_puts("Done.")
 end
 
 namespace :related_articles do
@@ -153,4 +160,8 @@ namespace :related_articles do
   task :cluster do
     RelatedArticles::Database.cluster
   end
+end
+
+def pretty_puts(msg)
+  puts "\033[32m" << msg << "\033[m"
 end
