@@ -130,9 +130,15 @@ task :default => 'serve:drafts'
 namespace :related_articles do
   require 'weaviate'
   require_relative './lib/related_articles'
+  require_relative './lib/article_iterator'
 
   desc "Recreate the Weaviate index"
   task :prepare do
     RelatedArticles::Database.prepare
+  end
+
+  desc "Insert articles into Weaviate"
+  task :insert do
+    RelatedArticles::Database.insert
   end
 end
