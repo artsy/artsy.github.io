@@ -141,4 +141,9 @@ namespace :related_articles do
   task :insert do
     RelatedArticles::Database.insert
   end
+
+  desc "Cluster neighboring articles"
+  task :cluster do
+    RelatedArticles::Database.cluster
+  end
 end

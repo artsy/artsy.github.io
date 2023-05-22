@@ -1,3 +1,6 @@
+# TODO: file an issue about weaviate-ruby relying on Object#present?
+class Object; def present?; !!self; end; end
+
 module RelatedArticles
   module Database
     def self.prepare
@@ -67,6 +70,49 @@ module RelatedArticles
         client.objects.batch_create(objects: objects)
       end
       puts
+    end
+
+    def self.cluster
+      client = RelatedArticles.client
+      
+      articles_count = client.query.aggs(
+        class_name: "EngineeringBlogPost",
+        fields: 'meta { count }'
+      )[0]['meta']['count']
+      
+      all_articles = client.query.get(
+        class_name: 'EngineeringBlogPost', 
+        limit: articles_count.to_s, 
+        fields: 'title path _additional { id }'
+      )
+
+      related_articles = all_articles.reduce({}) do |mapping, article|
+        print "."
+        article_id = article['_additional']['id']
+
+        neighbors = client.query.get(
+          class_name: 'EngineeringBlogPost',
+          fields: "path title _additional { id certainty }",
+          limit: "4",
+          near_object: "{ id: \"#{article_id}\", certainty: 0.9 }",
+        )
+
+        cluster = neighbors.reject{ |neighbor| neighbor['_additional']['id'] == article_id }
+
+        mapping[article["path"]] = cluster.map do |neighbor|
+          {
+            "path": neighbor['path'],
+            "title": neighbor['title'],
+            "certainty": neighbor['_additional']['certainty']      
+          }
+        end
+        mapping
+      end
+      puts
+
+      File.open("./related-articles.json", "w") do |f|
+        f.write(JSON.pretty_generate(related_articles))
+      end
     end
   end
 end
