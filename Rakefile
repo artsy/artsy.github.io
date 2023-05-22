@@ -1,5 +1,9 @@
 #!/usr/bin/env rake
 
+require 'weaviate'
+require_relative './lib/related_articles'
+require_relative './lib/article_iterator'
+
 desc 'Initial setup'
 task :bootstrap do
   puts 'Installing Bundle...'
@@ -135,21 +139,17 @@ task :related_articles do
 end
 
 namespace :related_articles do
-  require 'weaviate'
-  require_relative './lib/related_articles'
-  require_relative './lib/article_iterator'
-
-  desc "Recreate the Weaviate index"
+  # Recreate the Weaviate index
   task :prepare do
     RelatedArticles::Database.prepare
   end
 
-  desc "Insert articles into Weaviate"
+  # Insert articles into Weaviate
   task :insert do
     RelatedArticles::Database.insert
   end
 
-  desc "Cluster neighboring articles"
+  # Cluster neighboring articles
   task :cluster do
     RelatedArticles::Database.cluster
   end
