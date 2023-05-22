@@ -127,6 +127,13 @@ end
 desc 'Defaults to serve:drafts'
 task :default => 'serve:drafts'
 
+desc "Generate the related articles data"
+task :related_articles do
+  Rake::Task["related_articles:prepare"].invoke
+  Rake::Task["related_articles:insert"].invoke
+  Rake::Task["related_articles:cluster"].invoke
+end
+
 namespace :related_articles do
   require 'weaviate'
   require_relative './lib/related_articles'
