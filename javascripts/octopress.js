@@ -47,11 +47,6 @@ function testFeatures() {
       $('html').addClass('no-'+feature);
     }
   });
-  if ("placeholder" in document.createElement("input")) {
-    $('html').addClass('placeholder');
-  } else {
-    $('html').addClass('no-placeholder');
-  }
 }
 
 function addCodeLineNumbers() {
