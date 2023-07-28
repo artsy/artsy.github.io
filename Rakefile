@@ -1,5 +1,9 @@
 #!/usr/bin/env rake
 
+require 'weaviate'
+require_relative './lib/related_articles'
+require_relative './lib/article_iterator'
+
 desc 'Initial setup'
 task :bootstrap do
   puts 'Installing Bundle...'
@@ -126,3 +130,38 @@ end
 
 desc 'Defaults to serve:drafts'
 task :default => 'serve:drafts'
+
+desc "Generate the related articles data"
+task :related_articles do
+  pretty_puts("Re-creating Weaviate index…")
+  Rake::Task["related_articles:prepare"].invoke
+
+  pretty_puts("Inserting & vectorizing articles into Weaviate in batches…")
+  Rake::Task["related_articles:insert"].invoke
+
+  pretty_puts("Clustering related articles…")
+  Rake::Task["related_articles:cluster"].invoke
+
+  pretty_puts("Done.")
+end
+
+namespace :related_articles do
+  # Recreate the Weaviate index
+  task :prepare do
+    RelatedArticles::Database.prepare
+  end
+
+  # Insert articles into Weaviate
+  task :insert do
+    RelatedArticles::Database.insert
+  end
+
+  # Cluster neighboring articles
+  task :cluster do
+    RelatedArticles::Database.cluster
+  end
+end
+
+def pretty_puts(msg)
+  puts "\033[32m" << msg << "\033[m"
+end
