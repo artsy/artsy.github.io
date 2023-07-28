@@ -51,5 +51,6 @@ function insertIntoDom(relatedArticles) {
       li.appendChild(a)
       ul.appendChild(li)
     })
+    el.classList.add("loaded")
   }
 }
