@@ -24,22 +24,23 @@ shiny green button.
 
 Here's the checklist I came up with:
 
-```
-[ ] What is your plan if something goes wrong?
-  [ ] Run through ramifications of rolling back. If there's a reason you're
+- [ ] What is your plan if something goes wrong?
+  - [ ] Run through ramifications of rolling back. If there's a reason you're
         worried about rolling back, then you're not ready to deploy the change
         yet!
-  [ ] Figure out exactly what command(s) you will need to run to roll back
-[ ] How will you tell if something is going wrong after you deploy?
-  [ ] Error rate (DataDog)
-  [ ] Specific error reporting (Sentry)
-  [ ] Latency (DataDog)
-  [ ] Logs (Papertrail)
-  [ ] Functionality (does it still work? Are people using it successfully?
+  - [ ] Figure out exactly what command(s) you will need to run to roll back. At
+        Artsy, this is usually a
+        [one-liner using Hokusai](https://github.com/artsy/hokusai/blob/main/docs/Command_Reference.md#how-to-do-a-rollback),
+        our command-line Docker/Kubernetes CLI
+- [ ] How will you tell if something is going wrong after you deploy?
+  - [ ] Error rate (DataDog)
+  - [ ] Specific error reporting (Sentry)
+  - [ ] Latency (DataDog)
+  - [ ] Logs (Papertrail)
+  - [ ] Functionality (does it still work? Are people using it successfully?
         Important for things where errors may not be bubbled up correctly or
         reported immediately)
-  [ ] Sidekiq (are there lots of jobs queued to retry that are failing?)
-```
+  - [ ] Sidekiq (are there lots of jobs queued to retry that are failing?)
 
 With this checklist in hand, I'm deploying more confidently and causing fewer
 incidents along the way.
