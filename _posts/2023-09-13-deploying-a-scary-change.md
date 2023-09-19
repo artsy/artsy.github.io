@@ -5,6 +5,7 @@ subtitle: "What to expect when you're expecting to break things"
 date: 2023-09-13
 categories: [Ruby on Rails, data migrations, deploy process]
 author: [matt-dole]
+comment_id: 754
 ---
 
 Lately, I've been getting involved with some sketchy stuff. You know what I'm
