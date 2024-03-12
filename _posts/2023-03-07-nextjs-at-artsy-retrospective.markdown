@@ -41,18 +41,19 @@ out of the way and allows one to start building product features. The defaults
 made sense; to create a new route, simply create a new folder or file in the
 `pages` directory, and Next takes care of the rest. And what about compilation,
 TypeScript, linting, and all of the other extraordinarily confusing JavaScript
-toolchain details that folks typically struggle over? All taken care of, at the
-framework level, as if they didn't even exist at all. The API side of things was
-light and easy to understand, thanks to great documentation.
+toolchain details that folks typically struggle over? (Most) of the setup was
+taken care of at the framework level, and the API side of things was light and
+easy to understand, thanks to great documentation.
 
 There are omitted details of course, and there were things we needed to figure
-out (such as auth, via `next-auth`), but in any case this gave us a lot of
-confidence to start discussing what it might take to seriously consider
-rebuilding our internal tools app. Torque, as it was known, was an old homegrown
-Node.js framework built on top of Express, Backbone and CoffeeScript. A few
-meetings later it was decided, and our platform team agreed to take it (with
-loose backup support from a couple other engineers). And a short few month's
-later it was pretty much complete, executed by a team working amidst unfamiliar
+out (such as auth, via `next-auth`, and passing runtime ENV secrets to our
+Dockerized container), but in any case this gave us a lot of confidence to start
+discussing what it might take to seriously consider rebuilding our internal
+tools app. Torque, as it was known, was an old homegrown Node.js framework built
+on top of Express, Backbone and CoffeeScript. A few meetings later it was
+decided, and our platform team agreed to take it (with loose backup support from
+a couple other engineers). And a short few month's much of the core
+functionality was complete, executed by a team working amidst unfamiliar
 terrain.
 
 That's the definition of success, and the measure. With our internal tools app
@@ -107,38 +108,17 @@ something of a dilemma, but that part of the story comes a bit later.
 
 ### Expanding Next.js at Artsy
 
-Coming off of our success with the internal tools app rebuild, we wanted more.
-And we didn't need to look far: right around the corner was a ~10 year old Rails
-app that our partners use to manage their inventory.
+Coming off of our success with the Internal CMS rebuild, we wanted more. And we
+didn't need to look far: right around the corner was a ~10 year old Rails app
+that our partners use to manage their inventory.
 
-It had all of the candidate-signatures of a rebuild:
-
-- Rails views
-- Haml templates
-- jQuery
-- CoffeeScript
-- Backbone
-- (And) React
-- (And) Attempts at an internal V2, long abandoned
-- A seriously broken / misconfigured FE compiler, which broke DX
-- Many-years-out-of-date libraries
-- Slow CI
-- And much more
-
-We had plans for a rebuild of our Partner <-> Collector conversations app in our
-[modern preferred web stack](https://github.com/artsy/force?tab=readme-ov-file#history),
-and so the question was raised about where this would take place. Would we do it
-inside of this old Rails app with its broken developer experience, or could we
-take our learnings from `Forque` (our new internal tools app), apply them here,
-and set up a good path forward for the next number of years?
-
-We decided the path forward was Next, and like Forque, for the most part it has
-been a success. We again went with the `pages` router as the new `app` router
-wasn't yet released, and so far there's been minimal confusion from the team.
-There _have_ been a few significant challenges involved such as setting up some
-performant framework patterns for using Relay (our GraphQL client), but on the
-whole Next has served our needs well. Team performance was unlocked, and we've
-been able to quickly get to building and rebuilding CMS pages in this new
+We decided the path forward was Next, and like Internal CMS, for the most part
+it has been a success. We again went with the `pages` router as the new `app`
+router wasn't yet released, and so far there's been minimal confusion from the
+team. There _have_ been a few significant challenges involved such as setting up
+some performant framework patterns for using Relay (our GraphQL client), but on
+the whole Next has served our needs well. Team performance was unlocked, and
+we've been able to quickly get to building and rebuilding CMS pages in this new
 application. And our engineers have loved working in it.
 
 ### Back to Next 13
@@ -174,7 +154,7 @@ a runaway success (and a
 [highly portable one](https://github.com/artsy/palette-mobile) at that).
 
 With this limitation, our ability to use React Server Components had been
-severely tampered. Excluding the root-most level of our component tree, we were
+severely hampered. Excluding the root-most level of our component tree, we were
 now required to prepend `use client` on the top of every component, lest we
 receive ambiguous errors about rendering a client component (which used to be
 server-side render safe) on the "RSC server".
@@ -272,7 +252,7 @@ Artsy. We're here to empower folks and unlock productivity. Remember the team of
 DevOps engineers on Platform who rebuilt a CMS in record time? In the new Next
 13 model, that would be unfathomable, impossible even. Paper cuts would kill
 motivation, and dishearten the already skeptical. And the front end already has
-a bad wrap, for good reason: historically, everything that seems like it should
+a bad rap, for good reason: historically, everything that seems like it should
 be easy is hard and confusing for those who aren't experts. And everything is
 always changing. And the tooling is always breaking. And everybody always has a
 bright new idea, one that will finally end this madness for good.
@@ -301,7 +281,7 @@ more.
 
 ### Back At Artsy...
 
-With all of this in mind, and with the uncertainly around long-term support for
+With all of this in mind, and with the uncertainty around long-term support for
 Next.js `pages` (amongst other things), we recently decided to hit pause on
 future development in our new Partner CMS rebuild. Weighing a few different
 factors (many entirely unrelated to Next), including a team reorg that allowed
