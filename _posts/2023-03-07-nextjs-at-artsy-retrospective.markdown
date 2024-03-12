@@ -1,24 +1,22 @@
 ---
 layout: epic
 title: "Two years of Next.js at Artsy: A Retrospective"
-subtitle: "TODO"
+subtitle: "(On Love and Second Thoughts)"
 date: 2024-03-07
 categories: [Next.js, React]
 author: [christopher-pappas]
-comment_id: TODO
 ---
 
 Where to begin! Where to begin...
 
 Lets start with a good measure of success, one that I think most engineers could
-agree with: a from-scratch rebuild of a complex, internal CMS. Success with
-rebuilds is often fleeting, as many can attest. There's risk involved. Extending
-the challenge further, lets assign (most) of the task to a team of DevOps
-engineers who aren't too familiar with modern front-end technology, JavaScript
-tooling, web frameworks, and more. And then say that we succeeded -- like wild
-success.
+agree with: a from-scratch rebuild of a complex, internal tools app. Success
+with rebuilds is often fleeting, as many can attest. There's risk involved.
+Extending the challenge further, lets assign (most) of the task to a team of
+platform engineers who aren't too familiar with modern front-end technology --
+and then say that we succeeded.
 
-Is Artsy crazy? Or is Next.js (along with our team :) simply that good? Well,
+Is Artsy crazy? Or is Next.js (along with our team 🙂) just that good? Well,
 it's a little of both. And it's a little bittersweet, in a way. Here's our tale.
 
 <!-- more -->
@@ -30,8 +28,8 @@ years ago. Hackathon's are great opportunities to push technology forward, and
 Artsy has had a lot of success with them. We'd been talking about Next.js for a
 while, and experimenting here and there, but we were never able to find the
 proper intersection of product and purpose to take things further. With this in
-mind, one of our Engineers (Roop :wave:) spun up a Next.js POC that allowed us
-to deduplicate artist records. On the surface, the effort was non-trivial. It
+mind, one of our Engineers (Roop 👋) spun up a Next.js POC that allowed us to
+deduplicate artist records. On the surface, the effort was non-trivial. It
 involved authentication, DB communication, and more. Yet when presented during
 Hackathon, all of this was done and it also looked _beautiful_.
 
@@ -49,12 +47,10 @@ There are omitted details of course, and there were things we needed to figure
 out (such as auth, via `next-auth`, and passing runtime ENV secrets to our
 Dockerized container), but in any case this gave us a lot of confidence to start
 discussing what it might take to seriously consider rebuilding our internal
-tools app. Torque, as it was known, was an old homegrown Node.js framework built
-on top of Express, Backbone and CoffeeScript. A few meetings later it was
-decided, and our platform team agreed to take it (with loose backup support from
-a couple other engineers). And a short few month's much of the core
-functionality was complete, executed by a team working amidst unfamiliar
-terrain.
+tools app. A few meetings later it was decided, and our platform team agreed to
+take it (with loose backup support from a couple other engineers). And a few
+short month's later much of the core functionality was complete, executed by a
+team working amidst unfamiliar terrain.
 
 That's the definition of success, and the measure. With our internal tools app
 complete it was natural to start looking around for other opportunities -- but
@@ -108,18 +104,23 @@ something of a dilemma, but that part of the story comes a bit later.
 
 ### Expanding Next.js at Artsy
 
-Coming off of our success with the Internal CMS rebuild, we wanted more. And we
-didn't need to look far: right around the corner was a ~10 year old Rails app
-that our partners use to manage their inventory.
+Coming off of our success with the internal tools app rebuild, we wanted more.
+And we didn't need to look far: right around the corner was a ~10 year old
+external CMS app that our partners use to manage their inventory.
 
-We decided the path forward was Next, and like Internal CMS, for the most part
-it has been a success. We again went with the `pages` router as the new `app`
-router wasn't yet released, and so far there's been minimal confusion from the
-team. There _have_ been a few significant challenges involved such as setting up
-some performant framework patterns for using Relay (our GraphQL client), but on
-the whole Next has served our needs well. Team performance was unlocked, and
-we've been able to quickly get to building and rebuilding CMS pages in this new
-application. And our engineers have loved working in it.
+We decided the path forward was Next, and like our internal tools app rebuild,
+for the most part it has been a success. We again went with the `pages` router
+(as the new `app` router wasn't yet released) and so far there's been minimal
+confusion from the team. And buisness-wise, its been refreshing to defer
+framework design decisions, lib upgrades and more to Next, versus having to
+maintain [all of these things in-house](https://github.com/artsy/force).
+
+It's also worth mentioning that there _have_ been a few significant challenges
+involved (such as setting up performant SSR patterns for using Relay, our
+GraphQL client -- thats another blog post), but on the whole Next has served our
+needs well. Team performance was unlocked, and we've been able to quickly get to
+building and rebuilding CMS pages in this new application. And our engineers
+have loved working in it.
 
 ### Back to Next 13
 
@@ -130,9 +131,9 @@ might look like, what kind of effort.
 
 From the start, it was immediately obvious that the Next.js team released an
 alpha-quality (or less) product, marked as `stable`. Not a `beta`, not an `RC`
-to peruse and experiment with, but rather a
+to peruse and experiment with, but rather an
 
-```
+```bash
 npm install next
 ```
 
@@ -261,12 +262,11 @@ A certain amount of sadness is appropriate here, because Next's `pages` router
 was very, very close to being the silver bullet for web applications that we've
 all been looking for. Even though the `pages` router has its flaws, it showed us
 that it's possible to get something out the door very quickly with little prior
-knowledge of Front End development -- perhaps even no knowledge at all. This is
-no small thing. Next 13's fatal error is that its destiny, being coupled to RSC,
-now requires experts. And by 'expert' I mean: those with many years of
-experience dealing with JavaScript's whims, its complex eco-system, its
-changeover, as well as its problems. In short, folks who have become numb to it
-all. This is no way to work.
+knowledge of Front End development. This is no small thing. Next 13's fatal
+error is that its destiny, being coupled to RSC, now requires experts. And by
+'expert' I mean: those with many years of experience dealing with JavaScript's
+whims, its complex eco-system, its changeover, as well as its problems. In
+short, folks who have become numb to it all. This is no way to work.
 [Thankfully the community is finally responding](https://www.reddit.com/r/nextjs/comments/1abd6wm/hitler_tried_rsc_and_next_14/).
 
 ### A Quick Note on Performance
@@ -283,10 +283,10 @@ more.
 
 With all of this in mind, and with the uncertainty around long-term support for
 Next.js `pages` (amongst other things), we recently decided to hit pause on
-future development in our new Partner CMS rebuild. Weighing a few different
+future development in our new external CMS app rebuild. Weighing a few different
 factors (many entirely unrelated to Next), including a team reorg that allowed
-us to look more closely (and fix) the DX in our old Rails-based Partner app, we
-took a step back and realized that our needs are actually quite minimal:
+us to look more closely (and fix) the DX in our old external CMS app, we took a
+step back and recognized that our needs are actually quite minimal:
 
 - Instant hot reloading
 - Fast, SPA-like UX performance
@@ -296,25 +296,20 @@ With these things covered, the "web framework" layer looks something like the
 following, minus a few underlying router lib details:
 
 ```tsx
-const getAppRouter = () => {
-  // ...
 
-  const Router = createRouter({
-    history: 'browser',
-    routes: [
-      {
-        path: '/foo',
-        getComponent: React.lazy(() => import('./Foo'));
-      },
-      {
-        path: '/bar',
-        getComponent: React.lazy(() => import('./Bar'));
-      }
-    ]
-  })
-
-  return Router
-}
+const Router = createRouter({
+  history: 'browser',
+  routes: [
+    {
+      path: '/foo',
+      getComponent: React.lazy(() => import('./Foo'));
+    },
+    {
+      path: '/bar',
+      getComponent: React.lazy(() => import('./Bar'));
+    }
+  ]
+})
 ```
 
 We're now required to manage our compiler config, but
