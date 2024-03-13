@@ -4,7 +4,7 @@ title: "Two years of Next.js at Artsy: A Retrospective"
 subtitle: "(On Love and Second Thoughts)"
 date: 2024-03-07
 categories: [Next.js, React]
-author: [christopher-pappas]
+author: [chris]
 ---
 
 Where to begin! Where to begin...
