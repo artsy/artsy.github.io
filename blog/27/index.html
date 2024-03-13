@@ -29,10 +29,8 @@
           
         
         
-          CSS Trick: Adjusting Text Underlines
-        
-        
-...">
+          How to Start Small with Big Data and Google Analytics
+ ...">
   
 
   <!-- http://t.co/dKP3o1e -->
@@ -124,6 +122,173 @@
 
       <div class="blog-index">
   
+  
+    
+      <article>
+        <div class="article-container">
+
+  
+    <div class="meta-container">
+      <header>
+        
+          <a href="/blog/2012/05/01/how-to-start-small-with-big-data-and-google-analytics/">
+        
+        
+          <h2 class="entry-title">How to Start Small with Big Data and Google Analytics</h2>
+        
+        <time datetime=""></time>
+          <p class="meta-author">
+
+
+  
+
+  
+    <div class="meta">
+      <span class="byline author vcard"><a href ="/author/db">Daniel Doubrovkine<a/></span>
+      
+      <p class="fn">
+        <a href="https://twitter.com/dblockdotorg">@dblockdotorg</a>
+      </p>
+      
+
+    </div>
+  
+
+</p>
+          </a>
+      </header>
+    </div>
+  
+
+  <div class="content-container">
+    
+    
+        <p>Why do so many companies write a homegrown pageviews tracking system? Between Google Analytics, Kissmetrics and many others, isn’t that a completely solved problem?</p>
+
+<p>These popular solutions lack domain knowledge. They are easily capable of segmenting users by region or browser, but they fail to recognize rules core to your business. Tracking pageviews with a homegrown system becomes your next sprint’s goal.</p>
+
+<p>Implementing a hit counter service is quite tricky. This is a write-heavy, asynchronous problem that must minimize impact on page rendering time, while dealing with rapidly growing amounts of data. Is there a middle ground between using Google Analytics and rolling out our own homegrown implementation? How can we use Google Analytics for data collection and inject domain knowledge into gathered data, incrementally, without writing our own service?</p>
+
+<!--more-->
+
+<p>Let’s write a Rake task that pulls data from Google Analytics. We can run it daily. Start with a Ruby gem called <a href="https://github.com/vigetlabs/garb">Garb</a>.</p>
+
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">gem</span> <span class="s2">"garb"</span><span class="p">,</span> <span class="s2">"0.9.1"</span>
+</code></pre></div></div>
+
+<p>Garb requires Google Analytics credentials. Those can go into a YAML configuration file, which will use environment settings in production (it’s an ERB template, too). We can hardcode the test account values.</p>
+
+<p>``` yaml config/google_analytics.yml
+defaults: &amp;defaults</p>
+
+<p>development, test:
+  «: *defaults
+  email: “ga@example.com”
+  password: “password”
+  ua: “UA-12345678-1”</p>
+
+<p>production:
+  «: *defaults
+  email: &lt;%= ENV[‘GOOGLE_ANALYTICS_EMAIL’] %&gt;
+  password: &lt;%= ENV[‘GOOGLE_ANALYTICS_PASSWORD’] %&gt;
+  ua: &lt;%= ENV[‘GOOGLE_ANALYICS_UA’] %&gt;</p>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+Establish a Google Analytics session and fetch the profile corresponding to the Google user account with Garb.
+
+``` ruby
+config = YAML.load(ERB.new(File.new(Rails.root.join("config/google_analytics.yml")).read).result)[Rails.env].symbolize_keys
+Garb::Session.login(config[:email], config[:password])
+profile = Garb::Management::Profile.all.detect { |p| p.web_property_id == config[:ua] }
+raise "missing profile #{config[:ua]} in #{Garb::Management::Profile.all.map(&amp;:web_property_id)}" unless profile
+</code></pre></div></div>
+
+<p>Garbs needs a data model to collect pageviews. It extends <code class="language-plaintext highlighter-rouge">Garb::Model</code> and defines a set of “metrics” and “dimensions”.</p>
+
+<p>``` ruby app/models/google_analytics_pageviews.rb
+class GoogleAnalyticsPageviews
+  extend Garb::Model
+  metrics :pageviews
+  dimensions :page_path
+end</p>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+You can play with the [Google Analytics Query Explorer](http://ga-dev-tools.appspot.com/explorer/) to see the many possible metrics (such as pageviews) and dimensions (such as requested page path).
+
+By default, Google Analytics lets clients retrieve 1000 records in a single request. To get all records we can add an iterator, called `all`, that will keep making requests until the server runs out of data. The code for *config/initializers/garb_model.rb* is [in this gist](https://gist.github.com/2265877) and I made a [pull request](https://github.com/vigetlabs/garb/pull/116) into Garb if you'd rather merge that onto your fork.
+
+The majority of our pages are in the form of "/model/id", for example "/artwork/leonardo-mona-lisa". We're interested in all pageviews for a given artwork and in pageviews for a given artist, at a given date. We'll store selected Google Analytics data in a `GoogleAnalyticsPageviewsRecord` model described further.
+
+``` ruby
+t = Date.today - 1
+GoogleAnalyticsPageviews.all(profile, { :start_date =&gt; t, :end_date =&gt; t }) do |row|
+  model = /^\/#\!\/(?&lt;type&gt;[a-z-]+)\/(?&lt;id&gt;[a-z-]+)$/.match(row.page_path)
+  next unless (model[:type] == "artwork" || model[:type] == "artist")
+  GoogleAnalyticsPageviewsRecord.create!({
+    :model_type =&gt; model[:type],
+    :model_id =&gt; model[:id],
+    :pageviews =&gt; row.pageviews,
+    :dt =&gt; t.strftime("%Y-%m-%d")
+  })
+end
+</code></pre></div></div>
+
+<p>Each <code class="language-plaintext highlighter-rouge">GoogleAnalyticsPageviewsRecord</code> contains the total pageviews for a given model ID at a given date. We now have a record for each artwork and artist. We can rollup existing data into a set of collections, incrementally. For example, <code class="language-plaintext highlighter-rouge">google_analytics_artworks_monthly</code> will contain the monthly hits for each artwork.</p>
+
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">class</span> <span class="nc">GoogleAnalyticsPageviewsRecord</span>
+  <span class="kp">include</span> <span class="no">Mongoid</span><span class="o">::</span><span class="no">Document</span>
+
+  <span class="n">field</span> <span class="ss">:model_type</span><span class="p">,</span> <span class="ss">type: </span><span class="no">String</span>
+  <span class="n">field</span> <span class="ss">:model_id</span><span class="p">,</span> <span class="ss">type: </span><span class="no">String</span>
+  <span class="n">field</span> <span class="ss">:pageviews</span><span class="p">,</span> <span class="ss">type: </span><span class="no">Integer</span>
+  <span class="n">field</span> <span class="ss">:dt</span><span class="p">,</span> <span class="ss">type: </span><span class="no">Date</span>
+
+  <span class="n">index</span> <span class="p">[</span>
+    <span class="p">[</span><span class="ss">:model_type</span><span class="p">,</span> <span class="no">Mongo</span><span class="o">::</span><span class="no">ASCENDING</span><span class="p">],</span>
+    <span class="p">[</span><span class="ss">:model_id</span><span class="p">,</span> <span class="no">Mongo</span><span class="o">::</span><span class="no">ASCENDING</span><span class="p">],</span>
+    <span class="p">[</span><span class="ss">:dt</span><span class="p">,</span> <span class="no">Mongo</span><span class="o">::</span><span class="no">DESCENDING</span><span class="p">]</span>
+  <span class="p">],</span> <span class="ss">:unique</span> <span class="o">=&gt;</span> <span class="kp">true</span>
+
+  <span class="n">after_create</span> <span class="ss">:rollup</span>
+
+  <span class="k">def</span> <span class="nf">rollup</span>
+    <span class="no">Mongoid</span><span class="p">.</span><span class="nf">master</span><span class="p">.</span><span class="nf">collection</span><span class="p">(</span><span class="s2">"google_analytics_</span><span class="si">#{</span><span class="nb">self</span><span class="p">.</span><span class="nf">model_type</span><span class="si">}</span><span class="s2">s_total"</span><span class="p">).</span><span class="nf">update</span><span class="p">(</span>
+      <span class="p">{</span> <span class="ss">:model_id</span> <span class="o">=&gt;</span> <span class="nb">self</span><span class="p">.</span><span class="nf">model_id</span> <span class="p">},</span>
+      <span class="p">{</span> <span class="s2">"$inc"</span> <span class="o">=&gt;</span> <span class="p">{</span> <span class="s2">"count"</span> <span class="o">=&gt;</span> <span class="nb">self</span><span class="p">.</span><span class="nf">pageviews</span> <span class="p">}},</span> <span class="p">{</span> <span class="ss">:upsert</span> <span class="o">=&gt;</span> <span class="kp">true</span> <span class="p">})</span>
+    <span class="p">{</span>
+      <span class="ss">:daily</span> <span class="o">=&gt;</span> <span class="nb">self</span><span class="p">.</span><span class="nf">dt</span><span class="p">.</span><span class="nf">strftime</span><span class="p">(</span><span class="s2">"%Y-%m-%d"</span><span class="p">),</span>
+      <span class="ss">:weekly</span> <span class="o">=&gt;</span> <span class="nb">self</span><span class="p">.</span><span class="nf">dt</span><span class="p">.</span><span class="nf">beginning_of_week</span><span class="p">.</span><span class="nf">strftime</span><span class="p">(</span><span class="s2">"%Y-%W"</span><span class="p">),</span>
+      <span class="ss">:monthly</span> <span class="o">=&gt;</span> <span class="nb">self</span><span class="p">.</span><span class="nf">dt</span><span class="p">.</span><span class="nf">beginning_of_month</span><span class="p">.</span><span class="nf">strftime</span><span class="p">(</span><span class="s2">"%Y-%m"</span><span class="p">),</span>
+      <span class="ss">:yearly</span> <span class="o">=&gt;</span> <span class="nb">self</span><span class="p">.</span><span class="nf">dt</span><span class="p">.</span><span class="nf">beginning_of_year</span><span class="p">.</span><span class="nf">strftime</span><span class="p">(</span><span class="s2">"%Y"</span><span class="p">)</span>
+    <span class="p">}.</span><span class="nf">each_pair</span> <span class="k">do</span> <span class="o">|</span><span class="n">t</span><span class="p">,</span> <span class="n">dt</span><span class="o">|</span>
+      <span class="no">Mongoid</span><span class="p">.</span><span class="nf">master</span><span class="p">.</span><span class="nf">collection</span><span class="p">(</span><span class="s2">"google_analytics_</span><span class="si">#{</span><span class="nb">self</span><span class="p">.</span><span class="nf">model_type</span><span class="si">}</span><span class="s2">s_</span><span class="si">#{</span><span class="n">t</span><span class="si">}</span><span class="s2">"</span><span class="p">).</span><span class="nf">update</span><span class="p">(</span>
+        <span class="p">{</span> <span class="ss">:model_id</span> <span class="o">=&gt;</span> <span class="nb">self</span><span class="p">.</span><span class="nf">model_id</span><span class="p">,</span> <span class="ss">:dt</span> <span class="o">=&gt;</span> <span class="n">dt</span> <span class="p">},</span>
+        <span class="p">{</span> <span class="s2">"$inc"</span> <span class="o">=&gt;</span> <span class="p">{</span> <span class="s2">"count"</span> <span class="o">=&gt;</span> <span class="nb">self</span><span class="p">.</span><span class="nf">pageviews</span> <span class="p">}},</span> <span class="p">{</span> <span class="ss">:upsert</span> <span class="o">=&gt;</span> <span class="kp">true</span> <span class="p">})</span>
+    <span class="k">end</span>
+  <span class="k">end</span>
+
+<span class="k">end</span>
+</code></pre></div></div>
+
+<p>The rollup lets us query these tables directly. For example, the following query returns a record with the pageviews for the Leonardo’s “Mona Lisa” in January 2012.</p>
+
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="no">Mongoid</span><span class="p">.</span><span class="nf">master</span><span class="p">.</span><span class="nf">collection</span><span class="p">(</span><span class="s2">"google_analytics_artworks_monthly"</span><span class="p">).</span><span class="nf">find_one</span><span class="p">({</span>
+  <span class="ss">:model_type</span> <span class="o">=&gt;</span> <span class="s2">"artwork"</span><span class="p">,</span> <span class="ss">:model_id</span> <span class="o">=&gt;</span> <span class="s2">"leonardo-mona-lisa"</span><span class="p">,</span> <span class="ss">:dt</span> <span class="o">=&gt;</span> <span class="s2">"2012/01"</span>
+<span class="p">})</span>
+</code></pre></div></div>
+
+<p>One of the obvious advantages of pulling Google Analytics data is the low volume of requests and offline processing. We’re letting Google Analytics do the hard work of collecting data for us in real time and are consuming its API without the performance or time pressures.</p>
+
+    
+
+    
+  </div>
+
+
+  <footer>
+  </footer>
+
+</div>
+
+      </article>
   
     
       <article>
@@ -866,103 +1031,6 @@ end
 <p>Working on forks keeps developer branches away from “master”. The main repository only has three branches: “master”, “staging” and “production” and each developer can make up whatever branching strategy they like in individual forks.</p>
 
 <p>Code reviews have nothing to do with hierarchy or organization, any developer will code review any other developer’s work. We tend to avoid using the same person for two subsequent code reviews to prevent excessive buddying. Zach called his pull requests “collective experiments” - a place for active discussions, rejections and praise. I really like that. Each of my rejected pull requests has been a great learning experience.</p>
-
-    
-
-    
-  </div>
-
-
-  <footer>
-  </footer>
-
-</div>
-
-      </article>
-  
-    
-      <article>
-        <div class="article-container">
-
-  
-    <div class="meta-container">
-      <header>
-        
-          <a href="/blog/2012/01/18/octopress-and-jekyll/">
-        
-        
-          <h2 class="entry-title">Octopress and Jekyll</h2>
-        
-        <time datetime=""></time>
-          <p class="meta-author">
-
-
-  
-
-  
-    <div class="meta">
-      <span class="byline author vcard"><a href ="/author/db">Daniel Doubrovkine<a/></span>
-      
-      <p class="fn">
-        <a href="https://twitter.com/dblockdotorg">@dblockdotorg</a>
-      </p>
-      
-
-    </div>
-  
-
-</p>
-          </a>
-      </header>
-    </div>
-  
-
-  <div class="content-container">
-    
-    
-        <p>This blog is powered by static pages.</p>
-
-<p>I think it’s quite ironic that, while we spend a lot of time building complex large scale dynamic websites, our new favorite publishing platform is a system that compiles static content. But, in many ways, <a href="http://octopress.org/">Octopress</a> and <a href="https://github.com/mojombo/jekyll">Jekyll</a> fit our philosophy and developer workflow perfectly. Writing an article for this blog means using the same tools and processes as contributing to a project on Github. And everyone is welcome to browse and learn from <a href="https://github.com/artsy/artsy.github.com/tree/source">the source</a> of this blog, and even fork it and contribute fixes to the layout or even blog features.</p>
-
-<p>Here’s what Artsy engineers do to get setup (once) and publish a new post.</p>
-
-<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="nv">$ </span>git clone git@github.com:artsy/artsy.github.com.git
-     Cloning into artsy.github.com...
-
-    <span class="nv">$ </span><span class="nb">cd </span>artsy.github.com
-
-    artsy.github.com<span class="nv">$ </span>git checkout <span class="nb">source
-     </span>Branch <span class="nb">source set </span>up to track remote branch <span class="nb">source </span>from origin.
-     Switched to a new branch <span class="s1">'source'</span>
-
-    artsy.github.com<span class="nv">$ </span><span class="nb">mkdir </span>_deploy
-
-    artsy.github.com<span class="nv">$ </span><span class="nb">cd </span>_deploy
-
-    artsy.github.com/_deploy<span class="nv">$ </span>git init
-     Initialized empty Git repository <span class="k">in </span>artsy.github.com/_deploy/.git/
-
-    artsy.github.com/_deploy<span class="nv">$ </span>git remote add origin git@github.com:artsy/artsy.github.com.git
-
-    artsy.github.com/_deploy<span class="nv">$ </span>git pull origin master
-     From github.com:artsy/artsy.github.com
-      <span class="k">*</span> branch            master     -&gt; FETCH_HEAD
-
-    artsy.github.com/_deploy<span class="nv">$ </span><span class="nb">cd</span> ..
-
-    artsy.github.com<span class="nv">$ </span>rake create_post[<span class="s2">"Octopress and Jekyll"</span><span class="o">]</span>
-     Creating new post: <span class="nb">source</span>/_posts/2012-01-18-octopress-and-jekyll.md
-
-    artsy.github.com<span class="nv">$ </span>git commit <span class="nt">-am</span> <span class="s2">"Octopress and Jekyll"</span>
-     1 files changed, 52 insertions<span class="o">(</span>+<span class="o">)</span>, 0 deletions<span class="o">(</span>-<span class="o">)</span>
-     create mode 100644 <span class="nb">source</span>/_posts/2012-01-18-octopress-and-jekyll.md
-
-    artsy.github.com<span class="nv">$ </span>rake deploy
-</code></pre></div></div>
-
-<p>(If you’re confused by the setup, check out <a href="http://code.dblock.org/octopress-setting-up-a-blog-and-contributing-to-an-existing-one">this post</a>).</p>
-
-<p>We believe in simple systems and love the opportunity to understand technology in-depth. Everything you see, short of the blog content and styles, is written in Ruby by very smart people. The source is open and free, which helps us learn and make progress, together.</p>
 
     
 
