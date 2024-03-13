@@ -10,11 +10,11 @@ author: [chris]
 Where to begin! Where to begin...
 
 Lets start with a good measure of success, one that I think most engineers could
-agree with: a from-scratch rebuild of a complex, internal tools app. Success
-with rebuilds is often fleeting, as many can attest. There's risk involved.
-Extending the challenge further, lets assign (most) of the task to a team of
-platform engineers who aren't too familiar with modern front-end technology --
-and then say that we succeeded.
+agree on: a from-scratch rebuild of a complex, internal tools app. Success with
+rebuilds is often fleeting, as many can attest. There's risk involved. Extending
+the challenge further, lets assign (most) of the task to a team of platform
+engineers who aren't too familiar with modern front-end technology -- and then
+say that we succeeded.
 
 Is Artsy crazy? Or is Next.js (along with our team 🙂) just that good? Well,
 it's a little of both. And it's a little bittersweet, in a way. Here's our tale.
