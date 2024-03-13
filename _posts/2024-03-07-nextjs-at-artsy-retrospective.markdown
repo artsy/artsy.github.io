@@ -221,10 +221,10 @@ that refactoring across RSC-`use client` boundaries is harder than one thought.
 I.e., if any piece of "client" (remember, 'use client' actually means SSR-safe)
 code _anywhere in the dependency tree_ happens to intersect an RSC boundary, the
 whole thing will fail. And this includes any use of React's `createContext` --
-because React Context's aren't supported. Given an app of any reasonable size,
-you're likely to rely on a context somewhere, as context's are so critical
-within the react hooks model of behavior. Said contexts might come from within
-your app, and if not there they'll certainly come from a 3rd party library.
+because React Contexts aren't supported. Given an app of any reasonable size,
+you're likely to rely on a context somewhere, as contexts are so critical within
+the react hooks model of behavior. Said contexts might come from within your
+app, and if not there they'll certainly come from a 3rd party library.
 
 One would expect the errors to be helpful in tracking this down -- Next.js is
 all about DX -- but no. Confusion reigns.
