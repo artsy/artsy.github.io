@@ -48,15 +48,35 @@ We leave discussions in the open, use slack threads to catch eachother up for th
 
 # Async Communication
 
-Papertrailing We are leaving a lot of breadcrumbs not only for eachother but it naturally becomes useful for the larger team. Decisions are discussed in the open and documented using our tools above. Leaving a nice papertrail and generating some natural documentation as we iterate. This allows other members of the team not working on this workstream to gain context and quickly get up to speed should they join us. *****
+Papertrailing We are leaving a lot of breadcrumbs not only for eachother but it naturally becomes useful for the larger team. Decisions are discussed in the open and documented using our tools above. Leaving a nice papertrail and generating some natural documentation as we iterate. This allows other members of the team not working on this workstream to gain context and quickly get up to speed should they join us.
+
+We make agreements regards our next steps that work as mini-contracts between the two of us. We constantly touchbase to
+review those, to interate on it and to come up with new ones. This ensures we do not step on each other's toes and it
+prevents us from spending half a period working on the coding portion of an idea that the other one might not even be
+onboard on a higher level. When reviewing code, we want to make the best usage of our time focusing on the solution for
+a well defined problem rather than bumping heads on the problem itself.
 
 # Discuss opportunities for parallelizable chunks of work
 
-Iterative and using the software we are building. Testing is engrained in our working process. Also end to end testing. One of us worked on the websockets front end integration **** add context *, while the other worked on designing a GraphQL layer for this work**** we could both move forward without blocking the other.
+Iterative and using the software we are building. Testing is engrained in our working process. Also end to end testing.
+One of us worked on the websockets front end integration **** add context *, while the other worked on designing a
+GraphQL layer for this work**** we could both move forward without blocking the other.
+
+One of Artsy's values, Impact Over Perfection, is crucial here. We keep that in mind to foster a collaborative environment
+aiming for the biggest impact. If the feature we're coming up with requires full end-to-end implementation, we do not
+want to block the client-side work by discussions around the backend patterns on a premature level. As soon as we have a
+clear definition of the high-level architecture we want to achieve, we build the basic mechanism to allow the API
+endpoints to return the relevant data (or to collect it). By early merging this, we unblock the client-side work to
+happen in parallel to further discussions regarding the back-end implementation details.
 
 # Overall baseline of true trust and how to build that culture
 
 Make it work and then refactor work, in the words of Sandi Metz, we have a working culture of red, green, and refactor. Get the main goals of the code working, add test coverage to document and capture a snapshot of the expected behavior. With these pillars in place, we can freely refactor with the safey of test coverage and not do too much at once ***
+
+We prioritise an ego-free space. Kicking off new chunks of work can be exciting, but supporting each other to get stuff
+through the finish line is what makes us great as a team. If there are critical discussions, blocker issues or pending
+code reviews to be made posing a challenge to one of us, the other one always prioritise these over pushing more topics
+to the queue.
 
 # In conclusion
 
