@@ -1,9 +1,9 @@
 ---
-name: writing-articles
+name: creating-articles
 description: Creates new blog posts for the Artsy Engineering blog. Use when the user wants to write, create, or start a new blog post or article.
 ---
 
-# Writing Articles
+# Creating Articles
 
 For full documentation, see [docs/authoring_articles.md](../../../docs/authoring_articles.md).
 
