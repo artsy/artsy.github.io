@@ -12,24 +12,19 @@ We would like to share with you some of the improvements we made that might also
 
 <!-- more -->
 
-## CI
-
-Thanks to being an open source project, Eigen was eligible to use Github Actions for free! Thanks to having modular scripts, and Github Actions and Circle CI having a more or less similar language/concept, this was a trivial migration for us that saved us a good amount of CircleCI tokens.
-
-
 ## Infra
 
 ### Expo!
 
-At the end of 2024, after an open RFC named [RFC: Trial Expo in Energy and/or Palette-Mobile, Spike on Eigen Risks, Rewards and Effort](https://github.com/artsy/README/issues/543), we decided that we are going ahead with Expo. Quickly afterwards, we added Expo with Prebuild on 2 out of 3 of our Apps: The CMS App, named Folio and our design system app, named Palette-Mobile.
+At the end of 2024, after [RFC: Trial Expo in Energy and/or Palette-Mobile, Spike on Eigen Risks, Rewards and Effort](https://github.com/artsy/README/issues/543), we decided that we are giving Expo a try. Quickly afterwards, we added Expo with Prebuild on 2 out of 3 of our Apps: The CMS App, named Folio and our design system app, named Palette-Mobile.
 
 For our main app, Eigen, adding `expo` sdk happened faster than we thought after [Microsoft decided to retire VS App Center](https://learn.microsoft.com/en-us/appcenter/retirement). We needed an alternative for code-push, and we settled for Expo over-the-air updates.
 
-Eigen still has a lot of native code blocking us from fully migrating to CNG. However, our experience from Energy and Palette-mobile has been positive so far, apart from needing to patch stuff, and we could imagine CNG in Eigen! We will definitely share more about this if it happens.
+Eigen still has a lot of native code blocking us from fully migrating to CNG and sometimes conflicting with Expo. However, our experience from Energy and Palette-mobile has been positive so far and we could imagine CNG in Eigen! We will definitely share more about this if it happens.
 
 ### The new architecture
 
-Yes! We did it. Expect a blog post about this!
+Yes! We did it, all our apps are on the new architecture now. Expect a blog post about this!
 
 ## Tech Debt
 
@@ -43,13 +38,13 @@ Not long ago, it was hard for us to imagine our navigation infra all handled in 
 
 ### Our city guide is now fully built with React Native - and is available for Android
 
-The city guide is an old RN component with lots of logic we had in the native side. Although we rarely had issues with it, it was pretty tricky to make any changes there.
+The city guide is an old RN component with lots of logic we had in the native side. Although we rarely had issues with it, it was pretty tricky to make any changes there. This migration makes it easier for our product teams to extend the city guide without sacrificing UX.
 
 ### Refactor our push notifications
 
-Our push notifications handling logic differed between iOS and Android, making it tricky to keep the same logic across both platforms because you would need to implement everything twice.
+Our push notifications handling logic differed between iOS and Android, making it tricky to keep the same logic across both platforms because you would need to implement everything twice - especially tracking.
 
-While migrating to the new architecture, we were able to consolidate both platforms thanks to `Notifee` - PR [here](https://github.com/artsy/eigen/pull/12668)
+While migrating to the new architecture, we were able to consolidate both platforms thanks to `Notifee` - PR [here](https://github.com/artsy/eigen/pull/12668).
 
 ### Better Keyboard handling
 
@@ -67,19 +62,19 @@ So far, we have plugins to debug navigation events, to inspect our bundle size, 
 
 ### Mise
 
-This is not specific to our mobile apps, but it's something we did in all our repos after: [RFC: Migrate from `asdf` to `mise`](https://github.com/artsy/README/issues/550) If you haven't tried it already, you are missing out on a lot. It just works, no drama!
+This is not specific to our mobile apps, but it's something we did in all our repos after: [RFC: Migrate from asdf to mise](https://github.com/artsy/README/issues/550) If you haven't tried it already, you are missing out on a lot. It just works, no drama!
 
 ### Yarn doctor and Yarn repair
 
 The most pain we had over the years in our major repo (Eigen), is when devs who don't work often in the repo get back to it. Quite often, dependency drift happened and fixing the environment isn't trivial. It's why we added these commands to help with some of the failures.
 
-### Better Betas overview
+### Better betas overview
 
 One annoyance we always had when working on branches that require creating multiple betas, is getting the build number. Since we moved our build process to happen on Github Actions, it was only natural to us that while we are at it, to comment the build number on Github.
 
-### Reduce Android build time by 75%
-
-Sometimes, you can make a major improvement with one line of code. This was the case here. Thanks to [Speeding up your Build phase](https://reactnative.dev/docs/build-speed#build-only-one-abi-during-development-android-only) we were able to reduce our build time by 75%. The idea is simple here, instead of building all 4 ABIs (`armeabi-v7a`, `arm64-v8a`, `x86` & `x86_64`), we build only the one that is relevant for us: `arm64-v8a`
+<center>
+<img src="/images/2026-01-09-artsy-mobile-2025-wrapped/beta-overview.png" />
+</center>
 
 ## Performance
 
@@ -119,12 +114,20 @@ We applied the same concept to most of our major screens and in many cases, we w
 
 ### FPS optimizations
 
-Here, the tips from Callstack's [Master React Native Performance Optimization](https://www.callstack.com/ebooks/the-ultimate-guide-to-react-native-optimization?kw=software%20development&cpn=22581956873&utm_term=software%20development&utm_campaign=&utm_source=google&utm_medium=paid&hsa_acc=7662033950&hsa_cam=22581956873&hsa_grp=178569467966&hsa_ad=753490869080&hsa_src=g&hsa_tgt=kwd-10542411&hsa_kw=software%20development&hsa_mt=b&hsa_net=adwords&hsa_ver=3&gad_source=1&gad_campaignid=22581956873&gbraid=0AAAAADNNiZfpOvOFcSqxmHuiFrMJ_srEi&gclid=CjwKCAiA64LLBhBhEiwA-Pxgu4sAzAniL4oCUuED8IQr-z9jIu_hvJ3HaYDxSuAYwaapDhwc0_QEGRoCOs8QAvD_BwE#form) where very useful to us and led to noticeable improvements in multiple surfaces.
+Here, the tips from Callstack's [Master React Native Performance Optimization](https://www.callstack.com/ebooks/the-ultimate-guide-to-react-native-optimization?kw=software%20development&cpn=22581956873&utm_term=software%20development&utm_campaign=&utm_source=google&utm_medium=paid&hsa_acc=7662033950&hsa_cam=22581956873&hsa_grp=178569467966&hsa_ad=753490869080&hsa_src=g&hsa_tgt=kwd-10542411&hsa_kw=software%20development&hsa_mt=b&hsa_net=adwords&hsa_ver=3&gad_source=1&gad_campaignid=22581956873&gbraid=0AAAAADNNiZfpOvOFcSqxmHuiFrMJ_srEi&gclid=CjwKCAiA64LLBhBhEiwA-Pxgu4sAzAniL4oCUuED8IQr-z9jIu_hvJ3HaYDxSuAYwaapDhwc0_QEGRoCOs8QAvD_BwE#form) were very useful to us and led to noticeable improvements in multiple surfaces.
 
 However, in some cases, they were not enough and we had to use some of the native debugging tools to investigate high CPU usage causing frame drops. What helped us was Xcode View Hierarchy, which revealed that we were always loading skeletons behind our images, even after the image was loaded.
 
 <img width="600" src="/images/2026-01-09-artsy-mobile-2025-wrapped/view-hierarchy.png">
 
+## CI
+
+### Migrating to Github Actions
+Thanks to being an open source project, Eigen was eligible to use Github Actions for free! Thanks to having modular scripts, and Github Actions and Circle CI having a more or less similar language/concept, this was a trivial migration for us that saved us a good amount of CircleCI tokens.
+
+### Reduce Android build time by 75%
+
+Sometimes, you can make a major improvement with one line of code. This was the case here. Thanks to [Speeding up your Build phase](https://reactnative.dev/docs/build-speed#build-only-one-abi-during-development-android-only) we were able to reduce our build time by 75%. The idea is simple here, instead of building all 4 ABIs (`armeabi-v7a`, `arm64-v8a`, `x86` & `x86_64`), we build only the one that is relevant for us: `arm64-v8a`
 
 
 ## What's next?
