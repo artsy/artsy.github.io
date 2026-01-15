@@ -4,6 +4,7 @@ title: Artsy Mobile 2025 Wrapped
 date: 2026-01-09
 author: mounir
 categories: [mobile, react-native, ios, android]
+comment_id: 780
 ---
 
 The past year has been an exciting one for our mobile apps (Artsy, Folio and Palette Mobile) and we started to finally get closer to where we want to be: **High-performing and developer-friendly React Native applications, enabling rapid feature iteration and a superior user experience.**
