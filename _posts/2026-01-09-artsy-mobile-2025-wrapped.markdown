@@ -20,7 +20,7 @@ At the end of 2024, after [RFC: Trial Expo in Energy and/or Palette-Mobile, Spik
 
 For our main app, Eigen, adding `expo` sdk happened faster than we thought after [Microsoft decided to retire VS App Center](https://learn.microsoft.com/en-us/appcenter/retirement). We needed an alternative for code-push, and we settled for Expo over-the-air updates.
 
-Eigen still has a lot of native code blocking us from fully migrating to CNG and sometimes conflicting with Expo. However, our experience from Energy and Palette-mobile has been positive so far and we could imagine CNG in Eigen! We will definitely share more about this if it happens.
+Eigen still has a lot of native code blocking us from fully migrating to Continue Native Generation (CNG) and sometimes conflicting with Expo. However, our experience from Energy and Palette-mobile has been positive so far and we could imagine CNG in Eigen! We will definitely share more about this if it happens.
 
 ### The new architecture
 
@@ -129,11 +129,22 @@ Thanks to being an open source project, Eigen was eligible to use Github Actions
 
 Sometimes, you can make a major improvement with one line of code. This was the case here. Thanks to [Speeding up your Build phase](https://reactnative.dev/docs/build-speed#build-only-one-abi-during-development-android-only) we were able to reduce our build time by 75%. The idea is simple here, instead of building all 4 ABIs (`armeabi-v7a`, `arm64-v8a`, `x86` & `x86_64`), we build only the one that is relevant for us: `arm64-v8a`
 
+## E2E Tests
+
+Reliable E2E testing in react-native is tricky. Over the years, we tried multiple tools but we never added them to our CI pipeline. 2025 was different, we added E2E test coverage to some of our critical user flows to facilitate QA. We settled for [Maestro](https://maestro.dev/) and we are looking forward to expanding our coverage in 2026.
+
+On Android, along with [Flashlight](https://docs.flashlight.dev/test/), this enabled us to also run performance tests, which were very useful when upgrading to the new architecture.
+
+### Other mentions
+
+- We migrated to a more secure secrets management library - `react-native-keys`
+- Significant Android quality increase - shout out to [mobile practice](https://github.com/artsy/README/blob/main/practices/mobile.md) and deciding to prefer Android screenshots and videos in PRs - we started the year with a 28-day average rating of 4.1 stars, ended with 4.8 stars and a default Google Play rating of 4.4 stars.
+- Established Performance SLAs (crash rate, query latency...)
 
 ## What's next?
 
 We're excited for what's ahead in 2026! The React Native ecosystem continues to mature, and we're looking forward to more stable releases that'll make our lives easier 🤞
 
-One area we're particularly excited about is improving our developer experience with AI tooling. We've started experimenting with Claude and leveraging Skills to make AI assistants more effective in our repos. The idea is simple: instead of the AI having to figure out our conventions every time, we can document our patterns, architecture decisions, and common tasks in a way that makes collaboration seamless. Early results have been promising, and we're excited to see how this evolves.
+One area we're particularly excited about is CNG and improving our developer experience with AI tooling. We've started experimenting with Claude and leveraging Skills to make AI assistants more effective in our repos. The idea is simple: instead of the AI having to figure out our conventions every time, we can document our patterns, architecture decisions, and common tasks in a way that makes collaboration seamless. Early results have been promising, and we're excited to see how this evolves.
 
 If you're interested in any of the topics we covered here, feel free to reach out! We will be happy to share more details about it.
