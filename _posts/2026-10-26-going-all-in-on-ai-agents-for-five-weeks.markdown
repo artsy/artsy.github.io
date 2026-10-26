@@ -1,6 +1,6 @@
 ---
 layout: epic
-title: What Five Weeks With AI Agents Taught Me
+title: "Going All In on AI Agents for Five Weeks: What I Learned"
 date: 2026-10-26
 author: mounir
 categories: [ai, mobile, engineering]
@@ -30,7 +30,7 @@ We had a tight deadline, one that I thought was impossible (SPOILER: I was wrong
 
 I'll leave you with a summary of how that went.
 
-![Fireworks experiment summary for City Guide](/images/2026-10-26-what-five-weeks-with-ai-agents-taught-me/city-guide-fireworks.png)
+![Fireworks experiment summary for City Guide](/images/2026-10-26-going-all-in-on-ai-agents-for-five-weeks/city-guide-fireworks.png)
 
 *One correction to the screenshot: the actual development work took five weeks, not eight. The screenshot covers the broader August 11–October 7 reporting period.*
 
