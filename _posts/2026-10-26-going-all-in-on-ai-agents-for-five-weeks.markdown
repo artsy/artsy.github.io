@@ -26,7 +26,7 @@ Then came August, and I was assigned to a product team again.
 
 It wasn't just a regular team. It was a team built to take advantage of the latest AI models and explore what's currently possible if we change the shape of teams and remove common bottlenecks.
 
-We had a tight deadline, one that I thought was impossible (SPOILER: I was wrong), to build a new product of moderate-to-large size: **City Guide**.
+We had a tight deadline, one that I thought was impossible (SPOILER: I was wrong), to almost entirely rebuild a product of moderate-to-large size: **City Guide**.
 
 I'll leave you with a summary of how that went.
 
@@ -42,7 +42,7 @@ The core work of software engineering remained the same. But how the work gets d
 
 Here's what I mean by this: building a strong design initially still pays off. Even with LLM help, I prefer to design the architecture myself, or at least own the decisions behind it.
 
-Think it through. SOLID principles still apply, and setting up the backbone of a feature correctly and applying the right design principles will make the job of your agents easier, just as it did when working with teams the old way.
+Think it through. [SOLID](https://en.wikipedia.org/wiki/SOLID) principles still apply, and setting up the backbone of a feature correctly and applying the right design principles will make the job of your agents easier, just as it did when working with teams the old way.
 
 But with one difference this time: you can afford to make mistakes and change the architecture, most of the time.
 
@@ -68,7 +68,7 @@ Do you remember the times when you needed to talk to a designer or a PM to sugge
 
 Those days are almost gone. Now it's easier than ever to generate prototypes. You can simply build the thing and demo it.
 
-Prototypes are also not just a way to showcase ideas, but a way to validate your interfaces and help validate your tech plan. You can quickly build something, see how it behaves, discover assumptions you hadn't considered, and use those learnings to improve your design before committing to the actual implementation.
+Prototypes are also not just a way to showcase ideas, but a way to validate your interfaces and help validate your tech plan. You can quickly build something, see how it behaves, discover assumptions you hadn't considered, and use those learnings to improve your design before committing to the actual implementation. For example, [this throwaway Metaphysics PR](https://github.com/artsy/metaphysics/pull/7884) helped us validate an API shape before building it for real.
 
 This was something I found really valuable, and I think it was a wow moment for me.
 
@@ -85,6 +85,8 @@ Eventually we changed the weights and improved the recommendation logic to our t
 I didn't go deep into every implementation detail or get too nitpicky about the code, and I was fine with that. Just as I'd be fine, as a tech lead, with an ML engineer building something whose inner workings I don't fully understand.
 
 As always, it's up to us engineers to decide when to cross our T's and dot our I's, and when to be fine with some knowledge gaps. But more than ever, ownership is key here. Being meticulous is good, but it can also hurt you and become a limiting factor.
+
+That comes at a cost, though, which I get into [below](#a-few-things-didnt-go-well-of-course).
 
 ### MCP integrations
 
@@ -131,6 +133,18 @@ But I also learned that the same gaps we had before still exist. If your QA plan
 During City Guide, we missed an Android-specific scenario in our QA flow, and that gap eventually made it into production. Fortunately, we were able to ship a fix using Expo Updates.
 
 It was a good reminder that agents make testing cheaper, not automatically complete. **Figuring out what to test is still our responsibility.**
+
+## A few things didn't go well, of course
+
+- **The small decisions that agents make** that we would usually reach out to a designer or PM about. Things like date formatting, whether to show the show's opening hours or the gallery's opening hours, which sorting order to use, how many items to display, how many lines of text to show before truncating it with an ellipsis, etc. These are small decisions individually, but they add up. **Agents don't just make technical decisions; they also make product and design decisions**, sometimes without us even realizing it.
+
+- **Thanks to the agents, I was able to deliver.** I know for sure they can sustain the pace. I don't know, though, if I myself can. Do you know that feeling when you're about to finish something and you stay another hour longer in the office to wrap it up? Well, with agents, you're almost always close to wrapping something up. And if you have remote control enabled, like I did, you end up doing more each day. It's very tempting when you can control the agents from your phone.
+
+- **I missed the humans in the loop.** Don't get me wrong, a few people were involved in the project and helped me make some design decisions in areas I don't feel comfortable with, but it wasn't enough. Having more people involved would have probably added friction, but at the same time, I would argue that it might have led to fewer changes, an architecture that more than one person understands, and we would have been able to continue with the project while I was busy getting married.
+
+- **I'm carrying cognitive debt.** If a recommendation looks off today, I can't always tell you why without asking an agent first. Multiply that across a codebase built this fast and you get code that works, but that fewer people understand than the amount of code would suggest. I tried to be strict where mistakes are costly or visible to users, like data access, privacy and the UI, and looser on internals that are easy to replace, like the scoring weights. I honestly don't know yet what that debt will cost us. Ask me again in a year.
+
+- **The same model's output quality changes noticeably from day to day.** I didn't run benchmarks to validate this, but I felt the difference between day 1 and day 7, especially with Opus. It was frustrating at times, and I had to switch to using ChatGPT models through Codex, some of which are now pretty good and produce very elegant code.
 
 ## Final thoughts
 
