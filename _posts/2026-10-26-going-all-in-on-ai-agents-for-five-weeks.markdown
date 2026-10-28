@@ -16,6 +16,8 @@ Right before switching to Sapphire, LLMs started getting better, and back then S
 
 Then came Opus 4.5. And oh boy.
 
+<!-- more -->
+
 It was the beginning of a new era. It was good. Really good. I enjoyed using it for infrastructure work, and I was able to ship a lot with it. I started really stretching it to see how far I could push it.
 
 I was able to ship some massive upgrades to our old API gateways that would have taken an unreasonable amount of engineering time before, and build in-house alternatives to tools we were paying thousands of dollars per year for.
